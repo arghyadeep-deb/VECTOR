@@ -36,7 +36,7 @@ observe(0.5s) → think(event-driven) → act(permission-gated) → reflect(2AM)
 600-800 → kimi-k2.6 access        0 HP    → death + ghost memory
 ```
 
-## JARVIS Gaps (build after Phase 1)
+## VECTOR Gaps (build after Phase 1)
 ```
 Gap 1: synthesis_bridge.py    — cross-domain pattern detection every 30min
 Gap 2: red_team_agent.py      — adversarial review before RED actions
