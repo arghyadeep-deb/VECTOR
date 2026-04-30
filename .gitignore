@@ -1,0 +1,40 @@
+# Secrets — never commit
+.env
+*.db
+*.db-shm
+*.db-wal
+google_credentials.json
+keyring_store/
+
+# Models — too large
+models/*.lgb
+models/*.gguf
+models/*.bin
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data — private
+data/raw/
+data/training/conversations/
+
+# IDE
+.idea/
+.vscode/settings.json

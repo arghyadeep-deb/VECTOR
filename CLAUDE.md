@@ -1,0 +1,14 @@
+# VECTOR — Claude Code Context
+
+**Project:** Virtual Entity for Cognitive Tasks & Operational Reasoning  
+**Owner:** Arghyadeep Deb | KIIT CSE 2023-27 | Legion Pro 5 | RTX 5070 Ti 12GB | 32GB RAM  
+**Path:** `"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"`  
+**Phase:** 1 of 3 | Building 8 core districts first
+
+@import .claude/rules/architecture.md
+@import .claude/rules/districts.md
+@import .claude/rules/code_style.md
+@import .claude/rules/libraries.md
+@import .claude/rules/models.md
+@import .claude/rules/commands.md
+@import .claude/rules/critical_rules.md

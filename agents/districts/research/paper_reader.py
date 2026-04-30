@@ -1,0 +1,8 @@
+'''
+Module: agents/districts/research/paper_reader.py
+Auto-generated stub.
+'''
+
+
+def run(*args, **kwargs):
+    return {'status':'stub','module':'agents/districts/research/paper_reader.py'}
