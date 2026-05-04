@@ -1,0 +1,95 @@
+Write core/memory/episodic.py for VECTOR.
+
+Required header:
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.config import CONFIG
+from loguru import logger
+import asyncio, uuid, json, sqlite3, datetime
+
+Use regular sqlite3 (not sqlcipher3 — that's added later).
+Database path: CONFIG['db_path']
+Enable WAL mode on connection.
+
+Create 6 tables on init:
+
+1. episodic_memory — regular table (not FTS5 for now):
+   id TEXT PRIMARY KEY, event_type TEXT, content TEXT,
+   tags TEXT, context_snapshot TEXT, timestamp TEXT, source TEXT
+
+2. semantic_memory:
+   key TEXT PRIMARY KEY, value TEXT, category TEXT,
+   confidence REAL DEFAULT 0.5, updated_at TEXT
+
+3. policy_memory:
+   action_type TEXT, situation_hash TEXT, avg_reward REAL,
+   sample_count INTEGER DEFAULT 0, last_updated TEXT,
+   PRIMARY KEY (action_type, situation_hash)
+
+4. reasoning_chains:
+   chain_id TEXT PRIMARY KEY, situation TEXT, goal_ids TEXT,
+   steps TEXT, action_taken TEXT, outcome TEXT,
+   reward REAL DEFAULT 0.0, is_training_data INTEGER DEFAULT 0,
+   timestamp TEXT
+
+5. skill_memory:
+   skill_name TEXT PRIMARY KEY, confidence REAL DEFAULT 0.5,
+   last_practiced TEXT, evidence TEXT, related_skills TEXT
+
+6. agent_history:
+   agent_id TEXT, agent_name TEXT, district TEXT,
+   generation INTEGER, final_hp INTEGER, ghost_memory TEXT,
+   died_at TEXT, PRIMARY KEY (agent_id, generation)
+
+class EpisodicMemory:
+  __init__(self): connect to DB, create tables, log ready
+
+  store(self, event_type, content, tags=None, context=None, source='vector') -> str
+    Generate UUID, insert row, return id. Log error never raise.
+
+  recall(self, query, limit=5, event_type=None) -> list[dict]
+    SELECT with LIKE %query% on content. Filter event_type if given.
+    Return list of row dicts. Return [] on any error.
+
+  remember(self, key, value, category='general', confidence=0.5) -> bool
+    INSERT OR REPLACE into semantic_memory. Return True/False.
+
+  recall_fact(self, key) -> dict | None
+    SELECT from semantic_memory by key.
+
+  store_chain(self, situation, goal_ids, steps, action, outcome, reward) -> str
+    Insert into reasoning_chains.
+    Set is_training_data=1 if reward > 0.7.
+    Return chain_id.
+
+  get_training_data(self, limit=100) -> list[dict]
+    SELECT where is_training_data=1 ORDER BY reward DESC LIMIT limit.
+
+  update_skill(self, skill_name, confidence, evidence=None)
+    INSERT OR REPLACE into skill_memory.
+
+  get_skill(self, skill_name) -> dict | None
+
+  get_stats(self) -> dict
+    Return count of rows in each table.
+
+  close(self)
+    Close DB connection.
+
+if __name__ == '__main__':
+    mem = EpisodicMemory()
+    id1 = mem.store('test', 'VECTOR started for first time', ['init','test'])
+    id2 = mem.store('task', 'Checked KIIT attendance', ['kiit','attendance'])
+    results = mem.recall('KIIT')
+    assert len(results) >= 1, 'recall failed'
+    mem.remember('owner_name', 'Arghyadeep', 'identity', 1.0)
+    fact = mem.recall_fact('owner_name')
+    assert fact is not None, 'recall_fact failed'
+    chain_id = mem.store_chain('exam tomorrow', ['study'], ['opened notes','read chapter'], 'set reminder', 'reminder set', 0.9)
+    training = mem.get_training_data()
+    assert len(training) >= 1, 'training data failed'
+    stats = mem.get_stats()
+    print(stats)
+    mem.close()
+    print('✅ episodic.py OK')

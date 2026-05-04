@@ -1,0 +1,129 @@
+Write core/main.py for VECTOR.
+
+Required header:
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.config import CONFIG
+from loguru import logger
+import datetime, time, asyncio, httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import ollama
+
+app = FastAPI(title='VECTOR', version=CONFIG['version'])
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
+
+START_TIME = datetime.datetime.utcnow()
+
+Request models:
+  CommandRequest: text: str, source: str = 'text', priority: str = 'normal'
+  VoiceResponse: transcript: str, response: str, language_detected: str
+  AgentAwardRequest: agent_id: str, points: int, reason: str
+  CouncilRequest: question: str, stakes: str = 'medium', context_override: dict = None
+
+def session_hydration_prompt() -> str:
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    return f'You are VECTOR. Owner: Arghyadeep Deb. Time: {now}. Environment: {CONFIG["env"]}. Respond as VECTOR — measured British precision, dry wit, never sycophantic.'
+
+@app.on_event('startup')
+async def startup():
+    logger.info('[VECTOR][main] Starting VECTOR...')
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f'{CONFIG["ollama_host"]}/api/tags', timeout=5)
+            models = [m["name"] for m in r.json().get("models", [])]
+            logger.info(f'[VECTOR][main] Ollama online. Models: {len(models)} available')
+            if CONFIG["models"]["focus"] in models:
+                logger.info(f'[VECTOR][main] vector-focus confirmed ready')
+            else:
+                logger.warning(f'[VECTOR][main] vector-focus NOT found in Ollama')
+    except Exception as e:
+        logger.error(f'[VECTOR][main] Ollama check failed: {e}')
+    logger.info(f'[VECTOR][main] VECTOR online at http://127.0.0.1:8000')
+
+@app.get('/health')
+async def health():
+    return {'status': 'ok', 'timestamp': datetime.datetime.utcnow().isoformat(), 'version': CONFIG['version']}
+
+@app.get('/status')
+async def status():
+    uptime = (datetime.datetime.utcnow() - START_TIME).seconds
+    return {
+        'loop_running': False,
+        'uptime_seconds': uptime,
+        'models': {'focus': 'loaded'},
+        'memory': {'episodic_rows': 0, 'policy_rows': 0},
+        'last_reflect': None,
+        'vector_version': CONFIG['version']
+    }
+
+@app.post('/command')
+@limiter.limit('60/minute')
+async def command(request: Request, body: CommandRequest):
+    start = time.perf_counter()
+    hydration = session_hydration_prompt()
+    full_prompt = f'{hydration}\n\nUser: {body.text}'
+    try:
+        response = ollama.chat(
+            model=CONFIG['models']['focus'],
+            messages=[{'role': 'user', 'content': full_prompt}]
+        )
+        reply = response['message']['content']
+    except Exception as e:
+        logger.error(f'[VECTOR][main] ollama.chat failed: {e}')
+        reply = 'I apologise, sir — model unavailable. Attempting fallback.'
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+    logger.info(f'[VECTOR][main] Command processed in {elapsed_ms}ms')
+    return {
+        'response': reply,
+        'action_taken': None,
+        'candidates_evaluated': 1,
+        'winner_score': 0.8,
+        'memory_updated': False,
+        'processing_ms': elapsed_ms
+    }
+
+@app.post('/voice')
+async def voice():
+    return {'transcript': 'Voice endpoint coming Day 3', 'response': 'Whisper integration pending', 'language_detected': 'en'}
+
+@app.post('/agent/award')
+async def agent_award(body: AgentAwardRequest):
+    return {'new_hp': 500 + body.points, 'status': 'healthy', 'model_upgraded': False, 'note': 'AgentRegistry coming Day 2'}
+
+@app.get('/agent/list')
+async def agent_list():
+    return {'agents': [], 'count': 0, 'note': 'Districts coming Day 2'}
+
+@app.post('/council')
+async def council(body: CouncilRequest):
+    try:
+        response = ollama.chat(
+            model=CONFIG['models']['chairman'],
+            messages=[{'role': 'user', 'content': f'Council question: {body.question}\nStakes: {body.stakes}'}]
+        )
+        return {
+            'session_id': 'placeholder',
+            'chairman_decision': response['message']['content'],
+            'confidence': 0.8,
+            'stored_as_training_data': False
+        }
+    except Exception as e:
+        logger.error(f'[VECTOR][main] Council failed: {e}')
+        raise HTTPException(503, 'Chairman model unavailable')
+
+@app.post('/gateway/confirm')
+async def gateway_confirm(action_type: str):
+    return {'confirmed': True, 'note': 'Gateway wiring coming Day 2'}
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run('core.main:app', host='127.0.0.1', port=8000, reload=False)

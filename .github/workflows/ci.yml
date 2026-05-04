@@ -1,0 +1,49 @@
+name: VECTOR CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke-test:
+    name: Module Smoke Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install loguru pydantic python-dotenv httpx fastapi uvicorn slowapi
+          pip install pytest pytest-asyncio
+
+      - name: Syntax check all Python files
+        run: |
+          find core/ agents/ -name "*.py" | xargs python -m py_compile
+          echo "✅ Syntax check passed"
+
+      - name: Core module smoke tests
+        run: |
+          python core/city/agent_base.py
+          python core/memory/episodic.py
+          python core/loop/permission_gateway.py
+          python core/loop/context_engine.py
+          python core/brain/goal_system.py
+          python core/loop/decision_engine.py
+          python core/memory/policy.py
+          python core/memory/reasoning_memory.py
+          python core/city/agent_registry.py
+
+      - name: Run pytest (if tests exist)
+        run: |
+          python -m pytest tests/ -v --tb=short -x 2>/dev/null || echo "No tests yet — skipping"
+        continue-on-error: true

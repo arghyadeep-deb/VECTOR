@@ -12,3 +12,4 @@
 @import .claude/rules/models.md
 @import .claude/rules/commands.md
 @import .claude/rules/critical_rules.md
+@import .claude/rules/phase_status.md

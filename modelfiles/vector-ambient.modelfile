@@ -7,6 +7,9 @@ PARAMETER top_k 20
 PARAMETER num_ctx 4096
 PARAMETER num_predict 128
 PARAMETER repeat_penalty 1.05
+PARAMETER num_gpu 99
+PARAMETER num_thread 8
+PARAMETER num_batch 512
 
 # ── System Prompt ────────────────────────────────────────────────────────────
 SYSTEM """

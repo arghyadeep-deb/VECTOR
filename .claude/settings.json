@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(ollama list)",
+      "Bash(ollama run *)",
+      "Bash(ollama create *)",
+      "Bash(ollama show *)",
+      "Bash(ollama pull *)",
+      "Bash(git status)",
+      "Bash(git status --short)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git show *)",
+      "Bash(pip install *)",
+      "Bash(pip list)",
+      "Bash(sqlite3 *)",
+      "Bash(nvidia-smi)",
+      "Bash(dir *)",
+      "Bash(type *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import py_compile,sys; f=sys.argv[1]; py_compile.compile(f,doraise=True) if f.endswith('.py') else None\" \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>&1 | head -5",
+            "timeout": 8000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git status --short 2>&1 | head -25"
+          }
+        ]
+      }
+    ]
+  }
+}
