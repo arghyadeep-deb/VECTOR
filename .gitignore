@@ -38,3 +38,6 @@ data/training/conversations/
 # IDE
 .idea/
 .vscode/settings.json
+
+# Brain vault junction — local only, do not commit
+brain/
