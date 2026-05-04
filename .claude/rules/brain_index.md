@@ -46,5 +46,29 @@ brain/
 └── wiki/                — structured wiki entries
 ```
 
+## Claude Code Agents (live in brain — read on-demand, never copied)
+All agents are at `brain/.claude/agents/`. Read before using as a subagent context.
+- `vector-coder.md` — coding District 4, GitBot, code review
+- `vector-comms.md` — comms District 6, Hermes gateway
+- `vector-memory-curator.md` — memory District 7, LightRAG, episodic
+- `vector-researcher.md` — research District, OpenCLI, ArXiv
+- `vector-security.md` — security District, ThreatScout
+- `architect.md`, `code-architect.md`, `code-explorer.md` — architecture + exploration
+- `loop-operator.md` — autonomous loop operations
+- `planner.md`, `chief-of-staff.md` — planning + comms management
+- `addy-code-reviewer.md`, `obra-code-reviewer.md` — code review
+- `performance-optimizer.md`, `refactor-cleaner.md`, `security-auditor.md` — quality
+- `silent-failure-hunter.md`, `test-engineer.md` — testing + failure detection
+
+## Claude Code Commands (live in brain — read on-demand)
+Brain commands at `brain/.claude/commands/`. Key ones:
+- `loop-start.md`, `loop-status.md` — autonomous loop management
+- `district.md` — scaffold a new district
+- `karpathy.md` — 30min daily Karpathy session tracker
+- `quality-gate.md`, `verify.md`, `checkpoint.md` — quality checks
+- `orchestrate.md`, `multi-plan.md`, `multi-execute.md` — multi-agent workflows
+- `save-session.md`, `resume-session.md` — session persistence
+- `evolve.md`, `rules-distill.md` — VECTOR self-improvement
+
 ## Knowledge Graph
 For broad questions about the vault's concepts and relationships, read `brain/graphify-out/GRAPH_REPORT.md` first — it maps the highest-connectivity nodes.

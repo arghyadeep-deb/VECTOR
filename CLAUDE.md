@@ -14,7 +14,7 @@
 @import .claude/rules/critical_rules.md
 @import .claude/rules/phase_status.md
 
-@import .claude/rules/owner_context.md
+@import brain/CLAUDE.md
 @import brain/VECTOR/Architecture.md
 @import brain/VECTOR/Roadmap.md
 @import .claude/rules/brain_index.md
