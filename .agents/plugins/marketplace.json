@@ -1,0 +1,89 @@
+{
+  "name": "vector-dev-skills",
+  "version": "1.0.0",
+  "description": "Antigravity plugin bundle for building VECTOR — AI agent architecture, async Python, LangGraph, RAG, FastAPI, and VECTOR-specific development skills.",
+  "author": {
+    "name": "Arghyadeep Deb",
+    "url": "https://github.com/arghyadeep-deb/VECTOR"
+  },
+  "plugins": [
+    {
+      "name": "vector-core-skills",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "VECTOR Development",
+      "description": "Core VECTOR development skills: test runner, commit, district scaffold, modelfile manager, antigravity workflow"
+    },
+    {
+      "name": "ai-agents-architect",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills/ai-agents-architect"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "AI & Agents",
+      "description": "Design VECTOR districts, multi-agent council, HP system, permission gateway patterns"
+    },
+    {
+      "name": "async-python-patterns",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills/async-python-patterns"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "Python",
+      "description": "asyncio patterns for VECTOR's autonomous loop, voice pipeline, and concurrent I/O"
+    },
+    {
+      "name": "langgraph",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills/langgraph"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "AI & Agents",
+      "description": "LangGraph for VECTOR district pipelines, governance council graph, and RED-tier human-in-the-loop"
+    },
+    {
+      "name": "rag-engineer",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills/rag-engineer"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "AI & Agents",
+      "description": "LightRAG + nomic-embed-text + FTS5 hybrid search for VECTOR memory_curator"
+    },
+    {
+      "name": "fastapi-pro",
+      "source": {
+        "source": "local",
+        "path": "../../.claude/skills/fastapi-pro"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "Backend",
+      "description": "FastAPI async patterns for VECTOR's core/main.py and cloud API layer"
+    }
+  ]
+}
