@@ -32,14 +32,28 @@ class VoiceTTS:
     def _init_kokoro(self):
         try:
             from kokoro_onnx import Kokoro
-            model_file = self._model_dir / "kokoro-v1.0.onnx"
             voices_file = self._model_dir / "voices-v1.0.bin"
+            # Prefer GPU fp16 model if onnxruntime-gpu is present, fall back to CPU model
+            gpu_model = self._model_dir / "kokoro-v1.0.fp16-gpu.onnx"
+            cpu_model = self._model_dir / "kokoro-v1.0.onnx"
+            if gpu_model.exists() and voices_file.exists():
+                try:
+                    import onnxruntime as ort
+                    if "CUDAExecutionProvider" in ort.get_available_providers():
+                        model_file = gpu_model
+                        logger.info("[VECTOR][tts] Using GPU fp16 Kokoro model")
+                    else:
+                        model_file = cpu_model
+                except Exception:
+                    model_file = cpu_model
+            else:
+                model_file = cpu_model
             if not model_file.exists() or not voices_file.exists():
                 logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir} — using pyttsx3 fallback")
                 return
             self._kokoro = Kokoro(str(model_file), str(voices_file))
             self._kokoro_ok = True
-            logger.info("[VECTOR][tts] Kokoro TTS ready")
+            logger.info(f"[VECTOR][tts] Kokoro TTS ready ({model_file.name})")
         except Exception as e:
             logger.warning(f"[VECTOR][tts] Kokoro init failed: {e}")
 
