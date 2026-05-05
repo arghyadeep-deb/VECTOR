@@ -6,12 +6,14 @@ from loguru import logger
 
 
 class LanguageDetector:
+    # Kokoro voices: en-gb→bf_emma | hi→hf_alpha | ja→jf_alpha
+    # bn/as: Google Cloud TTS (not yet wired) — pyttsx3 fallback for now
     VOICE_MAP = {
         "en": "bf_emma",
         "hi": "hf_alpha",
-        "bn": "bn",
-        "as": "as",
         "ja": "jf_alpha",
+        "bn": None,   # Google Cloud TTS — TODO T6
+        "as": None,   # Google Cloud TTS — TODO T6
     }
     SUPPORTED = set(VOICE_MAP.keys())
 

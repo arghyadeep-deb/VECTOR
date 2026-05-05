@@ -5,13 +5,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
-_VOICE_MAP = {
+# Kokoro-supported voices only. bn/as not supported by Kokoro — routed to pyttsx3 fallback.
+_KOKORO_VOICE_MAP = {
     "en": "bf_emma",
     "hi": "hf_alpha",
-    "bn": "bn",
-    "as": "as",
     "ja": "jf_alpha",
 }
+_KOKORO_UNSUPPORTED = {"bn", "as"}  # Google Cloud TTS eventually; pyttsx3 for now
 
 
 class VoiceTTS:
@@ -68,16 +68,19 @@ class VoiceTTS:
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
             return
-        if self._kokoro_ok:
+        # bn/as not supported by Kokoro — use pyttsx3 (Google Cloud TTS in future)
+        if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
         else:
+            if lang in _KOKORO_UNSUPPORTED:
+                logger.info(f"[VECTOR][tts] {lang} not in Kokoro — using pyttsx3 (Google TTS TODO)")
             self._speak_pyttsx3(text)
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
         try:
             import sounddevice as sd
             import numpy as np
-            voice = _VOICE_MAP.get(lang, _VOICE_MAP["en"])
+            voice = _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
             samples, sample_rate = self._kokoro.create(text, voice=voice, speed=self._speed)
             logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}...' voice={voice}")
             sd.play(samples.astype(np.float32), samplerate=sample_rate)

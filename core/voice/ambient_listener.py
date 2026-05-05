@@ -7,11 +7,23 @@ from loguru import logger
 from core.config import CONFIG
 
 
+_END_PHRASES = {"that's all vector", "thats all vector", "stop vector", "goodbye vector"}
+_WAKE_MODES = {
+    "hey_jarvis": "conversation",     # → "Hey VECTOR" (placeholder)
+    "hey_vector": "conversation",     # future custom model
+    "vector_think": "deep_think",     # → "VECTOR think"
+    "vector_private": "private",      # → "VECTOR private"
+}
+_SILENCE_TIMEOUT_SEC = 45.0
+
+
 class AmbientListener:
     """
     Orchestrates the full voice pipeline:
     wake_word → STT → language_detect → intent classify (Ollama) → permission_gateway → TTS
 
+    Three wake phrases: "Hey VECTOR" (conversation), "VECTOR think" (deep), "VECTOR private".
+    Session ends on "That's all VECTOR" or 45s silence.
     Called from autonomous_loop._observe_tick() every 0.5s.
     listen_tick() is non-blocking and never raises (RULE 2).
     """
@@ -22,8 +34,9 @@ class AmbientListener:
         self._tts = None
         self._lang = None
         self._gateway = None
-        self._listening_for_wake = False
         self._wake_task: asyncio.Task | None = None
+        self._session_active = False
+        self._last_speech_time: float = 0.0
         self._init_components()
 
     def _init_components(self):
@@ -82,58 +95,84 @@ class AmbientListener:
         except Exception as e:
             logger.error(f"[VECTOR][voice] _wake_and_handle error: {e}")
 
-    async def handle_voice_input(self) -> None:
+    def _is_end_phrase(self, text: str) -> bool:
+        return text.strip().lower() in _END_PHRASES
+
+    async def handle_voice_input(self, mode: str = "conversation") -> None:
         """
         Full pipeline after wake word detected.
         RULE 1: session_hydration_prompt() before Ollama call.
         RULE 3: all actions through permission_gateway.execute().
         Never raises (RULE 2).
+        Runs until end-phrase or 45s silence (per Architecture.md).
         """
+        import time
+        self._session_active = True
+        self._last_speech_time = time.time()
+        logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) — session open")
+
         try:
-            logger.info("[VECTOR][voice] WAKE detected — recording...")
+            while self._session_active:
+                # Timeout check
+                if time.time() - self._last_speech_time > _SILENCE_TIMEOUT_SEC:
+                    logger.info("[VECTOR][voice] 45s silence — session closed")
+                    self._session_active = False
+                    break
 
-            # 1. Transcribe
-            text = ""
-            if self._stt:
-                duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
-                text = self._stt.record_and_transcribe(duration_sec=duration)
-            if not text:
-                logger.info("[VECTOR][voice] Empty transcription — aborting")
-                return
+                # 1. Transcribe
+                text = ""
+                if self._stt:
+                    duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
+                    text = self._stt.record_and_transcribe(duration_sec=duration)
+                if not text:
+                    await asyncio.sleep(0.5)
+                    continue
 
-            logger.info(f"[VECTOR][voice] TRANSCRIBE: '{text}'")
+                self._last_speech_time = time.time()
 
-            # 2. Detect language
-            lang = "en"
-            if self._lang:
-                lang = self._lang.detect(text)
+                # End phrase check
+                if self._is_end_phrase(text):
+                    logger.info("[VECTOR][voice] End phrase — session closed")
+                    if self._tts:
+                        self._tts.speak("Goodbye.", lang="en")
+                    self._session_active = False
+                    break
 
-            # 3. RULE 1 — session_hydration_prompt before LLM call
-            from core.loop.context_engine import ContextEngine
-            ctx = ContextEngine()
-            hydration = ctx.session_hydration_prompt()
+                logger.info(f"[VECTOR][voice] TRANSCRIBE: '{text}'")
 
-            # 4. Classify intent via Ollama vector-ambient
-            intent = await self._classify_intent(text, hydration)
-            action_type = intent.get("action_type", "search_web")
-            params = intent.get("params", {"query": text})
+                # 2. Detect language
+                lang = "en"
+                if self._lang:
+                    lang = self._lang.detect(text)
 
-            logger.info(f"[VECTOR][voice] THINK: {action_type} {params}")
+                # 3. RULE 1 — session_hydration_prompt before LLM call
+                from core.loop.context_engine import ContextEngine
+                ctx = ContextEngine()
+                hydration = ctx.session_hydration_prompt()
 
-            # 5. RULE 3 — all actions through permission_gateway
-            from core.loop.permission_gateway import PermissionGateway, Action
-            gw = self._get_gateway()
-            action = Action(action_type=action_type, params=params, source="voice")
-            result = await gw.execute(action)
+                # 4. Classify intent via Ollama vector-ambient
+                intent = await self._classify_intent(text, hydration)
+                action_type = intent.get("action_type", "search_web")
+                params = intent.get("params", {"query": text})
 
-            # 6. Speak response
-            response_text = result.get("message", f"Done: {action_type}")
-            logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
-            if self._tts:
-                self._tts.speak(response_text, lang=lang)
+                logger.info(f"[VECTOR][voice] THINK: {action_type} {params}")
+
+                # 5. RULE 3 — all actions through permission_gateway
+                from core.loop.permission_gateway import Action
+                gw = self._get_gateway()
+                action = Action(action_type=action_type, params=params, source="voice")
+                result = await gw.execute(action)
+
+                # 6. Speak response
+                response_text = result.get("message", f"Done: {action_type}")
+                logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
+                if self._tts:
+                    self._tts.speak(response_text, lang=lang)
 
         except Exception as e:
             logger.error(f"[VECTOR][voice] handle_voice_input error: {e}")
+        finally:
+            self._session_active = False
 
     async def _classify_intent(self, text: str, hydration: str) -> dict:
         """Call vector-ambient model to classify intent → {action_type, params}."""
