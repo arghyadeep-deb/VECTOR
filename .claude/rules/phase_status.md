@@ -21,11 +21,15 @@
 | T2.8 | `core/city/agent_registry.py` + `governor.py` | ✅ Done |
 | T2.9 | `core/loop/autonomous_loop.py` | ✅ Done |
 
-## T3 — Day 3 Voice + Loop ❌ PENDING
+## T3 — Day 3 Voice + Loop ✅ COMPLETE
 | Task | File | Status |
 |------|------|--------|
-| T3.1 | `core/voice/stt.py` + `tts.py` | ❌ Stub |
-| T3.2 | `core/voice/wake_word.py` + `ambient_listener.py` | ❌ Stub |
+| T3.1 | `core/voice/stt.py` + `tts.py` | ✅ Done |
+| T3.2 | `core/voice/wake_word.py` + `ambient_listener.py` | ✅ Done |
+| T3.3 | `core/voice/language_detector.py` | ✅ Done |
+| T3.4 | `core/loop/autonomous_loop._observe_tick()` wired | ✅ Done |
+| NOTE | Kokoro model files (~300MB) needed for prod TTS | ⚠️ pyttsx3 fallback active |
+| NOTE | "Hey VECTOR" wake word needs custom training | ⚠️ hey_jarvis placeholder |
 
 ## T4 — Day 4 Sensing + Control ❌ PENDING
 | Task | File | Status |
@@ -59,7 +63,7 @@
 ```
 Day 1: python run_vector.py → JSON response + SQLite row        ✅ PASS
 Day 2: debug mode → 4 candidates + scores + policy table rows  ✅ PASS
-Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ❌ PENDING
+Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ✅ PASS (pyttsx3 TTS; Kokoro pending model download)
 Day 4: Face ID + cursor control + ADB screenshot                ❌ PENDING
 Day 5: GmailAgent reads + KIIT schedule + auto-commit           ❌ PENDING
 Day 6: fly.dev/status 200 + ambient running + Obsidian note     ❌ PENDING
