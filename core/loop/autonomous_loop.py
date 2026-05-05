@@ -24,6 +24,7 @@ class AutonomousLoop:
         self._decision_engine = None
         self._governor = None
         self._memory = None
+        self._ambient = None
         logger.info("[VECTOR][autonomous_loop] initialized")
 
     def _get_context(self):
@@ -71,8 +72,11 @@ class AutonomousLoop:
             await asyncio.sleep(interval)
 
     async def _observe_tick(self):
-        """Single observation tick. T3/T4 will add voice, camera, ADB sensors."""
-        pass
+        """Single observation tick. Delegates to AmbientListener (T3 voice pipeline)."""
+        if self._ambient is None:
+            from core.voice.ambient_listener import AmbientListener
+            self._ambient = AmbientListener()
+        await self._ambient.listen_tick()
 
     # ─── Think ────────────────────────────────────────────────────────────────
 

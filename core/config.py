@@ -67,6 +67,15 @@ CONFIG = {
     },
     "council": {"max_per_week": 10, "hp_gate": 700, "cost_inr": 1.60},
     "cost": {"monthly_budget_inr": 500, "alert_inr": 400},
+    "voice": {
+        "whisper_model": "base",
+        "kokoro_model_dir": "./models/kokoro",
+        "kokoro_speed": 0.85,
+        "wake_threshold": 0.5,
+        "record_duration_sec": 5.0,
+        "sample_rate": 16000,
+        "wake_phrase": "hey_jarvis",   # placeholder until "Hey VECTOR" custom model trained
+    },
 }
 
 def get(key, default=None):

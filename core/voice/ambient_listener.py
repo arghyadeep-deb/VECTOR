@@ -1,8 +1,197 @@
-'''
-Module: core/voice/ambient_listener.py
-Auto-generated stub.
-'''
+import sys
+import asyncio
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'core/voice/ambient_listener.py'}
+class AmbientListener:
+    """
+    Orchestrates the full voice pipeline:
+    wake_word → STT → language_detect → intent classify (Ollama) → permission_gateway → TTS
+
+    Called from autonomous_loop._observe_tick() every 0.5s.
+    listen_tick() is non-blocking and never raises (RULE 2).
+    """
+
+    def __init__(self):
+        self._wake = None
+        self._stt = None
+        self._tts = None
+        self._lang = None
+        self._gateway = None
+        self._listening_for_wake = False
+        self._wake_task: asyncio.Task | None = None
+        self._init_components()
+
+    def _init_components(self):
+        try:
+            from core.voice.wake_word import WakeWordDetector
+            self._wake = WakeWordDetector()
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] WakeWordDetector init failed: {e}")
+
+        try:
+            from core.voice.stt import WhisperSTT
+            self._stt = WhisperSTT()
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] WhisperSTT init failed: {e}")
+
+        try:
+            from core.voice.tts import VoiceTTS
+            self._tts = VoiceTTS()
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] VoiceTTS init failed: {e}")
+
+        try:
+            from core.voice.language_detector import LanguageDetector
+            self._lang = LanguageDetector()
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] LanguageDetector init failed: {e}")
+
+    def _get_gateway(self):
+        if self._gateway is None:
+            from core.loop.permission_gateway import PermissionGateway
+            self._gateway = PermissionGateway()
+        return self._gateway
+
+    async def listen_tick(self) -> None:
+        """
+        Called every 0.5s from observe_loop. Non-blocking.
+        Starts a background wake-word listener if not already running.
+        When wake word fires, handle_voice_input() takes over.
+        Never raises (RULE 2).
+        """
+        try:
+            if self._wake is None:
+                return
+            # Spin up wake-word background task once
+            if self._wake_task is None or self._wake_task.done():
+                self._wake_task = asyncio.create_task(self._wake_and_handle())
+        except Exception as e:
+            logger.error(f"[VECTOR][voice] listen_tick error: {e}")
+
+    async def _wake_and_handle(self) -> None:
+        """Background task: wait for wake word, then handle voice input."""
+        try:
+            detected = await self._wake.listen_for_wake()
+            if detected:
+                await self.handle_voice_input()
+        except Exception as e:
+            logger.error(f"[VECTOR][voice] _wake_and_handle error: {e}")
+
+    async def handle_voice_input(self) -> None:
+        """
+        Full pipeline after wake word detected.
+        RULE 1: session_hydration_prompt() before Ollama call.
+        RULE 3: all actions through permission_gateway.execute().
+        Never raises (RULE 2).
+        """
+        try:
+            logger.info("[VECTOR][voice] WAKE detected — recording...")
+
+            # 1. Transcribe
+            text = ""
+            if self._stt:
+                duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
+                text = self._stt.record_and_transcribe(duration_sec=duration)
+            if not text:
+                logger.info("[VECTOR][voice] Empty transcription — aborting")
+                return
+
+            logger.info(f"[VECTOR][voice] TRANSCRIBE: '{text}'")
+
+            # 2. Detect language
+            lang = "en"
+            if self._lang:
+                lang = self._lang.detect(text)
+
+            # 3. RULE 1 — session_hydration_prompt before LLM call
+            from core.loop.context_engine import ContextEngine
+            ctx = ContextEngine()
+            hydration = ctx.session_hydration_prompt()
+
+            # 4. Classify intent via Ollama vector-ambient
+            intent = await self._classify_intent(text, hydration)
+            action_type = intent.get("action_type", "search_web")
+            params = intent.get("params", {"query": text})
+
+            logger.info(f"[VECTOR][voice] THINK: {action_type} {params}")
+
+            # 5. RULE 3 — all actions through permission_gateway
+            from core.loop.permission_gateway import PermissionGateway, Action
+            gw = self._get_gateway()
+            action = Action(action_type=action_type, params=params, source="voice")
+            result = await gw.execute(action)
+
+            # 6. Speak response
+            response_text = result.get("message", f"Done: {action_type}")
+            logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
+            if self._tts:
+                self._tts.speak(response_text, lang=lang)
+
+        except Exception as e:
+            logger.error(f"[VECTOR][voice] handle_voice_input error: {e}")
+
+    async def _classify_intent(self, text: str, hydration: str) -> dict:
+        """Call vector-ambient model to classify intent → {action_type, params}."""
+        try:
+            import httpx
+            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            model = CONFIG["models"]["ambient"]
+            prompt = (
+                f"{hydration}\n\n"
+                f"User said: {text}\n\n"
+                "Classify into JSON: {\"action_type\": \"...\", \"params\": {...}}\n"
+                "action_type must be one of: search_web, set_timer, play_music, "
+                "take_screenshot, check_weather, check_attendance, set_reminder, "
+                "read_calendar, create_calendar_event, commit_code, download_file\n"
+                "Respond with ONLY valid JSON, no explanation."
+            )
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    f"{ollama_host}/api/generate",
+                    json={"model": model, "prompt": prompt, "stream": False},
+                )
+                resp.raise_for_status()
+                raw = resp.json().get("response", "")
+                import json
+                start = raw.find("{")
+                end = raw.rfind("}") + 1
+                if start != -1 and end > start:
+                    return json.loads(raw[start:end])
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to search_web")
+        return {"action_type": "search_web", "params": {"query": text}}
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    async def _smoke():
+        listener = AmbientListener()
+        # Test that all components initialized
+        components = {
+            "wake": listener._wake is not None,
+            "stt": listener._stt is not None,
+            "tts": listener._tts is not None,
+            "lang": listener._lang is not None,
+        }
+        logger.info(f"[VECTOR][voice] Components: {components}")
+
+        # Test listen_tick doesn't crash (no mic in CI — just verifies it creates a task)
+        await listener.listen_tick()
+        # Cancel the background wake task immediately
+        if listener._wake_task and not listener._wake_task.done():
+            listener._wake_task.cancel()
+            try:
+                await listener._wake_task
+            except asyncio.CancelledError:
+                pass
+
+        all_ok = all(components.values())
+        print(f"✅ ambient_listener OK {components}" if all_ok else f"⚠️ ambient_listener partial {components}")
+
+    asyncio.run(_smoke())
