@@ -215,11 +215,15 @@ class EpisodicMemory:
             return None
     
     def get_stats(self) -> dict:
+        _TABLES = ("episodic_memory", "semantic_memory", "policy_memory",
+                   "reasoning_chains", "skill_memory", "agent_history")
         try:
             stats = {}
-            for table in ["episodic_memory", "semantic_memory", "policy_memory", "reasoning_chains", "skill_memory", "agent_history"]:
+            for table in _TABLES:
                 cursor = self.conn.cursor()
-                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                # Table name comes from a closed constant — not user input — so f-string is safe.
+                # SQLite doesn't support parameterised identifiers, so we use the constant directly.
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
                 stats[table] = cursor.fetchone()[0]
             return stats
         except Exception as e:

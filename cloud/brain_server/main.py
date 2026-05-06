@@ -9,13 +9,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import uvicorn
 
 _START_TIME = time.time()
 _last_heartbeat: Optional[str] = None
 _heartbeat_data: dict = {}
+
+# API key read from environment — never hardcoded
+_API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
+_PUBLIC_PATHS = {"/status", "/health", "/docs", "/openapi.json", "/redoc"}
 
 app = FastAPI(
     title="VECTOR Brain Server",
@@ -30,6 +35,20 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _auth_middleware(request: Request, call_next):
+    """Require Bearer token for all non-public endpoints."""
+    if request.url.path in _PUBLIC_PATHS:
+        return await call_next(request)
+    if not _API_KEY:
+        # No key configured — allow (dev mode / local)
+        return await call_next(request)
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer ") or auth[7:] != _API_KEY:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return await call_next(request)
 
 
 def _uptime() -> float:

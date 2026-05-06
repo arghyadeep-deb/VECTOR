@@ -102,6 +102,14 @@ class JournalWriter(AgentBase):
                 tags=["journal", "daily"],
                 source="journal_writer",
             )
+            self._memory.store_chain(
+                situation="daily_journal",
+                goal_ids=["self_improvement"],
+                steps=["fetch_events", "llm_narrative", "obsidian_write"],
+                action="write_daily",
+                outcome=f"{len(events)} events → journal written",
+                reward=0.8,
+            )
             self.award_points(40, f"daily journal {date_str}")
             logger.info(f"[VECTOR][journal_writer] daily journal written: {date_str}")
             return True
@@ -135,6 +143,14 @@ class JournalWriter(AgentBase):
                 content=f"Weekly review: {week_label}, {len(events)} events",
                 tags=["journal", "weekly"],
                 source="journal_writer",
+            )
+            self._memory.store_chain(
+                situation="weekly_journal",
+                goal_ids=["self_improvement"],
+                steps=["fetch_events", "llm_narrative", "obsidian_write"],
+                action="write_weekly",
+                outcome=f"{len(events)} events → weekly review written",
+                reward=0.85,
             )
             self.award_points(60, f"weekly review {week_label}")
             logger.info(f"[VECTOR][journal_writer] weekly review written: {week_label}")

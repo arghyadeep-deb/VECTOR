@@ -167,6 +167,14 @@ class BudgetAnalyst(AgentBase):
                     category="finance_alert",
                     confidence=0.9,
                 )
+            self._memory.store_chain(
+                situation="budget_analysis",
+                goal_ids=["financial_awareness"],
+                steps=["fetch_spend", "compare_budgets", "llm_recommendations", "obsidian_write"],
+                action="analyse",
+                outcome=f"Rs.{total_spent:.2f} spent; {len(over_budget)} over-budget categories",
+                reward=0.8,
+            )
             self.award_points(25, f"budget analysis {month_label}")
             logger.info(f"[VECTOR][budget_analyst] done: Rs.{total_spent:.2f} spent, {len(over_budget)} over-budget")
             return True

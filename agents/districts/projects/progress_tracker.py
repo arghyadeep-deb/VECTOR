@@ -137,6 +137,14 @@ class ProgressTracker(AgentBase):
                 tags=["projects", "progress"],
                 source="progress_tracker",
             )
+            self._memory.store_chain(
+                situation="progress_reporting",
+                goal_ids=["project_momentum"],
+                steps=["fetch_git_activity", "fetch_progress_events", "llm_summarise", "obsidian_write"],
+                action="weekly_report",
+                outcome=f"{len(git_activity)} commits + {len(progress_events)} updates",
+                reward=0.8,
+            )
             self.award_points(25, f"progress report {week_label}")
             logger.info(f"[VECTOR][progress_tracker] weekly report: {week_label}")
             return True

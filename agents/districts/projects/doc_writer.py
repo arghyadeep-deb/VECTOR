@@ -107,6 +107,14 @@ class DocWriter(AgentBase):
                 tags=["projects", "documentation", doc_type],
                 source="doc_writer",
             )
+            self._memory.store_chain(
+                situation=f"doc_writing_{doc_type}",
+                goal_ids=["project_documentation"],
+                steps=["llm_generate", "obsidian_write"],
+                action="write_doc",
+                outcome=f"{doc_type} written for {project_name}",
+                reward=0.8,
+            )
             self.award_points(30, f"doc: {title}")
             logger.info(f"[VECTOR][doc_writer] written: {title}")
             return True
