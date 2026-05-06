@@ -1,1 +1,14 @@
-# cloud\agent_workers\fly.toml
+app = "vector-workers"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  VECTOR_ENV = "production"
+  VECTOR_DEBUG = "false"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

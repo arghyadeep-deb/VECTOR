@@ -59,18 +59,28 @@
 | T5.3 | `agents/districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
 | T5.4 | `agents/districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
 
-## T6 — Day 6 Memory + Research + Cloud ❌ PENDING
+## T6 — Day 6 Memory + Research + Cloud ✅ COMPLETE (cloud pending deploy)
 | Task | File | Status |
 |------|------|--------|
-| T6.1 | `agents/districts/memory_curator/` | ❌ Stub |
-| T6.2 | `agents/districts/research/` | ❌ Stub |
-| T6.3 | `cloud/` + `api/` + `dashboard/` | ❌ Stub |
+| T6.1 | `agents/districts/memory_curator/consolidation_bot.py` | ✅ Done |
+| T6.1 | `agents/districts/memory_curator/pattern_finder.py` | ✅ Done |
+| T6.2 | `agents/districts/research/web_scout.py` | ✅ Done |
+| T6.2 | `agents/districts/research/paper_reader.py` | ✅ Done |
+| T6.2 | `agents/districts/research/news_aggregator.py` | ✅ Done |
+| T6.2 | `agents/districts/research/reddit_miner.py` | ✅ Done |
+| T6.3 | `cloud/brain_server/main.py` (FastAPI, /status → 200) | ✅ Done |
+| T6.3 | `cloud/agent_workers/workers.py` + `scheduler.py` | ✅ Done |
+| T6.3 | `cloud/comms_service/service.py` (Hermes bridge) | ✅ Done |
+| T6.3 | `api/src/*.ts` + `wrangler.toml` (Cloudflare Worker) | ✅ Done |
+| T6.3 | `dashboard/src/app/` (7 Next.js pages) | ✅ Done |
+| NOTE | Fly.io deploy: `fly launch` in cloud/brain_server/ | ⚠️ Not deployed yet |
+| NOTE | Cloudflare deploy: `wrangler deploy` in api/ | ⚠️ Not deployed yet |
 
-## T7 — Day 7 Final Integration ❌ PENDING
+## T7 — Day 7 Final Integration ⚠️ IN PROGRESS
 | Task | File | Status |
 |------|------|--------|
-| T7.1 | `core/memory/obsidian_sync.py` | ❌ Stub |
-| T7.2 | `agents/districts/governance/llm_council.py` | ❌ Stub |
+| T7.1 | `core/memory/obsidian_sync.py` | ✅ Done |
+| T7.2 | `agents/districts/governance/llm_council.py` | ✅ Done |
 | T7.3 | `phone_node/` setup | ❌ Stub |
 
 ## End-of-Day Gates
@@ -80,6 +90,6 @@ Day 2: debug mode → 4 candidates + scores + policy table rows  ✅ PASS
 Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ✅ PASS (pyttsx3 TTS; Kokoro pending model download)
 Day 4: Face ID + cursor control + ADB screenshot                ✅ PASS (face_recognition pending install; cursor/ADB ready)
 Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready; Gmail pending T6)
-Day 6: fly.dev/status 200 + ambient running + Obsidian note     ❌ PENDING
+Day 6: fly.dev/status 200 + ambient running + Obsidian note     ⚠️ Code ready — deploy with: fly launch (cloud/brain_server/)
 Day 7: all 4 end-to-end scenarios pass                          ❌ PENDING
 ```
