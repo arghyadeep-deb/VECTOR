@@ -239,6 +239,26 @@ class AutonomousLoop:
     async def _sync_tick(self) -> None:
         logger.info("[VECTOR][sync] DB sync tick — cloud not configured yet (T6)")
 
+    # ─── Obsidian vault watcher ───────────────────────────────────────────────
+
+    async def obsidian_loop(self) -> None:
+        """Start vault watcher + bulk ingest at startup. Never crashes."""
+        logger.info("[VECTOR][obsidian] loop starting")
+        try:
+            from core.memory.obsidian_sync import ObsidianSync
+            obs = ObsidianSync()
+
+            if CONFIG.get("obsidian", {}).get("ingest_on_startup", True):
+                try:
+                    count = await obs.ingest_existing()
+                    logger.info(f"[VECTOR][obsidian] startup ingest: {count} files")
+                except Exception as e:
+                    logger.warning(f"[VECTOR][obsidian] startup ingest failed: {e}")
+
+            await obs.start_watching()
+        except Exception as e:
+            logger.error(f"[VECTOR][obsidian] loop crashed: {e}")
+
     # ─── Main entry ───────────────────────────────────────────────────────────
 
     async def run_forever(self) -> None:
@@ -257,6 +277,7 @@ class AutonomousLoop:
             self.act_loop(),
             self.reflect_loop(),
             self.sync_loop(),
+            self.obsidian_loop(),
             return_exceptions=True,
         )
 

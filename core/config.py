@@ -52,11 +52,12 @@ class PermissionConfig(BaseModel):
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
-        "download_file", "set_reminder",
+        "download_file", "set_reminder", "write_note_personal",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
         "financial_transaction", "push_github", "deploy_production",
+        "overwrite_note_personal",
     ])
 
 
@@ -227,6 +228,15 @@ CONFIG: dict = {
         "github_token": _s.GITHUB_TOKEN.get_secret_value(),
         "repo_path": _s.coding.repo_path,
     },
+    "obsidian": {
+        "vault_path": _s.VECTOR_VAULT_PATH,
+        "lightrag_working_dir": "./data/lightrag_vault",
+        "watch_debounce_sec": 30,
+        "ingest_on_startup": True,
+        "protected_paths": ["CLAUDE.md", "GOALS.md", "VECTOR", "graphify-out", ".obsidian"],
+        "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews"],
+        "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
+    },
 }
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -253,4 +263,7 @@ if __name__ == "__main__":
     assert isinstance(CONFIG["models"]["focus"], str)
     assert "pushover_token" in CONFIG
     assert "allowed_origins" in CONFIG
+    assert "obsidian" in CONFIG
+    assert "write_note_personal" in CONFIG["permission"]["yellow"]
+    assert "overwrite_note_personal" in CONFIG["permission"]["red"]
     print("✅ config.py OK")

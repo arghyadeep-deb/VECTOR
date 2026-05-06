@@ -145,8 +145,12 @@ if __name__ == '__main__':
         assert r2.approved == False and r2.level == 'FORBIDDEN'
         r3 = await gw.execute(Action('commit_code', {'msg': 'test'}, 'test_agent'))
         assert r3.level == 'YELLOW'
+        r4 = await gw.execute(Action('write_note_personal', {'title': 'test'}, 'obsidian_sync'))
+        assert r4.level == 'YELLOW', f"Expected YELLOW, got {r4.level}"
+        r5 = await gw.execute(Action('overwrite_note_personal', {'title': 'test'}, 'obsidian_sync'))
+        assert r5.level == 'RED', f"Expected RED, got {r5.level}"
         log = gw.get_audit_log()
-        assert len(log) == 3
+        assert len(log) == 5
         print('✅ permission_gateway.py OK')
 
     asyncio.run(test())

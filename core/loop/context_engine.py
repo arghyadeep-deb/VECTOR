@@ -18,6 +18,7 @@ class ContextEngine:
         self._goals = None
         self._health = None
         self._screen = None
+        self._obsidian = None
         logger.info("[VECTOR][context_engine] initialized")
 
     def _get_memory(self):
@@ -49,6 +50,26 @@ class ContextEngine:
             except Exception:
                 pass
         return self._screen
+
+    def _get_obsidian(self):
+        if self._obsidian is None:
+            try:
+                from core.memory.obsidian_sync import ObsidianSync
+                self._obsidian = ObsidianSync()
+            except Exception as e:
+                logger.warning(f"[VECTOR][context_engine] ObsidianSync init failed: {e}")
+        return self._obsidian
+
+    async def get_vault_context(self, query: str) -> str:
+        """LightRAG hybrid query over Obsidian vault. Returns '' if not ready."""
+        try:
+            obs = self._get_obsidian()
+            if obs is None:
+                return ""
+            return await obs.query(query, mode="hybrid")
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] vault context failed: {e}")
+            return ""
 
     def get_world_state(self) -> dict:
         """Gather current world state across 9 domains."""

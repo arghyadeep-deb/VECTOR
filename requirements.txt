@@ -182,6 +182,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 uuid_utils==0.14.1
 uvicorn==0.46.0
+json_repair==0.59.5
 watchdog==6.0.0
 watchfiles==1.1.1
 websocket-client==1.9.0
