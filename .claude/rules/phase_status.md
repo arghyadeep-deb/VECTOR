@@ -46,18 +46,18 @@
 | NOTE | `core/loop/context_engine.py` wired to sensing | ✅ health + screen_activity in world state |
 | NOTE | `face_recognition` + `mediapipe` not installed yet | ⚠️ camera stubs to neutral values |
 
-## T5 — Day 5 Phase 1 Districts 🔄 IN PROGRESS
+## T5 — Day 5 Phase 1 Districts ✅ COMPLETE
 | Task | File | Status |
 |------|------|--------|
-| T5.1 | `agents/districts/coding/git_bot.py` | 🔄 In progress |
-| T5.1 | `agents/districts/coding/code_reviewer.py` | 🔄 In progress |
-| T5.1 | `agents/districts/coding/architect_bot.py` | 🔄 In progress |
+| T5.1 | `agents/districts/coding/git_bot.py` | ✅ Done (YELLOW/RED gateway wired) |
+| T5.1 | `agents/districts/coding/code_reviewer.py` | ✅ Done (AST + VECTOR rules checklist) |
+| T5.1 | `agents/districts/coding/architect_bot.py` | ✅ Done (codebase scan + circular import detect) |
 | T5.2 | `agents/districts/time_calendar/kiit_scraper.py` | ✅ Done |
 | T5.2 | `agents/districts/time_calendar/deadline_manager.py` | ✅ Done |
 | T5.2 | `agents/districts/time_calendar/time_blocker.py` | ✅ Done |
-| T5.3 | `agents/districts/security/threat_scout.py` | 🔄 In progress |
-| T5.3 | `agents/districts/security/node_guard.py` | 🔄 In progress |
-| T5.4 | `agents/districts/communications/` | ❌ Stub (Hermes — RULE 10: do not rebuild) |
+| T5.3 | `agents/districts/security/threat_scout.py` | ✅ Done (process + startup + malware scan) |
+| T5.3 | `agents/districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
+| T5.4 | `agents/districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
 
 ## T6 — Day 6 Memory + Research + Cloud ❌ PENDING
 | Task | File | Status |
@@ -79,7 +79,7 @@ Day 1: python run_vector.py → JSON response + SQLite row        ✅ PASS
 Day 2: debug mode → 4 candidates + scores + policy table rows  ✅ PASS
 Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ✅ PASS (pyttsx3 TTS; Kokoro pending model download)
 Day 4: Face ID + cursor control + ADB screenshot                ✅ PASS (face_recognition pending install; cursor/ADB ready)
-Day 5: GmailAgent reads + KIIT schedule + auto-commit           ❌ PENDING
+Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready; Gmail pending T6)
 Day 6: fly.dev/status 200 + ambient running + Obsidian note     ❌ PENDING
 Day 7: all 4 end-to-end scenarios pass                          ❌ PENDING
 ```
