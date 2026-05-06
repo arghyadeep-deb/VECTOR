@@ -234,7 +234,7 @@ CONFIG: dict = {
         "watch_debounce_sec": 30,
         "ingest_on_startup": True,
         "protected_paths": ["CLAUDE.md", "GOALS.md", "VECTOR", "graphify-out", ".obsidian"],
-        "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews"],
+        "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
 }

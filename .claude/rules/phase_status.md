@@ -86,6 +86,26 @@
 | T7.3 | `phone_node/setup.sh` (Termux bootstrap) | ✅ Done |
 | T7.3 | `core/loop/autonomous_loop.py` phone_loop + heartbeat | ✅ Done |
 
+## Phase 2 Districts — In Progress
+| Task | File | Status |
+|------|------|--------|
+| P2.1 | `agents/districts/reflection/daily_reviewer.py` | ✅ Done (vector-chairman, POLICY_UPDATES, Obsidian) |
+| P2.1 | `agents/districts/reflection/journal_writer.py` | ✅ Done (daily 22:30, weekly Sunday 23:00) |
+| P2.1 | `agents/districts/reflection/growth_analyst.py` | ✅ Done (21-day trend, velocity, bottlenecks) |
+| P2.2 | `agents/districts/health/sleep_tracker.py` | ✅ Done (activity-gap inference, quality labels) |
+| P2.2 | `agents/districts/health/fatigue_monitor.py` | ✅ Done (EAR + session-duration dual check) |
+| P2.2 | `agents/districts/health/exercise_logger.py` | ✅ Done (sedentary alerts, weekly report) |
+| P2.3 | `agents/districts/finance/upi_parser.py` | ✅ Done (UPI SMS regex, 8-category classifier) |
+| P2.3 | `agents/districts/finance/expense_tracker.py` | ✅ Done (monthly spend breakdown) |
+| P2.3 | `agents/districts/finance/budget_analyst.py` | ✅ Done (over-budget alerts + LLM recs) |
+| P2.3 | `agents/districts/finance/tax_calendar.py` | ✅ Done (Indian FY deadlines, T-7/1/0 alerts) |
+| P2.4 | `agents/districts/projects/project_planner.py` | ✅ Done (milestone plan, Obsidian) |
+| P2.4 | `agents/districts/projects/deadline_watcher.py` | ✅ Done (T-7/3/1/0 alerts, no-dupe guard) |
+| P2.4 | `agents/districts/projects/progress_tracker.py` | ✅ Done (git activity + manual, weekly report) |
+| P2.4 | `agents/districts/projects/doc_writer.py` | ✅ Done (5 doc types) |
+| NOTE | `tests/test_phase2_districts.py` | ✅ 47/47 passing |
+| NOTE | `core/config.py` obsidian write folders | ✅ Journals/Reviews/Health/Finance/Projects added |
+
 ## End-of-Day Gates
 ```
 Day 1: python run_vector.py → JSON response + SQLite row        ✅ PASS
@@ -95,4 +115,5 @@ Day 4: Face ID + cursor control + ADB screenshot                ✅ PASS (face_r
 Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready; Gmail pending T6)
 Day 6: fly.dev/status 200 + ambient running + Obsidian note     ⚠️ Code complete — deploy: fly launch (cloud/brain_server/), then setup.sh on phone
 Day 7: all 4 end-to-end scenarios pass                          ⚠️ All code complete — integration testing pending
+Phase 2: Reflection/Health/Finance/Projects districts           ✅ 14 agents, 47 tests passing
 ```
