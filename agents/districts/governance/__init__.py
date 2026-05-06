@@ -1,8 +1,3 @@
-'''
-Module: agents/districts/governance/__init__.py
-Auto-generated stub.
-'''
+from agents.districts.governance.llm_council import LLMCouncil
 
-
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/governance/__init__.py'}
+__all__ = ["LLMCouncil"]
