@@ -1,8 +1,4 @@
-'''
-Module: agents/districts/memory_curator/__init__.py
-Auto-generated stub.
-'''
+from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
+from agents.districts.memory_curator.pattern_finder import PatternFinder
 
-
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/memory_curator/__init__.py'}
+__all__ = ["ConsolidationBot", "PatternFinder"]
