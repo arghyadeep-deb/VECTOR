@@ -237,7 +237,22 @@ class AutonomousLoop:
                     await asyncio.sleep(1.0)
 
     async def _sync_tick(self) -> None:
-        logger.info("[VECTOR][sync] DB sync tick — cloud not configured yet (T6)")
+        """Push heartbeat to brain server (Fly.io) and log sync."""
+        logger.info("[VECTOR][sync] DB sync tick — pushing heartbeat to brain server")
+        try:
+            import httpx
+            brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
+            payload = {
+                "uptime_sec": self.uptime_seconds,
+                "tick_count": self._tick_count,
+                "agents_alive": 0,
+                "source": "autonomous_loop",
+            }
+            async with httpx.AsyncClient(timeout=8.0) as c:
+                r = await c.post(f"{brain_url}/heartbeat", json=payload)
+                logger.info(f"[VECTOR][sync] heartbeat → brain server {r.status_code}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][sync] heartbeat failed: {e}")
 
     # ─── Obsidian vault watcher ───────────────────────────────────────────────
 
@@ -259,6 +274,17 @@ class AutonomousLoop:
         except Exception as e:
             logger.error(f"[VECTOR][obsidian] loop crashed: {e}")
 
+    # ─── Phone node poll ──────────────────────────────────────────────────────
+
+    async def phone_loop(self) -> None:
+        """Poll phone ambient server every 60s. Graceful if phone disconnected."""
+        logger.info("[VECTOR][phone] loop starting")
+        try:
+            from phone_node.adb_bridge import poll_loop
+            await poll_loop(interval_sec=60)
+        except Exception as e:
+            logger.warning(f"[VECTOR][phone] loop unavailable: {e}")
+
     # ─── Main entry ───────────────────────────────────────────────────────────
 
     async def run_forever(self) -> None:
@@ -269,7 +295,7 @@ class AutonomousLoop:
         self._running = True
         self._start_time = datetime.datetime.now(datetime.timezone.utc)
         logger.info(
-            f"[VECTOR][autonomous_loop] 🚀 run_forever() at {self._start_time.isoformat()}"
+            f"[VECTOR][autonomous_loop] run_forever() at {self._start_time.isoformat()}"
         )
         await asyncio.gather(
             self.observe_loop(),
@@ -278,6 +304,7 @@ class AutonomousLoop:
             self.reflect_loop(),
             self.sync_loop(),
             self.obsidian_loop(),
+            self.phone_loop(),
             return_exceptions=True,
         )
 

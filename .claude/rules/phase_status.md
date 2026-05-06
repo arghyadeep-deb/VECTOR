@@ -76,12 +76,15 @@
 | NOTE | Fly.io deploy: `fly launch` in cloud/brain_server/ | ⚠️ Not deployed yet |
 | NOTE | Cloudflare deploy: `wrangler deploy` in api/ | ⚠️ Not deployed yet |
 
-## T7 — Day 7 Final Integration ⚠️ IN PROGRESS
+## T7 — Day 7 Final Integration ✅ COMPLETE
 | Task | File | Status |
 |------|------|--------|
 | T7.1 | `core/memory/obsidian_sync.py` | ✅ Done |
 | T7.2 | `agents/districts/governance/llm_council.py` | ✅ Done |
-| T7.3 | `phone_node/` setup | ❌ Stub |
+| T7.3 | `phone_node/ambient_server.py` (Termux HTTP server) | ✅ Done |
+| T7.3 | `phone_node/adb_bridge.py` (Legion ↔ phone bridge) | ✅ Done |
+| T7.3 | `phone_node/setup.sh` (Termux bootstrap) | ✅ Done |
+| T7.3 | `core/loop/autonomous_loop.py` phone_loop + heartbeat | ✅ Done |
 
 ## End-of-Day Gates
 ```
@@ -90,6 +93,6 @@ Day 2: debug mode → 4 candidates + scores + policy table rows  ✅ PASS
 Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ✅ PASS (pyttsx3 TTS; Kokoro pending model download)
 Day 4: Face ID + cursor control + ADB screenshot                ✅ PASS (face_recognition pending install; cursor/ADB ready)
 Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready; Gmail pending T6)
-Day 6: fly.dev/status 200 + ambient running + Obsidian note     ⚠️ Code ready — deploy with: fly launch (cloud/brain_server/)
-Day 7: all 4 end-to-end scenarios pass                          ❌ PENDING
+Day 6: fly.dev/status 200 + ambient running + Obsidian note     ⚠️ Code complete — deploy: fly launch (cloud/brain_server/), then setup.sh on phone
+Day 7: all 4 end-to-end scenarios pass                          ⚠️ All code complete — integration testing pending
 ```
