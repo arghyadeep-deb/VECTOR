@@ -160,7 +160,7 @@ class AmbientListener:
                 # 5. RULE 3 — all actions through permission_gateway
                 from core.loop.permission_gateway import Action
                 gw = self._get_gateway()
-                action = Action(action_type=action_type, params=params, source="voice")
+                action = Action(action_type=action_type, params=params, proposed_by="voice")
                 result = await gw.execute(action)
 
                 # 6. Speak response

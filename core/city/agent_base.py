@@ -1,7 +1,7 @@
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 import datetime, uuid
@@ -146,6 +146,7 @@ class AgentBase:
         return self.health_points >= 600
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding="utf-8")
     a = AgentBase(str(uuid.uuid4()), 'TestAgent', 'coding')
     assert a.health_points == 500
     assert a.model == CONFIG['models']['focus']
@@ -155,4 +156,4 @@ if __name__ == '__main__':
     a.deduct_points(900, 'test death')
     assert a.health_points == 0
     assert 'died_at' in a.ghost_memory
-    print('??? agent_base.py OK')
+    print('✅ agent_base.py OK')

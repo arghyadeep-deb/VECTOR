@@ -1,7 +1,7 @@
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 import asyncio, uuid, json, sqlite3, datetime
@@ -225,6 +225,7 @@ class EpisodicMemory:
         logger.info("Episodic memory connection closed")
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding="utf-8")
     mem = EpisodicMemory()
     id1 = mem.store('test', 'VECTOR started for first time', ['init','test'])
     id2 = mem.store('task', 'Checked KIIT attendance', ['kiit','attendance'])
@@ -237,6 +238,5 @@ if __name__ == '__main__':
     training = mem.get_training_data()
     assert len(training) >= 1, 'training data failed'
     stats = mem.get_stats()
-    print(stats)
     mem.close()
-    print('??? episodic.py OK')
+    print(f"✅ episodic.py OK — {stats}")

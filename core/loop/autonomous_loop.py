@@ -51,6 +51,12 @@ class AutonomousLoop:
             self._governor = Governor()
         return self._governor
 
+    def _get_policy(self):
+        from core.memory.policy import PolicyMemory
+        if not hasattr(self, '_policy') or self._policy is None:
+            self._policy = PolicyMemory()
+        return self._policy
+
     def _get_memory(self):
         if self._memory is None:
             from core.memory.episodic import EpisodicMemory
@@ -145,7 +151,7 @@ class AutonomousLoop:
             reward = 0.8 if result.get("status") == "ok" else 0.2
 
             from core.memory.policy import PolicyMemory
-            pm = PolicyMemory()
+            pm = self._get_policy()
             h = PolicyMemory.make_situation_hash(winner.params)
             pm.update_from_outcome(winner.action_type, h, reward)
 
