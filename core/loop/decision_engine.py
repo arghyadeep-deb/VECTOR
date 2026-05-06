@@ -2,6 +2,7 @@ import sys
 import asyncio
 import datetime
 import hashlib
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -31,7 +32,7 @@ class Decision:
     winner: Candidate
     all_candidates: list[Candidate]
     reasoning: str
-    timestamp: str = field(default_factory=lambda: datetime.datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
     evaluated: int = 0
 
 
@@ -93,7 +94,7 @@ class DecisionEngine:
         return min(1.0, score)
 
     def _make_situation_hash(self, candidate: Candidate) -> str:
-        key = f"{candidate.action_type}:{sorted(candidate.params.items())}"
+        key = f"{candidate.action_type}:{json.dumps(candidate.params, sort_keys=True, default=str)}"
         return hashlib.md5(key.encode()).hexdigest()[:12]
 
     def _score_candidate(self, candidate: Candidate) -> float:

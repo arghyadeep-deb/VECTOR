@@ -117,6 +117,7 @@ def print_status():
     logger.info(f"Non-empty API keys: {non_empty_api_keys}")
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     print_status()
-    print("???: config.py OK")
+    print("✅ config.py OK")
 

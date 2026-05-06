@@ -143,7 +143,7 @@ class GoalSystem:
                 if progress >= 1.0:
                     goal["status"] = "completed"
                     logger.info(f"[VECTOR][goal_system] GOAL COMPLETED: {goal['title']}")
-                goal["last_updated"] = datetime.datetime.utcnow().isoformat()
+                goal["last_updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 if note:
                     goal["last_note"] = note
                 self._persist()
@@ -168,7 +168,7 @@ class GoalSystem:
             "status": "active",
             "progress": 0.0,
             "tags": tags or [],
-            "created_at": datetime.datetime.utcnow().isoformat(),
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         })
         self._persist()
         logger.info(f"[VECTOR][goal_system] new goal: {goal_id} — {title}")

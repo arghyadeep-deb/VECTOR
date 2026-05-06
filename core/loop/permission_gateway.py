@@ -30,7 +30,7 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 class PermissionGateway:
     def __init__(self):
         self.audit_log = []
-        self.pending_confirmations = {}
+        self._pending_events: dict[str, asyncio.Event] = {}
         logger.info('[VECTOR][gateway] Permission gateway initialised')
 
     async def execute(self, action: Action) -> GatewayResult:
@@ -83,7 +83,7 @@ class PermissionGateway:
 
     async def _execute_action(self, action) -> dict:
         logger.info(f'[VECTOR][gateway] Executing {action.action_type}')
-        return {'status': 'executed', 'action': action.action_type, 'params': action.params, 'timestamp': datetime.datetime.utcnow().isoformat()}
+        return {'status': 'executed', 'action': action.action_type, 'params': action.params, 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat()}
 
     async def _notify(self, message, priority=0):
         token = CONFIG.get('pushover_token', '')
@@ -101,25 +101,26 @@ class PermissionGateway:
 
     async def _wait_for_confirmation(self, action, timeout=30) -> bool:
         key = action.action_type
-        self.pending_confirmations[key] = False
-        for _ in range(timeout):
-            await asyncio.sleep(1)
-            if self.pending_confirmations.get(key) == True:
-                del self.pending_confirmations[key]
-                return True
-        if key in self.pending_confirmations:
-            del self.pending_confirmations[key]
-        return False
+        event = asyncio.Event()
+        self._pending_events[key] = event
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
+        finally:
+            self._pending_events.pop(key, None)
 
     def confirm_action(self, action_type) -> bool:
-        if action_type in self.pending_confirmations:
-            self.pending_confirmations[action_type] = True
+        event = self._pending_events.get(action_type)
+        if event:
+            event.set()
             return True
         return False
 
     def _write_audit(self, action, result):
         entry = {
-            'timestamp': datetime.datetime.utcnow().isoformat(),
+            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'action_type': action.action_type,
             'level': result.level,
             'approved': result.approved,

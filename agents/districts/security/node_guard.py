@@ -245,7 +245,7 @@ class NodeGuard(AgentBase):
                 "suspicious": len(suspicious),
                 "alerts": alerts,
                 "net_stats": net_stats,
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
             logger.info(
@@ -268,7 +268,7 @@ class NodeGuard(AgentBase):
                 "suspicious": 0,
                 "alerts": [f"tick error: {e}"],
                 "net_stats": {},
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
 

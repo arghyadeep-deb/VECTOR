@@ -115,11 +115,15 @@ class EpisodicMemory:
     
     def remember(self, key, value, category='general', confidence=0.5) -> bool:
         try:
-            updated_at = datetime.datetime.now().isoformat()
+            updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self.conn.execute("""
-                INSERT OR REPLACE INTO semantic_memory
-                (key, value, category, confidence, updated_at)
+                INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value=excluded.value,
+                    category=excluded.category,
+                    confidence=excluded.confidence,
+                    updated_at=excluded.updated_at
             """, (key, value, category, confidence, updated_at))
             self.conn.commit()
             return True
@@ -182,9 +186,11 @@ class EpisodicMemory:
         try:
             evidence_json = json.dumps(evidence) if evidence else None
             self.conn.execute("""
-                INSERT OR REPLACE INTO skill_memory
-                (skill_name, confidence, evidence)
+                INSERT INTO skill_memory (skill_name, confidence, evidence)
                 VALUES (?, ?, ?)
+                ON CONFLICT(skill_name) DO UPDATE SET
+                    confidence=excluded.confidence,
+                    evidence=COALESCE(excluded.evidence, skill_memory.evidence)
             """, (skill_name, confidence, evidence_json))
             self.conn.commit()
             return True

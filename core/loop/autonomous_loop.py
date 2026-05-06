@@ -25,6 +25,7 @@ class AutonomousLoop:
         self._governor = None
         self._memory = None
         self._ambient = None
+        self._policy = None
         logger.info("[VECTOR][autonomous_loop] initialized")
 
     def _get_context(self):
@@ -52,8 +53,8 @@ class AutonomousLoop:
         return self._governor
 
     def _get_policy(self):
-        from core.memory.policy import PolicyMemory
-        if not hasattr(self, '_policy') or self._policy is None:
+        if self._policy is None:
+            from core.memory.policy import PolicyMemory
             self._policy = PolicyMemory()
         return self._policy
 
@@ -201,7 +202,7 @@ class AutonomousLoop:
         logger.info("[VECTOR][reflect] 2AM reflection starting...")
         try:
             uptime = int(
-                (datetime.datetime.now() - self._start_time).total_seconds()
+                (datetime.datetime.now(datetime.timezone.utc) - self._start_time).total_seconds()
             ) if self._start_time else 0
             self._get_memory().store(
                 event_type="reflect",
@@ -246,7 +247,7 @@ class AutonomousLoop:
         return_exceptions=True ensures one crashed coroutine doesn't kill others.
         """
         self._running = True
-        self._start_time = datetime.datetime.now()
+        self._start_time = datetime.datetime.now(datetime.timezone.utc)
         logger.info(
             f"[VECTOR][autonomous_loop] 🚀 run_forever() at {self._start_time.isoformat()}"
         )
@@ -268,7 +269,7 @@ class AutonomousLoop:
     def uptime_seconds(self) -> int:
         if self._start_time is None:
             return 0
-        return int((datetime.datetime.now() - self._start_time).total_seconds())
+        return int((datetime.datetime.now(datetime.timezone.utc) - self._start_time).total_seconds())
 
 
 async def _smoke_test() -> int:

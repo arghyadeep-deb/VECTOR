@@ -80,9 +80,9 @@ class DeadlineManager(AgentBase):
             logger.info("[VECTOR][deadline] No calendar service — returning empty events")
             return []
         try:
-            now = datetime.datetime.utcnow()
-            time_min = now.isoformat() + "Z"
-            time_max = (now + datetime.timedelta(hours=hours)).isoformat() + "Z"
+            now = datetime.datetime.now(datetime.timezone.utc)
+            time_min = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+            time_max = (now + datetime.timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
             events_result = (
                 service.events()
                 .list(
@@ -122,7 +122,7 @@ class DeadlineManager(AgentBase):
         """Check if a class/lecture is starting within the next N minutes."""
         try:
             events = self.get_upcoming_events(hours=1)
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             threshold = now + datetime.timedelta(minutes=minutes_ahead)
             for event in events:
                 title_lower = event.get("title", "").lower()

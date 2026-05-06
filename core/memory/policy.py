@@ -1,5 +1,6 @@
 import sys
 import hashlib
+import json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -32,7 +33,7 @@ class PolicyMemory:
     def make_situation_hash(context: dict | str) -> str:
         """12-char deterministic hash of situation context for policy lookup."""
         if isinstance(context, dict):
-            key = str(sorted(context.items()))
+            key = json.dumps(context, sort_keys=True, default=str)
         else:
             key = str(context)
         return hashlib.md5(key.encode()).hexdigest()[:12]

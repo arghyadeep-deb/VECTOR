@@ -52,7 +52,8 @@ class ContextEngine:
 
     def get_world_state(self) -> dict:
         """Gather current world state across 9 domains."""
-        now = datetime.datetime.now()
+        now = datetime.datetime.now()  # local time for time-of-day display
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         mem = self._get_memory()
 
         recent_episodes = []
@@ -91,7 +92,7 @@ class ContextEngine:
             logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
 
         return {
-            "timestamp": now.isoformat(),
+            "timestamp": now_utc.isoformat(),
             "time_of_day": self._time_of_day(now),
             "day_of_week": now.strftime("%A"),
             "owner": CONFIG["owner_name"],
@@ -118,7 +119,7 @@ class ContextEngine:
         except Exception as e:
             logger.error(f"[VECTOR][context_engine] world state failed: {e}")
             state = {
-                "timestamp": datetime.datetime.now().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "owner": CONFIG["owner_name"],
                 "env": CONFIG["env"],
                 "version": CONFIG["version"],

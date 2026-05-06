@@ -203,7 +203,7 @@ class ThreatScout(AgentBase):
                 "suspicious_processes": len(suspicious_procs),
                 "startup_count": len(startups),
                 "suspicious_startups": len(suspicious_starts),
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
             logger.info(
@@ -227,7 +227,7 @@ class ThreatScout(AgentBase):
             return {
                 "threat_level": "unknown",
                 "alerts": [f"assessment error: {e}"],
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
 

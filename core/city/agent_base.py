@@ -18,7 +18,7 @@ class AgentBase:
         self.lessons = []
         self.best_decisions = []
         self.personality_traits = {}
-        self.created_at = datetime.datetime.utcnow().isoformat()
+        self.created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self.last_active = self.created_at
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
 
@@ -77,7 +77,7 @@ class AgentBase:
             'lessons_learned': self.lessons[-20:],
             'best_decisions': self.best_decisions[-10:],
             'personality_traits': self.personality_traits,
-            'died_at': datetime.datetime.utcnow().isoformat()
+            'died_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         self.ghost_memory = ghost
         logger.warning(f'[VECTOR][city] Agent {self.name} gen {self.generation} DIED. Ghost preserved with {len(self.lessons)} lessons.')

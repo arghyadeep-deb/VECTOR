@@ -95,7 +95,7 @@ class Governor:
         Dispatch task to appropriate district agent.
         RULE 9 — HP wired to actual outcome after every dispatch.
         """
-        task_id = f"task_{int(datetime.datetime.utcnow().timestamp())}"
+        task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")
         district = task.get("district") or self.route_task(task_type)
 
@@ -103,7 +103,7 @@ class Governor:
         self._active_tasks[task_id] = {
             "task": task,
             "district": district,
-            "started_at": datetime.datetime.utcnow().isoformat(),
+            "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
 
         result: dict = {}

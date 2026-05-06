@@ -20,14 +20,20 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+_ALLOWED_ORIGINS = CONFIG.get("allowed_origins", [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
-START_TIME = datetime.datetime.utcnow()
+START_TIME = datetime.datetime.now(datetime.timezone.utc)
 
 # --- MODELS ---
 class CommandRequest(BaseModel):
@@ -51,22 +57,25 @@ class CouncilRequest(BaseModel):
     context_override: dict | None = None
 
 # --- HELPER ---
-def get_ollama_host():
+def get_ollama_host() -> str:
     host = CONFIG["ollama_host"]
-
-    # 🔥 safety fix
-    if not host.startswith("http"):
+    from urllib.parse import urlparse
+    parsed = urlparse(host)
+    if not parsed.scheme:
         host = "http://" + host
-
     return host
 
 def session_hydration_prompt() -> str:
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    return (
-        f"You are VECTOR. Owner: Arghyadeep Deb. Time: {now}. "
-        f"Environment: {CONFIG['env']}. "
-        f"Respond as VECTOR — precise, calm, slightly dry tone."
-    )
+    try:
+        from core.loop.context_engine import ContextEngine
+        return ContextEngine().session_hydration_prompt()
+    except Exception:
+        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        return (
+            f"You are {CONFIG['system_name']}. Owner: {CONFIG['owner_name']}. Time: {now}. "
+            f"Environment: {CONFIG['env']}. "
+            f"Respond as VECTOR — precise, calm, slightly dry tone."
+        )
 
 # --- STARTUP ---
 @app.on_event("startup")
@@ -96,15 +105,41 @@ async def startup():
 # --- ROUTES ---
 @app.get("/health")
 async def health():
-    return {
-        "status": "ok",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "version": CONFIG["version"],
-    }
+    checks: dict[str, str] = {}
+
+    # Ping Ollama
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(f"{get_ollama_host()}/api/tags")
+            checks["ollama"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
+    except Exception as e:
+        checks["ollama"] = f"error: {e}"
+
+    # Ping SQLite
+    try:
+        from core.memory.episodic import EpisodicMemory
+        mem = EpisodicMemory()
+        row = mem.conn.execute("SELECT COUNT(*) FROM episodic_memory").fetchone()
+        checks["sqlite"] = "ok" if row is not None else "error"
+    except Exception as e:
+        checks["sqlite"] = f"error: {e}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    status_code = 200 if all_ok else 503
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ok" if all_ok else "degraded",
+            "checks": checks,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "version": CONFIG["version"],
+        }
+    )
 
 @app.get("/status")
 async def status():
-    uptime = (datetime.datetime.utcnow() - START_TIME).seconds
+    uptime = (datetime.datetime.now(datetime.timezone.utc) - START_TIME).seconds
     return {
         "loop_running": False,
         "uptime_seconds": uptime,

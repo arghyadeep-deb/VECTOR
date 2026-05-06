@@ -85,7 +85,7 @@ class TimeBlocker(AgentBase):
         """
         entry = {
             **task,
-            "queued_at": datetime.datetime.now().isoformat(),
+            "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "window_at_queue": self._get_current_window(),
         }
         self._queue.append(entry)
