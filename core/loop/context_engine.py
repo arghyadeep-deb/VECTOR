@@ -16,6 +16,8 @@ class ContextEngine:
     def __init__(self):
         self._memory = None
         self._goals = None
+        self._health = None
+        self._screen = None
         logger.info("[VECTOR][context_engine] initialized")
 
     def _get_memory(self):
@@ -29,6 +31,24 @@ class ContextEngine:
             from core.brain.goal_system import GoalSystem
             self._goals = GoalSystem()
         return self._goals
+
+    def _get_health(self):
+        if self._health is None:
+            try:
+                from core.sensing.health_monitor import HealthMonitor
+                self._health = HealthMonitor()
+            except Exception:
+                pass
+        return self._health
+
+    def _get_screen(self):
+        if self._screen is None:
+            try:
+                from core.sensing.screen_observer import ScreenObserver
+                self._screen = ScreenObserver()
+            except Exception:
+                pass
+        return self._screen
 
     def get_world_state(self) -> dict:
         """Gather current world state across 9 domains."""
@@ -53,6 +73,23 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] mem stats failed: {e}")
 
+        health_snapshot = {}
+        try:
+            h = self._get_health()
+            if h:
+                health_snapshot = h.get_health_snapshot()
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] health snapshot failed: {e}")
+
+        screen_activity = "unknown"
+        try:
+            s = self._get_screen()
+            if s:
+                result = s.observe()
+                screen_activity = result.get("activity", "unknown")
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
+
         return {
             "timestamp": now.isoformat(),
             "time_of_day": self._time_of_day(now),
@@ -67,6 +104,8 @@ class ContextEngine:
             "goal_summary": goal_summary,
             "memory_stats": mem_stats,
             "loop_status": "running",
+            "health": health_snapshot,
+            "screen_activity": screen_activity,
         }
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
@@ -94,6 +133,15 @@ class ContextEngine:
             f"Owner: {state['owner']} | Env: {state['env']} | VECTOR v{state['version']}",
             f"Time: {state['time_of_day']} ({state['day_of_week']})",
         ]
+
+        if state.get("health"):
+            h = state["health"]
+            lines.append(
+                f"Owner health: energy={h.get('energy_level','?')} fatigue={h.get('fatigue_score','?')} "
+                f"cpu={h.get('cpu_percent','?')}% ram={h.get('ram_percent','?')}%"
+            )
+        if state.get("screen_activity") and state["screen_activity"] != "unknown":
+            lines.append(f"Current activity: {state['screen_activity']}")
 
         if state.get("goal_summary"):
             lines.append(f"Active goals: {state['goal_summary']}")

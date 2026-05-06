@@ -76,6 +76,26 @@ CONFIG = {
         "sample_rate": 16000,
         "wake_phrase": "hey_jarvis",   # placeholder until "Hey VECTOR" custom model trained
     },
+    "security": {
+        "suspicious_ports": [4444, 6666, 1337, 31337, 9001, 9050],
+        "suspicious_process_names": [
+            "cryptominer", "keylogger", "miner", "rat", "netcat",
+            "mimikatz", "cobaltstrike", "metasploit", "ncrack",
+            "xmrig", "monero", "cpuminer",
+        ],
+        "entropy_threshold": 7.5,
+    },
+    "control": {
+        "adb_path": "adb",
+        "phone_device_id": None,
+    },
+    "sensing": {
+        "lgbm_model_path": "./models/malware_lgbm.txt",
+        "known_faces_dir": "./data/known_faces",
+        "camera_index": 0,
+        "screen_ocr_enabled": True,
+        "fatigue_check_interval_sec": 30,
+    },
 }
 
 def get(key, default=None):

@@ -1,8 +1,178 @@
-'''
-Module: core/control/security/threat_detector.py
-Auto-generated stub.
-'''
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+import math
+from loguru import logger
+
+from core.config import CONFIG
+
+# ---------------------------------------------------------------------------
+# Known suspicious process name fragments (lower-cased)
+# ---------------------------------------------------------------------------
+_SUSPICIOUS_NAMES: set[str] = {
+    "cryptominer", "keylogger", "miner", "rat", "netcat",
+    "mimikatz", "cobaltstrike", "metasploit", "ncrack",
+    "xmrig", "monero", "cpuminer",
+}
+
+# Temp / writable dirs that legitimate system processes should NOT live in
+_SUSPICIOUS_DIRS: tuple[str, ...] = (
+    "\\temp\\", "\\tmp\\", "\\appdata\\local\\temp\\",
+    "/tmp/", "/var/tmp/",
+)
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'core/control/security/threat_detector.py'}
+def check_process_anomalies() -> list[dict]:
+    """Scan running processes for suspicious indicators.
+
+    Returns a list of dicts:
+        {pid, name, exe, suspicious: bool, reason: str}
+
+    Never raises — exceptions are caught and logged.
+    """
+    results: list[dict] = []
+    try:
+        import psutil  # type: ignore
+        for proc in psutil.process_iter(["pid", "name", "exe", "cmdline"]):
+            try:
+                info = proc.info
+                pid: int = info.get("pid") or 0
+                name: str = (info.get("name") or "").lower()
+                exe: str = (info.get("exe") or "").lower()
+                cmdline: list[str] = info.get("cmdline") or []
+
+                suspicious = False
+                reason = ""
+
+                # Check name against known bad fragments
+                for bad in _SUSPICIOUS_NAMES:
+                    if bad in name:
+                        suspicious = True
+                        reason = f"suspicious name fragment: {bad}"
+                        break
+
+                # Check if exe lives in a temp directory
+                if not suspicious and exe:
+                    for bad_dir in _SUSPICIOUS_DIRS:
+                        if bad_dir in exe:
+                            suspicious = True
+                            reason = f"executable in temp dir: {exe}"
+                            break
+
+                # Flag python / node scripts launched from temp dirs
+                if not suspicious and cmdline:
+                    for arg in cmdline:
+                        arg_lower = arg.lower()
+                        for bad_dir in _SUSPICIOUS_DIRS:
+                            if bad_dir in arg_lower:
+                                suspicious = True
+                                reason = f"cmdline arg references temp dir: {arg}"
+                                break
+                        if suspicious:
+                            break
+
+                results.append({
+                    "pid": pid,
+                    "name": info.get("name") or "",
+                    "exe": info.get("exe") or "",
+                    "suspicious": suspicious,
+                    "reason": reason,
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+            except Exception as e:
+                logger.warning(f"[VECTOR][threat_detector] process scan partial error: {e}")
+                continue
+
+    except ImportError:
+        logger.error("[VECTOR][threat_detector] psutil not installed — cannot scan processes")
+    except Exception as e:
+        logger.error(f"[VECTOR][threat_detector] check_process_anomalies error: {e}")
+
+    logger.info(
+        f"[VECTOR][threat_detector] scanned {len(results)} processes, "
+        f"{sum(1 for r in results if r['suspicious'])} suspicious"
+    )
+    return results
+
+
+def check_file_entropy(file_path: str) -> float:
+    """Compute Shannon entropy (0–8) of a file's bytes.
+
+    Entropy > 7.5 typically indicates encryption / packing → suspicious.
+    Returns -1.0 on error.
+    """
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            logger.warning(f"[VECTOR][threat_detector] file not found: {file_path}")
+            return -1.0
+
+        freq = [0] * 256
+        total = 0
+        with open(path, "rb") as f:
+            while chunk := f.read(65536):
+                total += len(chunk)
+                for b in chunk:
+                    freq[b] += 1
+
+        if total == 0:
+            return 0.0
+
+        entropy = 0.0
+        for count in freq:
+            if count:
+                p = count / total
+                entropy -= p * math.log2(p)
+
+        logger.debug(f"[VECTOR][threat_detector] entropy({path.name}) = {entropy:.3f}")
+        return round(entropy, 4)
+
+    except Exception as e:
+        logger.error(f"[VECTOR][threat_detector] check_file_entropy error: {e}")
+        return -1.0
+
+
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    ok = True
+
+    # --- check_process_anomalies ---
+    procs = check_process_anomalies()
+    if not isinstance(procs, list):
+        logger.error("[VECTOR][threat_detector] check_process_anomalies did not return list")
+        ok = False
+    else:
+        logger.info(f"[VECTOR][threat_detector] {len(procs)} processes returned")
+        if procs:
+            first = procs[0]
+            for key in ("pid", "name", "exe", "suspicious", "reason"):
+                if key not in first:
+                    logger.error(f"[VECTOR][threat_detector] missing key '{key}' in process dict")
+                    ok = False
+                    break
+
+    # --- check_file_entropy on a known file ---
+    config_path = str(Path(__file__).parent.parent.parent.parent / "core" / "config.py")
+    entropy = check_file_entropy(config_path)
+    if not isinstance(entropy, float) or entropy < 0:
+        logger.error(f"[VECTOR][threat_detector] bad entropy result: {entropy}")
+        ok = False
+    else:
+        suspicious_flag = entropy > 7.5
+        logger.info(
+            f"[VECTOR][threat_detector] config.py entropy={entropy:.3f} "
+            f"{'(SUSPICIOUS)' if suspicious_flag else '(clean)'}"
+        )
+
+    # --- entropy on non-existent file ---
+    bad_entropy = check_file_entropy("/nonexistent/file.bin")
+    if bad_entropy != -1.0:
+        logger.error(f"[VECTOR][threat_detector] expected -1.0 for missing file, got {bad_entropy}")
+        ok = False
+
+    print("✅ threat_detector.py OK" if ok else "❌ FAILED")
