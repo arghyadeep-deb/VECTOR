@@ -96,6 +96,11 @@ CONFIG = {
         "screen_ocr_enabled": True,
         "fatigue_check_interval_sec": 30,
     },
+    "coding": {
+        # github_token also lives in api_keys.github_token — mirrored here for district-local access
+        "github_token": os.getenv("GITHUB_TOKEN", ""),
+        "repo_path": str(Path(__file__).parent.parent),  # project root
+    },
 }
 
 def get(key, default=None):

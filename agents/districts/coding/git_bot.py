@@ -1,8 +1,253 @@
-'''
-Module: agents/districts/coding/git_bot.py
-Auto-generated stub.
-'''
+import sys
+import uuid
+import asyncio
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+from core.loop.permission_gateway import PermissionGateway, Action
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/coding/git_bot.py'}
+class GitBot(AgentBase):
+    """Automates git operations: commit, push, branch, PR creation."""
+
+    def __init__(self, ghost: dict = None):
+        super().__init__(str(uuid.uuid4()), "GitBot", "coding")
+        if ghost:
+            self.inherit_ghost(ghost)
+        self._gateway = PermissionGateway()
+        logger.info("[VECTOR][git_bot] GitBot initialized")
+
+    def _get_repo(self, repo_path: str):
+        """Lazy-import gitpython and return Repo object or None."""
+        try:
+            from git import Repo, InvalidGitRepositoryError
+            return Repo(repo_path)
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] Repo open failed for '{repo_path}': {e}")
+            return None
+
+    def get_status(self, repo_path: str = ".") -> dict:
+        """
+        Return current git status for a repo.
+        Returns {branch, modified, staged, untracked, ahead, behind} or {} on error.
+        """
+        try:
+            repo = self._get_repo(repo_path)
+            if repo is None:
+                return {}
+
+            branch = repo.active_branch.name if not repo.head.is_detached else "DETACHED"
+
+            modified = [item.a_path for item in repo.index.diff(None)]
+            staged = [item.a_path for item in repo.index.diff("HEAD")]
+            untracked = repo.untracked_files
+
+            ahead = 0
+            behind = 0
+            try:
+                tracking = repo.active_branch.tracking_branch()
+                if tracking:
+                    commits_ahead = list(repo.iter_commits(f"{tracking}..HEAD"))
+                    commits_behind = list(repo.iter_commits(f"HEAD..{tracking}"))
+                    ahead = len(commits_ahead)
+                    behind = len(commits_behind)
+            except Exception as e:
+                logger.warning(f"[VECTOR][git_bot] Could not determine ahead/behind: {e}")
+
+            status = {
+                "branch": branch,
+                "modified": modified,
+                "staged": staged,
+                "untracked": list(untracked),
+                "ahead": ahead,
+                "behind": behind,
+            }
+            logger.info(f"[VECTOR][git_bot] Status on '{branch}': {len(modified)} modified, {len(staged)} staged, {len(untracked)} untracked")
+            self.award_points(5, "get_status_success")
+            return status
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] get_status error: {e}")
+            self.deduct_points(5, "get_status_failed")
+            return {}
+
+    def commit(self, message: str, files: list = None, repo_path: str = ".") -> dict:
+        """
+        Stage files (or all modified/untracked) and create a commit.
+        Returns {success: bool, hash: str, message: str}.
+        commit_code is YELLOW in the permission matrix — action is logged through gateway but
+        the actual git operation executes here (gateway notifies owner).
+        """
+        try:
+            repo = self._get_repo(repo_path)
+            if repo is None:
+                return {"success": False, "hash": "", "message": "Repo not found"}
+
+            if files:
+                repo.index.add(files)
+                logger.info(f"[VECTOR][git_bot] Staged {len(files)} files: {files}")
+            else:
+                # Stage all modified tracked files + new untracked files
+                repo.git.add(A=True)
+                logger.info("[VECTOR][git_bot] Staged all changes (git add -A)")
+
+            # Check if there's anything to commit
+            if not repo.index.diff("HEAD") and not repo.untracked_files:
+                # Also check if there are staged changes vs tree
+                try:
+                    diff_staged = repo.git.diff("--cached", "--name-only")
+                    if not diff_staged:
+                        logger.warning("[VECTOR][git_bot] Nothing to commit")
+                        return {"success": False, "hash": "", "message": "Nothing to commit"}
+                except Exception:
+                    pass
+
+            commit_obj = repo.index.commit(message)
+            commit_hash = commit_obj.hexsha[:8]
+            logger.info(f"[VECTOR][git_bot] Committed {commit_hash}: {message}")
+            self.award_points(20, "commit_success")
+
+            # Fire through gateway for audit trail (YELLOW — commit_code)
+            asyncio.get_event_loop().run_until_complete(
+                self._gateway.execute(Action(
+                    action_type="commit_code",
+                    params={"hash": commit_hash, "message": message},
+                    proposed_by=self.name,
+                ))
+            ) if asyncio.get_event_loop().is_running() is False else None
+
+            return {"success": True, "hash": commit_hash, "message": message}
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] commit error: {e}")
+            self.deduct_points(20, "commit_failed")
+            return {"success": False, "hash": "", "message": str(e)}
+
+    def get_recent_commits(self, n: int = 10, repo_path: str = ".") -> list:
+        """
+        Return last n commits as [{hash, message, author, date}].
+        """
+        try:
+            repo = self._get_repo(repo_path)
+            if repo is None:
+                return []
+
+            commits = []
+            for c in list(repo.iter_commits("HEAD", max_count=n)):
+                commits.append({
+                    "hash": c.hexsha[:8],
+                    "message": c.message.strip(),
+                    "author": str(c.author),
+                    "date": c.committed_datetime.isoformat(),
+                })
+            logger.info(f"[VECTOR][git_bot] Fetched {len(commits)} recent commits")
+            return commits
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] get_recent_commits error: {e}")
+            return []
+
+    def create_branch(self, name: str, repo_path: str = ".") -> dict:
+        """
+        Create and checkout a new branch.
+        Returns {success: bool, branch: str, message: str}.
+        """
+        try:
+            repo = self._get_repo(repo_path)
+            if repo is None:
+                return {"success": False, "branch": "", "message": "Repo not found"}
+
+            new_branch = repo.create_head(name)
+            new_branch.checkout()
+            logger.info(f"[VECTOR][git_bot] Created and checked out branch '{name}'")
+            self.award_points(10, "branch_created")
+            return {"success": True, "branch": name, "message": f"Branch '{name}' created and checked out"}
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] create_branch error: {e}")
+            self.deduct_points(10, "branch_create_failed")
+            return {"success": False, "branch": "", "message": str(e)}
+
+    async def create_pr(self, title: str, body: str, base: str = "main") -> dict:
+        """
+        Create a GitHub PR using PyGithub. Reads GITHUB_TOKEN from CONFIG.
+        push_github is RED — requires owner confirmation via gateway.
+        Returns {url, number} or {error: ...}.
+        """
+        try:
+            # Gate through permission gateway (RED — push_github)
+            gate_result = await self._gateway.execute(Action(
+                action_type="push_github",
+                params={"title": title, "base": base},
+                proposed_by=self.name,
+            ))
+            if not gate_result.approved:
+                logger.warning(f"[VECTOR][git_bot] PR creation blocked by gateway: {gate_result.reason}")
+                return {"error": f"Gateway blocked: {gate_result.reason}"}
+
+            token = CONFIG["api_keys"].get("github_token", "")
+            if not token:
+                import os
+                token = os.getenv("GITHUB_TOKEN", "")
+            if not token:
+                logger.error("[VECTOR][git_bot] GITHUB_TOKEN not configured")
+                return {"error": "GITHUB_TOKEN not configured"}
+
+            from github import Github
+            g = Github(token)
+
+            # Determine repo from current directory's remote URL
+            try:
+                repo = self._get_repo(".")
+                if repo is None:
+                    return {"error": "No git repo at '.'"}
+                remote_url = repo.remotes.origin.url
+                # Parse owner/repo from URL (https or ssh)
+                # https://github.com/owner/repo.git  or  git@github.com:owner/repo.git
+                if "github.com/" in remote_url:
+                    parts = remote_url.split("github.com/")[-1].rstrip(".git").rstrip("/")
+                elif "github.com:" in remote_url:
+                    parts = remote_url.split("github.com:")[-1].rstrip(".git").rstrip("/")
+                else:
+                    return {"error": f"Cannot parse GitHub repo from remote URL: {remote_url}"}
+
+                gh_repo = g.get_repo(parts)
+                head_branch = repo.active_branch.name
+            except Exception as e:
+                logger.error(f"[VECTOR][git_bot] Could not determine remote repo: {e}")
+                return {"error": str(e)}
+
+            pr = gh_repo.create_pull(title=title, body=body, head=head_branch, base=base)
+            logger.info(f"[VECTOR][git_bot] PR #{pr.number} created: {pr.html_url}")
+            self.award_points(30, "pr_created")
+            return {"url": pr.html_url, "number": pr.number}
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] create_pr error: {e}")
+            self.deduct_points(20, "pr_create_failed")
+            return {"error": str(e)}
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    import os
+    # Use the VECTOR codebase repo itself for testing
+    REPO_PATH = str(Path(__file__).parent.parent.parent.parent)
+
+    bot = GitBot()
+
+    # Smoke test 1: get_status
+    status = bot.get_status(REPO_PATH)
+    status_ok = isinstance(status, dict) and "branch" in status
+    print(f"  get_status: branch={status.get('branch')}, modified={len(status.get('modified', []))}, "
+          f"staged={len(status.get('staged', []))}, untracked={len(status.get('untracked', []))}")
+
+    # Smoke test 2: get_recent_commits
+    commits = bot.get_recent_commits(n=3, repo_path=REPO_PATH)
+    commits_ok = isinstance(commits, list)
+    print(f"  recent_commits ({len(commits)}): {[c['hash'] for c in commits]}")
+
+    # Smoke test 3: agent state
+    agent_ok = bot.health_points > 0 and bot.name == "GitBot"
+
+    all_ok = status_ok and commits_ok and agent_ok
+    print("✅ git_bot.py OK" if all_ok else "❌ FAILED")
