@@ -86,8 +86,8 @@ class PermissionGateway:
         return {'status': 'executed', 'action': action.action_type, 'params': action.params, 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat()}
 
     async def _notify(self, message, priority=0):
-        token = CONFIG.get('pushover_token', '')
-        user = CONFIG.get('pushover_user', '')
+        token = CONFIG["api_keys"].get('pushover_token', '')
+        user = CONFIG["api_keys"].get('pushover_user', '')
         if not token or not user:
             logger.info(f'[VECTOR][notify] (no Pushover configured) {message}')
             return
