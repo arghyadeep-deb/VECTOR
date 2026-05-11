@@ -1,7 +1,7 @@
 # Problem 11 — act_loop Is a Dead Stub (Think/Act Separation Broken)
 
 **Severity: HIGH**
-**Status: DOCUMENTED — architectural decision needed**
+**Status: FIXED 2026-05-11 — dead act_loop() removed from asyncio.gather() and deleted. _act_on() is called directly from think_loop via _think_tick().**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
