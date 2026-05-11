@@ -112,9 +112,8 @@ class ContextEngine:
             return ""
 
     def get_world_state(self) -> dict:
-        """Gather current world state across 9 domains."""
-        now = datetime.datetime.now(datetime.timezone.utc)  # UTC for consistency
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        """Gather current world state across 14 domains."""
+        now = datetime.datetime.now(datetime.timezone.utc)
         mem = self._get_memory()
 
         recent_episodes = []
@@ -152,8 +151,45 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
 
+        # ── Extended domain fields ─────────────────────────────────────────────
+        calendar_upcoming: list = []
+        try:
+            dm = self._get_deadline_mgr()
+            if dm and hasattr(dm, "get_upcoming_deadlines"):
+                calendar_upcoming = dm.get_upcoming_deadlines(days=7) or []
+            elif dm and hasattr(dm, "list_deadlines"):
+                calendar_upcoming = dm.list_deadlines() or []
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] calendar fetch failed: {e}")
+
+        finance_summary: dict = {}
+        try:
+            et = self._get_expense_tracker()
+            if et and hasattr(et, "get_monthly_summary"):
+                finance_summary = et.get_monthly_summary() or {}
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] finance fetch failed: {e}")
+
+        academic_info: dict = {}
+        try:
+            ks = self._get_kiit_scraper()
+            if ks and hasattr(ks, "get_cached_schedule"):
+                academic_info = ks.get_cached_schedule() or {}
+            elif ks and hasattr(ks, "get_schedule"):
+                academic_info = ks.get_schedule() or {}
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] academic fetch failed: {e}")
+
+        comms_pending: int = 0
+        try:
+            ha = self._get_hermes()
+            if ha:
+                comms_pending = ha.get_pending_count()
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] comms fetch failed: {e}")
+
         return {
-            "timestamp": now_utc.isoformat(),
+            "timestamp": now.isoformat(),
             "time_of_day": self._time_of_day(now),
             "day_of_week": now.strftime("%A"),
             "owner": CONFIG["owner_name"],
@@ -168,6 +204,12 @@ class ContextEngine:
             "loop_status": "running",
             "health": health_snapshot,
             "screen_activity": screen_activity,
+            # Extended fields
+            "location": "home (Legion Pro 5)",
+            "calendar": calendar_upcoming,
+            "finance": finance_summary,
+            "academic": academic_info,
+            "comms": {"pending_messages": comms_pending},
         }
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
