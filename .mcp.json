@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "vector": {
+      "command": "python",
+      "args": ["core/mcp_server.py"],
+      "cwd": "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/V.E.C.T.O.R. Codebase"
+    }
+  }
+}
