@@ -1,6 +1,8 @@
 import sys
 import asyncio
 import datetime
+import hashlib
+import json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -136,7 +138,7 @@ class AutonomousLoop:
                 logger.error(f"[VECTOR][act] error: {e}")
                 await asyncio.sleep(5)
 
-    async def _act_on(self, winner) -> None:
+    async def _act_on(self, winner: "DecisionEngine.Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
         RULE 3 — LLM zero direct access. All through gateway.
@@ -156,8 +158,25 @@ class AutonomousLoop:
             h = PolicyMemory.make_situation_hash(winner.params)
             pm.update_from_outcome(winner.action_type, h, reward)
 
+            if winner.reasoning_chain:
+                self._get_memory().store(
+                    event_type="reasoning_chain",
+                    content=f"action={winner.action_type} score={winner.total_score} outcome=reward:{reward}",
+                    tags=["reasoning", winner.action_type, "autonomous_loop"],
+                    context={
+                        "reasoning_chain": winner.reasoning_chain,
+                        "situation": winner.situation,
+                        "goal_ids": winner.goal_ids,
+                        "action_type": winner.action_type,
+                        "total_score": winner.total_score,
+                        "reward": reward,
+                    },
+                    source="autonomous_loop",
+                )
+
             logger.info(
-                f"[VECTOR][act] {winner.action_type} → {result.get('status')} reward={reward}"
+                f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward}"
+                + (f" chain={len(winner.reasoning_chain)} steps" if winner.reasoning_chain else "")
             )
         except Exception as e:
             logger.error(f"[VECTOR][act] _act_on failed: {e}")
@@ -169,7 +188,7 @@ class AutonomousLoop:
         logger.info("[VECTOR][reflect] started — fires at 2:00 AM daily")
         while self._running:
             try:
-                now = datetime.datetime.now()
+                now = datetime.datetime.now(datetime.timezone.utc)
                 reflect_hour = CONFIG["loop"]["reflect_hour"]
                 reflect_min = CONFIG["loop"]["reflect_minute"]
 
@@ -187,7 +206,7 @@ class AutonomousLoop:
                     await asyncio.sleep(min(1.0, remaining))
                     remaining -= 1.0
 
-                if self._running and datetime.datetime.now().hour == reflect_hour:
+                if self._running and datetime.datetime.now(datetime.timezone.utc).hour == reflect_hour:
                     await self._reflect_tick()
 
             except Exception as e:
