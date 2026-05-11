@@ -238,6 +238,9 @@ class ContextEngine:
             f"Time: {state['time_of_day']} ({state['day_of_week']})",
         ]
 
+        if state.get("location"):
+            lines.append(f"Location: {state['location']}")
+
         if state.get("health"):
             h = state["health"]
             lines.append(
@@ -249,6 +252,22 @@ class ContextEngine:
 
         if state.get("goal_summary"):
             lines.append(f"Active goals: {state['goal_summary']}")
+
+        if state.get("calendar"):
+            lines.append(f"Upcoming deadlines: {len(state['calendar'])} in next 7 days")
+
+        if state.get("finance"):
+            spent = state["finance"].get("total_spent", state["finance"].get("total", ""))
+            if spent:
+                lines.append(f"Finance: monthly spend={spent}")
+
+        if state.get("academic"):
+            acad = str(state["academic"])[:80]
+            if acad and acad != "{}":
+                lines.append(f"Academic: {acad}")
+
+        if state.get("comms", {}).get("pending_messages"):
+            lines.append(f"Comms: {state['comms']['pending_messages']} messages pending")
 
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
