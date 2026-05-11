@@ -406,6 +406,15 @@ def run_chat() -> None:
     console = Console()
     _render_header(console)
 
+    # Wire terminal notification into TaskQueue so completed BG tasks print inline
+    try:
+        from core.loop.task_queue import TaskQueue
+        def _bg_notify(msg: str) -> None:
+            console.print(f"\n[bold green]{msg}[/bold green]")
+        TaskQueue.get().set_terminal_notify(_bg_notify)
+    except Exception:
+        pass
+
     history: list[dict] = []
 
     while True:
