@@ -135,7 +135,7 @@ def classify(text: str) -> str:
 # ── Heartbeat loop ─────────────────────────────────────────────────────────────
 
 def _log(msg: str) -> None:
-    print(f"[VECTOR][phone] {datetime.datetime.now().strftime('%H:%M:%S')} {msg}", flush=True)
+    logger.info(f"[VECTOR][phone] {datetime.datetime.now().strftime('%H:%M:%S')} {msg}")
 
 
 def _heartbeat_loop() -> None:
