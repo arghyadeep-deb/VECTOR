@@ -190,6 +190,23 @@ _DASHBOARD_HTML = """\
       <div class="dist-grid" id="dist-grid"></div>
     </div>
 
+    <div id="tasks-panel" class="panel">
+      <h3 style="color:var(--green);margin-bottom:10px">Background Tasks</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="bg-task-input" type="text" placeholder="Describe a task for vector-deep..."
+          style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+                 padding:6px 10px;border-radius:4px;font-family:inherit;font-size:12px"/>
+        <button onclick="submitBgTask()"
+          style="background:var(--bg3);border:1px solid var(--green);color:var(--green);
+                 padding:6px 14px;border-radius:4px;cursor:pointer;font-family:inherit">Run BG</button>
+        <button onclick="loadTasks()"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--dim);
+                 padding:6px 10px;border-radius:4px;cursor:pointer;font-family:inherit">Refresh</button>
+      </div>
+      <div id="tasks-running"></div>
+      <div id="tasks-recent" style="margin-top:14px"></div>
+    </div>
+
     <div id="karpathy-panel" class="panel">
       <h3 style="color:var(--green);margin-bottom:10px">Karpathy Track &mdash; RULE 12: 30min/day</h3>
       <div id="karpathy-content"></div>
