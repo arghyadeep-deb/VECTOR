@@ -95,6 +95,36 @@ class PermissionGateway:
         self._write_audit(action, result)
         return result
 
+    async def _request_humanlayer_approval(self, action: "Action") -> bool:
+        """Use HumanLayer to get owner approval for RED-tier actions via configured channels."""
+        if not _HUMANLAYER_AVAILABLE or _hl is None:
+            return False
+        try:
+            context = {
+                "action": action.action_type,
+                "params": action.params,
+                "proposed_by": action.proposed_by,
+                "priority": action.priority,
+            }
+            loop = asyncio.get_event_loop()
+            # HumanLayer SDK is sync; run in executor so we don't block the event loop
+            approved = await loop.run_in_executor(
+                None,
+                lambda: _hl.fetch_approval(
+                    action=action.action_type,
+                    context=str(context),
+                ),
+            )
+            logger.info(f"[VECTOR][gateway] HumanLayer approval for {action.action_type}: {approved}")
+            return bool(approved)
+        except Exception as e:
+            logger.warning(f"[VECTOR][gateway] HumanLayer approval failed: {e} — falling back to asyncio Event")
+            await self._notify(
+                f'VECTOR needs approval for: {action.action_type}. Confirm in dashboard.',
+                priority=2,
+            )
+            return await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+
     def _classify(self, action_type) -> str:
         if action_type in FORBIDDEN: return 'FORBIDDEN'
         if action_type in GREEN: return 'GREEN'
