@@ -669,7 +669,7 @@ async def web_memory(q: str = "", limit: int = 20):
     try:
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
-        results = mem.search(q, limit=limit) if q else mem.get_recent(limit=limit)
+        results = mem.recall(q or "", limit=limit)
         return {"memories": results}
     except Exception as e:
         return {"memories": [], "error": str(e)}
