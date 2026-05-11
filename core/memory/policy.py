@@ -36,7 +36,7 @@ class PolicyMemory:
             key = json.dumps(context, sort_keys=True, default=str)
         else:
             key = str(context)
-        return hashlib.md5(key.encode()).hexdigest()[:12]
+        return hashlib.sha256(key.encode()).hexdigest()[:12]
 
     def get_score(self, action_type: str, situation_hash: str) -> float:
         """
