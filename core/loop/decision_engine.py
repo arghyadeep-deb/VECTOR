@@ -25,6 +25,10 @@ class Candidate:
     goal_alignment: float = 0.0
     policy_score: float = 0.5
     total_score: float = 0.0
+    # Reasoning chain populated by _act_on()
+    reasoning_chain: list[dict] = field(default_factory=list)
+    situation: dict = field(default_factory=dict)
+    reasoning_steps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -34,6 +38,8 @@ class Decision:
     reasoning: str
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
     evaluated: int = 0
+    reasoning_chain: list[dict] = field(default_factory=list)
+    situation: dict = field(default_factory=dict)
 
 
 class DecisionEngine:
@@ -95,13 +101,12 @@ class DecisionEngine:
 
     def _make_situation_hash(self, candidate: Candidate) -> str:
         key = f"{candidate.action_type}:{json.dumps(candidate.params, sort_keys=True, default=str)}"
-        return hashlib.md5(key.encode()).hexdigest()[:12]
+        return hashlib.sha256(key.encode()).hexdigest()[:12]
 
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula. Mutates candidate with computed scores."""
         situation_hash = self._make_situation_hash(candidate)
 
-        # RULE 7 — get_score() BEFORE every decision
         policy_score = self._get_policy().get_score(candidate.action_type, situation_hash)
         candidate.policy_score = policy_score
 
@@ -119,6 +124,38 @@ class DecisionEngine:
             - self.W_COST * cost_penalty
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
+
+        # Build reasoning chain for audit/replay
+        candidate.reasoning_chain = [
+            {"step": 1, "factor": "goal_alignment", "score": round(goal_score, 4), "weight": self.W_GOAL, "contribution": round(self.W_GOAL * goal_score, 4)},
+            {"step": 2, "factor": "confidence", "score": candidate.confidence, "weight": self.W_CONF, "contribution": round(self.W_CONF * candidate.confidence, 4)},
+            {"step": 3, "factor": "policy_score", "score": round(policy_score, 4), "weight": self.W_POLICY, "contribution": round(self.W_POLICY * policy_score, 4)},
+            {"step": 4, "factor": "urgency", "score": candidate.urgency, "weight": self.W_URGENCY, "contribution": round(self.W_URGENCY * candidate.urgency, 4)},
+            {"step": 5, "factor": "timing_score", "score": candidate.timing_score, "weight": self.W_TIMING, "contribution": round(self.W_TIMING * candidate.timing_score, 4)},
+            {"step": 6, "factor": "cost_penalty", "score": round(cost_penalty, 4), "weight": self.W_COST, "contribution": round(-self.W_COST * cost_penalty, 4)},
+        ]
+
+        candidate.reasoning_steps = [
+            f"1. goal_alignment={goal_score:.2f} (contrib={self.W_GOAL*goal_score:.2f})",
+            f"2. confidence={candidate.confidence:.2f} (contrib={self.W_CONF*candidate.confidence:.2f})",
+            f"3. policy_score={policy_score:.2f} (contrib={self.W_POLICY*policy_score:.2f})",
+            f"4. urgency={candidate.urgency:.2f} (contrib={self.W_URGENCY*candidate.urgency:.2f})",
+            f"5. timing_score={candidate.timing_score:.2f} (contrib={self.W_TIMING*candidate.timing_score:.2f})",
+            f"6. cost_penalty={cost_penalty:.2f} (contrib={-self.W_COST*cost_penalty:.2f})",
+            f"FINAL total_score={candidate.total_score:.4f}",
+        ]
+
+        # Capture situation for policy memory
+        goals = self._get_goals().get_active_goals()
+        candidate.situation = {
+            "action_type": candidate.action_type,
+            "situation_hash": situation_hash,
+            "goal_ids": candidate.goal_ids,
+            "goal_priorities": [g.get("priority", 5) for g in goals if g.get("id") in candidate.goal_ids],
+            "active_goal_count": len(goals),
+            "policy_score": round(policy_score, 4),
+        }
+
         return candidate.total_score
 
     async def evaluate(self, candidates: list[Candidate]) -> Decision:
@@ -165,6 +202,23 @@ class DecisionEngine:
             all_candidates=ranked,
             reasoning=reasoning,
             evaluated=len(candidates),
+            reasoning_chain=[
+                {
+                    "rank": i + 1,
+                    "action_type": c.action_type,
+                    "goal_ids": c.goal_ids,
+                    "total_score": c.total_score,
+                    "goal_alignment": c.goal_alignment,
+                    "policy_score": c.policy_score,
+                    "confidence": c.confidence,
+                    "urgency": c.urgency,
+                    "timing_score": c.timing_score,
+                    "reasoning_steps": c.reasoning_steps,
+                    "winner": c is winner,
+                }
+                for i, c in enumerate(ranked)
+            ],
+            situation=winner.situation,
         )
 
 
