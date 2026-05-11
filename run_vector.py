@@ -144,6 +144,7 @@ async def smoke_test() -> dict:
 
 async def run_loop() -> None:
     """Start the autonomous loop. This is intended to run until interrupted."""
+    preflight_checks()
     bootstrap_agents()
     from core.loop.autonomous_loop import AutonomousLoop
 
