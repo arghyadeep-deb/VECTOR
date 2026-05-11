@@ -35,14 +35,42 @@ class AgentRegistry:
         )
 
     def deregister(self, agent_id: str) -> None:
-        """Remove agent on death. Ghost memory saved to agent_history."""
+        """Remove agent on death. Ghost saved, successor spawned (RULE 9 — Darwinism is real)."""
         agent = self._agents.pop(agent_id, None)
-        if agent:
-            self._persist_ghost(agent)
-            logger.info(
-                f"[VECTOR][agent_registry] -{agent.name} died — "
-                f"ghost saved gen={agent.generation}"
+        if not agent:
+            return
+        ghost_data = {
+            "name": agent.name,
+            "district": agent.district,
+            "generation": agent.generation,
+            "final_hp": agent.health_points,
+            "ghost_memory": agent.ghost_memory,
+            "lessons_learned": getattr(agent, "lessons", []),
+            "best_decisions": getattr(agent, "best_decisions", []),
+            "personality_traits": getattr(agent, "personality_traits", {}),
+        }
+        self._persist_ghost(agent)
+        logger.info(
+            f"[VECTOR][agent_registry] -{agent.name} died — "
+            f"ghost saved gen={agent.generation}"
+        )
+        try:
+            import uuid as _uuid
+            from core.city.evolution_engine import EvolutionEngine
+            from core.city.agent_base import AgentBase
+            blueprint = EvolutionEngine().spawn_successor(ghost_data)
+            successor = AgentBase(
+                str(_uuid.uuid4()),
+                blueprint["name"],
+                agent.district,
+                generation=blueprint["generation"],
             )
+            successor.health_points = blueprint["starting_hp"]
+            successor.model = successor._calculate_model()
+            successor.inherit_ghost(ghost_data)
+            self.register(successor)
+        except Exception as e:
+            logger.error(f"[VECTOR][agent_registry] evolution spawn failed: {e}")
 
     def _persist_ghost(self, agent) -> None:
         """Save dead agent's history for next-generation inheritance."""
