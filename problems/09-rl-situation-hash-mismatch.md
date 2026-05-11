@@ -1,7 +1,7 @@
 # Problem 09 — RL Situation Hash Mismatch (Policy Loop Broken)
 
 **Severity: CRITICAL**
-**Status: DOCUMENTED — fix required in autonomous_loop.py**
+**Status: FIXED 2026-05-11 — autonomous_loop._act_on() now uses sha256(action_type:params_json)[:12] matching decision_engine. PolicyMemory.make_situation_hash also upgraded MD5→SHA256.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
