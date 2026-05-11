@@ -3,7 +3,7 @@
 **Owner:** Arghyadeep Deb | KIIT CSE 2023-27  
 **Hardware:** Legion Pro 5 | RTX 5070 Ti 12GB | 32GB RAM  
 **Repo:** https://github.com/arghyadeep-deb/VECTOR  
-**Last updated:** 2026-05-07
+**Last updated:** 2026-05-12
 
 ---
 
@@ -19,6 +19,7 @@
 | T6 | Memory + Research + Cloud | ✅ DONE | ⚠️ Code complete — deploy pending |
 | T7 | Final Integration | ✅ DONE | ⚠️ Integration testing pending |
 | P2 | Phase 2 — Reflection, Health, Finance, Projects | ✅ DONE | ✅ 47/47 tests |
+| P3 | Phase 3 — Modular API, Intelligence Stack Fixes | ✅ DONE | ✅ 19 routes, full stack wired |
 
 ---
 
@@ -143,7 +144,7 @@ cd dashboard && vercel --prod
 
 ---
 
-## Phase 2 — Districts: Reflection, Health, Finance, Projects ✅ COMPLETE
+| Phase 2 — Districts: Reflection, Health, Finance, Projects ✅ COMPLETE
 
 ### P2.1 — Reflection District ✅
 | Agent | Schedule | Key Behavior |
@@ -176,6 +177,32 @@ cd dashboard && vercel --prod
 | `doc_writer.py` | Event-driven | 5 doc types: readme / architecture / api / retrospective / onboarding |
 
 **Tests:** 47/47 passing (`tests/test_phase2_districts.py`)
+
+---
+
+## Phase 3 — Modular API + Intelligence Stack Fixes ✅ COMPLETE
+
+| Module | File | Status |
+|--------|------|--------|
+| API App Factory | `core/api/app.py` | ✅ `create_app()` wires all routers, middleware, CORS, startup/shutdown |
+| Schemas | `core/api/schemas.py` | ✅ All Pydantic request/response models |
+| Dependencies | `core/api/dependencies.py` | ✅ DI for all core components (8 FastAPI Depends functions) |
+| Auth | `core/api/auth.py` | ✅ HTTPBearer API key verification via security dependency |
+| Middleware | `core/api/middleware.py` | ✅ Auth, logging, timing, error-handling middleware |
+| CRUD | `core/api/crud.py` | ✅ 12 CRUD functions for memory, agents, goals, policies |
+| Commands Router | `core/api/routers/commands.py` | ✅ Full intelligence stack: context → goals → decision → gateway → policy |
+| Council Router | `core/api/routers/council.py` | ✅ 3-stage deliberation with throttling, confidence scoring |
+| Agents Router | `core/api/routers/agents.py` | ✅ /agents and /agent/award |
+| Status Router | `core/api/routers/status.py` | ✅ Dynamic Ollama model checking + /health |
+| Voice Router | `core/api/routers/voice.py` | ✅ /voice with soundfile parsing |
+| Memory Router | `core/api/routers/memory.py` | ✅ /memory endpoints (recent, type-filtered, training-data, goals, council/history, security/recent) |
+| Deprecate main.py | `core/main.py` | ✅ Redirects to `create_app()` with deprecation warning |
+| Permission Gateway | `core/loop/permission_gateway.py` | ✅ `_execute_action()` now handles 14 action types |
+| Decision Engine | `core/loop/decision_engine.py` | ✅ Complete reasoning chain (6 steps) + situation dict in `Decision` dataclass |
+| Autonomous Loop | `core/loop/autonomous_loop.py` | ✅ `_act_on()` now stores reasoning chain in episodic memory |
+| Multi-DB Manager | `core/memory/multi_db_manager.py` | ✅ Full 4-DB sync: write_local/write_cloud/write_all/sync_all/health_check/get_stats |
+
+**Phase 3 Gate:** All modules import successfully — `create_app()` produces app with 19 routes ✅
 
 ---
 
