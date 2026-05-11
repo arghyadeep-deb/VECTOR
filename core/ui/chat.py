@@ -258,6 +258,114 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             console.print(f"[red]Karpathy error: {e}[/red]")
         return True
 
+    if verb == "/bg":
+        if not arg:
+            console.print("[yellow]Usage: /bg <task description>[/yellow]")
+            console.print("[dim]Examples: /bg research latest papers on MoE architectures[/dim]")
+            console.print("[dim]          /bg analyse my VECTOR codebase for bottlenecks[/dim]")
+            return True
+        try:
+            from core.loop.task_queue import TaskQueue, Priority
+            from core.inference.ollama_safe import chat
+            from core.loop.context_engine import ContextEngine
+
+            async def _deep_work():
+                hydration = ContextEngine().session_hydration_prompt()
+                return chat(
+                    model="vector-deep",
+                    messages=[
+                        {"role": "system", "content": hydration},
+                        {"role": "user",   "content": arg},
+                    ],
+                    timeout=600.0,
+                )
+
+            tq = TaskQueue.get()
+            task_id = tq.submit(
+                _deep_work(),
+                name=arg[:60],
+                priority=Priority.LOW,
+                district="core",
+                tags=["bg", "terminal"],
+            )
+            console.print(f"[green]Background task started:[/green] [dim]id={task_id}[/dim]")
+            console.print(f"[dim]  {arg[:80]}[/dim]")
+            console.print(f"[dim]  Check with /tasks — you'll be notified when done[/dim]")
+        except Exception as e:
+            console.print(f"[red]Background task error: {e}[/red]")
+        return True
+
+    if verb == "/tasks":
+        try:
+            from core.loop.task_queue import TaskQueue, TaskStatus
+            tq = TaskQueue.get()
+            summary = tq.summary()
+            running = tq.list_running()
+            recent  = tq.list_recent(10)
+
+            t = Table(box=box.SIMPLE, padding=(0, 1))
+            t.add_column("ID",       style="cyan",   width=10)
+            t.add_column("Name",     style="white",  width=40)
+            t.add_column("Status",   style="yellow", width=12)
+            t.add_column("Elapsed",  style="dim",    width=8)
+            t.add_column("District", style="dim",    width=12)
+
+            STATUS_COLOR = {
+                "running":   "bold green",
+                "done":      "green",
+                "failed":    "red",
+                "cancelled": "dim",
+                "queued":    "yellow",
+            }
+
+            for task in running:
+                bar = f"[{'=' * int(task.progress * 10)}{' ' * (10 - int(task.progress * 10))}]"
+                t.add_row(
+                    task.id,
+                    task.name[:40],
+                    f"[{STATUS_COLOR.get(task.status.value,'white')}]{task.status.value}[/]",
+                    f"{task.elapsed}s",
+                    task.district,
+                )
+
+            for task in recent:
+                t.add_row(
+                    task.id,
+                    task.name[:40],
+                    f"[{STATUS_COLOR.get(task.status.value,'white')}]{task.status.value}[/]",
+                    f"{task.elapsed}s",
+                    task.district,
+                )
+
+            if not running and not recent:
+                console.print("[dim]No background tasks yet.[/dim]")
+            else:
+                title = (
+                    f"[bold green]Background Tasks — "
+                    f"{summary['running']} running  "
+                    f"{summary['completed_today']} done  "
+                    f"{summary['failed_today']} failed[/bold green]"
+                )
+                console.print(Panel(t, title=title, border_style="green"))
+        except Exception as e:
+            console.print(f"[red]Tasks error: {e}[/red]")
+        return True
+
+    if verb == "/cancel":
+        if not arg:
+            console.print("[yellow]Usage: /cancel <task_id>[/yellow]")
+            return True
+        try:
+            from core.loop.task_queue import TaskQueue
+            cancelled = TaskQueue.get().cancel(arg.strip())
+            if cancelled:
+                console.print(f"[green]Task {arg.strip()} cancelled.[/green]")
+            else:
+                console.print(f"[yellow]Task {arg.strip()} not found or already finished.[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Cancel error: {e}[/red]")
+        return True
+
     console.print(f"[yellow]Unknown command: {verb}. Type /help for commands.[/yellow]")
     return True
 
