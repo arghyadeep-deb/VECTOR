@@ -47,6 +47,21 @@ class ConsolidationBot(AgentBase):
             logger.warning(f"[VECTOR][consolidation_bot] mem0 init failed: {_e}")
         logger.info(f"[VECTOR][consolidation_bot] ready gen={generation} hp={self.health_points}")
 
+    # ── mem0 helper ───────────────────────────────────────────────────────────
+
+    def _store_to_mem0(self, content: str, role: str = "assistant") -> None:
+        """Store content to mem0 episodic layer alongside EpisodicMemory."""
+        if not self._mem0:
+            return
+        try:
+            self._mem0.add(
+                [{"role": role, "content": content}],
+                user_id="vector",
+                metadata={"source": "consolidation_bot"},
+            )
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] mem0 store failed: {e}")
+
     # ── Episode helpers ────────────────────────────────────────────────────────
 
     def _fetch_old_episodes(self, days_old: int) -> list[dict]:
