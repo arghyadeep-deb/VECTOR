@@ -1,7 +1,7 @@
 # Problem 16 — Goal-Generated Actions Always Blocked by Gateway
 
 **Severity: HIGH**
-**Status: DOCUMENTED — requires adding action types to gateway**
+**Status: FIXED 2026-05-11 — progress_goal + kickstart_goal added to GREEN in config.py. goal_system now uses canonical action types. Progress threshold fixed: == 0.0 → < 1.0.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
