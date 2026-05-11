@@ -1,7 +1,7 @@
 # Problem 14 — District Crash Bugs (bug_hunter + architect_bot)
 
 **Severity: HIGH**
-**Status: bug_hunter FIXED; architect_bot DOCUMENTED**
+**Status: FIXED 2026-05-12 — bug_hunter fixed (prev session); architect_bot line 75 double-negative boolean fixed: `not node.module.startswith("core") is False` replaced with explicit `is_relative or is_local_absolute` check.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Part A — bug_hunter.py: _find_pattern_issues AttributeError (FIXED)
