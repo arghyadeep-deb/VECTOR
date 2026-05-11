@@ -1,7 +1,7 @@
 # Problem 13 — Reasoning Chains Not Persisted (RULE 8)
 
 **Severity: HIGH**
-**Status: DOCUMENTED — requires wiring in autonomous_loop + decision_engine**
+**Status: FIXED 2026-05-11 — autonomous_loop._act_on() now calls episodic.store_chain() with correct fields. Chains with reward>0.7 auto-tagged is_training_data=1.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
