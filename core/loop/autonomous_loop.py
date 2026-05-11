@@ -145,7 +145,21 @@ class AutonomousLoop:
                 "source": "autonomous_loop",
             })
 
-            reward = 0.8 if result.get("status") == "ok" else 0.2
+            # 5-factor RL reward (Architecture.md spec):
+            # user_feedback(0.40) + goal_progress(0.25) + not_overridden(0.15)
+            # + not_corrected(0.15) + completed(0.05)
+            completed = 1.0 if result.get("status") in ("ok", "executed") else 0.0
+            goal_progress = float(result.get("goal_progress", 0.5))
+            not_overridden = 0.0 if result.get("overridden") else 1.0
+            not_corrected = 0.0 if result.get("corrected") else 1.0
+            user_feedback = float(result.get("user_feedback", 0.5))
+            reward = (
+                user_feedback * 0.40
+                + goal_progress * 0.25
+                + not_overridden * 0.15
+                + not_corrected * 0.15
+                + completed * 0.05
+            )
 
             pm = self._get_policy()
             situation_key = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
