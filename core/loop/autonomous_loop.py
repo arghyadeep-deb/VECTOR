@@ -143,25 +143,19 @@ class AutonomousLoop:
 
             reward = 0.8 if result.get("status") == "ok" else 0.2
 
-            from core.memory.policy import PolicyMemory
             pm = self._get_policy()
-            h = PolicyMemory.make_situation_hash(winner.params)
+            situation_key = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
+            h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
             pm.update_from_outcome(winner.action_type, h, reward)
 
             if winner.reasoning_chain:
-                self._get_memory().store(
-                    event_type="reasoning_chain",
-                    content=f"action={winner.action_type} score={winner.total_score} outcome=reward:{reward}",
-                    tags=["reasoning", winner.action_type, "autonomous_loop"],
-                    context={
-                        "reasoning_chain": winner.reasoning_chain,
-                        "situation": winner.situation,
-                        "goal_ids": winner.goal_ids,
-                        "action_type": winner.action_type,
-                        "total_score": winner.total_score,
-                        "reward": reward,
-                    },
-                    source="autonomous_loop",
+                self._get_memory().store_chain(
+                    situation=json.dumps(winner.situation) if winner.situation else winner.action_type,
+                    goal_ids=winner.goal_ids,
+                    steps=winner.reasoning_chain,
+                    action=winner.action_type,
+                    outcome=f"status={result.get('status')} reward={reward}",
+                    reward=reward,
                 )
 
             logger.info(
