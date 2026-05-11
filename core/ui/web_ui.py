@@ -268,7 +268,7 @@ _DASHBOARD_HTML = """\
 
   // ── Tab routing ─────────────────────────────────────────────────────────────
   const LAZY={goals:loadGoals,memory:loadMemory,districts:loadDistricts,
-               karpathy:loadKarpathy,agents:loadAgents};
+               tasks:loadTasks,karpathy:loadKarpathy,agents:loadAgents};
 
   function showTab(name){
     document.querySelectorAll(".panel, #chat-panel").forEach(p=>{
