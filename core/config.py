@@ -120,6 +120,29 @@ class CodingConfig(BaseModel):
     repo_path: str = str(_BASE_DIR)
 
 
+class HermesConfig(BaseModel):
+    local_url: str = "http://127.0.0.1:8080"
+    port: int = Field(8080, ge=1024, le=65535)
+    timeout_sec: float = Field(10.0, ge=1.0, le=60.0)
+
+
+class TursoConfig(BaseModel):
+    url: str = ""
+    token: str = ""
+
+
+class KarpathyConfig(BaseModel):
+    runs_dir: str = "./data/training_runs"
+    data_dir: str = "./data/datasets"
+    daily_minutes: int = Field(30, ge=5, le=120)
+
+
+class AirLLMConfig(BaseModel):
+    models_dir: str = "./models/airllm"
+    cache_dir: str = "./data/airllm_cache"
+    max_gpu_memory_gb: float = Field(11.0, ge=1.0, le=24.0)
+
+
 # ── Main settings (reads from .env) ───────────────────────────────────────────
 
 class VectorSettings(BaseSettings):
