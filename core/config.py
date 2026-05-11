@@ -49,6 +49,7 @@ class PermissionConfig(BaseModel):
     green: list[str] = Field(default_factory=lambda: [
         "read_calendar", "play_music", "set_timer", "search_web",
         "take_screenshot", "check_weather", "check_attendance",
+        "progress_goal", "kickstart_goal",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
