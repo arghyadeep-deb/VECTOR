@@ -19,6 +19,10 @@ class ContextEngine:
         self._health = None
         self._screen = None
         self._obsidian = None
+        self._deadline_mgr = None
+        self._expense_tracker = None
+        self._kiit_scraper = None
+        self._hermes = None
         logger.info("[VECTOR][context_engine] initialized")
 
     def _get_memory(self):
@@ -73,7 +77,7 @@ class ContextEngine:
 
     def get_world_state(self) -> dict:
         """Gather current world state across 9 domains."""
-        now = datetime.datetime.now()  # local time for time-of-day display
+        now = datetime.datetime.now(datetime.timezone.utc)  # UTC for consistency
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         mem = self._get_memory()
 
