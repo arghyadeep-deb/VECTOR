@@ -191,6 +191,7 @@ class ConsolidationBot(AgentBase):
                 folder="Reflections",
                 tags=["reflection", "daily", "auto", "vector"],
             )
+            self._store_to_mem0(f"Daily reflection [{date_str}]: {reflection[:600]}")
             self._memory.store_chain(
                 situation="daily_reflection",
                 goal_ids=["self_awareness"],
