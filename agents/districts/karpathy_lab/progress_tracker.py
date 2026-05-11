@@ -98,14 +98,15 @@ class ProgressTracker(AgentBase):
         logger.info(f"[VECTOR][karpathy_lab] Training run '{run_name}' started at {start_time}")
         return result
 
-    def log_step(self, step: int, metrics: dict) -> dict:
+    def log_step(self, step: int, metrics: dict, run_name: str = None) -> dict:
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         metrics_json = json.dumps(metrics)
+        active_run = run_name or self._current_run
 
         conn = sqlite3.connect(self.db_path)
         conn.execute(
-            "INSERT INTO step_logs (step, metrics, timestamp) VALUES (?, ?, ?)",
-            (step, metrics_json, timestamp)
+            "INSERT INTO step_logs (run_name, step, metrics, timestamp) VALUES (?, ?, ?, ?)",
+            (active_run, step, metrics_json, timestamp)
         )
         conn.commit()
         conn.close()
