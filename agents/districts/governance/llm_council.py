@@ -16,8 +16,8 @@ from loguru import logger
 
 _COUNCIL_MEMBERS = [
     CONFIG["models"]["reasoning"],           # vector-reasoning (qwen3:14b)
-    CONFIG["models"]["cloud_orchestrator"],  # kimi-k2.6:cloud
-    CONFIG["models"]["cloud_coder"],         # glm-5.1:cloud
+    CONFIG["models"]["cloud_orchestrator"],  # deepseek-r1:14b — R1 reasoning traces
+    CONFIG["models"]["cloud_coder"],         # phi4:latest — strong reasoning + coding
 ]
 _CHAIRMAN = CONFIG["models"]["chairman"]     # vector-chairman (gemma4:31b)
 
