@@ -47,7 +47,8 @@ class AgentRegistry:
     def _persist_ghost(self, agent) -> None:
         """Save dead agent's history for next-generation inheritance."""
         try:
-            conn = self._get_mem().conn
+            from core.memory.episodic import get_db_connection
+            conn = get_db_connection()
             conn.execute(
                 "INSERT OR REPLACE INTO agent_history "
                 "(agent_id, agent_name, district, generation, final_hp, ghost_memory, died_at) "
@@ -58,7 +59,7 @@ class AgentRegistry:
                     agent.district,
                     agent.generation,
                     agent.health_points,
-                    str(agent.ghost_memory),
+                    json.dumps(agent.ghost_memory),
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 ),
             )
