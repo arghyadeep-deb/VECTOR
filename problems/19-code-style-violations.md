@@ -1,7 +1,7 @@
 # Problem 19 — Code Style Violations
 
 **Severity: LOW**
-**Status: DOCUMENTED — fix incrementally**
+**Status: PARTIALLY FIXED 2026-05-11 — requests→httpx (sentiment_bot), print→logger (ambient_server), MD5→SHA256 (decision_engine + policy). urllib in karpathy_lab still pending (use ollama_safe.chat wrapper).**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Violations Found
