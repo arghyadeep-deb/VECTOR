@@ -1,8 +1,12 @@
-'''
+"""
 Module: agents/districts/pattern_detective/__init__.py
-Auto-generated stub.
-'''
+District: pattern_detective | Focus: Pattern detection, habit finding, behavior analysis
+"""
 
+from .habit_finder import HabitFinder
+from .behavior_analyst import BehaviorAnalyst
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/pattern_detective/__init__.py'}
+__all__ = [
+    "HabitFinder",
+    "BehaviorAnalyst",
+]

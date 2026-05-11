@@ -1,8 +1,14 @@
-'''
+"""
 Module: agents/districts/skills/__init__.py
-Auto-generated stub.
-'''
+District: skills | Focus: Skill mapping, gap analysis, mastery tracking
+"""
 
+from .skill_mapper import SkillMapper
+from .gap_analyst import GapAnalyst
+from .mastery_tracker import MasteryTracker
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/skills/__init__.py'}
+__all__ = [
+    "SkillMapper",
+    "GapAnalyst",
+    "MasteryTracker",
+]

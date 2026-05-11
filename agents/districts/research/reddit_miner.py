@@ -113,8 +113,8 @@ class RedditMiner(AgentBase):
         )
         opportunities = ""
         try:
-            import ollama
-            response = ollama.chat(
+            from core.inference.ollama_safe import chat
+            opportunities = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -126,8 +126,10 @@ class RedditMiner(AgentBase):
                         ),
                     },
                 ],
+                timeout=2.0,
             )
-            opportunities = response["message"]["content"]
+            if not opportunities:
+                raise RuntimeError("empty model response")
         except Exception as e:
             logger.warning(f"[VECTOR][reddit_miner] LLM unavailable: {e}")
             opportunities = "\n".join(f"- {p['title']}" for p in posts[:5])

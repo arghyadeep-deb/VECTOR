@@ -1,8 +1,16 @@
-'''
+"""
 Module: agents/districts/startups/__init__.py
-Auto-generated stub.
-'''
+District: startups | Focus: Idea validation, market scanning, competitive intelligence, revenue modeling
+"""
 
+from .idea_validator import IdeaValidator
+from .market_scanner import MarketScanner
+from .competitor_spy import CompetitorSpy
+from .revenue_modeler import RevenueModeler
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/startups/__init__.py'}
+__all__ = [
+    "IdeaValidator",
+    "MarketScanner",
+    "CompetitorSpy",
+    "RevenueModeler",
+]

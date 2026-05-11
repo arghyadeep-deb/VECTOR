@@ -1,8 +1,14 @@
-'''
-Module: integrations/opencli/__init__.py
-Auto-generated stub.
-'''
+"""
+V.E.C.T.O.R. OpenCLI package.
+CLI tool registry for V.E.C.T.O.R. commands.
+"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from loguru import logger
 
+from . import tool_registry
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'integrations/opencli/__init__.py'}
+logger.info("[VECTOR] opencli package loaded")
+
+__all__ = ["tool_registry"]

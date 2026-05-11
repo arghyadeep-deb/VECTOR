@@ -112,8 +112,8 @@ class WebScout(AgentBase):
 
         summary = ""
         try:
-            import ollama
-            response = ollama.chat(
+            from core.inference.ollama_safe import chat
+            summary = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -126,8 +126,10 @@ class WebScout(AgentBase):
                         ),
                     },
                 ],
+                timeout=2.0,
             )
-            summary = response["message"]["content"]
+            if not summary:
+                raise RuntimeError("empty model response")
         except Exception as e:
             logger.warning(f"[VECTOR][web_scout] LLM unavailable: {e}")
             summary = snippets[:1000] if snippets else f"No results found for '{query}'"

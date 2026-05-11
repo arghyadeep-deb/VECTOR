@@ -1,4 +1,6 @@
 {
+  "model": "claude-sonnet-4-6",
+  "autoMemoryEnabled": true,
   "permissions": {
     "allow": [
       "Bash(python *)",
@@ -14,23 +16,85 @@
       "Bash(git log *)",
       "Bash(git add *)",
       "Bash(git show *)",
+      "Bash(git commit *)",
       "Bash(pip install *)",
       "Bash(pip list)",
       "Bash(sqlite3 *)",
       "Bash(nvidia-smi)",
-      "Bash(dir *)",
-      "Bash(type *)"
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(pytest *)",
+      "Bash(pytest tests/ *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(.env.local)",
+      "Read(.env.production)",
+      "Read(google_credentials.json)",
+      "Read(service_account.json)",
+      "Bash(rm -rf *)",
+      "Bash(del /f *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(DROP TABLE *)",
+      "Bash(format *)"
     ]
   },
   "hooks": {
-    "PostToolUse": [
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\file_protection.py\"",
+            "timeout": 5000
+          }
+        ]
+      },
       {
         "matcher": "Write",
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import py_compile,sys; f=sys.argv[1]; py_compile.compile(f,doraise=True) if f.endswith('.py') else None\" \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>&1 | head -5",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\pre_write_check.py\"",
             "timeout": 8000
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\pre_commit_gate.py\"",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\lint_on_save.py\"",
+            "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_screenshot.py\"",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_commit.py\"",
+            "timeout": 20000
           }
         ]
       }
@@ -38,6 +102,16 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_test.py\"",
+            "timeout": 130000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\finish_notification.py\"",
+            "timeout": 10000
+          },
           {
             "type": "command",
             "command": "git status --short 2>&1 | head -25"

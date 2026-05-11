@@ -55,7 +55,7 @@ class WakeWordDetector:
                 blocksize=self._frame_size,
             ) as stream:
                 while True:
-                    frame, _ = stream.read(self._frame_size)
+                    frame, _ = await asyncio.to_thread(stream.read, self._frame_size)
                     frame_np = frame.flatten()
                     if self.is_wake_word(frame_np):
                         logger.info("[VECTOR][wake] Wake word detected!")

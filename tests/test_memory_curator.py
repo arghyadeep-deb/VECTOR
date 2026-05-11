@@ -77,10 +77,11 @@ def test_consolidate_old_episodes_stores_summary():
     old_ts = (
         datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=35)
     ).isoformat()
+    episode_id = f"old-episode-smoke-{datetime.datetime.now(datetime.timezone.utc).timestamp()}"
     bot._memory.conn.execute(
         "INSERT INTO episodic_memory (id, event_type, content, tags, context_snapshot, timestamp, source) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        ("old-episode-smoke", "task", "very old smoke test event", None, None, old_ts, "test"),
+        (episode_id, "task", "very old smoke test event", None, None, old_ts, "test"),
     )
     bot._memory.conn.commit()
 

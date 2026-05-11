@@ -1,8 +1,12 @@
-'''
+"""
 Module: agents/districts/privacy/__init__.py
-Auto-generated stub.
-'''
+District: privacy | Focus: Privacy enforcement, GDPR compliance, data flow auditing
+"""
 
+from .privacy_enforcer import PrivacyEnforcer
+from .data_flow_auditor import DataFlowAuditor
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/privacy/__init__.py'}
+__all__ = [
+    "PrivacyEnforcer",
+    "DataFlowAuditor",
+]

@@ -31,9 +31,14 @@ class AINewsBot(AgentBase):
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         from core.inference.ollama_safe import chat as ollama_chat
+        from core.loop.context_engine import ContextEngine
+        hydration = ContextEngine().session_hydration_prompt()
         return ollama_chat(
             model=model or self.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": hydration},
+                {"role": "user", "content": prompt},
+            ],
             timeout=120,
         )
 

@@ -1,8 +1,227 @@
-'''
+"""
 Module: agents/districts/learning/course_tracker.py
-Auto-generated stub.
-'''
+District: learning | Focus: Track online courses, lessons, and learning progress
+"""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+from core.memory.episodic import EpisodicMemory
+from core.memory.obsidian_sync import ObsidianSync
+from loguru import logger
+import uuid, asyncio, json, datetime, sqlite3
+from typing import Optional
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/learning/course_tracker.py'}
+class CourseTracker(AgentBase):
+    def __init__(self):
+        super().__init__(
+            agent_id=str(uuid.uuid4()),
+            name="CourseTracker",
+            district="learning",
+            generation=1
+        )
+        self.memory = EpisodicMemory()
+        self.obsidian = ObsidianSync()
+        self.db_path = Path("./data/learning_courses.db")
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+        logger.info("[VECTOR][learning] CourseTracker ready")
+
+    def _init_db(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("""CREATE TABLE IF NOT EXISTS courses (
+            name TEXT PRIMARY KEY,
+            platform TEXT,
+            url TEXT,
+            added_at TEXT,
+            total_lessons INTEGER DEFAULT 0,
+            completed_lessons INTEGER DEFAULT 0
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS lessons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_name TEXT,
+            lesson_name TEXT,
+            completed_at TEXT,
+            notes TEXT,
+            UNIQUE(course_name, lesson_name)
+        )""")
+        conn.commit()
+        conn.close()
+
+    def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
+        from core.inference.ollama_safe import chat as ollama_chat
+        from core.loop.context_engine import ContextEngine
+        hydration = ContextEngine().session_hydration_prompt()
+        return ollama_chat(
+            model=model or self.model,
+            messages=[
+                {"role": "system", "content": hydration},
+                {"role": "user", "content": prompt},
+            ],
+            timeout=120,
+        )
+
+    def add_course(self, name: str, platform: str, url: str) -> dict:
+        logger.info(f"[VECTOR][learning] Adding course: {name} from {platform}")
+        self.add_lesson({"action": "add_course", "course": name, "platform": platform})
+
+        conn = sqlite3.connect(self.db_path)
+        added_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            "INSERT OR REPLACE INTO courses (name, platform, url, added_at) VALUES (?, ?, ?, ?)",
+            (name, platform, url, added_at)
+        )
+        conn.commit()
+        conn.close()
+
+        result = {"course_name": name, "platform": platform, "url": url, "added_at": added_at}
+        self.memory.store(
+            event_type="course_added",
+            content=f"Added course: {name} on {platform}",
+            tags=["course", platform, name],
+            context=result,
+            source="CourseTracker"
+        )
+
+        logger.info(f"[VECTOR][learning] Course '{name}' added from {platform}")
+        return result
+
+    def get_progress(self, course_name: str) -> dict:
+        logger.info(f"[VECTOR][learning] Getting progress for: {course_name}")
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.execute(
+            "SELECT platform, url, added_at, total_lessons, completed_lessons FROM courses WHERE name = ?",
+            (course_name,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return {"error": f"Course '{course_name}' not found"}
+
+        platform, url, added_at, total, completed = row
+
+        cursor2 = conn.execute(
+            "SELECT lesson_name, completed_at FROM lessons WHERE course_name = ? ORDER BY completed_at DESC",
+            (course_name,)
+        )
+        lessons = [{"lesson": r[0], "completed_at": r[1]} for r in cursor2.fetchall()]
+        conn.close()
+
+        progress_pct = round((completed / total) * 100, 2) if total > 0 else 0.0
+
+        return {
+            "course_name": course_name,
+            "platform": platform,
+            "url": url,
+            "total_lessons": total,
+            "completed_lessons": completed,
+            "progress_percent": progress_pct,
+            "added_at": added_at,
+            "recent_lessons": lessons[-10:],
+        }
+
+    def log_lesson(self, course_name: str, lesson_name: str, notes: Optional[str] = None) -> dict:
+        logger.info(f"[VECTOR][learning] Logging lesson: {course_name} - {lesson_name}")
+        self.add_lesson({"action": "log_lesson", "course": course_name, "lesson": lesson_name})
+
+        conn = sqlite3.connect(self.db_path)
+        completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        conn.execute(
+            "INSERT OR IGNORE INTO lessons (course_name, lesson_name, completed_at, notes) VALUES (?, ?, ?, ?)",
+            (course_name, lesson_name, completed_at, notes or "")
+        )
+
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM lessons WHERE course_name = ?",
+            (course_name,)
+        )
+        completed = cursor.fetchone()[0]
+
+        conn.execute(
+            "UPDATE courses SET completed_lessons = ? WHERE name = ?",
+            (completed, course_name)
+        )
+        conn.commit()
+        conn.close()
+
+        result = {"course_name": course_name, "lesson_name": lesson_name, "completed_at": completed_at, "notes": notes}
+        self.memory.store(
+            event_type="lesson_logged",
+            content=f"Completed lesson '{lesson_name}' in course '{course_name}'",
+            tags=["learning", "lesson", course_name],
+            context=result,
+            source="CourseTracker"
+        )
+
+        return result
+
+    def generate_report(self) -> dict:
+        logger.info("[VECTOR][learning] Generating learning progress report")
+        self.add_lesson({"action": "generate_report"})
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.execute("SELECT name, platform, total_lessons, completed_lessons, added_at FROM courses")
+        courses = []
+        for row in cursor.fetchall():
+            total = row[3]
+            completed = row[4]
+            pct = round((completed / total) * 100, 2) if total > 0 else 0.0
+            courses.append({"name": row[0], "platform": row[1], "total": total, "completed": completed, "percent": pct, "added_at": row[4]})
+
+        cursor2 = conn.execute("SELECT COUNT(*) FROM lessons")
+        total_lessons = cursor2.fetchone()[0]
+        conn.close()
+
+        overall_pct = 0.0
+        if courses:
+            overall_pct = round(sum(c["percent"] for c in courses) / len(courses), 2)
+
+        prompt = f"Summarize this learning progress: {json.dumps(courses, indent=2)}. Total lessons completed: {total_lessons}, Overall progress: {overall_pct}%. Give actionable insights and recommendations."
+        insights = self._call_ollama(prompt)
+
+        report = {
+            "total_courses": len(courses),
+            "total_lessons_completed": total_lessons,
+            "overall_progress_percent": overall_pct,
+            "courses": courses,
+            "insights": insights,
+            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+
+        self.memory.store(
+            event_type="learning_report_generated",
+            content=f"Learning report: {len(courses)} courses, {total_lessons} lessons",
+            tags=["learning", "report", "progress"],
+            context=report,
+            source="CourseTracker"
+        )
+
+        return report
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    agent = CourseTracker()
+    assert agent.district == "learning"
+
+    agent.add_course("Deep Learning Specialization", "Coursera", "https://coursera.org/deep-learning")
+    agent.add_course("FastAPI Masterclass", "Udemy", "https://udemy.com/fastapi")
+
+    agent.log_lesson("Deep Learning Specialization", "Neural Networks Basics", "Completed forward propagation")
+    agent.log_lesson("Deep Learning Specialization", "Deep Neural Networks", "Learned backprop")
+    agent.log_lesson("FastAPI Masterclass", "Introduction to FastAPI", "Set up environment")
+
+    progress = agent.get_progress("Deep Learning Specialization")
+    assert progress["completed_lessons"] == 2
+
+    report = agent.generate_report()
+    assert "total_courses" in report
+    assert report["total_courses"] >= 2
+    assert "insights" in report
+
+    print("✅ course_tracker.py OK")

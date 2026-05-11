@@ -1,8 +1,12 @@
-'''
-Module: agents/__init__.py
-Auto-generated stub.
-'''
+"""
+V.E.C.T.O.R. agents package.
+All VECTOR agents and districts.
+"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from loguru import logger
 
+logger.info("[VECTOR] agents package loaded")
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/__init__.py'}
+__all__ = []

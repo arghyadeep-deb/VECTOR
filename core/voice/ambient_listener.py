@@ -123,7 +123,7 @@ class AmbientListener:
                 text = ""
                 if self._stt:
                     duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
-                    text = self._stt.record_and_transcribe(duration_sec=duration)
+                    text = await asyncio.to_thread(self._stt.record_and_transcribe, duration_sec=duration)
                 if not text:
                     await asyncio.sleep(0.5)
                     continue
@@ -134,7 +134,7 @@ class AmbientListener:
                 if self._is_end_phrase(text):
                     logger.info("[VECTOR][voice] End phrase — session closed")
                     if self._tts:
-                        self._tts.speak("Goodbye.", lang="en")
+                        await asyncio.to_thread(self._tts.speak, "Goodbye.", lang="en")
                     self._session_active = False
                     break
 
@@ -167,7 +167,7 @@ class AmbientListener:
                 response_text = result.get("message", f"Done: {action_type}")
                 logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
                 if self._tts:
-                    self._tts.speak(response_text, lang=lang)
+                    await asyncio.to_thread(self._tts.speak, response_text, lang=lang)
 
         except Exception as e:
             logger.error(f"[VECTOR][voice] handle_voice_input error: {e}")
@@ -178,7 +178,8 @@ class AmbientListener:
         """Call vector-ambient model to classify intent → {action_type, params}."""
         try:
             import httpx
-            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            from core.main import get_ollama_host
+            ollama_host = get_ollama_host()
             model = CONFIG["models"]["ambient"]
             prompt = (
                 f"{hydration}\n\n"
@@ -202,8 +203,8 @@ class AmbientListener:
                 if start != -1 and end > start:
                     return json.loads(raw[start:end])
         except Exception as e:
-            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to search_web")
-        return {"action_type": "search_web", "params": {"query": text}}
+            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to respond")
+        return {"action_type": "respond", "params": {"message": "I didn't catch that."}}
 
 
 if __name__ == "__main__":

@@ -18,6 +18,9 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
+.tmp/
+test_tmp/
 
 # Node
 node_modules/

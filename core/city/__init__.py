@@ -1,8 +1,16 @@
-'''
-Module: core/city/__init__.py
-Auto-generated stub.
-'''
+"""
+V.E.C.T.O.R. city package.
+Agent base, evolution engine, point system, task router, meta-cognition.
+"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from loguru import logger
 
+from .agent_base import AgentBase
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'core/city/__init__.py'}
+logger.info("[VECTOR] city package loaded")
+
+__all__ = [
+    "AgentBase",
+]

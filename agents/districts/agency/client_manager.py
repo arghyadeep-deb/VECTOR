@@ -1,8 +1,333 @@
-'''
-Module: agents/districts/agency/client_manager.py
-Auto-generated stub.
-'''
+import sys
+import uuid
+import json
+from pathlib import Path
+from typing import Optional
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+from core.memory.episodic import EpisodicMemory
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/agency/client_manager.py'}
+class ClientManager(AgentBase):
+    """
+    Manages client relationships, tracks engagement,
+    and stores client information for agency operations.
+    """
+
+    ENGAGEMENT_TYPES = [
+        "initial_contact", "meeting", "call", "email", "proposal_sent",
+        "contract_signed", "payment_received", "project_update",
+        "deliverable_sent", "feedback_received", "renewal_discussed",
+        "churn_risk", "win_back"
+    ]
+
+    def __init__(self, ghost: dict = None):
+        super().__init__(str(uuid.uuid4()), "ClientManager", "agency")
+        if ghost:
+            self.inherit_ghost(ghost)
+
+        self._clients: dict[str, dict] = {}
+        self._engagement_history: list[dict] = []
+        self._episodic = EpisodicMemory()
+        self._client_file = Path(__file__).parent.parent.parent.parent / "data" / "clients.json"
+        self._load_clients()
+        logger.info(f"[VECTOR][client_manager] ClientManager initialized - {len(self._clients)} clients")
+
+    def _load_clients(self) -> None:
+        """Load clients from persistent storage."""
+        if self._client_file.exists():
+            try:
+                with open(self._client_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self._clients = data.get("clients", {})
+                    self._engagement_history = data.get("history", [])
+                logger.info(f"[VECTOR][client_manager] Loaded {len(self._clients)} clients")
+            except Exception as e:
+                logger.error(f"[VECTOR][client_manager] Failed to load clients: {e}")
+
+    def _save_clients(self) -> bool:
+        """Save clients to persistent storage."""
+        try:
+            self._client_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._client_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "clients": self._clients,
+                    "history": self._engagement_history[-1000:]
+                }, f, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"[VECTOR][client_manager] Failed to save clients: {e}")
+            return False
+
+    def add_client(self, name: str, contact: str, notes: str = "", tags: list[str] = None) -> dict:
+        """
+        Add a new client to the database.
+        Returns client record with ID.
+        """
+        name = name.strip()
+        if not name:
+            return {"status": "error", "message": "Client name required"}
+
+        if name in self._clients:
+            return {"status": "error", "message": "Client already exists", "client": name}
+
+        client_id = str(uuid.uuid4())
+        client = {
+            "id": client_id,
+            "name": name,
+            "contact": contact,
+            "notes": notes,
+            "tags": tags or [],
+            "status": "active",
+            "created_at": self._get_timestamp(),
+            "last_contact": None,
+            "engagement_score": 0,
+            "total_engagements": 0,
+            "lifetime_value": 0.0,
+            "projects": []
+        }
+
+        self._clients[name] = client
+        self._save_clients()
+
+        self._episodic.store(
+            event_type="client_added",
+            content=f"New client added: {name}",
+            tags=["client", "agency", name.lower().replace(" ", "_")],
+            source="client_manager"
+        )
+
+        self.award_points(10, f"client_added_{name}")
+        logger.info(f"[VECTOR][client_manager] Added client: {name}")
+
+        return {"status": "success", "client": client}
+
+    def get_client(self, name: str) -> Optional[dict]:
+        """
+        Retrieve client information by name.
+        Returns None if not found.
+        """
+        name = name.strip()
+        return self._clients.get(name)
+
+    def get_client_by_id(self, client_id: str) -> Optional[dict]:
+        """Retrieve client by ID."""
+        for client in self._clients.values():
+            if client.get("id") == client_id:
+                return client
+        return None
+
+    def list_clients(self, status: Optional[str] = None) -> list[dict]:
+        """
+        List all clients, optionally filtered by status.
+        Status options: active, inactive, churned, prospect
+        """
+        if status:
+            return [
+                c for c in self._clients.values()
+                if c.get("status") == status
+            ]
+        return list(self._clients.values())
+
+    def update_client(self, name: str, updates: dict) -> dict:
+        """Update client information."""
+        if name not in self._clients:
+            return {"status": "error", "message": "Client not found"}
+
+        client = self._clients[name]
+        allowed_fields = ["contact", "notes", "tags", "status", "lifetime_value"]
+
+        for key, value in updates.items():
+            if key in allowed_fields:
+                client[key] = value
+
+        client["updated_at"] = self._get_timestamp()
+        self._save_clients()
+
+        self.award_points(3, f"client_updated_{name}")
+        return {"status": "success", "client": client}
+
+    def delete_client(self, name: str) -> bool:
+        """Delete a client from the database."""
+        if name in self._clients:
+            del self._clients[name]
+            self._save_clients()
+            logger.info(f"[VECTOR][client_manager] Deleted client: {name}")
+            return True
+        return False
+
+    def track_engagement(self, client: str, event_type: str, details: dict = None) -> dict:
+        """
+        Track engagement event with a client.
+        Updates engagement score and last contact timestamp.
+        """
+        if client not in self._clients:
+            return {"status": "error", "message": "Client not found"}
+
+        if event_type not in self.ENGAGEMENT_TYPES:
+            return {"status": "error", "message": f"Unknown engagement type: {event_type}"}
+
+        engagement = {
+            "id": str(uuid.uuid4()),
+            "client": client,
+            "event_type": event_type,
+            "details": details or {},
+            "timestamp": self._get_timestamp()
+        }
+
+        self._engagement_history.append(engagement)
+
+        client_data = self._clients[client]
+        client_data["last_contact"] = engagement["timestamp"]
+        client_data["total_engagements"] += 1
+
+        score_map = {
+            "initial_contact": 5,
+            "meeting": 15,
+            "call": 10,
+            "email": 3,
+            "proposal_sent": 20,
+            "contract_signed": 50,
+            "payment_received": 40,
+            "project_update": 10,
+            "deliverable_sent": 15,
+            "feedback_received": 8,
+            "renewal_discussed": 25,
+            "churn_risk": -20,
+            "win_back": 30
+        }
+
+        score_change = score_map.get(event_type, 5)
+        client_data["engagement_score"] += score_change
+
+        if event_type == "payment_received":
+            amount = details.get("amount", 0) if details else 0
+            client_data["lifetime_value"] += amount
+
+        self._save_clients()
+
+        self._episodic.store(
+            event_type=f"client_engagement_{event_type}",
+            content=f"Engagement with {client}: {event_type}",
+            tags=["client", "engagement", client.lower().replace(" ", "_")],
+            source="client_manager"
+        )
+
+        self.award_points(score_change // 5, f"engagement_tracked_{event_type}")
+        logger.info(f"[VECTOR][client_manager] Tracked {event_type} for {client}")
+
+        return {
+            "status": "success",
+            "engagement": engagement,
+            "new_score": client_data["engagement_score"]
+        }
+
+    def get_engagement_history(self, client: str, limit: int = 50) -> list[dict]:
+        """Get engagement history for a client."""
+        history = [
+            e for e in self._engagement_history
+            if e.get("client") == client
+        ]
+        return sorted(history, key=lambda x: x["timestamp"], reverse=True)[:limit]
+
+    def get_top_clients(self, by: str = "engagement_score", limit: int = 10) -> list[dict]:
+        """
+        Get top clients by metric.
+        Options: engagement_score, lifetime_value, total_engagements
+        """
+        clients = list(self._clients.values())
+        if by == "engagement_score":
+            return sorted(clients, key=lambda x: x.get("engagement_score", 0), reverse=True)[:limit]
+        elif by == "lifetime_value":
+            return sorted(clients, key=lambda x: x.get("lifetime_value", 0), reverse=True)[:limit]
+        elif by == "total_engagements":
+            return sorted(clients, key=lambda x: x.get("total_engagements", 0), reverse=True)[:limit]
+        return clients[:limit]
+
+    def get_client_summary(self) -> dict:
+        """Get summary statistics for all clients."""
+        total = len(self._clients)
+        if total == 0:
+            return {
+                "total_clients": 0,
+                "active_clients": 0,
+                "total_engagements": 0,
+                "avg_engagement_score": 0,
+                "total_lifetime_value": 0
+            }
+
+        active = len([c for c in self._clients.values() if c.get("status") == "active"])
+        total_engagements = sum(c.get("total_engagements", 0) for c in self._clients.values())
+        avg_score = sum(c.get("engagement_score", 0) for c in self._clients.values()) / total
+        total_ltv = sum(c.get("lifetime_value", 0) for c in self._clients.values())
+
+        return {
+            "total_clients": total,
+            "active_clients": active,
+            "inactive_clients": total - active,
+            "total_engagements": total_engagements,
+            "avg_engagement_score": round(avg_score, 1),
+            "total_lifetime_value": round(total_ltv, 2),
+            "total_lifetime_value_formatted": f"${total_ltv:,.2f}"
+        }
+
+    def add_project_to_client(self, client: str, project: dict) -> bool:
+        """Add a project to a client's project list."""
+        if client not in self._clients:
+            return False
+
+        project_id = str(uuid.uuid4())
+        project_entry = {
+            "id": project_id,
+            "name": project.get("name", "Untitled Project"),
+            "description": project.get("description", ""),
+            "status": project.get("status", "active"),
+            "value": project.get("value", 0),
+            "created_at": self._get_timestamp(),
+            "completed_at": None
+        }
+
+        self._clients[client]["projects"].append(project_entry)
+        self._save_clients()
+        return True
+
+    def get_at_risk_clients(self, threshold: int = 20) -> list[dict]:
+        """Get clients with low engagement scores indicating churn risk."""
+        at_risk = [
+            c for c in self._clients.values()
+            if c.get("engagement_score", 0) < threshold and c.get("status") == "active"
+        ]
+        return sorted(at_risk, key=lambda x: x.get("engagement_score", 0))
+
+    def _get_timestamp(self) -> str:
+        """Get current UTC timestamp."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).isoformat()
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    manager = ClientManager()
+
+    result = manager.add_client(
+        "Acme Corp",
+        "contact@acme.com",
+        notes="Enterprise client, interested in AI solutions",
+        tags=["enterprise", "ai"]
+    )
+    print(f"Added client: {result['client']['name']}")
+
+    result = manager.track_engagement("Acme Corp", "initial_contact")
+    print(f"Engagement tracked, new score: {result['new_score']}")
+
+    result = manager.track_engagement("Acme Corp", "meeting", {"duration_minutes": 30})
+    print(f"Meeting logged, new score: {result['new_score']}")
+
+    summary = manager.get_client_summary()
+    print(f"Total clients: {summary['total_clients']}")
+
+    print("✅ client_manager.py OK")

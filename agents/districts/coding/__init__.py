@@ -1,8 +1,18 @@
-'''
-Module: agents/districts/coding/__init__.py
-Auto-generated stub.
-'''
+"""
+V.E.C.T.O.R. coding district.
+Architect, code reviewer, git bot, test writer, bug hunter.
+"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from loguru import logger
 
+from .architect_bot import ArchitectBot
+from .code_reviewer import CodeReviewer
+from .git_bot import GitBot
+from .test_writer import TestWriter
+from .bug_hunter import BugHunter
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/coding/__init__.py'}
+logger.info("[VECTOR] coding district loaded")
+
+__all__ = ["ArchitectBot", "CodeReviewer", "GitBot", "TestWriter", "BugHunter"]

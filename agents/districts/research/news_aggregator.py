@@ -146,11 +146,11 @@ class NewsAggregator(AgentBase):
 
         # LLM picks the top 5 most relevant for Arghyadeep
         try:
-            import ollama
+            from core.inference.ollama_safe import chat
             titles_list = "\n".join(
                 f"[{i+1}] {a['title']} ({a['source']})" for i, a in enumerate(articles[:20])
             )
-            response = ollama.chat(
+            raw = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -163,8 +163,10 @@ class NewsAggregator(AgentBase):
                         ),
                     },
                 ],
+                timeout=2.0,
             )
-            raw = response["message"]["content"]
+            if not raw:
+                raise RuntimeError("empty model response")
             import re
             nums = [int(n.strip()) - 1 for n in re.findall(r"\d+", raw) if 0 < int(n.strip()) <= len(articles)]
             top_articles = [articles[i] for i in nums[:5]]

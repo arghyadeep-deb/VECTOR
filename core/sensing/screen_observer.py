@@ -68,7 +68,7 @@ class ScreenObserver:
         try:
             if self._sct is None:
                 import mss
-                self._sct = mss.mss()
+                self._sct = mss.MSS()
             return True
         except ImportError as exc:
             logger.warning(f"[VECTOR][screen] mss unavailable: {exc}")

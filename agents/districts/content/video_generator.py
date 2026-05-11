@@ -1,8 +1,400 @@
-'''
-Module: agents/districts/content/video_generator.py
-Auto-generated stub.
-'''
+import sys
+import uuid
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/content/video_generator.py'}
+class VideoGenerator(AgentBase):
+    """
+    Generates video descriptions, B-roll suggestions, and
+    title/thumbnail ideas for video content.
+    """
+
+    def __init__(self, ghost: dict = None):
+        super().__init__(str(uuid.uuid4()), "VideoGenerator", "content")
+        if ghost:
+            self.inherit_ghost(ghost)
+
+        self._generated_content: list[dict] = []
+        logger.info("[VECTOR][video_generator] VideoGenerator initialized")
+
+    def generate_video_description(self, script: str, platform: str = "youtube") -> dict:
+        """
+        Generate SEO-optimized video description from script.
+        Includes hashtags, timestamps, and key points.
+        """
+        platform_limits = {
+            "youtube": {"max_length": 5000, "include_timestamps": True},
+            "instagram": {"max_length": 2200, "include_timestamps": False},
+            "tiktok": {"max_length": 150, "include_timestamps": False}
+        }
+
+        config = platform_limits.get(platform, platform_limits["youtube"])
+
+        prompt = f"""Generate an SEO-optimized video description for {platform}.
+
+Requirements:
+- Max length: {config['max_length']} characters
+- Include timestamps: {config['include_timestamps']}
+- Make it engaging and keyword-rich
+
+Script/Content:
+{script[:3000]}
+
+Include:
+1. Hook line (first 1-2 lines to grab attention)
+2. Key points summary
+3. Timestamps (if applicable)
+4. Relevant hashtags (5-10)
+5. Links/call-to-action
+
+Format appropriately for {platform}.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            description = result.get("response", "").strip()
+
+            description_data = {
+                "id": str(uuid.uuid4()),
+                "platform": platform,
+                "description": description,
+                "char_count": len(description),
+                "created_at": self._get_timestamp()
+            }
+
+            self._generated_content.append(description_data)
+            self.award_points(10, "video_description_generated")
+
+            return {
+                "status": "success",
+                **description_data
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][video_generator] Description generation failed: {e}")
+            return {"error": str(e)}
+
+    def suggest_broll(self, topic: str, duration_sec: int = 30) -> list[dict]:
+        """
+        Suggest B-roll footage for a topic.
+        Returns list of B-roll suggestions with descriptions.
+        """
+        prompt = f"""Suggest B-roll footage for a video about: {topic}
+
+Duration needed: approximately {duration_sec} seconds total
+
+For each B-roll suggestion provide:
+1. Scene description (what to show)
+2. Duration (in seconds)
+3. Where in the video it fits (intro, middle, etc.)
+4. Source suggestion (stock site, type of footage)
+
+Make suggestions diverse and visually engaging.
+Format as a numbered list.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            broll_text = result.get("response", "").strip()
+
+            broll_suggestions = self._parse_broll_suggestions(broll_text, topic)
+
+            self.award_points(len(broll_suggestions) * 2, "broll_suggestions_generated")
+            logger.info(f"[VECTOR][video_generator] Generated {len(broll_suggestions)} B-roll suggestions")
+
+            return broll_suggestions
+
+        except Exception as e:
+            logger.error(f"[VECTOR][video_generator] B-roll suggestion failed: {e}")
+            return []
+
+    def _parse_broll_suggestions(self, broll_text: str, topic: str) -> list[dict]:
+        """Parse B-roll suggestions from LLM response."""
+        suggestions = []
+        lines = broll_text.split("\n")
+        current = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line and (line[0].isdigit() or line.startswith("-")):
+                if current:
+                    suggestions.append(current)
+
+                current = {
+                    "id": str(uuid.uuid4()),
+                    "topic": topic,
+                    "scene": line.lstrip("0123456789.- )").strip(),
+                    "duration_sec": 5,
+                    "placement": "main_content",
+                    "source_hint": "",
+                    "created_at": self._get_timestamp()
+                }
+            elif current:
+                line_lower = line.lower()
+                if "second" in line_lower or "sec" in line_lower:
+                    import re
+                    match = re.search(r'(\d+)', line)
+                    if match:
+                        current["duration_sec"] = int(match.group(1))
+                elif "intro" in line_lower or "middle" in line_lower or "outro" in line_lower:
+                    for placement in ["intro", "middle", "outro", "main_content", "conclusion"]:
+                        if placement in line_lower:
+                            current["placement"] = placement
+                            break
+                elif "stock" in line_lower or "source" in line_lower or "footage" in line_lower:
+                    current["source_hint"] = line.split(":", 1)[-1].strip()
+
+        if current:
+            suggestions.append(current)
+
+        return suggestions
+
+    def generate_title_thumbnail(self, topic: str, count: int = 5) -> dict:
+        """
+        Generate video title options and thumbnail ideas.
+        Returns titles and thumbnail concept descriptions.
+        """
+        prompt = f"""Generate {count} YouTube title options and thumbnail concepts for: {topic}
+
+For each option provide:
+1. Title (SEO-friendly, attention-grabbing, under 60 characters)
+2. Thumbnail concept description (what text/visuals to include)
+3. Title style (question, list, how-to, controversial, etc.)
+
+Titles should:
+- Be under 60 characters
+- Include target keywords
+- Create curiosity or promise value
+- Be different from each other
+
+Format clearly with numbered options.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            content = result.get("response", "").strip()
+
+            options = self._parse_title_options(content, topic)
+
+            self.award_points(15, "title_thumbnail_generated")
+            logger.info(f"[VECTOR][video_generator] Generated {len(options)} title options")
+
+            return {
+                "status": "success",
+                "topic": topic,
+                "options": options,
+                "created_at": self._get_timestamp()
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][video_generator] Title generation failed: {e}")
+            return {"topic": topic, "error": str(e)}
+
+    def _parse_title_options(self, content: str, topic: str) -> list[dict]:
+        """Parse title options from LLM response."""
+        options = []
+        lines = content.split("\n")
+        current_option = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line and line[0].isdigit():
+                if current_option:
+                    options.append(current_option)
+
+                current_option = {
+                    "id": str(uuid.uuid4()),
+                    "topic": topic,
+                    "title": line.split(".", 1)[-1].strip() if "." in line else line,
+                    "style": "unknown",
+                    "thumbnail_concept": "",
+                    "char_count": 0,
+                    "created_at": self._get_timestamp()
+                }
+            elif current_option:
+                line_lower = line.lower()
+                if "style:" in line_lower or "type:" in line_lower:
+                    current_option["style"] = line.split(":", 1)[-1].strip()
+                elif "thumbnail" in line_lower or "concept" in line_lower:
+                    current_option["thumbnail_concept"] = line.split(":", 1)[-1].strip()
+
+        if current_option:
+            current_option["char_count"] = len(current_option["title"])
+            options.append(current_option)
+
+        for opt in options:
+            opt["char_count"] = len(opt["title"])
+
+        return options
+
+    def generate_tags(self, topic: str, count: int = 15) -> list[str]:
+        """
+        Generate YouTube tags for a topic.
+        Returns list of relevant tags.
+        """
+        prompt = f"""Generate {count} YouTube tags for the topic: {topic}
+
+Tags should:
+- Include main keywords
+- Be specific and relevant
+- Include variations and related terms
+- Mix of broad and narrow tags
+
+Return ONLY a comma-separated list of tags, nothing else.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            tags_text = result.get("response", "").strip()
+
+            tags = [t.strip() for t in tags_text.split(",") if t.strip()][:count]
+
+            self.award_points(5, "tags_generated")
+            return tags
+
+        except Exception as e:
+            logger.error(f"[VECTOR][video_generator] Tag generation failed: {e}")
+            return []
+
+    def suggest_scheduling(self, topic: str) -> dict:
+        """
+        Suggest optimal posting times based on topic.
+        Returns recommended days and times.
+        """
+        prompt = f"""Suggest optimal posting schedule for content about: {topic}
+
+Consider:
+1. Target audience time zones
+2. Platform best practices
+3. Topic-specific timing (educational, entertainment, news, etc.)
+4. Competition analysis
+
+Return recommended posting times with reasoning.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            schedule = result.get("response", "").strip()
+
+            return {
+                "status": "success",
+                "topic": topic,
+                "schedule": schedule,
+                "recommendations": self._extract_schedule_recs(schedule)
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][video_generator] Scheduling suggestion failed: {e}")
+            return {"topic": topic, "error": str(e)}
+
+    def _extract_schedule_recs(self, schedule_text: str) -> list[dict]:
+        """Extract structured schedule recommendations."""
+        recs = []
+        lines = schedule_text.split("\n")
+
+        for line in lines:
+            line = line.strip()
+            if line and (line[0].isdigit() or "-" in line):
+                recs.append({"text": line})
+
+        return recs
+
+    def _get_timestamp(self) -> str:
+        """Get current UTC timestamp."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).isoformat()
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    generator = VideoGenerator()
+
+    result = generator.generate_title_thumbnail("Python Machine Learning", 3)
+    print(f"Generated {len(result.get('options', []))} title options")
+
+    tags = generator.generate_tags("Web Development", 10)
+    print(f"Generated {len(tags)} tags")
+
+    print("✅ video_generator.py OK")

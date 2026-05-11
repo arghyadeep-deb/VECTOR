@@ -1,8 +1,47 @@
-'''
+"""
 Module: agents/districts/agency/__init__.py
-Auto-generated stub.
-'''
+V.E.C.T.O.R. Agency District - Client management and content strategy agents
+"""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+
+from .content_strategist import ContentStrategist
+from .client_manager import ClientManager
+from .performance_tracker import PerformanceTracker
+
+__all__ = [
+    "ContentStrategist",
+    "ClientManager",
+    "PerformanceTracker",
+]
+
+logger.info("[VECTOR][agency] Agency district loaded")
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/agency/__init__.py'}
+def get_agent(name: str):
+    """Factory function to get agency district agents."""
+    agents = {
+        "ContentStrategist": ContentStrategist,
+        "ClientManager": ClientManager,
+        "PerformanceTracker": PerformanceTracker,
+    }
+    return agents.get(name)
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    strategist = ContentStrategist()
+    print(f"ContentStrategist: {strategist.name}")
+
+    manager = ClientManager()
+    print(f"ClientManager: {manager.name}")
+
+    tracker = PerformanceTracker()
+    print(f"PerformanceTracker: {tracker.name}")
+
+    print("✅ agency/__init__.py OK")

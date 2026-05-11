@@ -69,6 +69,19 @@ class FaceDetector:
             )
             return
 
+        cache_file = known_faces_dir / "faces_cache.json"
+        if cache_file.exists():
+            try:
+                import json
+                with open(cache_file, "r") as f:
+                    data = json.load(f)
+                self._known_names = data.get("names", [])
+                self._known_encodings = [np.array(e) for e in data.get("encodings", [])]
+                logger.info(f"[VECTOR][camera] Loaded {len(self._known_names)} encodings from cache")
+                return
+            except Exception as exc:
+                logger.warning(f"[VECTOR][camera] Cache load failed: {exc}")
+
         loaded = 0
         for person_dir in known_faces_dir.iterdir():
             if not person_dir.is_dir():
@@ -88,6 +101,16 @@ class FaceDetector:
                     logger.warning(
                         f"[VECTOR][camera] Failed to encode {img_path}: {exc}"
                     )
+
+        try:
+            import json
+            with open(cache_file, "w") as f:
+                json.dump({
+                    "names": self._known_names,
+                    "encodings": [e.tolist() for e in self._known_encodings]
+                }, f)
+        except Exception as exc:
+            logger.warning(f"[VECTOR][camera] Cache save failed: {exc}")
 
         logger.info(
             f"[VECTOR][camera] Loaded {loaded} known face encoding(s) "
@@ -161,8 +184,10 @@ class FaceDetector:
                 )
                 return []
 
-            ret, frame = cap.read()
-            cap.release()
+            try:
+                ret, frame = cap.read()
+            finally:
+                cap.release()
 
             if not ret or frame is None:
                 logger.warning("[VECTOR][camera] Failed to capture frame")
@@ -289,8 +314,10 @@ class FatigueMonitor:
                 )
                 return 5.0
 
-            ret, frame = cap.read()
-            cap.release()
+            try:
+                ret, frame = cap.read()
+            finally:
+                cap.release()
 
             if not ret or frame is None:
                 logger.warning("[VECTOR][camera] No frame captured for fatigue check")

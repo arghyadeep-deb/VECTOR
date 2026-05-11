@@ -1,0 +1,166 @@
+"""Pydantic schemas for V.E.C.T.O.R. API."""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+import datetime
+
+# --- Request Models ---
+
+class CommandRequest(BaseModel):
+    text: str
+    source: str = "text"
+    priority: str = "normal"
+
+class VoiceRequest(BaseModel):
+    # Voice request would typically be multipart/form-data
+    pass
+
+class AgentAwardRequest(BaseModel):
+    agent_id: str
+    points: int
+    reason: str
+
+class CouncilRequest(BaseModel):
+    question: str
+    stakes: str = "medium"
+    context_override: Optional[Dict[str, Any]] = None
+
+# --- Response Models ---
+
+class CommandResponse(BaseModel):
+    response: str
+    action_taken: Optional[str] = None
+    candidates_evaluated: int = 0
+    winner_score: float = 0.0
+    memory_updated: bool = False
+    processing_ms: int = 0
+
+class VoiceResponse(BaseModel):
+    transcript: str
+    response: str
+    language_detected: str
+
+class AgentAwardResponse(BaseModel):
+    status: str
+    agent: Dict[str, Any]
+    award: Dict[str, Any]
+
+class CouncilResponse(BaseModel):
+    decision: str
+    confidence: float
+    session_id: Optional[str] = None
+    chairman_decision: Optional[str] = None
+    stored_as_training_data: bool = False
+
+class StatusResponse(BaseModel):
+    loop_running: bool
+    uptime_seconds: int
+    models: Dict[str, str]
+    memory: Dict[str, Any]
+    agents: Dict[str, Any]
+    vector_version: str
+
+class HealthResponse(BaseModel):
+    status: str
+    checks: Dict[str, str]
+    timestamp: str
+    version: str
+
+class AgentListResponse(BaseModel):
+    agents: List[Dict[str, Any]]
+    count: int
+    error: Optional[str] = None
+
+class MemoryRecentResponse(BaseModel):
+    events: List[Dict[str, Any]]
+    count: int
+    error: Optional[str] = None
+
+class GoalsResponse(BaseModel):
+    immediate_actions: List[Dict[str, Any]]
+    error: Optional[str] = None
+
+class CouncilHistoryResponse(BaseModel):
+    sessions: List[Dict[str, Any]]
+    count: int
+    error: Optional[str] = None
+
+class SecurityRecentResponse(BaseModel):
+    events: List[Dict[str, Any]]
+    count: int
+    error: Optional[str] = None
+
+class ProcessInfo(BaseModel):
+    name: str
+    cpu: float
+    mem: float
+    status: str
+
+class PermissionAuditEntry(BaseModel):
+    timestamp: str
+    action_type: str
+    level: str
+    approved: bool
+    executed: bool
+    proposed_by: str
+    reason: str
+
+class SecurityStatusResponse(BaseModel):
+    threat_level: str
+    active_scans: int
+    anomalies_found: int
+    sandbox_status: str
+    processes: List[ProcessInfo]
+    audit_log: List[PermissionAuditEntry]
+
+# --- WebSocket Message Models ---
+
+class WSStatusPayload(BaseModel):
+    type: str = "status"
+    timestamp: str
+    loop_running: bool
+    uptime_seconds: int
+    models: Dict[str, str]
+    memory: Dict[str, Any]
+    agents: Dict[str, Any]
+    vector_version: str
+
+class WSEventsPayload(BaseModel):
+    type: str = "events"
+    timestamp: str
+    events: List[Dict[str, Any]]
+    error: Optional[str] = None
+
+class WSCommandRequest(BaseModel):
+    action: str = "command"
+    text: str
+    priority: str = "normal"
+
+class WSCommandResponse(BaseModel):
+    type: str = "response"
+    action: str
+    approved: bool
+    level: str
+    score: float
+    reasoning: str
+    timestamp: str
+
+class WSErrorPayload(BaseModel):
+    type: str = "error"
+    detail: str
+
+class WSPingPayload(BaseModel):
+    type: str = "ping"
+    time: str
+
+class WSPongPayload(BaseModel):
+    type: str = "pong"
+    time: str
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    print("✅ schemas.py OK")

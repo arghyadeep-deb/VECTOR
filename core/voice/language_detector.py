@@ -12,8 +12,8 @@ class LanguageDetector:
         "en": "bf_emma",
         "hi": "hf_alpha",
         "ja": "jf_alpha",
-        "bn": None,   # Google Cloud TTS — TODO T6
-        "as": None,   # Google Cloud TTS — TODO T6
+        "bn": None,   # gTTS fallback
+        "as": None,   # gTTS fallback
     }
     SUPPORTED = set(VOICE_MAP.keys())
 

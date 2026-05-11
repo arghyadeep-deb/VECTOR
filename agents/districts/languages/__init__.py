@@ -1,8 +1,18 @@
-'''
+"""
 Module: agents/districts/languages/__init__.py
-Auto-generated stub.
-'''
+District: languages | Focus: Multi-language coaching platform
+"""
 
+from .hindi_coach import HindiCoach
+from .english_coach import EnglishCoach
+from .bengali_coach import BengaliCoach
+from .assamese_coach import AssameseCoach
+from .japanese_coach import JapaneseCoach
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/languages/__init__.py'}
+__all__ = [
+    "HindiCoach",
+    "EnglishCoach",
+    "BengaliCoach",
+    "AssameseCoach",
+    "JapaneseCoach",
+]

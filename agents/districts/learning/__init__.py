@@ -1,8 +1,16 @@
-'''
+"""
 Module: agents/districts/learning/__init__.py
-Auto-generated stub.
-'''
+District: learning | Focus: Learning management, course tracking, note organization
+"""
 
+from .course_tracker import CourseTracker
+from .concept_extractor import ConceptExtractor
+from .note_organizer import NoteOrganizer
+from .video_ingestor import VideoIngestor
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/learning/__init__.py'}
+__all__ = [
+    "CourseTracker",
+    "ConceptExtractor",
+    "NoteOrganizer",
+    "VideoIngestor",
+]

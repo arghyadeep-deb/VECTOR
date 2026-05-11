@@ -96,8 +96,8 @@ class PatternFinder(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
-            import ollama
-            response = ollama.chat(
+            from core.inference.ollama_safe import chat
+            raw = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -115,8 +115,10 @@ class PatternFinder(AgentBase):
                         ),
                     },
                 ],
+                timeout=2.0,
             )
-            raw = response["message"]["content"]
+            if not raw:
+                raise RuntimeError("empty model response")
         except Exception as e:
             logger.warning(f"[VECTOR][pattern_finder] LLM unavailable: {e}")
             raw = (

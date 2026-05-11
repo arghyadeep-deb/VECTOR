@@ -1,8 +1,12 @@
-'''
+"""
 Module: agents/districts/relationships/__init__.py
-Auto-generated stub.
-'''
+District: relationships | Focus: Contact management, communication analysis, relationship insights
+"""
 
+from .contact_manager import ContactManager
+from .communication_analyst import CommunicationAnalyst
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/relationships/__init__.py'}
+__all__ = [
+    "ContactManager",
+    "CommunicationAnalyst",
+]

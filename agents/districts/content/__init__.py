@@ -1,8 +1,65 @@
-'''
+"""
 Module: agents/districts/content/__init__.py
-Auto-generated stub.
-'''
+V.E.C.T.O.R. Content District - Video creation and content generation agents
+"""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+
+from .script_generator import ScriptGenerator
+from .video_generator import VideoGenerator
+from .caption_generator import CaptionGenerator
+from .uploader import Uploader
+from .video_merger import VideoMerger
+from .voice_generator import VoiceGenerator
+
+__all__ = [
+    "ScriptGenerator",
+    "VideoGenerator",
+    "CaptionGenerator",
+    "Uploader",
+    "VideoMerger",
+    "VoiceGenerator",
+]
+
+logger.info("[VECTOR][content] Content district loaded")
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/content/__init__.py'}
+def get_agent(name: str):
+    """Factory function to get content district agents."""
+    agents = {
+        "ScriptGenerator": ScriptGenerator,
+        "VideoGenerator": VideoGenerator,
+        "CaptionGenerator": CaptionGenerator,
+        "Uploader": Uploader,
+        "VideoMerger": VideoMerger,
+        "VoiceGenerator": VoiceGenerator,
+    }
+    return agents.get(name)
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    script_gen = ScriptGenerator()
+    print(f"ScriptGenerator: {script_gen.name}")
+
+    video_gen = VideoGenerator()
+    print(f"VideoGenerator: {video_gen.name}")
+
+    caption_gen = CaptionGenerator()
+    print(f"CaptionGenerator: {caption_gen.name}")
+
+    uploader = Uploader()
+    print(f"Uploader: {uploader.name}")
+
+    video_merger = VideoMerger()
+    print(f"VideoMerger: {video_merger.name}")
+
+    voice_gen = VoiceGenerator()
+    print(f"VoiceGenerator: {voice_gen.name}")
+
+    print("✅ content/__init__.py OK")

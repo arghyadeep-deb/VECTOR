@@ -1,8 +1,341 @@
-'''
-Module: agents/districts/interview_prep/company_researcher.py
-Auto-generated stub.
-'''
+import sys
+import uuid
+import json
+from pathlib import Path
+from typing import Optional
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+from core.memory.obsidian_sync import ObsidianSync
 
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/interview_prep/company_researcher.py'}
+class CompanyResearcher(AgentBase):
+    """
+    Researches companies for interview preparation,
+    generates likely interview questions, and provides tips.
+    """
+
+    def __init__(self, ghost: dict = None):
+        super().__init__(str(uuid.uuid4()), "CompanyResearcher", "interview_prep")
+        if ghost:
+            self.inherit_ghost(ghost)
+
+        self._obsidian = ObsidianSync()
+        self._research_cache: dict[str, dict] = {}
+        self._research_dir = "Research/CompanyResearch"
+        logger.info("[VECTOR][company_researcher] CompanyResearcher initialized")
+
+    async def research_company(self, name: str) -> dict:
+        """
+        Research a company and gather relevant information.
+        """
+        name = name.strip()
+        if not name:
+            return {"status": "error", "message": "Company name required"}
+
+        prompt = f"""Research the company: {name}
+
+Provide comprehensive information including:
+1. Company Overview (founded, size, headquarters, industry)
+2. Mission and Values
+3. Recent News and Developments (last 2 years)
+4. Products/Services
+5. Company Culture and Work Environment
+6. Leadership Team (CEO and key executives)
+7. Financial Status (if public)
+8. Competitors
+9. Glassdoor/Employee Reviews Summary
+10. Interview Process Overview
+
+Be specific and factual. If information is uncertain, indicate that clearly.
+Use current knowledge and be thorough.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=90.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            research = result.get("response", "").strip()
+
+            research_data = {
+                "id": str(uuid.uuid4()),
+                "company": name,
+                "research": research,
+                "timestamp": self._get_timestamp(),
+                "sections": self._parse_research_sections(research)
+            }
+
+            self._research_cache[name.lower()] = research_data
+            await self._save_research(research_data)
+
+            self.award_points(25, f"company_researched_{name}")
+            logger.info(f"[VECTOR][company_researcher] Researched: {name}")
+
+            return research_data
+
+        except Exception as e:
+            logger.error(f"[VECTOR][company_researcher] Research failed: {e}")
+            return {"company": name, "error": str(e)}
+
+    def _parse_research_sections(self, research: str) -> dict:
+        """Parse research into sections."""
+        sections = {}
+        current_section = None
+        current_content = []
+
+        for line in research.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+
+            if "**" in line or line.isupper():
+                if current_section:
+                    sections[current_section] = "\n".join(current_content)
+                current_section = line.strip("**:- ").title()
+                current_content = []
+            else:
+                if current_section:
+                    current_content.append(line)
+
+        if current_section:
+            sections[current_section] = "\n".join(current_content)
+
+        return sections
+
+    async def _save_research(self, research: dict) -> bool:
+        """Save research to Obsidian vault."""
+        try:
+            research_path = self._obsidian._vault / self._research_dir
+            research_path.mkdir(parents=True, exist_ok=True)
+
+            file_path = research_path / f"{research['company']}.md"
+            content = f"""# {research['company']}
+
+Researched: {research['timestamp']}
+
+---
+
+{research['research']}
+"""
+
+            file_path.write_text(content, encoding="utf-8")
+            return True
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][company_researcher] Failed to save research: {e}")
+            return False
+
+    def get_interview_tips(self, company: str) -> list[str]:
+        """
+        Get interview tips specific to a company.
+        """
+        if company.lower() in self._research_cache:
+            research = self._research_cache[company.lower()]
+            return self._extract_tips_from_research(research.get("research", ""))
+        return self._get_generic_tips()
+
+    def _extract_tips_from_research(self, research: str) -> list[str]:
+        """Extract tips from research data."""
+        tips = []
+
+        if "culture" in research.lower():
+            tips.append("Research the company's culture before your interview")
+
+        if "mission" in research.lower():
+            tips.append("Align your answers with the company's stated mission and values")
+
+        if "leadership" in research.lower():
+            tips.append("Know about recent leadership changes or announcements")
+
+        tips.extend(self._get_generic_tips())
+        return tips[:10]
+
+    def _get_generic_tips(self) -> list[str]:
+        """Get generic interview tips."""
+        return [
+            "Research the company's products, services, and recent news",
+            "Understand the company's mission and values",
+            "Prepare specific examples using the STAR method",
+            "Review the job description and match your skills",
+            "Prepare thoughtful questions for the interviewer",
+            "Practice active listening during the interview",
+            "Follow up with a thank-you email after the interview"
+        ]
+
+    def generate_questions(self, company: str, role: str) -> list[dict]:
+        """
+        Generate likely interview questions for a company and role.
+        """
+        prompt = f"""Generate 15 likely interview questions for a {role} position at {company}.
+
+Include:
+1. Company-specific questions (based on their products/services/culture)
+2. Role-specific technical questions
+3. Behavioral questions related to common scenarios at tech companies
+4. Questions about your fit with the company
+5. Curveball questions to test thinking
+
+For each question provide:
+1. Question text
+2. Why they ask it
+3. What they're looking for
+4. Sample strong answer outline
+
+Format as a numbered list.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=90.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            questions_text = result.get("response", "").strip()
+
+            questions = self._parse_generated_questions(questions_text, company, role)
+
+            self.award_points(20, f"questions_generated_for_{company}")
+            return questions
+
+        except Exception as e:
+            logger.error(f"[VECTOR][company_researcher] Question generation failed: {e}")
+            return []
+
+    def _parse_generated_questions(self, questions_text: str, company: str, role: str) -> list[dict]:
+        """Parse generated questions into structured format."""
+        questions = []
+        lines = questions_text.split("\n")
+        current_q = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line and (line[0].isdigit() or line.startswith("-")):
+                if current_q and current_q.get("question"):
+                    questions.append(current_q)
+
+                current_q = {
+                    "id": str(uuid.uuid4()),
+                    "company": company,
+                    "role": role,
+                    "question": line.lstrip("0123456789.- )").strip(),
+                    "reason": "",
+                    "looking_for": "",
+                    "sample_answer": "",
+                    "type": "general"
+                }
+            elif current_q:
+                line_lower = line.lower()
+                if "why" in line_lower:
+                    current_q["reason"] = line.split(":", 1)[-1].strip()
+                elif "looking" in line_lower or "want" in line_lower:
+                    current_q["looking_for"] = line.split(":", 1)[-1].strip()
+                elif "answer" in line_lower or "sample" in line_lower:
+                    current_q["sample_answer"] = line.split(":", 1)[-1].strip()
+
+        if current_q and current_q.get("question"):
+            questions.append(current_q)
+
+        return questions
+
+    def get_salary_info(self, company: str, role: str) -> dict:
+        """
+        Provide estimated salary information for a role at a company.
+        Note: Uses rough estimates, actual data may vary.
+        """
+        prompt = f"""Provide rough salary estimates for a {role} at {company}.
+
+Include ranges for:
+1. Entry Level
+2. Mid-Level
+3. Senior Level
+4. Total Compensation (if applicable)
+
+Note: Be clear these are rough estimates based on public data.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            return {
+                "status": "success",
+                "company": company,
+                "role": role,
+                "estimates": result.get("response", "").strip(),
+                "note": "These are rough estimates - verify with current market data"
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][company_researcher] Salary info failed: {e}")
+            return {"company": company, "role": role, "error": str(e)}
+
+    def get_cached_research(self, company: str) -> Optional[dict]:
+        """Get cached research for a company."""
+        return self._research_cache.get(company.lower())
+
+    def get_research_history(self) -> list[dict]:
+        """Get history of researched companies."""
+        return [
+            {"company": name, "timestamp": data["timestamp"]}
+            for name, data in self._research_cache.items()
+        ]
+
+    def _get_timestamp(self) -> str:
+        """Get current UTC timestamp."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).isoformat()
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    import asyncio
+
+    async def test():
+        researcher = CompanyResearcher()
+
+        tips = researcher.get_interview_tips("Google")
+        print(f"Got {len(tips)} interview tips")
+
+        print("✅ company_researcher.py OK")
+
+    asyncio.run(test())

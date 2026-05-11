@@ -11,7 +11,7 @@ _KOKORO_VOICE_MAP = {
     "hi": "hf_alpha",
     "ja": "jf_alpha",
 }
-_KOKORO_UNSUPPORTED = {"bn", "as"}  # Google Cloud TTS eventually; pyttsx3 for now
+_KOKORO_UNSUPPORTED = {"bn", "as"}  # gTTS fallback for regional languages
 
 
 class VoiceTTS:
@@ -68,13 +68,14 @@ class VoiceTTS:
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
             return
-        # bn/as not supported by Kokoro — use pyttsx3 (Google Cloud TTS in future)
         if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
         else:
             if lang in _KOKORO_UNSUPPORTED:
-                logger.info(f"[VECTOR][tts] {lang} not in Kokoro — using pyttsx3 (Google TTS TODO)")
-            self._speak_pyttsx3(text)
+                logger.info(f"[VECTOR][tts] {lang} not in Kokoro — using gTTS fallback")
+                self._speak_gtts(text, lang)
+            else:
+                self._speak_pyttsx3(text)
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
         try:
@@ -88,6 +89,27 @@ class VoiceTTS:
         except Exception as e:
             logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} — falling back to pyttsx3")
             self._speak_pyttsx3(text)
+
+    def _speak_gtts(self, text: str, lang: str) -> None:
+        try:
+            from gtts import gTTS
+            import tempfile
+            import os
+            try:
+                from playsound import playsound
+            except ImportError:
+                logger.warning("[VECTOR][tts] playsound not installed, skipping gTTS audio playback")
+                return
+            
+            logger.info(f"[VECTOR][tts] gTTS speaking '{text[:40]}' in {lang}")
+            tts = gTTS(text=text, lang=lang)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+            temp_file.close()
+            tts.save(temp_file.name)
+            playsound(temp_file.name)
+            os.unlink(temp_file.name)
+        except Exception as e:
+            logger.error(f"[VECTOR][tts] gTTS speak failed: {e}")
 
     def _speak_pyttsx3(self, text: str) -> None:
         try:
