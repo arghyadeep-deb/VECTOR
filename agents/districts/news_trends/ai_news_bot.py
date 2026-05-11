@@ -11,7 +11,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, urllib.request, datetime
+import uuid, asyncio, json, datetime
 from typing import Optional
 
 
