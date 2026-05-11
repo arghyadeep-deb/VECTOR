@@ -118,17 +118,17 @@ class GoalSystem:
             actions.append({
                 "goal_id": goal["id"],
                 "title": goal["title"],
-                "action": f"progress_{goal['id']}",
+                "action": "progress_goal",
                 "urgency": "high",
                 "source": "SHORT_goal",
             })
 
         for goal in self.get_active_goals():
-            if goal.get("progress", 0) == 0.0 and goal["horizon"] in ("LONG", "MID"):
+            if goal.get("progress", 0) < 1.0 and goal["horizon"] in ("LONG", "MID"):
                 actions.append({
                     "goal_id": goal["id"],
                     "title": f"Start: {goal['title']}",
-                    "action": f"kickstart_{goal['id']}",
+                    "action": "kickstart_goal",
                     "urgency": "medium",
                     "source": f"{goal['horizon']}_unstarter",
                 })
