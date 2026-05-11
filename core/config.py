@@ -124,6 +124,7 @@ class HermesConfig(BaseModel):
     local_url: str = "http://127.0.0.1:8080"
     port: int = Field(8080, ge=1024, le=65535)
     timeout_sec: float = Field(10.0, ge=1.0, le=60.0)
+    repo_path: str = "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/GitHub/NousResearch_hermes-agent/repo"
 
 
 class TursoConfig(BaseModel):
