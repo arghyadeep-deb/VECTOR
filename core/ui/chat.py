@@ -73,7 +73,7 @@ def _render_header(console: "Console") -> None:
     console.print("  " + _get_status_line())
     console.print(Rule(style="green"))
     console.print()
-    console.print("[dim]  Commands: /status  /goals  /search <q>  /note <title>  /districts  /council <q>  /help  /quit[/dim]")
+    console.print("[dim]  Commands: /status  /goals  /search <q>  /note <title>  /districts  /council <q>  /bg <task>  /tasks  /cancel <id>  /help  /quit[/dim]")
     console.print()
 
 
