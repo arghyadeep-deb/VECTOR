@@ -130,6 +130,7 @@ class ConsolidationBot(AgentBase):
 
         key = f"consolidation:{datetime.date.today().isoformat()}"
         self._memory.remember(key, summary, category="consolidation", confidence=0.8)
+        self._store_to_mem0(f"Memory consolidation [{key}]: {summary[:400]}")
         self._memory.store_chain(
             situation="memory_consolidation",
             goal_ids=["maintain_memory"],
