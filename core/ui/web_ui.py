@@ -810,3 +810,54 @@ async def web_agents():
         ]}
     except Exception as e:
         return {"agents": [], "error": str(e)}
+
+
+@router.get("/tasks")
+async def web_tasks():
+    try:
+        from core.loop.task_queue import TaskQueue
+        return TaskQueue.get().summary()
+    except Exception as e:
+        return {"running": 0, "queued": 0, "completed_today": 0, "failed_today": 0,
+                "tasks": [], "recent": [], "error": str(e)}
+
+
+@router.post("/tasks/submit")
+async def web_tasks_submit(req: dict):
+    try:
+        from core.loop.task_queue import TaskQueue, Priority
+        from core.inference.ollama_safe import chat
+        from core.loop.context_engine import ContextEngine
+
+        name     = str(req.get("name", "bg-task"))[:60]
+        query    = str(req.get("query", ""))
+        priority = Priority[str(req.get("priority", "LOW")).upper()]
+
+        async def _work():
+            hydration = ContextEngine().session_hydration_prompt()
+            return chat(
+                model="vector-deep",
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user",   "content": query},
+                ],
+                timeout=600.0,
+            )
+
+        task_id = TaskQueue.get().submit(
+            _work(), name=name, priority=priority,
+            district="core", tags=["web", "bg"]
+        )
+        return {"task_id": task_id, "status": "queued"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.delete("/tasks/{task_id}")
+async def web_tasks_cancel(task_id: str):
+    try:
+        from core.loop.task_queue import TaskQueue
+        cancelled = TaskQueue.get().cancel(task_id)
+        return {"cancelled": cancelled, "task_id": task_id}
+    except Exception as e:
+        return {"cancelled": False, "error": str(e)}
