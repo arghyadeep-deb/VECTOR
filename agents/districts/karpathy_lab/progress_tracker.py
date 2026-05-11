@@ -141,7 +141,8 @@ class ProgressTracker(AgentBase):
         config = json.loads(config_json)
 
         cursor2 = conn.execute(
-            "SELECT step, metrics, timestamp FROM step_logs WHERE step = (SELECT MAX(step) FROM step_logs) ORDER BY timestamp DESC LIMIT 1"
+            "SELECT step, metrics, timestamp FROM step_logs WHERE run_name = ? ORDER BY step DESC LIMIT 1",
+            (run_name,)
         )
         last_step_row = cursor2.fetchone()
         conn.close()
