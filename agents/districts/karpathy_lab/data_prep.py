@@ -30,37 +30,27 @@ class DataPrep(AgentBase):
         logger.info("[VECTOR][karpathy_lab] DataPrep ready")
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        import urllib.request, json as _json
-        model = model or self.model
-        payload = {"model": model, "prompt": prompt, "stream": False}
-        data = _json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            CONFIG["ollama_host"] + "/api/generate",
-            data=data,
-            headers={"Content-Type": "application/json"}
+        from core.inference.ollama_safe import chat as ollama_chat
+        return ollama_chat(
+            model=model or self.model,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=120,
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return _json.loads(resp.read())["response"]
 
     def _download_with_progress(self, url: str, dest: Path) -> bool:
         try:
-            import urllib.request
-            req = urllib.request.Request(url, headers={"User-Agent": "VECTOR-DataPrep/1.0"})
-            with urllib.request.urlopen(req, timeout=300) as response:
+            import httpx
+            with httpx.stream("GET", url, headers={"User-Agent": "VECTOR-DataPrep/1.0"}, timeout=300) as response:
                 total = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
                 chunk_size = 8192
                 with open(dest, "wb") as f:
-                    while True:
-                        chunk = response.read(chunk_size)
-                        if not chunk:
-                            break
+                    for chunk in response.iter_bytes(chunk_size=chunk_size):
                         f.write(chunk)
                         downloaded += len(chunk)
-                        if total:
+                        if total and downloaded % (1024 * 1024 * 10) == 0:
                             pct = (downloaded / total) * 100
-                            if downloaded % (1024 * 1024 * 10) == 0:
-                                logger.debug(f"[VECTOR][karpathy_lab] Download {pct:.1f}%")
+                            logger.debug(f"[VECTOR][karpathy_lab] Download {pct:.1f}%")
             logger.info(f"[VECTOR][karpathy_lab] Downloaded {dest.name} ({downloaded / 1024 / 1024:.1f} MB)")
             return True
         except Exception as e:
