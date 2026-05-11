@@ -73,8 +73,14 @@ class PermissionGateway:
             return result
 
         if level == 'RED':
-            await self._notify(f'VECTOR needs approval for: {action.action_type}. Confirm in dashboard.', priority=2)
-            confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+            if _HUMANLAYER_AVAILABLE:
+                confirmed = await self._request_humanlayer_approval(action)
+            else:
+                await self._notify(
+                    f'VECTOR needs approval for: {action.action_type}. Confirm in dashboard.',
+                    priority=2,
+                )
+                confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
             if confirmed:
                 exec_result = await self._execute_action(action)
                 result = GatewayResult(True, 'RED', True, exec_result, 'Owner confirmed')
