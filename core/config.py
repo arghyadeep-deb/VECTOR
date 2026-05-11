@@ -21,8 +21,8 @@ class ModelsConfig(BaseModel):
     deep: str = "vector-deep"
     chairman: str = "vector-chairman"
     embed: str = "nomic-embed-text"
-    cloud_coder: str = "glm-5.1:cloud"
-    cloud_orchestrator: str = "kimi-k2.6:cloud"
+    cloud_coder: str = "phi4:latest"
+    cloud_orchestrator: str = "deepseek-r1:14b"
 
 
 class ModelRouterConfig(BaseModel):
