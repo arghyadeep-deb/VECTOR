@@ -1,4 +1,5 @@
 import sys
+import json
 import datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -106,7 +107,23 @@ class AgentRegistry:
             return []
 
     def list_all(self) -> list[dict]:
-        return [a.get_status() for a in self._agents.values()]
+        agents = []
+        for agent in self._agents.values():
+            if hasattr(agent, "to_dict"):
+                data = agent.to_dict()
+            else:
+                data = {
+                    "id": getattr(agent, "id", ""),
+                    "name": getattr(agent, "name", "unknown"),
+                    "district": getattr(agent, "district", "unknown"),
+                    "generation": getattr(agent, "generation", 1),
+                    "health_points": getattr(agent, "health_points", 0),
+                }
+            data["agent_id"] = data.get("id", "")
+            data["status"] = agent.get_status() if hasattr(agent, "get_status") else "unknown"
+            data["is_alive"] = bool(getattr(agent, "is_alive", False))
+            agents.append(data)
+        return agents
 
     def count_by_district(self) -> dict[str, int]:
         counts: dict[str, int] = {}
