@@ -137,6 +137,7 @@ _DASHBOARD_HTML = """\
       <div class="tab" data-tab="goals">Goals</div>
       <div class="tab" data-tab="memory">Memory</div>
       <div class="tab" data-tab="districts">Districts</div>
+      <div class="tab" data-tab="tasks">Tasks</div>
       <div class="tab" data-tab="karpathy">Karpathy</div>
       <div class="tab" data-tab="agents">Agents</div>
     </div>
