@@ -269,13 +269,20 @@ class ObsidianSync:
         count = 0
         mem = self._get_memory()
 
-        for md_file in root.rglob("*.md"):
-            if self._is_protected(md_file):
+        _SUPPORTED_EXTS = {
+            ".md", ".pdf", ".docx", ".pptx", ".xlsx", ".html",
+            ".htm", ".txt", ".csv", ".jpg", ".jpeg", ".png", ".mp3", ".wav",
+        }
+
+        for f in root.rglob("*"):
+            if f.is_dir() or f.suffix.lower() not in _SUPPORTED_EXTS:
+                continue
+            if self._is_protected(f):
                 continue
             try:
-                stat = md_file.stat()
+                stat = f.stat()
                 file_hash = hashlib.md5(
-                    f"{md_file}:{stat.st_mtime}".encode()
+                    f"{f}:{stat.st_mtime}".encode()
                 ).hexdigest()[:12]
                 cache_key = f"lightrag_ingested:{file_hash}"
 
@@ -284,17 +291,14 @@ class ObsidianSync:
                     if existing:
                         continue
 
-                text = md_file.read_text(encoding="utf-8", errors="ignore")
-                if len(text.strip()) < 20:
-                    continue
-
-                await self._insert_to_rag(text)
-                if mem is not None:
-                    mem.remember(cache_key, "1", category="lightrag_cache")
-                count += 1
-                logger.debug(f"[VECTOR][obsidian] ingested {md_file.name}")
+                ingested = await self.ingest_file(f)
+                if ingested:
+                    if mem is not None:
+                        mem.remember(cache_key, "1", category="lightrag_cache")
+                    count += 1
+                    logger.debug(f"[VECTOR][obsidian] ingested {f.name}")
             except Exception as e:
-                logger.warning(f"[VECTOR][obsidian] ingest failed for {md_file}: {e}")
+                logger.warning(f"[VECTOR][obsidian] ingest failed for {f}: {e}")
 
         logger.info(f"[VECTOR][obsidian] bulk ingest complete — {count} new files")
         return count
