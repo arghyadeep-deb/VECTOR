@@ -151,7 +151,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
         try:
             from agents.districts.research.research_hub import ResearchHub
             hub = ResearchHub()
-            results = asyncio.run(hub.search_web(arg, max_results=5))
+            results = asyncio.run(hub.search_web(arg, max_results=5))  # noqa: asyncio.run OK in sync handler
             if results:
                 for r in results[:5]:
                     console.print(f"  [cyan]{r.get('title', '?')}[/cyan]")
