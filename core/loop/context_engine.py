@@ -315,6 +315,7 @@ if __name__ == "__main__":
     engine = ContextEngine()
     state = engine.get_world_state()
     prompt = engine.session_hydration_prompt({"task": "smoke test"})
+    comms = state.get("comms", {})
     ok = (
         "SESSION CONTEXT" in prompt
         and "Arghyadeep" in prompt
@@ -325,6 +326,9 @@ if __name__ == "__main__":
         and "finance" in state
         and "academic" in state
         and "comms" in state
+        and "urgent" in comms
+        and "unread" in comms
+        and "pending" in comms
     )
     print(
         f"✅ context_engine OK — {len(state)} domains, prompt={len(prompt)} chars"
