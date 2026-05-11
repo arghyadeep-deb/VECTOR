@@ -83,7 +83,8 @@ class AgentRegistry:
     def get_dead_ghosts(self, district: str | None = None, limit: int = 10) -> list[dict]:
         """Ghost memories of dead agents for next-gen inheritance."""
         try:
-            conn = self._get_mem().conn
+            from core.memory.episodic import get_db_connection
+            conn = get_db_connection()
             if district:
                 rows = conn.execute(
                     "SELECT agent_id, agent_name, district, generation, final_hp, ghost_memory "
