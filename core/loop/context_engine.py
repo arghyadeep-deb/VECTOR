@@ -310,7 +310,12 @@ if __name__ == "__main__":
         "SESSION CONTEXT" in prompt
         and "Arghyadeep" in prompt
         and "[END SESSION CONTEXT]" in prompt
-        and len(state) >= 8
+        and len(state) >= 14
+        and "location" in state
+        and "calendar" in state
+        and "finance" in state
+        and "academic" in state
+        and "comms" in state
     )
     print(
         f"✅ context_engine OK — {len(state)} domains, prompt={len(prompt)} chars"
