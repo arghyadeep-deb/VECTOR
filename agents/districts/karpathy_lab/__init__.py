@@ -1,8 +1,16 @@
-'''
+"""
 Module: agents/districts/karpathy_lab/__init__.py
-Auto-generated stub.
-'''
+District: karpathy_lab | Focus: LLM training pipelines (Karpathy-style)
+"""
 
+from .architecture_builder import ArchitectureBuilder
+from .code_typer import CodeTyper
+from .data_prep import DataPrep
+from .progress_tracker import ProgressTracker
 
-def run(*args, **kwargs):
-    return {'status':'stub','module':'agents/districts/karpathy_lab/__init__.py'}
+__all__ = [
+    "ArchitectureBuilder",
+    "CodeTyper",
+    "DataPrep",
+    "ProgressTracker",
+]
