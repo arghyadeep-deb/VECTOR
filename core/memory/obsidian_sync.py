@@ -389,10 +389,13 @@ class ObsidianSync:
         queue: asyncio.Queue[Path] = asyncio.Queue()
         debounce_sec = self._cfg.get("watch_debounce_sec", 30)
 
+        _WATCH_EXTS = {".md", ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".txt"}
+
         class _Handler(FileSystemEventHandler):
             def on_modified(self_, event):
-                if not event.is_directory and str(event.src_path).endswith(".md"):
-                    loop.call_soon_threadsafe(queue.put_nowait, Path(event.src_path))
+                p = Path(str(event.src_path))
+                if not event.is_directory and p.suffix.lower() in _WATCH_EXTS:
+                    loop.call_soon_threadsafe(queue.put_nowait, p)
 
             def on_created(self_, event):
                 self_.on_modified(event)
