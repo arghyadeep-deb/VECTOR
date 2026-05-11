@@ -175,20 +175,6 @@ class EpisodicMemory:
         except Exception as e:
             logger.error(f"Recall failed: {e}")
             return []
-            
-            cursor.execute(f"""
-                SELECT * FROM episodic_memory
-                WHERE {' AND '.join(conditions)}
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """, params + [limit])
-            
-            columns = [desc[0] for desc in cursor.description]
-            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-            return results
-        except Exception as e:
-            logger.error(f"Recall failed: {e}")
-            return []
     
     def remember(self, key, value, category='general', confidence=0.5) -> bool:
         try:
