@@ -423,8 +423,7 @@ class ObsidianSync:
                     try:
                         if self._is_protected(p):
                             continue
-                        text = p.read_text(encoding="utf-8", errors="ignore")
-                        await self._insert_to_rag(text)
+                        await self.ingest_file(p)
                         self._store_event("vault_change", p.name)
                     except Exception as e:
                         logger.warning(f"[VECTOR][obsidian] watch ingest error {p}: {e}")
