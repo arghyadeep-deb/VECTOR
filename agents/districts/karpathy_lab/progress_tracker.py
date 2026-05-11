@@ -78,6 +78,7 @@ class ProgressTracker(AgentBase):
         )
         conn.commit()
         conn.close()
+        self._current_run = run_name
 
         result = {
             "run_name": run_name,
