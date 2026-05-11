@@ -34,6 +34,17 @@ class ConsolidationBot(AgentBase):
         self._memory = EpisodicMemory()
         self._obsidian = ObsidianSync()
         self._context = ContextEngine()
+        # mem0 episodic layer — self-hosted OSS only (RULE 11, never MemoryClient)
+        try:
+            from mem0 import Memory as _Mem0
+            self._mem0 = _Mem0()
+            logger.info("[VECTOR][consolidation_bot] mem0 episodic layer active")
+        except ImportError:
+            self._mem0 = None
+            logger.info("[VECTOR][consolidation_bot] mem0 not installed — EpisodicMemory only")
+        except Exception as _e:
+            self._mem0 = None
+            logger.warning(f"[VECTOR][consolidation_bot] mem0 init failed: {_e}")
         logger.info(f"[VECTOR][consolidation_bot] ready gen={generation} hp={self.health_points}")
 
     # ── Episode helpers ────────────────────────────────────────────────────────
@@ -78,8 +89,8 @@ class ConsolidationBot(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
-            import ollama
-            response = ollama.chat(
+            from core.inference.ollama_safe import chat
+            summary = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -92,8 +103,10 @@ class ConsolidationBot(AgentBase):
                         ),
                     },
                 ],
+                timeout=2.0,
             )
-            summary = response["message"]["content"]
+            if not summary:
+                raise RuntimeError("empty model response")
         except Exception as e:
             logger.warning(f"[VECTOR][consolidation_bot] LLM unavailable: {e}")
             first_ts = episodes[0]["timestamp"][:10]
@@ -131,8 +144,8 @@ class ConsolidationBot(AgentBase):
             hydration = self._context.session_hydration_prompt()  # RULE 1
 
             try:
-                import ollama
-                response = ollama.chat(
+                from core.inference.ollama_safe import chat
+                reflection = chat(
                     model=CONFIG["models"]["reasoning"],
                     messages=[
                         {"role": "system", "content": hydration},
@@ -145,8 +158,10 @@ class ConsolidationBot(AgentBase):
                             ),
                         },
                     ],
+                    timeout=2.0,
                 )
-                reflection = response["message"]["content"]
+                if not reflection:
+                    raise RuntimeError("empty model response")
             except Exception as e:
                 logger.warning(f"[VECTOR][consolidation_bot] LLM unavailable: {e}")
                 reflection = (
