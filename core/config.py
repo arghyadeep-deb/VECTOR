@@ -265,6 +265,7 @@ CONFIG: dict = {
         "local_url": _s.hermes.local_url,
         "port": _s.hermes.port,
         "timeout_sec": _s.hermes.timeout_sec,
+        "repo_path": _s.hermes.repo_path,
     },
     "turso_url": _s.TURSO_URL or _s.turso.url,
     "turso_token": _s.TURSO_TOKEN.get_secret_value() or _s.turso.token,
