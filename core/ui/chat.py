@@ -92,14 +92,17 @@ def _handle_command(cmd: str, console: "Console") -> bool:
         t.add_column("cmd", style="cyan")
         t.add_column("desc")
         for row in [
-            ("/status", "System status, model health, HP"),
-            ("/goals", "Active goals across all horizons"),
-            ("/search <q>", "Web search via research district"),
+            ("/status",       "System status, model health, HP"),
+            ("/goals",        "Active goals across all horizons"),
+            ("/search <q>",   "Web search via research district"),
             ("/note <title>", "Write a quick note to Obsidian vault"),
-            ("/districts", "All 25 districts and their status"),
-            ("/council <q>", "Convene LLM council for high-stakes question"),
-            ("/karpathy", "Today's Karpathy session streak"),
-            ("/quit", "Exit VECTOR terminal"),
+            ("/districts",    "All 25 districts and their status"),
+            ("/council <q>",  "Convene LLM council for high-stakes question"),
+            ("/karpathy",     "Today's Karpathy session streak"),
+            ("/bg <task>",    "Run a big task in background — returns immediately"),
+            ("/tasks",        "Show running and recently completed background tasks"),
+            ("/cancel <id>",  "Cancel a running background task by ID"),
+            ("/quit",         "Exit VECTOR terminal"),
         ]:
             t.add_row(*row)
         console.print(Panel(t, title="[bold green]VECTOR Commands[/bold green]", border_style="green"))
