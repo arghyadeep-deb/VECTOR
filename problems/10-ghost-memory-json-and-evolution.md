@@ -1,7 +1,7 @@
 # Problem 10 — Ghost Memory JSON Serialization + Evolution Not Wired
 
 **Severity: HIGH**
-**Status: PARTIALLY FIXED (JSON bug fixed; evolution wiring documented)**
+**Status: FIXED 2026-05-12 — JSON bug fixed (prev session); evolution now wired: agent_registry.deregister() calls EvolutionEngine().spawn_successor(), creates AgentBase gen+1 with inherited ghost, registers it.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Part A — Ghost Stored as str() Not json.dumps() (FIXED)
