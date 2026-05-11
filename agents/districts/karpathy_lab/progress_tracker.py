@@ -52,17 +52,12 @@ class ProgressTracker(AgentBase):
         conn.close()
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        import urllib.request, json as _json
-        model = model or self.model
-        payload = {"model": model, "prompt": prompt, "stream": False}
-        data = _json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            CONFIG["ollama_host"] + "/api/generate",
-            data=data,
-            headers={"Content-Type": "application/json"}
+        from core.inference.ollama_safe import chat as ollama_chat
+        return ollama_chat(
+            model=model or self.model,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=120,
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return _json.loads(resp.read())["response"]
 
     def start_run(self, run_name: str, config: dict) -> dict:
         logger.info(f"[VECTOR][karpathy_lab] Starting training run: {run_name}")
