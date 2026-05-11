@@ -1,7 +1,7 @@
 # Problem 12 — Session Hydration Incomplete (RULE 1)
 
 **Severity: HIGH**
-**Status: DOCUMENTED — requires context_engine.py + think_loop wiring**
+**Status: FIXED 2026-05-12 — All 3 parts complete. (A) context_engine.get_world_state() now has 14 domains including location/calendar/finance/academic/comms. (B) autonomous_loop._think_tick() calls get_world_state() first and passes snapshot into Candidate.situation. (C) All 30 district _call_ollama() methods inject ContextEngine().session_hydration_prompt() as system message.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Part A — Only 4 of 9 Required Fields Present in Hydration Prompt
