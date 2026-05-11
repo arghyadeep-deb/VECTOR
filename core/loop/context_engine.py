@@ -173,10 +173,12 @@ class ContextEngine:
         academic_info: dict = {}
         try:
             ks = self._get_kiit_scraper()
-            if ks and hasattr(ks, "get_cached_schedule"):
-                academic_info = ks.get_cached_schedule() or {}
-            elif ks and hasattr(ks, "get_schedule"):
-                academic_info = ks.get_schedule() or {}
+            if ks:
+                # Only call sync methods — get_schedule() is async and cannot be called here
+                if hasattr(ks, "get_cached_schedule"):
+                    academic_info = ks.get_cached_schedule() or {}
+                elif hasattr(ks, "schedule_cache") and ks.schedule_cache:
+                    academic_info = ks.schedule_cache
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] academic fetch failed: {e}")
 
