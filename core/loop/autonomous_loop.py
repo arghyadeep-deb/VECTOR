@@ -101,8 +101,11 @@ class AutonomousLoop:
             await asyncio.sleep(10)
 
     async def _think_tick(self):
-        """Evaluate goals → 4 candidates → decision → act."""
+        """Evaluate goals → 4 candidates → decision → act. RULE 1: hydrate first."""
         from core.loop.decision_engine import Candidate
+
+        # RULE 1 — world state snapshot before any reasoning
+        world_state = self._get_context().get_world_state()
 
         actions = self._get_goals().generate_immediate_actions(limit=4)
         if not actions:
@@ -118,6 +121,7 @@ class AutonomousLoop:
                 ),
                 confidence=0.7,
                 source="think_loop",
+                situation=world_state,
             )
             for a in actions
         ]
