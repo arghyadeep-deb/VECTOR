@@ -144,7 +144,7 @@ def create_app() -> FastAPI:
                     pass
 
     # Include routers
-    from core.api.routers import commands, council, agents, status, voice, memory, security, websocket
+    from core.api.routers import commands, council, agents, status, voice, memory, security, websocket, tasks
     app.include_router(commands.router)
     app.include_router(council.router)
     app.include_router(agents.router)
@@ -153,6 +153,7 @@ def create_app() -> FastAPI:
     app.include_router(memory.router)
     app.include_router(security.router)
     app.include_router(websocket.router)
+    app.include_router(tasks.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:
