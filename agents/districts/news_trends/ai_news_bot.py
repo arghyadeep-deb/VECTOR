@@ -98,9 +98,10 @@ class AINewsBot(AgentBase):
 
         article_text = ""
         try:
-            req = urllib.request.Request(article_url, headers={"User-Agent": "VECTOR-NewsBot/1.0"})
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                from html.parser import HTMLParser
+            import httpx
+            from html.parser import HTMLParser
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.get(article_url, headers={"User-Agent": "VECTOR-NewsBot/1.0"})
                 class MLStripper(HTMLParser):
                     def __init__(self):
                         super().__init__()
@@ -110,7 +111,7 @@ class AINewsBot(AgentBase):
                         self.fed.append(d)
                     def get_data(self):
                         return ' '.join(self.fed)
-                html = resp.read().decode("utf-8", errors="ignore")
+                html = resp.text
                 s = MLStripper()
                 s.feed(html)
                 article_text = s.get_data()[:3000]
