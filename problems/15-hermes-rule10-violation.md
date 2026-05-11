@@ -1,7 +1,7 @@
 # Problem 15 — Hermes RULE 10 Violation + Three Competing Implementations
 
 **Severity: HIGH**
-**Status: DOCUMENTED — requires consolidation to ACP protocol**
+**Status: FIXED 2026-05-12 — Duplicate implementations deleted (integrations/hermes/, agents/districts/communications/hermes/). Single hermes_adapter.py retained in communications district. HermesConfig added to CONFIG via P18 so CONFIG.get("hermes") now returns real values.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
