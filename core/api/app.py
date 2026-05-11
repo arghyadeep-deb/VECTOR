@@ -1,0 +1,188 @@
+"""Modular FastAPI application factory for V.E.C.T.O.R.
+
+Usage:
+    from core.api import create_app
+    app = create_app()
+"""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+import datetime
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from loguru import logger
+
+from core.config import CONFIG
+from core.api.middleware import (
+    logging_middleware,
+    timing_middleware,
+    error_handling_middleware,
+    auth_middleware,
+    rate_limiting_middleware,
+    security_headers_middleware,
+)
+
+
+def create_app() -> FastAPI:
+    """Create and configure the modular FastAPI application."""
+    app = FastAPI(
+        title="V.E.C.T.O.R.",
+        description="Virtual Entity for Cognitive Tasks & Operational Reasoning",
+        version=CONFIG["version"],
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+    )
+
+    app.state.context_engine = None
+    app.state.goal_system = None
+    app.state.decision_engine = None
+    app.state.permission_gateway = None
+    app.state.policy_memory = None
+    app.state.reasoning_memory = None
+    app.state.agent_registry = None
+    app.state.episodic_memory = None
+
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CONFIG.get("allowed_origins", ["*"]),
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
+
+    # Custom middleware (order matters: last added = first executed on the way in)
+    # Executed on request: security_headers → rate_limiting → auth → logging → timing → error
+    app.middleware("http")(error_handling_middleware)
+    app.middleware("http")(rate_limiting_middleware)
+    app.middleware("http")(auth_middleware)
+    app.middleware("http")(logging_middleware)
+    app.middleware("http")(timing_middleware)
+    app.middleware("http")(security_headers_middleware)
+
+    # Startup event
+    @app.on_event("startup")
+    async def startup_event():
+        logger.info("[VECTOR][api] Starting modular FastAPI application...")
+
+        # Bootstrap agents — registers in global singleton registry
+        try:
+            from run_vector import bootstrap_agents
+            created = bootstrap_agents()
+            logger.info(f"[VECTOR][api] Bootstrapped {created} baseline agents")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] Agent bootstrap failed: {e}")
+
+        # Pre-warm core singletons into app.state so dependencies are fast
+        try:
+            from core.loop.context_engine import ContextEngine
+            app.state.context_engine = ContextEngine()
+            logger.info("[VECTOR][api] context_engine ready")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] context_engine failed: {e}")
+
+        try:
+            from core.loop.decision_engine import DecisionEngine
+            app.state.decision_engine = DecisionEngine()
+            logger.info("[VECTOR][api] decision_engine ready")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] decision_engine failed: {e}")
+
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            app.state.permission_gateway = PermissionGateway()
+            logger.info("[VECTOR][api] permission_gateway ready")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] permission_gateway failed: {e}")
+
+        try:
+            from core.city.agent_registry import get_registry
+            app.state.agent_registry = get_registry()
+            logger.info(f"[VECTOR][api] agent_registry ready — {len(app.state.agent_registry.list_all())} agents")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] agent_registry failed: {e}")
+
+        try:
+            from core.memory.episodic import EpisodicMemory
+            app.state.episodic_memory = EpisodicMemory()
+            logger.info("[VECTOR][api] episodic_memory ready")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] episodic_memory failed: {e}")
+
+        # Verify Ollama connectivity
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+                r = await client.get(f"{ollama_host}/api/tags")
+                if r.status_code == 200:
+                    models = [m["name"] for m in r.json().get("models", [])]
+                    logger.info(f"[VECTOR][api] Ollama online. {len(models)} models available")
+                else:
+                    logger.warning(f"[VECTOR][api] Ollama returned {r.status_code}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] Ollama check failed: {e}")
+
+        logger.info("[VECTOR][api] V.E.C.T.O.R. API ready")
+
+    # Shutdown event
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        logger.info("[VECTOR][api] Shutting down...")
+        # Close SQLite connections
+        for key in ["episodic_memory"]:
+            obj = getattr(app.state, key, None)
+            if obj and hasattr(obj, "conn"):
+                try:
+                    obj.conn.close()
+                    logger.info(f"[VECTOR][api] {key} connection closed")
+                except Exception:
+                    pass
+
+    # Include routers
+    from core.api.routers import commands, council, agents, status, voice, memory, security, websocket
+    app.include_router(commands.router)
+    app.include_router(council.router)
+    app.include_router(agents.router)
+    app.include_router(status.router)
+    app.include_router(voice.router)
+    app.include_router(memory.router)
+    app.include_router(security.router)
+    app.include_router(websocket.router)
+
+    # VECTOR browser dashboard — zero npm, served at /ui
+    try:
+        from core.ui.web_ui import router as ui_router
+        app.include_router(ui_router)
+        logger.info("[VECTOR][api] web UI mounted at /ui")
+    except Exception as _ui_err:
+        logger.warning(f"[VECTOR][api] web UI failed to mount: {_ui_err}")
+
+    # Health check at root
+    @app.get("/", tags=["root"])
+    async def root():
+        return {
+            "system": "V.E.C.T.O.R.",
+            "version": CONFIG["version"],
+            "status": "operational",
+            "docs": "/docs",
+        }
+
+    return app
+
+
+# Keep legacy import path working
+def get_app() -> FastAPI:
+    """Alias for create_app()."""
+    return create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+    sys.stdout.reconfigure(encoding="utf-8")
+    app = create_app()
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
