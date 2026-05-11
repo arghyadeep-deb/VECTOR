@@ -563,11 +563,105 @@ _DASHBOARD_HTML = """\
   document.getElementById("qa-goals").addEventListener("click",loadGoals);
   document.getElementById("qa-mem").addEventListener("click",()=>{showTab("memory");loadMemory();});
 
+  // ── Background Tasks ─────────────────────────────────────────────────────────
+  async function loadTasks(){
+    try{
+      const d=await apiFetch("/tasks/");
+      const runEl=document.getElementById("tasks-running");
+      const recEl=document.getElementById("tasks-recent");
+      if(!runEl||!recEl)return;
+      runEl.innerHTML="";
+      recEl.innerHTML="";
+
+      const STATUS_COL={running:"#00ff41",done:"#39d353",failed:"#f85149",
+                        cancelled:"#8b949e",queued:"#e3b341"};
+
+      function makeRow(t){
+        const row=document.createElement("div");
+        row.style.cssText="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)";
+        const id=document.createElement("span");
+        id.style.cssText="color:var(--dim);font-size:11px;width:70px;flex-shrink:0";
+        id.textContent=t.id;
+        const name=document.createElement("span");
+        name.style.cssText="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+        name.textContent=t.name;
+        const stat=document.createElement("span");
+        stat.style.cssText="font-size:11px;width:80px;text-align:right;flex-shrink:0";
+        stat.style.color=STATUS_COL[t.status]||"#e6edf3";
+        stat.textContent=t.status;
+        const elapsed=document.createElement("span");
+        elapsed.style.cssText="color:var(--dim);font-size:11px;width:50px;text-align:right;flex-shrink:0";
+        elapsed.textContent=t.elapsed+"s";
+        const dist=document.createElement("span");
+        dist.style.cssText="color:var(--dim);font-size:11px;width:80px;text-align:right;flex-shrink:0";
+        dist.textContent=t.district;
+        row.appendChild(id);row.appendChild(name);row.appendChild(stat);
+        row.appendChild(elapsed);row.appendChild(dist);
+        if(t.status==="running"){
+          const cancelBtn=document.createElement("button");
+          cancelBtn.textContent="✕";
+          cancelBtn.style.cssText="background:none;border:1px solid var(--red);color:var(--red);"+
+            "cursor:pointer;font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0";
+          cancelBtn.addEventListener("click",async()=>{
+            await apiFetch("/tasks/"+t.id,{method:"DELETE"});
+            loadTasks();
+          });
+          row.appendChild(cancelBtn);
+        }
+        return row;
+      }
+
+      const running=(d.tasks||[]);
+      if(running.length){
+        const h=document.createElement("div");
+        h.style.cssText="color:var(--green);font-size:11px;margin-bottom:4px;font-weight:700";
+        h.textContent="▶ RUNNING ("+running.length+")";
+        runEl.appendChild(h);
+        running.forEach(t=>runEl.appendChild(makeRow(t)));
+      } else {
+        const idle=document.createElement("div");
+        idle.style.cssText="color:var(--dim);font-size:12px";
+        idle.textContent="No tasks running.";
+        runEl.appendChild(idle);
+      }
+
+      const recent=(d.recent||[]);
+      if(recent.length){
+        const h=document.createElement("div");
+        h.style.cssText="color:var(--dim);font-size:11px;margin-bottom:4px;font-weight:700";
+        h.textContent="RECENT";
+        recEl.appendChild(h);
+        recent.forEach(t=>recEl.appendChild(makeRow(t)));
+      }
+    }catch(e){console.error("tasks error",e);}
+  }
+
+  async function submitBgTask(){
+    const inp=document.getElementById("bg-task-input");
+    if(!inp||!inp.value.trim())return;
+    const query=inp.value.trim();
+    inp.value="";
+    try{
+      await apiFetch("/tasks/submit",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:query.slice(0,60),query:query,district:"core",priority:"LOW"})
+      });
+      showTab("tasks");
+      loadTasks();
+    }catch(e){console.error("submit task error",e);}
+  }
+
   // ── Boot ─────────────────────────────────────────────────────────────────────
   tick();
   setInterval(tick,1000);
   pollStatus();
   setInterval(pollStatus,30000);
+  // Auto-refresh tasks panel every 5s when visible
+  setInterval(()=>{
+    const panel=document.getElementById("tasks-panel");
+    if(panel&&panel.classList.contains("active"))loadTasks();
+  },5000);
 })();
 </script>
 </body>
