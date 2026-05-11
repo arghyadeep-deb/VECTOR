@@ -303,7 +303,6 @@ class AutonomousLoop:
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
-            self.act_loop(),
             self.reflect_loop(),
             self.sync_loop(),
             self.obsidian_loop(),
