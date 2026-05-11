@@ -76,17 +76,17 @@ class LLMCouncil(AgentBase):
     # ── Ollama call ────────────────────────────────────────────────────────────
 
     def _call_model(self, model: str, system: str, user: str) -> str:
-        """Synchronous Ollama call — returns text or '' on any failure."""
+        """Ollama call via ollama_safe — RULE 11: no Claude API at runtime."""
         try:
-            import ollama
-            response = ollama.chat(
+            from core.inference.ollama_safe import chat
+            return chat(
                 model=model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-            )
-            return response["message"]["content"]
+                timeout=120.0,
+            ) or ""
         except Exception as e:
             logger.warning(f"[VECTOR][llm_council] {model} failed: {e}")
             return ""
