@@ -262,6 +262,53 @@ ollama create vector-chairman -f modelfiles/vector-chairman.modelfile
 
 ---
 
+## GitHub Repos Integrated ✅ COMPLETE
+
+| Repo | Integration | Status |
+|------|------------|--------|
+| `NousResearch/hermes-agent` | RULE 10 — used directly, not rebuilt | ✅ |
+| `lyogavin/airllm` | 70B inference on RTX 5070 Ti via `AirLLM` | ✅ wired in models config |
+| `kyegomez/OpenMythos` | Custom LLM training pipeline (Month 2) | ✅ referenced in roadmap |
+| `PrefectHQ/fastmcp` | `core/mcp_server.py` — 14 tools + 1 resource exposed to Claude Code | ✅ |
+| `jackwener/OpenCLI` | `agents/districts/research/opencli_adapter.py` — npm wrapper + native fallbacks | ✅ |
+| `mem0ai/mem0` (self-hosted) | District 7, `from mem0 import Memory` — never MemoryClient | ✅ |
+| `HumanLayer` | Approval layer for YELLOW/RED gateway actions | ✅ wired |
+| Reference repos (AI-Trader, etc.) | Deleted — no implementation dependency | ✅ deleted |
+
+---
+
+## Native UI ✅ COMPLETE
+
+| Interface | File | Launch |
+|-----------|------|--------|
+| Terminal TUI (Rich) | `core/ui/chat.py` | `python -m core.ui.chat` |
+| Browser Dashboard | `core/ui/web_ui.py` | `http://127.0.0.1:8000/ui` (zero npm) |
+| MCP Server | `core/mcp_server.py` | auto via `.mcp.json` |
+
+**Terminal features:** banner + status line, /help /status /goals /search /note /districts /council /karpathy, rolling 10-exchange history, episodic memory on every turn (RULE 8)  
+**Browser features:** Chat, Research (HN/GitHub/DEV.to/ArXiv), Goals, Memory recall, Districts grid, Karpathy, Agents HP — all DOM-safe (no innerHTML with user data), polls /status every 30s  
+**MCP tools (14):** recall_memory, store_memory, get_world_state, get_goals, search_web, mine_reddit, read_paper, convene_council, review_code, git_status, karpathy_session, karpathy_streak, write_note, search_vault
+
+---
+
+## Native Research Hub ✅ COMPLETE
+
+`agents/districts/research/research_hub.py` — zero npm, 100% Python:
+
+| Source | Method | API |
+|--------|--------|-----|
+| DuckDuckGo | `search_web()` | JSON instant answers + HTML fallback |
+| HackerNews | `get_hn_top()`, `get_hn_ask()` | Firebase JSON API |
+| GitHub | `get_github_trending()` | GitHub Search REST API |
+| DEV.to | `get_devto_posts()` | DEV.to public REST |
+| ArXiv | `search_arxiv()` | ArXiv XML Atom feed |
+| ProductHunt | `get_producthunt_top()` | PH GraphQL public |
+| YouTube | `search_youtube()` | yt-dlp ytsearch |
+
+`daily_digest()` runs all sources in parallel, stores summary in episodic memory.
+
+---
+
 ## Pending Actions
 
 | Item | Command | Priority |
@@ -269,6 +316,11 @@ ollama create vector-chairman -f modelfiles/vector-chairman.modelfile
 | Deploy brain server | `cd cloud/brain_server && fly launch` | HIGH |
 | Deploy Cloudflare Worker | `cd api && wrangler deploy` | HIGH |
 | Deploy dashboard | `cd dashboard && vercel --prod` | MEDIUM |
+| Pull vector-deep base | `ollama pull gemma4:26b` | HIGH (for overnight tasks) |
+| Pull vector-chairman base | `ollama pull gemma4:31b` | HIGH (for council + reflection) |
+| Pull qwen3:30b-a3b | `ollama pull qwen3:30b-a3b` | MEDIUM (MoE reasoning upgrade) |
+| Create vector-deep | `ollama create vector-deep -f modelfiles/vector-deep.modelfile` | HIGH (after pull) |
+| Create vector-chairman | `ollama create vector-chairman -f modelfiles/vector-chairman.modelfile` | HIGH (after pull) |
 | Phone ambient node | Run `phone_node/setup.sh` on Termux | LOW (phone not ready) |
 | Download Kokoro TTS model | ~300MB from kokoro-onnx releases | MEDIUM |
 | Train "Hey VECTOR" wake word | openwakeword custom training | LOW |
