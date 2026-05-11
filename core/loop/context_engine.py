@@ -215,7 +215,7 @@ class ContextEngine:
             "calendar": calendar_upcoming,
             "finance": finance_summary,
             "academic": academic_info,
-            "comms": {"pending_messages": comms_pending},
+            "comms": comms_status,
         }
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
