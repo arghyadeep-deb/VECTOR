@@ -182,6 +182,10 @@ class VectorSettings(BaseSettings):
         "http://localhost:3000",
     ])
 
+    # Turso — overridable via env vars
+    TURSO_URL: str = ""
+    TURSO_TOKEN: SecretStr = SecretStr("")
+
     # Structured sub-configs — validated by their own models
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     model_router: ModelRouterConfig = Field(default_factory=ModelRouterConfig)
@@ -194,6 +198,10 @@ class VectorSettings(BaseSettings):
     control: ControlConfig = Field(default_factory=ControlConfig)
     sensing: SensingConfig = Field(default_factory=SensingConfig)
     coding: CodingConfig = Field(default_factory=CodingConfig)
+    hermes: HermesConfig = Field(default_factory=HermesConfig)
+    turso: TursoConfig = Field(default_factory=TursoConfig)
+    karpathy: KarpathyConfig = Field(default_factory=KarpathyConfig)
+    airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
