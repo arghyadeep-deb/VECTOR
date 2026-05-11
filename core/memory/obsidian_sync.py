@@ -299,6 +299,59 @@ class ObsidianSync:
         logger.info(f"[VECTOR][obsidian] bulk ingest complete — {count} new files")
         return count
 
+    # ── MarkItDown pre-processor ───────────────────────────────────────────────
+
+    def _to_markdown(self, file_path: Path) -> str | None:
+        """
+        Convert any file (PDF, DOCX, PPTX, XLSX, images, audio, HTML, YouTube URL)
+        to Markdown via markitdown. Returns None gracefully if markitdown is absent
+        or the conversion fails.
+        """
+        try:
+            from markitdown import MarkItDown  # type: ignore
+            md = MarkItDown()
+            result = md.convert(str(file_path))
+            return result.text_content if result else None
+        except ImportError:
+            logger.debug("[VECTOR][obsidian] markitdown not installed — skipping non-md conversion")
+            return None
+        except Exception as e:
+            logger.warning(f"[VECTOR][obsidian] markitdown conversion failed for {file_path}: {e}")
+            return None
+
+    async def ingest_file(self, file_path: str | Path) -> bool:
+        """
+        Universal file ingestor:
+        - .md files go directly to LightRAG
+        - Everything else is converted to Markdown via markitdown first
+        - Falls back to RAGAnything for rich multi-modal files (PDF, images, audio)
+        """
+        file_path = Path(file_path)
+        if self._is_protected(file_path):
+            return False
+
+        if file_path.suffix.lower() == ".md":
+            try:
+                text = file_path.read_text(encoding="utf-8", errors="ignore")
+                if len(text.strip()) >= 20:
+                    await self._insert_to_rag(text)
+                    self._store_event("vault_ingest_md", file_path.name)
+                    return True
+            except Exception as e:
+                logger.warning(f"[VECTOR][obsidian] md ingest failed {file_path}: {e}")
+            return False
+
+        # Non-markdown: try markitdown first (fast, handles most formats)
+        md_text = self._to_markdown(file_path)
+        if md_text and len(md_text.strip()) >= 20:
+            await self._insert_to_rag(md_text)
+            self._store_event("vault_ingest_converted", file_path.name)
+            logger.info(f"[VECTOR][obsidian] markitdown ingested {file_path.name}")
+            return True
+
+        # Fallback: RAGAnything for rich multi-modal content
+        return await self.ingest_to_rag_anything(file_path)
+
     async def ingest_to_rag_anything(self, file_path: str | Path) -> bool:
         """Multi-modal ingestion (PDF, image, audio) via RagAnything → same LightRAG graph."""
         await self._init_rag()
