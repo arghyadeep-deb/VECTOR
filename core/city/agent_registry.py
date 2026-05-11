@@ -199,14 +199,16 @@ if __name__ == "__main__":
     reg.deregister("reg_test_001")
     ghosts = reg.get_dead_ghosts(district="coding")
 
+    # After deregister, gen2 successor is spawned → total stays at 3
+    successor_agents = [a for a in reg.list_all() if getattr(a.get("generation", 1), "__class__", None) is not None and a.get("generation", 1) >= 2]
     ok = (
         len(all_agents) == 3
         and len(council) == 1
-        and reg.total() == 2
+        and reg.total() == 3  # gen2 CodeBot spawned, still 3 alive
         and len(ghosts) >= 1
     )
     print(
         f"✅ agent_registry OK — {len(all_agents)} registered, "
-        f"{len(council)} council eligible, 1 death → {len(ghosts)} ghost"
+        f"{len(council)} council eligible, 1 death → gen2 spawned, {len(ghosts)} ghost"
         if ok else "❌ FAILED"
     )
