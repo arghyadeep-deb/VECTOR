@@ -122,6 +122,7 @@ _DASHBOARD_HTML = """\
     <div class="nav-item" data-tab="memory">Memory</div>
     <div class="nav-item" data-tab="districts">Districts</div>
     <div class="sidebar-section" style="margin-top:6px">Track</div>
+    <div class="nav-item" data-tab="tasks">Tasks</div>
     <div class="nav-item" data-tab="karpathy">Karpathy</div>
     <div class="nav-item" data-tab="agents">Agents HP</div>
     <div class="sidebar-section" style="margin-top:6px">System</div>
