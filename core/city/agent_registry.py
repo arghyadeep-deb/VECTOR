@@ -100,7 +100,8 @@ class AgentRegistry:
             return [
                 {
                     "id": r[0], "name": r[1], "district": r[2],
-                    "generation": r[3], "final_hp": r[4], "ghost_memory": r[5],
+                    "generation": r[3], "final_hp": r[4],
+                    "ghost_memory": json.loads(r[5]) if r[5] else {},
                 }
                 for r in rows
             ]
