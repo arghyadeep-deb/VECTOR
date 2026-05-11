@@ -260,6 +260,23 @@ CONFIG: dict = {
         "github_token": _s.GITHUB_TOKEN.get_secret_value(),
         "repo_path": _s.coding.repo_path,
     },
+    "hermes": {
+        "local_url": _s.hermes.local_url,
+        "port": _s.hermes.port,
+        "timeout_sec": _s.hermes.timeout_sec,
+    },
+    "turso_url": _s.TURSO_URL or _s.turso.url,
+    "turso_token": _s.TURSO_TOKEN.get_secret_value() or _s.turso.token,
+    "karpathy": {
+        "runs_dir": _s.karpathy.runs_dir,
+        "data_dir": _s.karpathy.data_dir,
+        "daily_minutes": _s.karpathy.daily_minutes,
+    },
+    "airllm": {
+        "models_dir": _s.airllm.models_dir,
+        "cache_dir": _s.airllm.cache_dir,
+        "max_gpu_memory_gb": _s.airllm.max_gpu_memory_gb,
+    },
     "obsidian": {
         "vault_path": _s.VECTOR_VAULT_PATH,
         "lightrag_working_dir": "./data/lightrag_vault",
