@@ -318,6 +318,15 @@ class AutonomousLoop:
         logger.info(
             f"[VECTOR][autonomous_loop] run_forever() at {self._start_time.isoformat()}"
         )
+
+        # Initialise background task queue — shares this event loop
+        try:
+            from core.loop.task_queue import TaskQueue
+            TaskQueue.get()
+            logger.info("[VECTOR][autonomous_loop] task_queue ready")
+        except Exception as e:
+            logger.warning(f"[VECTOR][autonomous_loop] task_queue init failed: {e}")
+
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
