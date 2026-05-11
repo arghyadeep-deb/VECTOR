@@ -272,8 +272,11 @@ class ContextEngine:
             if acad and acad != "{}":
                 lines.append(f"Academic: {acad}")
 
-        if state.get("comms", {}).get("pending_messages"):
-            lines.append(f"Comms: {state['comms']['pending_messages']} messages pending")
+        comms = state.get("comms", {})
+        urgent = comms.get("urgent", 0)
+        unread = comms.get("unread", 0)
+        if urgent or unread:
+            lines.append(f"Comms: {urgent} urgent, {unread} unread")
 
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
