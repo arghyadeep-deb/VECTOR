@@ -24,6 +24,15 @@ import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
+try:
+    from loguru import logger
+except ImportError:
+    import logging as _logging
+    logger = _logging.getLogger("vector_phone")
+    if not logger.handlers:
+        _logging.basicConfig(level=_logging.INFO, format="%(message)s")
+        logger.info = logger.info  # noqa: already set
+
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 _CFG_PATH = Path.home() / ".vector" / "phone_config.env"
