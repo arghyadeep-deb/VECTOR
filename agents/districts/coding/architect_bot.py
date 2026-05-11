@@ -71,8 +71,9 @@ class ArchitectBot(AgentBase):
                     for node in ast.walk(ast.parse(source)):
                         if isinstance(node, ast.ImportFrom):
                             if node.module:
-                                # Only care about relative/local imports
-                                if node.level > 0 or (node.module and not node.module.startswith("core") is False):
+                                is_relative = node.level > 0
+                                is_local_absolute = node.module.startswith("core")
+                                if is_relative or is_local_absolute:
                                     local_imports.add(node.module)
                         elif isinstance(node, ast.Import):
                             for alias in node.names:
