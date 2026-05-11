@@ -64,6 +64,42 @@ class ContextEngine:
                 logger.warning(f"[VECTOR][context_engine] ObsidianSync init failed: {e}")
         return self._obsidian
 
+    def _get_deadline_mgr(self):
+        if self._deadline_mgr is None:
+            try:
+                from agents.districts.time_calendar.deadline_manager import DeadlineManager
+                self._deadline_mgr = DeadlineManager()
+            except Exception:
+                pass
+        return self._deadline_mgr
+
+    def _get_expense_tracker(self):
+        if self._expense_tracker is None:
+            try:
+                from agents.districts.finance.expense_tracker import ExpenseTracker
+                self._expense_tracker = ExpenseTracker()
+            except Exception:
+                pass
+        return self._expense_tracker
+
+    def _get_kiit_scraper(self):
+        if self._kiit_scraper is None:
+            try:
+                from agents.districts.time_calendar.kiit_scraper import KIITScraper
+                self._kiit_scraper = KIITScraper()
+            except Exception:
+                pass
+        return self._kiit_scraper
+
+    def _get_hermes(self):
+        if self._hermes is None:
+            try:
+                from agents.districts.communications.hermes_adapter import HermesAdapter
+                self._hermes = HermesAdapter()
+            except Exception:
+                pass
+        return self._hermes
+
     async def get_vault_context(self, query: str) -> str:
         """LightRAG hybrid query over Obsidian vault. Returns '' if not ready."""
         try:
