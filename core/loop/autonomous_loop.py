@@ -128,16 +128,6 @@ class AutonomousLoop:
 
     # ─── Act ──────────────────────────────────────────────────────────────────
 
-    async def act_loop(self):
-        """Permission-gated action execution. Never crashes."""
-        logger.info("[VECTOR][act] started")
-        while self._running:
-            try:
-                await asyncio.sleep(1)
-            except Exception as e:
-                logger.error(f"[VECTOR][act] error: {e}")
-                await asyncio.sleep(5)
-
     async def _act_on(self, winner: "DecisionEngine.Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
