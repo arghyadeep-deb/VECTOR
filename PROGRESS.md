@@ -20,6 +20,7 @@
 | T7 | Final Integration | ✅ DONE | ⚠️ Integration testing pending |
 | P2 | Phase 2 — Reflection, Health, Finance, Projects | ✅ DONE | ✅ 47/47 tests |
 | P3 | Phase 3 — Modular API, Intelligence Stack Fixes | ✅ DONE | ✅ 19 routes, full stack wired |
+| GH | GitHub Repos Integration — all repos wired/deleted | ✅ DONE | ✅ 154/154 tests |
 
 ---
 
