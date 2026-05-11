@@ -1,7 +1,7 @@
 # Problem 18 — CONFIG Missing Integration Blocks
 
 **Severity: MEDIUM**
-**Status: DOCUMENTED — add blocks to core/config.py**
+**Status: FIXED 2026-05-12 — Added HermesConfig, TursoConfig, KarpathyConfig, AirLLMConfig Pydantic sub-models to core/config.py. Exposed in CONFIG dict as hermes, turso_url, turso_token, karpathy, airllm keys. TURSO_URL/TURSO_TOKEN env vars supported.**
 **Discovered: 2026-05-11 by 6-agent codebase audit**
 
 ## Symptom
