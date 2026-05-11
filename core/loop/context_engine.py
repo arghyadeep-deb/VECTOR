@@ -182,11 +182,15 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] academic fetch failed: {e}")
 
-        comms_pending: int = 0
+        comms_status: dict = {"urgent": 0, "unread": 0, "pending": 0}
         try:
             ha = self._get_hermes()
             if ha:
-                comms_pending = ha.get_pending_count()
+                if hasattr(ha, "get_comms_status"):
+                    comms_status = ha.get_comms_status()
+                else:
+                    n = ha.get_pending_count()
+                    comms_status = {"urgent": 0, "unread": n, "pending": n}
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] comms fetch failed: {e}")
 
