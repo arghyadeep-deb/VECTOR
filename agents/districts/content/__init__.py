@@ -15,6 +15,7 @@ from .caption_generator import CaptionGenerator
 from .uploader import Uploader
 from .video_merger import VideoMerger
 from .voice_generator import VoiceGenerator
+from .comfyui_adapter import ComfyUIAdapter
 
 __all__ = [
     "ScriptGenerator",
@@ -23,6 +24,7 @@ __all__ = [
     "Uploader",
     "VideoMerger",
     "VoiceGenerator",
+    "ComfyUIAdapter",
 ]
 
 logger.info("[VECTOR][content] Content district loaded")
