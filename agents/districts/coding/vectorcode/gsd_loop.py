@@ -32,8 +32,8 @@ class GSDLoop:
         self.mode = mode
         self.current_phase = GSDPhase.DISCUSS
         self.verify_retries = 0
-        from agents.districts.coding.vectorcode.memory.pattern_store import PatternStore
-        self._patterns = PatternStore()
+        _tmp = tempfile.mkdtemp(prefix="gsd_patterns_")
+        self._patterns = PatternStore(index_path=_tmp)
 
     def should_skip_discuss(self, task: str) -> bool:
         """Return True if a high-reward pattern exists for this task."""
