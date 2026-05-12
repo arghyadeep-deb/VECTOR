@@ -110,17 +110,23 @@ class VectorCodeSession:
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     a = VectorCodeSession.get()
     b = VectorCodeSession.get()
     assert a is b, "Singleton broken — two different instances returned"
-    assert hasattr(a, "mode")
-    assert hasattr(a, "task_id")
-    assert hasattr(a, "repo_path")
-    assert hasattr(a, "history")
-    assert hasattr(a, "active_agents")
-    assert hasattr(a, "current_model")
+    assert hasattr(a, "session_id") and len(a.session_id) == 36
+    assert hasattr(a, "token_usage")
+    assert hasattr(a, "files_modified")
+    assert hasattr(a, "cost_usd")
     a.set_mode("auto")
     assert a.mode == "auto"
+    a.record_token_usage(prompt=100, completion=50, cost_usd=0.001)
+    assert a.token_usage.prompt_tokens == 100
+    assert abs(a.cost_usd - 0.001) < 1e-9
+    a.record_file_modified("src/main.py")
+    assert "src/main.py" in a.files_modified
+    d = a.to_dict()
+    assert "id" in d and "token_usage" in d and "files_modified" in d
     a.reset()
-    assert a.history == []
+    assert a.history == [] and a.cost_usd == 0.0
     print("session.py OK")
