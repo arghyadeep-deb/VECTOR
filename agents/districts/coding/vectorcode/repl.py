@@ -488,11 +488,16 @@ class VectorREPL:
                 print("\nExiting VECTOR.")
                 break
 
-        # On exit: persist session + save trajectory for training
+        # On exit: persist session + update memory + save trajectory
         if len(self._history) > 1:
             try:
                 _save_session(self._history, self.session.current_model)
                 _save_trajectory(self._history, self.session.current_model)
+            except Exception:
+                pass
+            try:
+                from agents.districts.coding.vectorcode.context.session_memory import update_session_memory
+                update_session_memory(self._history)
             except Exception:
                 pass
 
