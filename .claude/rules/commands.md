@@ -50,15 +50,20 @@ ollama launch hermes --model kimi-k2.6:cloud
 # Pull all at once
 ollama pull gemma4:e2b && ollama pull gemma4:e4b && ollama pull qwen3:8b && ollama pull qwen3:14b && ollama pull nomic-embed-text && ollama pull gemma4:26b && ollama pull gemma4:31b && ollama pull kimi-k2.6:cloud && ollama pull glm-5.1:cloud
 
-# Build custom models
+# Build custom models (individually)
 ollama create vector-ambient -f modelfiles\vector-ambient.modelfile
 ollama create vector-focus -f modelfiles\vector-focus.modelfile
 ollama create vector-multilingual -f modelfiles\vector-multilingual.modelfile
 ollama create vector-reasoning -f modelfiles\vector-reasoning.modelfile
 ollama create vector-coder -f modelfiles\vector-coder.modelfile
+ollama create vector-deep -f modelfiles\vector-deep.modelfile
+ollama create vector-chairman -f modelfiles\vector-chairman.modelfile
+ollama create vector-r1 -f modelfiles\vector-r1.modelfile
+ollama create vector-dev -f modelfiles\vector-dev.modelfile
+ollama create vector-fast -f modelfiles\vector-fast.modelfile
 
-# Build all at once
-ollama create vector-ambient -f modelfiles\vector-ambient.modelfile && ollama create vector-focus -f modelfiles\vector-focus.modelfile && ollama create vector-multilingual -f modelfiles\vector-multilingual.modelfile && ollama create vector-reasoning -f modelfiles\vector-reasoning.modelfile && ollama create vector-coder -f modelfiles\vector-coder.modelfile
+# Build all at once (10 models)
+ollama create vector-ambient -f modelfiles\vector-ambient.modelfile && ollama create vector-focus -f modelfiles\vector-focus.modelfile && ollama create vector-multilingual -f modelfiles\vector-multilingual.modelfile && ollama create vector-reasoning -f modelfiles\vector-reasoning.modelfile && ollama create vector-coder -f modelfiles\vector-coder.modelfile && ollama create vector-deep -f modelfiles\vector-deep.modelfile && ollama create vector-chairman -f modelfiles\vector-chairman.modelfile && ollama create vector-r1 -f modelfiles\vector-r1.modelfile && ollama create vector-dev -f modelfiles\vector-dev.modelfile && ollama create vector-fast -f modelfiles\vector-fast.modelfile
 ```
 
 ## Cloud Deployment (Phase 3)
