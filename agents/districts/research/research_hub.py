@@ -438,6 +438,310 @@ class ResearchHub(AgentBase):
             logger.warning(f"[VECTOR][research_hub] YouTube search failed: {e}")
             return []
 
+    # ── CoinGecko crypto prices ───────────────────────────────────────────────
+
+    async def get_crypto_prices(
+        self,
+        coins: list[str] = ["bitcoin", "ethereum", "solana"],
+        vs_currency: str = "usd",
+    ) -> list[dict]:
+        """
+        Fetch live crypto prices + 24h change from CoinGecko free API.
+        No auth or API key required.
+        """
+        ids = ",".join(coins)
+        try:
+            async with httpx.AsyncClient(timeout=15.0, headers=_HEADERS) as client:
+                resp = await client.get(
+                    "https://api.coingecko.com/api/v3/simple/price",
+                    params={
+                        "ids": ids,
+                        "vs_currencies": vs_currency,
+                        "include_24hr_change": "true",
+                    },
+                )
+                data = resp.json()
+
+            results = []
+            for coin in coins:
+                coin_data = data.get(coin, {})
+                price = coin_data.get(vs_currency)
+                change = coin_data.get(f"{vs_currency}_24h_change")
+                if price is not None:
+                    results.append({
+                        "coin": coin,
+                        "price": price,
+                        "change_24h": round(change, 2) if change is not None else None,
+                        "currency": vs_currency,
+                        "source": "coingecko",
+                    })
+
+            self.award_points(5, "coingecko")
+            logger.info(f"[VECTOR][research_hub] crypto prices: {len(results)} coins fetched")
+            return results
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] CoinGecko failed: {e}")
+            return []
+
+    # ── Econdb macroeconomic data ─────────────────────────────────────────────
+
+    async def get_economic_data(self, series: str = "RGDP+USA") -> list[dict]:
+        """
+        Fetch macroeconomic time-series data from Econdb free API (no auth).
+        Common series: RGDP+USA (real GDP), CPI+USA, URATE+USA, RGDP+IND.
+        Returns last 5 observations sorted newest-first.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=20.0, headers=_HEADERS) as client:
+                resp = await client.get(
+                    f"https://www.econdb.com/api/series/{series}/",
+                    params={"format": "json", "freq": "A"},
+                )
+                data = resp.json()
+
+            observations = data.get("data", {}).get("values", [])
+            dates = data.get("data", {}).get("dates", [])
+            dataset_name = data.get("verbose_name", series)
+
+            results = []
+            paired = list(zip(dates, observations))
+            for date, value in reversed(paired[-5:]):
+                results.append({
+                    "series": series,
+                    "dataset": dataset_name,
+                    "date": date,
+                    "value": value,
+                    "source": "econdb",
+                })
+
+            self.award_points(5, "econdb")
+            logger.info(f"[VECTOR][research_hub] economic data '{series}': {len(results)} points")
+            return results
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] Econdb failed: {e}")
+            return []
+
+    # ── Crossref academic paper search ────────────────────────────────────────
+
+    async def search_papers(self, query: str, max_results: int = 5) -> list[dict]:
+        """
+        Search academic papers via Crossref free API (no auth required).
+        Returns DOI, title, authors, year, and URL for each result.
+        """
+        import urllib.parse
+        encoded_query = urllib.parse.quote(query)
+        try:
+            async with httpx.AsyncClient(timeout=20.0, headers=_HEADERS) as client:
+                resp = await client.get(
+                    "https://api.crossref.org/works",
+                    params={
+                        "query": query,
+                        "rows": max_results,
+                        "select": "DOI,title,author,published,URL",
+                    },
+                )
+                data = resp.json()
+
+            items = data.get("message", {}).get("items", [])
+            results = []
+            for item in items:
+                title_list = item.get("title", [])
+                title = title_list[0] if title_list else ""
+                doi = item.get("DOI", "")
+                url = item.get("URL", f"https://doi.org/{doi}" if doi else "")
+                published = item.get("published", {})
+                date_parts = published.get("date-parts", [[None]])
+                year = date_parts[0][0] if date_parts and date_parts[0] else None
+                authors_raw = item.get("author", [])
+                authors = [
+                    f"{a.get('given', '')} {a.get('family', '')}".strip()
+                    for a in authors_raw[:3]
+                ]
+                results.append({
+                    "title": title,
+                    "doi": doi,
+                    "url": url,
+                    "year": year,
+                    "authors": authors,
+                    "source": "crossref",
+                })
+
+            self.award_points(5, f"crossref:{query[:20]}")
+            logger.info(f"[VECTOR][research_hub] Crossref '{query[:20]}': {len(results)} papers")
+            return results
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] Crossref failed: {e}")
+            return []
+
+    # ── OpenAQ air quality ────────────────────────────────────────────────────
+
+    async def get_air_quality(self, city: str = "Kolkata") -> list[dict]:
+        """
+        Fetch air quality readings (PM2.5, PM10) from OpenAQ free API (no auth).
+        Returns up to 3 monitoring stations near the requested city.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=20.0, headers=_HEADERS) as client:
+                resp = await client.get(
+                    "https://api.openaq.org/v3/locations",
+                    params={
+                        "city": city,
+                        "limit": 3,
+                        "order_by": "lastUpdated",
+                    },
+                )
+                data = resp.json()
+
+            results = []
+            for loc in data.get("results", []):
+                sensors = loc.get("sensors", [])
+                pm25 = next(
+                    (s.get("lastValue") for s in sensors if s.get("parameter", {}).get("name") == "pm25"),
+                    None,
+                )
+                pm10 = next(
+                    (s.get("lastValue") for s in sensors if s.get("parameter", {}).get("name") == "pm10"),
+                    None,
+                )
+                # Simple AQI proxy from PM2.5 (US EPA breakpoints rough approximation)
+                aqi = None
+                if pm25 is not None:
+                    if pm25 <= 12:
+                        aqi = "Good"
+                    elif pm25 <= 35.4:
+                        aqi = "Moderate"
+                    elif pm25 <= 55.4:
+                        aqi = "Unhealthy for Sensitive Groups"
+                    elif pm25 <= 150.4:
+                        aqi = "Unhealthy"
+                    else:
+                        aqi = "Very Unhealthy"
+                results.append({
+                    "location": loc.get("name", ""),
+                    "city": city,
+                    "pm25": pm25,
+                    "pm10": pm10,
+                    "aqi": aqi,
+                    "updated_at": loc.get("datetimeLast", {}).get("utc", ""),
+                    "source": "openaq",
+                })
+
+            self.award_points(5, f"openaq:{city}")
+            logger.info(f"[VECTOR][research_hub] air quality '{city}': {len(results)} stations")
+            return results
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] OpenAQ failed: {e}")
+            return []
+
+    # ── Combined tech news feed ───────────────────────────────────────────────
+
+    async def get_tech_news(self, limit: int = 10) -> list[dict]:
+        """
+        Combined tech news from HackerNews + DEV.to, fetched concurrently.
+        Merges, deduplicates by URL, and sorts by score/reactions descending.
+        Returns top `limit` items.
+        """
+        try:
+            hn_results, devto_results = await asyncio.gather(
+                self.get_hn_top(limit=limit),
+                self.get_devto_posts(tag="webdev", limit=limit),
+                return_exceptions=True,
+            )
+
+            merged: list[dict] = []
+
+            if isinstance(hn_results, list):
+                for item in hn_results:
+                    merged.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "score": item.get("score", 0),
+                        "source": item.get("source", "hackernews"),
+                    })
+
+            if isinstance(devto_results, list):
+                seen_urls = {m["url"] for m in merged}
+                for item in devto_results:
+                    url = item.get("url", "")
+                    if url and url not in seen_urls:
+                        merged.append({
+                            "title": item.get("title", ""),
+                            "url": url,
+                            "score": item.get("reactions", 0),
+                            "source": item.get("source", "devto"),
+                        })
+                        seen_urls.add(url)
+
+            merged.sort(key=lambda x: x.get("score", 0), reverse=True)
+            result = merged[:limit]
+
+            self.award_points(5, "tech_news_combined")
+            logger.info(f"[VECTOR][research_hub] tech_news combined: {len(result)} items (HN + DEV.to)")
+            return result
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] get_tech_news failed: {e}")
+            return []
+
+    # ── NSE India stock quotes (Yahoo Finance) ────────────────────────────────
+
+    async def get_india_stocks(
+        self, symbols: list[str] = ["RELIANCE", "TCS", "INFY"]
+    ) -> list[dict]:
+        """
+        Fetch NSE India stock quotes via Yahoo Finance compatible endpoint (no auth).
+        Appends .NS suffix for NSE listings. Returns price, % change, and volume.
+        """
+        results = []
+        try:
+            async with httpx.AsyncClient(timeout=20.0, headers=_HEADERS) as client:
+                tasks = [
+                    client.get(
+                        f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}.NS",
+                        params={"interval": "1d", "range": "1d"},
+                    )
+                    for sym in symbols
+                ]
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for sym, resp in zip(symbols, responses):
+                if isinstance(resp, Exception):
+                    logger.warning(f"[VECTOR][research_hub] Yahoo Finance {sym} failed: {resp}")
+                    continue
+                try:
+                    data = resp.json()
+                    meta = data.get("chart", {}).get("result", [{}])[0].get("meta", {})
+                    price = meta.get("regularMarketPrice")
+                    prev_close = meta.get("previousClose") or meta.get("chartPreviousClose")
+                    volume = meta.get("regularMarketVolume")
+                    change_pct = None
+                    if price is not None and prev_close:
+                        change_pct = round((price - prev_close) / prev_close * 100, 2)
+                    results.append({
+                        "symbol": sym,
+                        "exchange": "NSE",
+                        "price": price,
+                        "change_pct": change_pct,
+                        "volume": volume,
+                        "currency": meta.get("currency", "INR"),
+                        "source": "yahoo_finance",
+                    })
+                except Exception as parse_err:
+                    logger.warning(f"[VECTOR][research_hub] Yahoo Finance parse {sym}: {parse_err}")
+
+            if results:
+                self.award_points(5, "india_stocks")
+                logger.info(f"[VECTOR][research_hub] india_stocks: {len(results)}/{len(symbols)} fetched")
+            return results
+
+        except Exception as e:
+            logger.warning(f"[VECTOR][research_hub] get_india_stocks failed: {e}")
+            return []
+
     # ── Aggregated daily digest ───────────────────────────────────────────────
 
     async def daily_digest(self) -> dict:
