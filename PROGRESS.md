@@ -258,6 +258,61 @@ Triple notification on complete/fail: terminal line + episodic memory (RULE 8) +
 
 ---
 
+## Phase 3 Districts ✅ COMPLETE — 87/87 tests
+
+### Relationships District
+| Agent | Key Behavior |
+|-------|-------------|
+| `relationships/contact_manager.py` | Contact CRUD, birthday/follow-up reminders, semantic search |
+| `relationships/communication_analyst.py` | Interaction patterns, sentiment tracking, relationship health score |
+
+### Privacy District
+| Agent | Key Behavior |
+|-------|-------------|
+| `privacy/data_flow_auditor.py` | Cloud-vs-local enforcement, sensitive file scan, RULE 11 compliance |
+| `privacy/privacy_enforcer.py` | Permission blocker for data-exfil patterns, audit trail |
+
+### Pattern Detective District
+| Agent | Key Behavior |
+|-------|-------------|
+| `pattern_detective/behavior_analyst.py` | Cross-domain behavioral pattern detection (sleep/work/health correlations) |
+| `pattern_detective/habit_finder.py` | Positive/negative habit extraction from episodic memory |
+
+### News & Trends District
+| Agent | Key Behavior |
+|-------|-------------|
+| `news_trends/ai_news_bot.py` | HN + ArXiv AI/ML digest with daily Obsidian note |
+| `news_trends/market_trends_bot.py` | Product/startup trends from PH + Reddit |
+| `news_trends/opportunity_spotter.py` | Cross-source opportunity signal aggregation |
+
+### Learning District
+| Agent | Key Behavior |
+|-------|-------------|
+| `learning/video_ingestor.py` | yt-dlp + Whisper → concept extraction from any video URL |
+| `learning/concept_extractor.py` | Prerequisites graph, LLM-driven prerequisite chain (bug fixed 2026-05-12) |
+| `learning/course_tracker.py` | Course/lesson CRUD, progress % (column index bug fixed 2026-05-12) |
+
+### Startups District
+| Agent | Key Behavior |
+|-------|-------------|
+| `startups/market_scanner.py` | Nightly Reddit/HN/G2 signal scan → Obsidian Research/ |
+| `startups/idea_validator.py` | TAM/competition/feasibility scoring via LLM |
+| `startups/competitor_spy.py` | Competitor tracking per idea/domain |
+| `startups/revenue_modeler.py` | Revenue model templates (SaaS/marketplace/freemium) |
+
+### Calls District
+| Agent | Key Behavior |
+|-------|-------------|
+| `calls/call_screener.py` | Unknown caller classification (spam/legitimate/priority) via context |
+| `calls/transcription_bot.py` | Whisper-local call recording → transcript → summary |
+| `calls/voice_responder.py` | TTS-driven call response templates (Kokoro → pyttsx3 fallback) |
+
+**Bug fixes applied:**
+- `concept_extractor.py` line 131: `{name, description}` Python set literal → proper JSON template string
+- `course_tracker.py` `generate_report()`: `row[3]`/`row[4]` → `row[2]`/`row[3]` (SELECT column order mismatch)
+
+---
+
 ## District Upgrades ✅ COMPLETE
 
 | Agent | Upgrade |
