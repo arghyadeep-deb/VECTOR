@@ -35,7 +35,10 @@ def _print_banner():
 def cmd_repl(_args):
     from agents.districts.coding.vectorcode.repl import VectorREPL
     _print_banner()
-    VectorREPL().run()
+    repl = VectorREPL()
+    model = repl.router.route("general")
+    print(f"  Ready  |  model: {repl.session.current_model}  |  Ctrl+C to exit\n")
+    repl.run()
 
 
 def cmd_auto(args):
