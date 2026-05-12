@@ -21,21 +21,27 @@ class ModelsConfig(BaseModel):
     deep: str = "vector-deep"
     chairman: str = "vector-chairman"
     embed: str = "nomic-embed-text"
-    cloud_coder: str = "phi4:latest"
-    cloud_orchestrator: str = "deepseek-r1:14b"
+    r1: str = "vector-r1"               # deepseek-r1:14b — chain-of-thought council member
+    dev: str = "vector-dev"             # devstral:24b — code review + refactor specialist
+    fast: str = "vector-fast"           # mistral-small3.1 — low-latency general fallback
+    cloud_coder: str = "vector-dev"     # was phi4:latest — now devstral-based VECTOR model
+    cloud_orchestrator: str = "vector-r1"  # was deepseek-r1:14b raw — now VECTOR custom
 
 
 class ModelRouterConfig(BaseModel):
     conversation: str = "focus"
     multilingual: str = "multilingual"
     coding: str = "coder"
+    code_review: str = "dev"
     council: str = "reasoning"
+    chain_of_thought: str = "r1"
+    fast_fallback: str = "fast"
     deep_analysis: str = "deep"
     private: str = "chairman"
     embedding: str = "embed"
     ambient_classify: str = "ambient"
-    saas_build: str = "cloud_coder"
-    orchestration: str = "cloud_orchestrator"
+    saas_build: str = "dev"
+    orchestration: str = "r1"
 
 
 class LoopConfig(BaseModel):
