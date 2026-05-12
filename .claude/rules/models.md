@@ -45,7 +45,7 @@ Code review / refactor  → devstral:24b (code-specialist, 24B quality)
 Chain-of-thought tasks  → deepseek-r1:14b (R1-style reasoning traces)
 Fast general fallback   → mistral-small3.1 (low latency, broad knowledge)
 Large-context reasoning → qwen3:30b-a3b (30B class, only 3B active VRAM)
-Council/reasoning       → vector-reasoning + kimi-k2.6 + glm-5.1
+Council/reasoning       → vector-reasoning + vector-r1 + qwen3:30b-a3b
 Deep overnight tasks    → gemma4:26b or gemma4:31b (hybrid, 3-6 tok/s)
 70B tasks               → AirLLM (streams layers, slow but works)
 YOUR build sessions     → Claude Sonnet 4.6 via Pro plan chat (unlimited)
