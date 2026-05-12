@@ -68,7 +68,7 @@ def start_hermes() -> None:
     global _hermes_proc
     try:
         _hermes_proc = subprocess.Popen(
-            ["ollama", "launch", "hermes", "--model", "kimi-k2.6:cloud"],
+            ["ollama", "launch", "hermes", "--model", CONFIG["models"]["reasoning"]],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
