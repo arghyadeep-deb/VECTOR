@@ -63,7 +63,7 @@ Claude API = your build sessions only = Pro plan chat = ₹0.
 ```
 Week 7-8:  nanoGPT on your data (learning exercise)
 Month 2:   LoRA fine-tune Qwen3 4B on RTX 5070 Ti (1-2 hours local)
-Month 2-3: vector-chairman → Council Chairman (replaces glm-5.1:cloud)
+Month 2-3: vector-chairman → Council Chairman (replaces qwen3:30b-a3b as chairman)
 Month 4-6: Pre-train OpenMythos 200M from scratch (weekend on Legion)
 Year 2:    Full custom LLM trained on VECTOR's reasoning chains
 
