@@ -118,7 +118,7 @@ async def command_endpoint(
         # Step 6: Update policy from outcome (RULE 7)
         situation_hash = _make_situation_hash(decision.winner.params)
         reward = 0.8 if gateway_result.approved else 0.2
-        policy_mem.update_from_outcome(decision.winner.action_type, situation_hash, reward)
+        update_policy(decision.winner.action_type, situation_hash, reward)
 
         # Step 7: Store reasoning chain (RULE 8)
         chain_id = store_reasoning_chain(
