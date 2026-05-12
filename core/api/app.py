@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import datetime
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from loguru import logger
 
 from core.config import CONFIG
@@ -148,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(commands.router)
     app.include_router(council.router)
     app.include_router(agents.router)
+    app.include_router(agents.router_singular)
     app.include_router(status.router)
     app.include_router(voice.router)
     app.include_router(memory.router)
@@ -163,15 +164,44 @@ def create_app() -> FastAPI:
     except Exception as _ui_err:
         logger.warning(f"[VECTOR][api] web UI failed to mount: {_ui_err}")
 
-    # Health check at root
-    @app.get("/", tags=["root"])
-    async def root():
-        return {
-            "system": "V.E.C.T.O.R.",
-            "version": CONFIG["version"],
-            "status": "operational",
-            "docs": "/docs",
-        }
+    # VECTOR holographic HUD dashboard — built Vite+React app
+    try:
+        from fastapi.staticfiles import StaticFiles
+        from fastapi.responses import HTMLResponse
+
+        dashboard_dist = Path(__file__).parent.parent / "ui" / "dashboard" / "dist"
+        if dashboard_dist.exists():
+            app.mount("/assets", StaticFiles(directory=str(dashboard_dist / "assets")), name="hud_assets")
+            logger.info(f"[VECTOR][api] HUD assets mounted from {dashboard_dist / 'assets'}")
+
+            @app.get("/", include_in_schema=False)
+            async def hud_dashboard():
+                return HTMLResponse(
+                    (dashboard_dist / "index.html").read_text(encoding="utf-8")
+                )
+            logger.info("[VECTOR][api] VECTOR HUD dashboard mounted at /")
+        else:
+            logger.warning(f"[VECTOR][api] HUD build not found at {dashboard_dist}; run `cd core/ui/dashboard && npm run build`")
+            # Fallback JSON root
+            @app.get("/", tags=["root"])
+            async def root():
+                return {
+                    "system": "V.E.C.T.O.R.",
+                    "version": CONFIG["version"],
+                    "status": "operational",
+                    "docs": "/docs",
+                }
+    except Exception as _hud_err:
+        logger.warning(f"[VECTOR][api] HUD dashboard failed to mount: {_hud_err}")
+        # Fallback JSON root
+        @app.get("/", tags=["root"])
+        async def root():
+            return {
+                "system": "V.E.C.T.O.R.",
+                "version": CONFIG["version"],
+                "status": "operational",
+                "docs": "/docs",
+            }
 
     return app
 
