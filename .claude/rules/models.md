@@ -87,9 +87,9 @@ MODE 2 (SaaS Products):
 ## LLM Council
 ```
 Trigger:  high-stakes decisions only (stakes = "high" or "critical")
-Members:  kimi-k2.6:cloud + glm-5.1:cloud + qwen3:14b + vector-reasoning
-Chairman: glm-5.1:cloud → your fine-tuned model (Month 2)
+Members:  vector-reasoning + vector-r1 + qwen3:30b-a3b + vector-chairman
+Chairman: vector-chairman (gemma4:31b) → your fine-tuned model (Month 2)
 HP gate:  only agents >700 HP get council vote
-Cost:     ~₹1.60/session, max 10/week
+Cost:     ₹0 — fully local, no cloud APIs
 Sessions: stored in reasoning_chains → LLM training data
 ```
