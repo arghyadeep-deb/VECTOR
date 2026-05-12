@@ -419,7 +419,6 @@ def _add_expansion_tools(mcp) -> None:
         ("git_log",       "Show recent git log"),
         ("git_branch",    "List or create branches"),
         ("git_checkout",  "Checkout a branch or file"),
-        ("git_status",    "Get working tree status"),
         ("git_stash",     "Stash or pop working changes"),
         ("git_merge",     "Merge a branch (RED gate)"),
         ("git_rebase",    "Rebase onto a branch (RED gate)"),
