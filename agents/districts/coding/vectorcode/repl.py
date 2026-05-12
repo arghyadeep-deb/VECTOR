@@ -462,9 +462,15 @@ class VectorREPL:
                 model = self.router.route(raw)
                 self.session.current_model = model
 
-                # Auto-compress if history is getting long
+                # Auto-compact if history is getting large (5-stage pipeline)
                 if _history_size(self._history) > _COMPRESS_THRESHOLD:
-                    self._history = _compress_history(self._history, model)
+                    try:
+                        from agents.districts.coding.vectorcode.context.compactor import ContextCompactor
+                        compactor = ContextCompactor(model=model, project_dir=self._project_dir)
+                        self._history = compactor.compact(self._history)
+                    except Exception:
+                        # Fallback to old compressor
+                        self._history = _compress_history(self._history, model)
 
                 # Add user turn and stream response
                 self._history.append({"role": "user", "content": raw})
@@ -472,6 +478,11 @@ class VectorREPL:
                 reply = _ask_ollama(model, self._history)
                 self._history.append({"role": "assistant", "content": reply})
                 self.session.history.append({"role": "user", "content": raw})
+                # Approximate token count (4 chars ≈ 1 token)
+                self.session.record_token_usage(
+                    prompt=len(raw) // 4,
+                    completion=len(reply) // 4,
+                )
 
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting VECTOR.")
