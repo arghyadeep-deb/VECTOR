@@ -277,7 +277,7 @@ create_mcp_app = _make_server
 
 def _reg(mcp, name: str, doc: str = "") -> None:
     """Register a named stub tool on mcp so it appears in list_tools()."""
-    def _fn(**kwargs) -> str:
+    def _fn(input: str = "") -> str:
         return f"[{name}] not yet wired"
     _fn.__name__ = name
     _fn.__doc__ = doc or f"VectorCode {name} tool."
