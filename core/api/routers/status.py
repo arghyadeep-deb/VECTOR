@@ -50,6 +50,16 @@ async def status_endpoint():
     # Dynamically check Ollama models
     models_status = await _check_ollama_models()
 
+    # Last reflect timestamp from episodic memory
+    last_reflect = None
+    try:
+        from core.api.crud import recall_episodes
+        reflect_events = recall_episodes("reflect daily review", limit=1, event_type="reflect")
+        if reflect_events:
+            last_reflect = reflect_events[0].get("timestamp")
+    except Exception:
+        pass
+
     return StatusResponse(
         loop_running=True,
         uptime_seconds=get_uptime_seconds(),
@@ -57,6 +67,7 @@ async def status_endpoint():
         memory=memory_stats,
         agents={"count": agent_count, "districts": districts},
         vector_version="1.0.0",
+        last_reflect=last_reflect,
     )
 
 @router.get("/health", response_model=HealthResponse)
