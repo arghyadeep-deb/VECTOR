@@ -34,8 +34,6 @@ gemma4:31b (Dense)                 — slow deep tasks, hybrid mode
 deepseek-r1:14b                    — chain-of-thought reasoning, R1 style
 devstral:24b                       — code-specialist (Mistral devstral), refactor + review
 mistral-small3.1:latest            — fast general-purpose, low-latency fallback
-kimi-k2.6:cloud                    — Council + Hermes brain
-glm-5.1:cloud                      — Council Chairman (until your LLM ready)
 ```
 
 ## Model Routing (use this decision tree)
