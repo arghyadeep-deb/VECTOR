@@ -120,6 +120,42 @@ class FileTools:
         else:
             raise PermissionError(f"Gateway denied delete for '{path}': {result.reason}")
 
+    def list_directory(self, path: str = ".") -> list[str]:
+        """
+        List files and directories within path (relative to repo_root).
+        Returns relative path strings sorted alphabetically.
+        """
+        safe = self._safe_path(path)
+        if not safe.is_dir():
+            raise NotADirectoryError(f"Not a directory: '{path}'")
+        entries = []
+        for entry in sorted(safe.iterdir()):
+            rel = str(entry.relative_to(self.repo_root))
+            entries.append(rel + ("/" if entry.is_dir() else ""))
+        return entries
+
+    def move_file(self, src: str, dst: str) -> None:
+        """
+        Move/rename a file within repo_root.
+        Both src and dst must resolve inside repo_root.
+        """
+        safe_src = self._safe_path(src)
+        safe_dst = self._safe_path(dst)
+        if not safe_src.exists():
+            raise FileNotFoundError(f"Source not found: '{src}'")
+        safe_dst.parent.mkdir(parents=True, exist_ok=True)
+        safe_src.rename(safe_dst)
+        logger.debug(f"[VECTOR][file_tools] move {safe_src} → {safe_dst}")
+
+    def create_file(self, path: str, content: str = "") -> None:
+        """Create a new file at path (fails if already exists)."""
+        safe = self._safe_path(path)
+        if safe.exists():
+            raise FileExistsError(f"File already exists: '{path}'")
+        safe.parent.mkdir(parents=True, exist_ok=True)
+        safe.write_text(content, encoding="utf-8")
+        logger.debug(f"[VECTOR][file_tools] created {safe}")
+
     def exists(self, path: str) -> bool:
         """Return True if path exists within repo_root."""
         try:
