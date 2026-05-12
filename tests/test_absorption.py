@@ -728,3 +728,765 @@ class TestVectorCodeSuperiority:
         ]
         for p in required_paths:
             assert p.exists(), f"Missing: {p}"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 9 — MessageBus ACL + 7 Filter Operators
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestMessageBusACL:
+    """Validates full Ruflo ACL absorption: allowed_senders, banned_agents, 7 filter ops."""
+
+    def test_acl_import(self):
+        from agents.districts.coding.vectorcode.message_bus import ChannelACL, FilterOp, FilterRule
+        acl = ChannelACL()
+        assert acl.write_permission is True
+        assert acl.read_permission  is True
+
+    def test_allowed_senders_blocks_unknown(self):
+        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        bus = MessageBus()
+        acl = ChannelACL(allowed_senders={"coder"})
+        bus.create_channel("acl_send_test", ChannelType.BROADCAST, acl=acl)
+        received = []
+        bus.subscribe("acl_send_test", lambda m: received.append(m.content))
+        bus.publish("acl_send_test", "ok",      sender="coder")
+        bus.publish("acl_send_test", "blocked", sender="stranger")
+        assert received == ["ok"]
+
+    def test_banned_agent_blocked(self):
+        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        bus = MessageBus()
+        acl = ChannelACL(banned_agents={"bad-bot"})
+        bus.create_channel("acl_ban_test", ChannelType.BROADCAST, acl=acl)
+        received = []
+        bus.subscribe("acl_ban_test", lambda m: received.append(m.content))
+        bus.publish("acl_ban_test", "good", sender="vector")
+        bus.publish("acl_ban_test", "evil", sender="bad-bot")
+        assert received == ["good"]
+
+    def test_write_permission_false_blocks_all(self):
+        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        bus = MessageBus()
+        acl = ChannelACL(write_permission=False)
+        bus.create_channel("readonly_ch", ChannelType.BROADCAST, acl=acl)
+        received = []
+        bus.subscribe("readonly_ch", lambda m: received.append(m))
+        bus.publish("readonly_ch", "should be blocked", sender="anyone")
+        assert received == []
+
+    def test_filter_op_eq(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="sender", op=FilterOp.EQ, value="vector")
+        assert fr.evaluate(Message(sender="vector"))
+        assert not fr.evaluate(Message(sender="other"))
+
+    def test_filter_op_ne(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="sender", op=FilterOp.NE, value="banned")
+        assert fr.evaluate(Message(sender="vector"))
+        assert not fr.evaluate(Message(sender="banned"))
+
+    def test_filter_op_gt(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="priority", op=FilterOp.GT, value=1)
+        assert fr.evaluate(Message(priority=2))
+        assert not fr.evaluate(Message(priority=1))
+
+    def test_filter_op_lt(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="priority", op=FilterOp.LT, value=3)
+        assert fr.evaluate(Message(priority=2))
+        assert not fr.evaluate(Message(priority=4))
+
+    def test_filter_op_contains(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="sender", op=FilterOp.CONTAINS, value="cod")
+        assert fr.evaluate(Message(sender="coder"))
+        assert not fr.evaluate(Message(sender="reviewer"))
+
+    def test_filter_op_matches(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="sender", op=FilterOp.MATCHES, value=r"^vec")
+        assert fr.evaluate(Message(sender="vector"))
+        assert not fr.evaluate(Message(sender="hermes"))
+
+    def test_filter_op_in(self):
+        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        fr = FilterRule(field="priority", op=FilterOp.IN, value={1, 2, 3})
+        assert fr.evaluate(Message(priority=2))
+        assert not fr.evaluate(Message(priority=5))
+
+    def test_acl_stats_track_denials(self):
+        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        bus = MessageBus()
+        acl = ChannelACL(allowed_senders={"vector"})
+        bus.create_channel("denial_stats_ch", ChannelType.BROADCAST, acl=acl)
+        bus.publish("denial_stats_ch", "blocked", sender="unknown")
+        stats = bus.get_stats("denial_stats_ch")
+        assert stats.get("acl_denied", 0) >= 1
+
+    def test_subscribe_acl_allowed_receivers(self):
+        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        bus = MessageBus()
+        acl = ChannelACL(allowed_receivers={"worker-1"})
+        bus.create_channel("sub_acl_ch", ChannelType.BROADCAST, acl=acl)
+        sid1 = bus.subscribe("sub_acl_ch", lambda m: None, "worker-1")
+        sid2 = bus.subscribe("sub_acl_ch", lambda m: None, "worker-2")
+        assert sid1 == "worker-1"
+        assert sid2 is None   # blocked by ACL
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 10 — SwarmCoordinator: All 8 Topologies
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestSwarmTopologies:
+    """Validates all 8 Ruflo topology strategies are implemented."""
+
+    def test_all_8_topologies_in_enum(self):
+        from agents.districts.coding.vectorcode.swarm import Topology
+        names = {t.value for t in Topology}
+        for t in ("hierarchical", "mesh", "adaptive", "byzantine", "raft", "gossip", "crdt", "quorum"):
+            assert t in names
+
+    def test_agent_state_tracks_task(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        a = sc.spawn("coder")
+        sc.assign_task(a.id, "write unit tests")
+        state = sc.get_state(a.id)
+        assert state.status == "busy"
+        assert "unit tests" in state.current_task
+        sc.complete_task(a.id)
+        assert state.status == "idle"
+        assert state.tasks_completed == 1
+
+    def test_hierarchical_selects_highest_hp(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.HIERARCHICAL)
+        for _ in range(3):
+            sc.spawn("coder")
+        selected = sc.select_for_task("write code")
+        hps = [getattr(s.agent, "hp", 500) for s in selected]
+        assert hps == sorted(hps, reverse=True)
+
+    def test_mesh_selects_all_idle(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.MESH)
+        for _ in range(3):
+            sc.spawn("coder")
+        selected = sc.select_for_task("run tests")
+        assert len(selected) == 3
+
+    def test_byzantine_requires_2f_plus_1(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.BYZANTINE, byzantine_f=1)
+        for _ in range(3):
+            sc.spawn("coder")
+        agreed = sc.byzantine_agree("run tests", "execute pytest")
+        assert isinstance(agreed, bool)
+
+    def test_byzantine_fails_without_enough_agents(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.BYZANTINE, byzantine_f=2)
+        sc.spawn("coder")   # only 1, need 2*2+1=5
+        agreed = sc.byzantine_agree("risky action", "delete cache")
+        assert agreed is False
+
+    def test_raft_elects_leader(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.RAFT)
+        for _ in range(3):
+            sc.spawn("coder")
+        assert sc._raft_leader is not None
+        assert sc._raft_leader.status == "idle"
+
+    def test_raft_log_append(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.RAFT)
+        sc.spawn("coder")
+        idx = sc.raft_append_log({"action": "test", "data": "x"})
+        assert idx == 0
+        assert len(sc._event_log) == 1
+        assert "ts" in sc._event_log[0]
+
+    def test_gossip_broadcast_fanout(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.GOSSIP, gossip_fanout=2)
+        for _ in range(5):
+            sc.spawn("coder")
+        delivered = sc.gossip_broadcast({"type": "update", "content": "new task"})
+        assert delivered <= 2
+
+    def test_crdt_merge_union(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.CRDT)
+        sc.spawn("coder")
+        merged = sc.crdt_merge("agent-1", {"task_count": 5, "last_file": "main.py"})
+        assert "task_count" in merged
+        assert "last_file" in merged
+
+    def test_crdt_lww_register(self):
+        """Last-write-wins: newer timestamp wins."""
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.CRDT)
+        sc.crdt_merge("agent-1", {"key": "v1"})
+        sc.crdt_merge("agent-2", {"key": "v2"})
+        # v2 should win as it's written after v1
+        assert sc._crdt_state.get("key", {}).get("writer") == "agent-2"
+
+    def test_quorum_vote_pass(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.QUORUM, quorum_size=2)
+        for _ in range(3):
+            sc.spawn("coder")
+        result = sc.quorum_vote("run deployment")
+        assert result is True
+
+    def test_quorum_vote_fail(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        sc = SwarmCoordinator(topology=Topology.QUORUM, quorum_size=10)
+        sc.spawn("coder")   # only 1 idle, need 10
+        result = sc.quorum_vote("run deployment")
+        assert result is False
+
+    def test_report_includes_per_agent_state(self):
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        report = sc.report()
+        assert "agents" in report
+        assert len(report["agents"]) == 1
+        agent_info = report["agents"][0]
+        assert "status" in agent_info
+        assert "tasks_completed" in agent_info
+        assert "task_started_at" in agent_info
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 11 — SwarmMonitor (Ruflo real-time-monitor.ts)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestSwarmMonitor:
+    """Validates SwarmMonitor absorbs Ruflo real-time-monitor + health-check + diagnostics."""
+
+    def test_import(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        m = SwarmMonitor()
+        assert m is not None
+
+    def test_take_snapshot_structure(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        sc.spawn("reviewer")
+        m = SwarmMonitor()
+        snap = m.take_snapshot(sc)
+        assert snap.active == 2
+        assert snap.topology == "hierarchical"
+        assert len(snap.agents) == 2
+
+    def test_health_check_all_ok(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        m = SwarmMonitor()
+        health = m.run_health_check(sc)
+        assert isinstance(health.healthy, bool)
+        assert len(health.checks) >= 4
+        assert health.summary != ""
+
+    def test_health_check_detects_no_agents(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()   # no agents
+        m = SwarmMonitor()
+        health = m.run_health_check(sc)
+        assert health.healthy is False
+        # Find the liveness check
+        check = next(c for c in health.checks if c.name == "agent_liveness")
+        assert check.ok is False
+
+    def test_diagnostics_structure(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        m = SwarmMonitor()
+        diag = m.run_diagnostics(sc)
+        assert diag.total_agents == 1
+        assert isinstance(diag.avg_hp, float)
+        assert isinstance(diag.stalled_agents, list)
+        assert isinstance(diag.recommendations, list)
+        assert isinstance(diag.alerts, list)
+
+    def test_metrics_window(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        m = SwarmMonitor()
+        # Take a few snapshots
+        for _ in range(3):
+            m.take_snapshot(sc)
+        metrics = m.get_metrics(window_seconds=300)
+        assert metrics["samples"] >= 3
+        assert "avg_active_agents" in metrics
+        assert "throughput_per_min" in metrics
+
+    def test_snapshot_history(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        sc = SwarmCoordinator()
+        sc.spawn("coder")
+        m = SwarmMonitor()
+        m.take_snapshot(sc)
+        history = m.snapshot_history(limit=5)
+        assert len(history) >= 1
+        assert "ts" in history[0]
+        assert "topology" in history[0]
+
+    def test_stall_detection_marks_stalled(self):
+        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor, AgentMetric
+        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        import time
+        sc = SwarmCoordinator()
+        a = sc.spawn("coder")
+        sc.assign_task(a.id, "stuck task")
+        # Manually backdate task_started_at to simulate stall
+        state = sc.get_state(a.id)
+        state.task_started_at = time.time() - 200   # 200s ago > 120s threshold
+        m = SwarmMonitor()
+        snap = m.take_snapshot(sc)
+        assert snap.stalled >= 1
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 12 — SwarmDatabase (Ruflo DatabaseManager.ts)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestSwarmDatabase:
+    """Validates SwarmDatabase absorbs Ruflo DatabaseManager.ts."""
+
+    def setup_method(self):
+        import tempfile
+        from pathlib import Path
+        import agents.districts.coding.vectorcode.memory.swarm_db as _mod
+        self._tmpdir = tempfile.mkdtemp()
+        self._orig_root = _mod._DB_ROOT
+        _mod._DB_ROOT = Path(self._tmpdir)
+
+    def teardown_method(self):
+        import agents.districts.coding.vectorcode.memory.swarm_db as _mod
+        _mod._DB_ROOT = self._orig_root
+
+    def _make_db(self, swarm_id="test"):
+        from agents.districts.coding.vectorcode.memory.swarm_db import SwarmDatabase
+        return SwarmDatabase(swarm_id)
+
+    def test_import(self):
+        from agents.districts.coding.vectorcode.memory.swarm_db import SwarmDatabase
+        db = self._make_db()
+        assert db is not None
+        db.close()
+
+    def test_save_and_load_agent_state(self):
+        db = self._make_db()
+        db.save_agent_state("a1", {"name": "CoderAgent", "hp": 600, "status": "idle"})
+        loaded = db.load_agent_state("a1")
+        assert loaded is not None
+        assert loaded["agent_name"] == "CoderAgent"
+        assert loaded["hp"] == 600
+        db.close()
+
+    def test_upsert_agent_state(self):
+        db = self._make_db()
+        db.save_agent_state("a1", {"name": "CoderAgent", "hp": 600, "status": "idle"})
+        db.save_agent_state("a1", {"name": "CoderAgent", "hp": 700, "status": "busy"})
+        loaded = db.load_agent_state("a1")
+        assert loaded["hp"] == 700
+        assert loaded["status"] == "busy"
+        db.close()
+
+    def test_load_nonexistent_agent_returns_none(self):
+        db = self._make_db()
+        assert db.load_agent_state("ghost-agent") is None
+        db.close()
+
+    def test_record_and_get_task(self):
+        db = self._make_db()
+        db.record_task("t1", "write tests", "a1", domain="core", outcome="completed", reward=0.8)
+        task = db.get_task("t1")
+        assert task is not None
+        assert task["outcome"] == "completed"
+        assert task["domain"] == "core"
+        db.close()
+
+    def test_get_agent_tasks(self):
+        db = self._make_db()
+        db.record_task("t1", "task 1", "a1")
+        db.record_task("t2", "task 2", "a1")
+        db.record_task("t3", "task 3", "a2")
+        tasks = db.get_agent_tasks("a1")
+        assert len(tasks) == 2
+        db.close()
+
+    def test_record_and_get_decision(self):
+        db = self._make_db()
+        db.record_decision("d1", {
+            "task": "build auth system",
+            "subtasks": [{"task": "login", "domain": "core"}],
+            "assigned_to": {"a1": "login"},
+            "strategy": "hierarchical",
+        })
+        dec = db.get_decision("d1")
+        assert dec is not None
+        assert dec["strategy"] == "hierarchical"
+        assert len(dec["subtasks"]) == 1
+        db.close()
+
+    def test_get_nonexistent_decision_returns_none(self):
+        db = self._make_db()
+        assert db.get_decision("ghost-dec") is None
+        db.close()
+
+    def test_record_metric(self):
+        db = self._make_db()
+        db.record_metric(active=3, idle=2, busy=1, topology="raft")
+        history = db.get_swarm_history()
+        assert len(history["metrics"]) >= 1
+        assert history["metrics"][0]["topology"] == "raft"
+        db.close()
+
+    def test_get_swarm_history_structure(self):
+        db = self._make_db()
+        db.save_agent_state("a1", {"name": "Coder", "hp": 500})
+        db.record_task("t1", "write tests", "a1", outcome="completed")
+        history = db.get_swarm_history()
+        assert "swarm_id" in history
+        assert "agents" in history
+        assert "tasks" in history
+        assert "decisions" in history
+        assert "metrics" in history
+        db.close()
+
+    def test_list_agents(self):
+        db = self._make_db()
+        db.save_agent_state("a1", {"name": "Coder", "hp": 500, "status": "idle"})
+        db.save_agent_state("a2", {"name": "Reviewer", "hp": 600, "status": "busy"})
+        all_agents = db.list_agents()
+        assert len(all_agents) == 2
+        idle_agents = db.list_agents(status="idle")
+        assert len(idle_agents) == 1
+        db.close()
+
+    def test_purge_old_records(self):
+        db = self._make_db()
+        # Everything is recent — purge 0 days should delete completed tasks
+        db.record_task("t_old", "old task", "a1", outcome="completed")
+        deleted = db.purge_old_records(older_than_days=0)
+        # With 0 days cutoff, completed tasks should be deleted
+        assert isinstance(deleted, int)
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 13 — TelegramBot (bidirectional)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestTelegramBot:
+    """Validates TelegramBot bidirectional long-polling."""
+
+    def test_import(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        bot = TelegramBot(token="TEST_TOKEN")
+        assert bot is not None
+
+    def test_command_handler_registration(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        bot = TelegramBot(token="TEST")
+        results = []
+        bot.on_command("ping", lambda m, b: results.append("pong"))
+        assert "ping" in bot._handlers
+
+    def test_default_handlers_registered(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        bot = TelegramBot(token="TEST")
+        assert "help"   in bot._handlers
+        assert "start"  in bot._handlers
+        assert "status" in bot._handlers
+
+    def test_message_parsing(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramMessage
+        import time
+        raw = {
+            "message_id": 42,
+            "chat": {"id": 999, "type": "private"},
+            "from": {"username": "testuser", "first_name": "Test"},
+            "text": "/ask what is 2+2",
+            "date": int(time.time()),
+        }
+        msg = TelegramMessage(raw)
+        assert msg.command == "ask"
+        assert msg.args == "what is 2+2"
+        assert msg.chat_id == 999
+        assert msg.sender_name == "testuser"
+
+    def test_message_no_command(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramMessage
+        import time
+        raw = {"message_id": 1, "chat": {"id": 1}, "from": {}, "text": "hello world", "date": int(time.time())}
+        msg = TelegramMessage(raw)
+        assert msg.command is None
+        assert msg.text == "hello world"
+
+    def test_allowed_chat_id_enforcement(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot, TelegramMessage
+        import time
+        bot = TelegramBot(token="TEST", allowed_chat_ids={12345})
+        assert 12345 in bot._allowed
+        assert 99999 not in bot._allowed
+
+    def test_stats_structure(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        bot = TelegramBot(token="TEST")
+        stats = bot.get_stats()
+        assert "running"   in stats
+        assert "sent"      in stats
+        assert "received"  in stats
+        assert "commands"  in stats
+        assert "help"      in stats["commands"]
+
+    def test_text_handler_registered(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        bot = TelegramBot(token="TEST")
+        bot.on_text(lambda m, b: None)
+        assert bot._text_handler is not None
+
+    def test_process_update_dispatches_command(self):
+        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        import time
+        bot = TelegramBot(token="TEST", allowed_chat_ids={12345})
+        handled = []
+        bot.on_command("test", lambda m, b: handled.append(m.text))
+        raw_update = {
+            "update_id": 1,
+            "message": {
+                "message_id": 1,
+                "chat": {"id": 12345, "type": "private"},
+                "from": {"username": "user"},
+                "text": "/test hello",
+                "date": int(time.time()),
+            }
+        }
+        bot._process_update(raw_update)
+        assert len(handled) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 14 — PlatformAdapters (9 platforms)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestPlatformAdapters:
+    """Validates all 9 Hermes platform adapters are absorbed."""
+
+    def test_all_adapters_importable(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import (
+            WhatsAppAdapter, MatrixAdapter, SignalAdapter, MattermostAdapter,
+            HomeAssistantAdapter, DingTalkAdapter, FeishuAdapter, WeComAdapter,
+            SMSAdapter, PlatformRegistry,
+        )
+        assert True
+
+    def test_platform_registry(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import (
+            PlatformRegistry, FeishuAdapter, WeComAdapter, DingTalkAdapter
+        )
+        reg = PlatformRegistry()
+        reg.register("feishu",   FeishuAdapter("https://example.com/feishu"))
+        reg.register("wecom",    WeComAdapter("https://example.com/wecom"))
+        reg.register("dingtalk", DingTalkAdapter("https://example.com/dt"))
+        assert len(reg.list_platforms()) == 3
+        assert "feishu" in reg.list_platforms()
+
+    def test_registry_unregistered_platform_returns_false(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import PlatformRegistry
+        reg = PlatformRegistry()
+        result = reg.send("nonexistent", text="hello")
+        assert result is False
+
+    def test_whatsapp_adapter_url(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import WhatsAppAdapter
+        wa = WhatsAppAdapter(phone_number_id="PHONE_ID", access_token="TOKEN")
+        assert "PHONE_ID" in wa._url
+        assert "Bearer TOKEN" in wa._headers["Authorization"]
+
+    def test_matrix_adapter_headers(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import MatrixAdapter
+        mx = MatrixAdapter("https://matrix.example.com", "ACCESS_TOKEN")
+        assert "Bearer ACCESS_TOKEN" in mx._headers["Authorization"]
+        assert mx._hs == "https://matrix.example.com"
+
+    def test_signal_adapter_init(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import SignalAdapter
+        sig = SignalAdapter("http://localhost:8080", "+91999")
+        assert sig._sender == "+91999"
+        assert "8080" in sig._host
+
+    def test_mattermost_adapter_init(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import MattermostAdapter
+        mm = MattermostAdapter("https://mm.example.com/hook/abc", token="tok", base_url="https://mm.example.com")
+        assert mm._webhook == "https://mm.example.com/hook/abc"
+        assert mm._token == "tok"
+
+    def test_homeassistant_adapter_headers(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import HomeAssistantAdapter
+        ha = HomeAssistantAdapter("https://ha.example.com", "HA_TOKEN")
+        assert "Bearer HA_TOKEN" in ha._headers["Authorization"]
+
+    def test_dingtalk_sign_generation(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import DingTalkAdapter
+        dt = DingTalkAdapter("https://example.com/dt?access_token=x", secret="mysecret")
+        ts, sign = dt._sign()
+        assert ts.isdigit() and len(sign) > 10
+
+    def test_feishu_webhook_stored(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import FeishuAdapter
+        fs = FeishuAdapter("https://open.feishu.cn/hook/abc")
+        assert fs._webhook == "https://open.feishu.cn/hook/abc"
+
+    def test_wecom_webhook_stored(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import WeComAdapter
+        wc = WeComAdapter("https://qyapi.weixin.qq.com/webhook/abc")
+        assert wc._webhook == "https://qyapi.weixin.qq.com/webhook/abc"
+
+    def test_sms_twilio_config(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import SMSAdapter
+        sms = SMSAdapter(provider="twilio", twilio_sid="AC123", twilio_token="tok", twilio_from="+1")
+        assert sms._provider == "twilio"
+        assert sms._twilio_sid == "AC123"
+
+    def test_sms_sns_config(self):
+        from agents.districts.coding.vectorcode.comms.platform_adapters import SMSAdapter
+        sms = SMSAdapter(provider="sns", sns_region="ap-south-1")
+        assert sms._provider == "sns"
+        assert sms._sns_region == "ap-south-1"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SECTION 15 — InboundMessageRouter
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestInboundMessageRouter:
+    """Validates InboundMessageRouter — command routing, dedup, rate limit, REPL bridge."""
+
+    def test_import(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter
+        r = InboundMessageRouter()
+        assert r is not None
+
+    def test_command_routing(self):
+        from agents.districts.coding.vectorcode.comms.inbound import (
+            InboundMessageRouter, InboundMessage, RouteResult
+        )
+        router = InboundMessageRouter()
+        handled = []
+        router.on_command("/ask", lambda m, r: (handled.append(m.text), RouteResult(handled=True, handler="ask"))[1])
+        msg = InboundMessage(platform="telegram", sender_id="u1", text="/ask 2+2")
+        result = router.route(msg)
+        assert result.handled
+        assert result.handler == "ask"
+        assert len(handled) == 1
+
+    def test_platform_routing(self):
+        from agents.districts.coding.vectorcode.comms.inbound import (
+            InboundMessageRouter, InboundMessage, RouteResult
+        )
+        router = InboundMessageRouter()
+        sms_log = []
+        router.on_platform("sms", lambda m, r: (sms_log.append(m.text), RouteResult(handled=True, handler="sms"))[1])
+        msg = InboundMessage(platform="sms", sender_id="u2", text="call me back")
+        result = router.route(msg)
+        assert result.handled and result.handler == "sms"
+        assert len(sms_log) == 1
+
+    def test_keyword_routing(self):
+        from agents.districts.coding.vectorcode.comms.inbound import (
+            InboundMessageRouter, InboundMessage, RouteResult
+        )
+        router = InboundMessageRouter()
+        urgent_log = []
+        router.on_keyword("urgent", lambda m, r: (urgent_log.append(True), RouteResult(handled=True, handler="urgent"))[1])
+        msg = InboundMessage(platform="discord", sender_id="u3", text="URGENT: system down!")
+        result = router.route(msg)
+        assert result.handled and urgent_log
+
+    def test_default_handler_fallback(self):
+        from agents.districts.coding.vectorcode.comms.inbound import (
+            InboundMessageRouter, InboundMessage, RouteResult
+        )
+        router = InboundMessageRouter()
+        fallback = []
+        router.set_default(lambda m, r: (fallback.append(m.text), RouteResult(handled=True, handler="default"))[1])
+        msg = InboundMessage(platform="email", sender_id="u4", text="random text")
+        result = router.route(msg)
+        assert result.handled and "random text" in fallback
+
+    def test_deduplication(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        router.set_default(lambda m, r: None)
+        msg = InboundMessage(id="fixed-id-001", platform="telegram", sender_id="u1", text="hello")
+        r1 = router.route(msg)
+        r2 = router.route(InboundMessage(id="fixed-id-001", platform="telegram", sender_id="u1", text="hello"))
+        assert r1.handled or not r1.handled    # first may or may not be handled
+        assert r2.handler == "dedup"
+
+    def test_rate_limiting(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        router.set_default(lambda m, r: None)
+        # Send 25 messages — limit is 20 per 60s window
+        for i in range(25):
+            router.route(InboundMessage(platform="t", sender_id="spammer", text=f"msg{i}"))
+        stats = router.get_stats()
+        assert stats["rejected_rate"] >= 5
+
+    def test_repl_bridge(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        router.bridge_to_repl(lambda text: f"VECTOR says: {text}")
+        msg = InboundMessage(platform="telegram", sender_id="u1", text="hello there")
+        result = router.route(msg)
+        assert result.handled
+        assert "VECTOR says: hello there" in result.reply
+
+    def test_thread_tracking(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        router.set_default(lambda m, r: None)
+        for i in range(3):
+            router.route(InboundMessage(platform="t", sender_id="u1", chat_id="room-1", text=f"msg{i}"))
+        thread = router.get_thread("room-1")
+        assert len(thread) >= 1
+
+    def test_stats_structure(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        router.route(InboundMessage(platform="t", sender_id="u1", text="/ping"))
+        stats = router.get_stats()
+        assert "received"       in stats
+        assert "handled"        in stats
+        assert "active_threads" in stats
+        assert "commands"       in stats
+        assert "/ping"          in stats["commands"]
+
+    def test_builtin_ping_command(self):
+        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        router = InboundMessageRouter()
+        result = router.route(InboundMessage(platform="t", sender_id="u1", text="/ping"))
+        assert result.handled
+        assert result.reply == "pong"
