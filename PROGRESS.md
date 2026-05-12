@@ -24,6 +24,8 @@
 | UI | Native UI — terminal TUI + browser dashboard + MCP server | ✅ DONE | ✅ 154/154 tests |
 | BG | Background TaskQueue — parallel execution, /bg /tasks /cancel, web panel | ✅ DONE | ✅ singleton wired |
 | UP | District Upgrades — ResearchHub×14 APIs, StockAnalyst CoinGecko, CodeReviewer severity+AgentShield, HermesAdapter cron+skills, ComfyUI adapter | ✅ DONE | ✅ |
+| D3 | Phase 3 Districts — relationships, privacy, pattern_detective, news_trends, learning, startups, calls | ✅ DONE | ✅ 87/87 tests |
+| ML | Model Stack — 10 modelfiles built; r1/dev/fast added; kimi/glm removed; config updated | ✅ DONE | ✅ all local |
 
 ---
 
