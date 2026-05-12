@@ -14,6 +14,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
+# Suppress INFO/DEBUG logs — only show WARNING+ in interactive CLI
+from loguru import logger
+logger.remove()
+logger.add(sys.stderr, level="WARNING", format="<yellow>[VECTOR]</yellow> {message}")
+
 
 def _print_banner():
     print("""
