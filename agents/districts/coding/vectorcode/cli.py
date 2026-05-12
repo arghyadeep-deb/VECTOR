@@ -1,15 +1,31 @@
 """
 VectorCode CLI — entry point.
-Usage: vector [mode] [task]
-  vector              → Mode A (interactive REPL)
-  vector auto "task"  → Mode B (autonomous, single task)
-  vector hybrid       → Mode C (hybrid with checkpoint gates)
-  vector mcp          → start MCP server (stdio)
-  vector mcp --sse    → start MCP server (SSE on port 9000)
-  vector status       → show session status
+
+Usage:
+  vector                           → interactive REPL (Mode A)
+  vector run "task"                → one-shot non-interactive
+  vector auto "task"               → Mode B (autonomous task queue)
+  vector hybrid                    → Mode C (hybrid checkpoint gates)
+  vector mcp [--sse]               → start MCP server
+  vector status                    → session status
+  vector sessions list             → list past sessions
+  vector sessions resume <id>      → resume a session
+  vector sessions export <id>      → export session as markdown
+  vector models list               → list configured models
+  vector models test <model>       → test model connection
+  vector models set-default <model>→ set default model
+  vector models pull <name>        → pull Ollama model
+  vector agents list               → list registered agents
+  vector agents run <name>         → run a named agent
+
+Flags (for repl / run):
+  --model <provider/model>         → override model for this session
+  --mode  <cautious|standard|autonomous|read-only>
+  --dir   <path>                   → project directory (default: CWD)
 """
 import sys
 import argparse
+import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
