@@ -281,11 +281,24 @@ class TestDataFlowAuditor:
             "timestamp": "2026-05-10T12:00:00Z",
         }
         mock_mem = _make_mock_memory(recall_return=[evil_event] * 5)
-        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
+        mock_mem_class = MagicMock(return_value=mock_mem)
+        # Patch both the module-level import AND the local `from core.memory.episodic import` path
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", mock_mem_class), \
+             patch("core.memory.episodic.EpisodicMemory", mock_mem_class), \
              patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"):
             from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             agent = DataFlowAuditor()
-            result = agent.find_leaks()
+            # Patch the local import inside find_leaks directly
+            import agents.districts.privacy.data_flow_auditor as _dfa_mod
+            original_ep = None
+            try:
+                import core.memory.episodic as _ep_mod
+                original_ep = _ep_mod.EpisodicMemory
+                _ep_mod.EpisodicMemory = mock_mem_class
+                result = agent.find_leaks()
+            finally:
+                if original_ep is not None:
+                    _ep_mod.EpisodicMemory = original_ep
 
         assert result["leaks_found"] > 0
         assert result["risk_level"] in ("HIGH", "CRITICAL")
