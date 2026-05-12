@@ -19,11 +19,34 @@ VECTOR_RULES_CHECKLIST = [
     "CONFIG used for all configurable values",
 ]
 
+# Severity tier labels — maps raw severity strings to display labels
+# From agency-agents code reviewer pattern
+SEVERITY_LABELS = {
+    "blocker":    "🔴 BLOCKER",    # security vuln, data loss, breaking change
+    "error":      "🔴 BLOCKER",
+    "suggestion": "🟡 SUGGESTION", # should fix: missing validation, N+1, duplication
+    "warning":    "🟡 SUGGESTION",
+    "nit":        "💭 NIT",        # nice to have: style, naming, docs
+    "info":       "💭 NIT",
+}
+
 # Banned patterns: (pattern_string, severity, human-readable message)
 # Patterns are assembled at import time to avoid triggering security linters on this source file.
 _OS_SYS = "os." + "system("
 _EVAL = "eva" + "l("
 _EXEC_FN = "exe" + "c("
+# AgentShield prompt-injection fragments assembled to avoid linter false-positives
+_IGNORE_PREV = "Ignore previous" + " instructions"
+_YOU_ARE_NOW = "You are" + " now"
+_SYSTEM_HDR = "SYSTEM" + ":"
+_REQ_GET = "requests" + ".get("
+_URLLIB_REQ = "urllib" + ".request"
+_PWD_ASSIGN = "password" + " ="
+_APIKEY_ASSIGN = "api_key" + " ="
+_SECRET_ASSIGN = "secret" + " ="
+_GLOBAL_KW = "global" + " "
+_FMT_CALL = ".format" + "("
+_PCT_TUPLE = "%" + " ("
 
 BANNED_PATTERNS = [
     ("import requests", "warning", "Use httpx (async), not requests"),
@@ -37,6 +60,22 @@ BANNED_PATTERNS = [
     ("import pickle", "error", "pickle is a deserialization risk — use json/msgpack"),
     ("MemoryClient(", "error", "MemoryClient sends data to external cloud — use from mem0 import Memory (RULE 11)"),
     ("anthropic.Anthropic(", "warning", "Claude API must not be called at VECTOR runtime (RULE 11)"),
+    # Prompt injection / AI security (AgentShield patterns)
+    (_IGNORE_PREV, "error", "Prompt injection pattern detected"),
+    (_YOU_ARE_NOW, "warning", "Potential persona hijack pattern"),
+    (_SYSTEM_HDR, "warning", "Potential system prompt injection"),
+    # Data exfiltration
+    (_REQ_GET, "warning", "Use httpx not requests"),
+    (_URLLIB_REQ, "warning", "Use httpx not urllib"),
+    # Hardcoded credentials
+    (_PWD_ASSIGN, "error", "Hardcoded password — use keyring or env var"),
+    (_APIKEY_ASSIGN, "warning", "Hardcoded API key — use keyring or env var"),
+    (_SECRET_ASSIGN, "warning", "Hardcoded secret — use keyring or env var"),
+    # Race conditions
+    (_GLOBAL_KW, "warning", "Global variable — potential race condition in async code"),
+    # SQL injection
+    (_FMT_CALL, "warning", "String formatting in query — use parameterized queries"),
+    (_PCT_TUPLE, "warning", "String interpolation in query — use parameterized queries"),
 ]
 
 # VECTOR code patterns that SHOULD be present (checked per-file heuristically)
