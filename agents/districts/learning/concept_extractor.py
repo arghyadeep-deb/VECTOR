@@ -128,7 +128,7 @@ Format: JSON only."""
             if related:
                 return {"concept": concept, "prerequisites": related[:5], "source": "local_graph"}
 
-        prompt = f"What are the prerequisites needed to understand '{concept}' in a learning path? List 5-8 prerequisite concepts or topics with brief descriptions. Format as JSON: {{prerequisites: [{name, description}]}}"
+        prompt = f'What are the prerequisites needed to understand \'{concept}\' in a learning path? List 5-8 prerequisite concepts or topics with brief descriptions. Format as JSON: {{"prerequisites": [{{"name": "...", "description": "..."}}]}}'
         response = self._call_ollama(prompt)
 
         try:
