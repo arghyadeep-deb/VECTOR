@@ -12,6 +12,8 @@ from core.api.dependencies import get_agent_registry
 from core.api.crud import get_agents, get_agent, award_agent
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+# Spec requires POST /agent/award (singular) — alias router
+router_singular = APIRouter(prefix="/agent", tags=["agents"])
 
 
 @router.get("", response_model=AgentListResponse)
