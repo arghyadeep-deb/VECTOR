@@ -37,11 +37,19 @@ class StockAnalyst(AgentBase):
     def get_quote(self, symbol: str) -> dict:
         """
         Get current stock quote for a symbol.
+        Falls back to get_nse_quote if yfinance returns an error.
         """
         symbol = symbol.upper().strip()
 
         if self._yfinance_available:
-            return self._get_real_quote(symbol)
+            result = self._get_real_quote(symbol)
+            # If yfinance returned an error, try NSE fallback
+            if result.get("status") == "error":
+                logger.warning(f"[VECTOR][stock_analyst] yfinance failed for {symbol}, trying NSE fallback")
+                nse_result = self.get_nse_quote(symbol)
+                if nse_result.get("status") == "success":
+                    return nse_result
+            return result
         return self._get_mock_quote(symbol)
 
     def _get_real_quote(self, symbol: str) -> dict:
