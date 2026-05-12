@@ -233,7 +233,7 @@ cd dashboard && vercel --prod
 | Item | Status |
 |------|--------|
 | `.claude/settings.json` | ✅ PreToolUse security hooks |
-| `modelfiles/` (7) | ✅ vector-ambient/focus/coder/multilingual/reasoning/deep/chairman |
+| `modelfiles/` (10) | ✅ vector-ambient/focus/coder/multilingual/reasoning/deep/chairman + vector-r1/dev/fast (new 2026-05-12) |
 | `.github/workflows/ci.yml` | ✅ Python 3.11, pytest |
 | `.github/workflows/lint.yml` | ✅ ruff on core/ and agents/ |
 | `core/config.py` | ✅ Pydantic BaseSettings, obsidian write folders updated |
