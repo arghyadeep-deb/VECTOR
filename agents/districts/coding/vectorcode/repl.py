@@ -73,9 +73,18 @@ def _load_soul() -> str:
             pass
     return _DEFAULT_SOUL
 
-def _build_system_prompt(skills_index: str = "") -> str:
+def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = None) -> str:
     soul  = _load_soul()
     parts = [soul, _TOOL_ENFORCEMENT]
+    # Inject VECTOR.md project config if present
+    if project_dir:
+        try:
+            from agents.districts.coding.vectorcode.context.vectormd import VectorMD
+            vmd_content = VectorMD(project_dir).as_system_block()
+            if vmd_content:
+                parts.insert(0, vmd_content)
+        except Exception:
+            pass
     if skills_index:
         parts.append(f"\n<available_skills>\n{skills_index}\n</available_skills>")
     parts.append("\nPlatform: CLI terminal. Use plain text and markdown code fences. No MEDIA: tags.")
