@@ -223,6 +223,178 @@ class HermesAdapter(AgentBase):
             logger.error(f"[VECTOR][hermes_adapter] channel send failed: {e}")
             return {"status": "error", "message": str(e)}
 
+    async def send_to_telegram(self, chat_id: str, text: str, priority: str = "normal") -> dict:
+        """Convenience wrapper — send directly to Telegram chat_id via Hermes."""
+        resolved_chat_id = CONFIG.get("hermes", {}).get("telegram_chat_id", chat_id)
+        return await self.send_to_channel("telegram", text, priority)
+
+    # ── Cron job management ───────────────────────────────────────────────────
+
+    async def schedule_cron_job(
+        self, schedule: str, message: str, platform: str, channel: str
+    ) -> dict:
+        """
+        Schedule a recurring Hermes message via cron syntax.
+
+        Args:
+            schedule: croniter expression e.g. "0 9 * * *" (9am daily)
+            message:  text to send on each trigger
+            platform: must be in KNOWN_PLATFORMS
+            channel:  destination channel / chat-id on that platform
+        """
+        await self._ensure_running()
+
+        if platform.lower() not in self.KNOWN_PLATFORMS:
+            logger.warning(
+                f"[VECTOR][hermes_adapter] schedule_cron_job: unknown platform '{platform}'"
+            )
+
+        if not self._connected:
+            queued = {
+                "schedule": schedule, "message": message,
+                "platform": platform, "channel": channel, "source": "vector",
+            }
+            self._pending_messages.append({"_type": "cron_job", **queued})
+            logger.warning("[VECTOR][hermes_adapter] cron job queued — Hermes offline")
+            return {"status": "queued", "message": "Hermes unavailable — cron job queued"}
+
+        payload = {
+            "schedule": schedule,
+            "message": message,
+            "platform": platform,
+            "channel": channel,
+            "source": "vector",
+        }
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(f"{self._hermes_url}/cron/jobs", json=payload)
+                if response.status_code in (200, 201):
+                    result = response.json() if response.text else {}
+                    self.award_points(10, "cron_job_scheduled")
+                    logger.info(
+                        f"[VECTOR][hermes_adapter] cron job scheduled: "
+                        f"schedule={schedule} platform={platform}"
+                    )
+                    return {"status": "scheduled", **result}
+                return {"status": "error", "code": response.status_code}
+        except Exception as e:
+            logger.error(f"[VECTOR][hermes_adapter] schedule_cron_job failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def list_cron_jobs(self) -> list[dict]:
+        """Return all scheduled Hermes cron jobs, or [] on error / offline."""
+        await self._ensure_running()
+
+        if not self._connected:
+            logger.warning("[VECTOR][hermes_adapter] list_cron_jobs: Hermes offline")
+            return []
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{self._hermes_url}/cron/jobs")
+                if response.status_code == 200:
+                    jobs = response.json()
+                    logger.info(f"[VECTOR][hermes_adapter] listed {len(jobs)} cron jobs")
+                    return jobs if isinstance(jobs, list) else []
+                logger.warning(
+                    f"[VECTOR][hermes_adapter] list_cron_jobs: status {response.status_code}"
+                )
+        except Exception as e:
+            logger.error(f"[VECTOR][hermes_adapter] list_cron_jobs failed: {e}")
+
+        return []
+
+    async def delete_cron_job(self, job_id: str) -> bool:
+        """Delete a scheduled cron job by its ID. Returns True on success."""
+        await self._ensure_running()
+
+        if not self._connected:
+            logger.warning("[VECTOR][hermes_adapter] delete_cron_job: Hermes offline")
+            return False
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.delete(f"{self._hermes_url}/cron/jobs/{job_id}")
+                if response.status_code in (200, 204):
+                    logger.info(f"[VECTOR][hermes_adapter] deleted cron job {job_id}")
+                    return True
+                logger.warning(
+                    f"[VECTOR][hermes_adapter] delete_cron_job: status {response.status_code}"
+                )
+        except Exception as e:
+            logger.error(f"[VECTOR][hermes_adapter] delete_cron_job failed: {e}")
+
+        return False
+
+    # ── Skill registration ────────────────────────────────────────────────────
+
+    async def register_skill(self, skill_name: str, skill_content: str) -> dict:
+        """
+        Register a VECTOR skill with Hermes so it can be invoked from chat platforms.
+
+        Returns {status, skill_id} on success, error dict on failure.
+        """
+        await self._ensure_running()
+
+        if not self._connected:
+            logger.warning("[VECTOR][hermes_adapter] register_skill: Hermes offline")
+            return {"status": "error", "message": "Hermes unavailable"}
+
+        payload = {
+            "name": skill_name,
+            "content": skill_content,
+            "source": "vector",
+        }
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(f"{self._hermes_url}/skills", json=payload)
+                if response.status_code in (200, 201):
+                    result = response.json() if response.text else {}
+                    logger.info(
+                        f"[VECTOR][hermes_adapter] skill registered: {skill_name}"
+                    )
+                    return {"status": "registered", **result}
+                return {"status": "error", "code": response.status_code}
+        except Exception as e:
+            logger.error(f"[VECTOR][hermes_adapter] register_skill failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    # ── Session management ────────────────────────────────────────────────────
+
+    async def get_sessions(self) -> list[dict]:
+        """Return the 10 most-recent active Hermes sessions, or [] on error / offline."""
+        await self._ensure_running()
+
+        if not self._connected:
+            logger.warning("[VECTOR][hermes_adapter] get_sessions: Hermes offline")
+            return []
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{self._hermes_url}/sessions", params={"limit": 10}
+                )
+                if response.status_code == 200:
+                    sessions = response.json()
+                    logger.info(
+                        f"[VECTOR][hermes_adapter] fetched {len(sessions)} sessions"
+                    )
+                    return sessions if isinstance(sessions, list) else []
+                logger.warning(
+                    f"[VECTOR][hermes_adapter] get_sessions: status {response.status_code}"
+                )
+        except Exception as e:
+            logger.error(f"[VECTOR][hermes_adapter] get_sessions failed: {e}")
+
+        return []
+
     async def sync_pending_messages(self) -> dict:
         """Flush locally queued messages to Hermes."""
         if not self._pending_messages:
