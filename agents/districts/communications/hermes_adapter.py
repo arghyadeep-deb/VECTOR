@@ -191,6 +191,12 @@ class HermesAdapter(AgentBase):
 
     async def send_to_channel(self, channel: str, text: str, priority: str = "normal") -> dict:
         """Send message to a specific Hermes channel (Telegram/Discord/etc.)."""
+        if channel.lower() not in self.KNOWN_PLATFORMS:
+            logger.warning(
+                f"[VECTOR][hermes_adapter] unknown platform '{channel}' — "
+                f"known: {sorted(self.KNOWN_PLATFORMS)}"
+            )
+
         if not self._connected:
             if not await self._ensure_running():
                 return {"status": "error", "message": "Hermes unavailable"}
