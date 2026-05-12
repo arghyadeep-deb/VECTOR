@@ -307,8 +307,15 @@ ollama create vector-chairman -f modelfiles/vector-chairman.modelfile
 | ArXiv | `search_arxiv()` | ArXiv XML Atom feed |
 | ProductHunt | `get_producthunt_top()` | PH GraphQL public |
 | YouTube | `search_youtube()` | yt-dlp ytsearch |
+| CoinGecko | `get_crypto_prices()` | Crypto prices + 24h change — no auth |
+| Econdb | `get_macro_indicator()` | Macroeconomic series (GDP/CPI/unemployment) — no auth |
+| Crossref | `search_papers()` | Academic papers by DOI/title — no auth |
+| OpenAQ | `get_air_quality()` | PM2.5/PM10 by city — no auth |
+| Yahoo Finance | `get_stock_quote()` | NSE/BSE prices — no auth |
+| Tech feed | `get_tech_news()` | HN + DEV.to merged stream |
 
 `daily_digest()` runs all sources in parallel, stores summary in episodic memory.
+Full catalog: `docs/public_apis.md`
 
 ---
 
