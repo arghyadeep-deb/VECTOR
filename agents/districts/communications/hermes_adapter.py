@@ -30,6 +30,12 @@ class HermesAdapter(AgentBase):
         "critical": 4,
     }
 
+    KNOWN_PLATFORMS = {
+        "telegram", "discord", "slack", "whatsapp", "signal",
+        "matrix", "mattermost", "homeassistant", "dingtalk", "feishu",
+        "wecom", "sms", "email", "webhook",
+    }
+
     def __init__(self, ghost: dict = None):
         super().__init__(str(uuid.uuid4()), "HermesAdapter", "communications")
         if ghost:
