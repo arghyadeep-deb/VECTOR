@@ -1,10 +1,12 @@
 """GSDLoop — VectorCode VC-3. discuss→plan→execute→verify workflow."""
 import sys
+import tempfile
 from enum import Enum
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from loguru import logger
+from agents.districts.coding.vectorcode.memory.pattern_store import PatternStore
 
 
 class GSDPhase(Enum):
