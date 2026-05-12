@@ -11,6 +11,12 @@ Covers:
   - ArXiv (XML API)
   - Reddit (public JSON API — already in RedditMiner)
   - YouTube trending (yt-dlp — already installed)
+  - CoinGecko (crypto prices + 24h change — no auth)
+  - Econdb (macroeconomic series — no auth)
+  - Crossref (academic paper search — no auth)
+  - OpenAQ (air quality / PM2.5 / PM10 — no auth)
+  - Tech news combined feed (HackerNews + DEV.to merged)
+  - Yahoo Finance (NSE India stock quotes — no auth)
 
 RULE 11: no external LLM APIs.
 """
