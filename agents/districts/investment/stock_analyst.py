@@ -102,6 +102,147 @@ class StockAnalyst(AgentBase):
             "source": "mock"
         }
 
+    def get_nse_quote(self, symbol: str) -> dict:
+        """
+        Get current quote for an NSE-listed stock via Yahoo Finance API.
+        Automatically falls back to BSE (.BO) if NSE (.NS) fails.
+        """
+        symbol = symbol.upper().strip()
+        suffixes = [(".NS", "NSE"), (".BO", "BSE")]
+
+        import httpx
+
+        for suffix, exchange in suffixes:
+            ticker = f"{symbol}{suffix}"
+            url = (
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+                f"?interval=1d&range=1d"
+            )
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    response = client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                    response.raise_for_status()
+                    data = response.json()
+
+                result_obj = data.get("chart", {}).get("result", [])
+                if not result_obj:
+                    logger.warning(f"[VECTOR][stock_analyst] No chart result for {ticker}, trying next suffix")
+                    continue
+
+                meta = result_obj[0].get("meta", {})
+                price = meta.get("regularMarketPrice")
+                prev_close = meta.get("previousClose") or meta.get("chartPreviousClose")
+
+                change = round(price - prev_close, 4) if (price and prev_close) else None
+                change_pct = round((change / prev_close) * 100, 4) if (change is not None and prev_close) else None
+
+                self.award_points(5, f"nse_quote_{symbol}")
+                logger.info(f"[VECTOR][stock_analyst] NSE quote fetched: {symbol} via {exchange} @ {price}")
+
+                return {
+                    "status": "success",
+                    "symbol": symbol,
+                    "price": price,
+                    "change": change,
+                    "change_pct": change_pct,
+                    "volume": meta.get("regularMarketVolume"),
+                    "high": meta.get("regularMarketDayHigh"),
+                    "low": meta.get("regularMarketDayLow"),
+                    "exchange": exchange,
+                    "source": "yahoo_finance"
+                }
+
+            except Exception as e:
+                logger.warning(f"[VECTOR][stock_analyst] Yahoo Finance failed for {ticker}: {e}")
+                continue
+
+        logger.error(f"[VECTOR][stock_analyst] NSE/BSE quote failed for {symbol} on all suffixes")
+        return {"status": "error", "symbol": symbol, "error": f"Quote unavailable for {symbol} on NSE/BSE"}
+
+    def get_crypto_quote(self, coin_id: str = "bitcoin") -> dict:
+        """
+        Get current crypto quote from CoinGecko (no auth required).
+        Includes USD and INR prices.
+        """
+        coin_id = coin_id.lower().strip()
+        url = (
+            f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+            f"?localization=false&tickers=false&community_data=false"
+        )
+
+        try:
+            import httpx
+
+            inr_rate = CONFIG.get("usd_to_inr", 83.5)
+
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers={"Accept": "application/json"})
+                response.raise_for_status()
+                data = response.json()
+
+            market = data.get("market_data", {})
+            price_usd = market.get("current_price", {}).get("usd")
+            price_inr = round(price_usd * inr_rate, 2) if price_usd else None
+
+            self.award_points(5, f"crypto_quote_{coin_id}")
+            logger.info(f"[VECTOR][stock_analyst] Crypto quote fetched: {coin_id} @ ${price_usd}")
+
+            return {
+                "status": "success",
+                "coin": data.get("id"),
+                "symbol": data.get("symbol", "").upper(),
+                "price_usd": price_usd,
+                "price_inr": price_inr,
+                "change_24h_pct": market.get("price_change_percentage_24h"),
+                "market_cap": market.get("market_cap", {}).get("usd"),
+                "volume_24h": market.get("total_volume", {}).get("usd"),
+                "high_24h": market.get("high_24h", {}).get("usd"),
+                "low_24h": market.get("low_24h", {}).get("usd"),
+                "source": "coingecko"
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][stock_analyst] CoinGecko quote failed for {coin_id}: {e}")
+            return {"status": "error", "coin": coin_id, "error": str(e)}
+
+    def get_top_cryptos(self, limit: int = 10) -> list[dict]:
+        """
+        Get top cryptocurrencies by market cap from CoinGecko (no auth required).
+        """
+        url = (
+            f"https://api.coingecko.com/api/v3/coins/markets"
+            f"?vs_currency=usd&order=market_cap_desc&per_page={limit}&sparkline=false"
+        )
+
+        try:
+            import httpx
+
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers={"Accept": "application/json"})
+                response.raise_for_status()
+                data = response.json()
+
+            result = [
+                {
+                    "rank": item.get("market_cap_rank"),
+                    "coin": item.get("id"),
+                    "symbol": (item.get("symbol") or "").upper(),
+                    "name": item.get("name"),
+                    "price_usd": item.get("current_price"),
+                    "change_24h_pct": item.get("price_change_percentage_24h"),
+                    "market_cap": item.get("market_cap"),
+                    "volume_24h": item.get("total_volume"),
+                }
+                for item in data
+            ]
+
+            logger.info(f"[VECTOR][stock_analyst] Top {limit} cryptos fetched from CoinGecko")
+            return result
+
+        except Exception as e:
+            logger.error(f"[VECTOR][stock_analyst] CoinGecko top-cryptos failed: {e}")
+            return [{"status": "error", "error": str(e)}]
+
     def analyze_sentiment(self, symbol: str) -> dict:
         """
         Analyze sentiment for a stock based on recent news and data.
