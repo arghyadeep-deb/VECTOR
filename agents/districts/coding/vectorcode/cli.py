@@ -22,11 +22,13 @@ logger.add(sys.stderr, level="WARNING", format="<yellow>[VECTOR]</yellow> {messa
 
 def _print_banner():
     print("""
-╔══════════════════════════════════════════╗
-║  V.E.C.T.O.R  VectorCode  v1.0.0        ║
-║  Virtual Entity — Coding District        ║
-║  Type /help for commands                 ║
-╚══════════════════════════════════════════╝
+  ██╗   ██╗███████╗ ██████╗████████╗ ██████╗ ██████╗
+  ██║   ██║██╔════╝██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗
+  ██║   ██║█████╗  ██║        ██║   ██║   ██║██████╔╝
+  ╚██╗ ██╔╝██╔══╝  ██║        ██║   ██║   ██║██╔══██╗
+   ╚████╔╝ ███████╗╚██████╗   ██║   ╚██████╔╝██║  ██║
+    ╚═══╝  ╚══════╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+  Coding District  |  Ollama local  |  /help for commands
 """)
 
 
