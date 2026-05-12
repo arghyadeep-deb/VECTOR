@@ -327,6 +327,94 @@ class VectorREPL:
             ts = datetime.datetime.fromtimestamp(sess["ts"]).strftime("%Y-%m-%d %H:%M")
             return f"Restored session from {ts}  ({len(self._history)-1} turns)"
 
+        if raw == "/models":
+            try:
+                from agents.districts.coding.vectorcode.config import VectorConfig
+                cfg = VectorConfig(self._project_dir)
+                lines = [
+                    f"  default : {cfg.default_model}",
+                    f"  fast    : {cfg.fast_model}",
+                    f"  local   : {cfg.local_model}",
+                    f"  current : {self.session.current_model}",
+                ]
+                return "\n".join(lines)
+            except Exception as e:
+                return f"models error: {e}"
+
+        if raw == "/memory":
+            try:
+                from agents.districts.coding.vectorcode.context.session_memory import read_memory_md
+                return read_memory_md()
+            except Exception as e:
+                return f"memory error: {e}"
+
+        if raw == "/compact":
+            try:
+                from agents.districts.coding.vectorcode.context.compactor import ContextCompactor
+                before = len(self._history)
+                compactor = ContextCompactor(model=self.session.current_model,
+                                              project_dir=self._project_dir)
+                self._history = compactor.compact(self._history)
+                return f"Compacted: {before} → {len(self._history)} messages"
+            except Exception as e:
+                return f"compact error: {e}"
+
+        if raw == "/cost":
+            u = self.session.token_usage
+            return (
+                f"\n  Tokens:  {u.prompt_tokens} in / {u.completion_tokens} out"
+                f" / {u.cache_read_tokens} cache-read"
+                f"\n  Total:   {u.total_tokens}"
+                f"\n  Cost:    ${self.session.cost_usd:.6f} USD"
+            )
+
+        if raw == "/diff":
+            try:
+                from agents.districts.coding.vectorcode.tools.git_tools import GitTools
+                gt = GitTools(repo_root=self._project_dir)
+                return gt.git_diff() or "(no changes)"
+            except Exception as e:
+                return f"diff error: {e}"
+
+        if raw.startswith("/commit"):
+            parts = raw.split(maxsplit=1)
+            msg = parts[1].strip() if len(parts) > 1 else ""
+            try:
+                from agents.districts.coding.vectorcode.tools.git_tools import GitTools
+                gt = GitTools(repo_root=self._project_dir)
+                if not msg:
+                    # Generate commit message with the model
+                    diff = gt.git_diff(staged=False)[:1500]
+                    prompt = f"Write a concise git commit message (one line) for this diff:\n{diff}"
+                    self._history.append({"role": "user", "content": prompt})
+                    msg = _ask_ollama(self.session.current_model, self._history)
+                    self._history.pop()
+                    msg = msg.strip().splitlines()[0][:72]
+                return gt.git_commit(msg)
+            except Exception as e:
+                return f"commit error: {e}"
+
+        if raw.startswith("/spawn"):
+            parts = raw.split(maxsplit=1)
+            task = parts[1].strip() if len(parts) > 1 else ""
+            if not task:
+                return "Usage: /spawn <task description>"
+            try:
+                from agents.districts.coding.vectorcode.autonomous import VectorAutonomous
+                va = VectorAutonomous()
+                task_id = va.submit(task)
+                return f"Worker spawned — task_id: {task_id}\nTask: {task}"
+            except Exception as e:
+                return f"spawn error: {e}"
+
+        if raw == "/undo":
+            if self._last_write:
+                return (
+                    f"Last write: {self._last_write}\n"
+                    f"To undo: git checkout -- {self._last_write}"
+                )
+            return "No file writes recorded this session."
+
         if raw == "/quit":
             self._running = False
             return "Goodbye."
