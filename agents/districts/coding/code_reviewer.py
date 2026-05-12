@@ -250,7 +250,7 @@ class CodeReviewer(AgentBase):
             if len(source) > MAX_CHARS:
                 source = source[:MAX_CHARS] + "\n\n[... truncated ...]"
 
-            model = CONFIG["models"].get("coder", "vector-coder")
+            model = CONFIG["models"].get("dev", "vector-dev")
             ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
 
             prompt = (
