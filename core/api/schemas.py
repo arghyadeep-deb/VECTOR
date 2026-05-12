@@ -45,15 +45,18 @@ class VoiceResponse(BaseModel):
     language_detected: str
 
 class AgentAwardResponse(BaseModel):
+    new_hp: int
     status: str
-    agent: Dict[str, Any]
-    award: Dict[str, Any]
+    model_upgraded: bool
+    agent: Optional[Dict[str, Any]] = None
+    award: Optional[Dict[str, Any]] = None
 
 class CouncilResponse(BaseModel):
     decision: str
     confidence: float
     session_id: Optional[str] = None
     chairman_decision: Optional[str] = None
+    winning_model: Optional[str] = None
     stored_as_training_data: bool = False
 
 class StatusResponse(BaseModel):
@@ -63,6 +66,7 @@ class StatusResponse(BaseModel):
     memory: Dict[str, Any]
     agents: Dict[str, Any]
     vector_version: str
+    last_reflect: Optional[str] = None
 
 class HealthResponse(BaseModel):
     status: str
