@@ -283,15 +283,9 @@ Triple notification on complete/fail: terminal line + episodic memory (RULE 8) +
 | mistral-small3.1 | — | Fast general-purpose fallback |
 | qwen3:30b-a3b | — | 30B-class reasoning, only 3B active VRAM |
 
-**Rebuild all:**
+**Rebuild all (10 models):**
 ```bash
-ollama create vector-ambient -f modelfiles/vector-ambient.modelfile && \
-ollama create vector-focus -f modelfiles/vector-focus.modelfile && \
-ollama create vector-coder -f modelfiles/vector-coder.modelfile && \
-ollama create vector-multilingual -f modelfiles/vector-multilingual.modelfile && \
-ollama create vector-reasoning -f modelfiles/vector-reasoning.modelfile && \
-ollama create vector-deep -f modelfiles/vector-deep.modelfile && \
-ollama create vector-chairman -f modelfiles/vector-chairman.modelfile
+ollama create vector-ambient -f modelfiles/vector-ambient.modelfile && ollama create vector-focus -f modelfiles/vector-focus.modelfile && ollama create vector-coder -f modelfiles/vector-coder.modelfile && ollama create vector-multilingual -f modelfiles/vector-multilingual.modelfile && ollama create vector-reasoning -f modelfiles/vector-reasoning.modelfile && ollama create vector-deep -f modelfiles/vector-deep.modelfile && ollama create vector-chairman -f modelfiles/vector-chairman.modelfile && ollama create vector-r1 -f modelfiles/vector-r1.modelfile && ollama create vector-dev -f modelfiles/vector-dev.modelfile && ollama create vector-fast -f modelfiles/vector-fast.modelfile
 ```
 
 ---
