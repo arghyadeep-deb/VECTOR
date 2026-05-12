@@ -27,9 +27,13 @@ vector-deep        (gemma4:26b)    — overnight analysis, 65K context, document
 vector-chairman    (gemma4:31b)    — council chairman, private reasoning, training data gen
 nomic-embed-text                   — vector embeddings
 qwen3:8b, qwen3:14b                — base models
+qwen3:30b-a3b (MoE, 3B active)     — fast large-context reasoning, low VRAM for 30B class
 gemma4:e2b, gemma4:e4b             — base models
 gemma4:26b (MoE, 4B active)        — deep tasks, hybrid mode
 gemma4:31b (Dense)                 — slow deep tasks, hybrid mode
+deepseek-r1:14b                    — chain-of-thought reasoning, R1 style
+devstral:24b                       — code-specialist (Mistral devstral), refactor + review
+mistral-small3.1:latest            — fast general-purpose, low-latency fallback
 kimi-k2.6:cloud                    — Council + Hermes brain
 glm-5.1:cloud                      — Council Chairman (until your LLM ready)
 ```
