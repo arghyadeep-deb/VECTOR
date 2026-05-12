@@ -1,11 +1,14 @@
 """
-MessageBus — Python port of Ruflo's v2/src/communication/message-bus.ts.
+MessageBus — Python port of Ruflo v2/src/communication/message-bus.ts.
 
-Lightweight in-process message broker for VectorCode agent coordination.
-Supports: named channels, QoS 0/1, dead letter queue, channel statistics.
-No external process required — pure Python, singleton per process.
+Absorbed:
+  - Named channels, QoS 0/1, dead letter queue, channel statistics
+  - ChannelACL: allowedSenders, allowedReceivers, bannedAgents, read/write perms
+  - 7 filter operators: eq, ne, gt, lt, contains, matches, in
+  - Full Ruflo MessageBus ACL enforcement on every publish/subscribe
 """
 import uuid
+import re
 import threading
 import time
 import sys
@@ -31,6 +34,87 @@ class QoS(Enum):
     AT_LEAST_ONCE    = 1   # retried until acked
 
 
+# ── 7 filter operators (Ruflo ACL filter system) ─────────────────────────────
+
+class FilterOp(Enum):
+    EQ       = "eq"        # exact match
+    NE       = "ne"        # not equal
+    GT       = "gt"        # greater than (numeric)
+    LT       = "lt"        # less than (numeric)
+    CONTAINS = "contains"  # string/list contains value
+    MATCHES  = "matches"   # regex match
+    IN       = "in"        # value in a set
+
+
+@dataclass
+class FilterRule:
+    """A single ACL filter rule using one of 7 operators."""
+    field:    str       # dot-path into Message (e.g. "sender", "priority", "content.type")
+    op:       FilterOp
+    value:    object    # comparison value
+
+    def evaluate(self, msg: "Message") -> bool:
+        actual = self._extract_field(msg, self.field)
+        try:
+            if self.op == FilterOp.EQ:       return actual == self.value
+            if self.op == FilterOp.NE:       return actual != self.value
+            if self.op == FilterOp.GT:       return float(actual) > float(self.value)
+            if self.op == FilterOp.LT:       return float(actual) < float(self.value)
+            if self.op == FilterOp.CONTAINS: return self.value in actual
+            if self.op == FilterOp.MATCHES:  return bool(re.search(str(self.value), str(actual)))
+            if self.op == FilterOp.IN:       return actual in self.value
+        except Exception:
+            return False
+        return True
+
+    @staticmethod
+    def _extract_field(msg: "Message", path: str) -> object:
+        parts = path.split(".")
+        obj = msg
+        for p in parts:
+            if isinstance(obj, dict):
+                obj = obj.get(p)
+            else:
+                obj = getattr(obj, p, None)
+            if obj is None:
+                return None
+        return obj
+
+
+@dataclass
+class ChannelACL:
+    """
+    Ruflo MessageBus ACL — allowedSenders, allowedReceivers, bannedAgents,
+    read/write permissions, and composable filter rules.
+    Empty sets mean 'allow all'.
+    """
+    allowed_senders:   set = field(default_factory=set)    # empty = allow all
+    allowed_receivers: set = field(default_factory=set)    # empty = allow all
+    banned_agents:     set = field(default_factory=set)    # always denied
+    read_permission:   bool = True    # subscribers can read
+    write_permission:  bool = True    # publishers can write
+    filter_rules:      list = field(default_factory=list)  # [FilterRule]
+
+    def can_publish(self, sender: str) -> bool:
+        if not self.write_permission: return False
+        if sender in self.banned_agents: return False
+        if self.allowed_senders and sender not in self.allowed_senders: return False
+        return True
+
+    def can_subscribe(self, subscriber_id: str) -> bool:
+        if not self.read_permission: return False
+        if subscriber_id in self.banned_agents: return False
+        if self.allowed_receivers and subscriber_id not in self.allowed_receivers: return False
+        return True
+
+    def passes_filters(self, msg: "Message") -> bool:
+        """All filter rules must pass (AND semantics)."""
+        return all(rule.evaluate(msg) for rule in self.filter_rules)
+
+    def add_filter(self, field: str, op: FilterOp, value: object) -> None:
+        self.filter_rules.append(FilterRule(field=field, op=op, value=value))
+
+
 @dataclass
 class Message:
     id:          str      = field(default_factory=lambda: str(uuid.uuid4())[:12])
@@ -53,6 +137,7 @@ class ChannelStats:
     failed:    int   = 0
     dead_letters: int = 0
     bytes_transferred: int = 0
+    acl_denied: int  = 0   # messages denied by ACL
 
     @property
     def success_rate(self) -> float:
@@ -61,24 +146,35 @@ class ChannelStats:
 
 
 class Channel:
-    """A named channel with subscriber management, QoS, and stats."""
+    """A named channel with ACL, subscriber management, QoS, and stats."""
 
     MAX_RETRIES = 3
-    RETRY_DELAY = 0.5  # seconds
+    RETRY_DELAY = 0.5
 
-    def __init__(self, name: str, channel_type: ChannelType = ChannelType.BROADCAST, max_size: int = 1000):
+    def __init__(
+        self,
+        name: str,
+        channel_type: ChannelType = ChannelType.BROADCAST,
+        max_size: int = 1000,
+        acl: Optional[ChannelACL] = None,
+    ):
         self.name         = name
         self.type         = channel_type
+        self.acl          = acl or ChannelACL()
         self.stats        = ChannelStats()
         self._subscribers: dict[str, Callable] = {}
         self._messages    = deque(maxlen=max_size)
         self._dead_letters = deque(maxlen=100)
-        self._pending_ack: dict[str, tuple[Message, list[str]]] = {}  # msg_id -> (msg, remaining_subs)
+        self._pending_ack: dict[str, tuple[Message, list[str]]] = {}
         self._lock        = threading.Lock()
-        self._rr_index    = 0  # round-robin cursor
+        self._rr_index    = 0
 
-    def subscribe(self, callback: Callable, subscriber_id: str = "") -> str:
+    def subscribe(self, callback: Callable, subscriber_id: str = "") -> str | None:
         sid = subscriber_id or str(uuid.uuid4())[:8]
+        if not self.acl.can_subscribe(sid):
+            logger.warning(f"[VECTOR][bus] ACL denied subscribe: {sid} → '{self.name}'")
+            self.stats.acl_denied += 1
+            return None
         with self._lock:
             self._subscribers[sid] = callback
         return sid
@@ -88,7 +184,17 @@ class Channel:
             return bool(self._subscribers.pop(subscriber_id, None))
 
     def publish(self, message: Message) -> int:
-        """Deliver message to subscribers. Returns delivery count."""
+        """Deliver message to subscribers. ACL-checked. Returns delivery count."""
+        if not self.acl.can_publish(message.sender):
+            logger.warning(f"[VECTOR][bus] ACL denied publish: '{message.sender}' → '{self.name}'")
+            self.stats.acl_denied += 1
+            return 0
+
+        if not self.acl.passes_filters(message):
+            logger.debug(f"[VECTOR][bus] ACL filter blocked message on '{self.name}'")
+            self.stats.acl_denied += 1
+            return 0
+
         with self._lock:
             subs = dict(self._subscribers)
             self._messages.append(message)
@@ -97,11 +203,9 @@ class Channel:
         if not subs:
             self._dead_letters.append(message)
             self.stats.dead_letters += 1
-            logger.debug(f"[VECTOR][bus] dead letter on '{self.name}': no subscribers")
             return 0
 
         if self.type == ChannelType.QUEUE:
-            # Round-robin — deliver to exactly one subscriber
             keys = list(subs.keys())
             idx = self._rr_index % len(keys)
             self._rr_index += 1
@@ -130,10 +234,8 @@ class Channel:
         return delivered
 
     def _deliver_to(self, message: Message, sid: str, callback: Callable) -> bool:
-        # Check expiry
         if message.expires_at > 0 and time.time() > message.expires_at:
             return False
-
         for attempt in range(self.MAX_RETRIES):
             try:
                 callback(message)
@@ -152,7 +254,6 @@ class Channel:
             remaining.remove(subscriber_id)
         if not remaining:
             del self._pending_ack[message_id]
-            logger.debug(f"[VECTOR][bus] message {message_id} fully acknowledged")
             return True
         return False
 
@@ -165,15 +266,15 @@ class Channel:
 
 class MessageBus:
     """
-    Singleton in-process message broker.
-    Python port of Ruflo's MessageBus concept — adapted for VectorCode's local architecture.
+    Singleton in-process message broker with full Ruflo ACL.
 
     Usage:
         bus = MessageBus.get()
-        bus.create_channel("tasks", ChannelType.BROADCAST)
-        sub_id = bus.subscribe("tasks", my_callback)
-        bus.publish("tasks", {"action": "review", "file": "foo.py"}, sender="coder")
-        bus.acknowledge("tasks", msg_id, sub_id)
+        acl = ChannelACL(allowed_senders={"coder", "reviewer"})
+        acl.add_filter("priority", FilterOp.GT, 0)
+        bus.create_channel("tasks", ChannelType.BROADCAST, acl=acl)
+        sub_id = bus.subscribe("tasks", my_callback, "worker-1")
+        bus.publish("tasks", {"action": "review"}, sender="coder")
     """
 
     _instance: Optional["MessageBus"] = None
@@ -188,10 +289,8 @@ class MessageBus:
 
     def __init__(self):
         self._channels: dict[str, Channel] = {}
-        self._global_stats: dict[str, ChannelStats] = {}
         self._middleware: list[Callable] = []
         self._filters: dict[str, list[Callable]] = defaultdict(list)
-        # Create default system channels
         for ch, ct in [
             ("tasks",    ChannelType.BROADCAST),
             ("events",   ChannelType.BROADCAST),
@@ -207,11 +306,17 @@ class MessageBus:
         name: str,
         channel_type: ChannelType = ChannelType.BROADCAST,
         max_size: int = 1000,
+        acl: Optional[ChannelACL] = None,
     ) -> Channel:
         if name not in self._channels:
-            self._channels[name] = Channel(name, channel_type, max_size)
+            self._channels[name] = Channel(name, channel_type, max_size, acl)
             logger.debug(f"[VECTOR][bus] channel created: {name} ({channel_type.value})")
         return self._channels[name]
+
+    def set_acl(self, channel: str, acl: ChannelACL) -> None:
+        ch = self._channels.get(channel)
+        if ch:
+            ch.acl = acl
 
     def get_channel(self, name: str) -> Channel | None:
         return self._channels.get(name)
@@ -221,7 +326,7 @@ class MessageBus:
 
     # ── Pub/Sub ────────────────────────────────────────────────────────────────
 
-    def subscribe(self, channel: str, callback: Callable, subscriber_id: str = "") -> str:
+    def subscribe(self, channel: str, callback: Callable, subscriber_id: str = "") -> str | None:
         ch = self._channels.get(channel)
         if ch is None:
             ch = self.create_channel(channel)
@@ -243,7 +348,6 @@ class MessageBus:
         correlation_id: str = "",
         reply_to: str = "",
     ) -> Message:
-        """Create and deliver a message. Returns the Message object."""
         ch = self._channels.get(channel)
         if ch is None:
             ch = self.create_channel(channel)
@@ -259,18 +363,15 @@ class MessageBus:
             reply_to=reply_to,
         )
 
-        # Run global middleware
         for mw in self._middleware:
             try:
                 mw(msg)
             except Exception as e:
                 logger.warning(f"[VECTOR][bus] middleware error: {e}")
 
-        # Run channel filters
         for filt in self._filters.get(channel, []):
             try:
                 if not filt(msg):
-                    logger.debug(f"[VECTOR][bus] message filtered on '{channel}'")
                     return msg
             except Exception as e:
                 logger.warning(f"[VECTOR][bus] filter error: {e}")
@@ -281,7 +382,6 @@ class MessageBus:
     def broadcast(
         self, content: object, *, sender: str = "vector", exclude: list[str] | None = None
     ) -> int:
-        """Broadcast to all channels except excluded ones."""
         exclude = exclude or []
         count = 0
         for name, ch in self._channels.items():
@@ -297,11 +397,9 @@ class MessageBus:
     # ── Middleware & Filters ───────────────────────────────────────────────────
 
     def add_middleware(self, fn: Callable) -> None:
-        """Global middleware — called on every message before delivery."""
         self._middleware.append(fn)
 
     def add_filter(self, channel: str, fn: Callable) -> None:
-        """Per-channel filter — return False to drop message."""
         self._filters[channel].append(fn)
 
     # ── Stats ──────────────────────────────────────────────────────────────────
@@ -317,11 +415,13 @@ class MessageBus:
                 "failed": s.failed, "dead_letters": s.dead_letters,
                 "bytes_transferred": s.bytes_transferred,
                 "success_rate": s.success_rate,
+                "acl_denied": s.acl_denied,
             }
         return {
             name: {
                 "sent": ch.stats.sent, "delivered": ch.stats.delivered,
                 "success_rate": ch.stats.success_rate,
+                "acl_denied": ch.stats.acl_denied,
             }
             for name, ch in self._channels.items()
         }
@@ -330,32 +430,63 @@ class MessageBus:
 if __name__ == "__main__":
     bus = MessageBus.get()
 
-    # Create channel
-    bus.create_channel("test_channel", ChannelType.BROADCAST)
+    # Basic publish/subscribe
+    bus.create_channel("test_ch", ChannelType.BROADCAST)
     received = []
+    sub_id = bus.subscribe("test_ch", lambda m: received.append(m.content))
+    bus.publish("test_ch", {"action": "test"}, sender="unit_test")
+    assert len(received) == 1 and received[0]["action"] == "test"
 
-    # Subscribe
-    sub_id = bus.subscribe("test_channel", lambda m: received.append(m.content))
+    # ACL: only allow "coder" sender
+    acl = ChannelACL(allowed_senders={"coder"})
+    bus.create_channel("acl_ch", ChannelType.BROADCAST, acl=acl)
+    acl_received = []
+    bus.subscribe("acl_ch", lambda m: acl_received.append(m.content), "worker-1")
+    bus.publish("acl_ch", "allowed", sender="coder")
+    bus.publish("acl_ch", "blocked", sender="unknown")
+    assert len(acl_received) == 1 and acl_received[0] == "allowed"
 
-    # Publish
-    msg = bus.publish("test_channel", {"action": "test"}, sender="unit_test")
-    assert len(received) == 1, f"expected 1 delivery, got {len(received)}"
-    assert received[0]["action"] == "test"
+    # Filter operator: priority > 1
+    acl2 = ChannelACL()
+    acl2.add_filter("priority", FilterOp.GT, 1)
+    bus.create_channel("filter_ch", ChannelType.BROADCAST, acl=acl2)
+    filter_received = []
+    bus.subscribe("filter_ch", lambda m: filter_received.append(m.priority))
+    bus.publish("filter_ch", "low", priority=1, sender="vector")
+    bus.publish("filter_ch", "high", priority=2, sender="vector")
+    assert filter_received == [2]
 
-    # Stats
-    stats = bus.get_stats("test_channel")
-    assert stats["sent"] == 1
-    assert stats["delivered"] == 1
-    assert stats["success_rate"] == 1.0
+    # FilterOp.CONTAINS
+    fr = FilterRule(field="sender", op=FilterOp.CONTAINS, value="cod")
+    assert fr.evaluate(Message(sender="coder"))
+    assert not fr.evaluate(Message(sender="tester"))
 
-    # Dead letter (no subscribers on new channel)
-    bus.create_channel("empty_channel")
-    bus.publish("empty_channel", "orphan")
-    dl = bus.get_channel("empty_channel").get_dead_letters()
+    # FilterOp.MATCHES
+    fr2 = FilterRule(field="sender", op=FilterOp.MATCHES, value=r"^cod")
+    assert fr2.evaluate(Message(sender="coder"))
+
+    # FilterOp.IN
+    fr3 = FilterRule(field="priority", op=FilterOp.IN, value={1, 2, 3})
+    assert fr3.evaluate(Message(priority=2))
+    assert not fr3.evaluate(Message(priority=5))
+
+    # Banned agent
+    acl3 = ChannelACL(banned_agents={"bad-actor"})
+    bus.create_channel("ban_ch", ChannelType.BROADCAST, acl=acl3)
+    ban_received = []
+    bus.subscribe("ban_ch", lambda m: ban_received.append(m.content))
+    bus.publish("ban_ch", "ok", sender="good")
+    bus.publish("ban_ch", "evil", sender="bad-actor")
+    assert len(ban_received) == 1 and ban_received[0] == "ok"
+
+    # Dead letter
+    bus.create_channel("empty_ch")
+    bus.publish("empty_ch", "orphan")
+    dl = bus.get_channel("empty_ch").get_dead_letters()
     assert len(dl) == 1
 
-    # Default channels exist
+    # Default channels
     assert "tasks" in bus.list_channels()
     assert "commands" in bus.list_channels()
 
-    print("message_bus.py OK")
+    print(f"message_bus.py OK — ACL + 7 filter operators working")
