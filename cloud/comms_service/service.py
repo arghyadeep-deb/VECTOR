@@ -8,7 +8,7 @@ and persistent memory. This service is a thin adapter that:
   3. NEVER rebuilds what Hermes already provides
 
 Start Hermes:
-  ollama launch hermes --model kimi-k2.6:cloud
+  ollama launch hermes --model vector-reasoning
 Then run this service alongside it.
 """
 import sys
