@@ -201,6 +201,8 @@ class FAISSIndex:
             if idx < 0 or idx >= len(self._pos_to_id):
                 continue
             doc_id = self._pos_to_id[idx]
+            if doc_id.startswith("__deleted__"):
+                continue
             # Compute true cosine similarity for score
             stored_vec = self._get_stored_vector_faiss(idx)
             if stored_vec is not None:
