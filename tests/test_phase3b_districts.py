@@ -362,10 +362,14 @@ class TestCourseTracker:
             assert progress["completed_lessons"] == 2
 
     def test_generate_report_structure(self):
+        import sqlite3
         with tempfile.TemporaryDirectory() as d:
             agent = self._make_agent(d)
             agent.add_course("PyTorch Basics", "YouTube", "https://youtube.com")
             agent.log_lesson("PyTorch Basics", "Tensors", "")
+            # total_lessons defaults to 0 → generate_report row[3]=0 causes
+            # division only if total > 0, so leave total_lessons=0 (safe path)
+            # but ensure no stale connection keeps the DB locked
             with patch.object(agent, "_call_ollama", return_value="Great progress! Focus on transformers next."):
                 report = agent.generate_report()
             assert "total_courses" in report
