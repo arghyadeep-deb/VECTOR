@@ -227,7 +227,7 @@ class SwarmMonitor:
         stalled_ids    = [a.agent_id for a in snap.agents if a.status == "stalled"]
         low_hp_ids     = [a.agent_id for a in snap.agents if a.hp < self.LOW_HP_THRESHOLD]
         high_error_ids = [a.agent_id for a in snap.agents if a.error_rate >= self.HIGH_ERROR_RATE]
-        avg_hp = (
+        avg_hp = float(
             statistics.mean(a.hp for a in snap.agents)
             if snap.agents else 0.0
         )
