@@ -328,7 +328,7 @@ Full catalog: `docs/public_apis.md`
 | Deploy dashboard | `cd dashboard && vercel --prod` | MEDIUM |
 | Pull vector-deep base | `ollama pull gemma4:26b` | HIGH (for overnight tasks) |
 | Pull vector-chairman base | `ollama pull gemma4:31b` | HIGH (for council + reflection) |
-| Pull qwen3:30b-a3b | `ollama pull qwen3:30b-a3b` | MEDIUM (MoE reasoning upgrade) |
+| ~~Pull qwen3:30b-a3b~~ | ~~`ollama pull qwen3:30b-a3b`~~ | ✅ Already installed |
 | Create vector-deep | `ollama create vector-deep -f modelfiles/vector-deep.modelfile` | HIGH (after pull) |
 | Create vector-chairman | `ollama create vector-chairman -f modelfiles/vector-chairman.modelfile` | HIGH (after pull) |
 | Phone ambient node | Run `phone_node/setup.sh` on Termux | LOW (phone not ready) |
