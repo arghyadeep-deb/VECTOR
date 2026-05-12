@@ -227,6 +227,8 @@ cd dashboard && vercel --prod
 | `tests/test_point_system.py` | — | ✅ |
 | `tests/test_research_district.py` | — | ✅ |
 | `tests/test_phase2_districts.py` | 47 | ✅ |
+| `tests/test_phase3a_districts.py` | 35 | ✅ relationships, privacy, pattern_detective |
+| `tests/test_phase3b_districts.py` | 52 | ✅ news_trends, learning, startups, calls |
 
 ---
 
