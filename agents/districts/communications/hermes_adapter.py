@@ -473,6 +473,11 @@ if __name__ == "__main__":
         assert adapter.name == "HermesAdapter"
         assert adapter.district == "communications"
 
+        # KNOWN_PLATFORMS class attribute exists and has expected entries
+        assert "telegram" in HermesAdapter.KNOWN_PLATFORMS
+        assert "discord" in HermesAdapter.KNOWN_PLATFORMS
+        assert len(HermesAdapter.KNOWN_PLATFORMS) >= 14
+
         # connect() gracefully handles Hermes being offline
         connected = await adapter.connect()
         logger.info(f"[smoke] connected={connected}")
@@ -486,6 +491,23 @@ if __name__ == "__main__":
         result = await adapter.send_notification("Test from VECTOR", "normal")
         assert result.get("status") in ("sent", "queued", "error")
 
-        print(f"✅ hermes_adapter OK — connected={connected}, status={status}")
+        # list_cron_jobs returns list (empty if offline)
+        jobs = await adapter.list_cron_jobs()
+        assert isinstance(jobs, list)
+        logger.info(f"[smoke] list_cron_jobs={jobs}")
+
+        # get_sessions returns list (empty if offline)
+        sessions = await adapter.get_sessions()
+        assert isinstance(sessions, list)
+        logger.info(f"[smoke] get_sessions count={len(sessions)}")
+
+        # send_to_channel warns on unknown platform but does not raise
+        bad_platform_result = await adapter.send_to_channel("myspace", "test", "normal")
+        assert bad_platform_result.get("status") in ("sent", "error")
+
+        print(
+            f"✅ hermes_adapter OK — connected={connected}, status={status}, "
+            f"cron_jobs={len(jobs)}, sessions={len(sessions)}"
+        )
 
     asyncio.run(_smoke())
