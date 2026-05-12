@@ -42,7 +42,11 @@ glm-5.1:cloud                      — Council Chairman (until your LLM ready)
 ```
 Real-time conversation   → vector-focus (permanent VRAM, 40+ tok/s)
 Hindi/Bengali/Assamese  → vector-multilingual (load on demand)
-Code generation         → vector-coder OR qwen3:14b (load on demand)
+Code generation         → vector-coder OR devstral:24b (load on demand)
+Code review / refactor  → devstral:24b (code-specialist, 24B quality)
+Chain-of-thought tasks  → deepseek-r1:14b (R1-style reasoning traces)
+Fast general fallback   → mistral-small3.1 (low latency, broad knowledge)
+Large-context reasoning → qwen3:30b-a3b (30B class, only 3B active VRAM)
 Council/reasoning       → vector-reasoning + kimi-k2.6 + glm-5.1
 Deep overnight tasks    → gemma4:26b or gemma4:31b (hybrid, 3-6 tok/s)
 70B tasks               → AirLLM (streams layers, slow but works)
