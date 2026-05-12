@@ -240,6 +240,33 @@ cd dashboard && vercel --prod
 
 ---
 
+## Background Task Queue ✅ COMPLETE
+
+| Component | File | Feature |
+|-----------|------|---------|
+| TaskQueue singleton | `core/loop/task_queue.py` | asyncio pool + ThreadPoolExecutor, Priority enum, cancel/status |
+| Terminal commands | `core/ui/chat.py` | `/bg <task>` `/tasks` `/cancel <id>` |
+| Browser panel | `core/ui/web_ui.py` | Tasks tab, live 5s polling, cancel button, submit form |
+| REST router | `core/api/routers/tasks.py` | `GET /tasks/` `GET /tasks/{id}` `DELETE /tasks/{id}` `POST /tasks/submit` |
+| Loop integration | `core/loop/autonomous_loop.py` | `TaskQueue.get()` bootstrapped at `run_forever()` start |
+
+Triple notification on complete/fail: terminal line + episodic memory (RULE 8) + Pushover.
+
+---
+
+## District Upgrades ✅ COMPLETE
+
+| Agent | Upgrade |
+|-------|---------|
+| `research/research_hub.py` | +7 sources: CoinGecko, Econdb, Crossref, OpenAQ, Yahoo Finance NSE, tech-feed, ProductHunt |
+| `investment/stock_analyst.py` | CoinGecko crypto quotes + Yahoo Finance NSE/BSE (yfinance fallback) |
+| `coding/code_reviewer.py` | Severity tiers (error/warning/info) + AgentShield prompt-injection patterns |
+| `communications/hermes_adapter.py` | `schedule_cron_job()` + `register_skill()` + KNOWN_PLATFORMS routing |
+| `content/comfyui_adapter.py` | NEW — local Stable Diffusion via ComfyUI HTTP API; graceful if offline |
+| `docs/public_apis.md` | NEW — complete zero-key API catalog for all districts |
+
+---
+
 ## Models Routing
 
 | Model | Base | Used For |
@@ -251,6 +278,10 @@ cd dashboard && vercel --prod
 | vector-reasoning | qwen3:14b | Step-by-step analysis, council member |
 | vector-deep | gemma4:26b | Overnight analysis, 65K context |
 | vector-chairman | gemma4:31b | Council chairman, daily reflection |
+| deepseek-r1:14b | — | Chain-of-thought / R1-style reasoning traces |
+| devstral:24b | — | Code review + refactor specialist |
+| mistral-small3.1 | — | Fast general-purpose fallback |
+| qwen3:30b-a3b | — | 30B-class reasoning, only 3B active VRAM |
 
 **Rebuild all:**
 ```bash
