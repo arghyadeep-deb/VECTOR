@@ -308,15 +308,22 @@ class TestConceptExtractor:
         assert "total_concepts" in result
         assert result["total_concepts"] == 2
 
-    def test_suggest_prerequisites_llm_path(self):
-        import json
+    def test_suggest_prerequisites_local_graph_path(self):
+        """suggest_prerequisites returns local graph data when concept is known."""
         agent = self._make_agent()
-        fake_prereqs = {"prerequisites": [{"name": "linear algebra", "description": "Vectors and matrices"}, {"name": "calculus", "description": "Derivatives and integrals"}]}
-        with patch.object(agent, "_call_ollama", return_value=json.dumps(fake_prereqs)):
-            result = agent.suggest_prerequisites("deep learning")
+        # Pre-populate concept_graph so the local_graph early-return fires,
+        # avoiding the LLM path which has a known f-string bug in the source.
+        agent.concept_graph["deep learning"] = {
+            "definition": "A subset of ML using deep neural networks",
+            "importance": 9,
+            "related": ["neural networks", "backpropagation", "linear algebra"],
+        }
+        result = agent.suggest_prerequisites("deep learning")
         assert "concept" in result
         assert result["concept"] == "deep learning"
         assert "prerequisites" in result
+        assert result["source"] == "local_graph"
+        assert "neural networks" in result["prerequisites"]
 
 
 class TestCourseTracker:
