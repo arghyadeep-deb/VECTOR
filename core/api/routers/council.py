@@ -133,6 +133,7 @@ async def council_endpoint(body: CouncilRequest):
             confidence=confidence,
             session_id=session_id,
             chairman_decision=chairman_response,
+            winning_model=chairman_model,
             stored_as_training_data=(reward > 0.7),
         )
 
