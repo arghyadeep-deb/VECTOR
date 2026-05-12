@@ -219,25 +219,38 @@ class VectorREPL:
     COMMANDS = {
         "/help":    "Show commands",
         "/status":  "Session status",
-        "/mode":    "/mode auto|repl|hybrid",
-        "/model":   "/model <name>  — force a model",
+        "/mode":    "/mode auto|repl|hybrid|cautious|standard|autonomous|read-only",
+        "/model":   "/model <provider/name>  — switch model",
+        "/models":  "List configured models",
+        "/memory":  "Show session memory (.vector/memory.md)",
+        "/compact": "Manually trigger context compaction",
+        "/cost":    "Show token usage and estimated cost",
+        "/diff":    "Show all file changes made this session",
+        "/commit":  "/commit [msg]  — commit all changes with AI-generated message",
+        "/spawn":   "/spawn <task>  — spawn a worker agent for a sub-task",
+        "/undo":    "Revert the last file write (shows path to manually undo)",
         "/skills":  "List available skills",
         "/clear":   "Clear conversation history",
         "/save":    "Save session to disk",
         "/restore": "Restore last session",
-        "/tools":   "List MCP tool categories",
+        "/tools":   "List tool categories",
         "/quit":    "Exit VECTOR",
     }
 
-    def __init__(self) -> None:
-        self.session  = VectorCodeSession.get()
+    def __init__(self, project_dir: "Path | None" = None) -> None:
+        self.session      = VectorCodeSession.get()
         self.session.set_mode("repl")
-        self.router   = SemanticRouter()
-        self.gsd      = GSDLoop(mode="repl")
-        self._skills  = _scan_skills()
-        self._history = [{"role": "system",
-                          "content": _build_system_prompt(_build_skills_index(self._skills))}]
-        self._running = False
+        self.router       = SemanticRouter()
+        self.gsd          = GSDLoop(mode="repl")
+        self._skills      = _scan_skills()
+        self._project_dir = project_dir or Path.cwd()
+        self._history     = [{"role": "system",
+                               "content": _build_system_prompt(
+                                   _build_skills_index(self._skills),
+                                   self._project_dir,
+                               )}]
+        self._running     = False
+        self._last_write:  "str | None" = None  # track last file written for /undo
 
     # ── slash commands ────────────────────────────────────────────────────────
 
