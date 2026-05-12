@@ -94,6 +94,52 @@ def cmd_mcp(args):
     subprocess.run(cmd)
 
 
+def cmd_run(args):
+    """One-shot non-interactive task. Reads from stdin if no task given."""
+    import select
+    task = " ".join(args.task) if getattr(args, "task", None) else ""
+
+    # Support pipe: cat error.log | vector run "explain this"
+    if not task:
+        stdin_data = ""
+        try:
+            if not sys.stdin.isatty():
+                stdin_data = sys.stdin.read()
+        except Exception:
+            pass
+        if stdin_data:
+            task = stdin_data.strip()
+
+    if not task:
+        print("Usage: vector run \"your task here\"  OR  cat file | vector run")
+        sys.exit(1)
+
+    project_dir = Path(getattr(args, "dir", None) or ".").resolve()
+    model_override = getattr(args, "model", None)
+    mode_override  = getattr(args, "mode",  None)
+
+    from agents.districts.coding.vectorcode.repl import VectorREPL
+    repl = VectorREPL(project_dir=project_dir)
+    if model_override:
+        repl.session.current_model = model_override
+    if mode_override:
+        try:
+            repl.session.set_mode(mode_override)
+        except ValueError as e:
+            print(f"[VECTOR] {e}")
+
+    # Inject task as user message and get single response
+    import ollama as _ollama
+    repl._history.append({"role": "user", "content": task})
+    from agents.districts.coding.vectorcode.repl import _ask_ollama
+    reply = _ask_ollama(repl.session.current_model, repl._history)
+    repl._history.append({"role": "assistant", "content": reply})
+
+    # Auto-save on exit
+    from agents.districts.coding.vectorcode.repl import _save_session
+    _save_session(repl._history, repl.session.current_model)
+
+
 def cmd_status(_args):
     from agents.districts.coding.vectorcode.session import VectorCodeSession
     s = VectorCodeSession.get()
@@ -102,6 +148,198 @@ def cmd_status(_args):
     print(f"Task    : {s.task_id or 'none'}")
     print(f"History : {len(s.history)} entries")
     print(f"Agents  : {len(s.active_agents)} active")
+    print(f"Tokens  : {s.token_usage.total_tokens} (${s.cost_usd:.4f})")
+
+
+# ── Sessions subcommands ───────────────────────────────────────────────────────
+
+def cmd_sessions(args):
+    from agents.districts.coding.vectorcode.config import SESSION_DIR
+
+    action = getattr(args, "action", "list") or "list"
+
+    if action == "list":
+        if not SESSION_DIR.exists():
+            print("No sessions found.")
+            return
+        sessions = sorted(SESSION_DIR.glob("*.json"), reverse=True)[:20]
+        if not sessions:
+            print("No sessions found.")
+            return
+        print(f"{'ID':<38}  {'Date':<20}  {'Model':<30}  Cost")
+        print("-" * 100)
+        for s_path in sessions:
+            try:
+                data = json.loads(s_path.read_text(encoding="utf-8"))
+                sid   = data.get("id", s_path.stem)[:36]
+                date  = data.get("created_at", "")[:19]
+                model = data.get("model", "?")[:28]
+                cost  = f"${data.get('cost_usd', 0):.4f}"
+                print(f"{sid:<38}  {date:<20}  {model:<30}  {cost}")
+            except Exception:
+                print(f"  {s_path.name} (unreadable)")
+
+    elif action == "resume":
+        session_id = getattr(args, "id", None)
+        if not session_id:
+            print("Usage: vector sessions resume <session-id>")
+            return
+        target = SESSION_DIR / f"{session_id}.json"
+        if not target.exists():
+            # Try prefix match
+            matches = list(SESSION_DIR.glob(f"{session_id}*.json"))
+            if not matches:
+                print(f"Session not found: {session_id}")
+                return
+            target = matches[0]
+        data = json.loads(target.read_text(encoding="utf-8"))
+        from agents.districts.coding.vectorcode.repl import VectorREPL
+        _print_banner()
+        repl = VectorREPL()
+        repl._history = data.get("messages", [])
+        repl.session.current_model = data.get("model", repl.session.current_model)
+        print(f"  Resumed session {data.get('id', '')[:8]}... ({len(repl._history)} messages)\n")
+        repl.run()
+
+    elif action == "export":
+        session_id = getattr(args, "id", None)
+        if not session_id:
+            print("Usage: vector sessions export <session-id>")
+            return
+        target = SESSION_DIR / f"{session_id}.json"
+        if not target.exists():
+            matches = list(SESSION_DIR.glob(f"{session_id}*.json"))
+            if not matches:
+                print(f"Session not found: {session_id}")
+                return
+            target = matches[0]
+        data = json.loads(target.read_text(encoding="utf-8"))
+        lines = [
+            f"# VectorCode Session Export",
+            f"",
+            f"**ID:** {data.get('id', '')}  ",
+            f"**Date:** {data.get('created_at', '')}  ",
+            f"**Model:** {data.get('model', '')}  ",
+            f"**Project:** {data.get('project', '')}  ",
+            f"**Cost:** ${data.get('cost_usd', 0):.4f}  ",
+            f"",
+            "---",
+            "",
+        ]
+        for msg in data.get("messages", []):
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            if role == "system":
+                continue
+            lines.append(f"**{role.title()}:** {content}")
+            lines.append("")
+        print("\n".join(lines))
+
+    else:
+        print(f"Unknown sessions action: {action}")
+
+
+# ── Models subcommands ─────────────────────────────────────────────────────────
+
+def cmd_models(args):
+    action = getattr(args, "action", "list") or "list"
+
+    if action == "list":
+        from agents.districts.coding.vectorcode.providers import ModelRouter
+        from agents.districts.coding.vectorcode.config import VectorConfig
+        cfg = VectorConfig()
+        router = ModelRouter()
+        print("Configured models:")
+        for key in ("default", "fast", "local"):
+            m = cfg.get("model", key, default="(not set)")
+            print(f"  {key:<10}: {m}")
+        print("\nConfigured providers:")
+        providers_cfg = cfg.get("providers", default={})
+        for name in (providers_cfg or {}).keys():
+            print(f"  {name}")
+
+    elif action == "test":
+        model_id = getattr(args, "model_id", None)
+        if not model_id:
+            print("Usage: vector models test <provider/model>")
+            return
+        from agents.districts.coding.vectorcode.providers import ModelRouter
+        router = ModelRouter()
+        print(f"Testing {model_id}...", flush=True)
+        result = router.test_connection(model_id)
+        status = "✓ OK" if result.get("ok") else "✗ FAILED"
+        print(f"  {status}  latency={result.get('latency_ms', -1)}ms")
+        if not result.get("ok"):
+            print(f"  Error: {result.get('error', result.get('response', ''))}")
+
+    elif action == "set-default":
+        model_id = getattr(args, "model_id", None)
+        if not model_id:
+            print("Usage: vector models set-default <provider/model>")
+            return
+        from agents.districts.coding.vectorcode.config import GLOBAL_CONFIG_PATH, GLOBAL_CONFIG_DIR
+        GLOBAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        content = ""
+        if GLOBAL_CONFIG_PATH.exists():
+            content = GLOBAL_CONFIG_PATH.read_text(encoding="utf-8")
+        import re
+        if re.search(r'^\s*default\s*=', content, re.M):
+            content = re.sub(r'(^\s*default\s*=\s*")[^"]*"', f'\\g<1>{model_id}"', content, flags=re.M)
+        else:
+            content += f'\n[model]\ndefault = "{model_id}"\n'
+        GLOBAL_CONFIG_PATH.write_text(content, encoding="utf-8")
+        print(f"Default model set to: {model_id}")
+
+    elif action == "pull":
+        model_name = getattr(args, "model_id", None)
+        if not model_name:
+            print("Usage: vector models pull <ollama-model-name>")
+            return
+        import subprocess
+        print(f"Pulling {model_name} via Ollama...")
+        subprocess.run(["ollama", "pull", model_name])
+
+    else:
+        print(f"Unknown models action: {action}")
+
+
+# ── Agents subcommands ─────────────────────────────────────────────────────────
+
+def cmd_agents(args):
+    action = getattr(args, "action", "list") or "list"
+
+    if action == "list":
+        try:
+            from core.city.agent_registry import get_registry
+            agents = get_registry().list_all()
+            if not agents:
+                print("No agents registered.")
+                return
+            print(f"{'Name':<30}  {'District':<20}  {'HP':<6}  Model")
+            print("-" * 80)
+            for a in agents:
+                print(f"  {a.get('name','?'):<28}  {a.get('district','?'):<20}  {a.get('health_points','?'):<6}  {a.get('model','?')}")
+        except Exception as e:
+            print(f"[VECTOR] Could not list agents: {e}")
+
+    elif action == "run":
+        agent_name = getattr(args, "agent_name", None)
+        if not agent_name:
+            print("Usage: vector agents run <agent-name>")
+            return
+        try:
+            from core.city.agent_registry import get_registry
+            reg = get_registry()
+            agent = reg.get(agent_name)
+            if not agent:
+                print(f"Agent not found: {agent_name}")
+                return
+            print(f"[VECTOR] Running agent: {agent_name}")
+        except Exception as e:
+            print(f"[VECTOR] Agent run failed: {e}")
+
+    else:
+        print(f"Unknown agents action: {action}")
 
 
 def main():
@@ -109,26 +347,85 @@ def main():
         prog="vector",
         description="VectorCode — VECTOR's local coding agent",
     )
+    # Global flags (apply to repl + run)
+    parser.add_argument("--model", default=None, help="Override model (e.g. anthropic/claude-sonnet-4-6)")
+    parser.add_argument("--mode",  default=None, help="Permission mode: cautious|standard|autonomous|read-only")
+    parser.add_argument("--dir",   default=None, help="Project directory (default: current dir)")
+
     sub = parser.add_subparsers(dest="cmd")
 
     sub.add_parser("repl",   help="Mode A: interactive terminal REPL (default)")
+
+    run_p = sub.add_parser("run", help="One-shot non-interactive task")
+    run_p.add_argument("task", nargs="*", help="Task description (or pipe via stdin)")
+    run_p.add_argument("--model", default=None)
+    run_p.add_argument("--mode",  default=None)
+    run_p.add_argument("--dir",   default=None)
+
     auto_p = sub.add_parser("auto", help="Mode B: autonomous single task")
     auto_p.add_argument("task", nargs="*", help="Task description")
+
     sub.add_parser("hybrid", help="Mode C: hybrid with checkpoint gates")
+
     mcp_p = sub.add_parser("mcp", help="Start MCP server")
     mcp_p.add_argument("--sse", action="store_true", help="Use SSE transport on port 9000")
+
     sub.add_parser("status", help="Show current session status")
+
+    # sessions subcommand
+    sess_p = sub.add_parser("sessions", help="Manage past sessions")
+    sess_sub = sess_p.add_subparsers(dest="action")
+    sess_sub.add_parser("list", help="List past sessions")
+    resume_p = sess_sub.add_parser("resume", help="Resume a session by ID")
+    resume_p.add_argument("id", help="Session ID (or prefix)")
+    export_p = sess_sub.add_parser("export", help="Export session as Markdown")
+    export_p.add_argument("id", help="Session ID (or prefix)")
+
+    # models subcommand
+    models_p = sub.add_parser("models", help="Manage model providers")
+    models_sub = models_p.add_subparsers(dest="action")
+    models_sub.add_parser("list", help="List configured models and providers")
+    test_mp = models_sub.add_parser("test", help="Test a model connection")
+    test_mp.add_argument("model_id", help="e.g. ollama/vector-focus")
+    setdef_p = models_sub.add_parser("set-default", help="Set the default model")
+    setdef_p.add_argument("model_id", help="e.g. anthropic/claude-sonnet-4-6")
+    pull_p = models_sub.add_parser("pull", help="Pull a model via Ollama")
+    pull_p.add_argument("model_id", help="Model name e.g. qwen2.5-coder:32b")
+
+    # agents subcommand
+    agents_p = sub.add_parser("agents", help="Manage VECTOR agents")
+    agents_sub = agents_p.add_subparsers(dest="action")
+    agents_sub.add_parser("list", help="List registered agents")
+    run_ap = agents_sub.add_parser("run", help="Run a named agent")
+    run_ap.add_argument("agent_name", help="Agent name")
 
     args = parser.parse_args()
 
     dispatch = {
-        "repl":   cmd_repl,
-        "auto":   cmd_auto,
-        "hybrid": cmd_hybrid,
-        "mcp":    cmd_mcp,
-        "status": cmd_status,
-        None:     cmd_repl,   # default: REPL
+        "repl":     cmd_repl,
+        "run":      cmd_run,
+        "auto":     cmd_auto,
+        "hybrid":   cmd_hybrid,
+        "mcp":      cmd_mcp,
+        "status":   cmd_status,
+        "sessions": cmd_sessions,
+        "models":   cmd_models,
+        "agents":   cmd_agents,
+        None:       cmd_repl,
     }
+
+    # Apply global --model/--mode/--dir to repl command
+    if args.cmd in (None, "repl"):
+        if getattr(args, "model", None):
+            from agents.districts.coding.vectorcode.session import VectorCodeSession
+            VectorCodeSession.get().current_model = args.model
+        if getattr(args, "mode", None):
+            try:
+                from agents.districts.coding.vectorcode.session import VectorCodeSession
+                VectorCodeSession.get().set_mode(args.mode)
+            except ValueError as e:
+                print(f"[VECTOR] {e}")
+
     dispatch[args.cmd](args)
 
 
