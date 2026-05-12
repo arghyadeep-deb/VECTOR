@@ -753,9 +753,11 @@ class ResearchHub(AgentBase):
         gh_task = self.get_github_trending("python", limit=5)
         devto_task = self.get_devto_posts("machinelearning", limit=5)
         arxiv_task = self.search_arxiv("large language model", max_results=3, category="cs.AI")
+        crypto_task = self.get_crypto_prices()
+        tech_news_task = self.get_tech_news(limit=10)
 
-        hn, gh, devto, arxiv = await asyncio.gather(
-            hn_task, gh_task, devto_task, arxiv_task
+        hn, gh, devto, arxiv, crypto, tech_news = await asyncio.gather(
+            hn_task, gh_task, devto_task, arxiv_task, crypto_task, tech_news_task
         )
 
         digest = {
@@ -764,6 +766,8 @@ class ResearchHub(AgentBase):
             "github_trending": gh,
             "devto": devto,
             "arxiv": arxiv,
+            "crypto_prices": crypto,
+            "tech_news": tech_news,
         }
 
         # Store summary in episodic memory
@@ -772,7 +776,8 @@ class ResearchHub(AgentBase):
             mem = EpisodicMemory()
             summary = (
                 f"Daily digest: {len(hn)} HN stories, {len(gh)} GitHub repos, "
-                f"{len(devto)} DEV.to posts, {len(arxiv)} ArXiv papers"
+                f"{len(devto)} DEV.to posts, {len(arxiv)} ArXiv papers, "
+                f"{len(crypto)} crypto prices, {len(tech_news)} tech news items"
             )
             mem.store(
                 event_type="daily_research_digest",
@@ -784,7 +789,8 @@ class ResearchHub(AgentBase):
             pass
 
         self.award_points(10, "daily_digest")
-        logger.info(f"[VECTOR][research_hub] daily_digest complete: {len(hn)+len(gh)+len(devto)+len(arxiv)} total items")
+        total = len(hn) + len(gh) + len(devto) + len(arxiv) + len(crypto) + len(tech_news)
+        logger.info(f"[VECTOR][research_hub] daily_digest complete: {total} total items")
         return digest
 
 
