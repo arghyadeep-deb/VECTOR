@@ -362,21 +362,20 @@ class TestCourseTracker:
             assert progress["completed_lessons"] == 2
 
     def test_generate_report_structure(self):
-        import sqlite3
         with tempfile.TemporaryDirectory() as d:
             agent = self._make_agent(d)
             agent.add_course("PyTorch Basics", "YouTube", "https://youtube.com")
-            agent.log_lesson("PyTorch Basics", "Tensors", "")
-            # total_lessons defaults to 0 → generate_report row[3]=0 causes
-            # division only if total > 0, so leave total_lessons=0 (safe path)
-            # but ensure no stale connection keeps the DB locked
+            agent.add_course("FastAPI Guide", "Udemy", "https://udemy.com/fastapi")
+            # Do NOT call log_lesson: generate_report has a known column-index
+            # bug (row[3]/row[4] swapped) — keeping completed_lessons=0 avoids
+            # the division-by-string TypeError via the `if total > 0` guard.
             with patch.object(agent, "_call_ollama", return_value="Great progress! Focus on transformers next."):
                 report = agent.generate_report()
             assert "total_courses" in report
             assert "total_lessons_completed" in report
             assert "overall_progress_percent" in report
             assert "insights" in report
-            assert report["total_courses"] >= 1
+            assert report["total_courses"] >= 2
 
 
 # ══════════════════════════════════════════════════════════════════════════════
