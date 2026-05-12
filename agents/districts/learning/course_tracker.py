@@ -168,8 +168,8 @@ class CourseTracker(AgentBase):
         cursor = conn.execute("SELECT name, platform, total_lessons, completed_lessons, added_at FROM courses")
         courses = []
         for row in cursor.fetchall():
-            total = row[3]
-            completed = row[4]
+            total = row[2]
+            completed = row[3]
             pct = round((completed / total) * 100, 2) if total > 0 else 0.0
             courses.append({"name": row[0], "platform": row[1], "total": total, "completed": completed, "percent": pct, "added_at": row[4]})
 
