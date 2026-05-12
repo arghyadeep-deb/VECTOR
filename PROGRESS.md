@@ -328,9 +328,13 @@ Full catalog: `docs/public_apis.md`
 | Deploy dashboard | `cd dashboard && vercel --prod` | MEDIUM |
 | Pull vector-deep base | `ollama pull gemma4:26b` | HIGH (for overnight tasks) |
 | Pull vector-chairman base | `ollama pull gemma4:31b` | HIGH (for council + reflection) |
-| ~~Pull qwen3:30b-a3b~~ | ~~`ollama pull qwen3:30b-a3b`~~ | ✅ Already installed |
+| ~~Pull qwen3:30b-a3b~~ | ~~installed~~ | ✅ Done — 18 GB |
+| ~~deepseek-r1:14b~~ | ~~installed~~ | ✅ Done — 9 GB, R1 reasoning |
+| ~~devstral:24b~~ | ~~installed~~ | ✅ Done — 14 GB, code specialist |
+| ~~mistral-small3.1~~ | ~~installed~~ | ✅ Done — 15 GB, fast fallback |
 | Create vector-deep | `ollama create vector-deep -f modelfiles/vector-deep.modelfile` | HIGH (after pull) |
 | Create vector-chairman | `ollama create vector-chairman -f modelfiles/vector-chairman.modelfile` | HIGH (after pull) |
+| Install ComfyUI | Download from github.com/comfyanonymous/ComfyUI | MEDIUM (for image gen) |
 | Phone ambient node | Run `phone_node/setup.sh` on Termux | LOW (phone not ready) |
 | Download Kokoro TTS model | ~300MB from kokoro-onnx releases | MEDIUM |
 | Train "Hey VECTOR" wake word | openwakeword custom training | LOW |
