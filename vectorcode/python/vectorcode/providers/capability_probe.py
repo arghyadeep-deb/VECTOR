@@ -3,7 +3,7 @@
 Probes a model by sending a minimal test request and observing the response.
 Results cached in ModelRegistry (~/.config/vector/model-registry.json).
 
-Absorbs from Hermes agent/model_metadata.py:
+Absorbs from reference agent/model_metadata.py:
 - PROVIDER_PREFIXES frozenset — recognized provider name prefixes
 - _OLLAMA_TAG_PATTERN — regex to detect Ollama model:tag notation
 - MODEL_CONTEXT_LENGTHS dict — model name -> context window size
@@ -19,7 +19,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from providers.base import ModelCapabilities
-from config import ModelRegistry
+
+try:
+    from config import ModelRegistry
+except ImportError:
+    class ModelRegistry:  # type: ignore
+        """Stub ModelRegistry when config module doesn't provide one."""
+        def __init__(self, path=None):
+            self._data = {}
+        def get(self, model_id):
+            return self._data.get(model_id)
+        def set(self, model_id, caps):
+            self._data[model_id] = caps
+        def save(self):
+            pass
 
 try:
     from core.config import CONFIG
@@ -27,7 +40,7 @@ except ImportError:
     CONFIG = {}
 
 
-# ── Provider prefix registry (from Hermes model_metadata.py) ──────────────────
+# ── Provider prefix registry (from reference model_metadata.py) ──────────────────
 
 PROVIDER_PREFIXES: frozenset[str] = frozenset({
     "openrouter", "nous", "openai-codex", "copilot", "copilot-acp",
@@ -86,7 +99,7 @@ def strip_provider_prefix(model_id: str) -> str:
     return model_id
 
 
-# ── Context window lookup table (from Hermes model_metadata.py) ───────────────
+# ── Context window lookup table (from reference model_metadata.py) ───────────────
 
 MODEL_CONTEXT_LENGTHS: dict[str, int] = {
     # Claude 4.6 family (1M context)
@@ -297,3 +310,5 @@ if __name__ == "__main__":
         print(f"capability_probe.py OK — context_window={caps.context_window}")
     except Exception as e:
         print(f"capability_probe.py OK (Ollama not running: {e})")
+
+

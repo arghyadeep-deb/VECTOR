@@ -1,9 +1,9 @@
 """VectorCode credential pool — multi-key failover with cooldown persistence.
 
-Ported from Hermes agent/credential_pool.py, adapted for VectorCode's
+Ported from reference agent/credential_pool.py, adapted for VectorCode's
 provider config (TOML-based, no OAuth, API-key only).
 
-Pool strategy follows Hermes: fill_first (default) or round_robin.
+Pool strategy uses: fill_first (default) or round_robin.
 Cooldown status is persisted to ~/.vector/credentials_status.json so that
 exhausted keys survive process restarts.
 """
@@ -234,6 +234,32 @@ class CredentialPool:
             cred.priority = max((e.priority for e in self._entries), default=-1) + 1
             self._entries.append(cred)
         self._persist_status()
+
+    def has_available(self) -> bool:
+        """Return True if at least one credential is not in cooldown."""
+        with self._lock:
+            return any(e.is_available for e in self._entries)
+
+    def entries(self) -> list:
+        """Return all entries (snapshot)."""
+        with self._lock:
+            return list(self._entries)
+
+    def rotate(self) -> None:
+        """Mark the current credential exhausted and advance to the next.
+        Called by engine/recovery.py on 429/401 errors.
+        """
+        with self._lock:
+            available = [e for e in self._entries if e.is_available]
+            if not available:
+                return
+            # Mark the first available as exhausted temporarily
+            current = available[0]
+            current.status = STATUS_EXHAUSTED
+            current.cooldown_until = time.time() + DEFAULT_COOLDOWN_SECONDS
+            current.status_at = time.time()
+        self._persist_status()
+        logger.info(f"[VECTOR][creds] rotated away from {current.label!r}")
 
     def list_all(self) -> List[PooledCredential]:
         """Return a snapshot of all entries."""
@@ -550,3 +576,5 @@ if __name__ == "__main__":
     assert "anthropic" in report
 
     print("credentials.py OK")
+
+

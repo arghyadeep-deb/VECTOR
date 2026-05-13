@@ -25,7 +25,26 @@ from providers.openai_compat import (
     LMStudioProvider,
 )
 from providers.capability_probe import CapabilityProbe
-from config import VectorConfig
+
+try:
+    from config import VectorConfig as _VectorConfig
+    class _ConfigShim:
+        def __init__(self, project_dir=None):
+            self._cfg = {}
+        def provider_config(self, name):
+            return {}
+        def get(self, key, default=None):
+            return default
+    VectorConfig = _VectorConfig
+except (ImportError, Exception):
+    class VectorConfig:  # type: ignore
+        def __init__(self, project_dir=None):
+            self._cfg = {}
+        def provider_config(self, name):
+            import os
+            return {"api_key": os.getenv(f"{name.upper()}_API_KEY", "")}
+        def get(self, key, default=None):
+            return default
 
 
 _BUILTIN_PROVIDERS: dict[str, type] = {
@@ -132,6 +151,54 @@ class ModelRouter:
             return {"ok": ok, "latency_ms": latency, "response": result.message.content[:50]}
         except Exception as e:
             return {"ok": False, "latency_ms": -1, "error": str(e)}
+
+    async def chat(
+        self,
+        model: str,
+        messages: list,
+        tools: list | None = None,
+        **kwargs,
+    ) -> dict:
+        """Async chat interface used by engine/conversation.py.
+
+        Wraps the sync complete() in a thread to avoid blocking the event loop.
+        Returns a normalized dict with 'message.content' and 'message.tool_calls'.
+        """
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: self.complete(model, messages, tools=tools, stream=False),
+        )
+        # Normalize to dict format expected by engine
+        content = getattr(getattr(result, "message", None), "content", "") or ""
+        tool_calls = getattr(getattr(result, "message", None), "tool_calls", []) or []
+        return {
+            "message": {
+                "content": content,
+                "tool_calls": [
+                    {
+                        "id": getattr(tc, "id", ""),
+                        "name": getattr(tc, "name", "") or getattr(getattr(tc, "function", None), "name", ""),
+                        "arguments": getattr(tc, "arguments", "") or getattr(getattr(tc, "function", None), "arguments", "{}"),
+                    }
+                    for tc in (tool_calls or [])
+                ],
+            }
+        }
+
+
+# ── Module-level singleton ────────────────────────────────────────────────────
+
+_router: ModelRouter | None = None
+
+
+def get_model_router() -> ModelRouter:
+    """Return the global ModelRouter singleton."""
+    global _router
+    if _router is None:
+        _router = ModelRouter()
+    return _router
 
 
 if __name__ == "__main__":

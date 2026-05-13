@@ -1,4 +1,4 @@
-"""Jittered backoff — absorbed from Hermes agent/retry_utils.py.
+"""Jittered backoff — absorbed from reference agent/retry_utils.py.
 
 Replaces fixed exponential backoff with jittered delays to prevent
 thundering-herd retry spikes when multiple sessions hit the same
@@ -96,3 +96,4 @@ if __name__ == "__main__":
     result = retry_with_backoff(flaky, max_attempts=3, base_delay=0.01)
     assert result == "ok" and len(calls) == 2
     print("retry.py OK")
+

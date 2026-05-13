@@ -1,4 +1,4 @@
-"""Rate limit tracking — absorbed from Hermes agent/rate_limit_tracker.py.
+"""Rate limit tracking — absorbed from reference agent/rate_limit_tracker.py.
 
 Parses x-ratelimit-* response headers and formats them for /usage display.
 Supports Nous Portal, OpenRouter, OpenAI-compatible header schema (12 headers).
@@ -193,3 +193,4 @@ if __name__ == "__main__":
     # Empty headers
     assert parse_rate_limit_headers({}) is None
     print("rate_limit.py OK")
+
