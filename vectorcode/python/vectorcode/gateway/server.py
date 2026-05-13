@@ -370,7 +370,7 @@ class GatewayServer:
                     "status": "ok",
                 }
             except Exception as exc:
-                logger.error("[VECTOR][gateway] /compact error session=%s: %s", session_id, exc)
+                logger.error("[VECTOR][gateway] /compact error session={}: {}", session_id, exc)
                 raise HTTPException(status_code=500, detail=str(exc))
 
         # ── POST /reset ────────────────────────────────────────────────────────
