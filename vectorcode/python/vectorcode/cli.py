@@ -556,6 +556,24 @@ def cmd_skills(args):
         print("  sync [--name <pack>]       Git pull update(s)")
 
 
+def cmd_auth(args):
+    """Handle `vector auth` subcommands."""
+    from cli.auth import handle_auth
+    handle_auth(args)
+
+
+def cmd_profile(args):
+    """Handle `vector profile` subcommands."""
+    from cli.profiles import handle_profile
+    handle_profile(args)
+
+
+def cmd_doctor(_args):
+    """Handle `vector doctor` subcommand."""
+    from cli.doctor import run_doctor
+    run_doctor()
+
+
 def cmd_completion(args):
     """Handle `vector completion` subcommand."""
     from cli.completion import get_completion_script, auto_install, get_install_instructions
