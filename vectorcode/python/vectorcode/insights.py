@@ -293,7 +293,7 @@ class InsightsEngine:
             ts = _parse_ts(r.get("started_at"))
             if ts is None:
                 continue
-            date_str = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+            date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
             daily[date_str]["sessions"] += 1
             daily[date_str]["tokens"] += (
                 (r.get("input_tokens") or 0)
