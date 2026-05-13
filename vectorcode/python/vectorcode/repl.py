@@ -884,6 +884,85 @@ Runner: {cfg["runner"]}
 
         return None  # not a slash command
 
+    def _run_agent_turn(self, user_input: str, model: str) -> str:
+        """
+        Run one user turn through the VectorAgent execution loop.
+        The loop calls tools (read_file, bash, git_status, web_search, etc.)
+        and iterates until the model stops issuing tool_calls.
+
+        Falls back to single _ask_model() call if the agent loop fails.
+        """
+        system_msg = self._history[0]["content"] if self._history else ""
+        conv_history = [m for m in self._history if m["role"] != "system"]
+
+        def _on_tool_start(name, args_preview):
+            print(f"  \033[2m▶ {name}({args_preview[:70]})\033[0m", flush=True)
+
+        def _on_tool_done(name, result_preview, duration_ms):
+            print(f"  \033[2m✓ {name} → {result_preview[:70]} ({duration_ms}ms)\033[0m",
+                  flush=True)
+
+        try:
+            from core.agent_loop import VectorAgent
+            agent = VectorAgent(
+                model_id=model,
+                project_dir=self._project_dir,
+                session_id=self.session.session_id,
+                quiet_mode=False,
+                save_trajectories=True,
+                tool_start_callback=_on_tool_start,
+                tool_complete_callback=_on_tool_done,
+            )
+            result = agent.run_conversation(
+                user_input,
+                system_message=system_msg,
+                conversation_history=conv_history,
+            )
+            reply = result["response"]
+
+            # Rebuild history from agent's message chain
+            # (includes tool_call + tool_result messages)
+            system_msgs  = [m for m in self._history if m["role"] == "system"]
+            new_messages = [m for m in result["messages"] if m["role"] != "system"]
+            self._history = system_msgs + new_messages
+
+            # Update session token usage from agent
+            self.session.record_token_usage(
+                prompt=result.get("iterations", 1) * max(len(user_input) // 4, 1),
+                completion=len(reply) // 4,
+            )
+
+            # Record in session DB
+            if self._db:
+                try:
+                    self._db.add_message(
+                        self.session.session_id, "user", user_input,
+                        token_count=len(user_input) // 4,
+                    )
+                    self._db.add_message(
+                        self.session.session_id, "assistant", reply,
+                        token_count=len(reply) // 4,
+                        finish_reason="stop",
+                    )
+                except Exception:
+                    pass
+
+            return reply
+
+        except Exception as e:
+            logger.warning(
+                "[VECTOR][repl] agent loop error: %s — falling back to _ask_model()", e
+            )
+            # Graceful fallback: single model call without tool execution
+            self._history.append({"role": "user", "content": user_input})
+            reply = _ask_model(model, self._history)
+            self._history.append({"role": "assistant", "content": reply})
+            self.session.record_token_usage(
+                prompt=len(user_input) // 4,
+                completion=len(reply) // 4,
+            )
+            return reply
+
     def get_status(self) -> dict:
         return {
             "mode":    self.session.mode,
