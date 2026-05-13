@@ -11,6 +11,7 @@ configuration, temperature handling, and extra_body assembly.
 Ported from NousResearch/hermes-agent agent/transports/chat_completions.py.
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 import copy
 import sys
 from pathlib import Path
