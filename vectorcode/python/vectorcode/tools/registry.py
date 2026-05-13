@@ -437,33 +437,114 @@ class ToolRouter:
     # ── Shell tools ───────────────────────────────────────────────────────────
 
     def _tool_bash(self, args: dict) -> str:
-        command = args.get("command", "")
-        timeout = min(int(args.get("timeout", 60)), 120)
-        cwd     = args.get("cwd", str(self.project_dir))
+        """Execute a shell command via terminal_tool (with interrupt + truncation support)."""
+        command    = args.get("command", "")
+        timeout    = min(int(args.get("timeout", 60)), 120)
+        cwd        = args.get("cwd", str(self.project_dir))
+        background = bool(args.get("background", False))
 
         if not command.strip():
             return "[bash: empty command]"
 
-        # Safety: use shell=True only on Windows where shlex doesn't work well
         try:
-            proc = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=cwd,
-            )
-            output = proc.stdout
-            if proc.stderr:
-                output += ("\n" if output else "") + proc.stderr
-            if proc.returncode != 0:
-                output += f"\n[exit code: {proc.returncode}]"
-            return output.strip() or f"[exit code: {proc.returncode}]"
-        except subprocess.TimeoutExpired:
-            return f"[bash: timed out after {timeout}s]"
+            raw = terminal_tool(command=command, background=background, timeout=timeout, cwd=cwd)
+            data = json.loads(raw)
+            output = data.get("output", "")
+            exit_code = data.get("exit_code", 0)
+            error = data.get("error")
+            if error:
+                return f"[bash error: {error}]"
+            if exit_code != 0:
+                output += f"\n[exit code: {exit_code}]"
+            if "session_id" in data:
+                return f"[background started: session={data['session_id']} pid={data.get('pid')}]"
+            return output.strip() or f"[exit code: {exit_code}]"
         except Exception as e:
+            logger.error("[VECTOR][tool:bash] %s", e)
             return f"[bash error: {e}]"
+
+    # ── Code execution tools ──────────────────────────────────────────────────
+
+    def _tool_execute_code(self, args: dict) -> str:
+        """Execute code in a sandboxed subprocess."""
+        language = args.get("language", "python")
+        code     = args.get("code", "")
+        timeout  = int(args.get("timeout", 30))
+        try:
+            result = execute_code(language=language, code=code, timeout=timeout)
+            output = result.get("stdout", "")
+            stderr = result.get("stderr", "")
+            exit_code = result.get("exit_code", 0)
+            error = result.get("error")
+            if error:
+                return f"[execute_code error: {error}]"
+            if stderr:
+                output += ("\n--- stderr ---\n" + stderr) if output else stderr
+            if exit_code != 0:
+                output += f"\n[exit code: {exit_code}]"
+            return output.strip() or f"[exit code: {exit_code}]"
+        except Exception as e:
+            logger.error("[VECTOR][tool:execute_code] %s", e)
+            return f"[execute_code error: {e}]"
+
+    # ── Checkpoint tools ──────────────────────────────────────────────────────
+
+    def _tool_create_checkpoint(self, args: dict) -> str:
+        """Create a filesystem checkpoint of the current project state."""
+        label = args.get("label", "")
+        try:
+            result = CheckpointManager(self.project_dir).create_checkpoint(label)
+            if result["ok"]:
+                h = result["commit_hash"]
+                short = h[:8] if h else "?"
+                return f"Checkpoint created: {short} — {result['message']}"
+            return f"[create_checkpoint failed: {result['message']}]"
+        except Exception as e:
+            logger.error("[VECTOR][tool:create_checkpoint] %s", e)
+            return f"[create_checkpoint error: {e}]"
+
+    def _tool_list_checkpoints(self, _args: dict) -> str:
+        """List available checkpoints for the project."""
+        try:
+            checkpoints = CheckpointManager(self.project_dir).list_checkpoints()
+            if not checkpoints:
+                return "(no checkpoints found)"
+            lines = []
+            for cp in checkpoints:
+                ts = cp.get("timestamp", "")
+                if "T" in ts:
+                    ts = ts.split("T")[0] + " " + ts.split("T")[1][:5]
+                files = cp.get("files_changed", 0)
+                label = cp.get("label", "")
+                lines.append(f"{cp['short_hash']}  {ts}  {label}  ({files} files)")
+            return "\n".join(lines)
+        except Exception as e:
+            logger.error("[VECTOR][tool:list_checkpoints] %s", e)
+            return f"[list_checkpoints error: {e}]"
+
+    def _tool_restore_checkpoint(self, args: dict) -> str:
+        """Restore the project to a previous checkpoint."""
+        commit_hash = args.get("commit_hash", "")
+        force       = bool(args.get("force", False))
+        try:
+            result = CheckpointManager(self.project_dir).restore_checkpoint(commit_hash, force=force)
+            if result["ok"]:
+                files = result.get("restored_files", [])
+                return f"Restored to {commit_hash[:8]}: {result['message']} ({len(files)} files)"
+            return f"[restore_checkpoint failed: {result['message']}]"
+        except Exception as e:
+            logger.error("[VECTOR][tool:restore_checkpoint] %s", e)
+            return f"[restore_checkpoint error: {e}]"
+
+    def _tool_diff_from_checkpoint(self, args: dict) -> str:
+        """Show unified diff between a checkpoint and the current working tree."""
+        commit_hash = args.get("commit_hash", "")
+        try:
+            diff = CheckpointManager(self.project_dir).diff_from_checkpoint(commit_hash)
+            return diff
+        except Exception as e:
+            logger.error("[VECTOR][tool:diff_from_checkpoint] %s", e)
+            return f"[diff_from_checkpoint error: {e}]"
 
     # ── Git tools ─────────────────────────────────────────────────────────────
 
