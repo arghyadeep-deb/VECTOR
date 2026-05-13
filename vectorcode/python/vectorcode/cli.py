@@ -515,6 +515,11 @@ def main():
     run_ap = agents_sub.add_parser("run", help="Run a named agent")
     run_ap.add_argument("agent_name", help="Agent name")
 
+    # usage subcommand
+    usage_p = sub.add_parser("usage", help="Show token + cost analytics")
+    usage_p.add_argument("--days", type=int, default=30,
+                         help="Number of days to include (default: 30)")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -527,6 +532,7 @@ def main():
         "sessions": cmd_sessions,
         "models":   cmd_models,
         "agents":   cmd_agents,
+        "usage":    cmd_usage,
         None:       cmd_repl,
     }
 
