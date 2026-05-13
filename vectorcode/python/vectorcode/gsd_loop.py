@@ -33,10 +33,8 @@ class GSDLoop:
         self.mode = mode
         self.current_phase = GSDPhase.DISCUSS
         self.verify_retries = 0
-        import gsd_loop as _self_mod
-        _cls = _self_mod.PatternStore
         _tmp = tempfile.mkdtemp(prefix="gsd_patterns_")
-        self._patterns = _cls(index_path=_tmp)
+        self._patterns = PatternStore(index_path=_tmp)
 
     def should_skip_discuss(self, task: str) -> bool:
         """Return True if a high-reward pattern exists for this task."""
