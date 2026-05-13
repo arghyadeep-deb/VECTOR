@@ -427,6 +427,7 @@ class VectorREPL:
         "/clear":   "Clear conversation history",
         "/quit":    "Exit VECTOR",
         "/usage":   "/usage [days]  — token + cost analytics for last N days (default 30)",
+        "/persona": "/persona <name>  — switch personality (default, mentor, brief, professional, debug)",
     }
 
     def __init__(self, project_dir: "Path | None" = None) -> None:
