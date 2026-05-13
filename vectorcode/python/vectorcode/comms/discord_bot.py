@@ -1,275 +1,361 @@
-"""
-DiscordBot — VectorCode Discord integration.
+"""Discord bot adapter — webhook mode (always works) + bot mode (full features)."""
 
-Two modes:
-  1. Webhook mode — send-only via Discord webhook URL (no token needed, no discord.py)
-  2. Bot mode     — full bidirectional via discord.py (token needed)
-
-Graceful degradation: webhook mode works with only httpx; discord.py is optional.
-"""
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
-from typing import Callable, Optional
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
+sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
+
 from loguru import logger
 
-try:
-    from core.config import CONFIG
-except ImportError:
-    CONFIG = {}
+import asyncio
+from typing import Callable, Optional
 
 try:
     import httpx
-    _HAS_HTTPX = True
+    _HTTPX_AVAILABLE = True
 except ImportError:
-    _HAS_HTTPX = False
+    _HTTPX_AVAILABLE = False
+    logger.warning("[VECTOR][discord] httpx not installed — webhook mode unavailable")
 
 try:
     import discord
-    _HAS_DISCORD_PY = True
+    from discord import Intents
+    _DISCORD_AVAILABLE = True
 except ImportError:
-    _HAS_DISCORD_PY = False
+    discord = None  # type: ignore[assignment]
+    Intents = None  # type: ignore[assignment]
+    _DISCORD_AVAILABLE = False
 
 
-class DiscordBot:
-    """
-    Discord bot for VectorCode.
+# ---------------------------------------------------------------------------
+# Mode A — Webhook (no discord.py required)
+# ---------------------------------------------------------------------------
 
-    Mode 1 (Webhook): POST to webhook_url — send-only, no discord.py needed.
-    Mode 2 (Bot):     Full bidirectional via discord.py client + bot token.
+class DiscordWebhook:
+    """Send messages to Discord via a webhook URL.  No bot token required."""
 
-    Config keys under CONFIG['discord']:
-        webhook_url  — Discord Incoming Webhook URL
-        bot_token    — Discord Bot token (required for bot mode)
-        channel_id   — Default channel ID (str or int)
-        guild_id     — Guild/server ID (str or int)
-    """
+    def __init__(self, webhook_url: str = "") -> None:
+        self.webhook_url = webhook_url
 
-    PRIORITY_PREFIXES = {
-        "urgent":   "**URGENT** ",
-        "critical": "**CRITICAL** ",
-    }
-
-    def __init__(self) -> None:
-        cfg = CONFIG.get("discord", {}) if isinstance(CONFIG, dict) else {}
-        self._webhook_url: str   = cfg.get("webhook_url") or ""
-        self._bot_token:   str   = cfg.get("bot_token") or ""
-        self._channel_id:  str   = str(cfg.get("channel_id") or "")
-        self._guild_id:    str   = str(cfg.get("guild_id") or "")
-        self._client               = None   # discord.py Client, set in start_bot()
-        self._sent_count: int    = 0
-        self._recv_count: int    = 0
-
-    # ── Configuration check ───────────────────────────────────────────────────
-
-    def is_configured(self) -> bool:
-        """True if at least one of webhook_url or bot_token is set."""
-        return bool(self._webhook_url or self._bot_token)
-
-    # ── Send helpers ──────────────────────────────────────────────────────────
-
-    async def send_message(
+    async def send(
         self,
-        text: str,
-        channel_id: str = "",
-        priority: str = "normal",
+        content: str,
+        *,
+        username: str = "VectorCode",
+        embed: dict | None = None,
     ) -> dict:
-        """
-        Send a text message to Discord.
+        """POST to the Discord webhook.  Returns the parsed response dict."""
+        if not self.webhook_url:
+            logger.warning("[VECTOR][discord] Webhook URL not set — send skipped")
+            return {"success": False, "error": "webhook_url not configured"}
+        if not _HTTPX_AVAILABLE:
+            logger.error("[VECTOR][discord] httpx not installed")
+            return {"success": False, "error": "httpx not installed"}
 
-        Webhook mode: POSTs to webhook_url (channel_id ignored).
-        Bot mode: sends to channel_id (falls back to self._channel_id).
-        Returns {status, platform, channel_id}.
-        """
-        prefix = self.PRIORITY_PREFIXES.get(priority, "")
-        content = prefix + text
+        payload: dict = {"username": username}
+        if content:
+            payload["content"] = content
+        if embed:
+            payload["embeds"] = [embed]
 
-        # Prefer webhook mode when available (no discord.py needed)
-        if self._webhook_url:
-            return await self._send_via_webhook(content)
-
-        # Bot mode requires discord.py
-        if self._bot_token and _HAS_DISCORD_PY and self._client is not None:
-            target_channel_id = int(channel_id or self._channel_id or 0)
-            return await self._send_via_bot_client(content, target_channel_id)
-
-        if not self.is_configured():
-            return {"status": "not_configured", "platform": "discord", "channel_id": channel_id}
-
-        logger.warning("[VECTOR][discord] bot token set but discord.py not installed / bot not started")
-        return {"status": "error", "platform": "discord", "reason": "discord.py unavailable or bot not started"}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(self.webhook_url, json=payload)
+                resp.raise_for_status()
+                logger.debug(f"[VECTOR][discord] Webhook POST → {resp.status_code}")
+                # Discord returns 204 No Content on success
+                if resp.status_code == 204:
+                    return {"success": True}
+                return {"success": True, "data": resp.json()}
+        except Exception as exc:
+            logger.error(f"[VECTOR][discord] Webhook send failed: {exc}")
+            return {"success": False, "error": str(exc)}
 
     async def send_embed(
         self,
         title: str,
         description: str,
         color: int = 0x5865F2,
+        fields: list[dict] | None = None,
     ) -> dict:
-        """
-        Send a rich embed message via webhook (embed format) or as plain text fallback.
-        color: Discord colour integer (default Discord blurple = 0x5865F2).
-        """
-        if self._webhook_url:
-            return await self._send_embed_via_webhook(title, description, color)
+        """Send a rich embed message.
 
-        # Fallback: plain text with title
-        fallback_text = f"**{title}**\n{description}"
-        return await self.send_message(fallback_text)
+        *fields* format: [{"name": "...", "value": "...", "inline": False}]
+        """
+        embed: dict = {
+            "title": title,
+            "description": description,
+            "color": color,
+        }
+        if fields:
+            embed["fields"] = [
+                {
+                    "name": f.get("name", ""),
+                    "value": f.get("value", ""),
+                    "inline": f.get("inline", False),
+                }
+                for f in fields
+            ]
+        return await self.send("", embed=embed)
 
-    async def start_bot(self, on_message: Callable) -> None:
-        """
-        Start a discord.py bot (blocking coroutine — run via asyncio.create_task).
-        on_message(InboundMessage) is called for each new message received.
-        No-ops gracefully if discord.py is not installed.
-        """
-        if not _HAS_DISCORD_PY:
-            logger.warning("[VECTOR][discord] discord.py not installed — bot mode unavailable")
+    async def send_code(self, code: str, language: str = "") -> dict:
+        """Send a fenced code block.  Splits into multiple messages if > 1 900 chars."""
+        fence = f"```{language}\n" if language else "```\n"
+        close = "\n```"
+        max_inner = 1900 - len(fence) - len(close)
+
+        results: list[dict] = []
+        # Chunk at newlines where possible
+        chunks = self._split_at_newlines(code, max_inner)
+        for chunk in chunks:
+            message = f"{fence}{chunk}{close}"
+            result = await self.send(message)
+            results.append(result)
+            if not result.get("success"):
+                break
+
+        return results[-1] if results else {"success": False, "error": "empty code"}
+
+    @staticmethod
+    def _split_at_newlines(text: str, limit: int) -> list[str]:
+        """Split *text* into chunks of at most *limit* chars, preferring newline boundaries."""
+        if len(text) <= limit:
+            return [text]
+        chunks: list[str] = []
+        while text:
+            if len(text) <= limit:
+                chunks.append(text)
+                break
+            # find last newline within limit
+            cut = text.rfind("\n", 0, limit)
+            if cut == -1:
+                cut = limit
+            else:
+                cut += 1  # include the newline in this chunk
+            chunks.append(text[:cut])
+            text = text[cut:]
+        return chunks
+
+
+# ---------------------------------------------------------------------------
+# Mode B — Bot (requires discord.py)
+# ---------------------------------------------------------------------------
+
+class DiscordBot:
+    """Full Discord bot using discord.py.  Supports message handling and sending."""
+
+    def __init__(self, token: str = "", command_prefix: str = "!vector ") -> None:
+        self.token = token
+        self.command_prefix = command_prefix
+        self._client: Optional["discord.Client"] = None  # type: ignore[name-defined]
+        self._on_message_callback: Optional[Callable] = None
+
+    def on_message(self, callback: Callable) -> None:
+        """Register an async callback(message_text, channel_id, author_name) -> str | None."""
+        self._on_message_callback = callback
+
+    async def start(self) -> None:
+        """Start the bot.  Issues a clear warning if discord.py is missing or intents fail."""
+        if not _DISCORD_AVAILABLE:
+            logger.warning(
+                "[VECTOR][discord] discord.py not installed. "
+                "Run: pip install discord.py  — bot mode unavailable"
+            )
             return
-
-        if not self._bot_token:
-            logger.warning("[VECTOR][discord] bot_token not configured — cannot start bot")
+        if not self.token:
+            logger.warning("[VECTOR][discord] Bot token not set — start skipped")
             return
 
         try:
-            from comms.inbound import InboundMessage
-        except ImportError:
-            InboundMessage = None  # type: ignore[misc,assignment]
+            intents = Intents.default()
+            intents.message_content = True
+        except Exception as exc:
+            logger.warning(
+                f"[VECTOR][discord] Failed to configure intents (check discord.py version): {exc}"
+            )
+            return
 
-        intents = discord.Intents.default()
-        intents.message_content = True
-        client = discord.Client(intents=intents)
-        self._client = client
+        self._client = discord.Client(intents=intents)  # type: ignore[attr-defined]
 
-        @client.event
+        @self._client.event  # type: ignore[union-attr]
         async def on_ready() -> None:
-            logger.info(f"[VECTOR][discord] bot ready: {client.user}")
+            logger.info(
+                f"[VECTOR][discord] Bot logged in as {self._client.user}"  # type: ignore[union-attr]
+            )
 
-        @client.event
-        async def on_message(message: "discord.Message") -> None:  # type: ignore[name-defined]
-            if message.author == client.user:
+        @self._client.event  # type: ignore[union-attr]
+        async def on_message(msg: "discord.Message") -> None:  # type: ignore[name-defined]
+            if self._client and msg.author == self._client.user:  # type: ignore[union-attr]
                 return
-            self._recv_count += 1
-            if InboundMessage is not None:
-                inbound = InboundMessage(
-                    platform="discord",
-                    sender_id=str(message.author.id),
-                    sender_name=str(message.author.display_name),
-                    chat_id=str(message.channel.id),
-                    text=message.content,
-                    raw={"message_id": message.id},
+            if self._on_message_callback:
+                response = await self._on_message_callback(
+                    str(msg.content),
+                    msg.channel.id,
+                    str(msg.author),
                 )
-                try:
-                    on_message(inbound)
-                except Exception as e:
-                    logger.error(f"[VECTOR][discord] on_message handler error: {e}")
+                if response and msg.channel:
+                    await self.send(msg.channel.id, response)
 
         try:
-            await client.start(self._bot_token)
-        except Exception as e:
-            logger.error(f"[VECTOR][discord] bot start error: {e}")
+            await self._client.start(self.token)  # type: ignore[union-attr]
+        except Exception as exc:
+            logger.error(f"[VECTOR][discord] Bot start error: {exc}")
 
-    # ── Internal webhook senders ──────────────────────────────────────────────
-
-    async def _send_via_webhook(self, content: str) -> dict:
-        """POST a plain text message to the Discord webhook."""
-        if not _HAS_HTTPX:
-            logger.warning("[VECTOR][discord] httpx not installed — cannot send webhook")
-            return {"status": "error", "platform": "discord", "reason": "httpx unavailable"}
-
+    async def send(self, channel_id: int, content: str) -> None:
+        """Send *content* to *channel_id*.  Splits at 2 000 chars when needed."""
+        if self._client is None:
+            logger.warning("[VECTOR][discord] send called but bot is not running")
+            return
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(self._webhook_url, json={"content": content[:2000]})
-                if r.status_code in (200, 204):
-                    self._sent_count += 1
-                    logger.info(f"[VECTOR][discord] webhook sent: {content[:60]}")
-                    return {"status": "sent", "platform": "discord", "channel_id": "webhook"}
-                logger.warning(f"[VECTOR][discord] webhook HTTP {r.status_code}: {r.text[:200]}")
-                return {"status": "error", "platform": "discord", "code": r.status_code}
-        except Exception as e:
-            logger.error(f"[VECTOR][discord] webhook error: {e}")
-            return {"status": "error", "platform": "discord", "error": str(e)}
-
-    async def _send_embed_via_webhook(self, title: str, description: str, color: int) -> dict:
-        """POST an embed payload to the Discord webhook."""
-        if not _HAS_HTTPX:
-            return {"status": "error", "platform": "discord", "reason": "httpx unavailable"}
-
-        payload = {
-            "embeds": [{
-                "title": title[:256],
-                "description": description[:4096],
-                "color": color,
-            }]
-        }
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(self._webhook_url, json=payload)
-                if r.status_code in (200, 204):
-                    self._sent_count += 1
-                    return {"status": "sent", "platform": "discord", "channel_id": "webhook"}
-                return {"status": "error", "platform": "discord", "code": r.status_code}
-        except Exception as e:
-            logger.error(f"[VECTOR][discord] embed webhook error: {e}")
-            return {"status": "error", "platform": "discord", "error": str(e)}
-
-    async def _send_via_bot_client(self, content: str, channel_id: int) -> dict:
-        """Send using the discord.py client (bot mode only)."""
-        if not channel_id:
-            return {"status": "error", "platform": "discord", "reason": "no channel_id"}
-        try:
-            channel = self._client.get_channel(channel_id)
+            channel = self._client.get_channel(channel_id)  # type: ignore[union-attr]
             if channel is None:
-                return {"status": "error", "platform": "discord", "reason": f"channel {channel_id} not found"}
-            await channel.send(content[:2000])
-            self._sent_count += 1
-            return {"status": "sent", "platform": "discord", "channel_id": str(channel_id)}
-        except Exception as e:
-            logger.error(f"[VECTOR][discord] bot send error: {e}")
-            return {"status": "error", "platform": "discord", "error": str(e)}
+                logger.warning(f"[VECTOR][discord] Channel {channel_id} not found")
+                return
+            for chunk in self._split_message(content):
+                await channel.send(chunk)
+        except Exception as exc:
+            logger.error(f"[VECTOR][discord] send error: {exc}")
 
-    # ── Stats ─────────────────────────────────────────────────────────────────
+    async def send_embed(
+        self,
+        channel_id: int,
+        title: str,
+        description: str,
+        color: int = 0x5865F2,
+    ) -> None:
+        """Send a rich embed to *channel_id*."""
+        if not _DISCORD_AVAILABLE or self._client is None:
+            logger.warning("[VECTOR][discord] send_embed skipped — bot not running")
+            return
+        try:
+            channel = self._client.get_channel(channel_id)  # type: ignore[union-attr]
+            if channel is None:
+                return
+            embed = discord.Embed(  # type: ignore[attr-defined]
+                title=title, description=description, color=color
+            )
+            await channel.send(embed=embed)
+        except Exception as exc:
+            logger.error(f"[VECTOR][discord] send_embed error: {exc}")
 
-    def get_stats(self) -> dict:
-        """Return bot/webhook statistics."""
-        return {
-            "mode": "bot" if (self._bot_token and _HAS_DISCORD_PY) else "webhook",
-            "configured": self.is_configured(),
-            "sent": self._sent_count,
-            "received": self._recv_count,
-            "has_discord_py": _HAS_DISCORD_PY,
-        }
+    async def stop(self) -> None:
+        """Gracefully shut down the bot."""
+        if self._client is not None:
+            try:
+                await self._client.close()  # type: ignore[union-attr]
+                logger.info("[VECTOR][discord] Bot stopped")
+            except Exception as exc:
+                logger.error(f"[VECTOR][discord] stop error: {exc}")
+            finally:
+                self._client = None
 
+    @staticmethod
+    def _split_message(text: str, limit: int = 2000) -> list[str]:
+        """Split *text* into chunks of at most *limit* chars, breaking at newlines."""
+        if len(text) <= limit:
+            return [text]
+        chunks: list[str] = []
+        while text:
+            if len(text) <= limit:
+                chunks.append(text)
+                break
+            cut = text.rfind("\n", 0, limit)
+            if cut == -1:
+                cut = limit
+            else:
+                cut += 1
+            chunks.append(text[:cut])
+            text = text[cut:]
+        return chunks
+
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+def create_discord_adapter(
+    mode: str = "auto",
+    token: str = "",
+    webhook_url: str = "",
+) -> DiscordBot | DiscordWebhook:
+    """
+    Create and return the appropriate Discord adapter.
+
+    mode="auto"    → DiscordBot if *token* set, else DiscordWebhook if *webhook_url* set.
+                     Falls back to DiscordWebhook with empty URL if neither is set.
+    mode="bot"     → DiscordBot (always)
+    mode="webhook" → DiscordWebhook (always)
+    """
+    if mode == "bot":
+        return DiscordBot(token=token)
+    if mode == "webhook":
+        return DiscordWebhook(webhook_url=webhook_url)
+    # auto
+    if token:
+        logger.debug("[VECTOR][discord] auto mode → DiscordBot")
+        return DiscordBot(token=token)
+    if webhook_url:
+        logger.debug("[VECTOR][discord] auto mode → DiscordWebhook")
+        return DiscordWebhook(webhook_url=webhook_url)
+    logger.warning("[VECTOR][discord] auto mode: no token or webhook — returning DiscordWebhook (unconfigured)")
+    return DiscordWebhook()
+
+
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import asyncio
+    logger.info("[VECTOR][discord] Running smoke test…")
 
+    # Test 1: DiscordWebhook with empty URL — no crash on init
+    wh = DiscordWebhook()
+    assert isinstance(wh, DiscordWebhook)
+    assert wh.webhook_url == ""
+    logger.info("[VECTOR][discord] DiscordWebhook(empty URL) init ✅")
+
+    # Test 2: DiscordBot with empty token — no crash on init
     bot = DiscordBot()
+    assert isinstance(bot, DiscordWebhook) is False
+    assert bot.token == ""
+    logger.info("[VECTOR][discord] DiscordBot(empty token) init ✅")
 
-    # is_configured: False when no credentials in CONFIG
-    configured = bot.is_configured()
-    print(f"configured={configured} (expected False in dev environment)")
+    # Test 3: webhook send with empty URL returns success=False without crashing
+    async def _test_send() -> None:
+        result = await wh.send("Hello")
+        assert result["success"] is False, f"Expected success=False, got {result}"
+        assert "error" in result
+        logger.info(f"[VECTOR][discord] wh.send(empty url) → {result} ✅")
 
-    # stats structure
-    stats = bot.get_stats()
-    assert "mode" in stats
-    assert "configured" in stats
-    assert "sent" in stats
-    assert "received" in stats
-    assert "has_discord_py" in stats
+    asyncio.run(_test_send())
 
-    # send_message to unconfigured bot returns not_configured
-    async def _test() -> None:
-        result = await bot.send_message("test message", priority="normal")
-        assert result.get("status") in ("not_configured", "sent", "error", "queued"), \
-            f"Unexpected status: {result}"
-        print(f"send_message result: {result}")
+    # Test 4: _split_message correctness
+    long_text = "A" * 4500
+    chunks = DiscordBot._split_message(long_text, limit=2000)
+    assert all(len(c) <= 2000 for c in chunks)
+    assert "".join(chunks) == long_text
+    logger.info(f"[VECTOR][discord] _split_message chunks={len(chunks)} ✅")
 
-        # send_embed
-        embed_result = await bot.send_embed("Test Title", "Test description", color=0xFF0000)
-        assert "status" in embed_result
-        print(f"send_embed result: {embed_result}")
+    # Test 5: send_code splitting
+    async def _test_code() -> None:
+        big_code = "\n".join([f"line {i}" for i in range(200)])
+        # Just verify it doesn't crash with empty URL
+        result = await wh.send_code(big_code, "python")
+        assert "success" in result
+        logger.info(f"[VECTOR][discord] send_code(200 lines) → success={result['success']} ✅")
 
-    asyncio.run(_test())
-    print("comms/discord_bot.py OK — webhook mode, embed support, graceful no-dep degradation")
+    asyncio.run(_test_code())
+
+    # Test 6: factory auto mode
+    adapter_wh = create_discord_adapter(mode="auto", webhook_url="http://fake")
+    assert isinstance(adapter_wh, DiscordWebhook)
+    adapter_bot = create_discord_adapter(mode="auto", token="fake_token")
+    assert isinstance(adapter_bot, DiscordBot)
+    adapter_explicit_wh = create_discord_adapter(mode="webhook")
+    assert isinstance(adapter_explicit_wh, DiscordWebhook)
+    adapter_explicit_bot = create_discord_adapter(mode="bot")
+    assert isinstance(adapter_explicit_bot, DiscordBot)
+    logger.info("[VECTOR][discord] create_discord_adapter factory ✅")
+
+    print("✅ discord_bot.py OK")
