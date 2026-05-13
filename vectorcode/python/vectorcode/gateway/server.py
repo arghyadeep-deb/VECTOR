@@ -322,7 +322,7 @@ class GatewayServer:
                     yield f"data: {_json.dumps({'type': 'cancelled', 'session_id': session_id})}\n\n"
                 except Exception as exc:
                     sess["status"] = "error"
-                    logger.error("[VECTOR][gateway] /stream error session=%s: %s", session_id, exc)
+                    logger.error("[VECTOR][gateway] /stream error session={}: {}", session_id, exc)
                     yield f"data: {_json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 
             # Prefer sse-starlette for proper SSE; fall back to StreamingResponse
