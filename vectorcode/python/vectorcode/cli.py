@@ -443,6 +443,21 @@ def cmd_agents(args):
         print(f"Unknown agents action: {action}")
 
 
+def cmd_usage(args):
+    """Print usage analytics from session DB."""
+    days = getattr(args, "days", 30) or 30
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        days = 30
+    try:
+        sys.path.insert(0, str(Path(__file__).parent))
+        from insights import InsightsEngine
+        print(InsightsEngine().format_terminal(days=days))
+    except Exception as e:
+        print(f"[VECTOR] usage error: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="vector",
