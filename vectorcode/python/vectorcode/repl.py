@@ -1,4 +1,4 @@
-"""VECTOR — interactive coding REPL (Mode A). Hermes-inspired architecture."""
+"""VECTOR — interactive coding REPL (Mode A). VectorCode architecture."""
 import sys
 import json
 import time
@@ -420,8 +420,8 @@ class VectorREPL:
         "/save":    "Save full session (history, model, mode, tokens) to .vector/",
         "/restore": "List saved sessions — pick one to reload history",
         "/tools":   "List tool categories",
-        "/notify":  "/notify <text>  — send notification via Hermes (all configured channels)",
-        "/comms":   "Show Hermes comms status — pending/urgent/unread counts",
+        "/notify":  "/notify <text>  — send notification via comms (all configured channels)",
+        "/comms":   "Show comms status — pending/urgent/unread counts",
         "/search":  "/search <query>  — web search via OpenCLI (with DuckDuckGo fallback)",
         "/fetch":   "/fetch <url>  — fetch and summarize a URL",
         "/clear":   "Clear conversation history",
@@ -432,7 +432,7 @@ class VectorREPL:
     def __init__(self, project_dir: "Path | None" = None) -> None:
         self.session      = VectorCodeSession.get()
         self.session.set_mode("repl")
-        self.router       = GNNRouter()          # Ruflo NeuralDomainMapper (Layer 1+2+3)
+        self.router       = GNNRouter()          # reference NeuralDomainMapper (Layer 1+2+3)
         self.gsd          = GSDLoop(mode="repl")
         self._skills      = _scan_skills()
         self._project_dir = project_dir or Path.cwd()
@@ -785,7 +785,7 @@ Runner: {cfg["runner"]}
                 )
             return "No file writes recorded this session."
 
-        # ── Hermes comms commands ──────────────────────────────────────────────
+        # ── comms commands ──────────────────────────────────────────────
 
         if raw.startswith("/notify"):
             parts = raw.split(maxsplit=1)
@@ -921,7 +921,7 @@ Runner: {cfg["runner"]}
                         print(result)
                     continue
 
-                # Route → GNNRouter picks best model (Ruflo Layer 1+2+3)
+                # Route → GNNRouter picks best model (reference Layer 1+2+3)
                 t_route_start = time.perf_counter()
                 model = self.router.route(raw)
                 self.session.current_model = model
@@ -935,18 +935,42 @@ Runner: {cfg["runner"]}
                     except Exception:
                         self._history = _compress_history(self._history, model)
 
-                # Add user turn and stream response via ModelRouter
-                self._history.append({"role": "user", "content": raw})
+                # Expand context references (@file, @diff, @url, @folder, @git)
+                expanded_input = raw
+                try:
+                    from context.references import expand_context_references
+                    ref_result = expand_context_references(raw, self._project_dir)
+                    if ref_result.expanded:
+                        expanded_input = ref_result.message
+                        for w in ref_result.warnings:
+                            print(f"  \033[93m⚠ {w}\033[0m")
+                except Exception:
+                    pass
+
+                # Prefetch memory context and inject as context
+                try:
+                    from memory.manager import get_memory_manager
+                    mm = get_memory_manager()
+                    mem_ctx = mm.prefetch_all(raw)
+                    if mem_ctx:
+                        expanded_input = f"[Memory context]\n{mem_ctx}\n\n{expanded_input}"
+                except Exception:
+                    pass
+
+                # ── Agent execution loop (Think→Act→Observe) ──────────────────
                 print()
-                reply = _ask_model(model, self._history)
-                self._history.append({"role": "assistant", "content": reply})
+                reply = self._run_agent_turn(expanded_input, model)
+
+                # Sync memory after turn
+                try:
+                    from memory.manager import get_memory_manager
+                    mm = get_memory_manager()
+                    mm.sync_all(raw, reply, session_id=self.session.session_id)
+                except Exception:
+                    pass
+
                 self.session.history.append({"role": "user", "content": raw})
 
-                # Approximate token count (4 chars ≈ 1 token)
-                self.session.record_token_usage(
-                    prompt=len(raw) // 4,
-                    completion=len(reply) // 4,
-                )
                 # GNNRouter learning — reward=0.9 (good, no exception) + latency
                 latency_ms = (time.perf_counter() - t_route_start) * 1000
                 try:
@@ -1002,6 +1026,8 @@ if __name__ == "__main__":
     from router import GNNRouter
     assert isinstance(repl.router, GNNRouter), f"Expected GNNRouter, got {type(repl.router)}"
     print("repl.py OK")
+
+
 
 
 
