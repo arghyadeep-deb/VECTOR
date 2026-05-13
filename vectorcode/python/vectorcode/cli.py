@@ -586,17 +586,19 @@ def main():
     args = parser.parse_args()
 
     dispatch = {
-        "repl":     cmd_repl,
-        "run":      cmd_run,
-        "auto":     cmd_auto,
-        "hybrid":   cmd_hybrid,
-        "mcp":      cmd_mcp,
-        "status":   cmd_status,
-        "sessions": cmd_sessions,
-        "models":   cmd_models,
-        "agents":   cmd_agents,
-        "usage":    cmd_usage,
-        None:       cmd_repl,
+        "repl":       cmd_repl,
+        "run":        cmd_run,
+        "auto":       cmd_auto,
+        "hybrid":     cmd_hybrid,
+        "mcp":        cmd_mcp,
+        "status":     cmd_status,
+        "sessions":   cmd_sessions,
+        "models":     cmd_models,
+        "agents":     cmd_agents,
+        "skills":     cmd_skills,
+        "completion": cmd_completion,
+        "usage":      cmd_usage,
+        None:         cmd_repl,
     }
 
     # Apply global --model/--mode/--dir to repl command
