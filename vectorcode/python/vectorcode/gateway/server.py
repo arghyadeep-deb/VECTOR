@@ -402,7 +402,7 @@ class GatewayServer:
             server_ref._sessions[session_id]["model"] = req.model
             server_ref._sessions[session_id]["last_active"] = time.time()
             logger.info(
-                "[VECTOR][gateway] /model session=%s %s -> %s",
+                "[VECTOR][gateway] /model session={} {} -> {}",
                 session_id, old_model, req.model,
             )
             return {"session_id": session_id, "model": req.model, "previous_model": old_model}
