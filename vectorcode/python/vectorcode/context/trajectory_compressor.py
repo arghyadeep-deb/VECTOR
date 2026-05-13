@@ -636,17 +636,20 @@ if __name__ == "__main__":
             assert not cid or cid in tool_call_ids, f"Orphaned tool_result: {cid}"
 
     # Test 6: _prune_tool_results trims large non-error results
-    big_tool = [
-        {"role": "tool", "content": "x" * 2000, "tool_call_id": "tc2"},
-    ]
-    pruned = _prune_tool_results(big_tool, max_chars=500)
-    assert len(pruned[0]["content"]) < len(big_tool[0]["content"]), "Should have pruned"
+    # Put the big tool result early (index 0) so it is NOT in the tail window
+    big_tool_msgs = (
+        [{"role": "tool", "content": "x" * 2000, "tool_call_id": "tc2"}]
+        + [{"role": "assistant", "content": f"msg {i}"} for i in range(10)]
+    )
+    pruned = _prune_tool_results(big_tool_msgs, max_chars=500)
+    assert len(pruned[0]["content"]) < 2000, "Should have pruned large tool result"
 
     # Test 7: _prune_tool_results keeps errors intact
-    error_tool = [
-        {"role": "tool", "content": "Error: something went wrong\n" + "x" * 2000, "tool_call_id": "tc3"},
-    ]
-    pruned_err = _prune_tool_results(error_tool)
+    error_tool_msgs = (
+        [{"role": "tool", "content": "Error: something went wrong\n" + "x" * 2000, "tool_call_id": "tc3"}]
+        + [{"role": "assistant", "content": f"msg {i}"} for i in range(10)]
+    )
+    pruned_err = _prune_tool_results(error_tool_msgs)
     assert "Error:" in pruned_err[0]["content"], "Error tool results must be preserved"
 
     # Test 8: TrajectoryCompressor class
