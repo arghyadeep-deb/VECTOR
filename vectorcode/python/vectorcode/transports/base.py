@@ -9,8 +9,15 @@ prompt caching, interrupt handling, or retry logic.
 Ported from NousResearch/hermes-agent agent/transports/base.py.
 """
 
-# ── stdlib first ─────────────────────────────────────────────────────────────
+# ── Guard: strip transports/ from sys.path[0] to prevent types.py shadowing
+# stdlib types. sys is a C built-in — safe to import before path cleanup.
 import sys
+import os as _os
+_this_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys.path = [p for p in sys.path if _os.path.abspath(p) != _this_dir]
+del _os, _this_dir
+
+# ── stdlib ────────────────────────────────────────────────────────────────────
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
