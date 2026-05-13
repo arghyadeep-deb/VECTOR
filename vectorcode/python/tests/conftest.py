@@ -5,8 +5,8 @@ Tests in vc7 need `core.mcp_server` which lives in the project root.
 import sys
 from pathlib import Path
 
-# project root = V.E.C.T.O.R. Codebase/
-_PROJECT_ROOT = str(Path(__file__).parent.parent.parent.parent.parent)
+# project root = V.E.C.T.O.R. Codebase/  (conftest is at python/tests/conftest.py → 4 up)
+_PROJECT_ROOT = str(Path(__file__).parent.parent.parent.parent)
 # vectorcode package = V.E.C.T.O.R. Codebase/vectorcode/python/vectorcode/
 _VC_PKG = str(Path(__file__).parent.parent / "vectorcode")
 
