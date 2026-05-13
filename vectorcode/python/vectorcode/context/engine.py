@@ -340,17 +340,19 @@ def get_context_engine(
 
 if __name__ == "__main__":
     # --- priority_retain ---
+    # Each message is ~500 tokens (2000 chars / 4); 21 messages × 500 = ~10500 tokens total
+    # budget_tokens=3000 forces drops
     msgs: list[dict] = (
         [{"role": "system", "content": "You are VECTOR. " * 50}]
         + [
             {
                 "role": "user" if i % 2 == 0 else "assistant",
-                "content": f"Message {i}: " + "word " * 100,
+                "content": f"Message {i}: " + "word " * 500,
             }
             for i in range(20)
         ]
     )
-    retained = priority_retain(msgs, budget_tokens=5000, model_context_length=128000)
+    retained = priority_retain(msgs, budget_tokens=3000, model_context_length=128000)
     assert retained[0]["role"] == "system", "System message must always be retained"
     # Last 6 must be kept
     assert msgs[-1] in retained, "Last message must be retained"
