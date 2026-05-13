@@ -194,7 +194,7 @@ class GatewayServer:
             if task and not task.done():
                 task.cancel()
                 sess["status"] = "cancelled"
-                logger.info("[VECTOR][gateway] session %s cancelled", session_id)
+                logger.info("[VECTOR][gateway] session {} cancelled", session_id)
             return {"session_id": session_id, "status": "cancelled"}
 
         # ── POST /run ──────────────────────────────────────────────────────────
