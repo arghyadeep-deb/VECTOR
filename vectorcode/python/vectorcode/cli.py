@@ -476,6 +476,102 @@ def cmd_agents(args):
         print(f"Unknown agents action: {action}")
 
 
+def cmd_skills(args):
+    """Handle `vector skills` subcommands."""
+    from skills.hub import get_skills_hub
+    hub = get_skills_hub()
+    skills_action = getattr(args, "skills_action", None)
+
+    if skills_action == "list":
+        packs = hub.list_packs()
+        if not packs:
+            print("No skill packs installed.")
+            print("Install one with: vector skills install <git-url-or-local-path>")
+        else:
+            print(f"{'Pack':<28}  {'Skills':>6}  Source")
+            print("-" * 72)
+            for p in packs:
+                print(f"  {p.name:<26}  {p.skill_count:>6}  {p.source}")
+
+    elif skills_action == "search":
+        query = getattr(args, "query", "")
+        results = hub.search(query)
+        if not results:
+            print(f"No skills found for query: {query!r}")
+        else:
+            for r in results:
+                desc = r.get("description", "")
+                desc_str = f": {desc}" if desc else ""
+                print(f"  [{r['pack']}] {r['skill']}{desc_str}")
+
+    elif skills_action == "install":
+        source = getattr(args, "source", "")
+        name = getattr(args, "name", None)
+        try:
+            result = hub.install(source, name)
+            print(f"Installed '{result['name']}': {result['skill_count']} skill file(s) at {result['path']}")
+        except Exception as e:
+            print(f"[VECTOR] Install failed: {e}")
+
+    elif skills_action == "uninstall":
+        name = getattr(args, "name", "")
+        result = hub.uninstall(name)
+        if result.get("success"):
+            print(f"Removed skill pack: {name}")
+        else:
+            print(f"[VECTOR] {result.get('error', 'Uninstall failed')}")
+
+    elif skills_action == "sync":
+        name = getattr(args, "name", None)
+        result = hub.sync(name)
+        synced = result.get("synced", [])
+        errors = result.get("errors", [])
+        if synced:
+            print(f"Synced: {', '.join(synced)}")
+        if errors:
+            for err in errors:
+                print(f"  [error] {err}")
+        if not synced and not errors:
+            print("Nothing to sync.")
+
+    else:
+        # Print skills sub-help
+        print("Usage: vector skills <list|search|install|uninstall|sync>")
+        print("  list                       List installed skill packs")
+        print("  search <query>             Search skills by keyword")
+        print("  install <source> [--name]  Install from git URL or local path")
+        print("  uninstall <name>           Remove a skill pack")
+        print("  sync [--name <pack>]       Git pull update(s)")
+
+
+def cmd_completion(args):
+    """Handle `vector completion` subcommand."""
+    from cli.completion import get_completion_script, auto_install, get_install_instructions
+
+    do_install = getattr(args, "install", False)
+    shell = getattr(args, "shell", None)
+
+    if do_install:
+        msg = auto_install(shell)
+        print(msg)
+        return
+
+    if shell:
+        script = get_completion_script(shell)
+        if script:
+            print(script)
+        else:
+            print(get_install_instructions(shell))
+    else:
+        # No shell specified — print instructions for all shells
+        print("Shell completion for `vector`")
+        print()
+        for sh in ("bash", "zsh", "fish"):
+            print(f"  {sh}:")
+            print(f"    {get_install_instructions(sh)}")
+            print()
+
+
 def cmd_usage(args):
     """Print usage analytics from session DB."""
     days = getattr(args, "days", 30) or 30
