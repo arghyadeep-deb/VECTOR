@@ -309,10 +309,15 @@ class InsightsEngine:
 
 # ── Module-level self-test ─────────────────────────────────────────────────────
 if __name__ == "__main__":
+    import io as _io
+    _stdout = _io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     engine = InsightsEngine()
-    print(engine.format_terminal(days=30))
+    _stdout.write(engine.format_terminal(days=30))
+    _stdout.write("\n")
+    _stdout.flush()
     report = engine.generate(days=30)
     assert "sessions" in report
     assert "tokens" in report
     assert "cost_usd" in report
-    print("insights.py OK")
+    _stdout.write("insights.py OK\n")
+    _stdout.flush()
