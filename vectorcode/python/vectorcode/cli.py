@@ -623,9 +623,10 @@ def main():
         description="VectorCode — VECTOR's local coding agent",
     )
     # Global flags (apply to repl + run)
-    parser.add_argument("--model", default=None, help="Override model (e.g. anthropic/claude-sonnet-4-6)")
-    parser.add_argument("--mode",  default=None, help="Permission mode: cautious|standard|autonomous|read-only")
-    parser.add_argument("--dir",   default=None, help="Project directory (default: current dir)")
+    parser.add_argument("--model",   default=None, help="Override model (e.g. anthropic/claude-sonnet-4-6)")
+    parser.add_argument("--mode",    default=None, help="Permission mode: cautious|standard|autonomous|read-only")
+    parser.add_argument("--dir",     default=None, help="Project directory (default: current dir)")
+    parser.add_argument("--profile", default="",   help="Use a named profile (e.g. work, research, readonly)")
 
     sub = parser.add_subparsers(dest="cmd")
 
