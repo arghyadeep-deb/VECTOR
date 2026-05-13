@@ -421,65 +421,51 @@ class GatewayServer:
         )
 
     def _run_task_sync(self, session_id: str, req: RunRequest) -> RunResponse:
-        """Synchronous task runner — calls VectorAgent and returns RunResponse."""
+        """Synchronous task runner — calls AIAgent and returns RunResponse."""
         sess = self._sessions.get(session_id)
         model = req.model or (sess["model"] if sess else "ollama/vector-focus")
 
         try:
-            from engine.agent_loop import VectorAgent
+            from vectorcode.engine import AIAgent
         except ImportError:
-            logger.warning(
-                "[VECTOR][gateway] engine.agent_loop not available — returning stub response"
-            )
+            logger.warning("[VECTOR][gateway] AIAgent not available")
             return RunResponse(
                 session_id=session_id,
-                response="[VectorAgent unavailable — engine not installed]",
-                tool_calls_made=0,
-                iterations_used=0,
-                model=model,
-                status="error",
+                response="[AIAgent unavailable — engine not installed]",
+                tool_calls_made=0, iterations_used=0, model=model, status="error",
             )
 
         try:
-            # Build conversation history from session if it exists
             history = (sess["messages"] if sess else []) or []
+            agent = AIAgent(model=model, session_id=session_id, quiet_mode=True)
+            agent._history = list(history)
 
-            agent = VectorAgent(
-                model_id=model,
-                project_dir=Path(req.project_dir),
-                session_id=session_id,
-                quiet_mode=True,
-            )
+            import asyncio
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(agent.run_conversation(req.input))
+            finally:
+                loop.close()
 
-            result = agent.run_conversation(
-                req.input,
-                conversation_history=list(history),
-            )
+            response_text = result.get("text", "")
+            tool_calls_total = result.get("tool_calls_total", 0)
+            iterations = result.get("iterations_used", 0)
 
-            response_text = result.get("response", "")
-            tool_calls = result.get("tool_calls", [])
-            iterations = result.get("iterations", 0)
-            updated_messages = result.get("messages", [])
-
-            # Persist updated messages back into session
             if sess is not None:
-                sess["messages"] = updated_messages
+                sess["messages"] = agent._history
                 sess["last_active"] = time.time()
-                sess["_last_tool_calls"] = tool_calls
 
             return RunResponse(
                 session_id=session_id,
                 response=response_text,
-                tool_calls_made=len(tool_calls),
+                tool_calls_made=tool_calls_total,
                 iterations_used=iterations,
                 model=model,
-                status="complete",
+                status=result.get("status", "ok"),
             )
 
         except Exception as exc:
-            logger.error(
-                "[VECTOR][gateway] _run_task_sync failed session={}: {}", session_id, exc
-            )
+            logger.error("[VECTOR][gateway] _run_task_sync error session={}: {}", session_id, exc)
             if sess is not None:
                 sess["status"] = "error"
             return RunResponse(

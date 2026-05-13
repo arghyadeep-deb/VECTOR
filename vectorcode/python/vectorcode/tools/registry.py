@@ -271,26 +271,22 @@ class ToolRegistry:
                 continue
             if not _module_registers_tools(path):
                 continue
-            mod_name = f"vectorcode.tools.{path.stem}"
-            try:
-                importlib.import_module(mod_name)
-            except Exception as e:
-                logger.warning(f"Could not import tool module {mod_name}: {e}")
+            # Try both absolute and relative module names
+            for mod_name in (f"vectorcode.tools.{path.stem}", f"tools.{path.stem}"):
+                try:
+                    importlib.import_module(mod_name)
+                    break
+                except ImportError:
+                    continue
+                except Exception as e:
+                    logger.warning(f"Could not import tool module {mod_name}: {e}")
+                    break
 
     def __len__(self) -> int:
         return len(self._tools)
 
     def __repr__(self) -> str:
         return f"ToolRegistry({len(self._tools)} tools)"
-
-
-# ── Module-level singleton ─────────────────────────────────────────────────────
-
-# This IS the global instance — tool files import and call registry.register()
-# at module level, which populates this same object.
-# ToolRegistry.global_instance() returns this same object after first call.
-registry = ToolRegistry()
-ToolRegistry._instance = registry  # wire up so global_instance() returns this
 
 
 # ── AST-based discovery helper ─────────────────────────────────────────────────
@@ -349,3 +345,10 @@ def get_toolset_for_tool(name: str) -> Optional[str]:
 
 def check_toolset_requirements(toolset: str = "coding") -> Dict[str, bool]:
     return ToolRegistry.global_instance().check_toolset_requirements(toolset)
+
+
+
+# ── Module-level singleton (at end, after all helpers are defined) ─────────────
+registry = ToolRegistry()
+ToolRegistry._instance = registry
+registry._discover_builtin_tools()

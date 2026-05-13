@@ -617,6 +617,83 @@ def cmd_usage(args):
         print(f"[VECTOR] usage error: {e}")
 
 
+def cmd_gateway(args):
+    """Start the HTTP gateway server."""
+    action = getattr(args, "action", "start") or "start"
+    host = getattr(args, "host", "127.0.0.1") or "127.0.0.1"
+    port = int(getattr(args, "port", 8123) or 8123)
+
+    if action == "start":
+        from vectorcode.gateway.server import GatewayServer
+        import asyncio
+        gw = GatewayServer(host=host, port=port)
+        print(f"[VECTOR] Starting gateway on http://{host}:{port}")
+        asyncio.run(gw.start())
+    elif action == "status":
+        import httpx
+        try:
+            r = httpx.get(f"http://{host}:{port}/status", timeout=3)
+            print(r.json())
+        except Exception as e:
+            print(f"[VECTOR] Gateway not reachable: {e}")
+
+
+def cmd_auth(args):
+    """Manage API credentials."""
+    action = getattr(args, "action", "list") or "list"
+    try:
+        from vectorcode.cli.auth import handle_auth_command
+        handle_auth_command(action, args)
+    except ImportError:
+        print(f"[VECTOR] auth {action}: not yet implemented")
+
+
+def cmd_profile(args):
+    """Manage named profiles."""
+    action = getattr(args, "profile_action", "list") or "list"
+    try:
+        from vectorcode.cli.profiles import handle_profile_command
+        handle_profile_command(action, args)
+    except ImportError:
+        print(f"[VECTOR] profile {action}: not yet implemented")
+
+
+def cmd_doctor(args):
+    """Run diagnostics."""
+    try:
+        from vectorcode.cli.doctor import run_doctor
+        run_doctor()
+    except ImportError:
+        print("[VECTOR] doctor: running basic checks...")
+        import sys, shutil
+        checks = [
+            ("Python 3.11+", sys.version_info >= (3, 11)),
+            ("ollama binary", shutil.which("ollama") is not None),
+            ("git binary", shutil.which("git") is not None),
+        ]
+        for name, ok in checks:
+            status = "OK" if ok else "FAIL"
+            print(f"  [{status}] {name}")
+
+
+def cmd_tools(args):
+    """List registered tools."""
+    action = getattr(args, "action", "list") or "list"
+    if action == "list":
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        sys.path.insert(0, str(Path(__file__).parent))
+        from tools.registry import ToolRegistry
+        reg = ToolRegistry.global_instance()
+        names = sorted(reg.get_all_tool_names())
+        print(f"Registered tools ({len(names)}):")
+        for name in names:
+            entry = reg._tools.get(name)
+            toolset = getattr(entry, "toolset", "?") if entry else "?"
+            print(f"  {name:<30} [{toolset}]")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="vector",
@@ -754,6 +831,19 @@ def main():
     # doctor subcommand
     sub.add_parser("doctor", help="Run diagnostics and health checks")
 
+    # gateway subcommand
+    gw_p = sub.add_parser("gateway", help="HTTP gateway server")
+    gw_sub = gw_p.add_subparsers(dest="action")
+    gw_start = gw_sub.add_parser("start", help="Start the gateway")
+    gw_start.add_argument("--host", default="127.0.0.1")
+    gw_start.add_argument("--port", type=int, default=8123)
+    gw_sub.add_parser("status", help="Check gateway status")
+
+    # tools subcommand
+    tools_p = sub.add_parser("tools", help="List registered tools")
+    tools_sub = tools_p.add_subparsers(dest="action")
+    tools_sub.add_parser("list", help="List all registered tools")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -769,6 +859,11 @@ def main():
         "skills":     cmd_skills,
         "completion": cmd_completion,
         "usage":      cmd_usage,
+        "gateway":    cmd_gateway,
+        "auth":       cmd_auth,
+        "profile":    cmd_profile,
+        "doctor":     cmd_doctor,
+        "tools":      cmd_tools,
         None:         cmd_repl,
     }
 
