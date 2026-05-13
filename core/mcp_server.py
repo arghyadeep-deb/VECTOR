@@ -28,6 +28,10 @@ from core.config import CONFIG
 
 
 def _make_server() -> "FastMCP":
+    if not _FASTMCP_AVAILABLE:
+        raise ImportError(
+            "fastmcp not installed — run: pip install fastmcp"
+        )
     mcp = FastMCP(
         "VECTOR",
         instructions=(
