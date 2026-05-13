@@ -92,7 +92,7 @@ class GatewayServer:
             from fastapi.middleware.cors import CORSMiddleware
             from fastapi.responses import JSONResponse, StreamingResponse
         except ImportError as exc:
-            logger.error("[VECTOR][gateway] FastAPI not installed: %s", exc)
+            logger.error("[VECTOR][gateway] FastAPI not installed: {}", exc)
             raise RuntimeError(
                 "FastAPI is required for GatewayServer. "
                 "Install it with: pip install fastapi uvicorn"
