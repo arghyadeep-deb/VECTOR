@@ -520,7 +520,7 @@ class GatewayServer:
 
     async def stop(self) -> None:
         """Graceful shutdown — cancel all running tasks."""
-        logger.info("[VECTOR][gateway] stopping — cancelling %d running tasks", len(self._running))
+        logger.info("[VECTOR][gateway] stopping — cancelling {} running tasks", len(self._running))
         for session_id, task in list(self._running.items()):
             if not task.done():
                 task.cancel()
