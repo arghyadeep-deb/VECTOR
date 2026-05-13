@@ -1,29 +1,47 @@
-"""Send message tool — send messages across all configured comms platforms."""
+# Ported from GitHub/NousResearch_hermes-agent/repo/tools/send_message_tool.py
+"""Send message tool — route messages to configured communication platforms."""
+import json
+from typing import Any, Optional
 
-import logging
-from typing import Optional
-
-logger = logging.getLogger(__name__)
+from loguru import logger
+from .registry import registry
 
 
-async def send_message(platform: str, recipient: str, text: str) -> dict:
-    """Send a message via a configured communications platform."""
+def send_message(
+    message: str,
+    platform: Optional[str] = None,
+    recipient: Optional[str] = None,
+    context: Any = None,
+) -> str:
+    """Send a message via the configured communication platform."""
     try:
-        bots = {
-            "telegram": ("comms.telegram_bot", "TelegramBot"),
-            "discord": ("comms.discord_bot", "DiscordBot"),
-            "slack": ("comms.slack_bot", "SlackBot"),
-            "signal": ("comms.signal_bot", "SignalBot"),
-            "whatsapp": ("comms.whatsapp_bot", "WhatsAppBot"),
-            "email": ("comms.email_client", "EmailClient"),
-        }
-        if platform not in bots:
-            return {"error": f"Unknown platform: {platform}. Available: {list(bots.keys())}"}
-        mod_path, cls_name = bots[platform]
-        mod = __import__(mod_path, fromlist=[cls_name])
-        cls = getattr(mod, cls_name)
-        bot = cls()
-        await bot.send(recipient, text)
-        return {"status": "sent", "platform": platform, "recipient": recipient}
+        from vectorcode.comms.messenger import Messenger
+        messenger = Messenger.global_instance()
+        result = messenger.send(message, platform=platform, recipient=recipient)
+        return json.dumps({"success": True, "platform": platform or "default"})
+    except ImportError:
+        return json.dumps({"error": "Messenger not available"})
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"send_message failed: {e}")
+        return json.dumps({"error": str(e)})
+
+
+registry.register(
+    name="send_message",
+    handler=send_message,
+    schema={
+        "description": "Send a message via Telegram, Discord, email, or other configured platform.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Message content"},
+                "platform": {"type": "string", "description": "Platform: telegram, discord, email, slack (default: auto)"},
+                "recipient": {"type": "string", "description": "Recipient ID or channel"},
+            },
+            "required": ["message"],
+        },
+    },
+    toolset="communication",
+    risk_level="medium",
+    emoji="📨",
+)

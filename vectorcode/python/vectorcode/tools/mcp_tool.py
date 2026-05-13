@@ -1,86 +1,84 @@
-"""MCP (Model Context Protocol) Client Support.
-
-Connects to external MCP servers via stdio transport, discovers their
-tools, and registers them so any agent can call them.
-"""
-
+# Ported from GitHub/NousResearch_hermes-agent/repo/tools/mcp_tool.py
+"""MCP tool — connect to external MCP servers and invoke their tools."""
 import json
-import logging
-import subprocess
-import sys
-from pathlib import Path
+import os
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
-
-_MCP_SERVERS: dict[str, Any] = {}
-_REGISTERED_TOOLS: dict[str, dict] = {}
+from loguru import logger
+from .registry import registry
 
 
-def register_mcp_server(
-    name: str,
-    command: str,
-    args: Optional[list[str]] = None,
-    env: Optional[dict[str, str]] = None,
-    timeout: int = 120,
-) -> dict:
-    """Register an MCP server and discover its tools."""
-    key = f"mcp_{name}"
-    _MCP_SERVERS[key] = {
-        "name": name,
-        "command": command,
-        "args": args or [],
-        "env": env or {},
-        "timeout": timeout,
-        "connected": False,
-    }
-    return _MCP_SERVERS[key]
+def mcp_call(
+    server: str,
+    tool: str,
+    arguments: Optional[dict] = None,
+    context: Any = None,
+) -> str:
+    """Call a tool on an external MCP server.
 
-
-async def connect_mcp_server(name: str) -> bool:
-    """Connect to a registered MCP server and discover tools."""
-    key = f"mcp_{name}"
-    if key not in _MCP_SERVERS:
-        logger.warning(f"MCP server '{name}' not registered")
-        return False
-
-    cfg = _MCP_SERVERS[key]
+    server: MCP server name (from config) or command to spawn
+    tool: tool name to call
+    arguments: tool arguments dict
+    """
     try:
-        proc = await asyncio_create_subprocess(
-            cfg["command"],
-            *cfg["args"],
-            env={**dict(Path.home().parts), **cfg["env"]},
-        )
-        cfg["connected"] = True
-        logger.info(f"MCP server '{name}' connected")
-        return True
+        from vectorcode.mcp_client.client import MCPClient
+        client = MCPClient.get_or_create(server)
+        result = client.call_tool(tool, arguments or {})
+        return json.dumps({"result": result})
+    except ImportError:
+        return json.dumps({"error": "MCP client not available"})
     except Exception as e:
-        logger.error(f"MCP server '{name}' connection failed: {e}")
-        return False
+        logger.error(f"MCP call failed: server={server!r} tool={tool!r}: {e}")
+        return json.dumps({"error": str(e)})
 
 
-async def call_mcp_tool(server_name: str, tool_name: str, args: dict) -> str:
-    """Call a tool on a connected MCP server."""
-    key = f"mcp_{server_name}"
-    if key not in _MCP_SERVERS or not _MCP_SERVERS[key].get("connected"):
-        return f"MCP server '{server_name}' not connected"
-
-    result = json.dumps({"tool": tool_name, "args": args, "status": "called"})
-    return result
-
-
-def list_mcp_servers() -> list[str]:
-    """List all registered MCP servers."""
-    return [cfg["name"] for cfg in _MCP_SERVERS.values()]
+def mcp_list_tools(server: str, context: Any = None) -> str:
+    """List tools available on an MCP server."""
+    try:
+        from vectorcode.mcp_client.client import MCPClient
+        client = MCPClient.get_or_create(server)
+        tools = client.list_tools()
+        return json.dumps({"tools": tools, "server": server})
+    except ImportError:
+        return json.dumps({"error": "MCP client not available"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 
-async def asyncio_create_subprocess(command, *args, **env_kwargs):
-    """Create subprocess - async wrapper."""
-    import asyncio
-    proc = await asyncio.create_subprocess_exec(
-        command, *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        **env_kwargs,
-    )
-    return proc
+registry.register(
+    name="mcp_call",
+    handler=mcp_call,
+    schema={
+        "description": "Call a tool on an external MCP server.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "server": {"type": "string", "description": "MCP server name or command"},
+                "tool": {"type": "string", "description": "Tool name to call"},
+                "arguments": {"type": "object", "description": "Tool arguments"},
+            },
+            "required": ["server", "tool"],
+        },
+    },
+    toolset="full",
+    risk_level="medium",
+    emoji="🔌",
+)
+
+registry.register(
+    name="mcp_list_tools",
+    handler=mcp_list_tools,
+    schema={
+        "description": "List tools available on an MCP server.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "server": {"type": "string", "description": "MCP server name"},
+            },
+            "required": ["server"],
+        },
+    },
+    toolset="full",
+    risk_level="safe",
+    emoji="📋",
+)

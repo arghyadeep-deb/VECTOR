@@ -1,53 +1,78 @@
-"""Vision tools — analyze images from URLs using vision-capable models."""
-
+# Ported from GitHub/NousResearch_hermes-agent/repo/tools/vision_tools.py
+"""Vision analysis tool — analyze images using multimodal models."""
 import base64
-import httpx
-import logging
+import json
 import os
-import tempfile
-from typing import Optional
+from pathlib import Path
+from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
+from .registry import registry
 
 
-async def analyze_image(image_url: str, prompt: str = "Describe this image in detail",
-                        provider: str = "openai", api_key: Optional[str] = None) -> str:
+def vision_analyze(
+    image_path: Optional[str] = None,
+    image_url: Optional[str] = None,
+    prompt: str = "Describe this image in detail.",
+    context: Any = None,
+) -> str:
     """Analyze an image using a vision-capable model."""
-    try:
-        image_data = await _download_image(image_url)
-        base64_image = base64.b64encode(image_data).decode()
+    if not image_path and not image_url:
+        return json.dumps({"error": "Provide image_path or image_url"})
 
-        if provider == "openai":
-            api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-            if not api_key: return "OPENAI_API_KEY not set"
-            async with httpx.AsyncClient() as c:
-                r = await c.post("https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json={"model": "gpt-4o", "messages": [{"role": "user", "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                    ]}]})
-                return r.json()["choices"][0]["message"]["content"]
+    # Build image data
+    if image_path:
+        p = Path(image_path).expanduser()
+        if not p.exists():
+            return json.dumps({"error": f"Image not found: {image_path}"})
+        try:
+            data = base64.b64encode(p.read_bytes()).decode()
+            ext = p.suffix.lower().lstrip(".")
+            media_type = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                          "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")
+            image_source = {"type": "base64", "media_type": media_type, "data": data}
+        except Exception as e:
+            return json.dumps({"error": f"Failed to read image: {e}"})
+    else:
+        image_source = {"type": "url", "url": image_url}
 
-        elif provider == "anthropic":
-            api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-            if not api_key: return "ANTHROPIC_API_KEY not set"
-            async with httpx.AsyncClient() as c:
-                r = await c.post("https://api.anthropic.com/v1/messages",
-                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                    json={"model": "claude-sonnet-4-6", "max_tokens": 1024, "messages": [{"role": "user", "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64_image}}
-                    ]}]})
-                return r.json()["content"][0]["text"]
+    # Try Anthropic vision
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if api_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            content = [
+                {"type": "image", "source": image_source},
+                {"type": "text", "text": prompt},
+            ]
+            msg = client.messages.create(
+                model="claude-opus-4-5",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": content}],
+            )
+            return json.dumps({"description": msg.content[0].text})
+        except Exception as e:
+            logger.warning(f"Anthropic vision failed: {e}")
 
-        return f"No provider implementation for: {provider}"
-    except Exception as e:
-        return f"Vision analysis failed: {e}"
+    return json.dumps({"error": "No vision-capable provider available. Set ANTHROPIC_API_KEY."})
 
 
-async def _download_image(url: str) -> bytes:
-    async with httpx.AsyncClient() as c:
-        r = await c.get(url)
-        r.raise_for_status()
-        return r.content
+registry.register(
+    name="vision_analyze",
+    handler=vision_analyze,
+    schema={
+        "description": "Analyze an image using a vision-capable model.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "image_path": {"type": "string", "description": "Local path to image file"},
+                "image_url": {"type": "string", "description": "URL of image"},
+                "prompt": {"type": "string", "description": "What to analyze (default: describe the image)"},
+            },
+        },
+    },
+    toolset="research",
+    risk_level="safe",
+    emoji="👁️",
+)
