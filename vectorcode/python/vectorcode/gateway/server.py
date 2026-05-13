@@ -360,7 +360,7 @@ class GatewayServer:
                 compacted = compactor.compact(messages)
                 sess["messages"] = compacted
                 logger.info(
-                    "[VECTOR][gateway] /compact session=%s %d -> %d messages",
+                    "[VECTOR][gateway] /compact session={} {} -> {} messages",
                     session_id, before_count, len(compacted),
                 )
                 return {
