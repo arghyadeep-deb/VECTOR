@@ -290,4 +290,4 @@ if __name__ == "__main__":
     short_out, _, _ = mgr.apply_cache_control("Be brief.", None, [])
     assert short_out == "Be brief.", "Short system should pass through unchanged as string"
 
-    print("✅ prompt_caching.py OK")
+    print("PASS: prompt_caching.py OK")
