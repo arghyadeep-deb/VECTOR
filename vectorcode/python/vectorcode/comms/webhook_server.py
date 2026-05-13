@@ -425,4 +425,5 @@ if __name__ == "__main__":
     assert s1 is s2, "Singleton not returning same instance"
     logger.info("[VECTOR][webhook] get_webhook_server() singleton ✅")
 
-    print("✅ webhook_server.py OK")
+    logger.info("[VECTOR][webhook] All smoke tests passed")
+    sys.stdout.buffer.write(b"[OK] webhook_server.py OK\n")
