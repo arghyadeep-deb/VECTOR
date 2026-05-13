@@ -148,10 +148,16 @@ class _Turn:
 
     @property
     def role(self) -> str:
-        """Dominant role of the turn's first non-system message."""
-        for m in self.messages:
-            r = m.get("role", "")
-            if r != "system":
+        """Dominant role of the turn.
+
+        Returns 'system' for system-only turns. Otherwise returns the role
+        of the first non-system message in the turn.
+        """
+        roles = [m.get("role", "") for m in self.messages]
+        if all(r == "system" for r in roles):
+            return "system"
+        for r in roles:
+            if r not in ("system", ""):
                 return r
         return "unknown"
 
