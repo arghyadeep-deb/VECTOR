@@ -9,10 +9,11 @@ prompt caching, interrupt handling, or retry logic.
 Ported from NousResearch/hermes-agent agent/transports/base.py.
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
