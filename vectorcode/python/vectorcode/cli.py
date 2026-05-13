@@ -494,8 +494,13 @@ def main():
     sess_sub.add_parser("list", help="List past sessions")
     resume_p = sess_sub.add_parser("resume", help="Resume a session by ID")
     resume_p.add_argument("id", help="Session ID (or prefix)")
-    export_p = sess_sub.add_parser("export", help="Export session as Markdown")
+    export_p = sess_sub.add_parser("export", help="Export session as Markdown/HTML/JSON")
     export_p.add_argument("id", help="Session ID (or prefix)")
+    export_p.add_argument(
+        "--format", dest="export_format",
+        choices=["markdown", "html", "json"], default="markdown",
+        help="Output format (default: markdown)"
+    )
 
     # models subcommand
     models_p = sub.add_parser("models", help="Manage model providers")
