@@ -442,6 +442,18 @@ class VectorREPL:
                                )}]
         self._running     = False
         self._last_write:  "str | None" = None  # track last file written for /undo
+        try:
+            from session_db import get_session_db
+            self._db = get_session_db()
+            self._db.create_session(
+                self.session.session_id,
+                self.session.current_model,
+                str(self._project_dir),
+                self.session.mode,
+            )
+        except Exception as e:
+            logger.debug(f"[VECTOR][repl] session_db init: {e}")
+            self._db = None
 
     # ── slash commands ────────────────────────────────────────────────────────
 
