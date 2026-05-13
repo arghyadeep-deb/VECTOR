@@ -305,36 +305,69 @@ def cmd_sessions(args):
     elif action == "export":
         session_id = getattr(args, "id", None)
         if not session_id:
-            print("Usage: vector sessions export <session-id>")
+            print("Usage: vector sessions export <session-id> [--format markdown|html|json]")
             return
-        target = SESSION_DIR / f"{session_id}.json"
-        if not target.exists():
-            matches = list(SESSION_DIR.glob(f"{session_id}*.json"))
-            if not matches:
-                print(f"Session not found: {session_id}")
-                return
-            target = matches[0]
-        data = json.loads(target.read_text(encoding="utf-8"))
-        lines = [
-            f"# VectorCode Session Export",
-            f"",
-            f"**ID:** {data.get('id', '')}  ",
-            f"**Date:** {data.get('created_at', '')}  ",
-            f"**Model:** {data.get('model', '')}  ",
-            f"**Project:** {data.get('project', '')}  ",
-            f"**Cost:** ${data.get('cost_usd', 0):.4f}  ",
-            f"",
-            "---",
-            "",
-        ]
-        for msg in data.get("messages", []):
-            role = msg.get("role", "?")
-            content = msg.get("content", "")
-            if role == "system":
-                continue
-            lines.append(f"**{role.title()}:** {content}")
-            lines.append("")
-        print("\n".join(lines))
+        fmt = getattr(args, "export_format", "markdown") or "markdown"
+
+        # Try session_db first for richer export
+        _exported = False
+        try:
+            from vectorcode.session_db import get_session_db
+            db = get_session_db()
+            if fmt == "markdown":
+                content = db.export_markdown(session_id)
+                print(content)
+                _exported = True
+            elif fmt == "html":
+                md = db.export_markdown(session_id)
+                print(f"<html><body><pre>{md}</pre></body></html>")
+                _exported = True
+            elif fmt == "json":
+                msgs = db.get_context_window(session_id)
+                print(json.dumps(msgs, indent=2, ensure_ascii=False))
+                _exported = True
+        except Exception:
+            pass
+
+        if not _exported:
+            # Fallback: JSON file export
+            target = SESSION_DIR / f"{session_id}.json"
+            if not target.exists():
+                matches = list(SESSION_DIR.glob(f"{session_id}*.json"))
+                if not matches:
+                    print(f"Session not found: {session_id}")
+                    return
+                target = matches[0]
+            data = json.loads(target.read_text(encoding="utf-8"))
+            messages = data.get("messages", [])
+
+            if fmt == "json":
+                print(json.dumps(messages, indent=2, ensure_ascii=False))
+            else:
+                lines = [
+                    "# VectorCode Session Export",
+                    "",
+                    f"**ID:** {data.get('id', '')}  ",
+                    f"**Date:** {data.get('created_at', '')}  ",
+                    f"**Model:** {data.get('model', '')}  ",
+                    f"**Project:** {data.get('project', '')}  ",
+                    f"**Cost:** ${data.get('cost_usd', 0):.4f}  ",
+                    "",
+                    "---",
+                    "",
+                ]
+                for msg in messages:
+                    role = msg.get("role", "?")
+                    content = msg.get("content", "")
+                    if role == "system":
+                        continue
+                    lines.append(f"**{role.title()}:** {content}")
+                    lines.append("")
+                md_text = "\n".join(lines)
+                if fmt == "html":
+                    print(f"<html><body><pre>{md_text}</pre></body></html>")
+                else:
+                    print(md_text)
 
     else:
         print(f"Unknown sessions action: {action}")
