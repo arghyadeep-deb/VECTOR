@@ -1,692 +1,449 @@
-"""VectorCode TrajectoryCompressor — compress agent message histories.
+"""Trajectory compressor — 6-stage token-budget-aware context compression.
 
-Ports the core compression algorithm from Hermes trajectory_compressor.py,
-adapted to OpenAI message format ({role, content}) instead of Hermes training
-format ({from, value}).
-
-Compression pipeline:
-  Stage 1: Prune tool results > 500 chars to a 1-line summary stub
-  Stage 2: Group messages into logical turns
-  Stage 3: Score each turn by importance
-  Stage 4: Drop lowest-scoring turns until within 80% token budget
-  Stage 5: Re-stitch with "[N turns omitted]" placeholder
-  Stage 6: Validate — no orphaned tool_results, system message present
-
-This module is *stateless* — every function is pure (no side effects on the
-passed lists) and the TrajectoryCompressor class wraps them with config and
-optional LLM-based summarization for Stage 4 dropped turns.
-
-Token estimation:
-  Uses context/engine.estimate_tokens() (char/4) for cost-free counting.
-  No HuggingFace tokenizer dependency required.
+Pipeline:
+  Stage 1: prune_tool_results   — truncate oversized tool_result content
+  Stage 2: group_into_turns     — group consecutive messages into turns
+  Stage 3: score_turn           — importance score 0.0–1.0 per turn
+  Stage 4: drop_turns           — drop lowest-scoring turns to hit token budget
+  Stage 5: stitch_turns         — reassemble flat list with omission markers
+  Stage 6: validate             — remove orphaned tool_result messages
 """
 
 import sys
-import json
-import time
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 
-try:
-    from core.config import CONFIG
-except ImportError:
-    CONFIG = {}
+__all__ = [
+    "compress_trajectory",
+    "estimate_tokens",
+    "prune_tool_results",
+    "group_into_turns",
+    "score_turn",
+    "drop_turns",
+    "stitch_turns",
+    "validate",
+]
 
-# Import token estimation from sibling module (avoids circular import)
-try:
-    from context.engine import estimate_tokens, get_token_budget, _CHARS_PER_TOKEN
-except ImportError:
-    _CHARS_PER_TOKEN = 4
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    def estimate_tokens(messages: List[Dict[str, Any]]) -> int:  # type: ignore[misc]
-        total = sum(len(str(m.get("content") or "")) for m in messages)
-        return total // _CHARS_PER_TOKEN
-
-    def get_token_budget(model: str) -> int:  # type: ignore[misc]
-        return 32_768
-
-
-# ── Configuration ──────────────────────────────────────────────────────────────
-
-_DEFAULT_TARGET_RATIO = 0.80       # compress until within 80% of context window
-_TOOL_RESULT_MAX_CHARS = 500       # prune tool results longer than this (Stage 1)
-_ALWAYS_PROTECT_LAST_N = 5         # always keep the last N turns (Stage 3)
-_TURN_IMPORTANCE: Dict[str, float] = {
-    # Higher = more important = keep longer
-    "last_5":      1.0,   # recent turns always protected
-    "tool_error":  0.8,   # failed tool calls have debugging value
-    "decision":    0.7,   # decision / result messages
-    "tool_result": 0.5,   # successful tool results (partially pruned in stage 1)
-    "user":        0.6,   # user messages
-    "assistant":   0.4,   # assistant reasoning (least unique)
-    "system":      1.0,   # system message always protected
-}
-_DECISION_MARKERS = {
-    "decision:", "decided:", "final approach:", "going with", "using:",
-    "architecture:", "approved:", "DECISION:", "chosen:", "we will",
-}
-
-# Placeholder inserted where dropped turns used to be
-_OMITTED_PLACEHOLDER_TEMPLATE = "[{n} turns omitted during context compression]"
+def estimate_tokens(text: str) -> int:
+    """Rough char/4 token estimate — always >= 1."""
+    return max(1, len(text) // 4)
 
 
-# ── Stage 1: Prune large tool results ─────────────────────────────────────────
-
-def _is_tool_error(content: str) -> bool:
-    """Heuristic: does a tool result look like an error?"""
-    if not content:
-        return False
-    head = content.lstrip()
-    if head.startswith("{"):
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, dict):
-                if parsed.get("error"):
-                    return True
-                status = str(parsed.get("status", "")).strip().lower()
-                if status in {"error", "failed", "failure", "timeout"}:
-                    return True
-        except Exception:
-            pass
-    first = (content.splitlines()[0] if content.splitlines() else "").strip().lower()
-    return (
-        first.startswith("error:")
-        or first.startswith("failed:")
-        or first.startswith("traceback ")
-        or first.startswith("exception:")
-    )
+def _message_tokens(msg: dict) -> int:
+    """Estimate tokens for a single message dict."""
+    content = msg.get("content", "")
+    if isinstance(content, list):
+        # Structured content blocks (Anthropic format)
+        total = 0
+        for block in content:
+            if isinstance(block, dict):
+                total += estimate_tokens(block.get("text", "") or block.get("content", ""))
+            else:
+                total += estimate_tokens(str(block))
+        return max(1, total)
+    return estimate_tokens(str(content))
 
 
-def _prune_tool_results(
-    messages: List[Dict[str, Any]], max_chars: int = _TOOL_RESULT_MAX_CHARS
-) -> List[Dict[str, Any]]:
-    """Stage 1: Replace oversized tool result bodies with a 1-line summary stub.
+def _turn_tokens(turn: list[dict]) -> int:
+    return sum(_message_tokens(m) for m in turn)
 
-    Errors are preserved intact — they have high debugging value.
-    The tail (_ALWAYS_PROTECT_LAST_N) messages are never pruned in Stage 1.
+
+# ---------------------------------------------------------------------------
+# Stage 1 — Prune tool results
+# ---------------------------------------------------------------------------
+
+def prune_tool_results(messages: list[dict], max_tool_chars: int = 8000) -> list[dict]:
+    """Truncate tool_result content that exceeds max_tool_chars.
+
+    Works with both plain-string content and structured content block lists.
+    Appends '\\n...[truncated]' when truncation occurs.
     """
-    pruned = [m.copy() for m in messages]
-    protect_from = max(0, len(pruned) - _ALWAYS_PROTECT_LAST_N)
-
-    for i, msg in enumerate(pruned):
-        if i >= protect_from:
-            break
+    result: list[dict] = []
+    for msg in messages:
         if msg.get("role") != "tool":
+            result.append(msg)
             continue
+
         content = msg.get("content", "")
-        if not isinstance(content, str) or len(content) <= max_chars:
-            continue
-        if _is_tool_error(content):
-            continue  # keep errors intact
-        # Replace with summary stub
-        lines = content.count("\n") + 1
-        pruned[i] = {
-            **msg,
-            "content": (
-                f"[Tool result pruned: {len(content):,} chars / {lines} lines — "
-                "content cleared to save context space]"
-            ),
-        }
+        if isinstance(content, str):
+            if len(content) > max_tool_chars:
+                msg = dict(msg)  # shallow copy — never mutate original
+                msg["content"] = content[:max_tool_chars] + "\n...[truncated]"
+                logger.debug(
+                    "[trajectory_compressor] tool_result truncated "
+                    f"{len(content)} → {max_tool_chars} chars"
+                )
+        elif isinstance(content, list):
+            new_blocks: list = []
+            changed = False
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = block.get("text", "")
+                    if len(text) > max_tool_chars:
+                        block = dict(block)
+                        block["text"] = text[:max_tool_chars] + "\n...[truncated]"
+                        changed = True
+                        logger.debug(
+                            "[trajectory_compressor] tool_result block truncated "
+                            f"{len(text)} → {max_tool_chars} chars"
+                        )
+                new_blocks.append(block)
+            if changed:
+                msg = dict(msg)
+                msg["content"] = new_blocks
 
-    return pruned
-
-
-# ── Stage 2: Group messages into logical turns ─────────────────────────────────
-
-@dataclass
-class _Turn:
-    """A logical turn = one user/assistant exchange plus any tool results."""
-
-    messages: List[Dict[str, Any]] = field(default_factory=list)
-    index_start: int = 0           # index of first message in original list
-
-    @property
-    def role(self) -> str:
-        """Dominant role of the turn.
-
-        Returns 'system' for system-only turns. Otherwise returns the role
-        of the first non-system message in the turn.
-        """
-        roles = [m.get("role", "") for m in self.messages]
-        if all(r == "system" for r in roles):
-            return "system"
-        for r in roles:
-            if r not in ("system", ""):
-                return r
-        return "unknown"
-
-    @property
-    def has_tool_error(self) -> bool:
-        for m in self.messages:
-            if m.get("role") == "tool" and _is_tool_error(
-                str(m.get("content") or "")
-            ):
-                return True
-        return False
-
-    @property
-    def has_decision(self) -> bool:
-        for m in self.messages:
-            text = str(m.get("content") or "").lower()
-            if any(marker in text for marker in _DECISION_MARKERS):
-                return True
-        return False
-
-    def token_cost(self) -> int:
-        return estimate_tokens(self.messages)
+        result.append(msg)
+    return result
 
 
-def _group_into_turns(messages: List[Dict[str, Any]]) -> List[_Turn]:
-    """Stage 2: Group a flat message list into logical turns.
+# ---------------------------------------------------------------------------
+# Stage 2 — Group into turns
+# ---------------------------------------------------------------------------
 
-    A turn starts on each 'user' or 'assistant' message (except tool results,
-    which attach to the preceding assistant turn). System messages form their
-    own single-message turn at position 0.
+def group_into_turns(messages: list[dict]) -> list[list[dict]]:
+    """Group consecutive messages into logical turns.
+
+    A turn starts with a user message and collects subsequent assistant/tool
+    messages until the next user message begins a new turn.
+    If the conversation starts with assistant/tool messages (e.g. system
+    injections before the first user message) they form turn 0.
     """
     if not messages:
         return []
 
-    turns: List[_Turn] = []
-    current_turn: Optional[_Turn] = None
+    turns: list[list[dict]] = []
+    current_turn: list[dict] = []
 
-    for i, msg in enumerate(messages):
+    for msg in messages:
         role = msg.get("role", "")
-
-        if role == "system":
-            # System messages always get their own turn
+        if role == "user":
             if current_turn:
                 turns.append(current_turn)
-            turns.append(_Turn(messages=[msg], index_start=i))
-            current_turn = None
-            continue
+            current_turn = [msg]
+        else:
+            current_turn.append(msg)
 
-        if role == "tool":
-            # Tool results attach to the current (assistant) turn
-            if current_turn is not None:
-                current_turn.messages.append(msg)
-            else:
-                # Orphaned tool result — create a synthetic turn for it
-                current_turn = _Turn(messages=[msg], index_start=i)
-            continue
-
-        # user or assistant: starts a new turn
-        if current_turn is not None:
-            turns.append(current_turn)
-        current_turn = _Turn(messages=[msg], index_start=i)
-
-    if current_turn is not None:
+    if current_turn:
         turns.append(current_turn)
 
     return turns
 
 
-# ── Stage 3: Score turns by importance ─────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Stage 3 — Score turn
+# ---------------------------------------------------------------------------
 
-def _score_turn(turn: _Turn, total_turns: int, turn_index: int) -> float:
-    """Stage 3: Assign an importance score to a turn (0.0 – 1.0).
+def score_turn(turn: list[dict], index: int, total: int) -> float:
+    """Compute importance score 0.0–1.0 for a turn.
 
-    Higher score = more important = keep when dropping turns.
+    Rules (additive, capped at 1.0):
+    - First 2 turns → 1.0 (protect system context)
+    - Last 20% of turns → +0.4 recency boost
+    - Turn contains a user message → +0.3
+    - Turn contains a tool failure (content has "error" or "failed") → +0.2
+    - Base score → 0.3
     """
-    # System message: always maximum score
-    if turn.role == "system":
+    if index < 2:
         return 1.0
 
-    # Last N turns: always protected
-    tail_threshold = max(0, total_turns - _ALWAYS_PROTECT_LAST_N)
-    if turn_index >= tail_threshold:
-        return _TURN_IMPORTANCE["last_5"]
+    score = 0.3  # base
 
-    # Tool errors: high value for debugging
-    if turn.has_tool_error:
-        return _TURN_IMPORTANCE["tool_error"]
+    # Recency boost — last 20 % of turns
+    if total > 0 and index >= int(total * 0.8):
+        score += 0.4
 
-    # Decision turns: preserve
-    if turn.has_decision:
-        return _TURN_IMPORTANCE["decision"]
+    # User message present
+    has_user = any(m.get("role") == "user" for m in turn)
+    if has_user:
+        score += 0.3
 
-    # Role-based fallback
-    role = turn.role
-    if role == "user":
-        return _TURN_IMPORTANCE["user"]
-    if role == "assistant":
-        # Turns with tool_calls are more valuable than pure reasoning
-        for m in turn.messages:
-            if m.get("tool_calls"):
-                return _TURN_IMPORTANCE["tool_result"]
-        return _TURN_IMPORTANCE["assistant"]
+    # Tool failure signal
+    for msg in turn:
+        content = msg.get("content", "")
+        if isinstance(content, list):
+            text = " ".join(
+                b.get("text", "") for b in content if isinstance(b, dict)
+            ).lower()
+        else:
+            text = str(content).lower()
+        if "error" in text or "failed" in text:
+            score += 0.2
+            break
 
-    return 0.3
+    return min(1.0, score)
 
 
-# ── Stage 4: Drop lowest-scoring turns ────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Stage 4 — Drop turns
+# ---------------------------------------------------------------------------
 
-def _drop_turns_to_budget(
-    turns: List[_Turn],
-    token_budget: int,
-) -> Tuple[List[_Turn], List[_Turn]]:
-    """Stage 4: Drop lowest-scoring turns until within token budget.
+def drop_turns(
+    turns: list[list[dict]],
+    scores: list[float],
+    target_tokens: int,
+) -> tuple[list[list[dict]], list[int]]:
+    """Drop lowest-scoring turns until total estimated tokens ≤ target_tokens.
 
-    Returns (kept_turns, dropped_turns).
-    System turns and the last N turns are never dropped.
+    Never drops:
+    - First 2 turns (index 0, 1)
+    - Last 3 turns (index -3, -2, -1)
+
+    Returns:
+        kept_turns      — list of retained turn lists
+        dropped_gaps    — parallel list; dropped_gaps[i] is the number of turns
+                          dropped between kept_turns[i-1] and kept_turns[i].
+                          Length equals len(kept_turns).  dropped_gaps[0] is
+                          always 0 (nothing before the first kept turn that
+                          would be omitted).
     """
-    total_turns = len(turns)
-    scores = [_score_turn(t, total_turns, i) for i, t in enumerate(turns)]
+    if not turns:
+        return [], []
 
-    # Build candidates: (score, index) sorted ascending (lowest first = drop first)
-    # Never drop system (role=='system') or protected tail
-    tail_start = max(0, total_turns - _ALWAYS_PROTECT_LAST_N)
-    candidates = sorted(
-        [
-            (scores[i], i)
-            for i, turn in enumerate(turns)
-            if turn.role != "system" and i < tail_start
-        ],
-        key=lambda x: (x[0], -x[1]),  # lowest score first; older before newer on tie
+    n = len(turns)
+    total_tokens = sum(_turn_tokens(t) for t in turns)
+
+    if total_tokens <= target_tokens:
+        return list(turns), [0] * n
+
+    # Build list of (score, original_index) for droppable turns only
+    # Protected indices: first 2 and last 3
+    protected: set[int] = set(range(min(2, n)))
+    for i in range(max(0, n - 3), n):
+        protected.add(i)
+
+    # Sort droppable by score ascending (drop cheapest first)
+    droppable = sorted(
+        [(scores[i], i) for i in range(n) if i not in protected],
+        key=lambda x: x[0],
     )
 
-    current_tokens = sum(t.token_cost() for t in turns)
-    drop_indices: set = set()
+    kept_mask = [True] * n
 
-    for _score, idx in candidates:
-        if current_tokens <= token_budget:
+    for _, idx in droppable:
+        if total_tokens <= target_tokens:
             break
-        saved = turns[idx].token_cost()
-        drop_indices.add(idx)
-        current_tokens -= saved
+        total_tokens -= _turn_tokens(turns[idx])
+        kept_mask[idx] = False
+        logger.debug(f"[trajectory_compressor] dropped turn {idx} (score={scores[idx]:.2f})")
 
-    kept = [t for i, t in enumerate(turns) if i not in drop_indices]
-    dropped = [t for i, t in enumerate(turns) if i in drop_indices]
-    return kept, dropped
+    # Build kept list and gap counts
+    kept_turns: list[list[dict]] = []
+    dropped_gaps: list[int] = []
+    gap = 0
 
-
-# ── Stage 5: Re-stitch with placeholder ──────────────────────────────────────
-
-def _stitch_turns(
-    original_turns: List[_Turn],
-    kept_turns: List[_Turn],
-) -> List[Dict[str, Any]]:
-    """Stage 5: Flatten kept turns back to a message list with omission placeholders.
-
-    When a contiguous block of turns was dropped, injects a single user
-    message: "[N turns omitted during context compression]".
-    """
-    kept_set = {id(t) for t in kept_turns}
-    result: List[Dict[str, Any]] = []
-    omitted_count = 0
-
-    for turn in original_turns:
-        if id(turn) in kept_set:
-            # Flush any pending omission placeholder before adding kept turn
-            if omitted_count > 0:
-                result.append({
-                    "role": "user",
-                    "content": _OMITTED_PLACEHOLDER_TEMPLATE.format(n=omitted_count),
-                })
-                omitted_count = 0
-            result.extend(turn.messages)
+    for i, kept in enumerate(kept_mask):
+        if kept:
+            kept_turns.append(turns[i])
+            dropped_gaps.append(gap)
+            gap = 0
         else:
-            omitted_count += len(turn.messages)
+            gap += 1
 
-    if omitted_count > 0:
-        result.append({
-            "role": "user",
-            "content": _OMITTED_PLACEHOLDER_TEMPLATE.format(n=omitted_count),
-        })
+    # Any trailing gap is silently discarded (last 3 are always kept so
+    # this edge case cannot produce orphaned gaps in practice).
+
+    return kept_turns, dropped_gaps
+
+
+# ---------------------------------------------------------------------------
+# Stage 5 — Stitch turns
+# ---------------------------------------------------------------------------
+
+def stitch_turns(
+    kept_turns: list[list[dict]],
+    dropped_gaps: list[int],
+) -> list[dict]:
+    """Reassemble kept turns into a flat message list.
+
+    Inserts an omission marker before a kept turn when dropped_gaps[i] > 0.
+    """
+    result: list[dict] = []
+
+    for i, turn in enumerate(kept_turns):
+        gap = dropped_gaps[i] if i < len(dropped_gaps) else 0
+        if gap > 0:
+            result.append(
+                {
+                    "role": "assistant",
+                    "content": f"[{gap} turn{'s' if gap != 1 else ''} omitted]",
+                }
+            )
+        result.extend(turn)
 
     return result
 
 
-# ── Stage 6: Validate ─────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Stage 6 — Validate
+# ---------------------------------------------------------------------------
 
-def _validate_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Stage 6: Remove orphaned tool_results (no matching assistant tool_call).
+def validate(messages: list[dict]) -> list[dict]:
+    """Remove orphaned tool_result messages.
 
-    An orphaned tool_result occurs when its parent assistant message was
-    dropped during Stage 4. Keeping it would cause API errors.
+    A tool_result is orphaned if its tool_use_id does not appear in the
+    immediately preceding assistant message's tool_use blocks.
     """
-    # Build set of all tool_call IDs present in assistant messages
-    valid_tool_call_ids: set = set()
-    for msg in messages:
-        if msg.get("role") == "assistant":
-            for tc in msg.get("tool_calls") or []:
-                if isinstance(tc, dict):
-                    cid = tc.get("id", "")
-                    if cid:
-                        valid_tool_call_ids.add(cid)
+    result: list[dict] = []
+    prev_tool_use_ids: set[str] = set()
 
-    cleaned: List[Dict[str, Any]] = []
     for msg in messages:
-        if msg.get("role") == "tool":
-            cid = msg.get("tool_call_id", "")
-            if cid and cid not in valid_tool_call_ids:
-                logger.debug(
-                    f"[VECTOR][traj_compress] dropping orphaned tool_result "
-                    f"tool_call_id={cid}"
+        role = msg.get("role", "")
+
+        if role == "assistant":
+            prev_tool_use_ids = set()
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        bid = block.get("id")
+                        if bid:
+                            prev_tool_use_ids.add(bid)
+            result.append(msg)
+
+        elif role == "tool":
+            # Check if there's a matching tool_use id
+            tool_use_id = msg.get("tool_use_id") or msg.get("id")
+            if prev_tool_use_ids and tool_use_id not in prev_tool_use_ids:
+                logger.warning(
+                    f"[trajectory_compressor] dropping orphaned tool_result "
+                    f"id={tool_use_id!r}"
                 )
-                continue
-        cleaned.append(msg)
+                continue  # drop orphan
+            result.append(msg)
+            # Don't reset — multiple tool results can follow one assistant message
 
-    return cleaned
+        else:
+            # user / system / other
+            prev_tool_use_ids = set()
+            result.append(msg)
+
+    return result
 
 
-# ── Public API: functional ────────────────────────────────────────────────────
-
-def estimate_trajectory_tokens(messages: List[Dict[str, Any]]) -> int:
-    """Return rough token estimate for a message list. Module-level alias."""
-    return estimate_tokens(messages)
-
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def compress_trajectory(
-    messages: List[Dict[str, Any]],
-    model: str = "vector-focus",
-    target_ratio: float = _DEFAULT_TARGET_RATIO,
-) -> List[Dict[str, Any]]:
-    """Full 6-stage compression pipeline. Returns a shorter message list.
+    messages: list[dict],
+    target_tokens: int = 32000,
+    *,
+    head_protection: int = 4000,
+    tail_protection: int = 2000,
+) -> list[dict]:
+    """Run all 6 compression stages and return a token-budget-aware message list.
 
     Args:
-        messages: OpenAI-format conversation list.
-        model: Model name used to determine context window.
-        target_ratio: Target fraction of context window (default 0.80).
+        messages:        Flat list of conversation messages.
+        target_tokens:   Maximum token budget for the returned list.
+        head_protection: Reserved token budget for the conversation head
+                         (informational — used to tune stage 4 target).
+        tail_protection: Reserved token budget for the conversation tail.
 
     Returns:
-        Compressed message list. May be identical to input if already within budget.
+        Compressed (or original) message list.
     """
     if not messages:
         return messages
 
-    context_window = get_token_budget(model)
-    token_budget = int(context_window * max(0.10, min(target_ratio, 0.99)))
-    current_tokens = estimate_tokens(messages)
+    original_count = len(messages)
+    total = sum(_message_tokens(m) for m in messages)
 
-    if current_tokens <= token_budget:
+    if total <= target_tokens:
         logger.debug(
-            f"[VECTOR][traj_compress] no compression needed "
-            f"({current_tokens} / {token_budget} tokens)"
+            f"[trajectory_compressor] no compression needed "
+            f"({total} tokens ≤ {target_tokens})"
         )
         return messages
 
     logger.info(
-        f"[VECTOR][traj_compress] compressing: {current_tokens} → {token_budget} tokens "
-        f"({len(messages)} messages, model={model})"
+        f"[trajectory_compressor] compressing {original_count} messages "
+        f"({total} tokens → target {target_tokens})"
     )
 
-    # Stage 1: Prune oversized tool results
-    pruned = _prune_tool_results(messages)
+    # Stage 1
+    msgs = prune_tool_results(messages)
 
-    # Stage 2: Group into turns
-    turns = _group_into_turns(pruned)
+    # Stage 2
+    turns = group_into_turns(msgs)
+    n = len(turns)
 
-    # Stage 3 + 4: Score and drop
-    kept_turns, dropped_turns = _drop_turns_to_budget(turns, token_budget)
+    # Stage 3
+    scores = [score_turn(t, i, n) for i, t in enumerate(turns)]
 
-    # Stage 5: Re-stitch
-    stitched = _stitch_turns(turns, kept_turns)
+    # Effective target: subtract protected head/tail from budget
+    effective_target = max(target_tokens - head_protection - tail_protection, target_tokens // 2)
 
-    # Stage 6: Validate
-    validated = _validate_messages(stitched)
+    # Stage 4
+    kept_turns, dropped_gaps = drop_turns(turns, scores, effective_target)
 
-    after_tokens = estimate_tokens(validated)
-    reduction_pct = 100 * (1 - after_tokens / max(current_tokens, 1))
+    # Stage 5
+    result = stitch_turns(kept_turns, dropped_gaps)
+
+    # Stage 6
+    result = validate(result)
+
     logger.info(
-        f"[VECTOR][traj_compress] done: {current_tokens} → {after_tokens} tokens "
-        f"({reduction_pct:.0f}% reduction, {len(messages)} → {len(validated)} messages, "
-        f"{len(dropped_turns)} turns dropped)"
+        f"[trajectory_compressor] compressed {original_count} → {len(result)} messages"
     )
-
-    return validated
-
-
-# ── TrajectoryCompressor class ────────────────────────────────────────────────
-
-class TrajectoryCompressor:
-    """Class wrapper around the compression pipeline with optional LLM summarization.
-
-    Without a summarization model configured, Stage 4 dropped turns are
-    replaced by a placeholder string. When a model is configured (via
-    CONFIG['model'] or constructor argument), dropped turns are summarized
-    by an Ollama call before being replaced.
-    """
-
-    def __init__(
-        self,
-        model: str = "vector-focus",
-        target_ratio: float = _DEFAULT_TARGET_RATIO,
-        summarize_dropped: bool = False,
-        summary_model: Optional[str] = None,
-    ) -> None:
-        self.model = model
-        self.target_ratio = target_ratio
-        self.summarize_dropped = summarize_dropped
-        self.summary_model: str = (
-            summary_model
-            or CONFIG.get("model", model)
-            or model
-        )
-        self.compression_count: int = 0
-
-    def needs_compression(self, messages: List[Dict[str, Any]]) -> bool:
-        """Return True when the message list exceeds the target token budget."""
-        context_window = get_token_budget(self.model)
-        budget = int(context_window * self.target_ratio)
-        return estimate_tokens(messages) > budget
-
-    def compress(
-        self, messages: List[Dict[str, Any]]
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        """Compress the message list and return (compressed_messages, stats_dict).
-
-        stats_dict keys: original_tokens, compressed_tokens, original_count,
-        compressed_count, reduction_pct, dropped_turns.
-        """
-        original_tokens = estimate_tokens(messages)
-        original_count = len(messages)
-
-        if not self.needs_compression(messages):
-            return messages, {
-                "original_tokens": original_tokens,
-                "compressed_tokens": original_tokens,
-                "original_count": original_count,
-                "compressed_count": original_count,
-                "reduction_pct": 0.0,
-                "dropped_turns": 0,
-                "was_compressed": False,
-            }
-
-        context_window = get_token_budget(self.model)
-        token_budget = int(context_window * self.target_ratio)
-
-        # Stage 1
-        pruned = _prune_tool_results(messages)
-        # Stage 2
-        turns = _group_into_turns(pruned)
-        # Stage 3 + 4
-        kept_turns, dropped_turns = _drop_turns_to_budget(turns, token_budget)
-
-        # Optional LLM summarization of dropped turns
-        if self.summarize_dropped and dropped_turns:
-            dropped_messages = [m for t in dropped_turns for m in t.messages]
-            summary = self._summarize_dropped(dropped_messages)
-            if summary:
-                # Insert summary as a user message before the first kept turn
-                # that follows the dropped region. Handled by _stitch_turns
-                # via the placeholder mechanism — we replace the placeholder text.
-                for t in dropped_turns:
-                    t.messages = [{"role": "user", "content": summary}]
-
-        # Stage 5
-        stitched = _stitch_turns(turns, kept_turns)
-        # Stage 6
-        validated = _validate_messages(stitched)
-
-        self.compression_count += 1
-        compressed_tokens = estimate_tokens(validated)
-        reduction_pct = 100 * (1 - compressed_tokens / max(original_tokens, 1))
-
-        stats = {
-            "original_tokens": original_tokens,
-            "compressed_tokens": compressed_tokens,
-            "original_count": original_count,
-            "compressed_count": len(validated),
-            "reduction_pct": round(reduction_pct, 1),
-            "dropped_turns": len(dropped_turns),
-            "was_compressed": True,
-        }
-        return validated, stats
-
-    def _summarize_dropped(self, dropped_messages: List[Dict[str, Any]]) -> Optional[str]:
-        """Call Ollama to summarize the dropped messages.
-
-        Returns a summary string, or None on failure (caller falls back to
-        the omission placeholder).
-        """
-        try:
-            import ollama
-
-            turns_text = []
-            for msg in dropped_messages[:20]:  # cap prompt size
-                role = msg.get("role", "unknown")
-                content = str(msg.get("content") or "")[:500]
-                turns_text.append(f"[{role.upper()}] {content}")
-
-            prompt = (
-                "Summarize the following conversation turns concisely. "
-                "Write only the summary starting with '[CONTEXT SUMMARY]:'.\n\n"
-                + "\n\n".join(turns_text)
-            )
-            resp = ollama.chat(
-                model=self.summary_model,
-                messages=[{"role": "user", "content": prompt}],
-                options={"num_predict": 300},
-            )
-            text = resp["message"]["content"].strip()
-            if not text.startswith("[CONTEXT SUMMARY]:"):
-                text = "[CONTEXT SUMMARY]: " + text
-            return text
-        except Exception as exc:
-            logger.debug(
-                f"[VECTOR][traj_compress] LLM summarization failed: {exc}"
-            )
-            return None
+    return result
 
 
-# ── Self-test ─────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
+    import json
 
-    # Helpers
-    def _make_msgs(n_pairs: int, content_size: int = 100) -> List[Dict[str, Any]]:
-        msgs = [{"role": "system", "content": "You are VECTOR."}]
-        for i in range(n_pairs):
-            msgs.append({"role": "user", "content": f"user turn {i} " + "x" * content_size})
-            msgs.append({"role": "assistant", "content": f"asst turn {i} " + "x" * content_size})
+    def _make_conversation(n: int) -> list[dict]:
+        msgs: list[dict] = []
+        for i in range(n // 2):
+            msgs.append({
+                "role": "user",
+                "content": f"User message {i}: " + "x" * 300,
+            })
+            msgs.append({
+                "role": "assistant",
+                "content": f"Assistant reply {i}: " + "y" * 300,
+            })
         return msgs
 
-    # Test 1: estimate_trajectory_tokens returns positive int
-    msgs = _make_msgs(5)
-    tokens = estimate_trajectory_tokens(msgs)
-    assert tokens > 0, f"Expected >0 tokens, got {tokens}"
+    conversation = _make_conversation(50)
+    compressed = compress_trajectory(conversation, target_tokens=10000)
 
-    # Test 2: No compression when under budget
-    small = [{"role": "system", "content": "hi"}]
-    result = compress_trajectory(small, model="vector-focus")
-    assert result == small, "Short message should not be compressed"
-
-    # Test 3: compress_trajectory reduces a large message list
-    large = _make_msgs(n_pairs=200, content_size=200)
-    original_tokens = estimate_trajectory_tokens(large)
-    compressed = compress_trajectory(large, model="vector-focus", target_ratio=0.80)
-    compressed_tokens = estimate_trajectory_tokens(compressed)
-    assert compressed_tokens < original_tokens, (
-        f"Compression should reduce tokens: {original_tokens} -> {compressed_tokens}"
+    assert len(compressed) < len(conversation), (
+        f"Expected compression: {len(compressed)} should be < {len(conversation)}"
+    )
+    logger.info(
+        f"[trajectory_compressor] smoke test: "
+        f"{len(conversation)} → {len(compressed)} messages"
     )
 
-    # Test 4: System message always survives
-    assert any(m["role"] == "system" for m in compressed), "system must survive compression"
-
-    # Test 5: No orphaned tool_results
+    # Test prune_tool_results
     tool_msgs = [
-        {"role": "system", "content": "sys"},
-        {"role": "user", "content": "run something"},
-        {
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{"id": "tc1", "type": "function", "function": {"name": "bash", "arguments": "{}"}}],
-        },
-        {"role": "tool", "content": "output here " * 50, "tool_call_id": "tc1"},
-        {"role": "user", "content": "ok"},
-        {"role": "assistant", "content": "done"},
+        {"role": "tool", "content": "A" * 10000, "tool_use_id": "tu_1"},
+        {"role": "tool", "content": "short", "tool_use_id": "tu_2"},
     ]
-    validated = _validate_messages(tool_msgs)
-    tool_call_ids = {
-        tc.get("id")
-        for m in validated if m.get("role") == "assistant"
-        for tc in (m.get("tool_calls") or [])
-        if isinstance(tc, dict)
-    }
-    for m in validated:
-        if m.get("role") == "tool":
-            cid = m.get("tool_call_id", "")
-            assert not cid or cid in tool_call_ids, f"Orphaned tool_result: {cid}"
+    pruned = prune_tool_results(tool_msgs, max_tool_chars=8000)
+    assert len(pruned[0]["content"]) <= 8000 + len("\n...[truncated]")
+    assert pruned[1]["content"] == "short"
 
-    # Test 6: _prune_tool_results trims large non-error results
-    # Put the big tool result early (index 0) so it is NOT in the tail window
-    big_tool_msgs = (
-        [{"role": "tool", "content": "x" * 2000, "tool_call_id": "tc2"}]
-        + [{"role": "assistant", "content": f"msg {i}"} for i in range(10)]
-    )
-    pruned = _prune_tool_results(big_tool_msgs, max_chars=500)
-    assert len(pruned[0]["content"]) < 2000, "Should have pruned large tool result"
+    # Test validate drops orphan
+    orphan_msgs = [
+        {"role": "assistant", "content": [{"type": "tool_use", "id": "tu_abc", "name": "foo", "input": {}}]},
+        {"role": "tool", "content": "result", "tool_use_id": "tu_ORPHAN"},
+    ]
+    validated = validate(orphan_msgs)
+    tool_results = [m for m in validated if m.get("role") == "tool"]
+    assert len(tool_results) == 0, "Orphan tool_result should have been dropped"
 
-    # Test 7: _prune_tool_results keeps errors intact
-    error_tool_msgs = (
-        [{"role": "tool", "content": "Error: something went wrong\n" + "x" * 2000, "tool_call_id": "tc3"}]
-        + [{"role": "assistant", "content": f"msg {i}"} for i in range(10)]
-    )
-    pruned_err = _prune_tool_results(error_tool_msgs)
-    assert "Error:" in pruned_err[0]["content"], "Error tool results must be preserved"
-
-    # Test 8: TrajectoryCompressor class
-    tc = TrajectoryCompressor(model="vector-focus", target_ratio=0.80)
-    large2 = _make_msgs(n_pairs=200, content_size=200)
-    compressed2, stats = tc.compress(large2)
-    assert isinstance(compressed2, list), "compress must return list"
-    assert "original_tokens" in stats
-    assert "reduction_pct" in stats
-    assert stats["was_compressed"] is True
-
-    # Test 9: needs_compression returns False for small messages
-    tiny = [{"role": "user", "content": "hi"}]
-    assert tc.needs_compression(tiny) is False
-
-    # Test 10: _group_into_turns groups correctly
-    # system=1 turn, user=1 turn, assistant+tool=1 turn, user=1 turn → 4 turns
-    turns = _group_into_turns([
-        {"role": "system", "content": "sys"},
-        {"role": "user", "content": "hi"},
-        {"role": "assistant", "content": "", "tool_calls": [{"id": "x"}]},
-        {"role": "tool", "content": "result", "tool_call_id": "x"},
-        {"role": "user", "content": "ok"},
-    ])
-    assert len(turns) == 4, f"Expected 4 turns (sys, user, asst+tool, user), got {len(turns)}"
-    assert turns[0].role == "system", f"First turn should be system, got {turns[0].role}"
-    assert turns[2].role == "assistant", f"Third turn should be assistant, got {turns[2].role}"
-    assert len(turns[2].messages) == 2, f"Assistant turn should have 2 msgs (asst+tool)"
-
-    # Test 11: stitch produces omission placeholders
-    all_turns = _group_into_turns(_make_msgs(10))
-    kept, dropped = _drop_turns_to_budget(all_turns, token_budget=100)
-    stitched = _stitch_turns(all_turns, kept)
-    placeholder_found = any(
-        "turns omitted" in str(m.get("content", "")) for m in stitched
-    )
-    if dropped:
-        assert placeholder_found, "Dropped turns must produce a placeholder"
-
-    print("OK")
+    print("✅ trajectory_compressor.py OK")
