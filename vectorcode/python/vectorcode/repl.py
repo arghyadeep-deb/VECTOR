@@ -642,6 +642,11 @@ Runner: {cfg["runner"]}
                 },
                 tool_calls=self.session.tool_calls,
             )
+            if self._db:
+                try:
+                    self._db.end_session(self.session.session_id, "user_save")
+                except Exception as e:
+                    logger.debug(f"[VECTOR][repl] session_db end_session: {e}")
             return f"Session saved → {path}  ({len(self._history)-1} messages, ${self.session.cost_usd:.6f})"
 
         if raw == "/restore":
