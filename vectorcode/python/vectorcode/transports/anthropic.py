@@ -7,6 +7,7 @@ Ported from NousResearch/hermes-agent agent/transports/anthropic.py.
 Prompt caching logic ported from agent/prompt_caching.py.
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 import copy
 import json
 import sys
