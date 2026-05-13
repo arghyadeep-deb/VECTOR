@@ -234,5 +234,5 @@ if __name__ == "__main__":
     b = get_renderer()
     assert a is b, "get_renderer() must return the same instance"
 
-    sys.stdout.buffer.write(b"\xe2\x9c\x85 renderer.py OK\n")
-    sys.stdout.buffer.flush()
+    sys.stdout.write("✅ renderer.py OK\n")
+    sys.stdout.flush()
