@@ -247,7 +247,7 @@ class GatewayServer:
                 )
             except Exception as exc:
                 sess["status"] = "error"
-                logger.error("[VECTOR][gateway] /run error session=%s: %s", session_id, exc)
+                logger.error("[VECTOR][gateway] /run error session={}: {}", session_id, exc)
                 raise HTTPException(status_code=500, detail=str(exc))
 
         # ── POST /stream ───────────────────────────────────────────────────────
