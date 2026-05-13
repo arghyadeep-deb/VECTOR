@@ -889,7 +889,8 @@ Runner: {cfg["runner"]}
                         print(result)
                     continue
 
-                # Route → pick best Ollama model
+                # Route → GNNRouter picks best model (Ruflo Layer 1+2+3)
+                t_route_start = time.perf_counter()
                 model = self.router.route(raw)
                 self.session.current_model = model
 
@@ -900,20 +901,26 @@ Runner: {cfg["runner"]}
                         compactor = ContextCompactor(model=model, project_dir=self._project_dir)
                         self._history = compactor.compact(self._history)
                     except Exception:
-                        # Fallback to old compressor
                         self._history = _compress_history(self._history, model)
 
-                # Add user turn and stream response
+                # Add user turn and stream response via ModelRouter
                 self._history.append({"role": "user", "content": raw})
                 print()
-                reply = _ask_ollama(model, self._history)
+                reply = _ask_model(model, self._history)
                 self._history.append({"role": "assistant", "content": reply})
                 self.session.history.append({"role": "user", "content": raw})
+
                 # Approximate token count (4 chars ≈ 1 token)
                 self.session.record_token_usage(
                     prompt=len(raw) // 4,
                     completion=len(reply) // 4,
                 )
+                # GNNRouter learning — reward=0.9 (good, no exception) + latency
+                latency_ms = (time.perf_counter() - t_route_start) * 1000
+                try:
+                    self.router.learn(raw, model, reward=0.9, latency_ms=latency_ms)
+                except Exception:
+                    pass
 
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting VECTOR.")
