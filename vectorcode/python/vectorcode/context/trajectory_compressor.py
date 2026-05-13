@@ -409,15 +409,17 @@ if __name__ == "__main__":
         for i in range(n // 2):
             msgs.append({
                 "role": "user",
-                "content": f"User message {i}: " + "x" * 300,
+                # ~250 tokens per message → 50 messages × 250 = 12500 tokens total
+                "content": f"User message {i}: " + "x " * 1000,
             })
             msgs.append({
                 "role": "assistant",
-                "content": f"Assistant reply {i}: " + "y" * 300,
+                "content": f"Assistant reply {i}: " + "y " * 1000,
             })
         return msgs
 
     conversation = _make_conversation(50)
+    # 50 messages × ~500 tokens each = ~25000 tokens; target 10000 → must compress
     compressed = compress_trajectory(conversation, target_tokens=10000)
 
     assert len(compressed) < len(conversation), (
