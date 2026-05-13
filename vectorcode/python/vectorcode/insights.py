@@ -114,7 +114,9 @@ class InsightsEngine:
 
         import time as _time
         cutoff_ts = _time.time() - (days * 86400)
-        cutoff_iso = datetime.utcfromtimestamp(cutoff_ts).strftime("%Y-%m-%dT%H:%M:%SZ")
+        cutoff_iso = datetime.fromtimestamp(cutoff_ts, tz=timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
 
         try:
             rows = self._fetch_sessions(cutoff_iso)
