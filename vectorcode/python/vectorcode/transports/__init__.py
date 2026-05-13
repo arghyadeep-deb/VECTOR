@@ -10,8 +10,14 @@ The registry maps api_mode strings → transport classes (not instances).
 Transports register themselves on import by calling register_transport().
 """
 
-# ── stdlib first — before any sys.path manipulation ──────────────────────────
+# ── Guard: strip transports/ from sys.path to prevent types.py shadowing stdlib.
 import sys
+import os as _os
+_this_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys.path = [p for p in sys.path if _os.path.abspath(p) != _this_dir]
+del _os, _this_dir
+
+# ── stdlib ────────────────────────────────────────────────────────────────────
 from pathlib import Path
 from typing import Dict, Optional, Type
 
