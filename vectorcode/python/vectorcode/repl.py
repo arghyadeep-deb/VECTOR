@@ -957,12 +957,18 @@ if __name__ == "__main__":
     assert repl.mode == "repl"
     assert hasattr(repl, "session")
     assert hasattr(repl, "gsd")
+    assert hasattr(repl, "router")
     assert "/help" in repl.COMMANDS
-    assert "/status" in repl.COMMANDS
+    assert "/notify" in repl.COMMANDS
+    assert "/search" in repl.COMMANDS
+    assert "/comms" in repl.COMMANDS
     repl.handle_command("/mode auto")
     assert repl.session.mode == "auto"
     status = repl.get_status()
     assert "mode" in status and "model" in status and "hp" in status
+    # GNNRouter smoke test
+    from router import GNNRouter
+    assert isinstance(repl.router, GNNRouter), f"Expected GNNRouter, got {type(repl.router)}"
     print("repl.py OK")
 
 
