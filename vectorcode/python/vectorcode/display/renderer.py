@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                # vectorcode pkg parent
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))                # vectorcode/python (package parent)
 
 from loguru import logger
 
