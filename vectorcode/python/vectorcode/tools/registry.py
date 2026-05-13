@@ -173,23 +173,14 @@ _TOOL_SCHEMAS = [
         "_meta": {"risk": "safe", "read_only": True},
     },
     # ── Shell ──────────────────────────────────────────────────────────────────
-    {
-        "type": "function",
-        "function": {
-            "name": "bash",
-            "description": "Execute a shell command. Returns stdout + stderr. Timeout: 120s.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command":    {"type": "string", "description": "Shell command to execute"},
-                    "timeout":    {"type": "integer", "description": "Timeout in seconds (default: 60)"},
-                    "cwd":        {"type": "string", "description": "Working directory (default: project dir)"},
-                },
-                "required": ["command"],
-            },
-        },
-        "_meta": {"risk": "medium", "read_only": False},
-    },
+    BASH_SCHEMA,
+    # ── Code Execution ─────────────────────────────────────────────────────────
+    EXECUTE_CODE_SCHEMA,
+    # ── Checkpoints ────────────────────────────────────────────────────────────
+    CREATE_CHECKPOINT_SCHEMA,
+    LIST_CHECKPOINTS_SCHEMA,
+    RESTORE_CHECKPOINT_SCHEMA,
+    DIFF_FROM_CHECKPOINT_SCHEMA,
     # ── Git ────────────────────────────────────────────────────────────────────
     {
         "type": "function",
