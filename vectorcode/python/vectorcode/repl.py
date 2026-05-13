@@ -374,6 +374,28 @@ def _ask_ollama(model: str, messages: list) -> str:
     return "".join(full)
 
 
+def _ask_model(model_id: str, messages: list) -> str:
+    """
+    Route to ModelRouter (multi-provider: Anthropic/OpenAI/Groq/Ollama/…).
+    Falls back to direct Ollama call for bare model names or if router fails.
+    """
+    # Bare model names like "vector-focus" → treat as ollama/ directly
+    if "/" not in model_id:
+        return _ask_ollama(model_id, messages)
+    try:
+        from providers import ModelRouter
+        router = ModelRouter()
+        print(f"\033[2m[{model_id}]\033[0m ", end="", flush=True)
+        result = router.complete(model_id, messages, stream=True)
+        text = result.message.content
+        print(text)
+        return text
+    except Exception as e:
+        logger.warning(f"[VECTOR][repl] ModelRouter failed for {model_id}: {e} — falling back to Ollama")
+        bare = model_id.split("/", 1)[1]
+        return _ask_ollama(bare, messages)
+
+
 # ── REPL ──────────────────────────────────────────────────────────────────────
 class VectorREPL:
     """Mode A: interactive terminal REPL with streaming, skills, compression, persistence."""
