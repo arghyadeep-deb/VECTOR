@@ -467,6 +467,7 @@ if __name__ == "__main__":
         assert "describe_image" in names
         logger.info("[VECTOR][image_gen] %d tool schemas OK", len(schemas))
 
+        sys.stdout.reconfigure(encoding="utf-8")
         print("✅ tools/image_gen.py OK")
 
     asyncio.run(_smoke())
