@@ -328,4 +328,5 @@ if __name__ == "__main__":
     truncated = format_tool_result("bash", long_result, max_lines=30)
     assert "more lines" in truncated
 
-    print("✅ diff_preview.py OK")
+    sys.stdout.buffer.write(b"\xe2\x9c\x85 diff_preview.py OK\n")
+    sys.stdout.buffer.flush()
