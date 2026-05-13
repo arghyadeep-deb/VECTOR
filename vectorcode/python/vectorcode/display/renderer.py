@@ -1,10 +1,17 @@
 """Central display renderer — coordinates spinner, diff preview, and output."""
 import sys
+import io
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))                # vectorcode/python (package parent)
+
+# Re-wrap stdout/stderr as UTF-8 on Windows so emoji/box-drawing output works
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+if hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
 from loguru import logger
 
