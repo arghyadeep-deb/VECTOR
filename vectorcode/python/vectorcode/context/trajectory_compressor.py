@@ -666,6 +666,7 @@ if __name__ == "__main__":
     assert tc.needs_compression(tiny) is False
 
     # Test 10: _group_into_turns groups correctly
+    # system=1 turn, user=1 turn, assistant+tool=1 turn, user=1 turn → 4 turns
     turns = _group_into_turns([
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hi"},
@@ -673,7 +674,10 @@ if __name__ == "__main__":
         {"role": "tool", "content": "result", "tool_call_id": "x"},
         {"role": "user", "content": "ok"},
     ])
-    assert len(turns) == 3, f"Expected 3 turns, got {len(turns)}"  # sys, user+asst+tool, user
+    assert len(turns) == 4, f"Expected 4 turns (sys, user, asst+tool, user), got {len(turns)}"
+    assert turns[0].role == "system", f"First turn should be system, got {turns[0].role}"
+    assert turns[2].role == "assistant", f"Third turn should be assistant, got {turns[2].role}"
+    assert len(turns[2].messages) == 2, f"Assistant turn should have 2 msgs (asst+tool)"
 
     # Test 11: stitch produces omission placeholders
     all_turns = _group_into_turns(_make_msgs(10))
