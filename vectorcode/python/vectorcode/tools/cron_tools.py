@@ -458,4 +458,5 @@ if __name__ == "__main__":
 
         logger.info("[VECTOR][cron] smoke test complete — %d schemas", len(schemas))
 
+    sys.stdout.reconfigure(encoding="utf-8")
     print("✅ tools/cron_tools.py OK")
