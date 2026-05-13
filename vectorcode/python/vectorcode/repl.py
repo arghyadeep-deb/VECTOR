@@ -873,6 +873,39 @@ Runner: {cfg["runner"]}
             except Exception as e:
                 return f"usage error: {e}"
 
+        if raw.startswith("/persona"):
+            parts = raw.split(maxsplit=1)
+            persona_name = parts[1].strip() if len(parts) > 1 else ""
+            if not persona_name:
+                try:
+                    from persona.personalities import list_personalities
+                    items = list_personalities()
+                    lines = ["  Personalities:"]
+                    for item in items:
+                        marker = " *" if item["name"] == self._personality else ""
+                        lines.append(f"    {item['name']:<16}{item['description']}{marker}")
+                    return "\n".join(lines)
+                except Exception as e:
+                    return f"persona error: {e}"
+            try:
+                from persona.personalities import get_personality
+                p = get_personality(persona_name)
+                self._personality = p.name
+                # Rebuild system prompt using new personality
+                self._history[0] = {
+                    "role": "system",
+                    "content": _build_system_prompt(
+                        _build_skills_index(self._skills),
+                        self._project_dir,
+                        personality=p,
+                    ),
+                }
+                return f"Personality -> {p.name}: {p.description}"
+            except KeyError as e:
+                return f"persona error: {e}"
+            except Exception as e:
+                return f"persona error: {e}"
+
         # Dynamic skill invocation — /skill-name
         slug = raw.lstrip("/").lower()
         if slug in self._skills:
