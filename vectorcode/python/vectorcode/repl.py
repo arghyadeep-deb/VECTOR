@@ -1077,7 +1077,13 @@ Runner: {cfg["runner"]}
 
                 # ── Agent execution loop (Think→Act→Observe) ──────────────────
                 print()
-                reply = self._run_agent_turn(expanded_input, model)
+                raw_reply = self._run_agent_turn(expanded_input, model)
+                # Strip reasoning tags before displaying; save full for trajectory
+                try:
+                    from utils.reasoning_stripper import extract_reasoning
+                    reply, _reasoning = extract_reasoning(raw_reply)
+                except Exception:
+                    reply = raw_reply
 
                 # Sync memory after turn
                 try:
