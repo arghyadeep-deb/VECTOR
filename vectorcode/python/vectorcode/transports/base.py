@@ -9,7 +9,7 @@ prompt caching, interrupt handling, or retry logic.
 Ported from NousResearch/hermes-agent agent/transports/base.py.
 """
 
-# ── stdlib first — before any sys.path manipulation ──────────────────────────
+# ── stdlib first ─────────────────────────────────────────────────────────────
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
