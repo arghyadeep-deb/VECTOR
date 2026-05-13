@@ -101,7 +101,7 @@ class GatewayServer:
         try:
             from pydantic import BaseModel
         except ImportError as exc:
-            logger.error("[VECTOR][gateway] pydantic not installed: %s", exc)
+            logger.error("[VECTOR][gateway] pydantic not installed: {}", exc)
             raise RuntimeError("pydantic is required") from exc
 
         # ── Pydantic schemas (for FastAPI route validation) ────────────────────
