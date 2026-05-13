@@ -100,8 +100,12 @@ def _load_soul() -> str:
             pass
     return _DEFAULT_SOUL
 
-def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = None) -> str:
-    soul  = _load_soul()
+def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = None,
+                         personality: "object | None" = None) -> str:
+    if personality is not None and hasattr(personality, "system_prompt") and personality.system_prompt:
+        soul = personality.system_prompt
+    else:
+        soul = _load_soul()
     parts = [soul, _TOOL_ENFORCEMENT]
     # Inject VECTOR.md project config if present
     if project_dir:
