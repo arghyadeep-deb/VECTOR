@@ -268,4 +268,5 @@ if __name__ == "__main__":
     assert s1 is s2, "get_toolset_manager() must return the same instance"
 
     logger.info("[VECTOR][toolset] ToolsetManager smoke OK")
+    sys.stdout.reconfigure(encoding="utf-8")
     print("✅ tools/toolset.py OK")
