@@ -358,4 +358,5 @@ if __name__ == "__main__":
     assert isinstance(adapter_explicit_bot, DiscordBot)
     logger.info("[VECTOR][discord] create_discord_adapter factory ✅")
 
-    print("✅ discord_bot.py OK")
+    logger.info("[VECTOR][discord] All smoke tests passed")
+    sys.stdout.buffer.write(b"[OK] discord_bot.py OK\n")
