@@ -11,7 +11,6 @@ Database: ~/.vector/sessions.db
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import sys
 import threading
