@@ -61,37 +61,36 @@ _lazy("code_graph", lambda: __import__("tools.code_graph",  fromlist=["CodeGraph
 
 # ── Convenience helpers used by the REPL ──────────────────────────────────────
 
-def file_tools(repo_root: str = "") -> "FileTools":  # type: ignore
+def make_file_tools(repo_root: str = ""):
     from tools.file_tools import FileTools
     return FileTools(repo_root or str(Path.cwd()))
 
 
-def git_tools(repo_root: str = "") -> "GitTools":  # type: ignore
+def make_git_tools(repo_root: str = ""):
     from tools.git_tools import GitTools
     return GitTools(repo_root=repo_root or str(Path.cwd()))
 
 
-def web_tools() -> "WebTools":  # type: ignore
+def make_web_tools():
     from tools.web_tools import WebTools
     return WebTools()
 
 
-def opencli_tool() -> "OpenCLITool":  # type: ignore
+def make_opencli_tool():
     from tools.opencli_tool import OpenCLITool
     return OpenCLITool()
 
 
 if __name__ == "__main__":
     print("Registered tools:", list_tools())
-    # Smoke-test lazy instantiation
     try:
-        wt = web_tools()
+        wt = make_web_tools()
         assert wt is not None
         print("  web_tools OK")
     except Exception as e:
         print(f"  web_tools WARN: {e}")
     try:
-        oc = opencli_tool()
+        oc = make_opencli_tool()
         assert oc is not None
         health = oc.check_health()
         print(f"  opencli_tool OK — available={health['available']}")
