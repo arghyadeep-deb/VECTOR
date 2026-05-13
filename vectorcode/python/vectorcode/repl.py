@@ -427,7 +427,7 @@ class VectorREPL:
     def __init__(self, project_dir: "Path | None" = None) -> None:
         self.session      = VectorCodeSession.get()
         self.session.set_mode("repl")
-        self.router       = SemanticRouter()
+        self.router       = GNNRouter()          # Ruflo NeuralDomainMapper (Layer 1+2+3)
         self.gsd          = GSDLoop(mode="repl")
         self._skills      = _scan_skills()
         self._project_dir = project_dir or Path.cwd()
