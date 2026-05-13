@@ -1,285 +1,428 @@
-"""
-WebhookServer — HTTP webhook receiver for VectorCode.
+"""Generic inbound webhook server — FastAPI-based, signature verification, event routing."""
 
-Exposes:
-    POST /webhook/{platform}  — receive inbound messages from any platform
-    GET  /health              — health check
-    POST /notify              — send outbound notification via MessagingHub
-
-Routes incoming webhook payloads to InboundMessageRouter, which can forward
-to a VectorCode REPL function via bridge_to_repl().
-
-FastAPI + uvicorn are optional — server stubs out gracefully if not installed.
-"""
 import sys
-import threading
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
-from typing import Callable, Optional
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
+sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
+
 from loguru import logger
 
+import asyncio
+import hashlib
+import hmac
+import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Callable, Optional
+
 try:
-    from core.config import CONFIG
+    from fastapi import FastAPI, Request, Response
+    from fastapi.responses import JSONResponse
+    _FASTAPI_AVAILABLE = True
 except ImportError:
-    CONFIG = {}
+    FastAPI = None  # type: ignore[assignment,misc]
+    Request = None  # type: ignore[assignment]
+    Response = None  # type: ignore[assignment]
+    JSONResponse = None  # type: ignore[assignment]
+    _FASTAPI_AVAILABLE = False
+    logger.warning("[VECTOR][webhook] fastapi not installed — webhook server unavailable")
 
 try:
-    from comms.inbound import InboundMessage, InboundMessageRouter
-    _HAS_INBOUND = True
-except ImportError:
-    _HAS_INBOUND = False
-    InboundMessage = None       # type: ignore[assignment,misc]
-    InboundMessageRouter = None # type: ignore[assignment,misc]
-
-try:
-    from comms.messenger import MessagingHub
-    _HAS_HUB = True
-except ImportError:
-    _HAS_HUB = False
-    MessagingHub = None  # type: ignore[assignment,misc]
-
-_SERVER_VERSION = "1.0.0"
-
-# ── FastAPI app (module-level singleton) ──────────────────────────────────────
-# Instantiated once; WebhookServer registers its router reference onto it.
-
-try:
-    from fastapi import FastAPI, Request, HTTPException
     import uvicorn
-    _HAS_FASTAPI = True
-    app: Optional["FastAPI"] = FastAPI(  # type: ignore[assignment]
-        title="VectorCode Webhook Server",
-        description="Inbound webhook receiver and outbound notification dispatcher.",
-        version=_SERVER_VERSION,
-    )
+    _UVICORN_AVAILABLE = True
 except ImportError:
-    _HAS_FASTAPI = False
-    app = None  # type: ignore[assignment]
+    uvicorn = None  # type: ignore[assignment]
+    _UVICORN_AVAILABLE = False
+    logger.warning("[VECTOR][webhook] uvicorn not installed — webhook server unavailable")
 
 
-# ── WebhookServer class ───────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Data model
+# ---------------------------------------------------------------------------
+
+@dataclass
+class WebhookEvent:
+    platform: str       # "github", "gitlab", "custom", etc.
+    event_type: str     # "push", "pull_request", "ping", etc.
+    payload: dict
+    headers: dict
+    raw_body: bytes
+    timestamp: str = ""
+
+
+# ---------------------------------------------------------------------------
+# WebhookServer
+# ---------------------------------------------------------------------------
+
+_ANY_EVENT = "__ANY__"
+
 
 class WebhookServer:
-    """
-    HTTP webhook receiver for VectorCode.
+    """FastAPI-based inbound webhook server with HMAC signature verification."""
 
-    Routes inbound webhook payloads → InboundMessageRouter → registered handlers.
-    Dispatches outbound notifications → MessagingHub.
+    def __init__(
+        self,
+        host: str = "0.0.0.0",
+        port: int = 8765,
+        *,
+        path_prefix: str = "/webhook",
+    ) -> None:
+        self.host = host
+        self.port = port
+        self.path_prefix = path_prefix.rstrip("/")
+        self._handlers: dict[str, list[Callable]] = {}   # event_type → callbacks
+        self._secrets: dict[str, str] = {}               # platform → secret
+        self._app: Optional[Any] = None                  # FastAPI instance
+        self._server_task: Optional[asyncio.Task] = None
+        self._uvicorn_server: Optional[Any] = None
 
-    Usage (blocking):
-        server = WebhookServer(port=8765)
-        server.bridge_to_repl(lambda text: f"VECTOR: {text}")
-        await server.start()       # runs uvicorn, never returns
+    # ------------------------------------------------------------------
+    # Registration
+    # ------------------------------------------------------------------
 
-    Usage (background):
-        thread = server.start_background()
-        # ... do other work ...
-    """
+    def register_secret(self, platform: str, secret: str) -> None:
+        """Register an HMAC secret for *platform* (e.g. "github")."""
+        self._secrets[platform.lower()] = secret
+        logger.debug(f"[VECTOR][webhook] Registered secret for platform '{platform}'")
 
-    def __init__(self, port: int = 8765, host: str = "0.0.0.0") -> None:
-        self._port = port
-        self._host = host
-        self._router: Optional[InboundMessageRouter] = (
-            InboundMessageRouter() if _HAS_INBOUND else None
-        )
-        self._hub: Optional[MessagingHub] = (
-            MessagingHub() if _HAS_HUB else None
-        )
-        self._platform_handlers: dict[str, Callable] = {}
-        self._thread: Optional[threading.Thread] = None
-        self._request_count = 0
+    def on_event(self, event_type: str | list[str], callback: Callable) -> None:
+        """Register *callback* for one or more event type strings.
 
-        # Wire this server instance into the FastAPI app routes
-        if _HAS_FASTAPI and app is not None:
-            _register_routes(app, self)
+        callback signature: async (event: WebhookEvent) -> None
+        """
+        types = [event_type] if isinstance(event_type, str) else list(event_type)
+        for et in types:
+            self._handlers.setdefault(et, []).append(callback)
+            logger.debug(f"[VECTOR][webhook] Handler registered for event '{et}'")
 
-    # ── Handler registration ──────────────────────────────────────────────────
+    def on_any(self, callback: Callable) -> None:
+        """Register *callback* for every event regardless of type."""
+        self._handlers.setdefault(_ANY_EVENT, []).append(callback)
+        logger.debug("[VECTOR][webhook] Catch-all handler registered")
 
-    def on_message(self, platform: str, fn: Callable) -> None:
-        """Register a handler for messages arriving from platform. fn(InboundMessage) → str."""
-        self._platform_handlers[platform.lower()] = fn
-        if self._router is not None:
-            # Wrap fn to match InboundMessageRouter's (msg, router) → RouteResult signature
-            from comms.inbound import RouteResult
-            def _adapter(msg: InboundMessage, router: InboundMessageRouter) -> RouteResult:
-                try:
-                    reply = fn(msg)
-                    return RouteResult(handled=True, handler=f"platform:{platform}", reply=reply or "")
-                except Exception as e:
-                    logger.error(f"[VECTOR][webhook] platform handler error: {e}")
-                    return RouteResult(handled=True, handler=f"platform:{platform}", reply=str(e))
-            self._router.on_platform(platform.lower(), _adapter)
+    # ------------------------------------------------------------------
+    # App builder
+    # ------------------------------------------------------------------
 
-    def bridge_to_repl(self, repl_fn: Callable) -> None:
-        """Bridge all inbound messages to a REPL function. repl_fn(text: str) → str."""
-        if self._router is not None:
-            self._router.bridge_to_repl(repl_fn)
+    def build_app(self) -> Any:
+        """Build and return the FastAPI app.  Registers all routes."""
+        if not _FASTAPI_AVAILABLE:
+            logger.error("[VECTOR][webhook] fastapi not available — cannot build app")
+            return None
 
-    # ── Server lifecycle ──────────────────────────────────────────────────────
+        app = FastAPI(title="VectorCode Webhook Server", version="1.0")
+
+        # ------ health check ------
+        @app.get("/health")
+        async def health() -> dict:
+            return {"status": "ok", "version": "1.0"}
+
+        # ------ notify shortcut ------
+        @app.post("/notify")
+        async def notify(request: Request) -> Response:
+            try:
+                body = await request.body()
+                payload = json.loads(body) if body else {}
+            except Exception:
+                payload = {}
+            event = WebhookEvent(
+                platform="internal",
+                event_type="notify",
+                payload=payload,
+                headers=dict(request.headers),
+                raw_body=body if body else b"",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            await self._dispatch(event)
+            return JSONResponse({"status": "dispatched"})
+
+        # ------ per-platform endpoint ------
+        @app.post(f"{self.path_prefix}/{{platform}}")
+        async def receive_webhook(platform: str, request: Request) -> Response:
+            body = await request.body()
+            headers = dict(request.headers)
+
+            # Signature verification
+            if not self._verify_signature(platform, body, headers):
+                logger.warning(
+                    f"[VECTOR][webhook] Signature mismatch for platform '{platform}'"
+                )
+                return JSONResponse({"error": "invalid signature"}, status_code=403)
+
+            # Parse JSON
+            try:
+                payload = json.loads(body) if body else {}
+            except json.JSONDecodeError as exc:
+                logger.warning(f"[VECTOR][webhook] JSON parse error: {exc}")
+                return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+            detected_platform = self._detect_platform(headers) or platform
+            event_type = self._detect_event_type(detected_platform, headers, payload)
+
+            event = WebhookEvent(
+                platform=detected_platform,
+                event_type=event_type,
+                payload=payload,
+                headers=headers,
+                raw_body=body,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            await self._dispatch(event)
+            return JSONResponse({"status": "ok"})
+
+        self._app = app
+        return app
+
+    # ------------------------------------------------------------------
+    # Start / stop
+    # ------------------------------------------------------------------
 
     async def start(self) -> None:
-        """Start uvicorn server (blocking — never returns in normal operation)."""
-        if not _HAS_FASTAPI:
-            logger.error("[VECTOR][webhook] fastapi/uvicorn not installed — server cannot start")
+        """Start the uvicorn server in a background asyncio task."""
+        if not _FASTAPI_AVAILABLE or not _UVICORN_AVAILABLE:
+            logger.error(
+                "[VECTOR][webhook] fastapi or uvicorn not installed — "
+                "run: pip install fastapi uvicorn"
+            )
             return
 
-        logger.info(f"[VECTOR][webhook] starting on {self._host}:{self._port}")
-        try:
-            config = uvicorn.Config(app, host=self._host, port=self._port, log_level="warning")
-            server = uvicorn.Server(config)
-            await server.serve()
-        except Exception as e:
-            logger.error(f"[VECTOR][webhook] server error: {e}")
+        if self._app is None:
+            self.build_app()
 
-    def start_background(self) -> threading.Thread:
-        """Start server in a background daemon thread. Returns the thread."""
-        if not _HAS_FASTAPI:
-            logger.warning("[VECTOR][webhook] fastapi/uvicorn not installed — background server skipped")
-            t = threading.Thread(target=lambda: None, daemon=True, name="webhook-stub")
-            t.start()
-            return t
-
-        import asyncio
-
-        def _run() -> None:
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.start())
-            except Exception as e:
-                logger.error(f"[VECTOR][webhook] background thread error: {e}")
-
-        t = threading.Thread(target=_run, daemon=True, name="webhook-server")
-        t.start()
-        self._thread = t
-        logger.info(f"[VECTOR][webhook] background server started on port {self._port}")
-        return t
-
-    # ── Inbound message processing ────────────────────────────────────────────
-
-    def _process_inbound(self, platform: str, body: dict) -> dict:
-        """Parse raw webhook body into InboundMessage and route it."""
-        self._request_count += 1
-
-        if not _HAS_INBOUND or self._router is None:
-            logger.warning("[VECTOR][webhook] InboundMessageRouter unavailable — message dropped")
-            return {"handled": False, "reply": "", "reason": "router unavailable"}
-
-        # Normalise body into an InboundMessage
-        text = (
-            body.get("text")
-            or body.get("message")
-            or body.get("content")
-            or str(body)
+        config = uvicorn.Config(
+            self._app,
+            host=self.host,
+            port=self.port,
+            log_level="warning",  # suppress uvicorn's own noisy access logs
         )
-        sender_id   = str(body.get("sender_id") or body.get("user_id") or body.get("from") or "")
-        sender_name = str(body.get("sender_name") or body.get("username") or "")
-        chat_id     = str(body.get("chat_id") or body.get("channel_id") or body.get("channel") or "")
+        self._uvicorn_server = uvicorn.Server(config)
 
-        msg = InboundMessage(
-            platform=platform,
-            sender_id=sender_id,
-            sender_name=sender_name,
-            chat_id=chat_id,
-            text=text,
-            raw=body,
+        self._server_task = asyncio.create_task(
+            self._uvicorn_server.serve(),
+            name="webhook-server",
         )
-        result = self._router.route(msg)
-        return {"handled": result.handled, "reply": result.reply or ""}
+        logger.info(
+            f"[VECTOR][webhook] Server started → http://{self.host}:{self.port}"
+            f"{self.path_prefix}/{{platform}}"
+        )
 
-    # ── Stats ─────────────────────────────────────────────────────────────────
-
-    def get_stats(self) -> dict:
-        """Return server statistics."""
-        router_stats = self._router.get_stats() if self._router is not None else {}
-        return {
-            "host": self._host,
-            "port": self._port,
-            "requests": self._request_count,
-            "has_fastapi": _HAS_FASTAPI,
-            "router": router_stats,
-        }
-
-
-# ── FastAPI route registration ────────────────────────────────────────────────
-
-def _register_routes(fastapi_app: "FastAPI", server: "WebhookServer") -> None:
-    """Register all FastAPI routes onto the app, capturing the server instance."""
-
-    @fastapi_app.post("/webhook/{platform}")
-    async def receive_webhook(platform: str, request: "Request") -> dict:
-        """Receive a webhook from any platform and route to the message handler."""
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
-        return server._process_inbound(platform, body)
-
-    @fastapi_app.get("/health")
-    async def health() -> dict:
-        """Health check — always returns 200."""
-        return {"status": "ok", "version": _SERVER_VERSION}
-
-    @fastapi_app.post("/notify")
-    async def send_notification(request: "Request") -> dict:
-        """Send an outbound notification via MessagingHub."""
-        try:
-            body = await request.json()
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid JSON body")  # noqa: B904
-
-        text     = body.get("text", "")
-        priority = body.get("priority", "normal")
-
-        if not text:
-            raise HTTPException(status_code=422, detail="'text' field required")  # noqa: B904
-
-        if server._hub is not None:
-            import asyncio
+    async def stop(self) -> None:
+        """Gracefully stop the uvicorn server."""
+        if self._uvicorn_server is not None:
+            self._uvicorn_server.should_exit = True
+        if self._server_task is not None:
             try:
-                result = await server._hub.send_notification(text, priority)
-                return {"status": result.get("status", "unknown"), "via": result.get("via", "")}
-            except Exception as e:
-                logger.error(f"[VECTOR][webhook] /notify error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))  # noqa: B904
+                await asyncio.wait_for(self._server_task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                self._server_task.cancel()
+            self._server_task = None
+        logger.info("[VECTOR][webhook] Server stopped")
 
-        return {"status": "queued", "reason": "MessagingHub not available"}
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
+    def _verify_signature(self, platform: str, body: bytes, headers: dict) -> bool:
+        """
+        Verify the request signature for *platform*.
+
+        GitHub  → X-Hub-Signature-256 = "sha256=<hex>"  (HMAC-SHA256)
+        GitLab  → X-Gitlab-Token = plain secret token
+        Others  → skip if no secret registered for the platform
+        """
+        platform_key = platform.lower()
+        secret = self._secrets.get(platform_key, "")
+        if not secret:
+            # No secret registered — accept all
+            return True
+
+        plat = self._detect_platform(headers) or platform_key
+
+        if plat == "github":
+            sig_header = headers.get("x-hub-signature-256", "")
+            if not sig_header.startswith("sha256="):
+                return False
+            received = sig_header[len("sha256="):]
+            expected = hmac.new(
+                secret.encode(), body, hashlib.sha256
+            ).hexdigest()
+            return hmac.compare_digest(received, expected)
+
+        if plat == "gitlab":
+            received_token = headers.get("x-gitlab-token", "")
+            return hmac.compare_digest(received_token, secret)
+
+        # Generic HMAC-SHA256 fallback
+        sig_header = (
+            headers.get("x-hub-signature-256", "")
+            or headers.get("x-signature-256", "")
+        )
+        if sig_header.startswith("sha256="):
+            received = sig_header[len("sha256="):]
+            expected = hmac.new(
+                secret.encode(), body, hashlib.sha256
+            ).hexdigest()
+            return hmac.compare_digest(received, expected)
+
+        # No signature header found — reject if secret is set
+        return False
+
+    def _detect_platform(self, headers: dict) -> str:
+        """Infer the originating platform from request headers."""
+        # GitHub
+        if "x-github-event" in headers or "x-github-delivery" in headers:
+            return "github"
+        # GitLab
+        if "x-gitlab-event" in headers or "x-gitlab-token" in headers:
+            return "gitlab"
+        # Jira
+        if "x-atlassian-token" in headers:
+            return "jira"
+        # Bitbucket
+        if "x-event-key" in headers and "bitbucket" in headers.get("user-agent", "").lower():
+            return "bitbucket"
+        # Stripe
+        if "stripe-signature" in headers:
+            return "stripe"
+        return "custom"
+
+    def _detect_event_type(self, platform: str, headers: dict, payload: dict) -> str:
+        """Extract the event type string from platform-specific headers / payload."""
+        if platform == "github":
+            return headers.get("x-github-event", "unknown")
+        if platform == "gitlab":
+            return headers.get("x-gitlab-event", payload.get("object_kind", "unknown"))
+        if platform == "jira":
+            return payload.get("webhookEvent", "unknown")
+        if platform == "bitbucket":
+            return headers.get("x-event-key", "unknown")
+        if platform == "stripe":
+            return payload.get("type", "unknown")
+        # Generic: look for common keys
+        for key in ("event", "event_type", "type", "action"):
+            if key in payload:
+                return str(payload[key])
+        return "unknown"
+
+    async def _dispatch(self, event: WebhookEvent) -> None:
+        """Call all registered handlers that match *event.event_type* + catch-all handlers."""
+        handlers: list[Callable] = []
+        # Specific handlers
+        handlers.extend(self._handlers.get(event.event_type, []))
+        # Catch-all handlers
+        handlers.extend(self._handlers.get(_ANY_EVENT, []))
+
+        if not handlers:
+            logger.debug(
+                f"[VECTOR][webhook] No handlers for event "
+                f"'{event.platform}/{event.event_type}'"
+            )
+            return
+
+        for handler in handlers:
+            try:
+                result = handler(event)
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as exc:
+                logger.error(
+                    f"[VECTOR][webhook] Handler error for "
+                    f"'{event.platform}/{event.event_type}': {exc}"
+                )
+
+
+# ---------------------------------------------------------------------------
+# Singleton factory
+# ---------------------------------------------------------------------------
+
+_server_singleton: Optional[WebhookServer] = None
+
+
+def get_webhook_server(port: int = 8765) -> WebhookServer:
+    """Return a module-level singleton WebhookServer on *port*."""
+    global _server_singleton
+    if _server_singleton is None:
+        _server_singleton = WebhookServer(port=port)
+    return _server_singleton
+
+
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    server = WebhookServer(port=8765, host="127.0.0.1")
+    logger.info("[VECTOR][webhook] Running smoke test…")
 
-    # stats structure
-    stats = server.get_stats()
-    assert "host" in stats
-    assert "port" in stats
-    assert "requests" in stats
-    assert "has_fastapi" in stats
-    print(f"stats: {stats}")
+    # Test 1: create WebhookServer — no crash
+    server = WebhookServer(host="127.0.0.1", port=19999)
+    assert server.host == "127.0.0.1"
+    assert server.port == 19999
+    logger.info("[VECTOR][webhook] WebhookServer init ✅")
 
-    # _process_inbound without router raises no exception
-    result = server._process_inbound("telegram", {"text": "hello", "sender_id": "u1"})
-    assert "handled" in result
-    print(f"_process_inbound result: {result}")
+    # Test 2: build_app() — _app is not None (if fastapi available)
+    app = server.build_app()
+    if _FASTAPI_AVAILABLE:
+        assert app is not None, "build_app() returned None despite fastapi being available"
+        assert server._app is not None
+        logger.info("[VECTOR][webhook] build_app() → FastAPI app created ✅")
+    else:
+        logger.warning("[VECTOR][webhook] fastapi not installed — build_app() returned None (expected)")
 
-    # on_message registration
-    received = []
-    server.on_message("discord", lambda msg: (received.append(msg.text), "ok")[1])
-    if _HAS_INBOUND:
-        result2 = server._process_inbound("discord", {"text": "ping"})
-        assert result2["handled"] is True
-        assert "ping" in received
-        print(f"on_message test: received={received}")
+    # Test 3: register_secret and _verify_signature
+    server.register_secret("github", "mysecret")
+    body = b'{"test": true}'
+    import hmac as _hmac
+    import hashlib as _hashlib
+    good_sig = "sha256=" + _hmac.new(b"mysecret", body, _hashlib.sha256).hexdigest()
+    headers_good = {"x-github-event": "push", "x-hub-signature-256": good_sig}
+    headers_bad = {"x-github-event": "push", "x-hub-signature-256": "sha256=badhex"}
 
-    # bridge_to_repl
-    server2 = WebhookServer(port=8766, host="127.0.0.1")
-    server2.bridge_to_repl(lambda text: f"echo: {text}")
-    if _HAS_INBOUND:
-        r = server2._process_inbound("slack", {"text": "hello", "sender_id": "u2"})
-        assert r["handled"] is True
-        assert "echo" in r["reply"]
-        print(f"bridge_to_repl test: {r}")
+    assert server._verify_signature("github", body, headers_good) is True
+    assert server._verify_signature("github", body, headers_bad) is False
+    logger.info("[VECTOR][webhook] _verify_signature GitHub HMAC ✅")
 
-    print("comms/webhook_server.py OK — inbound routing, /health, /notify, background thread")
+    # Test 4: _detect_platform
+    assert server._detect_platform({"x-github-event": "push"}) == "github"
+    assert server._detect_platform({"x-gitlab-event": "push"}) == "gitlab"
+    assert server._detect_platform({"stripe-signature": "t=..."}) == "stripe"
+    assert server._detect_platform({}) == "custom"
+    logger.info("[VECTOR][webhook] _detect_platform ✅")
+
+    # Test 5: _detect_event_type
+    assert server._detect_event_type("github", {"x-github-event": "pull_request"}, {}) == "pull_request"
+    assert server._detect_event_type("gitlab", {"x-gitlab-event": "Push Hook"}, {}) == "Push Hook"
+    assert server._detect_event_type("custom", {}, {"event_type": "deploy"}) == "deploy"
+    logger.info("[VECTOR][webhook] _detect_event_type ✅")
+
+    # Test 6: on_event + _dispatch
+    received_events: list[WebhookEvent] = []
+
+    async def handler(event: WebhookEvent) -> None:
+        received_events.append(event)
+
+    server.on_event("push", handler)
+    server.on_any(handler)
+
+    async def _dispatch_test() -> None:
+        evt = WebhookEvent(
+            platform="github",
+            event_type="push",
+            payload={"ref": "refs/heads/main"},
+            headers={},
+            raw_body=b"{}",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        await server._dispatch(evt)
+
+    asyncio.run(_dispatch_test())
+    assert len(received_events) == 2, f"Expected 2 handler calls, got {len(received_events)}"
+    logger.info("[VECTOR][webhook] on_event + _dispatch ✅")
+
+    # Test 7: singleton factory
+    s1 = get_webhook_server()
+    s2 = get_webhook_server()
+    assert s1 is s2, "Singleton not returning same instance"
+    logger.info("[VECTOR][webhook] get_webhook_server() singleton ✅")
+
+    print("✅ webhook_server.py OK")
