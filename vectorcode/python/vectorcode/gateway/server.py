@@ -478,7 +478,7 @@ class GatewayServer:
 
         except Exception as exc:
             logger.error(
-                "[VECTOR][gateway] _run_task_sync failed session=%s: %s", session_id, exc
+                "[VECTOR][gateway] _run_task_sync failed session={}: {}", session_id, exc
             )
             if sess is not None:
                 sess["status"] = "error"
