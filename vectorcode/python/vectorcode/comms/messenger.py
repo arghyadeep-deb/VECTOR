@@ -1,6 +1,6 @@
 """
-MessagingHub — absorbed from Hermes HermesAdapter.
-Standalone multi-platform messaging. NO Hermes HTTP dependency.
+MessagingHub — absorbed from reference MessagingAdapter.
+Standalone multi-platform messaging. no external HTTP dependency.
 Supports: telegram, discord (webhook), email, webhook, pushover.
 Offline queue persisted to ~/.vector/messages/pending.json.
 Cron scheduling via APScheduler.
@@ -28,7 +28,7 @@ _HISTORY_FILE = _MSG_DIR / "history.json"
 class MessagingHub:
     """
     Standalone multi-platform messaging hub.
-    Replaces HermesAdapter — works without any Hermes process.
+    Replaces MessagingAdapter — works standalone.
 
     Platform support (graceful no-op if credentials absent):
       telegram  — Bot API via httpx
@@ -175,12 +175,22 @@ class MessagingHub:
             return {"status": "queued", "error": str(e)}
 
     async def _send_discord(self, text: str, priority: str) -> dict:
+        try:
+            from comms.discord_bot import DiscordBot
+            bot = DiscordBot()
+            if not bot.is_configured():
+                return {"status": "not_configured", "platform": "discord"}
+            return await bot.send_message(text, priority=priority)
+        except ImportError:
+            pass
+
+        # Fallback: direct webhook call when discord_bot module is unavailable
         cfg = CONFIG.get("discord", {}) if isinstance(CONFIG, dict) else {}
         webhook_url = cfg.get("webhook_url") or ""
         if not webhook_url:
             return {"status": "not_configured", "platform": "discord"}
 
-        prefix = {"urgent": "🚨 **URGENT**\n", "critical": "🔴 **CRITICAL**\n"}.get(priority, "")
+        prefix = {"urgent": "**URGENT**\n", "critical": "**CRITICAL**\n"}.get(priority, "")
         try:
             import httpx
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -422,6 +432,9 @@ if __name__ == "__main__":
         print(f"comms/messenger.py OK — status={status}, skills={hub.list_skills()}")
 
     asyncio.run(_smoke())
+
+
+
 
 
 
