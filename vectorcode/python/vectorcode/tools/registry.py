@@ -286,7 +286,11 @@ class ToolRegistry:
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
+# This IS the global instance — tool files import and call registry.register()
+# at module level, which populates this same object.
+# ToolRegistry.global_instance() returns this same object after first call.
 registry = ToolRegistry()
+ToolRegistry._instance = registry  # wire up so global_instance() returns this
 
 
 # ── AST-based discovery helper ─────────────────────────────────────────────────
