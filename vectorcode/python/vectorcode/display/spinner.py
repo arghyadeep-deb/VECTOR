@@ -165,4 +165,5 @@ if __name__ == "__main__":
     assert emoji == "📦", f"Expected 📦, got {emoji}"
     assert msg in TOOL_MESSAGES["bash"], f"Unexpected message: {msg}"
 
-    print("✅ spinner.py OK")
+    sys.stdout.buffer.write(b"\xe2\x9c\x85 spinner.py OK\n")
+    sys.stdout.buffer.flush()
