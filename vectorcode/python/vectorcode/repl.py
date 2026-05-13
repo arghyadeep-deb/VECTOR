@@ -437,6 +437,7 @@ class VectorREPL:
         self.gsd          = GSDLoop(mode="repl")
         self._skills      = _scan_skills()
         self._project_dir = project_dir or Path.cwd()
+        self._personality: str = "default"
         self._history     = [{"role": "system",
                                "content": _build_system_prompt(
                                    _build_skills_index(self._skills),
