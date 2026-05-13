@@ -8,8 +8,14 @@ Models in use: vector-focus (permanent VRAM), vector-coder, vector-reasoning,
                qwen3:14b, deepseek-r1:14b, devstral:24b, etc.
 """
 
-# ── stdlib first — before any sys.path manipulation ──────────────────────────
+# ── Guard: strip transports/ from sys.path to prevent types.py shadowing stdlib.
 import sys
+import os as _os
+_this_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys.path = [p for p in sys.path if _os.path.abspath(p) != _this_dir]
+del _os, _this_dir
+
+# ── stdlib ────────────────────────────────────────────────────────────────────
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
