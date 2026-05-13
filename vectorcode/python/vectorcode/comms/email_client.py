@@ -473,4 +473,5 @@ if __name__ == "__main__":
     assert parsed.sender == "sender@example.com"
     logger.info("[VECTOR][email] _parse_message MIME ✅")
 
-    print("✅ email_client.py OK")
+    logger.info("[VECTOR][email] All smoke tests passed")
+    sys.stdout.buffer.write(b"[OK] email_client.py OK\n")
