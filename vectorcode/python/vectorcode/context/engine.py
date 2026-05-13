@@ -386,4 +386,4 @@ if __name__ == "__main__":
     e2 = get_context_engine("claude-haiku-3-5", 200000)
     assert e2.threshold_tokens == int(200000 * 0.70)
 
-    print("✅ engine.py OK")
+    print("PASS: engine.py OK")
