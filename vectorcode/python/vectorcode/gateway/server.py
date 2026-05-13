@@ -408,7 +408,7 @@ class GatewayServer:
             return {"session_id": session_id, "model": req.model, "previous_model": old_model}
 
         self._app = app
-        logger.info("[VECTOR][gateway] FastAPI app built — %d routes", len(app.routes))
+        logger.info("[VECTOR][gateway] FastAPI app built — {} routes", len(app.routes))
         return app
 
     # ── Core task runner ──────────────────────────────────────────────────────
