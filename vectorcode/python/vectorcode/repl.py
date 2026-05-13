@@ -903,7 +903,7 @@ Runner: {cfg["runner"]}
                   flush=True)
 
         try:
-            from core.agent_loop import VectorAgent
+            from engine.agent_loop import VectorAgent
             agent = VectorAgent(
                 model_id=model,
                 project_dir=self._project_dir,
