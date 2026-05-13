@@ -1,461 +1,389 @@
-"""VectorCode ContextEngine — token budget manager for conversations.
+"""Context engine — token-aware conversation compression.
 
-Ports the abstract ContextEngine base from Hermes agent/context_engine.py and
-implements a concrete VectorContextEngine that:
-  - Tracks token usage from API responses
-  - Decides when to compact based on a configurable threshold (default 85%)
-  - Trims message lists to a token budget while protecting important messages
-  - Exposes the same interface that VectorCode's compactor.py expects
-
-This is the decision layer — the actual compaction work is done by
-context/compactor.py (ContextCompactor) and context/trajectory_compressor.py
-(TrajectoryCompressor). ContextEngine decides *when* to compact and *what*
-to retain; the compactors decide *how* to summarise.
-
-Model context windows (get_token_budget):
-  Uses providers/capability_probe.py when available, falls back to a built-in
-  lookup table for common Ollama models.
+Abstract base for pluggable context engines. Built-in ContextCompressor
+is the default. Controls when compaction fires, performs summarization,
+and tracks token usage.
 """
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from abc import ABC, abstractmethod
+from typing import Optional
 
 from loguru import logger
 
-try:
-    from core.config import CONFIG
-except ImportError:
-    CONFIG = {}
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _estimate_tokens(text: str) -> int:
+    """Rough char/4 token estimate — always >= 1."""
+    return max(1, len(text) // 4)
 
 
-# ── Token budget constants ────────────────────────────────────────────────────
-
-_DEFAULT_THRESHOLD = 0.85          # compact when > 85% of context used
-_CHARS_PER_TOKEN = 4               # rough estimate for cost-free token counting
-_ALWAYS_KEEP_LAST_N = 8            # always preserve this many tail messages
-_PROTECT_TOOL_RESULTS = True       # tool result messages have priority over plain assistant turns
-_IMAGE_TOKEN_ESTIMATE = 1_600      # flat token cost per image content block
-
-# Built-in context window fallback table (tokens) for common models.
-# capability_probe.py's MODEL_CONTEXT_LENGTHS is preferred when importable.
-_BUILTIN_CONTEXT_WINDOWS: Dict[str, int] = {
-    # Ollama custom models
-    "vector-focus":        8_192,
-    "vector-ambient":      8_192,
-    "vector-reasoning":   32_768,
-    "vector-coder":       32_768,
-    "vector-multilingual": 32_768,
-    "vector-deep":        65_536,
-    "vector-chairman":    131_072,
-    # Base Ollama models
-    "gemma4:e2b":          8_192,
-    "gemma4:e4b":          8_192,
-    "gemma4:26b":         65_536,
-    "gemma4:31b":         131_072,
-    "qwen3:8b":           32_768,
-    "qwen3:14b":          32_768,
-    "qwen3:30b-a3b":      131_072,
-    "deepseek-r1:14b":    32_768,
-    "devstral:24b":       32_768,
-    "mistral-small3.1":   32_768,
-    "nomic-embed-text":   8_192,
-    # Cloud / API models
-    "claude-sonnet-4-6":  200_000,
-    "claude-opus-4":      200_000,
-    "gpt-4o":             128_000,
-    "gpt-4-turbo":        128_000,
-    "gpt-3.5-turbo":      16_385,
-    "gemini-1.5-pro":     1_000_000,
-    "gemini-2.5-pro":     1_000_000,
-}
-
-_DEFAULT_CONTEXT_WINDOW = 32_768   # fallback when model unknown
-
-
-# ── Token estimation helpers ──────────────────────────────────────────────────
-
-def _content_char_cost(content: Any) -> int:
-    """Return character-equivalent cost of a message's 'content' field.
-
-    Handles plain strings and multimodal lists with per-image cost.
-    Mirrors _content_length_for_budget() from compactor.py.
-    """
-    if content is None:
-        return 0
-    if isinstance(content, str):
-        return len(content)
+def _message_tokens(msg: dict) -> int:
+    """Estimate tokens for a single message dict."""
+    content = msg.get("content", "")
     if isinstance(content, list):
         total = 0
-        for part in content:
-            if isinstance(part, str):
-                total += len(part)
-            elif isinstance(part, dict):
-                ptype = part.get("type", "")
-                if ptype in {"image_url", "input_image", "image"}:
-                    total += _IMAGE_TOKEN_ESTIMATE * _CHARS_PER_TOKEN
-                else:
-                    total += len(part.get("text", "") or "")
-        return total
-    return len(str(content))
+        for block in content:
+            if isinstance(block, dict):
+                total += _estimate_tokens(
+                    block.get("text", "") or block.get("content", "")
+                )
+            else:
+                total += _estimate_tokens(str(block))
+        return max(1, total)
+    return _estimate_tokens(str(content))
 
 
-def estimate_tokens(messages: List[Dict[str, Any]]) -> int:
-    """Rough token estimate for a message list (char / 4).
-
-    Module-level function exposed for use by the compactor and trajectory
-    compressor without needing a ContextEngine instance.
-    """
-    total_chars = sum(_content_char_cost(m.get("content")) for m in messages)
-    # Add overhead for tool_calls argument strings
-    for msg in messages:
-        for tc in msg.get("tool_calls") or []:
-            if isinstance(tc, dict):
-                args = tc.get("function", {}).get("arguments", "") or ""
-                total_chars += len(args)
-    return total_chars // _CHARS_PER_TOKEN
+# ---------------------------------------------------------------------------
+# Priority constants — lower number = higher priority (never drop)
+# ---------------------------------------------------------------------------
+_PRIORITY_SYSTEM = 1
+_PRIORITY_RECENT = 2
+_PRIORITY_TOOL_RESULT = 3
+_PRIORITY_USER = 4
+_PRIORITY_ASSISTANT = 5
 
 
-def get_token_budget(model: str) -> int:
-    """Return context window (token budget) for a model.
+def priority_retain(
+    messages: list[dict],
+    budget_tokens: int,
+    model_context_length: int,
+    tail_n: int = 6,
+) -> list[dict]:
+    """Retain messages within budget_tokens by dropping lowest-priority ones first.
 
-    Priority: capability_probe.py MODEL_CONTEXT_LENGTHS > built-in table >
-    CONFIG['context_window'] default > hard fallback.
-    """
-    try:
-        from providers.capability_probe import MODEL_CONTEXT_LENGTHS
-        if model in MODEL_CONTEXT_LENGTHS:
-            return MODEL_CONTEXT_LENGTHS[model]
-    except Exception:
-        pass
+    Priority categories (1 = most important, never dropped):
+      1  system messages
+      2  last `tail_n` messages (recency protection)
+      3  tool_result (role == "tool") messages
+      4  user messages
+      5  assistant messages
 
-    # Strip provider prefixes like "ollama:qwen3:14b"
-    bare = model.split(":")[-1] if ":" in model else model
-    if model in _BUILTIN_CONTEXT_WINDOWS:
-        return _BUILTIN_CONTEXT_WINDOWS[model]
-    if bare in _BUILTIN_CONTEXT_WINDOWS:
-        return _BUILTIN_CONTEXT_WINDOWS[bare]
+    Rules:
+    - Never drops system messages.
+    - Never drops the last `tail_n` messages.
+    - Drops higher-priority numbers first (assistant before user before tool).
+    - Stops as soon as total tokens ≤ budget_tokens.
 
-    # CONFIG override
-    cfg_window = CONFIG.get("context_window")
-    if cfg_window:
-        try:
-            return int(cfg_window)
-        except (TypeError, ValueError):
-            pass
+    Args:
+        messages:             Full conversation message list.
+        budget_tokens:        Target token budget.
+        model_context_length: Maximum context length (informational guard).
+        tail_n:               Number of recent messages to always protect.
 
-    logger.debug(
-        f"[VECTOR][context_engine] unknown model '{model}' — "
-        f"defaulting to {_DEFAULT_CONTEXT_WINDOW} tokens"
-    )
-    return _DEFAULT_CONTEXT_WINDOW
-
-
-# ── priority_retain ───────────────────────────────────────────────────────────
-
-def priority_retain(messages: List[Dict[str, Any]], budget: int) -> List[Dict[str, Any]]:
-    """Trim a message list to fit within a token budget.
-
-    Retention priority (highest to lowest):
-      1. System message (always kept)
-      2. Last _ALWAYS_KEEP_LAST_N messages (always kept)
-      3. Tool result messages (keep over plain assistant turns)
-      4. User messages (keep over assistant turns)
-      5. Assistant turns (dropped first when over budget)
-
-    The returned list is always a valid OpenAI-format conversation —
-    orphaned tool_result messages whose tool_call_id has no preceding
-    assistant tool_call are dropped automatically.
+    Returns:
+        Filtered message list preserving original order.
     """
     if not messages:
         return messages
 
+    total = sum(_message_tokens(m) for m in messages)
+    if total <= budget_tokens:
+        return messages
+
     n = len(messages)
-    always_last = min(_ALWAYS_KEEP_LAST_N, n)
-    tail_indices = set(range(n - always_last, n))
+    tail_indices: set[int] = set(range(max(0, n - tail_n), n))
 
-    # System messages
-    sys_indices = {i for i, m in enumerate(messages) if m.get("role") == "system"}
-
-    # Classify remaining messages by priority score
-    # 3 = tool result, 2 = user, 1 = assistant, 0 = unknown
-    def _priority(msg: Dict[str, Any]) -> int:
+    def _priority(idx: int, msg: dict) -> int:
+        if msg.get("role") == "system":
+            return _PRIORITY_SYSTEM
+        if idx in tail_indices:
+            return _PRIORITY_RECENT
         role = msg.get("role", "")
         if role == "tool":
-            return 3
+            return _PRIORITY_TOOL_RESULT
         if role == "user":
-            return 2
-        if role == "assistant":
-            return 1
-        return 0
+            return _PRIORITY_USER
+        return _PRIORITY_ASSISTANT  # assistant or unknown
 
-    # Build keep set: system + tail always in
-    keep = set(sys_indices) | tail_indices
+    # Build list of (priority, index) sorted: highest priority number first
+    # (i.e. drop assistants before users before tool_results)
+    candidates = sorted(
+        [
+            (_priority(i, m), i)
+            for i, m in enumerate(messages)
+            if _priority(i, m) > _PRIORITY_RECENT  # never touch system or tail
+        ],
+        key=lambda x: (-x[0], -x[1]),  # highest priority-number first, then latest first
+    )
 
-    # Add middle messages by priority until budget exhausted
-    current_tokens = estimate_tokens([messages[i] for i in keep])
-    if current_tokens <= budget:
-        # We have budget remaining — try to add middle messages
-        middle_sorted = sorted(
-            [i for i in range(n) if i not in keep],
-            key=lambda i: (_priority(messages[i]), i),
-            reverse=True,  # highest priority and latest first
-        )
-        for i in middle_sorted:
-            msg_tokens = _content_char_cost(messages[i].get("content")) // _CHARS_PER_TOKEN + 5
-            if current_tokens + msg_tokens <= budget:
-                keep.add(i)
-                current_tokens += msg_tokens
-
-    # Build retained list in original order
-    retained = [messages[i] for i in sorted(keep)]
-
-    # Remove orphaned tool results (tool_call_id with no matching assistant call)
-    tool_call_ids: set[str] = set()
-    for msg in retained:
-        if msg.get("role") == "assistant":
-            for tc in msg.get("tool_calls") or []:
-                if isinstance(tc, dict):
-                    cid = tc.get("id", "")
-                    if cid:
-                        tool_call_ids.add(cid)
-
-    cleaned = []
-    for msg in retained:
-        if msg.get("role") == "tool":
-            cid = msg.get("tool_call_id", "")
-            if cid and cid not in tool_call_ids:
-                continue  # orphaned — skip
-        cleaned.append(msg)
-
-    return cleaned
-
-
-# ── ContextEngine class ───────────────────────────────────────────────────────
-
-class ContextEngine:
-    """Token budget manager for VectorCode conversations.
-
-    Tracks actual token usage reported by the LLM API (via update_from_response)
-    and triggers compaction when usage exceeds the configured threshold.
-
-    Mirrors the Hermes ContextEngine abstract base but as a concrete
-    implementation that VectorCode's agent loop can use directly.
-    """
-
-    def __init__(
-        self,
-        model: str = "vector-focus",
-        threshold: float = _DEFAULT_THRESHOLD,
-    ) -> None:
-        self.model = model
-        self.threshold_percent: float = max(0.50, min(threshold, 0.99))
-
-        # Token accounting
-        self.context_length: int = get_token_budget(model)
-        self.threshold_tokens: int = int(self.context_length * self.threshold_percent)
-        self.last_prompt_tokens: int = 0
-        self.last_completion_tokens: int = 0
-        self.last_total_tokens: int = 0
-        self.compression_count: int = 0
-
-    # ── Token tracking ───────────────────────────────────────────────────────
-
-    def update_from_response(self, usage: Dict[str, Any]) -> None:
-        """Update token state from an API response usage dict.
-
-        Accepts both OpenAI style (prompt_tokens / completion_tokens) and
-        Anthropic style (input_tokens / output_tokens).
-        """
-        if not usage:
-            return
-        prompt = int(
-            usage.get("prompt_tokens")
-            or usage.get("input_tokens")
-            or 0
-        )
-        completion = int(
-            usage.get("completion_tokens")
-            or usage.get("output_tokens")
-            or 0
-        )
-        self.last_prompt_tokens = prompt
-        self.last_completion_tokens = completion
-        self.last_total_tokens = prompt + completion
+    drop_set: set[int] = set()
+    for pri, idx in candidates:
+        if total <= budget_tokens:
+            break
+        total -= _message_tokens(messages[idx])
+        drop_set.add(idx)
         logger.debug(
-            f"[VECTOR][context_engine] usage: prompt={prompt} "
-            f"completion={completion} threshold={self.threshold_tokens}"
+            f"[context_engine] priority_retain: dropping idx={idx} "
+            f"role={messages[idx].get('role')} priority={pri}"
         )
 
-    # ── Compaction decision ──────────────────────────────────────────────────
+    retained = [m for i, m in enumerate(messages) if i not in drop_set]
+    logger.info(
+        f"[context_engine] priority_retain: {n} → {len(retained)} messages"
+    )
+    return retained
 
-    def should_compact(self, messages: Optional[List[Dict[str, Any]]] = None) -> bool:
-        """Return True when context usage exceeds the threshold.
 
-        When API token counts are available (last_prompt_tokens > 0) they are
-        used. Otherwise falls back to a rough char-based estimate of the
-        provided message list.
-        """
-        if self.last_prompt_tokens > 0:
-            return self.last_prompt_tokens >= self.threshold_tokens
+# ---------------------------------------------------------------------------
+# Abstract base
+# ---------------------------------------------------------------------------
 
-        if messages:
-            estimated = estimate_tokens(messages)
-            return estimated >= self.threshold_tokens
+class ContextEngine(ABC):
+    """Base class for context management strategies."""
 
-        return False
+    last_prompt_tokens: int = 0
+    last_completion_tokens: int = 0
+    last_total_tokens: int = 0
+    threshold_tokens: int = 0
+    context_length: int = 0
+    compression_count: int = 0
+    threshold_percent: float = 0.75
+    protect_first_n: int = 3
+    protect_last_n: int = 6
 
-    def should_compact_preflight(self, messages: List[Dict[str, Any]]) -> bool:
-        """Quick pre-flight check using char estimate — no real token count needed."""
-        if not messages:
-            return False
-        estimated = estimate_tokens(messages)
-        return estimated >= self.threshold_tokens
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
 
-    # ── Budget management ────────────────────────────────────────────────────
+    @abstractmethod
+    def update_from_response(self, usage: dict) -> None: ...
 
-    def get_token_budget(self, model: Optional[str] = None) -> int:
-        """Return the context window for this engine's model (or a given model)."""
-        return get_token_budget(model or self.model)
+    @abstractmethod
+    def should_compress(self, prompt_tokens: Optional[int] = None) -> bool: ...
 
-    def get_budget_remaining(self) -> int:
-        """Tokens remaining before compaction threshold is hit."""
-        if self.last_prompt_tokens > 0:
-            return max(0, self.threshold_tokens - self.last_prompt_tokens)
-        return self.threshold_tokens
-
-    def trim_to_budget(
+    @abstractmethod
+    def compress(
         self,
-        messages: List[Dict[str, Any]],
-        budget_ratio: float = 0.80,
-    ) -> List[Dict[str, Any]]:
-        """Trim messages to fit within budget_ratio of the context window.
+        messages: list,
+        current_tokens: Optional[int] = None,
+        focus_topic: Optional[str] = None,
+    ) -> list: ...
 
-        Uses priority_retain() internally. budget_ratio=0.80 means trim to
-        80% of the context window to leave headroom for the next response.
-        """
-        budget = int(self.context_length * max(0.10, min(budget_ratio, 0.99)))
-        return priority_retain(messages, budget=budget)
+    def has_content_to_compress(self, messages: list) -> bool:
+        return True
 
-    # ── Model switching ──────────────────────────────────────────────────────
+    def on_session_start(self, session_id: str, **kwargs) -> None: ...
 
-    def update_model(self, model: str) -> None:
-        """Recalculate context window and threshold after a model switch."""
-        self.model = model
-        self.context_length = get_token_budget(model)
-        self.threshold_tokens = int(self.context_length * self.threshold_percent)
-        logger.info(
-            f"[VECTOR][context_engine] model → '{model}' "
-            f"(context={self.context_length}, threshold={self.threshold_tokens})"
-        )
-
-    # ── Session lifecycle ────────────────────────────────────────────────────
+    def on_session_end(self, session_id: str, messages: list) -> None: ...
 
     def on_session_reset(self) -> None:
-        """Reset per-session counters (call on /new or /reset)."""
         self.last_prompt_tokens = 0
         self.last_completion_tokens = 0
         self.last_total_tokens = 0
         self.compression_count = 0
 
-    # ── Status ───────────────────────────────────────────────────────────────
+    def update_model(self, model: str, context_length: int, **kwargs) -> None:
+        self.context_length = context_length
+        self.threshold_tokens = int(context_length * self.threshold_percent)
 
-    def get_status(self) -> Dict[str, Any]:
-        """Return current token state dict for display / logging."""
-        usage_pct = (
-            min(100.0, self.last_prompt_tokens / self.context_length * 100)
-            if self.context_length and self.last_prompt_tokens
-            else 0.0
-        )
+    def get_status(self) -> dict:
         return {
-            "model": self.model,
-            "context_length": self.context_length,
-            "threshold_tokens": self.threshold_tokens,
             "last_prompt_tokens": self.last_prompt_tokens,
-            "last_completion_tokens": self.last_completion_tokens,
-            "usage_percent": round(usage_pct, 1),
+            "threshold_tokens": self.threshold_tokens,
+            "context_length": self.context_length,
+            "usage_percent": (
+                min(100, self.last_prompt_tokens / self.context_length * 100)
+                if self.context_length
+                else 0
+            ),
             "compression_count": self.compression_count,
         }
 
 
-# ── Self-test ─────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Default implementation
+# ---------------------------------------------------------------------------
+
+class ContextCompressor(ContextEngine):
+    """Default compressor — priority-based retention with summary injection."""
+
+    @property
+    def name(self) -> str:
+        return "compressor"
+
+    def __init__(
+        self,
+        context_length: int = 128000,
+        threshold_percent: float = 0.75,
+        protect_first_n: int = 3,
+        protect_last_n: int = 6,
+    ):
+        self.context_length = context_length
+        self.threshold_percent = threshold_percent
+        self.threshold_tokens = int(context_length * threshold_percent)
+        self.protect_first_n = protect_first_n
+        self.protect_last_n = protect_last_n
+        self.last_prompt_tokens = 0
+        self.last_completion_tokens = 0
+        self.last_total_tokens = 0
+        self.compression_count = 0
+
+    def update_from_response(self, usage: dict) -> None:
+        self.last_prompt_tokens = usage.get(
+            "input_tokens", usage.get("prompt_tokens", 0)
+        )
+        self.last_completion_tokens = usage.get(
+            "output_tokens", usage.get("completion_tokens", 0)
+        )
+        self.last_total_tokens = self.last_prompt_tokens + self.last_completion_tokens
+
+    def should_compress(self, prompt_tokens: Optional[int] = None) -> bool:
+        check = prompt_tokens if prompt_tokens is not None else self.last_prompt_tokens
+        return check > self.threshold_tokens
+
+    def compress(
+        self,
+        messages: list,
+        current_tokens: Optional[int] = None,
+        focus_topic: Optional[str] = None,
+    ) -> list:
+        """Compress messages using priority_retain + summary injection.
+
+        Steps:
+        1. Check should_compress — return early if not needed.
+        2. Call priority_retain to fit within threshold_tokens.
+        3. Insert a summary marker so downstream code knows compression occurred.
+        4. Increment compression_count.
+        5. Return compressed list.
+        """
+        if len(messages) < 6:
+            return messages
+
+        check_tokens = current_tokens if current_tokens is not None else self.last_prompt_tokens
+        if not self.should_compress(check_tokens):
+            return messages
+
+        budget = self.threshold_tokens
+        retained = priority_retain(
+            messages,
+            budget_tokens=budget,
+            model_context_length=self.context_length,
+            tail_n=self.protect_last_n,
+        )
+
+        n_dropped = len(messages) - len(retained)
+        if n_dropped == 0:
+            return messages
+
+        topic = focus_topic or "ongoing task"
+        summary_msg: dict = {
+            "role": "assistant",
+            "content": (
+                f"<compressed>Compressed {n_dropped} messages to fit context window. "
+                f"Focus: {topic}</compressed>"
+            ),
+        }
+
+        # Insert summary after protected head, before the retained body
+        head = [m for m in retained[:self.protect_first_n]]
+        body = retained[self.protect_first_n:]
+        result = head + [summary_msg] + body
+
+        self.compression_count += 1
+        logger.info(
+            f"[context_engine] compressed {len(messages)} → {len(result)} messages "
+            f"(compression #{self.compression_count})"
+        )
+        return result
+
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+def get_context_engine(
+    model_id: str,
+    context_length: int,
+) -> ContextCompressor:
+    """Return a pre-configured ContextCompressor for the given model.
+
+    Args:
+        model_id:       Model identifier string (used for threshold tuning).
+        context_length: Maximum context window in tokens.
+
+    Returns:
+        ContextCompressor ready to use.
+    """
+    # Tune threshold based on known model families
+    if "opus" in model_id.lower():
+        threshold_percent = 0.80
+    elif "sonnet" in model_id.lower():
+        threshold_percent = 0.75
+    elif "haiku" in model_id.lower():
+        threshold_percent = 0.70
+    else:
+        threshold_percent = 0.75
+
+    engine = ContextCompressor(
+        context_length=context_length,
+        threshold_percent=threshold_percent,
+    )
+    logger.debug(
+        f"[context_engine] created engine for model={model_id!r} "
+        f"context={context_length} threshold={engine.threshold_tokens}"
+    )
+    return engine
+
+
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
+    # --- priority_retain ---
+    msgs: list[dict] = (
+        [{"role": "system", "content": "You are VECTOR. " * 50}]
+        + [
+            {
+                "role": "user" if i % 2 == 0 else "assistant",
+                "content": f"Message {i}: " + "word " * 100,
+            }
+            for i in range(20)
+        ]
+    )
+    retained = priority_retain(msgs, budget_tokens=5000, model_context_length=128000)
+    assert retained[0]["role"] == "system", "System message must always be retained"
+    # Last 6 must be kept
+    assert msgs[-1] in retained, "Last message must be retained"
+    assert len(retained) < len(msgs), "Some messages should have been dropped"
 
-    # Test 1: Basic instantiation
-    engine = ContextEngine(model="vector-focus", threshold=0.85)
-    assert engine.context_length == _BUILTIN_CONTEXT_WINDOWS["vector-focus"]
-    assert engine.threshold_tokens == int(engine.context_length * 0.85)
+    # --- ContextCompressor.compress ---
+    engine = get_context_engine("claude-sonnet-4-6", 128000)
+    engine.update_from_response({"input_tokens": 100_000, "output_tokens": 1_000})
 
-    # Test 2: update_from_response (OpenAI format)
-    engine.update_from_response({"prompt_tokens": 100, "completion_tokens": 50})
-    assert engine.last_prompt_tokens == 100
-    assert engine.last_completion_tokens == 50
-    assert engine.last_total_tokens == 150
-
-    # Test 3: update_from_response (Anthropic format)
-    engine2 = ContextEngine(model="vector-focus")
-    engine2.update_from_response({"input_tokens": 200, "output_tokens": 80})
-    assert engine2.last_prompt_tokens == 200
-
-    # Test 4: should_compact — false when under threshold
-    engine3 = ContextEngine(model="vector-focus", threshold=0.85)
-    engine3.update_from_response({"prompt_tokens": 100, "completion_tokens": 10})
-    assert engine3.should_compact() is False
-
-    # Test 5: should_compact — true when over threshold
-    engine4 = ContextEngine(model="vector-focus", threshold=0.85)
-    engine4.update_from_response({"prompt_tokens": 8000, "completion_tokens": 0})
-    assert engine4.should_compact() is True
-
-    # Test 6: estimate_tokens module-level function
-    msgs = [
-        {"role": "system", "content": "You are VECTOR."},
-        {"role": "user",   "content": "hello world"},
-        {"role": "assistant", "content": "Hi there!"},
+    long_messages: list[dict] = [
+        {"role": "system", "content": "System prompt. " * 20}
+    ] + [
+        {
+            "role": "user" if i % 2 == 0 else "assistant",
+            "content": "Content line. " * 200,
+        }
+        for i in range(30)
     ]
-    tokens = estimate_tokens(msgs)
-    assert tokens > 0
 
-    # Test 7: should_compact_preflight with message list
-    tiny_msgs = [{"role": "user", "content": "hi"}]
-    assert engine.should_compact_preflight(tiny_msgs) is False
+    compressed = engine.compress(long_messages, focus_topic="VECTOR build")
+    assert len(compressed) < len(long_messages), (
+        f"Expected compression but got same length: {len(compressed)}"
+    )
+    assert engine.compression_count == 1
 
-    # Test 8: get_token_budget returns known value
-    assert get_token_budget("vector-chairman") == 131_072
-    assert get_token_budget("unknown-model-xyz") == _DEFAULT_CONTEXT_WINDOW
+    # Summary marker present
+    contents = [m.get("content", "") for m in compressed]
+    assert any("<compressed>" in str(c) for c in contents), (
+        "Expected <compressed> summary marker in output"
+    )
 
-    # Test 9: priority_retain keeps system and tail
-    long_msgs = [{"role": "system", "content": "sys"}] + [
-        {"role": "user" if i % 2 == 0 else "assistant", "content": f"msg {i}" * 50}
-        for i in range(20)
-    ]
-    retained = priority_retain(long_msgs, budget=500)
-    assert any(m["role"] == "system" for m in retained), "system must survive"
-    assert len(retained) <= len(long_msgs)
+    # --- factory ---
+    e2 = get_context_engine("claude-haiku-3-5", 200000)
+    assert e2.threshold_tokens == int(200000 * 0.70)
 
-    # Test 10: trim_to_budget returns list
-    trimmed = engine.trim_to_budget(msgs, budget_ratio=0.80)
-    assert isinstance(trimmed, list)
-
-    # Test 11: on_session_reset clears counters
-    engine.compression_count = 5
-    engine.last_prompt_tokens = 100
-    engine.on_session_reset()
-    assert engine.last_prompt_tokens == 0
-    assert engine.compression_count == 0
-
-    # Test 12: update_model recalculates threshold
-    engine.update_model("vector-chairman")
-    assert engine.context_length == 131_072
-
-    # Test 13: get_status returns dict with required keys
-    status = engine.get_status()
-    for key in ("model", "context_length", "threshold_tokens", "usage_percent"):
-        assert key in status, f"Missing key: {key}"
-
-    print("OK")
+    print("✅ engine.py OK")
