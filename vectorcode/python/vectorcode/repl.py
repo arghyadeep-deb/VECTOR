@@ -857,6 +857,20 @@ Runner: {cfg["runner"]}
             self._running = False
             return "Goodbye."
 
+        if raw.startswith("/usage"):
+            parts = raw.split(maxsplit=1)
+            days = 30
+            if len(parts) > 1:
+                try:
+                    days = int(parts[1].strip())
+                except ValueError:
+                    return "Usage: /usage [days]  — e.g. /usage 7"
+            try:
+                from insights import InsightsEngine
+                return InsightsEngine().format_terminal(days=days)
+            except Exception as e:
+                return f"usage error: {e}"
+
         # Dynamic skill invocation — /skill-name
         slug = raw.lstrip("/").lower()
         if slug in self._skills:
