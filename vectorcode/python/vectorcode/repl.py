@@ -420,6 +420,10 @@ class VectorREPL:
         "/save":    "Save full session (history, model, mode, tokens) to .vector/",
         "/restore": "List saved sessions — pick one to reload history",
         "/tools":   "List tool categories",
+        "/notify":  "/notify <text>  — send notification via Hermes (all configured channels)",
+        "/comms":   "Show Hermes comms status — pending/urgent/unread counts",
+        "/search":  "/search <query>  — web search via OpenCLI (with DuckDuckGo fallback)",
+        "/fetch":   "/fetch <url>  — fetch and summarize a URL",
         "/clear":   "Clear conversation history",
         "/quit":    "Exit VECTOR",
     }
