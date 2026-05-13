@@ -602,7 +602,7 @@ if __name__ == "__main__":
 
     assert health_handler is not None, "/health route not registered"
 
-    health_result = _asyncio.get_event_loop().run_until_complete(health_handler())
+    health_result = _asyncio.run(health_handler())
     assert health_result == {"status": "ok", "version": _VERSION}, (
         f"Unexpected /health response: {health_result}"
     )
@@ -616,7 +616,7 @@ if __name__ == "__main__":
             break
 
     assert status_handler is not None, "/status route not registered"
-    status_result = _asyncio.get_event_loop().run_until_complete(status_handler())
+    status_result = _asyncio.run(status_handler())
     assert status_result["status"] == "running"
     assert "active_sessions" in status_result
     assert "uptime_seconds" in status_result
@@ -638,21 +638,21 @@ if __name__ == "__main__":
             break
 
     assert sessions_handler is not None, "/sessions route not registered"
-    sessions_result = _asyncio.get_event_loop().run_until_complete(sessions_handler())
+    sessions_result = _asyncio.run(sessions_handler())
     assert "sessions" in sessions_result
     assert any(s["session_id"] == sid for s in sessions_result["sessions"])
     print("/sessions handler OK — %d session(s)" % len(sessions_result["sessions"]))
 
     # ── Test 8: _run_task_sync fallback (no agent available) ──────────────────
     test_req = RunRequest(input="test", model="", session_id=sid)
-    # This will hit the ImportError stub path if engine isn't importable in this env
+    # This will hit the ImportError stub path or error gracefully
     result = gw._run_task_sync(sid, test_req)
     assert isinstance(result, RunResponse)
     assert result.session_id == sid
     print(f"_run_task_sync OK — status={result.status}")
 
     # ── Test 9: stop (no running tasks) ───────────────────────────────────────
-    _asyncio.get_event_loop().run_until_complete(gw.stop())
+    _asyncio.run(gw.stop())
     print("stop() OK")
 
     print("\ngateway/server.py OK")
