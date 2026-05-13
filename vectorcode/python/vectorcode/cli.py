@@ -515,6 +515,31 @@ def main():
     run_ap = agents_sub.add_parser("run", help="Run a named agent")
     run_ap.add_argument("agent_name", help="Agent name")
 
+    # skills subcommand
+    skills_p = sub.add_parser("skills", help="Skill pack management")
+    skills_sub = skills_p.add_subparsers(dest="skills_action")
+    skills_sub.add_parser("list", help="List all installed skill packs and skills")
+    skills_search_p = skills_sub.add_parser("search", help="Search skills by keyword")
+    skills_search_p.add_argument("query", help="Search query")
+    skills_install_p = skills_sub.add_parser("install", help="Install skill pack from git URL or local path")
+    skills_install_p.add_argument("source", help="Git URL or local directory path")
+    skills_install_p.add_argument("--name", default=None, help="Override pack name (default: derived from source)")
+    skills_uninstall_p = skills_sub.add_parser("uninstall", help="Uninstall a skill pack")
+    skills_uninstall_p.add_argument("name", help="Pack name to remove")
+    skills_sync_p = skills_sub.add_parser("sync", help="Sync (git pull) installed packs")
+    skills_sync_p.add_argument("--name", default=None, help="Pack name to sync (omit for all)")
+
+    # completion subcommand
+    completion_p = sub.add_parser("completion", help="Generate shell completion scripts")
+    completion_p.add_argument(
+        "shell", nargs="?", choices=["bash", "zsh", "fish"],
+        help="Shell type (bash/zsh/fish)"
+    )
+    completion_p.add_argument(
+        "--install", action="store_true",
+        help="Auto-detect shell and install completions"
+    )
+
     # usage subcommand
     usage_p = sub.add_parser("usage", help="Show token + cost analytics")
     usage_p.add_argument("--days", type=int, default=30,
