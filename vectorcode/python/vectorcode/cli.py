@@ -17,11 +17,23 @@ Usage:
   vector models pull <name>        → pull Ollama model
   vector agents list               → list registered agents
   vector agents run <name>         → run a named agent
+  vector auth add <name>           → store an API credential
+  vector auth list                 → list stored credentials
+  vector auth remove <name>        → remove a credential
+  vector auth test <name>          → test a credential
+  vector auth from-env             → import credentials from environment
+  vector profile list              → list named profiles
+  vector profile use <name>        → activate a profile
+  vector profile show [name]       → show profile details
+  vector profile create <name>     → create a new profile
+  vector profile delete <name>     → delete a profile
+  vector doctor                    → run installation diagnostics
 
 Flags (for repl / run):
   --model <provider/model>         → override model for this session
   --mode  <cautious|standard|autonomous|read-only>
   --dir   <path>                   → project directory (default: CWD)
+  --profile <name>                 → use a named profile
 """
 import sys
 import argparse
