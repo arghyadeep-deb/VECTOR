@@ -9,10 +9,11 @@ protocol-aware code paths can access it without polluting the shared type.
 Ported from NousResearch/hermes-agent agent/transports/types.py.
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 from __future__ import annotations
 
-import sys
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
