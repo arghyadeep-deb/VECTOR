@@ -8,9 +8,10 @@ Models in use: vector-focus (permanent VRAM), vector-coder, vector-reasoning,
                qwen3:14b, deepseek-r1:14b, devstral:24b, etc.
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))  # project root
