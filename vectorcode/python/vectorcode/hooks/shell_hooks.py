@@ -237,16 +237,15 @@ if __name__ == "__main__":
     result = runner.invoke("pre_tool_call", tool_name="bash", tool_input={"command": "ls"})
     assert not result.blocked
 
-    # Echo hook (uses Python as a portable shell-hook stand-in)
-    import tempfile, os, stat
+    # Hook that injects context (Python portable stand-in)
+    script = f'{sys.executable} -c "import sys; sys.stdin.read(); print(\'{{\"context\": \"injected\"}}\'.replace(chr(39), chr(34)))"'
     runner2 = ShellHookRunner(
-        hooks={"pre_bash": [f"{sys.executable} -c \"import sys; print('{\\\"context\\\": \\\"test\\\"}')\""]},
+        hooks={"pre_bash": [script]},
         auto_accept=True,
         cwd=str(Path.cwd()),
     )
     assert runner2.has_hooks("pre_bash")
     r2 = runner2.invoke("pre_bash", tool_name="bash", tool_input={"command": "ls"}, session_id="test")
-    # Context injection works
     assert isinstance(r2.injected_context, str)
 
     # Allowlist functions
