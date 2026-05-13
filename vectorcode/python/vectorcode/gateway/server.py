@@ -387,7 +387,7 @@ class GatewayServer:
             sess["cancelled"] = False
             sess["result"] = None
             sess["last_active"] = time.time()
-            logger.info("[VECTOR][gateway] /reset session=%s", session_id)
+            logger.info("[VECTOR][gateway] /reset session={}", session_id)
             return {"session_id": session_id, "status": "reset"}
 
         # ── POST /model ────────────────────────────────────────────────────────
