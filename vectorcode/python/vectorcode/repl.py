@@ -767,6 +767,74 @@ Runner: {cfg["runner"]}
                 )
             return "No file writes recorded this session."
 
+        # ── Hermes comms commands ──────────────────────────────────────────────
+
+        if raw.startswith("/notify"):
+            parts = raw.split(maxsplit=1)
+            text = parts[1].strip() if len(parts) > 1 else ""
+            if not text:
+                return "Usage: /notify <message text>"
+            try:
+                import asyncio
+                from comms.messenger import MessagingHub
+                hub = MessagingHub()
+                result = asyncio.run(hub.send_notification(text, priority="normal"))
+                status = result.get("status", "?")
+                via    = result.get("via", result.get("reason", ""))
+                return f"Notification {status}" + (f" via {via}" if via else "")
+            except Exception as e:
+                return f"notify error: {e}"
+
+        if raw == "/comms":
+            try:
+                from comms.messenger import MessagingHub
+                hub = MessagingHub()
+                s = hub.get_comms_status()
+                jobs = hub.list_cron_jobs()
+                skills = hub.list_skills()
+                return (
+                    f"\n  urgent   {s['urgent']}\n  unread   {s['unread']}"
+                    f"\n  pending  {s['pending']}\n  cron     {len(jobs)} jobs"
+                    f"\n  skills   {len(skills)} registered"
+                )
+            except Exception as e:
+                return f"comms error: {e}"
+
+        # ── OpenCLI / web commands ─────────────────────────────────────────────
+
+        if raw.startswith("/search"):
+            parts = raw.split(maxsplit=1)
+            query = parts[1].strip() if len(parts) > 1 else ""
+            if not query:
+                return "Usage: /search <query>"
+            try:
+                from tools.opencli_tool import OpenCLITool
+                oc = OpenCLITool()
+                results = oc.search(query, max_results=5)
+                return oc.format_results(results)
+            except Exception as e:
+                # Fallback: WebTools
+                try:
+                    from tools.web_tools import WebTools
+                    wt = WebTools()
+                    results = wt.web_search(query, max_results=5)
+                    return wt.format_search_results(results)
+                except Exception as e2:
+                    return f"search error: {e} / {e2}"
+
+        if raw.startswith("/fetch"):
+            parts = raw.split(maxsplit=1)
+            url = parts[1].strip() if len(parts) > 1 else ""
+            if not url:
+                return "Usage: /fetch <url>"
+            try:
+                from tools.web_tools import WebTools
+                wt = WebTools()
+                content = wt.web_fetch(url)
+                return content[:3000] + ("\n…[truncated]" if len(content) > 3000 else "")
+            except Exception as e:
+                return f"fetch error: {e}"
+
         if raw == "/quit":
             self._running = False
             return "Goodbye."
