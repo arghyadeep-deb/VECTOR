@@ -359,14 +359,18 @@ if __name__ == "__main__":
     assert len(retained) < len(msgs), "Some messages should have been dropped"
 
     # --- ContextCompressor.compress ---
-    engine = get_context_engine("claude-sonnet-4-6", 128000)
-    engine.update_from_response({"input_tokens": 100_000, "output_tokens": 1_000})
+    # Use a small context engine so the threshold is easily exceeded.
+    # context_length=10000 → threshold=7500 tokens
+    # 31 messages × ~700 tokens each = ~21700 tokens → should_compress triggers
+    engine = get_context_engine("claude-sonnet-4-6", 10000)
+    engine.update_from_response({"input_tokens": 9_000, "output_tokens": 200})
 
     long_messages: list[dict] = [
         {"role": "system", "content": "System prompt. " * 20}
     ] + [
         {
             "role": "user" if i % 2 == 0 else "assistant",
+            # ~700 tokens per message
             "content": "Content line. " * 200,
         }
         for i in range(30)
