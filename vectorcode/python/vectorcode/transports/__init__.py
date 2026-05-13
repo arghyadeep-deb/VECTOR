@@ -10,6 +10,7 @@ The registry maps api_mode strings → transport classes (not instances).
 Transports register themselves on import by calling register_transport().
 """
 
+# ── stdlib first — before any sys.path manipulation ──────────────────────────
 import sys
 from pathlib import Path
 from typing import Dict, Optional, Type
