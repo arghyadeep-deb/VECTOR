@@ -159,20 +159,23 @@ def _run_child_agent(
         budget = IterationBudget(max_total=params.max_iterations)
         child_system = _build_child_system_prompt(params.task, params.context)
 
-        # VectorAgent expects messages in OpenAI chat format
-        messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": child_system},
-            {"role": "user", "content": params.task},
-        ]
-
         agent = VectorAgent(
-            messages=messages,
-            budget=budget,
-            blocked_tools=DELEGATE_BLOCKED_TOOLS,
+            max_iterations=params.max_iterations,
+            iteration_budget=budget,
+            quiet_mode=True,
+            save_trajectories=False,
         )
 
-        # run_conversation() returns the final assistant message content
-        final_result = agent.run_conversation()
+        # run_conversation() returns a result dict with 'response' key
+        result_dict = agent.run_conversation(
+            user_message=params.task,
+            system_message=child_system,
+        )
+        final_result = (
+            result_dict.get("response", "")
+            if isinstance(result_dict, dict)
+            else str(result_dict)
+        )
         iterations = budget.used
         duration_ms = int(time.time() * 1000) - start_ms
 
