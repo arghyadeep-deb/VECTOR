@@ -426,6 +426,7 @@ class VectorREPL:
         "/fetch":   "/fetch <url>  — fetch and summarize a URL",
         "/clear":   "Clear conversation history",
         "/quit":    "Exit VECTOR",
+        "/usage":   "/usage [days]  — token + cost analytics for last N days (default 30)",
     }
 
     def __init__(self, project_dir: "Path | None" = None) -> None:
