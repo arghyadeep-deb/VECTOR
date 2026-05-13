@@ -64,9 +64,6 @@ def _approve(event: str, command: str) -> None:
         _save_allowlist(al)
 
 
-@dataclass_like = None  # no dataclass needed
-
-
 class HookResult:
     __slots__ = ("blocked", "reason", "injected_context", "stdout", "exit_code")
 
