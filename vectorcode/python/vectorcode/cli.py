@@ -710,6 +710,50 @@ def main():
     usage_p.add_argument("--days", type=int, default=30,
                          help="Number of days to include (default: 30)")
 
+    # auth subcommand
+    auth_p = sub.add_parser("auth", help="Manage API credentials")
+    auth_sub = auth_p.add_subparsers(dest="auth_action")
+    auth_add = auth_sub.add_parser("add", help="Add credential")
+    auth_add.add_argument("name", help="Credential name (e.g. openai-work)")
+    auth_add.add_argument("--provider", required=True,
+                          help="Provider (anthropic/openai/ollama/gemini/groq/…)")
+    auth_add.add_argument("--key", default=None,
+                          help="API key (prompted securely if omitted)")
+    auth_sub.add_parser("list", help="List stored credentials")
+    auth_remove = auth_sub.add_parser("remove", help="Remove a credential")
+    auth_remove.add_argument("name")
+    auth_test = auth_sub.add_parser("test", help="Test a credential by probing the provider API")
+    auth_test.add_argument("name")
+    auth_sub.add_parser("from-env",
+                        help="Import credentials from known environment variables")
+
+    # profile subcommand
+    profile_p = sub.add_parser("profile", help="Manage named profiles")
+    profile_sub = profile_p.add_subparsers(dest="profile_action")
+    profile_sub.add_parser("list", help="List all profiles")
+    profile_use = profile_sub.add_parser("use", help="Activate a profile")
+    profile_use.add_argument("name")
+    profile_show = profile_sub.add_parser("show", help="Show profile details")
+    profile_show.add_argument("name", nargs="?", default=None,
+                              help="Profile name (default: currently active)")
+    profile_create = profile_sub.add_parser("create", help="Create a new profile")
+    profile_create.add_argument("name")
+    profile_create.add_argument("--model",   default="",
+                                help="Model override (e.g. ollama/vector-coder)")
+    profile_create.add_argument("--mode",    default="standard",
+                                choices=["cautious", "standard", "autonomous", "read-only"],
+                                help="Permission mode (default: standard)")
+    profile_create.add_argument("--toolset", default="full",
+                                choices=["full", "coding", "research", "readonly"],
+                                help="Toolset (default: full)")
+    profile_create.add_argument("--description", default="",
+                                help="Short description")
+    profile_delete = profile_sub.add_parser("delete", help="Delete a profile")
+    profile_delete.add_argument("name")
+
+    # doctor subcommand
+    sub.add_parser("doctor", help="Run diagnostics and health checks")
+
     args = parser.parse_args()
 
     dispatch = {
