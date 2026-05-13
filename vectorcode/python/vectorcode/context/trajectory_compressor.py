@@ -448,4 +448,4 @@ if __name__ == "__main__":
     tool_results = [m for m in validated if m.get("role") == "tool"]
     assert len(tool_results) == 0, "Orphan tool_result should have been dropped"
 
-    print("✅ trajectory_compressor.py OK")
+    print("PASS: trajectory_compressor.py OK")
