@@ -609,11 +609,16 @@ if __name__ == "__main__":
         # Schema generation
         schemas = router.get_schemas()
         names = {s["function"]["name"] for s in schemas}
-        assert "read_file"     in names
-        assert "bash"          in names
-        assert "git_status"    in names
-        assert "web_search"    in names
-        assert "memory_read"   in names
+        assert "read_file"            in names
+        assert "bash"                 in names
+        assert "git_status"           in names
+        assert "web_search"           in names
+        assert "memory_read"          in names
+        assert "execute_code"         in names
+        assert "create_checkpoint"    in names
+        assert "list_checkpoints"     in names
+        assert "restore_checkpoint"   in names
+        assert "diff_from_checkpoint" in names
         print(f"  {len(schemas)} tools registered")
 
         # File round-trip
