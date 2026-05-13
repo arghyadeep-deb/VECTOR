@@ -9,22 +9,17 @@ protocol-aware code paths can access it without polluting the shared type.
 Ported from NousResearch/hermes-agent agent/transports/types.py.
 """
 
-# ── Guard against self-shadowing: this file is named types.py which shadows
-# the stdlib types module when the script directory is on sys.path[0].
-# Strip it immediately — sys is a C built-in and never needs sys.path.
-import sys as _sys
-_script_dir = None
-if __name__ == "__main__":
-    import os as _os
-    _script_dir = _os.path.dirname(_os.path.abspath(__file__))
-    # Remove only the exact script dir entry, not other valid entries
-    _sys.path = [p for p in _sys.path if _os.path.abspath(p) != _script_dir]
-
 # ── stdlib first — before any sys.path manipulation ──────────────────────────
-from __future__ import annotations
+# NOTE: this file is named types.py which shadows stdlib types when the
+# transports/ directory is on sys.path[0] (happens when run as a script).
+# We strip the script dir from sys.path before any non-C-builtin import.
+import sys
+import os as _os
+_this_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys.path = [p for p in sys.path if _os.path.abspath(p) != _this_dir]
+del _os, _this_dir
 
 import json
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
