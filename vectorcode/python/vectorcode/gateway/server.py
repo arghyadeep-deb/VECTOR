@@ -514,7 +514,7 @@ class GatewayServer:
         )
         server = uvicorn.Server(config)
         logger.info(
-            "[VECTOR][gateway] starting on http://%s:%d", self.host, self.port
+            "[VECTOR][gateway] starting on http://{}:{}", self.host, self.port
         )
         await server.serve()
 
