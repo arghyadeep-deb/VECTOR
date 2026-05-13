@@ -1,7 +1,7 @@
 """VectorCode SQLite session database with FTS5 full-text search.
 
-Ported from Hermes hermes_state.py (SCHEMA_VERSION 10), adapted for VectorCode:
-  - Removed Hermes-specific fields (source, user_id, billing_*, reasoning_*)
+VectorCode implementation (SCHEMA_VERSION 10), adapted for VectorCode:
+  - Removed source-specific fields (source, user_id, billing_*, reasoning_*)
   - Kept core session/message schema and all FTS5 logic
   - WAL mode + application-level jitter retry for multi-process safety
   - Thread-safe via a single shared connection + threading.Lock
@@ -96,7 +96,7 @@ CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE ON messages BEGIN
 END;
 """
 
-# ── Write-retry tuning (mirrors Hermes) ───────────────────────────────────────
+# ── Write-retry tuning ((VectorCode default) ───────────────────────────────────────
 _WRITE_MAX_RETRIES   = 10
 _WRITE_RETRY_MIN_S   = 0.020
 _WRITE_RETRY_MAX_S   = 0.150
@@ -107,7 +107,7 @@ class SessionDB:
     """SQLite-backed session store with FTS5 full-text search.
 
     Database: ~/.vector/sessions.db
-    Schema mirrors Hermes hermes_state.py structure (simplified).
+    Schema mirrors reference state structure (simplified).
     Thread-safe — one shared connection, all writes behind a lock with
     BEGIN IMMEDIATE + jitter retry.
     """
@@ -475,6 +475,12 @@ class SessionDB:
             lines.append("")
         return "\n".join(lines)
 
+    def migrate_up(self) -> None:
+        """Migrate this database to SCHEMA_VERSION 10 (Hermes-compatible schema)."""
+        from vectorcode.migrations.v1_to_v10 import migrate_v1_to_v10
+        with self._lock:
+            migrate_v1_to_v10(self._conn)
+
 
 # ── Singleton getter ──────────────────────────────────────────────────────────
 
@@ -593,3 +599,11 @@ if __name__ == "__main__":
     assert db1 is db2, "get_session_db() must return a singleton"
 
     print("session_db.py OK")
+
+
+
+    def migrate_up(self) -> None:
+        """Migrate this database to SCHEMA_VERSION 10 (Hermes-compatible schema)."""
+        from vectorcode.migrations.v1_to_v10 import migrate_v1_to_v10
+        with self._lock:
+            migrate_v1_to_v10(self._conn)

@@ -1,650 +1,347 @@
-"""
-VectorCode Tool Registry — equivalent of Hermes model_tools.py + handle_function_call().
+# Ported from GitHub/NousResearch_hermes-agent/repo/tools/registry.py + model_tools.py
+"""Central registry for all VectorCode tools.
 
-Routes tool calls from the agent loop to actual implementations.
-Every tool has: name, description, input schema, risk_level, is_read_only.
+Each tool file calls ``registry.register()`` at module level to declare its
+schema, handler, toolset membership, and availability check.
 
-Risk levels (Hermes + VectorCode permission matrix):
-  safe   — read-only, auto-approved
-  low    — new file write, auto-approved
-  medium — edit existing files, safe bash → ask once per session
-  high   — delete, push, deploy → always ask
-  critical → require explicit /allow
+Import chain (circular-import safe):
+    tools/registry.py  (no imports from engine or tool files)
+           ^
+    tools/*.py  (import from tools.registry at module level)
+           ^
+    engine/  (imports tools.registry via AIAgent._get_registry())
 """
-import sys
+import ast
+import asyncio
+import importlib
 import json
-import os
-import re
-import shlex
-import subprocess
-import time
+import logging
+import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from typing import Any, Callable, Dict, List, Optional, Set
 
-from tools.terminal import terminal_tool, BASH_SCHEMA
-from tools.code_execution import execute_code, EXECUTE_CODE_SCHEMA
-from tools.checkpoint import (
-    CheckpointManager,
-    CREATE_CHECKPOINT_SCHEMA,
-    LIST_CHECKPOINTS_SCHEMA,
-    RESTORE_CHECKPOINT_SCHEMA,
-    DIFF_FROM_CHECKPOINT_SCHEMA,
-)
+logger = logging.getLogger(__name__)
 
-from loguru import logger
-
-try:
-    from core.config import CONFIG
-except ImportError:
-    CONFIG = {}
+# ── Parallel-safety sets (shared with engine/tool_exec.py) ────────────────────
+_PARALLEL_SAFE_TOOLS = frozenset({
+    "ha_get_state", "ha_list_entities", "ha_list_services",
+    "read_file", "search_files", "session_search",
+    "skill_view", "skills_list",
+    "vision_analyze", "web_extract", "web_search",
+})
+_NEVER_PARALLEL_TOOLS = frozenset({"clarify"})
+_PATH_SCOPED_TOOLS = frozenset({"read_file", "write_file", "patch"})
 
 
-# ── Tool Schema Definitions ───────────────────────────────────────────────────
+# ── Async bridging ─────────────────────────────────────────────────────────────
 
-_TOOL_SCHEMAS = [
-    # ── Filesystem ────────────────────────────────────────────────────────────
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read the contents of a file. Returns the file content as text.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "Absolute or relative file path"},
-                    "start_line": {"type": "integer", "description": "First line to read (1-based, optional)"},
-                    "end_line":   {"type": "integer", "description": "Last line to read (1-based, optional)"},
-                },
-                "required": ["path"],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Write content to a file (creates or overwrites). Use edit_file for precise edits.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path":    {"type": "string", "description": "File path to write"},
-                    "content": {"type": "string", "description": "Content to write"},
-                },
-                "required": ["path", "content"],
-            },
-        },
-        "_meta": {"risk": "medium", "read_only": False},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "edit_file",
-            "description": "Replace the FIRST occurrence of old_text with new_text in a file. Preferred over write_file for targeted edits.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path":     {"type": "string", "description": "File path"},
-                    "old_text": {"type": "string", "description": "Exact text to replace (must be unique in file)"},
-                    "new_text": {"type": "string", "description": "Replacement text"},
-                },
-                "required": ["path", "old_text", "new_text"],
-            },
-        },
-        "_meta": {"risk": "medium", "read_only": False},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_file",
-            "description": "Create a new file. Fails if file already exists.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path":    {"type": "string"},
-                    "content": {"type": "string", "default": ""},
-                },
-                "required": ["path"],
-            },
-        },
-        "_meta": {"risk": "low", "read_only": False},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_file",
-            "description": "Delete a file. Requires approval.",
-            "parameters": {
-                "type": "object",
-                "properties": {"path": {"type": "string"}},
-                "required": ["path"],
-            },
-        },
-        "_meta": {"risk": "high", "read_only": False},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_directory",
-            "description": "List files and directories at a path.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "Directory path (default: current dir)"},
-                },
-                "required": [],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "glob",
-            "description": "Find files matching a glob pattern (e.g. '**/*.py', 'src/**/*.ts').",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "pattern": {"type": "string", "description": "Glob pattern"},
-                    "base_dir": {"type": "string", "description": "Base directory (default: cwd)"},
-                },
-                "required": ["pattern"],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "grep",
-            "description": "Search file contents with a regex pattern. Returns matching lines with file+line info.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "pattern":      {"type": "string", "description": "Regex pattern to search for"},
-                    "glob_pattern": {"type": "string", "description": "File glob (e.g. '**/*.py')", "default": "**/*"},
-                    "case_sensitive": {"type": "boolean", "default": True},
-                },
-                "required": ["pattern"],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    # ── Shell ──────────────────────────────────────────────────────────────────
-    BASH_SCHEMA,
-    # ── Code Execution ─────────────────────────────────────────────────────────
-    EXECUTE_CODE_SCHEMA,
-    # ── Checkpoints ────────────────────────────────────────────────────────────
-    CREATE_CHECKPOINT_SCHEMA,
-    LIST_CHECKPOINTS_SCHEMA,
-    RESTORE_CHECKPOINT_SCHEMA,
-    DIFF_FROM_CHECKPOINT_SCHEMA,
-    # ── Git ────────────────────────────────────────────────────────────────────
-    {
-        "type": "function",
-        "function": {
-            "name": "git_status",
-            "description": "Get the current git working tree status.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "git_diff",
-            "description": "Show diff of staged or unstaged changes.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "staged": {"type": "boolean", "default": False},
-                    "path":   {"type": "string", "description": "Limit diff to specific file"},
-                },
-                "required": [],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "git_log",
-            "description": "Show recent git commit history.",
-            "parameters": {
-                "type": "object",
-                "properties": {"n": {"type": "integer", "default": 10}},
-                "required": [],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "git_commit",
-            "description": "Stage all changes and create a git commit.",
-            "parameters": {
-                "type": "object",
-                "properties": {"message": {"type": "string", "description": "Commit message"}},
-                "required": ["message"],
-            },
-        },
-        "_meta": {"risk": "medium", "read_only": False},
-    },
-    # ── Web ────────────────────────────────────────────────────────────────────
-    {
-        "type": "function",
-        "function": {
-            "name": "web_search",
-            "description": "Search the web (DuckDuckGo, no API key needed). Returns titles, URLs, snippets.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query":       {"type": "string"},
-                    "max_results": {"type": "integer", "default": 5},
-                },
-                "required": ["query"],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "web_fetch",
-            "description": "Fetch and strip a URL to readable plain text (max 8K chars).",
-            "parameters": {
-                "type": "object",
-                "properties": {"url": {"type": "string"}},
-                "required": ["url"],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    # ── Memory ─────────────────────────────────────────────────────────────────
-    {
-        "type": "function",
-        "function": {
-            "name": "memory_read",
-            "description": "Read from VectorCode session memory (.vector/memory.md).",
-            "parameters": {
-                "type": "object",
-                "properties": {"query": {"type": "string", "description": "Keywords to search for"}},
-                "required": [],
-            },
-        },
-        "_meta": {"risk": "safe", "read_only": True},
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "memory_write",
-            "description": "Write a key-value pair to VectorCode session memory.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "key":   {"type": "string"},
-                    "value": {"type": "string"},
-                },
-                "required": ["key", "value"],
-            },
-        },
-        "_meta": {"risk": "low", "read_only": False},
-    },
-]
+_tool_loop: Optional[asyncio.AbstractEventLoop] = None
+_tool_loop_lock = threading.Lock()
+_worker_thread_local = threading.local()
 
 
-# ── Tool Router (handle_function_call equivalent) ─────────────────────────────
+def _get_tool_loop() -> asyncio.AbstractEventLoop:
+    global _tool_loop
+    with _tool_loop_lock:
+        if _tool_loop is None or _tool_loop.is_closed():
+            _tool_loop = asyncio.new_event_loop()
+        return _tool_loop
 
-class ToolRouter:
-    """
-    Routes tool_calls from the agent loop to actual implementations.
-    Equivalent to Hermes handle_function_call() in model_tools.py.
 
-    All tool implementations are contained here or delegated to
-    VectorCode's existing tool classes (FileTools, GitTools, WebTools, etc.)
-    """
+def _get_worker_loop() -> asyncio.AbstractEventLoop:
+    loop = getattr(_worker_thread_local, "loop", None)
+    if loop is None or loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        _worker_thread_local.loop = loop
+    return loop
 
-    _SESSION_APPROVALS: set = set()  # approved tool+risk combos this session
+
+def _run_async(coro) -> Any:
+    """Run an async coroutine from a sync context safely."""
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+
+    if running is not None:
+        # Already inside an event loop — run in a thread
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result()
+
+    # Check if we're in a worker thread
+    worker_loop = getattr(_worker_thread_local, "loop", None)
+    if worker_loop is not None and not worker_loop.is_closed():
+        return worker_loop.run_until_complete(coro)
+
+    # Main thread path — use persistent loop
+    loop = _get_tool_loop()
+    return loop.run_until_complete(coro)
+
+
+# ── ToolEntry ──────────────────────────────────────────────────────────────────
+
+class ToolEntry:
+    """Metadata for a single registered tool."""
+
+    __slots__ = (
+        "name", "toolset", "schema", "handler", "check_fn",
+        "requires_env", "is_async", "description", "emoji",
+        "risk_level", "max_result_size_chars",
+    )
 
     def __init__(
         self,
-        project_dir: Optional[Path] = None,
-        approval_callback: Optional[Callable] = None,
+        name: str,
+        toolset: str,
+        schema: dict,
+        handler: Callable,
+        check_fn: Optional[Callable] = None,
+        requires_env: Optional[List[str]] = None,
+        is_async: bool = False,
+        description: str = "",
+        emoji: str = "🔧",
+        risk_level: str = "safe",
+        max_result_size_chars: Optional[int] = None,
     ):
-        self.project_dir = (project_dir or Path.cwd()).resolve()
-        self._approval_cb = approval_callback
-        self._file_tools = None
-        self._git_tools  = None
-        self._web_tools  = None
+        self.name = name
+        self.toolset = toolset
+        self.schema = schema
+        self.handler = handler
+        self.check_fn = check_fn
+        self.requires_env = requires_env or []
+        self.is_async = is_async
+        self.description = description
+        self.emoji = emoji
+        self.risk_level = risk_level
+        self.max_result_size_chars = max_result_size_chars
 
-    def get_schemas(self) -> list[dict]:
-        """Return tool schemas in OpenAI function-calling format (without _meta)."""
-        schemas = []
-        for tool in _TOOL_SCHEMAS:
-            schema = {k: v for k, v in tool.items() if k != "_meta"}
-            schemas.append(schema)
-        return schemas
 
-    def execute(self, name: str, args: dict) -> str:
-        """Route and execute a tool call. Returns string result."""
-        handler = getattr(self, f"_tool_{name}", None)
-        if handler is None:
-            return f"[Unknown tool: {name}. Available: {[t['function']['name'] for t in _TOOL_SCHEMAS]}]"
-        try:
-            return handler(args)
-        except PermissionError as e:
-            return f"[PERMISSION DENIED: {e}]"
-        except FileNotFoundError as e:
-            return f"[FILE NOT FOUND: {e}]"
-        except Exception as e:
-            logger.error("[VECTOR][tool:%s] %s", name, e)
-            return f"[{name} error: {e}]"
+# ── ToolRegistry ───────────────────────────────────────────────────────────────
 
-    # ── File helpers ──────────────────────────────────────────────────────────
+class ToolRegistry:
+    """Thread-safe registry for all VectorCode tools."""
 
-    def _ft(self):
-        if self._file_tools is None:
-            from tools.file_tools import FileTools
-            self._file_tools = FileTools(repo_root=str(self.project_dir))
-        return self._file_tools
+    _instance: Optional["ToolRegistry"] = None
+    _instance_lock = threading.Lock()
 
-    def _gt(self):
-        if self._git_tools is None:
-            from tools.git_tools import GitTools
-            self._git_tools = GitTools(repo_root=str(self.project_dir))
-        return self._git_tools
+    def __init__(self):
+        self._tools: Dict[str, ToolEntry] = {}
+        self._lock = threading.RLock()
 
-    def _wt(self):
-        if self._web_tools is None:
-            from tools.web_tools import WebTools
-            self._web_tools = WebTools()
-        return self._web_tools
+    @classmethod
+    def global_instance(cls) -> "ToolRegistry":
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = cls()
+                cls._instance._discover_builtin_tools()
+            return cls._instance
 
-    # ── Filesystem tools ──────────────────────────────────────────────────────
+    def register(
+        self,
+        name: str,
+        handler: Callable,
+        schema: dict,
+        toolset: str = "coding",
+        check_fn: Optional[Callable] = None,
+        requires_env: Optional[List[str]] = None,
+        is_async: bool = False,
+        description: str = "",
+        emoji: str = "🔧",
+        risk_level: str = "safe",
+        max_result_size_chars: Optional[int] = None,
+    ) -> None:
+        """Register a tool. Called at module level by each tool file."""
+        with self._lock:
+            self._tools[name] = ToolEntry(
+                name=name,
+                toolset=toolset,
+                schema=schema,
+                handler=handler,
+                check_fn=check_fn,
+                requires_env=requires_env,
+                is_async=is_async,
+                description=description,
+                emoji=emoji,
+                risk_level=risk_level,
+                max_result_size_chars=max_result_size_chars,
+            )
+            logger.debug(f"Registered tool: {name!r} (toolset={toolset!r})")
 
-    def _tool_read_file(self, args: dict) -> str:
-        path = args.get("path", "")
-        content = self._ft().read(path)
-        start = args.get("start_line")
-        end   = args.get("end_line")
-        if start or end:
-            lines = content.splitlines()
-            s = max(0, (start or 1) - 1)
-            e = end or len(lines)
-            content = "\n".join(lines[s:e])
-        return content
+    def handle_function_call(
+        self,
+        function_name: str,
+        function_args: dict,
+        context: Any = None,
+    ) -> Any:
+        """Central dispatcher — routes a tool call to its handler.
 
-    def _tool_write_file(self, args: dict) -> str:
-        path    = args.get("path", "")
-        content = args.get("content", "")
-        self._ft().write(path, content)
-        return f"✓ Written: {path} ({len(content)} chars)"
+        Equivalent to Hermes model_tools.handle_function_call().
+        """
+        with self._lock:
+            entry = self._tools.get(function_name)
 
-    def _tool_edit_file(self, args: dict) -> str:
-        path     = args.get("path", "")
-        old_text = args.get("old_text", "")
-        new_text = args.get("new_text", "")
-        self._ft().edit(path, old_text, new_text)
-        return f"✓ Edited: {path}"
+        if entry is None:
+            logger.warning(f"Unknown tool: {function_name!r}")
+            return f"Error: tool {function_name!r} is not registered."
 
-    def _tool_create_file(self, args: dict) -> str:
-        path    = args.get("path", "")
-        content = args.get("content", "")
-        self._ft().create_file(path, content)
-        return f"✓ Created: {path}"
-
-    def _tool_delete_file(self, args: dict) -> str:
-        path = args.get("path", "")
-        safe = (self._file_tools or self._ft())._safe_path(path)
-        safe.unlink()
-        return f"✓ Deleted: {path}"
-
-    def _tool_list_directory(self, args: dict) -> str:
-        path = args.get("path", ".")
-        entries = self._ft().list_directory(path)
-        return "\n".join(entries) if entries else "(empty directory)"
-
-    def _tool_glob(self, args: dict) -> str:
-        pattern  = args.get("pattern", "**/*")
-        base_dir = args.get("base_dir", str(self.project_dir))
-        results = []
-        for p in Path(base_dir).glob(pattern):
-            if p.is_file():
+        # Permission check if gateway available
+        if context is not None:
+            gateway = getattr(context, "permission_gateway", None)
+            if gateway is not None:
                 try:
-                    results.append(str(p.relative_to(self.project_dir)))
-                except ValueError:
-                    results.append(str(p))
-        if not results:
-            return "(no files matched)"
-        return "\n".join(results[:500])  # cap at 500 results
-
-    def _tool_grep(self, args: dict) -> str:
-        pattern       = args.get("pattern", "")
-        glob_pattern  = args.get("glob_pattern", "**/*")
-        case_sensitive = args.get("case_sensitive", True)
-        flags = 0 if case_sensitive else re.IGNORECASE
-        results = self._ft().grep(pattern, glob_pattern)
-        if not results:
-            return "(no matches)"
-        lines = []
-        for r in results[:200]:
-            lines.append(f"{r['file']}:{r['line']}: {r['content'].rstrip()}")
-        return "\n".join(lines)
-
-    # ── Shell tools ───────────────────────────────────────────────────────────
-
-    def _tool_bash(self, args: dict) -> str:
-        """Execute a shell command via terminal_tool (with interrupt + truncation support)."""
-        command    = args.get("command", "")
-        timeout    = min(int(args.get("timeout", 60)), 120)
-        cwd        = args.get("cwd", str(self.project_dir))
-        background = bool(args.get("background", False))
-
-        if not command.strip():
-            return "[bash: empty command]"
+                    decision = gateway.check(function_name, function_args, entry.risk_level)
+                    if decision == "RED":
+                        return f"Error: tool {function_name!r} blocked by permission gateway."
+                except Exception as e:
+                    logger.warning(f"Permission gateway error for {function_name}: {e}")
 
         try:
-            raw = terminal_tool(command=command, background=background, timeout=timeout, cwd=cwd)
-            data = json.loads(raw)
-            output = data.get("output", "")
-            exit_code = data.get("exit_code", 0)
-            error = data.get("error")
-            if error:
-                return f"[bash error: {error}]"
-            if exit_code != 0:
-                output += f"\n[exit code: {exit_code}]"
-            if "session_id" in data:
-                return f"[background started: session={data['session_id']} pid={data.get('pid')}]"
-            return output.strip() or f"[exit code: {exit_code}]"
+            if entry.is_async:
+                result = _run_async(entry.handler(**function_args))
+            else:
+                result = entry.handler(**function_args)
+        except TypeError as e:
+            logger.error(f"Tool {function_name!r} called with wrong args {function_args}: {e}")
+            return f"Error: {e}"
         except Exception as e:
-            logger.error("[VECTOR][tool:bash] %s", e)
-            return f"[bash error: {e}]"
+            logger.error(f"Tool {function_name!r} raised: {e}")
+            return f"Error: {e}"
 
-    # ── Code execution tools ──────────────────────────────────────────────────
+        # Truncate oversized results
+        if isinstance(result, str) and entry.max_result_size_chars:
+            if len(result) > entry.max_result_size_chars:
+                result = result[:entry.max_result_size_chars] + "\n[...truncated]"
 
-    def _tool_execute_code(self, args: dict) -> str:
-        """Execute code in a sandboxed subprocess."""
-        language = args.get("language", "python")
-        code     = args.get("code", "")
-        timeout  = int(args.get("timeout", 30))
-        try:
-            result = execute_code(language=language, code=code, timeout=timeout)
-            output = result.get("stdout", "")
-            stderr = result.get("stderr", "")
-            exit_code = result.get("exit_code", 0)
-            error = result.get("error")
-            if error:
-                return f"[execute_code error: {error}]"
-            if stderr:
-                output += ("\n--- stderr ---\n" + stderr) if output else stderr
-            if exit_code != 0:
-                output += f"\n[exit code: {exit_code}]"
-            return output.strip() or f"[exit code: {exit_code}]"
-        except Exception as e:
-            logger.error("[VECTOR][tool:execute_code] %s", e)
-            return f"[execute_code error: {e}]"
+        return result
 
-    # ── Checkpoint tools ──────────────────────────────────────────────────────
+    def get_tool_definitions(self, toolset: str = "coding") -> List[dict]:
+        """Return JSON schemas for all tools in the given toolset.
 
-    def _tool_create_checkpoint(self, args: dict) -> str:
-        """Create a filesystem checkpoint of the current project state."""
-        label = args.get("label", "")
-        try:
-            result = CheckpointManager(self.project_dir).create_checkpoint(label)
-            if result["ok"]:
-                h = result["commit_hash"]
-                short = h[:8] if h else "?"
-                return f"Checkpoint created: {short} — {result['message']}"
-            return f"[create_checkpoint failed: {result['message']}]"
-        except Exception as e:
-            logger.error("[VECTOR][tool:create_checkpoint] %s", e)
-            return f"[create_checkpoint error: {e}]"
+        Equivalent to Hermes model_tools.get_tool_definitions().
+        """
+        with self._lock:
+            tools = list(self._tools.values())
 
-    def _tool_list_checkpoints(self, _args: dict) -> str:
-        """List available checkpoints for the project."""
-        try:
-            checkpoints = CheckpointManager(self.project_dir).list_checkpoints()
-            if not checkpoints:
-                return "(no checkpoints found)"
-            lines = []
-            for cp in checkpoints:
-                ts = cp.get("timestamp", "")
-                if "T" in ts:
-                    ts = ts.split("T")[0] + " " + ts.split("T")[1][:5]
-                files = cp.get("files_changed", 0)
-                label = cp.get("label", "")
-                lines.append(f"{cp['short_hash']}  {ts}  {label}  ({files} files)")
-            return "\n".join(lines)
-        except Exception as e:
-            logger.error("[VECTOR][tool:list_checkpoints] %s", e)
-            return f"[list_checkpoints error: {e}]"
+        result = []
+        for entry in tools:
+            if toolset == "full" or entry.toolset == toolset or toolset == "all":
+                result.append({
+                    "type": "function",
+                    "function": {
+                        "name": entry.name,
+                        "description": entry.description or entry.schema.get("description", ""),
+                        "parameters": entry.schema.get("parameters", {"type": "object", "properties": {}}),
+                    },
+                })
+        return result
 
-    def _tool_restore_checkpoint(self, args: dict) -> str:
-        """Restore the project to a previous checkpoint."""
-        commit_hash = args.get("commit_hash", "")
-        force       = bool(args.get("force", False))
-        try:
-            result = CheckpointManager(self.project_dir).restore_checkpoint(commit_hash, force=force)
-            if result["ok"]:
-                files = result.get("restored_files", [])
-                return f"Restored to {commit_hash[:8]}: {result['message']} ({len(files)} files)"
-            return f"[restore_checkpoint failed: {result['message']}]"
-        except Exception as e:
-            logger.error("[VECTOR][tool:restore_checkpoint] %s", e)
-            return f"[restore_checkpoint error: {e}]"
+    def get_all_tool_names(self) -> List[str]:
+        with self._lock:
+            return list(self._tools.keys())
 
-    def _tool_diff_from_checkpoint(self, args: dict) -> str:
-        """Show unified diff between a checkpoint and the current working tree."""
-        commit_hash = args.get("commit_hash", "")
-        try:
-            diff = CheckpointManager(self.project_dir).diff_from_checkpoint(commit_hash)
-            return diff
-        except Exception as e:
-            logger.error("[VECTOR][tool:diff_from_checkpoint] %s", e)
-            return f"[diff_from_checkpoint error: {e}]"
+    def get_toolset_for_tool(self, name: str) -> Optional[str]:
+        with self._lock:
+            entry = self._tools.get(name)
+            return entry.toolset if entry else None
 
-    # ── Git tools ─────────────────────────────────────────────────────────────
+    def check_toolset_requirements(self, toolset: str = "coding") -> Dict[str, bool]:
+        """Check which tools in a toolset have their requirements met."""
+        with self._lock:
+            tools = [e for e in self._tools.values() if e.toolset == toolset or toolset == "all"]
 
-    def _tool_git_status(self, _args: dict) -> str:
-        return self._gt().git_status()
+        results = {}
+        for entry in tools:
+            if entry.check_fn is not None:
+                try:
+                    results[entry.name] = bool(entry.check_fn())
+                except Exception:
+                    results[entry.name] = False
+            else:
+                results[entry.name] = True
+        return results
 
-    def _tool_git_diff(self, args: dict) -> str:
-        staged = args.get("staged", False)
-        path   = args.get("path", None)
-        return self._gt().git_diff(staged=staged) or "(no changes)"
+    def _discover_builtin_tools(self) -> None:
+        """Import all self-registering tool modules."""
+        tools_dir = Path(__file__).parent
+        for path in sorted(tools_dir.glob("*.py")):
+            if path.name in {"__init__.py", "registry.py"}:
+                continue
+            if not _module_registers_tools(path):
+                continue
+            mod_name = f"vectorcode.tools.{path.stem}"
+            try:
+                importlib.import_module(mod_name)
+            except Exception as e:
+                logger.warning(f"Could not import tool module {mod_name}: {e}")
 
-    def _tool_git_log(self, args: dict) -> str:
-        n = int(args.get("n", 10))
-        return self._gt().git_log(n=n)
+    def __len__(self) -> int:
+        return len(self._tools)
 
-    def _tool_git_commit(self, args: dict) -> str:
-        message = args.get("message", "auto: VectorCode commit")
-        return self._gt().git_commit(message)
-
-    # ── Web tools ─────────────────────────────────────────────────────────────
-
-    def _tool_web_search(self, args: dict) -> str:
-        query       = args.get("query", "")
-        max_results = int(args.get("max_results", 5))
-        results = self._wt().web_search(query, max_results=max_results)
-        return self._wt().format_search_results(results)
-
-    def _tool_web_fetch(self, args: dict) -> str:
-        url = args.get("url", "")
-        return self._wt().web_fetch(url)
-
-    # ── Memory tools ──────────────────────────────────────────────────────────
-
-    def _tool_memory_read(self, args: dict) -> str:
-        query = args.get("query", "")
-        try:
-            from memory.manager import get_memory_manager
-            mm = get_memory_manager()
-            return mm.prefetch_all(query) or "(memory empty)"
-        except Exception as e:
-            return f"[memory_read error: {e}]"
-
-    def _tool_memory_write(self, args: dict) -> str:
-        key   = args.get("key", "")
-        value = args.get("value", "")
-        try:
-            from memory.provider import VectorBuiltinMemoryProvider
-            provider = VectorBuiltinMemoryProvider()
-            provider.on_memory_write("set", key, value)
-            return f"✓ Memory saved: {key}"
-        except Exception as e:
-            return f"[memory_write error: {e}]"
+    def __repr__(self) -> str:
+        return f"ToolRegistry({len(self._tools)} tools)"
 
 
-if __name__ == "__main__":
-    import tempfile
-    sys.stdout.reconfigure(encoding="utf-8")
+# ── Module-level singleton ─────────────────────────────────────────────────────
 
-    with tempfile.TemporaryDirectory() as tmp:
-        router = ToolRouter(project_dir=Path(tmp))
+registry = ToolRegistry()
 
-        # Schema generation
-        schemas = router.get_schemas()
-        names = {s["function"]["name"] for s in schemas}
-        assert "read_file"            in names
-        assert "bash"                 in names
-        assert "git_status"           in names
-        assert "web_search"           in names
-        assert "memory_read"          in names
-        assert "execute_code"         in names
-        assert "create_checkpoint"    in names
-        assert "list_checkpoints"     in names
-        assert "restore_checkpoint"   in names
-        assert "diff_from_checkpoint" in names
-        print(f"  {len(schemas)} tools registered")
 
-        # File round-trip
-        result = router.execute("create_file", {"path": "test.txt", "content": "hello"})
-        assert "Created" in result, result
-        content = router.execute("read_file", {"path": "test.txt"})
-        assert content == "hello", content
+# ── AST-based discovery helper ─────────────────────────────────────────────────
 
-        result2 = router.execute("edit_file", {"path": "test.txt", "old_text": "hello", "new_text": "world"})
-        assert "Edited" in result2
-        content2 = router.execute("read_file", {"path": "test.txt"})
-        assert content2 == "world", content2
+def _is_registry_register_call(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
+        return False
+    func = node.value.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "register"
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "registry"
+    )
 
-        # List + glob
-        lst = router.execute("list_directory", {"path": "."})
-        assert "test.txt" in lst
 
-        glb = router.execute("glob", {"pattern": "*.txt"})
-        assert "test.txt" in glb
+def _module_registers_tools(module_path: Path) -> bool:
+    try:
+        source = module_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(module_path))
+    except (OSError, SyntaxError):
+        return False
+    return any(_is_registry_register_call(stmt) for stmt in tree.body)
 
-        # Bash
-        bash_out = router.execute("bash", {"command": "echo hello_vector"})
-        assert "hello_vector" in bash_out, bash_out
 
-        # Unknown tool
-        unknown = router.execute("nonexistent_tool", {})
-        assert "Unknown tool" in unknown
+# ── Public API (matches Hermes model_tools.py signatures) ─────────────────────
 
-    print("tools/registry.py OK")
+def get_tool_definitions(
+    enabled_toolsets: Optional[List[str]] = None,
+    disabled_toolsets: Optional[List[str]] = None,
+    quiet_mode: bool = False,
+) -> List[dict]:
+    reg = ToolRegistry.global_instance()
+    toolset = "full" if not enabled_toolsets else enabled_toolsets[0]
+    return reg.get_tool_definitions(toolset)
+
+
+def handle_function_call(
+    function_name: str,
+    function_args: dict,
+    task_id: str = "",
+    user_task: str = "",
+    context: Any = None,
+) -> Any:
+    reg = ToolRegistry.global_instance()
+    return reg.handle_function_call(function_name, function_args, context)
+
+
+def get_all_tool_names() -> List[str]:
+    return ToolRegistry.global_instance().get_all_tool_names()
+
+
+def get_toolset_for_tool(name: str) -> Optional[str]:
+    return ToolRegistry.global_instance().get_toolset_for_tool(name)
+
+
+def check_toolset_requirements(toolset: str = "coding") -> Dict[str, bool]:
+    return ToolRegistry.global_instance().check_toolset_requirements(toolset)
