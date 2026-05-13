@@ -23,6 +23,16 @@ from typing import Any, Callable, Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from tools.terminal import terminal_tool, BASH_SCHEMA
+from tools.code_execution import execute_code, EXECUTE_CODE_SCHEMA
+from tools.checkpoint import (
+    CheckpointManager,
+    CREATE_CHECKPOINT_SCHEMA,
+    LIST_CHECKPOINTS_SCHEMA,
+    RESTORE_CHECKPOINT_SCHEMA,
+    DIFF_FROM_CHECKPOINT_SCHEMA,
+)
+
 from loguru import logger
 
 try:
