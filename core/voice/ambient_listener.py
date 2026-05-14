@@ -146,10 +146,11 @@ class AmbientListener:
                 if self._lang:
                     lang = self._lang.detect(text)
 
-                # 3. RULE 1 — session_hydration_prompt before LLM call
-                from core.loop.context_engine import ContextEngine
-                ctx = ContextEngine()
-                hydration = ctx.session_hydration_prompt()
+                # 3. RULE 1 — session_hydration_prompt before LLM call (cached instance)
+                if self._context is None:
+                    from core.loop.context_engine import ContextEngine
+                    self._context = ContextEngine()
+                hydration = self._context.session_hydration_prompt()
 
                 # 4. Classify intent via Ollama vector-ambient
                 intent = await self._classify_intent(text, hydration)
