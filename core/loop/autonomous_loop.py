@@ -95,10 +95,10 @@ class AutonomousLoop:
         while self._running:
             try:
                 await self._think_tick()
+                await asyncio.sleep(10)
             except Exception as e:
                 logger.error(f"[VECTOR][think] tick error: {e}")
                 await asyncio.sleep(5)
-            await asyncio.sleep(10)
 
     async def _think_tick(self):
         """Evaluate goals → 4 candidates → decision → act. RULE 1: hydrate first."""
