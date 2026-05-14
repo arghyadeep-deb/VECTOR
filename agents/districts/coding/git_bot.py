@@ -265,7 +265,7 @@ class GitBot(AgentBase):
         t = task.get("type", "")
         p = task.get("params", {})
         if t in ("commit_code", "git_commit"):
-            return self.commit(p.get("message", "VECTOR auto-commit"), repo_path=p.get("repo", "."))
+            return await self.commit(p.get("message", "VECTOR auto-commit"), repo_path=p.get("repo", "."))
         if t in ("git_status", "check_git"):
             return self.get_status(p.get("repo", "."))
         if t in ("git_log", "recent_commits"):
