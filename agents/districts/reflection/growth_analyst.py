@@ -112,12 +112,11 @@ class GrowthAnalyst(AgentBase):
             "Be honest, specific, and data-driven."
         )
         try:
-            import ollama
-            r = ollama.chat(
-                model=_REASONING,
-                messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
-            )
-            return r["message"]["content"]
+            from core.inference.ollama_safe import chat
+            text = chat(model=_REASONING, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=120.0)
+            if not text:
+                raise ValueError("ollama_safe returned empty response")
+            return text
         except Exception as e:
             logger.warning(f"[VECTOR][growth_analyst] LLM unavailable: {e}")
             return f"## SUMMARY\n{len(events)} events, {len(growth_scores)} growth scores. Analysis unavailable."
