@@ -97,10 +97,12 @@ class LLMCouncil(AgentBase):
         """Each council member answers the question independently."""
         results = []
         for model in _COUNCIL_MEMBERS:
-            text = self._call_model(
-                model=model,
-                system=hydration,
-                user=f"As a council member, answer this question thoroughly:\n\n{question}",
+            # RULE 2 — run blocking Ollama call off the event loop thread
+            text = await asyncio.to_thread(
+                self._call_model,
+                model,
+                hydration,
+                f"As a council member, answer this question thoroughly:\n\n{question}",
             )
             if text:
                 results.append({"model": model, "response": text})
