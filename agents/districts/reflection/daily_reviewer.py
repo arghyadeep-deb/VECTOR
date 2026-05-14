@@ -65,12 +65,15 @@ class DailyReviewer(AgentBase):
             "Be concise and specific."
         )
         try:
-            import ollama
-            r = ollama.chat(
+            from core.inference.ollama_safe import chat
+            text = chat(
                 model=_CHAIRMAN,
                 messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
+                timeout=120.0,
             )
-            return r["message"]["content"]
+            if not text:
+                raise ValueError("ollama_safe returned empty response")
+            return text
         except Exception as e:
             logger.warning(f"[VECTOR][daily_reviewer] LLM unavailable: {e}")
             return f"## SUMMARY\n{len(events)} events today. LLM reflection unavailable."
