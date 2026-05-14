@@ -9,8 +9,8 @@ from loguru import logger
 
 from .person_model import PersonModel
 from .style_model import StyleModel
-from .hermes_adapter import HermesAdapter
+from .communications_adapter import CommunicationsAdapter
 
 logger.info("[VECTOR] communications district loaded")
 
-__all__ = ["PersonModel", "StyleModel", "HermesAdapter"]
+__all__ = ["PersonModel", "StyleModel", "CommunicationsAdapter"]
