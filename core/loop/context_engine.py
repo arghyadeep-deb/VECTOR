@@ -22,7 +22,7 @@ class ContextEngine:
         self._deadline_mgr = None
         self._expense_tracker = None
         self._kiit_scraper = None
-        self._hermes = None
+        self._comms_hub = None
         logger.info("[VECTOR][context_engine] initialized")
 
     def _get_memory(self):
