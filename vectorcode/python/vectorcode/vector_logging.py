@@ -271,13 +271,13 @@ def setup_verbose_logging() -> None:
     # Avoid adding duplicate stream handlers.
     for h in root.handlers:
         if isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler):
-            if getattr(h, "_hermes_verbose", False):
+            if getattr(h, "_vector_verbose", False):
                 return
 
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(RedactingFormatter(_LOG_FORMAT_VERBOSE, datefmt="%H:%M:%S"))
-    handler._hermes_verbose = True  # type: ignore[attr-defined]
+    handler._vector_verbose = True  # type: ignore[attr-defined]
     root.addHandler(handler)
 
     # Lower root logger level so DEBUG records reach all handlers.

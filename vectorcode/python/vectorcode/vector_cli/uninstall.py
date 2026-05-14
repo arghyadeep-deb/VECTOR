@@ -207,8 +207,8 @@ def uninstall_gateway_service():
 def _is_default_vector_home(vector_home: Path) -> bool:
     """Return True when ``vector_home`` points at the default (non-profile) root."""
     try:
-        from vector_constants import get_default_hermes_root
-        return vector_home.resolve() == get_default_hermes_root().resolve()
+        from vector_constants import get_default_vector_root
+        return vector_home.resolve() == get_default_vector_root().resolve()
     except Exception:
         return False
 
@@ -245,11 +245,11 @@ def _uninstall_profile(profile) -> None:
     # 1. Stop and remove this profile's gateway service.
     #    Use `python -m vector_cli.main` so we don't depend on a `vector`
     #    wrapper that may be half-removed mid-uninstall.
-    hermes_invocation = [_sys.executable, "-m", "vector_cli.main", "--profile", name]
+    vector_invocation = [_sys.executable, "-m", "vector_cli.main", "--profile", name]
     for subcmd in ("stop", "uninstall"):
         try:
             subprocess.run(
-                hermes_invocation + ["gateway", subcmd],
+                vector_invocation + ["gateway", subcmd],
                 capture_output=True,
                 text=True,
                 timeout=60,

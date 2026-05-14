@@ -610,7 +610,7 @@ _ACTION_LOG_FILES: Dict[str, str] = {
 _ACTION_PROCS: Dict[str, subprocess.Popen] = {}
 
 
-def _spawn_hermes_action(subcommand: List[str], name: str) -> subprocess.Popen:
+def _spawn_vector_action(subcommand: List[str], name: str) -> subprocess.Popen:
     """Spawn ``vector <subcommand>`` detached and record the Popen handle.
 
     Uses the running interpreter's ``vector_cli.main`` module so the action
@@ -664,7 +664,7 @@ def _tail_lines(path: Path, n: int) -> List[str]:
 async def restart_gateway():
     """Kick off a ``vector gateway restart`` in the background."""
     try:
-        proc = _spawn_hermes_action(["gateway", "restart"], "gateway-restart")
+        proc = _spawn_vector_action(["gateway", "restart"], "gateway-restart")
     except Exception as exc:
         _log.exception("Failed to spawn gateway restart")
         raise HTTPException(status_code=500, detail=f"Failed to restart gateway: {exc}")
@@ -676,10 +676,10 @@ async def restart_gateway():
 
 
 @app.post("/api/vector/update")
-async def update_hermes():
+async def update_vector():
     """Kick off ``vector update`` in the background."""
     try:
-        proc = _spawn_hermes_action(["update"], "vector-update")
+        proc = _spawn_vector_action(["update"], "vector-update")
     except Exception as exc:
         _log.exception("Failed to spawn vector update")
         raise HTTPException(status_code=500, detail=f"Failed to start update: {exc}")
@@ -1088,29 +1088,29 @@ def _anthropic_oauth_status() -> Dict[str, Any]:
     """
     try:
         from agent.anthropic_adapter import (
-            read_hermes_oauth_credentials,
+            read_vector_oauth_credentials,
             read_claude_code_credentials,
             _VECTOR_OAUTH_FILE,
         )
     except ImportError:
         read_claude_code_credentials = None  # type: ignore
-        read_hermes_oauth_credentials = None  # type: ignore
+        read_vector_oauth_credentials = None  # type: ignore
         _VECTOR_OAUTH_FILE = None  # type: ignore
 
-    hermes_creds = None
-    if read_hermes_oauth_credentials:
+    vector_creds = None
+    if read_vector_oauth_credentials:
         try:
-            hermes_creds = read_hermes_oauth_credentials()
+            vector_creds = read_vector_oauth_credentials()
         except Exception:
-            hermes_creds = None
-    if hermes_creds and hermes_creds.get("accessToken"):
+            vector_creds = None
+    if vector_creds and vector_creds.get("accessToken"):
         return {
             "logged_in": True,
-            "source": "hermes_pkce",
+            "source": "vector_pkce",
             "source_label": f"VectorCode PKCE ({_VECTOR_OAUTH_FILE})",
-            "token_preview": _truncate_token(hermes_creds.get("accessToken")),
-            "expires_at": hermes_creds.get("expiresAt"),
-            "has_refresh_token": bool(hermes_creds.get("refreshToken")),
+            "token_preview": _truncate_token(vector_creds.get("accessToken")),
+            "expires_at": vector_creds.get("expiresAt"),
+            "has_refresh_token": bool(vector_creds.get("refreshToken")),
         }
 
     cc_creds = None
@@ -1274,7 +1274,7 @@ async def list_oauth_providers():
         docs_url        external docs/portal link for the "Learn more" link
         status:
           logged_in        bool — currently has usable creds
-          source           short slug ("hermes_pkce", "claude_code", ...)
+          source           short slug ("vector_pkce", "claude_code", ...)
           source_label     human-readable origin (file path, env var name)
           token_preview    last N chars of the token, never the full token
           expires_at       ISO timestamp string or null
@@ -3102,7 +3102,7 @@ def _mount_plugin_api_routes():
             continue
         try:
             spec = importlib.util.spec_from_file_location(
-                f"hermes_dashboard_plugin_{plugin['name']}", api_path,
+                f"vector_dashboard_plugin_{plugin['name']}", api_path,
             )
             if spec is None or spec.loader is None:
                 continue

@@ -18,7 +18,7 @@ Guide for building RL environments in the vectorcode repo that integrate with th
 
 ```
 Atropos BaseEnv (atroposlib/envs/base.py)
-    └── VectorCodeBaseEnv (environments/hermes_base_env.py)
+    └── VectorCodeBaseEnv (environments/vector_base_env.py)
             ├── Handles agent loop orchestration
             ├── Handles tool resolution per group
             ├── Handles ToolContext for reward verification
@@ -33,7 +33,7 @@ VectorCode environments are special because they run a **multi-turn agent loop w
 
 | File | Purpose |
 |------|---------|
-| `environments/hermes_base_env.py` | Base class with agent loop + tool resolution |
+| `environments/vector_base_env.py` | Base class with agent loop + tool resolution |
 | `environments/agent_loop.py` | `VectorCodeLoop` + `AgentResult` dataclass |
 | `environments/tool_context.py` | `ToolContext` for reward verification |
 | `environments/tool_call_parsers.py` | Phase 2 tool call parsers (vector, mistral, etc.) |

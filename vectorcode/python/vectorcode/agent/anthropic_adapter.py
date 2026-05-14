@@ -907,7 +907,7 @@ def _generate_pkce() -> tuple:
     return verifier, challenge
 
 
-def run_hermes_oauth_login_pure() -> Optional[Dict[str, Any]]:
+def run_vector_oauth_login_pure() -> Optional[Dict[str, Any]]:
     """Run VectorCode-native OAuth PKCE flow and return credential state."""
     import time
     import webbrowser
@@ -1005,7 +1005,7 @@ def run_hermes_oauth_login_pure() -> Optional[Dict[str, Any]]:
     }
 
 
-def read_hermes_oauth_credentials() -> Optional[Dict[str, Any]]:
+def read_vector_oauth_credentials() -> Optional[Dict[str, Any]]:
     """Read VectorCode-managed OAuth credentials from ~/.vectorcode/.anthropic_oauth.json."""
     if _VECTOR_OAUTH_FILE.exists():
         try:

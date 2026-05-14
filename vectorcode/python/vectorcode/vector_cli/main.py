@@ -117,9 +117,9 @@ def _apply_profile_override() -> None:
     # 2. If no flag, check active_profile in the vector root
     if profile_name is None:
         try:
-            from vector_constants import get_default_hermes_root
+            from vector_constants import get_default_vector_root
 
-            active_path = get_default_hermes_root() / "active_profile"
+            active_path = get_default_vector_root() / "active_profile"
             if active_path.exists():
                 name = active_path.read_text().strip()
                 if name and name != "default":
@@ -258,7 +258,7 @@ def _has_any_provider_configured() -> bool:
         _model_name = model_cfg.strip()
     else:
         _model_name = ""
-    _has_hermes_config = _model_name and _model_name != _DEFAULT_MODEL
+    _has_vector_config = _model_name and _model_name != _DEFAULT_MODEL
 
     # Check env vars (may be set by .env or shell).
     # OPENAI_BASE_URL alone counts — local models (vLLM, llama.cpp, etc.)
@@ -334,7 +334,7 @@ def _has_any_provider_configured() -> bool:
     # Check for Claude Code OAuth credentials (~/.claude/.credentials.json)
     # Only count these if VectorCode has been explicitly configured — Claude Code
     # being installed doesn't mean the user wants VectorCode to use their tokens.
-    if _has_hermes_config:
+    if _has_vector_config:
         try:
             from agent.anthropic_adapter import (
                 read_claude_code_credentials,
@@ -642,14 +642,14 @@ def _exec_in_container(container_info: dict, cli_args: list):
     On failure, OSError propagates naturally.
 
     Args:
-        container_info: dict with backend, container_name, exec_user, hermes_bin
+        container_info: dict with backend, container_name, exec_user, vector_bin
         cli_args: the original CLI arguments (everything after 'vector')
     """
 
     backend = container_info["backend"]
     container_name = container_info["container_name"]
     exec_user = container_info["exec_user"]
-    hermes_bin = container_info["hermes_bin"]
+    vector_bin = container_info["vector_bin"]
 
     runtime = shutil.which(backend)
     if not runtime:
@@ -719,7 +719,7 @@ def _exec_in_container(container_info: dict, cli_args: list):
         + tty_flags
         + ["-u", exec_user]
         + env_flags
-        + [container_name, hermes_bin]
+        + [container_name, vector_bin]
         + cli_args
     )
 
@@ -905,7 +905,7 @@ def _find_bundled_tui(tui_dir: Path) -> Optional[Path]:
 
 
 def _tui_build_needed(tui_dir: Path) -> bool:
-    if _hermes_ink_bundle_stale(tui_dir):
+    if _vector_ink_bundle_stale(tui_dir):
         return True
     entry = tui_dir / "dist" / "entry.js"
     if not entry.exists():
@@ -930,7 +930,7 @@ def _tui_build_needed(tui_dir: Path) -> bool:
     return False
 
 
-def _hermes_ink_bundle_stale(tui_dir: Path) -> bool:
+def _vector_ink_bundle_stale(tui_dir: Path) -> bool:
     ink_root = tui_dir / "packages" / "vector-ink"
     bundle = ink_root / "dist" / "ink-bundle.js"
     if not bundle.exists():
@@ -1051,7 +1051,7 @@ def _make_tui_argv(tui_dir: Path, tui_dev: bool) -> tuple[list[str], Path]:
             sys.exit(1)
 
     if tui_dev:
-        if _hermes_ink_bundle_stale(tui_dir):
+        if _vector_ink_bundle_stale(tui_dir):
             result = subprocess.run(
                 [npm, "run", "build", "--prefix", "packages/vector-ink"],
                 cwd=str(tui_dir),
@@ -5783,9 +5783,9 @@ def _invalidate_update_cache():
     """
     homes = []
     # Default profile home (Docker-aware — uses /opt/data in Docker)
-    from vector_constants import get_default_hermes_root
+    from vector_constants import get_default_vector_root
 
-    default_home = get_default_hermes_root()
+    default_home = get_default_vector_root()
     homes.append(default_home)
     # Named profiles under <root>/profiles/
     profiles_root = default_home / "profiles"
@@ -7141,15 +7141,15 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # every `vector update` surfaces the issue until the user migrates.
         try:
             from vector_cli.gateway import (
-                has_legacy_hermes_units,
-                _find_legacy_hermes_units,
+                has_legacy_vector_units,
+                _find_legacy_vector_units,
                 supports_systemd_services,
             )
 
-            if supports_systemd_services() and has_legacy_hermes_units():
+            if supports_systemd_services() and has_legacy_vector_units():
                 print()
                 print("⚠ Legacy VectorCode gateway unit(s) detected:")
-                for name, path, is_sys in _find_legacy_hermes_units():
+                for name, path, is_sys in _find_legacy_vector_units():
                     scope = "system" if is_sys else "user"
                     print(f"    {path}  ({scope} scope)")
                 print()
@@ -9585,9 +9585,9 @@ Examples:
 
             # Launch vector --resume <id> by replacing the current process
             print(f"Resuming session: {selected_id}")
-            hermes_bin = shutil.which("vector")
-            if hermes_bin:
-                os.execvp(hermes_bin, ["vector", "--resume", selected_id])
+            vector_bin = shutil.which("vector")
+            if vector_bin:
+                os.execvp(vector_bin, ["vector", "--resume", selected_id])
             else:
                 # Fallback: re-invoke via python -m
                 os.execvp(

@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from vector_constants import get_default_hermes_root, get_vector_home, display_vector_home
+from vector_constants import get_default_vector_root, get_vector_home, display_vector_home
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +124,10 @@ def _format_size(nbytes: int) -> str:
 
 def run_backup(args) -> None:
     """Create a zip backup of the VectorCode home directory."""
-    hermes_root = get_default_hermes_root()
+    vector_root = get_default_vector_root()
 
-    if not hermes_root.is_dir():
-        print(f"Error: VectorCode home directory not found at {hermes_root}")
+    if not vector_root.is_dir():
+        print(f"Error: VectorCode home directory not found at {vector_root}")
         sys.exit(1)
 
     # Determine output path
@@ -153,9 +153,9 @@ def run_backup(args) -> None:
     files_to_add: list[tuple[Path, Path]] = []  # (absolute, relative)
     skipped_dirs = set()
 
-    for dirpath, dirnames, filenames in os.walk(hermes_root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(vector_root, followlinks=False):
         dp = Path(dirpath)
-        rel_dir = dp.relative_to(hermes_root)
+        rel_dir = dp.relative_to(vector_root)
 
         # Prune excluded directories in-place so os.walk doesn't descend
         orig_dirnames = dirnames[:]
@@ -168,7 +168,7 @@ def run_backup(args) -> None:
 
         for fname in filenames:
             fpath = dp / fname
-            rel = fpath.relative_to(hermes_root)
+            rel = fpath.relative_to(vector_root)
 
             if _should_exclude(rel):
                 continue
@@ -313,7 +313,7 @@ def run_import(args) -> None:
         print(f"Error: Not a valid zip file: {zip_path}")
         sys.exit(1)
 
-    hermes_root = get_default_hermes_root()
+    vector_root = get_default_vector_root()
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         # Validate
@@ -333,8 +333,8 @@ def run_import(args) -> None:
             print(f"Detected archive prefix: {prefix!r} (will be stripped)")
 
         # Check for existing installation
-        has_config = (hermes_root / "config.yaml").exists()
-        has_env = (hermes_root / ".env").exists()
+        has_config = (vector_root / "config.yaml").exists()
+        has_env = (vector_root / ".env").exists()
 
         if (has_config or has_env) and not args.force:
             print()
@@ -352,7 +352,7 @@ def run_import(args) -> None:
 
         # Extract
         print(f"\nImporting {file_count} files ...")
-        hermes_root.mkdir(parents=True, exist_ok=True)
+        vector_root.mkdir(parents=True, exist_ok=True)
 
         errors = []
         restored = 0
@@ -368,11 +368,11 @@ def run_import(args) -> None:
             if not rel:
                 continue
 
-            target = hermes_root / rel
+            target = vector_root / rel
 
             # Security: reject absolute paths and traversals
             try:
-                target.resolve().relative_to(hermes_root.resolve())
+                target.resolve().relative_to(vector_root.resolve())
             except ValueError:
                 errors.append(f"  {rel}: path traversal blocked")
                 continue
@@ -403,7 +403,7 @@ def run_import(args) -> None:
                 print(f"  ... and {len(errors) - 10} more")
 
         # Post-import: restore profile wrapper scripts
-        profiles_dir = hermes_root / "profiles"
+        profiles_dir = vector_root / "profiles"
         restored_profiles = []
         if profiles_dir.is_dir():
             try:
@@ -445,7 +445,7 @@ def run_import(args) -> None:
 
         # Guidance
         print()
-        if not (hermes_root / "vectorcode").is_dir():
+        if not (vector_root / "vectorcode").is_dir():
             print("Note: The vectorcode codebase was not included in the backup.")
             print("  If this is a fresh install, run: vector update")
 
@@ -754,11 +754,11 @@ def create_pre_update_backup(
     found or the backup could not be created.  Never raises — the caller
     (``vector update``) should continue even if the backup fails.
     """
-    hermes_root = vector_home or get_default_hermes_root()
-    if not hermes_root.is_dir():
+    vector_root = vector_home or get_default_vector_root()
+    if not vector_root.is_dir():
         return None
 
-    backup_dir = _pre_update_backup_dir(hermes_root)
+    backup_dir = _pre_update_backup_dir(vector_root)
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -771,7 +771,7 @@ def create_pre_update_backup(
     # Collect files (same logic as run_backup, minus the chatty progress prints)
     files_to_add: list[tuple[Path, Path]] = []
     try:
-        for dirpath, dirnames, filenames in os.walk(hermes_root, followlinks=False):
+        for dirpath, dirnames, filenames in os.walk(vector_root, followlinks=False):
             dp = Path(dirpath)
             # Prune excluded directories in-place so os.walk doesn't descend
             dirnames[:] = [d for d in dirnames if d not in _EXCLUDED_DIRS]
@@ -779,7 +779,7 @@ def create_pre_update_backup(
             for fname in filenames:
                 fpath = dp / fname
                 try:
-                    rel = fpath.relative_to(hermes_root)
+                    rel = fpath.relative_to(vector_root)
                 except ValueError:
                     continue
 

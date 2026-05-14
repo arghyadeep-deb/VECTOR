@@ -72,8 +72,8 @@ DIALOG_BRIDGE_URL_PATTERN = f"http://{DIALOG_BRIDGE_HOST}/*"
 # in the first place — the overrides take precedence.
 _DIALOG_BRIDGE_SCRIPT = r"""
 (() => {
-  if (window.__hermesDialogBridgeInstalled) return;
-  window.__hermesDialogBridgeInstalled = true;
+  if (window.__vectorDialogBridgeInstalled) return;
+  window.__vectorDialogBridgeInstalled = true;
   const ENDPOINT = "http://vector-dialog-bridge.invalid/";
   function ask(kind, message, defaultPrompt) {
     try {

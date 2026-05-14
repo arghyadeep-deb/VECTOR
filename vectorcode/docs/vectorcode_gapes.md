@@ -274,7 +274,7 @@
 ---
 
 ### 2.5 LOW — Chat UI / Web Interface (0% done)
-**Source:** `vector/src/ruvocal/` — SvelteKit HuggingChat fork
+**Source:** `vector/src/vocal/` — SvelteKit HuggingChat fork
 
 **What's missing:**
 - Web-based chat interface for VectorCode

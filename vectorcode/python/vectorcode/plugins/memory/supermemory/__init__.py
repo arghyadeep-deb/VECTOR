@@ -624,7 +624,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
             try:
                 self._client.add_memory(
                     content.strip(),
-                    metadata={"source": "hermes_memory", "target": target, "type": "explicit_memory"},
+                    metadata={"source": "vector_memory", "target": target, "type": "explicit_memory"},
                     entity_context=self._entity_context,
                 )
             except Exception:
@@ -691,7 +691,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
         if not isinstance(metadata, dict):
             metadata = {}
         metadata.setdefault("type", _detect_category(content))
-        metadata["source"] = "hermes_tool"
+        metadata["source"] = "vector_tool"
         try:
             result = self._client.add_memory(content, metadata=metadata, entity_context=self._entity_context, container_tag=tag)
             preview = content[:80] + ("..." if len(content) > 80 else "")

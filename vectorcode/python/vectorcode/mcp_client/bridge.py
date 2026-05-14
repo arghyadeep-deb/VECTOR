@@ -1,4 +1,4 @@
-# Ported from GitHub/ruvnet_ruflo/repo/vector/src/mcp-bridge/index.js
+# Ported from GitHub/ruvnet_vector/repo/vector/src/mcp-bridge/index.js
 """VectorCode MCP bridge — group-based tool routing to multiple MCP servers."""
 import os
 from typing import Any, Dict, List, Optional

@@ -81,7 +81,7 @@ class _ProviderEntry:
 # ---------------------------------------------------------------------------
 
 
-def _make_hermes_provider_class() -> Optional[type]:
+def _make_vector_provider_class() -> Optional[type]:
     """Lazy-import the SDK base class and return our subclass.
 
     Wrapped in a function so this module imports cleanly even when the
@@ -109,7 +109,7 @@ def _make_hermes_provider_class() -> Optional[type]:
 
         def __init__(self, *args: Any, server_name: str = "", **kwargs: Any):
             super().__init__(*args, **kwargs)
-            self._hermes_server_name = server_name
+            self._vector_server_name = server_name
 
         async def _initialize(self) -> None:
             """Load stored tokens + client info AND seed token_expiry_time.
@@ -165,7 +165,7 @@ def _make_hermes_provider_class() -> Optional[type]:
                     logger.debug(
                         "MCP OAuth '%s': pre-flight metadata discovery "
                         "failed (non-fatal): %s",
-                        self._hermes_server_name, exc,
+                        self._vector_server_name, exc,
                     )
 
         async def _prefetch_oauth_metadata(self) -> None:
@@ -198,7 +198,7 @@ def _make_hermes_provider_class() -> Optional[type]:
                     except httpx.HTTPError as exc:
                         logger.debug(
                             "MCP OAuth '%s': PRM discovery to %s failed: %s",
-                            self._hermes_server_name, url, exc,
+                            self._vector_server_name, url, exc,
                         )
                         continue
                     prm = await handle_protected_resource_response(resp)
@@ -221,7 +221,7 @@ def _make_hermes_provider_class() -> Optional[type]:
                     except httpx.HTTPError as exc:
                         logger.debug(
                             "MCP OAuth '%s': ASM discovery to %s failed: %s",
-                            self._hermes_server_name, url, exc,
+                            self._vector_server_name, url, exc,
                         )
                         continue
                     ok, asm = await handle_auth_metadata_response(resp)
@@ -232,7 +232,7 @@ def _make_hermes_provider_class() -> Optional[type]:
                         logger.debug(
                             "MCP OAuth '%s': pre-flight ASM discovered "
                             "token_endpoint=%s",
-                            self._hermes_server_name, asm.token_endpoint,
+                            self._vector_server_name, asm.token_endpoint,
                         )
                         break
 
@@ -242,12 +242,12 @@ def _make_hermes_provider_class() -> Optional[type]:
             # whatever state the SDK already has.
             try:
                 await get_manager().invalidate_if_disk_changed(
-                    self._hermes_server_name
+                    self._vector_server_name
                 )
             except Exception as exc:  # pragma: no cover — defensive
                 logger.debug(
                     "MCP OAuth '%s': pre-flow disk-watch failed (non-fatal): %s",
-                    self._hermes_server_name, exc,
+                    self._vector_server_name, exc,
                 )
 
             # Manually bridge the bidirectional generator protocol. httpx's
@@ -277,7 +277,7 @@ def _make_hermes_provider_class() -> Optional[type]:
 
 
 # Cached at import time. Tested and used by :class:`MCPOAuthManager`.
-_VECTOR_PROVIDER_CLS: Optional[type] = _make_hermes_provider_class()
+_VECTOR_PROVIDER_CLS: Optional[type] = _make_vector_provider_class()
 
 
 # ---------------------------------------------------------------------------

@@ -2389,7 +2389,7 @@ def setup_gateway(config: dict):
             _is_service_running,
             supports_systemd_services,
             has_conflicting_systemd_units,
-            has_legacy_hermes_units,
+            has_legacy_vector_units,
             install_linux_gateway_from_setup,
             print_systemd_scope_conflict_warning,
             print_legacy_unit_warning,
@@ -2411,7 +2411,7 @@ def setup_gateway(config: dict):
             print_systemd_scope_conflict_warning()
             print()
 
-        if supports_systemd and has_legacy_hermes_units():
+        if supports_systemd and has_legacy_vector_units():
             print_legacy_unit_warning()
             print()
 
@@ -2660,12 +2660,12 @@ _OPENCLAW_SCRIPT = (
     / "migration"
     / "openclaw-migration"
     / "scripts"
-    / "openclaw_to_hermes.py"
+    / "openclaw_to_vector.py"
 )
 
 
 def _load_openclaw_migration_module():
-    """Load the openclaw_to_hermes migration script as a module.
+    """Load the openclaw_to_vector migration script as a module.
 
     Returns the loaded module, or None if the script can't be loaded.
     """
@@ -2673,7 +2673,7 @@ def _load_openclaw_migration_module():
         return None
 
     spec = importlib.util.spec_from_file_location(
-        "openclaw_to_hermes", _OPENCLAW_SCRIPT
+        "openclaw_to_vector", _OPENCLAW_SCRIPT
     )
     if spec is None or spec.loader is None:
         return None
@@ -3122,11 +3122,11 @@ def run_setup_wizard(args):
     _offer_launch_chat()
 
 
-def _resolve_hermes_chat_argv() -> Optional[list[str]]:
+def _resolve_vector_chat_argv() -> Optional[list[str]]:
     """Resolve argv for launching ``vector chat`` in a fresh process."""
-    hermes_bin = shutil.which("vector")
-    if hermes_bin:
-        return [hermes_bin, "chat"]
+    vector_bin = shutil.which("vector")
+    if vector_bin:
+        return [vector_bin, "chat"]
 
     try:
         if importlib.util.find_spec("vector_cli") is not None:
@@ -3143,7 +3143,7 @@ def _offer_launch_chat():
     if not prompt_yes_no("Launch vector chat now?", True):
         return
 
-    chat_argv = _resolve_hermes_chat_argv()
+    chat_argv = _resolve_vector_chat_argv()
     if not chat_argv:
         print_info("Could not relaunch VectorCode automatically. Run 'vector chat' manually.")
         return

@@ -66,7 +66,7 @@ DEFAULT_MODEL = "anthropic/claude-opus-4.5"
 DEFAULT_BASE_URL = OPENROUTER_BASE_URL
 
 
-def load_hermes_config() -> dict:
+def load_vector_config() -> dict:
     """
     Load configuration from ~/.vectorcode/config.yaml.
     
@@ -273,7 +273,7 @@ def main(
         python rl_cli.py --check-server
     """
     # Load config from ~/.vectorcode/config.yaml
-    config = load_hermes_config()
+    config = load_vector_config()
     
     # Use config values if not explicitly provided
     if model is None:

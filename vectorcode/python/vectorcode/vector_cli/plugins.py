@@ -10,7 +10,7 @@ Discovers, loads, and manages plugins from four sources:
 2. **User plugins**   – ``~/.vectorcode/plugins/<name>/``
 3. **Project plugins** – ``./.vectorcode/plugins/<name>/`` (opt-in via
    ``VECTOR_ENABLE_PROJECT_PLUGINS``)
-4. **Pip plugins**     – packages that expose the ``hermes_agent.plugins``
+4. **Pip plugins**     – packages that expose the ``vectorcode.plugins``
    entry-point group.
 
 Later sources override earlier ones on name collision, so a user or project
@@ -95,9 +95,9 @@ VALID_HOOKS: Set[str] = {
     "post_approval_response",
 }
 
-ENTRY_POINTS_GROUP = "hermes_agent.plugins"
+ENTRY_POINTS_GROUP = "vectorcode.plugins"
 
-_NS_PARENT = "hermes_plugins"
+_NS_PARENT = "vector_plugins"
 
 
 def _env_enabled(name: str) -> bool:
@@ -906,11 +906,11 @@ class PluginManager:
         self._plugins[manifest.key or manifest.name] = loaded
 
     def _load_directory_module(self, manifest: PluginManifest) -> types.ModuleType:
-        """Import a directory-based plugin as ``hermes_plugins.<slug>``.
+        """Import a directory-based plugin as ``vector_plugins.<slug>``.
 
         The module slug is derived from ``manifest.key`` so category-namespaced
         plugins (``image_gen/openai``) import as
-        ``hermes_plugins.image_gen__openai`` without colliding with any
+        ``vector_plugins.image_gen__openai`` without colliding with any
         future ``tts/openai``.
         """
         plugin_dir = Path(manifest.path)  # type: ignore[arg-type]

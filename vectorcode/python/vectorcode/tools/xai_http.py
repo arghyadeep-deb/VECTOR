@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-def hermes_xai_user_agent() -> str:
+def vector_xai_user_agent() -> str:
     """Return a stable VectorCode-specific User-Agent for xAI HTTP calls."""
     try:
         from vector_cli import __version__

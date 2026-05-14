@@ -232,8 +232,8 @@ DANGEROUS_PATTERNS = [
     # Gateway lifecycle protection: prevent the agent from killing its own
     # gateway process.  These commands trigger a gateway restart/stop that
     # terminates all running agents mid-work.
-    (r'\bhermes\s+gateway\s+(stop|restart)\b', "stop/restart vector gateway (kills running agents)"),
-    (r'\bhermes\s+update\b', "vector update (restarts gateway, kills running agents)"),
+    (r'\bvector\s+gateway\s+(stop|restart)\b', "stop/restart vector gateway (kills running agents)"),
+    (r'\bvector\s+update\b', "vector update (restarts gateway, kills running agents)"),
     # Gateway protection: never start gateway outside systemd management
     (r'gateway\s+run\b.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)', "start gateway outside systemd (use 'systemctl --user restart vector-gateway')"),
     (r'\bnohup\b.*gateway\s+run\b', "start gateway outside systemd (use 'systemctl --user restart vector-gateway')"),

@@ -63,7 +63,7 @@ _VECTOR_MODEL_WARNING = (
 # happen to carry "vector" in their tag but are fully tool-capable.
 #
 # Positive examples the regex must match:
-#   NousResearch/VectorCode-3-Llama-3.1-70B, vector-4-405b, openrouter/hermes3:70b
+#   NousResearch/VectorCode-3-Llama-3.1-70B, vector-4-405b, openrouter/legacy3:70b
 # Negative examples it must NOT match:
 #   vector-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
 _NOUS_VECTOR_NON_AGENTIC_RE = re.compile(
@@ -72,7 +72,7 @@ _NOUS_VECTOR_NON_AGENTIC_RE = re.compile(
 )
 
 
-def is_nous_hermes_non_agentic(model_name: str) -> bool:
+def is_legacy_non_agentic(model_name: str) -> bool:
     """Return True if *model_name* is a real Nous VectorCode 3/4 chat model.
 
     Used to decide whether to surface the non-agentic warning at startup.
@@ -84,9 +84,9 @@ def is_nous_hermes_non_agentic(model_name: str) -> bool:
     return bool(_NOUS_VECTOR_NON_AGENTIC_RE.search(model_name))
 
 
-def _check_hermes_model_warning(model_name: str) -> str:
+def _check_vector_model_warning(model_name: str) -> str:
     """Return a warning string if *model_name* is a Nous VectorCode 3/4 chat model."""
-    if is_nous_hermes_non_agentic(model_name):
+    if is_legacy_non_agentic(model_name):
         return _VECTOR_MODEL_WARNING
     return ""
 
@@ -947,9 +947,9 @@ def switch_model(
     warnings: list[str] = []
     if validation.get("message"):
         warnings.append(validation["message"])
-    hermes_warn = _check_hermes_model_warning(new_model)
-    if hermes_warn:
-        warnings.append(hermes_warn)
+    vector_warn = _check_vector_model_warning(new_model)
+    if vector_warn:
+        warnings.append(vector_warn)
 
     # --- Build result ---
     return ModelSwitchResult(
@@ -1027,7 +1027,7 @@ def list_authenticated_providers(
         curated["ollama-cloud"] = fetch_ollama_cloud_models()
 
     # --- 1. Check VectorCode-mapped providers ---
-    for hermes_id, mdev_id in PROVIDER_TO_MODELS_DEV.items():
+    for vector_id, mdev_id in PROVIDER_TO_MODELS_DEV.items():
         # Skip aliases that map to the same models.dev provider (e.g.
         # kimi-coding and kimi-coding-cn both → kimi-for-coding).
         # The first one with valid credentials wins (#10526).
@@ -1040,7 +1040,7 @@ def list_authenticated_providers(
         # Prefer auth.py PROVIDER_REGISTRY for env var names — it's our
         # source of truth.  models.dev can have wrong mappings (e.g.
         # minimax-cn → MINIMAX_API_KEY instead of MINIMAX_CN_API_KEY).
-        pconfig = PROVIDER_REGISTRY.get(hermes_id)
+        pconfig = PROVIDER_REGISTRY.get(vector_id)
         # Skip non-API-key auth providers here — they are handled in
         # section 2 (VECTOR_OVERLAYS) with proper auth store checking.
         if pconfig and pconfig.auth_type != "api_key":
@@ -1058,7 +1058,7 @@ def list_authenticated_providers(
             try:
                 from vector_cli.auth import _load_auth_store
                 store = _load_auth_store()
-                if store and hermes_id in store.get("credential_pool", {}):
+                if store and vector_id in store.get("credential_pool", {}):
                     has_creds = True
             except Exception:
                 pass
@@ -1069,13 +1069,13 @@ def list_authenticated_providers(
         # For preferred providers, merge models.dev entries into the curated
         # catalog so newly released models (e.g. mimo-v2.5-pro on opencode-go)
         # show up in the picker without requiring a VectorCode release.
-        model_ids = curated.get(hermes_id, [])
-        if hermes_id in _MODELS_DEV_PREFERRED:
-            model_ids = _merge_with_models_dev(hermes_id, model_ids)
+        model_ids = curated.get(vector_id, [])
+        if vector_id in _MODELS_DEV_PREFERRED:
+            model_ids = _merge_with_models_dev(vector_id, model_ids)
         total = len(model_ids)
         top = model_ids[:max_models]
 
-        slug = hermes_id
+        slug = vector_id
         pinfo = _mdev_pinfo(mdev_id)
         display_name = pinfo.name if pinfo else mdev_id
 
@@ -1098,15 +1098,15 @@ def list_authenticated_providers(
     # Build reverse mapping: models.dev ID → VectorCode provider ID.
     # VECTOR_OVERLAYS keys may be models.dev IDs (e.g. "github-copilot")
     # while _PROVIDER_MODELS and config.yaml use VectorCode IDs ("copilot").
-    _mdev_to_hermes = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
+    _mdev_to_vector = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
 
     for pid, overlay in VECTOR_OVERLAYS.items():
         if pid.lower() in seen_slugs:
             continue
 
         # Resolve VectorCode slug — e.g. "github-copilot" → "copilot"
-        hermes_slug = _mdev_to_hermes.get(pid, pid)
-        if hermes_slug.lower() in seen_slugs:
+        vector_slug = _mdev_to_vector.get(pid, pid)
+        if vector_slug.lower() in seen_slugs:
             continue
 
         # Check if credentials exist
@@ -1115,7 +1115,7 @@ def list_authenticated_providers(
             has_creds = any(os.environ.get(ev) for ev in overlay.extra_env_vars)
         # Also check api_key_env_vars from PROVIDER_REGISTRY for api_key auth_type
         if not has_creds and overlay.auth_type == "api_key":
-            for _key in (pid, hermes_slug):
+            for _key in (pid, vector_slug):
                 pcfg = _auth_registry.get(_key)
                 if pcfg and pcfg.api_key_env_vars:
                     if any(os.environ.get(ev) for ev in pcfg.api_key_env_vars):
@@ -1132,8 +1132,8 @@ def list_authenticated_providers(
                 providers_store = store.get("providers", {})
                 pool_store = store.get("credential_pool", {})
                 if store and (
-                    pid in providers_store or hermes_slug in providers_store
-                    or pid in pool_store or hermes_slug in pool_store
+                    pid in providers_store or vector_slug in providers_store
+                    or pid in pool_store or vector_slug in pool_store
                 ):
                     has_creds = True
             except Exception as exc:
@@ -1145,11 +1145,11 @@ def list_authenticated_providers(
         if not has_creds:
             try:
                 from agent.credential_pool import load_pool
-                pool = load_pool(hermes_slug)
+                pool = load_pool(vector_slug)
                 if pool.has_credentials():
                     has_creds = True
             except Exception as exc:
-                logger.debug("Credential pool check failed for %s: %s", hermes_slug, exc)
+                logger.debug("Credential pool check failed for %s: %s", vector_slug, exc)
         # Fallback: check external credential files directly.
         # The credential pool gates anthropic behind
         # is_provider_explicitly_configured() to prevent auxiliary tasks
@@ -1157,15 +1157,15 @@ def list_authenticated_providers(
         # But the /model picker is discovery-oriented — we WANT to show
         # providers the user can switch to, even if they aren't currently
         # configured.
-        if not has_creds and hermes_slug == "anthropic":
+        if not has_creds and vector_slug == "anthropic":
             try:
                 from agent.anthropic_adapter import (
                     read_claude_code_credentials,
-                    read_hermes_oauth_credentials,
+                    read_vector_oauth_credentials,
                 )
-                hermes_creds = read_hermes_oauth_credentials()
+                vector_creds = read_vector_oauth_credentials()
                 cc_creds = read_claude_code_credentials()
-                if (hermes_creds and hermes_creds.get("accessToken")) or \
+                if (vector_creds and vector_creds.get("accessToken")) or \
                    (cc_creds and cc_creds.get("accessToken")):
                     has_creds = True
             except Exception as exc:
@@ -1173,28 +1173,28 @@ def list_authenticated_providers(
         if not has_creds:
             continue
 
-        if hermes_slug in {"copilot", "copilot-acp"}:
-            model_ids = provider_model_ids(hermes_slug)
+        if vector_slug in {"copilot", "copilot-acp"}:
+            model_ids = provider_model_ids(vector_slug)
         else:
             # Use curated list — look up by VectorCode slug, fall back to overlay key
-            model_ids = curated.get(hermes_slug, []) or curated.get(pid, [])
+            model_ids = curated.get(vector_slug, []) or curated.get(pid, [])
             # Merge with models.dev for preferred providers (same rationale as above).
-            if hermes_slug in _MODELS_DEV_PREFERRED:
-                model_ids = _merge_with_models_dev(hermes_slug, model_ids)
+            if vector_slug in _MODELS_DEV_PREFERRED:
+                model_ids = _merge_with_models_dev(vector_slug, model_ids)
         total = len(model_ids)
         top = model_ids[:max_models]
 
         results.append({
-            "slug": hermes_slug,
-            "name": get_label(hermes_slug),
-            "is_current": hermes_slug == current_provider or pid == current_provider,
+            "slug": vector_slug,
+            "name": get_label(vector_slug),
+            "is_current": vector_slug == current_provider or pid == current_provider,
             "is_user_defined": False,
             "models": top,
             "total_models": total,
             "source": "vector",
         })
         seen_slugs.add(pid.lower())
-        seen_slugs.add(hermes_slug.lower())
+        seen_slugs.add(vector_slug.lower())
 
     # --- 2b. Cross-check canonical provider list ---
     # Catches providers that are in CANONICAL_PROVIDERS but weren't found

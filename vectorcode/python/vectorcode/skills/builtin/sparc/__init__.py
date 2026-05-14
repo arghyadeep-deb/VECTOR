@@ -1,4 +1,4 @@
-# Ported from GitHub/ruvnet_ruflo/repo/v2/ SPARC methodology
+# Ported from GitHub/ruvnet_vector/repo/v2/ SPARC methodology
 """SPARC methodology — Specification, Pseudocode, Architecture, Refinement, Completion."""
 from vectorcode.skills.builtin.sparc.coordinator import (
     run_sparc_full,

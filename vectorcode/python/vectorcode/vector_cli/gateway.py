@@ -748,9 +748,9 @@ def _profile_suffix() -> str:
     """
     import hashlib
     import re
-    from vector_constants import get_default_hermes_root
+    from vector_constants import get_default_vector_root
     home = get_vector_home().resolve()
-    default = get_default_hermes_root().resolve()
+    default = get_default_vector_root().resolve()
     if home == default:
         return ""
     # Detect <root>/profiles/<name> pattern → use the profile name
@@ -778,9 +778,9 @@ def _profile_arg(vector_home: str | None = None) -> str:
             service definition for a different user (e.g. system service).
     """
     import re
-    from vector_constants import get_default_hermes_root
+    from vector_constants import get_default_vector_root
     home = Path(vector_home or str(get_vector_home())).resolve()
-    default = get_default_hermes_root().resolve()
+    default = get_default_vector_root().resolve()
     if home == default:
         return ""
     profiles_root = (default / "profiles").resolve()
@@ -1047,7 +1047,7 @@ def _legacy_unit_search_paths() -> list[tuple[bool, Path]]:
     ]
 
 
-def _find_legacy_hermes_units() -> list[tuple[str, Path, bool]]:
+def _find_legacy_vector_units() -> list[tuple[str, Path, bool]]:
     """Return ``[(unit_name, unit_path, is_system)]`` for legacy VectorCode gateway units.
 
     Detects unit files installed by older VectorCode versions that used a
@@ -1085,9 +1085,9 @@ def _find_legacy_hermes_units() -> list[tuple[str, Path, bool]]:
     return results
 
 
-def has_legacy_hermes_units() -> bool:
+def has_legacy_vector_units() -> bool:
     """Return True when any legacy VectorCode gateway unit files exist."""
-    return bool(_find_legacy_hermes_units())
+    return bool(_find_legacy_vector_units())
 
 
 def print_legacy_unit_warning() -> None:
@@ -1096,7 +1096,7 @@ def print_legacy_unit_warning() -> None:
     Idempotent: prints nothing when no legacy units are detected. Safe to
     call from any status/install/setup path.
     """
-    legacy = _find_legacy_hermes_units()
+    legacy = _find_legacy_vector_units()
     if not legacy:
         return
     print_warning("Legacy VectorCode gateway unit(s) detected from an older install:")
@@ -1109,13 +1109,13 @@ def print_legacy_unit_warning() -> None:
     print_info("    vector gateway migrate-legacy")
 
 
-def remove_legacy_hermes_units(
+def remove_legacy_vector_units(
     interactive: bool = True,
     dry_run: bool = False,
 ) -> tuple[int, list[Path]]:
     """Stop, disable, and remove legacy VectorCode gateway unit files.
 
-    Iterates over whatever ``_find_legacy_hermes_units()`` returns — which is
+    Iterates over whatever ``_find_legacy_vector_units()`` returns — which is
     an explicit allowlist of legacy names (not a glob). Profile units and
     unrelated third-party services are never touched.
 
@@ -1129,7 +1129,7 @@ def remove_legacy_hermes_units(
         ``(removed_count, remaining_paths)`` — remaining includes units we
         couldn't remove (typically system-scope when not running as root).
     """
-    legacy = _find_legacy_hermes_units()
+    legacy = _find_legacy_vector_units()
     if not legacy:
         print("No legacy VectorCode gateway units found.")
         return 0, []
@@ -1490,21 +1490,21 @@ def _vector_home_for_target_user(target_home_dir: str) -> str:
       /root/.vectorcode/profiles/coder     → /home/alice/.vectorcode/profiles/coder
       /opt/custom-vector               → /opt/custom-vector  (kept as-is)
     """
-    current_hermes = get_vector_home().resolve()
+    current_vector = get_vector_home().resolve()
     current_default = (Path.home() / ".vector").resolve()
     target_default = Path(target_home_dir) / ".vector"
 
     # Default ~/.vectorcode → remap to target user's default
-    if current_hermes == current_default:
+    if current_vector == current_default:
         return str(target_default)
 
     # Profile or subdir of ~/.vectorcode → preserve the relative structure
     try:
-        relative = current_hermes.relative_to(current_default)
+        relative = current_vector.relative_to(current_default)
         return str(target_default / relative)
     except ValueError:
         # Completely custom path (not under ~/.vectorcode) — keep as-is
-        return str(current_hermes)
+        return str(current_vector)
 
 
 def generate_systemd_unit(system: bool = False, run_as_user: str | None = None) -> str:
@@ -1749,12 +1749,12 @@ def systemd_install(force: bool = False, system: bool = False, run_as_user: str 
     # flap-fight for the Telegram bot token on every gateway startup.
     # Only removes units matching _LEGACY_SERVICE_NAMES + our ExecStart
     # signature — profile units are never touched.
-    if has_legacy_hermes_units():
+    if has_legacy_vector_units():
         print()
         print_legacy_unit_warning()
         print()
         if prompt_yes_no("Remove the legacy unit(s) before installing?", True):
-            remove_legacy_hermes_units(interactive=False)
+            remove_legacy_vector_units(interactive=False)
             print()
 
     unit_path = get_systemd_unit_path(system=system)
@@ -1914,7 +1914,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
         print_systemd_scope_conflict_warning()
         print()
 
-    if has_legacy_hermes_units():
+    if has_legacy_vector_units():
         print_legacy_unit_warning()
         print()
 
@@ -3729,7 +3729,7 @@ def gateway_setup():
         print_systemd_scope_conflict_warning()
         print()
 
-    if supports_systemd_services() and has_legacy_hermes_units():
+    if supports_systemd_services() and has_legacy_vector_units():
         print_legacy_unit_warning()
         print()
 
@@ -4231,4 +4231,4 @@ def _gateway_command_inner(args):
         if not supports_systemd_services() and not is_macos():
             print("Legacy unit migration only applies to systemd-based Linux hosts.")
             return
-        remove_legacy_hermes_units(interactive=not yes, dry_run=dry_run)
+        remove_legacy_vector_units(interactive=not yes, dry_run=dry_run)

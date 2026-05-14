@@ -1,4 +1,4 @@
-# Ported from GitHub/ruvnet_ruflo/repo/v2/CLAUDE.md + v2/src/sparc/
+# Ported from GitHub/ruvnet_vector/repo/v2/CLAUDE.md + v2/src/sparc/
 """SPARC methodology coordinator — Specification → Pseudocode → Architecture → Refinement → Completion."""
 import asyncio
 from typing import Any, Optional

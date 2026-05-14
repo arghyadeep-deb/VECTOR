@@ -537,7 +537,7 @@ def _resolve_gateway_model(config: dict | None = None) -> str:
     return ""
 
 
-def _resolve_hermes_bin() -> Optional[list[str]]:
+def _resolve_vector_bin() -> Optional[list[str]]:
     """Resolve the VectorCode update command as argv parts.
 
     Tries in order:
@@ -549,9 +549,9 @@ def _resolve_hermes_bin() -> Optional[list[str]]:
     """
     import shutil
 
-    hermes_bin = shutil.which("vector")
-    if hermes_bin:
-        return [hermes_bin]
+    vector_bin = shutil.which("vector")
+    if vector_bin:
+        return [vector_bin]
 
     try:
         import importlib.util
@@ -2082,13 +2082,13 @@ class GatewayRunner:
         import shutil
         import subprocess
 
-        hermes_cmd = _resolve_hermes_bin()
-        if not hermes_cmd:
+        vector_cmd = _resolve_vector_bin()
+        if not vector_cmd:
             logger.error("Could not locate vector binary for detached /restart")
             return
 
         current_pid = os.getpid()
-        cmd = " ".join(shlex.quote(part) for part in hermes_cmd)
+        cmd = " ".join(shlex.quote(part) for part in vector_cmd)
         shell_cmd = (
             f"while kill -0 {current_pid} 2>/dev/null; do sleep 0.2; done; "
             f"{cmd} gateway restart"
@@ -6707,7 +6707,7 @@ class GatewayRunner:
             # Use .mp3 extension so edge-tts conversion to opus works correctly.
             # The TTS tool may convert to .ogg — use file_path from result.
             audio_path = os.path.join(
-                tempfile.gettempdir(), "hermes_voice",
+                tempfile.gettempdir(), "vector_voice",
                 f"tts_reply_{_uuid.uuid4().hex[:12]}.mp3",
             )
             os.makedirs(os.path.dirname(audio_path), exist_ok=True)
@@ -8084,8 +8084,8 @@ class GatewayRunner:
         if not git_dir.exists():
             return "✗ Not a git repository — cannot update."
 
-        hermes_cmd = _resolve_hermes_bin()
-        if not hermes_cmd:
+        vector_cmd = _resolve_vector_bin()
+        if not vector_cmd:
             return (
                 "✗ Could not locate the `vector` command. "
                 "VectorCode is running, but the update command could not find the "
@@ -8117,9 +8117,9 @@ class GatewayRunner:
         # where systemd-run --user fails due to missing D-Bus session).
         # PYTHONUNBUFFERED ensures output is flushed line-by-line so the
         # gateway can stream it to the messenger in near-real-time.
-        hermes_cmd_str = " ".join(shlex.quote(part) for part in hermes_cmd)
+        vector_cmd_str = " ".join(shlex.quote(part) for part in vector_cmd)
         update_cmd = (
-            f"PYTHONUNBUFFERED=1 {hermes_cmd_str} update --gateway"
+            f"PYTHONUNBUFFERED=1 {vector_cmd_str} update --gateway"
             f" > {shlex.quote(str(output_path))} 2>&1; "
             f"status=$?; printf '%s' \"$status\" > {shlex.quote(str(exit_code_path))}"
         )
@@ -9125,7 +9125,7 @@ class GatewayRunner:
         try:
             interrupt_event = getattr(adapter, "_active_sessions", {}).get(session_key)
             if interrupt_event is not None:
-                setattr(interrupt_event, "_hermes_run_generation", int(generation))
+                setattr(interrupt_event, "_vector_run_generation", int(generation))
         except Exception:
             pass
 
@@ -11606,15 +11606,15 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 ["ps", "aux"],
                 capture_output=True, text=True, timeout=3,
             )
-            _hermes_procs = [
+            _vector_procs = [
                 line for line in _ps.stdout.splitlines()
                 if ("vector" in line.lower() or "gateway" in line.lower())
                 and str(os.getpid()) not in line.split()[1:2]  # exclude self
             ]
-            if _hermes_procs:
+            if _vector_procs:
                 logger.warning(
                     "Shutdown diagnostic — other vector processes running:\n  %s",
-                    "\n  ".join(_hermes_procs),
+                    "\n  ".join(_vector_procs),
                 )
             else:
                 logger.info("Shutdown diagnostic — no other vector processes found")

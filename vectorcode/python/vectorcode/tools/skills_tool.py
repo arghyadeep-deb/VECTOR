@@ -1217,14 +1217,14 @@ def skill_view(
 
         # Read tags/related_skills with backward compat:
         # Check metadata.vector.* first (agentskills.io convention), fall back to top-level
-        hermes_meta = {}
+        vector_meta = {}
         metadata = frontmatter.get("metadata")
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("vector", {}) or {}
+            vector_meta = metadata.get("vector", {}) or {}
 
-        tags = _parse_tags(hermes_meta.get("tags") or frontmatter.get("tags", ""))
+        tags = _parse_tags(vector_meta.get("tags") or frontmatter.get("tags", ""))
         related_skills = _parse_tags(
-            hermes_meta.get("related_skills") or frontmatter.get("related_skills", "")
+            vector_meta.get("related_skills") or frontmatter.get("related_skills", "")
         )
 
         # Build linked files structure for clear discovery

@@ -396,9 +396,9 @@ class GitHubSource(SkillSource):
         tags = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("vector", {})
-            if isinstance(hermes_meta, dict):
-                tags = hermes_meta.get("tags", [])
+            vector_meta = metadata.get("vector", {})
+            if isinstance(vector_meta, dict):
+                tags = vector_meta.get("tags", [])
         if not tags:
             raw_tags = fm.get("tags", [])
             tags = raw_tags if isinstance(raw_tags, list) else []
@@ -994,9 +994,9 @@ class UrlSource(SkillSource):
         tags: List[str] = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("vector", {})
-            if isinstance(hermes_meta, dict):
-                raw_tags = hermes_meta.get("tags", [])
+            vector_meta = metadata.get("vector", {})
+            if isinstance(vector_meta, dict):
+                raw_tags = vector_meta.get("tags", [])
                 if isinstance(raw_tags, list):
                     tags = [str(t) for t in raw_tags]
         return SkillMeta(
@@ -2456,9 +2456,9 @@ class OptionalSkillSource(SkillSource):
             tags = []
             meta_block = fm.get("metadata", {})
             if isinstance(meta_block, dict):
-                hermes_meta = meta_block.get("vector", {})
-                if isinstance(hermes_meta, dict):
-                    tags = hermes_meta.get("tags", [])
+                vector_meta = meta_block.get("vector", {})
+                if isinstance(vector_meta, dict):
+                    tags = vector_meta.get("tags", [])
 
             rel_path = str(parent.relative_to(self._optional_dir))
 
@@ -2878,7 +2878,7 @@ VECTOR_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "vector-index.json"
 VECTOR_INDEX_TTL = 6 * 3600  # 6 hours
 
 
-def _load_hermes_index() -> Optional[dict]:
+def _load_vector_index() -> Optional[dict]:
     """Fetch the centralized skills index, with local cache.
 
     The index is a JSON file hosted on the docs site, rebuilt daily by CI.
@@ -2951,7 +2951,7 @@ class VectorCodeIndexSource(SkillSource):
 
     def _ensure_loaded(self) -> dict:
         if not self._loaded:
-            self._index = _load_hermes_index()
+            self._index = _load_vector_index()
             self._loaded = True
         return self._index or {}
 

@@ -88,9 +88,9 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
 
         # Execute tools — use VectorCode model_tools.handle_function_call if available
         try:
-            from model_tools import handle_function_call as _hermes_dispatch
+            from model_tools import handle_function_call as _vector_dispatch
             def dispatch_fn(name, args, ctx):
-                return _hermes_dispatch(name, args)
+                return _vector_dispatch(name, args)
         except Exception:
             registry = agent._get_registry()
             if registry and hasattr(registry, "get_entry"):

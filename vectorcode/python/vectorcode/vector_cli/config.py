@@ -158,7 +158,7 @@ def managed_error(action: str = "modify configuration"):
 def get_container_exec_info() -> Optional[dict]:
     """Read container mode metadata from VECTOR_HOME/.container-mode.
 
-    Returns a dict with keys: backend, container_name, exec_user, hermes_bin
+    Returns a dict with keys: backend, container_name, exec_user, vector_bin
     or None if container mode is not active, we're already inside the
     container, or VECTOR_DEV=1 is set.
 
@@ -190,13 +190,13 @@ def get_container_exec_info() -> Optional[dict]:
     backend = info.get("backend", "docker")
     container_name = info.get("container_name", "vectorcode")
     exec_user = info.get("exec_user", "vector")
-    hermes_bin = info.get("hermes_bin", "/data/current-package/bin/vector")
+    vector_bin = info.get("vector_bin", "/data/current-package/bin/vector")
 
     return {
         "backend": backend,
         "container_name": container_name,
         "exec_user": exec_user,
-        "hermes_bin": hermes_bin,
+        "vector_bin": vector_bin,
     }
 
 

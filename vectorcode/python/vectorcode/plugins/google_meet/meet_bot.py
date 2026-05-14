@@ -179,13 +179,13 @@ class _BotState:
 
 # JavaScript injected into the Meet tab to observe captions. Captures
 # {speaker, text} tuples via a MutationObserver on the caption container,
-# and exposes ``window.__hermesMeetDrain()`` to pull new entries. This
+# and exposes ``window.__vectorMeetDrain()`` to pull new entries. This
 # mirrors the OpenUtter caption scraping approach.
 _CAPTION_OBSERVER_JS = r"""
 (() => {
-  if (window.__hermesMeetInstalled) return;
-  window.__hermesMeetInstalled = true;
-  window.__hermesMeetQueue = [];
+  if (window.__vectorMeetInstalled) return;
+  window.__vectorMeetInstalled = true;
+  window.__vectorMeetQueue = [];
 
   const captionSelector = '[role="region"][aria-label*="aption" i], ' +
                           'div[jsname="YSxPC"], ' +  // legacy
@@ -193,7 +193,7 @@ _CAPTION_OBSERVER_JS = r"""
 
   function pushEntry(speaker, text) {
     if (!text || !text.trim()) return;
-    window.__hermesMeetQueue.push({
+    window.__vectorMeetQueue.push({
       ts: Date.now(),
       speaker: (speaker || '').trim(),
       text: text.trim(),
@@ -235,9 +235,9 @@ _CAPTION_OBSERVER_JS = r"""
     const iv = setInterval(() => { if (attach()) clearInterval(iv); }, 1500);
   }
 
-  window.__hermesMeetDrain = () => {
-    const out = window.__hermesMeetQueue.slice();
-    window.__hermesMeetQueue = [];
+  window.__vectorMeetDrain = () => {
+    const out = window.__vectorMeetQueue.slice();
+    window.__vectorMeetQueue = [];
     return out;
   };
 })();
@@ -346,7 +346,7 @@ def _start_realtime_speaker(
     if platform_tag == "linux":
         import subprocess as _sp
 
-        sink = (bridge_info or {}).get("write_target") or "hermes_meet_sink"
+        sink = (bridge_info or {}).get("write_target") or "vector_meet_sink"
         try:
             proc = _sp.Popen(
                 [
@@ -652,7 +652,7 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                         break
 
                 try:
-                    queued = page.evaluate("window.__hermesMeetDrain && window.__hermesMeetDrain()")
+                    queued = page.evaluate("window.__vectorMeetDrain && window.__vectorMeetDrain()")
                     if isinstance(queued, list):
                         for entry in queued:
                             if not isinstance(entry, dict):
@@ -756,7 +756,7 @@ def _detect_admission(page) -> bool:
     (() => {
       const leave = document.querySelector('button[aria-label*="eave call" i]');
       if (leave) return true;
-      if (window.__hermesMeetInstalled) {
+      if (window.__vectorMeetInstalled) {
         const caps = document.querySelector(
           '[role="region"][aria-label*="aption" i], ' +
           'div[jsname="YSxPC"], div[jsname="tgaKEf"]'

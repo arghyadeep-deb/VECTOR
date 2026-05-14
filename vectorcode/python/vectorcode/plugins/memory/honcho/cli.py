@@ -370,7 +370,7 @@ def cmd_setup(args) -> None:
         return
 
     hosts = cfg.setdefault("hosts", {})
-    hermes_host = hosts.setdefault(_host_key(), {})
+    vector_host = hosts.setdefault(_host_key(), {})
 
     # --- 1. Cloud or local? ---
     print("  Deployment:")
@@ -419,34 +419,34 @@ def cmd_setup(args) -> None:
             return
 
     # --- 3. Identity ---
-    current_peer = hermes_host.get("peerName") or cfg.get("peerName", "")
+    current_peer = vector_host.get("peerName") or cfg.get("peerName", "")
     new_peer = _prompt("Your name (user peer)", default=current_peer or os.getenv("USER", "user"))
     if new_peer:
-        hermes_host["peerName"] = new_peer
+        vector_host["peerName"] = new_peer
 
-    current_ai = hermes_host.get("aiPeer") or cfg.get("aiPeer", "vector")
+    current_ai = vector_host.get("aiPeer") or cfg.get("aiPeer", "vector")
     new_ai = _prompt("AI peer name", default=current_ai)
     if new_ai:
-        hermes_host["aiPeer"] = new_ai
+        vector_host["aiPeer"] = new_ai
 
-    current_workspace = hermes_host.get("workspace") or cfg.get("workspace", "vector")
+    current_workspace = vector_host.get("workspace") or cfg.get("workspace", "vector")
     new_workspace = _prompt("Workspace ID", default=current_workspace)
     if new_workspace:
-        hermes_host["workspace"] = new_workspace
+        vector_host["workspace"] = new_workspace
 
     # --- 4. Observation mode ---
-    current_obs = hermes_host.get("observationMode") or cfg.get("observationMode", "directional")
+    current_obs = vector_host.get("observationMode") or cfg.get("observationMode", "directional")
     print("\n  Observation mode:")
     print("    directional  -- all observations on, each AI peer builds its own view (default)")
     print("    unified      -- shared pool, user observes self, AI observes others only")
     new_obs = _prompt("Observation mode", default=current_obs)
     if new_obs in ("unified", "directional"):
-        hermes_host["observationMode"] = new_obs
+        vector_host["observationMode"] = new_obs
     else:
-        hermes_host["observationMode"] = "directional"
+        vector_host["observationMode"] = "directional"
 
     # --- 5. Write frequency ---
-    current_wf = str(hermes_host.get("writeFrequency") or cfg.get("writeFrequency", "async"))
+    current_wf = str(vector_host.get("writeFrequency") or cfg.get("writeFrequency", "async"))
     print("\n  Write frequency:")
     print("    async   -- background thread, no token cost (recommended)")
     print("    turn    -- sync write after every turn")
@@ -454,12 +454,12 @@ def cmd_setup(args) -> None:
     print("    N       -- write every N turns (e.g. 5)")
     new_wf = _prompt("Write frequency", default=current_wf)
     try:
-        hermes_host["writeFrequency"] = int(new_wf)
+        vector_host["writeFrequency"] = int(new_wf)
     except (ValueError, TypeError):
-        hermes_host["writeFrequency"] = new_wf if new_wf in ("async", "turn", "session") else "async"
+        vector_host["writeFrequency"] = new_wf if new_wf in ("async", "turn", "session") else "async"
 
     # --- 6. Recall mode ---
-    _raw_recall = hermes_host.get("recallMode") or cfg.get("recallMode", "hybrid")
+    _raw_recall = vector_host.get("recallMode") or cfg.get("recallMode", "hybrid")
     current_recall = "hybrid" if _raw_recall not in ("hybrid", "context", "tools") else _raw_recall
     print("\n  Recall mode:")
     print("    hybrid  -- auto-injected context + Honcho tools available (default)")
@@ -467,29 +467,29 @@ def cmd_setup(args) -> None:
     print("    tools   -- Honcho tools only, no auto-injected context")
     new_recall = _prompt("Recall mode", default=current_recall)
     if new_recall in ("hybrid", "context", "tools"):
-        hermes_host["recallMode"] = new_recall
+        vector_host["recallMode"] = new_recall
 
     # --- 7. Context token budget ---
-    current_ctx_tokens = hermes_host.get("contextTokens") or cfg.get("contextTokens")
+    current_ctx_tokens = vector_host.get("contextTokens") or cfg.get("contextTokens")
     current_display = str(current_ctx_tokens) if current_ctx_tokens else "uncapped"
     print("\n  Context injection per turn (hybrid/context recall modes only):")
     print("    uncapped -- no limit (default)")
     print("    N        -- token limit per turn (e.g. 1200)")
     new_ctx_tokens = _prompt("Context tokens", default=current_display)
     if new_ctx_tokens.strip().lower() in ("none", "uncapped", "no limit"):
-        hermes_host.pop("contextTokens", None)
+        vector_host.pop("contextTokens", None)
     elif new_ctx_tokens.strip() == "":
         pass  # keep current
     else:
         try:
             val = int(new_ctx_tokens)
             if val >= 0:
-                hermes_host["contextTokens"] = val
+                vector_host["contextTokens"] = val
         except (ValueError, TypeError):
             pass  # keep current
 
     # --- 7b. Dialectic cadence ---
-    current_dialectic = str(hermes_host.get("dialecticCadence") or cfg.get("dialecticCadence") or "2")
+    current_dialectic = str(vector_host.get("dialecticCadence") or cfg.get("dialecticCadence") or "2")
     print("\n  Dialectic cadence:")
     print("    How often Honcho rebuilds its user model (LLM call on Honcho backend).")
     print("    1 = every turn, 2 = every other turn, 3+ = sparser.")
@@ -498,13 +498,13 @@ def cmd_setup(args) -> None:
     try:
         val = int(new_dialectic)
         if val >= 1:
-            hermes_host["dialecticCadence"] = val
+            vector_host["dialecticCadence"] = val
     except (ValueError, TypeError):
-        hermes_host["dialecticCadence"] = 2
+        vector_host["dialecticCadence"] = 2
 
     # --- 7c. Dialectic reasoning level ---
     current_reasoning = (
-        hermes_host.get("dialecticReasoningLevel")
+        vector_host.get("dialecticReasoningLevel")
         or cfg.get("dialecticReasoningLevel")
         or "low"
     )
@@ -517,12 +517,12 @@ def cmd_setup(args) -> None:
     print("    max      -- thorough audit-level analysis")
     new_reasoning = _prompt("Reasoning level", default=current_reasoning)
     if new_reasoning in ("minimal", "low", "medium", "high", "max"):
-        hermes_host["dialecticReasoningLevel"] = new_reasoning
+        vector_host["dialecticReasoningLevel"] = new_reasoning
     else:
-        hermes_host["dialecticReasoningLevel"] = "low"
+        vector_host["dialecticReasoningLevel"] = "low"
 
     # --- 8. Session strategy ---
-    current_strat = hermes_host.get("sessionStrategy") or cfg.get("sessionStrategy", "per-session")
+    current_strat = vector_host.get("sessionStrategy") or cfg.get("sessionStrategy", "per-session")
     print("\n  Session strategy:")
     print("    per-session   -- each run starts clean, Honcho injects context automatically")
     print("    per-directory -- reuses session per dir, prior context auto-injected each run")
@@ -530,10 +530,10 @@ def cmd_setup(args) -> None:
     print("    global        -- single session across all directories")
     new_strat = _prompt("Session strategy", default=current_strat)
     if new_strat in ("per-session", "per-repo", "per-directory", "global"):
-        hermes_host["sessionStrategy"] = new_strat
+        vector_host["sessionStrategy"] = new_strat
 
-    hermes_host["enabled"] = True
-    hermes_host.setdefault("saveMessages", True)
+    vector_host["enabled"] = True
+    vector_host.setdefault("saveMessages", True)
 
     _write_config(cfg)
     print(f"\n  Config written to {write_path}")
@@ -541,9 +541,9 @@ def cmd_setup(args) -> None:
     # --- Auto-enable Honcho as memory provider in config.yaml ---
     try:
         from vector_cli.config import load_config, save_config
-        hermes_config = load_config()
-        hermes_config.setdefault("memory", {})["provider"] = "honcho"
-        save_config(hermes_config)
+        vector_config = load_config()
+        vector_config.setdefault("memory", {})["provider"] = "honcho"
+        save_config(vector_config)
         print("  Memory provider set to 'honcho' in config.yaml")
     except Exception as e:
         print(f"  Could not auto-enable in config.yaml: {e}")

@@ -91,7 +91,7 @@ _DEFAULT_EXPORT_EXCLUDE_ROOT = frozenset({
     ".env",                 # API keys (dotenv)
     "auth.lock", "active_profile", ".update_check",
     "errors.log",
-    ".hermes_history",
+    ".vector_history",
     # Caches (regenerated on use)
     "image_cache", "audio_cache", "document_cache",
     "browser_screenshots", "checkpoints",
@@ -138,8 +138,8 @@ def _get_default_vector_home() -> Path:
     In Docker/custom deployments where VECTOR_HOME is outside ``~/.vectorcode``
     (e.g. ``/opt/data``), returns VECTOR_HOME directly.
     """
-    from vector_constants import get_default_hermes_root
-    return get_default_hermes_root()
+    from vector_constants import get_default_vector_root
+    return get_default_vector_root()
 
 
 def _get_active_profile_path() -> Path:
@@ -930,7 +930,7 @@ def import_profile(archive_path: str, name: Optional[str] = None) -> Path:
     profiles_root = _get_profiles_root()
     profiles_root.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="hermes_profile_import_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="vector_profile_import_") as tmpdir:
         staging_root = Path(tmpdir)
         _safe_extract_profile_archive(archive, staging_root)
 
@@ -1013,7 +1013,7 @@ def generate_bash_completion() -> str:
     return '''# VectorCode profile completion
 # Add to ~/.bashrc: eval "$(vector completion bash)"
 
-_hermes_profiles() {
+_vector_profiles() {
     local profiles_dir="$HOME/.vectorcode/profiles"
     local profiles="default"
     if [ -d "$profiles_dir" ]; then
@@ -1022,14 +1022,14 @@ _hermes_profiles() {
     echo "$profiles"
 }
 
-_hermes_completion() {
+_vector_completion() {
     local cur prev
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Complete profile names after -p / --profile
     if [[ "$prev" == "-p" || "$prev" == "--profile" ]]; then
-        COMPREPLY=($(compgen -W "$(_hermes_profiles)" -- "$cur"))
+        COMPREPLY=($(compgen -W "$(_vector_profiles)" -- "$cur"))
         return
     fi
 
@@ -1041,7 +1041,7 @@ _hermes_completion() {
                 return
                 ;;
             use|delete|show|alias|rename|export)
-                COMPREPLY=($(compgen -W "$(_hermes_profiles)" -- "$cur"))
+                COMPREPLY=($(compgen -W "$(_vector_profiles)" -- "$cur"))
                 return
                 ;;
         esac
@@ -1054,7 +1054,7 @@ _hermes_completion() {
     fi
 }
 
-complete -F _hermes_completion vector
+complete -F _vector_completion vector
 '''
 
 
@@ -1064,7 +1064,7 @@ def generate_zsh_completion() -> str:
 # VectorCode profile completion
 # Add to ~/.zshrc: eval "$(vector completion zsh)"
 
-_hermes() {
+_vector() {
     local -a profiles
     profiles=(default)
     if [[ -d "$HOME/.vectorcode/profiles" ]]; then
@@ -1085,7 +1085,7 @@ _hermes() {
     esac
 }
 
-_hermes "$@"
+_vector "$@"
 '''
 
 

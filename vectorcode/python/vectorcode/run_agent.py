@@ -4675,8 +4675,8 @@ class AIAgent:
             if context_files_prompt:
                 prompt_parts.append(context_files_prompt)
 
-        from vector_time import now as _hermes_now
-        now = _hermes_now()
+        from vector_time import now as _vector_now
+        now = _vector_now()
         timestamp_line = f"Conversation started: {now.strftime('%A, %B %d, %Y %I:%M %p')}"
         if self.pass_session_id and self.session_id:
             timestamp_line += f"\nSession ID: {self.session_id}"
@@ -7634,7 +7634,7 @@ class AIAgent:
                     "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/bmp": ".bmp",
                 }.get(mime, ".jpg")
                 tmp = tempfile.NamedTemporaryFile(
-                    prefix="hermes_shrink_", suffix=suffix, delete=False,
+                    prefix="vector_shrink_", suffix=suffix, delete=False,
                 )
                 try:
                     tmp.write(raw)

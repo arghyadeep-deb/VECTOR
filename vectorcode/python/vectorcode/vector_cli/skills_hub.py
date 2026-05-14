@@ -1234,7 +1234,7 @@ def do_snapshot_export(output_path: str, console: Optional[Console] = None) -> N
     tap_list = taps.list_taps()
 
     snapshot = {
-        "hermes_version": "0.1.0",
+        "vector_version": "0.1.0",
         "exported_at": __import__("datetime").datetime.now(
             __import__("datetime").timezone.utc
         ).isoformat(),

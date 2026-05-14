@@ -4,7 +4,7 @@ VectorCode seeds its credential pool from many places:
 
     env:<VAR>     — os.environ / ~/.vectorcode/.env
     claude_code   — ~/.claude/.credentials.json
-    hermes_pkce   — ~/.vectorcode/.anthropic_oauth.json
+    vector_pkce   — ~/.vectorcode/.anthropic_oauth.json
     device_code   — auth.json providers.<provider> (nous, openai-codex, ...)
     qwen-cli      — ~/.qwen/oauth_creds.json
     gh_cli        — gh auth token
@@ -21,7 +21,7 @@ unify here is **removal**:
 Before this module, every source had an ad-hoc removal branch in
 ``auth_remove_command``, and several sources had no branch at all — so
 ``auth remove`` silently reverted on the next ``load_pool()`` call for
-qwen-cli, nous device_code (partial), hermes_pkce, copilot gh_cli, and
+qwen-cli, nous device_code (partial), vector_pkce, copilot gh_cli, and
 custom-config sources.
 
 Now every source registers a ``RemovalStep`` that does exactly three things
@@ -205,7 +205,7 @@ def _remove_claude_code(provider: str, removed) -> RemovalResult:
     ])
 
 
-def _remove_hermes_pkce(provider: str, removed) -> RemovalResult:
+def _remove_vector_pkce(provider: str, removed) -> RemovalResult:
     """~/.vectorcode/.anthropic_oauth.json is ours — delete it outright."""
     from vector_constants import get_vector_home
 
@@ -370,8 +370,8 @@ def _register_all_sources() -> None:
         description="~/.claude/.credentials.json",
     ))
     register(RemovalStep(
-        provider="anthropic", source_id="hermes_pkce",
-        remove_fn=_remove_hermes_pkce,
+        provider="anthropic", source_id="vector_pkce",
+        remove_fn=_remove_vector_pkce,
         description="~/.vectorcode/.anthropic_oauth.json",
     ))
     register(RemovalStep(
