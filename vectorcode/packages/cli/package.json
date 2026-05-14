@@ -5,7 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "vector-tui": "./dist/index.js"
+    "vector-tui": "./dist/index.js",
+    "vector-hud": "./dist/hud.js"
   },
   "scripts": {
     "build": "tsc",
