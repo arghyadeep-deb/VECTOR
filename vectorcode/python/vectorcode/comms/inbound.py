@@ -1,7 +1,7 @@
 """
 InboundMessageRouter — routes incoming messages from all platforms to VectorCode.
 
-Absorbed from Hermes v2 inbound routing layer + extended for VectorCode:
+Absorbed from reference v2 inbound routing layer + extended for VectorCode:
   - Platform-neutral InboundMessage schema
   - Routes by platform, command prefix, or keyword
   - Conversation threading via correlation_id
@@ -310,6 +310,7 @@ if __name__ == "__main__":
 
     print(f"inbound.py OK — {stats['received']} received, {stats['handled']} handled, "
           f"{stats['rejected_rate']} rate-limited, {stats['rejected_dedup']} deduped")
+
 
 
 

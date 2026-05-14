@@ -1,4 +1,4 @@
-"""VectorCode home directory constants — ported from Hermes hermes_constants.py.
+"""VectorCode home directory constants — VectorCode implementation.
 
 Import-safe: no heavy dependencies. All other VectorCode modules that need
 canonical paths should import from here instead of hardcoding ~/.vector.
@@ -85,3 +85,4 @@ if __name__ == "__main__":
     assert VECTOR_MEMORY_PATH == mem
 
     print("vector_constants.py OK")
+

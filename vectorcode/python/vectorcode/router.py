@@ -1,12 +1,12 @@
 """
-GNNRouter — complete Ruflo NeuralDomainMapper absorption.
+GNNRouter — complete reference NeuralDomainMapper absorption.
 
 Architecture (3 layers):
   Layer 1 — GNNRouter  : feature-vector cosine-similarity routing (true GNN concept)
   Layer 2 — NeuralRouter: learned keyword weight matrix (EMA)
   Layer 3 — SemanticRouter: static regex fallback (always works)
 
-Ruflo reference: v2/src/neural/NeuralDomainMapper.ts
+reference reference: v2/src/neural/NeuralDomainMapper.ts
   DomainNode  → DomainNode (feature_vector, activation, task_count)
   DomainEdge  → DomainEdge (weight, frequency, latency, reliability, bandwidth)
   cohesion    → domain_cohesion()
@@ -80,11 +80,11 @@ _WEIGHTS_FILE  = Path.home() / ".vector" / "router_weights.json"
 _GNN_FILE      = Path.home() / ".vector" / "router_gnn.json"
 
 
-# ── GNN data structures (Ruflo DomainNode / DomainEdge) ──────────────────────
+# ── GNN data structures (reference DomainNode / DomainEdge) ──────────────────────
 
 @dataclass
 class DomainNode:
-    """Ruflo NeuralDomainMapper.DomainNode — feature vector per model domain."""
+    """NeuralDomainMapper.DomainNode — feature vector per model domain."""
     name:        str
     feature_vec: list    = field(default_factory=list)   # averaged embedding
     activation:  float   = 0.5
@@ -98,7 +98,7 @@ class DomainNode:
 
 @dataclass
 class DomainEdge:
-    """Ruflo NeuralDomainMapper.DomainEdge — cross-domain relationship."""
+    """NeuralDomainMapper.DomainEdge — cross-domain relationship."""
     source:      str
     target:      str
     weight:      float = 0.0
@@ -238,7 +238,7 @@ class NeuralRouter(SemanticRouter):
 class GNNRouter(NeuralRouter):
     """
     Layer 1 — true GNN-style routing with feature vectors and domain graph.
-    Complete absorption of Ruflo NeuralDomainMapper.ts.
+    Complete absorption of NeuralDomainMapper.ts.
 
     Routing priority:
       1. Cosine similarity against DomainNode feature vectors (when embeddings available)
@@ -383,10 +383,10 @@ class GNNRouter(NeuralRouter):
 
         self._save_gnn()
 
-    # ── Ruflo NeuralDomainMapper API ───────────────────────────────────────────
+    # ── reference NeuralDomainMapper API ───────────────────────────────────────────
 
     def domain_cohesion(self, model: str) -> float:
-        """Ruflo: DomainNode cohesion score — how strongly a model owns its domain."""
+        """Reference: DomainNode cohesion score — how strongly a model owns its domain."""
         node = self._nodes.get(model)
         base = super().domain_cohesion(model)  # keyword weight cohesion
         if node and node.task_count > 0:
@@ -395,7 +395,7 @@ class GNNRouter(NeuralRouter):
         return base
 
     def get_cross_domain_dependencies(self) -> list[dict]:
-        """Ruflo: identify cross-domain dependencies (which domains flow into which)."""
+        """Reference: identify cross-domain dependencies (which domains flow into which)."""
         deps = []
         for (src, tgt), edge in self._edges.items():
             if edge.frequency > 0:
@@ -411,7 +411,7 @@ class GNNRouter(NeuralRouter):
 
     def optimize_boundaries(self) -> dict[str, str]:
         """
-        Ruflo: predictive boundary optimization.
+        reference: predictive boundary optimization.
         Suggests tasks that should be re-routed based on cross-domain flow patterns.
         Returns {task_keyword: suggested_model}.
         """
@@ -472,6 +472,8 @@ if __name__ == "__main__":
     assert isinstance(opts, dict)
 
     print(f"router.py (GNNRouter) OK — nodes={len(r._nodes)}, edges={len(r._edges)}")
+
+
 
 
 

@@ -126,6 +126,24 @@ class ArchitectBot(AgentBase):
             self.deduct_points(10, "scan_error")
             return {"files": 0, "lines": 0, "classes": 0, "functions": 0, "issues": [str(e)]}
 
+    def scan_codebase_with_graph(self, root: str = ".") -> dict:
+        """
+        Enhanced scan using code-review-graph for blast-radius analysis
+        and large function detection. Falls back to basic scan if CRG not installed.
+        """
+        basic = self.scan_codebase(root)
+        try:
+            from integrations.code_review_graph import build_graph, find_large_functions
+            graph_result = build_graph(root)
+            large_fns = find_large_functions(root, min_lines=50)
+            basic["graph_built"] = graph_result.get("status") == "ok"
+            basic["large_functions"] = large_fns[:10]  # top 10
+            if large_fns:
+                basic["issues"].append(f"{len(large_fns)} functions exceed 50 lines — refactor candidates")
+        except Exception as e:
+            logger.warning(f"[VECTOR][architect_bot] CRG scan failed: {e}")
+        return basic
+
     async def explain_module(self, file_path: str) -> str:
         """
         RULE 1: session_hydration_prompt() first.
@@ -175,6 +193,17 @@ class ArchitectBot(AgentBase):
             logger.error(f"[VECTOR][architect_bot] explain_module error: {e}")
             self.deduct_points(10, "explain_failed")
             return f"Error explaining module: {e}"
+
+
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        root = p.get("root", ".")
+        use_graph = p.get("use_graph", True)
+        if use_graph:
+            result = self.scan_codebase_with_graph(root)
+        else:
+            result = self.scan_codebase(root)
+        return {"status": "ok", **result}
 
 
 if __name__ == "__main__":

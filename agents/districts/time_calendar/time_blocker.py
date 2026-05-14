@@ -149,6 +149,12 @@ class TimeBlocker(AgentBase):
         return list(self._queue)
 
 
+    async def run(self, task: dict) -> dict:
+        ctx = self.get_time_context()
+        snapshot = self.get_queue_snapshot()
+        return {"status": "ok", "time_context": ctx, "queue": snapshot}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

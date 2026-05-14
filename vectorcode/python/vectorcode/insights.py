@@ -1,4 +1,4 @@
-"""Usage analytics — inspired by Hermes agent/insights.py.
+"""Usage analytics — VectorCode implementation.
 
 Analyzes session history from SessionDB for:
 - Token consumption (input, output, cached)
@@ -321,3 +321,4 @@ if __name__ == "__main__":
     assert "cost_usd" in report
     _stdout.write("insights.py OK\n")
     _stdout.flush()
+

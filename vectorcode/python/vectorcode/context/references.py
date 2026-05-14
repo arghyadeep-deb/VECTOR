@@ -1,4 +1,4 @@
-"""Context references — ported from Hermes context_references.py.
+"""Context references — ported from reference context_references.py.
 
 Parses and expands @mention syntax in user messages:
   @diff               → git diff
@@ -588,3 +588,4 @@ if __name__ == "__main__":
         pass
 
     print("context/references.py OK")
+

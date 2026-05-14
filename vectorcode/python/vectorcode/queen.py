@@ -1,7 +1,7 @@
 """
-QueenCoordinator — complete Ruflo Queen.ts absorption + multi-model consensus.
+QueenCoordinator — complete Queen coordinator absorption + multi-model consensus.
 
-Absorbed from Ruflo v2/src/hive-mind/core/Queen.ts:
+Absorbed from reference v2/src/hive-mind/core/Queen.ts:
   - startCoordinationLoop()  — continuous swarm monitoring + stall detection
   - startOptimizationLoop()  — latency + reward optimization
   - ConsensusProposal        — formal multi-model voting before RED-gate actions
@@ -99,7 +99,7 @@ class ConsensusProposal:
 
 @dataclass
 class QueenDecision:
-    """Ruflo QueenDecision — typed output from coordination loop."""
+    """reference QueenDecision — typed output from coordination loop."""
     task:        str
     subtasks:    list
     assigned_to: dict   # {agent_id: subtask}
@@ -107,7 +107,7 @@ class QueenDecision:
     created_at:  float  = field(default_factory=time.time)
 
 
-# ── Coordination strategies (pluggable, Ruflo CoordinationStrategy concept) ───
+# ── Coordination strategies (pluggable, reference CoordinationStrategy concept) ───
 
 class CoordinationStrategy:
     name: str = "base"
@@ -163,7 +163,7 @@ _STRATEGIES = {
 class QueenCoordinator:
     """
     Queen coordinator with continuous loops and multi-model consensus.
-    Complete absorption of Ruflo Queen.ts.
+    Complete absorption of Queen coordinator.
     """
 
     CAPABILITIES = [
@@ -214,7 +214,7 @@ class QueenCoordinator:
     def plan(self, task: str, swarm: "SwarmCoordinator") -> QueenDecision:
         """
         Full plan: decompose → select agents → assign subtasks.
-        Returns a QueenDecision (Ruflo typed decision output).
+        Returns a QueenDecision (reference typed decision output).
         """
         subtasks  = self.decompose(task)
         agents    = self._strategy.select_agents(swarm.list_agents(), task)
@@ -231,7 +231,7 @@ class QueenCoordinator:
         self._strategy = _STRATEGIES.get(strategy_name, HierarchicalStrategy())
         logger.info(f"[VECTOR][queen] strategy → {self._strategy.name}")
 
-    # ── Coordination loop (Ruflo startCoordinationLoop) ──────────────────────
+    # ── Coordination loop (reference startCoordinationLoop) ──────────────────────
 
     async def start_coordination_loop(self, swarm: "SwarmCoordinator") -> None:
         self._loop_running = True
@@ -267,7 +267,7 @@ class QueenCoordinator:
         })
         self._performance_log = self._performance_log[-100:]
 
-    # ── Optimization loop (Ruflo startOptimizationLoop) ──────────────────────
+    # ── Optimization loop (reference startOptimizationLoop) ──────────────────────
 
     async def start_optimization_loop(self, swarm: "SwarmCoordinator") -> None:
         self._optim_running = True
@@ -298,12 +298,12 @@ class QueenCoordinator:
         self._optim_running = False
         logger.info("[VECTOR][queen] loops stopped")
 
-    # ── Multi-model consensus (Ruflo ConsensusProposal + QueenDecision) ───────
+    # ── Multi-model consensus (reference ConsensusProposal + QueenDecision) ───────
 
     def build_consensus(self, action: str, context: str = "", gate_level: str = "RED") -> ConsensusProposal:
         """
         Poll 3 model voters and aggregate by weighted majority.
-        Ruflo: Queen collects ConsensusProposal votes from all council agents.
+        reference: Queen collects ConsensusProposal votes from all council agents.
         VectorCode: 3 local Ollama models act as voters (RULE 11 compliant).
         """
         proposal = ConsensusProposal(action=action, context=context, gate_level=gate_level)
@@ -363,7 +363,7 @@ class QueenCoordinator:
             and proposal.confidence >= self._CONFIDENCE_MIN
         )
 
-    # ── Capability declarations (Ruflo agent capability declarations) ─────────
+    # ── Capability declarations (reference agent capability declarations) ─────────
 
     def get_capabilities(self) -> list[str]:
         return list(self.CAPABILITIES)
@@ -414,6 +414,7 @@ if __name__ == "__main__":
     assert q._strategy.name == "mesh"
 
     print(f"queen.py OK — {len(result)} subtasks, {len(voters)} voters, strategy={q._strategy.name}")
+
 
 
 

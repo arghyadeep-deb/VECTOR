@@ -1,4 +1,4 @@
-"""MemoryProvider ABC + VectorBuiltinMemoryProvider — ported from Hermes memory_provider.py.
+"""MemoryProvider ABC + VectorBuiltinMemoryProvider — ported from reference memory_provider.py.
 
 MemoryProvider: abstract base class for all pluggable memory backends.
 VectorBuiltinMemoryProvider: always-on provider that reads/writes ~/.vector/memory.md.
@@ -360,3 +360,4 @@ if __name__ == "__main__":
         assert provider.get_tool_schemas() == []
 
     print("memory/provider.py OK")
+

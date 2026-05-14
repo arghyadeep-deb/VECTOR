@@ -390,6 +390,12 @@ class TechnicalBot(AgentBase):
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.get_price_data(p.get("symbol", "RELIANCE"))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

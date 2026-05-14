@@ -45,7 +45,21 @@ _rate_limit_lock = threading.Lock()
 _rate_limit_data: dict[str, list[float]] = defaultdict(list)
 
 # Public paths (no auth required)
-_PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc"}
+_PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc",
+                 "/csrf-token"}  # CSRF token endpoint is public
+
+# Allowed origins — localhost only (no external origins)
+_ALLOWED_ORIGINS = {
+    "https://localhost:8000",
+    "https://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+}
+
+# CSRF token store (in-memory, per-session)
+_csrf_tokens: dict[str, float] = {}
+_csrf_lock = threading.Lock()
+_CSRF_TOKEN_TTL = 3600  # 1 hour
 
 # Security headers
 _SECURITY_HEADERS = {
@@ -161,7 +175,7 @@ async def logging_middleware(request: Request, call_next):
     log_level = (
         "ERROR"
         if response.status_code >= 500
-        else "WARN" if response.status_code >= 400 else "INFO"
+        else         "WARNING" if response.status_code >= 400 else "INFO"
     )
     logger.log(
         log_level,
@@ -217,16 +231,77 @@ async def error_handling_middleware(request: Request, call_next):
 async def security_headers_middleware(request: Request, call_next):
     """Add security headers to all responses."""
     response = await call_next(request)
-    
-    # Add security headers
+
     for header, value in _SECURITY_HEADERS.items():
         response.headers[header] = value
-    
-    # Add version info (safe to expose)
+
+    # Strict CSP — only allow same-origin, no inline scripts from external sources
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "  # unsafe-inline needed for React
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "connect-src 'self' wss://localhost:8000 ws://localhost:8000; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none';"
+    )
+
     from core.config import CONFIG
     response.headers["X-System-Version"] = CONFIG.get("version", "unknown")
-    
+
     return response
+
+
+def generate_csrf_token() -> str:
+    """Generate a new CSRF token and store it."""
+    token = uuid.uuid4().hex + uuid.uuid4().hex  # 64-char hex
+    with _csrf_lock:
+        # Clean expired tokens
+        now = time.time()
+        expired = [k for k, v in _csrf_tokens.items() if now - v > _CSRF_TOKEN_TTL]
+        for k in expired:
+            del _csrf_tokens[k]
+        _csrf_tokens[token] = now
+    return token
+
+
+def validate_csrf_token(token: str) -> bool:
+    """Validate a CSRF token. Returns True if valid."""
+    if not token:
+        return False
+    with _csrf_lock:
+        issued_at = _csrf_tokens.get(token)
+        if issued_at is None:
+            return False
+        if time.time() - issued_at > _CSRF_TOKEN_TTL:
+            del _csrf_tokens[token]
+            return False
+    return True
+
+
+async def csrf_middleware(request: Request, call_next):
+    """
+    Validate CSRF token on state-changing requests (POST/PUT/DELETE/PATCH).
+    GET requests are safe and don't need CSRF protection.
+    The dashboard fetches a token from /csrf-token and includes it as X-CSRF-Token header.
+    """
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        # Skip CSRF for API key authenticated requests (non-browser clients)
+        if _API_KEY_ENABLED and request.headers.get("Authorization", "").startswith("Bearer "):
+            return await call_next(request)
+
+        # Skip CSRF for WebSocket upgrades
+        if request.headers.get("upgrade", "").lower() == "websocket":
+            return await call_next(request)
+
+        csrf_token = request.headers.get("X-CSRF-Token", "")
+        if not validate_csrf_token(csrf_token):
+            return JSONResponse(
+                status_code=403,
+                content={"error": "Invalid or missing CSRF token", "detail": "Include X-CSRF-Token header"},
+            )
+
+    return await call_next(request)
 
 
 if __name__ == "__main__":

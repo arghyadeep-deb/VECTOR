@@ -371,6 +371,15 @@ Return pytest code only, no explanations.
             return {"passed": False, "error": str(e)}
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("file"):
+            out = self.write_tests_for_file(p["file"])
+            return {"status": "ok", "output": str(out)}
+        modules = self.scan_for_untested_modules()
+        return {"status": "ok", "untested": modules, "count": len(modules)}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

@@ -402,6 +402,15 @@ OVERALL ASSESSMENT: [score 1-10]
         }
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("file"):
+            result = self.scan_file(p["file"])
+            return {"status": "ok", **result}
+        result = self.report_bugs()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

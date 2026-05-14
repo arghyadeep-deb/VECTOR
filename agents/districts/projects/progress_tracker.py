@@ -153,6 +153,10 @@ class ProgressTracker(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        ok = await self.weekly_report()
+        return {"status": "ok" if ok else "error"}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][progress_tracker] run_forever — weekly report Sunday 10:00")
         while self.is_alive:

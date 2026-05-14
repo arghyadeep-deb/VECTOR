@@ -133,6 +133,12 @@ class AgentBase:
             'last_active': self.last_active,
         }
 
+    async def run(self, task: dict) -> dict:
+        """Standard dispatch interface. Governor calls this.
+        Subclasses override to handle task['type'] and task['params']."""
+        self.last_active = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return {"status": "ok", "agent": self.name, "task": task.get("type", "?"), "note": "base handler"}
+
     @property
     def is_alive(self):
         return self.health_points > 0

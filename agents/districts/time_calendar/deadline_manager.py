@@ -205,6 +205,13 @@ class DeadlineManager(AgentBase):
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        events = self.get_upcoming_events(p.get("hours", 24))
+        ctx = self.get_schedule_context()
+        return {"status": "ok", "events": events, "context": ctx}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

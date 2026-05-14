@@ -281,6 +281,14 @@ class CodeReviewer(AgentBase):
                 self.award_points(15, f"llm_review_success_{fpath.name}")
                 logger.info(f"[VECTOR][code_reviewer] LLM review complete for {fpath.name}: "
                             f"{len(result.get('issues', []))} issues")
+                # Enrich with code-review-graph blast radius
+                try:
+                    from integrations.code_review_graph import review_changes
+                    crg = review_changes([str(fpath)])
+                    if crg.get("status") in ("ok", "partial"):
+                        result["blast_radius"] = crg
+                except Exception:
+                    pass
                 return result
             else:
                 logger.warning(f"[VECTOR][code_reviewer] LLM response not parseable as JSON: {raw[:200]}")
@@ -290,6 +298,15 @@ class CodeReviewer(AgentBase):
             logger.error(f"[VECTOR][code_reviewer] review_with_llm error: {e}")
             self.deduct_points(10, "llm_review_failed")
             return {"error": str(e)}
+
+
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        file_path = p.get("file", p.get("path", ""))
+        if file_path:
+            result = await self.review_with_llm(file_path)
+            return {"status": "ok", **result}
+        return {"status": "ok", "note": "no file specified"}
 
 
 if __name__ == "__main__":

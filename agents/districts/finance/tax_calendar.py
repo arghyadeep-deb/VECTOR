@@ -141,6 +141,10 @@ class TaxCalendar(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        deadlines = self.get_upcoming_deadlines()
+        return {"status": "ok", "deadlines": deadlines, "count": len(deadlines)}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][tax_calendar] run_forever — daily check at 09:00")
         while self.is_alive:

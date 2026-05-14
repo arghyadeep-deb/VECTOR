@@ -336,6 +336,15 @@ class PerformanceTracker(AgentBase):
         return cutoff.isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("metric") and p.get("value") is not None:
+            result = self.track_metric(p["metric"], float(p["value"]))
+            return {"status": "ok", **result}
+        trend = self.get_trend(p.get("metric", "engagement"))
+        return {"status": "ok", **trend}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

@@ -56,10 +56,17 @@ class PermissionConfig(BaseModel):
         "read_calendar", "play_music", "set_timer", "search_web",
         "take_screenshot", "check_weather", "check_attendance",
         "progress_goal", "kickstart_goal",
+        # concrete action types from think→act pipeline
+        "git_status", "check_git", "recent_commits", "git_log",
+        "daily_digest", "search_arxiv", "get_hn", "hackernews",
+        "check_fatigue", "consolidate", "daily_review", "reflect",
+        "deadline_check", "progress",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
         "download_file", "set_reminder", "write_note_personal",
+        "monthly_report", "finance_report", "journal", "weekly_journal",
+        "create_project", "add_deadline", "log_exercise",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",

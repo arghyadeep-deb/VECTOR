@@ -1,4 +1,4 @@
-"""Shell hooks runner — absorbed from Hermes agent/shell_hooks.py.
+"""Shell hooks runner — absorbed from reference agent/shell_hooks.py.
 
 Reads hooks from vector.toml [hooks] config, executes shell scripts with:
 - JSON stdin protocol (event_name, tool_name, tool_input, session_id, cwd)
@@ -214,7 +214,7 @@ class ShellHookRunner:
         except json.JSONDecodeError:
             return HookResult(stdout=stdout, exit_code=proc.returncode)
 
-        # Block decision (both Claude Code style and Hermes canonical)
+        # Block decision (both Claude Code style and canonical)
         decision = resp.get("decision") or resp.get("action", "")
         if decision == "block":
             reason = resp.get("reason") or resp.get("message", "Blocked by hook")
@@ -254,3 +254,5 @@ if __name__ == "__main__":
     assert not _is_approved("other_event", "echo test")
 
     print("shell_hooks.py OK")
+
+

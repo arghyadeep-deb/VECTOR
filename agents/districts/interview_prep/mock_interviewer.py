@@ -339,6 +339,12 @@ Be honest, constructive, and specific.
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        q = self.generate_question(p.get("topic", "machine learning"), p.get("difficulty", "medium"))
+        return {"status": "ok", "question": q}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

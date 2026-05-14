@@ -110,6 +110,14 @@ class DeadlineWatcher(AgentBase):
 
         return fired
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if task.get("type") == "add_deadline":
+            self.add_deadline(p.get("name", ""), p.get("date", ""), p.get("project_id", ""), p.get("urgency", "medium"))
+            return {"status": "ok"}
+        alerts = await self.check()
+        return {"status": "ok", "alerts": alerts, "count": len(alerts)}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][deadline_watcher] run_forever — checking every hour")
         while self.is_alive:

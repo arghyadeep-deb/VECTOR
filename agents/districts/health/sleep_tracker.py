@@ -166,6 +166,10 @@ class SleepTracker(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        ok = await self.track()
+        return {"status": "ok" if ok else "error", "agent": self.name}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][sleep_tracker] run_forever — daily at 08:00")
         while self.is_alive:

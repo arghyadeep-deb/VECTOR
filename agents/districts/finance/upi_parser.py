@@ -150,6 +150,18 @@ class UPIParser(AgentBase):
             logger.warning(f"[VECTOR][upi_parser] fetch failed: {e}")
             return []
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        sms = p.get("sms", "")
+        if sms:
+            result = parse_sms(sms)
+            if result:
+                self.ingest_sms(sms)
+                return {"status": "ok", "transaction": result}
+            return {"status": "not_financial"}
+        txns = self.get_recent_transactions(p.get("days", 30))
+        return {"status": "ok", "transactions": txns, "count": len(txns)}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][upi_parser] run_forever — waiting for SMS ingestion calls")
         while self.is_alive:

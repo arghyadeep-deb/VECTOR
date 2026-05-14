@@ -178,6 +178,11 @@ Include: 1) Competitive landscape overview, 2) Each competitor summary with thre
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        result = self.generate_competitive_report()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = CompetitorSpy()

@@ -46,23 +46,37 @@ def create_app() -> FastAPI:
     app.state.agent_registry = None
     app.state.episodic_memory = None
 
-    # CORS middleware
+    # CORS middleware — localhost only
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=CONFIG.get("allowed_origins", ["*"]),
+        allow_origins=list(CONFIG.get("allowed_origins", [
+            "https://localhost:8000", "https://127.0.0.1:8000",
+            "http://localhost:8000", "http://127.0.0.1:8000",
+        ])),
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
 
     # Custom middleware (order matters: last added = first executed on the way in)
-    # Executed on request: security_headers → rate_limiting → auth → logging → timing → error
+    from core.api.middleware import (
+        logging_middleware, timing_middleware, error_handling_middleware,
+        auth_middleware, rate_limiting_middleware, security_headers_middleware,
+        csrf_middleware,
+    )
     app.middleware("http")(error_handling_middleware)
     app.middleware("http")(rate_limiting_middleware)
+    app.middleware("http")(csrf_middleware)
     app.middleware("http")(auth_middleware)
     app.middleware("http")(logging_middleware)
     app.middleware("http")(timing_middleware)
     app.middleware("http")(security_headers_middleware)
+
+    # CSRF token endpoint — dashboard fetches this on load
+    @app.get("/csrf-token", tags=["security"])
+    async def csrf_token_endpoint():
+        from core.api.middleware import generate_csrf_token
+        return {"csrf_token": generate_csrf_token()}
 
     # Startup event
     @app.on_event("startup")
@@ -175,6 +189,8 @@ def create_app() -> FastAPI:
             logger.info(f"[VECTOR][api] HUD assets mounted from {dashboard_dist / 'assets'}")
 
             @app.get("/", include_in_schema=False)
+            @app.get("/dashboard", include_in_schema=False)
+            @app.get("/dashboard/", include_in_schema=False)
             async def hud_dashboard():
                 return HTMLResponse(
                     (dashboard_dist / "index.html").read_text(encoding="utf-8")

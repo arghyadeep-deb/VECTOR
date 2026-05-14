@@ -183,6 +183,12 @@ Include: 1) Relationship strength (1-10), 2) Trust level, 3) Communication healt
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.generate_relationship_insights(p.get("contact", ""))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = CommunicationAnalyst()

@@ -220,6 +220,81 @@ def _build_response_text(gw_result, winner, original_text: str) -> str:
     return f"Processed: {winner.action_type}"
 
 
+@router.post("/feedback")
+async def feedback_endpoint(
+    body: dict,
+    episodic_mem=Depends(get_episodic_memory),
+):
+    """
+    RULE 7 — Real user feedback wired to RL policy.
+    Call this after any action to give VECTOR real outcome signal.
+
+    Body: {
+        "action_type": "commit_code",
+        "situation_hash": "abc123",   # optional — uses action_type if missing
+        "rating": 1-5,                # 1=bad, 3=ok, 5=great
+        "note": "optional text"       # what was good/bad
+    }
+    """
+    action_type = body.get("action_type", "")
+    rating = int(body.get("rating", 3))
+    note = body.get("note", "")
+
+    if not action_type:
+        raise HTTPException(status_code=400, detail="action_type required")
+    if not 1 <= rating <= 5:
+        raise HTTPException(status_code=400, detail="rating must be 1-5")
+
+    # Convert 1-5 rating to 0.0-1.0 reward
+    # 5=1.0, 4=0.8, 3=0.6, 2=0.3, 1=0.0
+    reward_map = {5: 1.0, 4: 0.8, 3: 0.6, 2: 0.3, 1: 0.0}
+    reward = reward_map[rating]
+
+    situation_hash = body.get("situation_hash") or _make_situation_hash({"action": action_type})
+
+    # Update RL policy with real user feedback (RULE 7)
+    update_policy(action_type, situation_hash, reward)
+
+    # Store feedback as episodic memory so VECTOR learns from it
+    episodic_mem.store(
+        event_type="user_feedback",
+        content=f"feedback: {action_type} rating={rating}/5 reward={reward:.2f} note={note[:80]}",
+        tags=["feedback", "rl", action_type],
+        context={"action_type": action_type, "rating": rating, "reward": reward, "note": note},
+        source="user_feedback",
+    )
+
+    # If rating is very low, add a lesson to the responsible agent
+    if rating <= 2:
+        try:
+            from core.city.agent_registry import get_registry
+            from core.city.governor import Governor
+            district = Governor().route_task(action_type)
+            agents = get_registry().get_by_district(district)
+            if agents:
+                agent = max(agents, key=lambda a: a.health_points)
+                agent.deduct_points(15, f"user_feedback_poor: {action_type} rating={rating}")
+                agent.add_lesson(f"User rated {action_type} {rating}/5: {note[:60]}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][feedback] HP deduct failed: {e}")
+
+    # If rating is high, reward the agent
+    elif rating >= 4:
+        try:
+            from core.city.agent_registry import get_registry
+            from core.city.governor import Governor
+            district = Governor().route_task(action_type)
+            agents = get_registry().get_by_district(district)
+            if agents:
+                agent = max(agents, key=lambda a: a.health_points)
+                agent.award_points(30, f"user_feedback_good: {action_type} rating={rating}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][feedback] HP award failed: {e}")
+
+    logger.info(f"[VECTOR][feedback] {action_type} rating={rating}/5 reward={reward:.2f}")
+    return {"status": "ok", "action_type": action_type, "reward": reward, "rating": rating}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print("OK")

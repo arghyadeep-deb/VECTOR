@@ -160,6 +160,14 @@ class JournalWriter(AgentBase):
             self.deduct_points(10, "weekly write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        t = task.get("type", "")
+        if t == "weekly_journal":
+            ok = await self.write_weekly()
+        else:
+            ok = await self.write_daily()
+        return {"status": "ok" if ok else "error"}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][journal_writer] run_forever — daily 22:30, weekly Sunday 23:00")
         while self.is_alive:

@@ -270,6 +270,18 @@ class ComfyUIAdapter(AgentBase):
         raise TimeoutError(f"ComfyUI did not complete prompt {prompt_id} in {self._timeout}s")
 
 
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        p = task.get("params", {})
+        prompt = p.get("prompt", p.get("text", "a beautiful landscape"))
+        return await self.generate(
+            prompt=prompt,
+            width=p.get("width", 512),
+            height=p.get("height", 512),
+            steps=p.get("steps", 20),
+        )
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

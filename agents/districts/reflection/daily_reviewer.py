@@ -145,6 +145,11 @@ class DailyReviewer(AgentBase):
             self.deduct_points(10, "vault write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        ok = await self.review()
+        return {"status": "ok" if ok else "error", "agent": self.name}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][daily_reviewer] run_forever — fires at 02:00")
         while self.is_alive:

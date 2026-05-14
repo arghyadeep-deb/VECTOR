@@ -179,6 +179,13 @@ class NoteOrganizer(AgentBase):
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        if hasattr(self, "organise"):
+            result = self.organise()
+            return {"status": "ok", "result": result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = NoteOrganizer()

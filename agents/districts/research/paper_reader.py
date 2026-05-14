@@ -173,6 +173,14 @@ class PaperReader(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("query"):
+            results = await self.search_papers(p["query"])
+            return {"status": "ok", "papers": results}
+        results = await self.fetch_recent_papers()
+        return {"status": "ok", "papers": results}
+
     async def run_forever(self) -> None:
         """Daily brief at 07:00. RULE 2 — never crashes."""
         logger.info("[VECTOR][paper_reader] run_forever started — daily at 07:00")

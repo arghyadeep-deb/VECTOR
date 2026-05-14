@@ -176,6 +176,12 @@ Return JSON: {{gaps: [{{type, description, severity: high/medium/low, opportunit
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.scan_market(p.get("niche", "AI SaaS"))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = MarketScanner()

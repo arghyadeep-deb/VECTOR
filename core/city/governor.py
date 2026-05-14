@@ -11,6 +11,7 @@ from core.config import CONFIG
 DISTRICT_TASK_MAP: dict[str, str] = {
     "code": "coding",
     "git": "coding",
+    "git_status": "coding",
     "review": "coding",
     "bug": "coding",
     "refactor": "coding",
@@ -20,6 +21,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "deadline": "time_calendar",
     "kiit": "time_calendar",
     "attendance": "time_calendar",
+    "check_attendance": "time_calendar",
     "class": "time_calendar",
     "message": "communications",
     "email": "communications",
@@ -29,6 +31,9 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "search": "research",
     "research": "research",
     "paper": "research",
+    "search_arxiv": "research",
+    "search_web": "research",
+    "daily_digest": "research",
     "news": "research",
     "find": "research",
     "threat": "security",
@@ -45,12 +50,24 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "health": "health",
     "sleep": "health",
     "fatigue": "health",
+    "check_fatigue": "health",
     "finance": "finance",
     "budget": "finance",
     "money": "finance",
+    "monthly_report": "finance",
     "learn": "learning",
     "video": "learning",
     "course": "learning",
+    "daily_review": "reflection",
+    "reflect": "reflection",
+    "journal": "reflection",
+    "project": "projects",
+    "deadline_check": "projects",
+    "progress": "projects",
+    "image": "content",
+    "generate_image": "content",
+    "comfyui": "content",
+    "script": "content",
 }
 
 
@@ -80,14 +97,38 @@ class Governor:
         return self._memory
 
     def route_task(self, task_type: str) -> str:
-        """Determine which district should handle this task type."""
+        """Determine which district should handle this task type.
+        First tries keyword matching (fast, free). Falls back to LLM classification."""
         task_lower = task_type.lower()
         for keyword, district in DISTRICT_TASK_MAP.items():
             if keyword in task_lower:
                 return district
-        logger.warning(
-            f"[VECTOR][governor] unknown task '{task_type}' → defaulting to research"
-        )
+        # LLM fallback for natural language task types
+        return self._llm_classify(task_type)
+
+    def _llm_classify(self, task_type: str) -> str:
+        """Use vector-ambient (fast, local) to classify task into a district."""
+        try:
+            from core.inference.ollama_safe import chat
+            from core.config import CONFIG
+            districts = list(set(DISTRICT_TASK_MAP.values()))
+            prompt = (
+                f"Classify this task into exactly one district name from this list: {districts}\n"
+                f"Task: {task_type}\n"
+                "Reply with only the district name, nothing else."
+            )
+            result = chat(
+                model=CONFIG["models"]["ambient"],
+                messages=[{"role": "user", "content": prompt}],
+                timeout=5.0,
+            ).strip().lower()
+            # Validate the response is a known district
+            if result in districts:
+                logger.info(f"[VECTOR][governor] LLM classified '{task_type}' → {result}")
+                return result
+        except Exception as e:
+            logger.warning(f"[VECTOR][governor] LLM classify failed: {e}")
+        logger.warning(f"[VECTOR][governor] unknown task '{task_type}' → defaulting to research")
         return "research"
 
     async def dispatch(self, task: dict) -> dict:

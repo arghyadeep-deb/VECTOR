@@ -8,7 +8,7 @@ convert_tools are near-identity. The complexity lives in build_kwargs which
 has provider-specific conditionals for max_tokens defaults, reasoning
 configuration, temperature handling, and extra_body assembly.
 
-Ported from NousResearch/hermes-agent agent/transports/chat_completions.py.
+VectorCode implementation.py.
 """
 
 # ── Guard: strip transports/ from sys.path to prevent types.py shadowing stdlib.
@@ -461,3 +461,4 @@ if __name__ == "__main__":
     assert t.validate_response(None) is False
 
     print("chat_completions.py OK")
+

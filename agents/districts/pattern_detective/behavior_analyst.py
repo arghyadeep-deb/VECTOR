@@ -195,6 +195,15 @@ Format: JSON with improvements (list), priority (high/medium/low), expected_impa
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        # behavior_analyst has analyse method based on grep results
+        if hasattr(self, "analyse"):
+            result = self.analyse(p.get("window_hours", 48))
+            return {"status": "ok", "analysis": result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = BehaviorAnalyst()

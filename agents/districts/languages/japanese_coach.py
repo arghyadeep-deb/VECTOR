@@ -121,6 +121,11 @@ class JapaneseCoach(AgentBase):
         return progress
 
 
+
+    async def run(self, task: dict) -> dict:
+        result = self.track_progress()
+        return {"status": "ok", **result}
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     coach = JapaneseCoach()

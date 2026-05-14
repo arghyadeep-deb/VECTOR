@@ -4,6 +4,10 @@ humanlayer>=0.5.0
 markitdown>=0.0.1
 mem0ai>=0.1.0
 rag-anything>=0.1.0
+# ── GitHub repo integrations ──────────────────────────────────────────────────
+airllm>=2.10.0          # AirLLM: layer-wise 70B+ model inference on RTX 5070 Ti
+code-review-graph>=2.1.0  # code-review-graph: graph-based code review + blast-radius
+# ─────────────────────────────────────────────────────────────────────────────
 annotated-types==0.7.0
 anthropic==0.97.0
 anyio==4.13.0

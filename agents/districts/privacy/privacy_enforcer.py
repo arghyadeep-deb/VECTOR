@@ -218,6 +218,11 @@ Return any additional PII found as JSON: {{additional_finds: [{{type, start, end
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        result = self.scan_data_sharing()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = PrivacyEnforcer()

@@ -124,6 +124,13 @@ class ProjectPlanner(AgentBase):
             logger.warning(f"[VECTOR][project_planner] list failed: {e}")
             return []
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if task.get("type") == "create_project":
+            result = self.create_project(p.get("name", ""), p.get("goal", ""), p.get("deadline", ""))
+            return {"status": "ok", **result}
+        return {"status": "ok", "agent": self.name}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][project_planner] run_forever — event-driven (create_project calls)")
         while self.is_alive:

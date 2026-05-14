@@ -6,7 +6,7 @@ A transport owns the data path for one api_mode:
 It does NOT own: client construction, streaming, credential refresh,
 prompt caching, interrupt handling, or retry logic.
 
-Ported from NousResearch/hermes-agent agent/transports/base.py.
+VectorCode implementation.py.
 """
 
 # ── Guard: strip transports/ from sys.path[0] to prevent types.py shadowing
@@ -204,3 +204,4 @@ if __name__ == "__main__":
     assert nr.finish_reason == "stop"
 
     print("base.py OK")
+

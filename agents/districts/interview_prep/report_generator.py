@@ -335,6 +335,11 @@ Make it specific to {company} and the {role} role.
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        result = self.generate_progress_report()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

@@ -192,6 +192,12 @@ Format as JSON: {{next_steps: [{{action, type: practice/project/study, estimated
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.get_mastery_level(p.get("skill", "python"))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = MasteryTracker()

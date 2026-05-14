@@ -200,6 +200,10 @@ class PatternFinder(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        patterns = await self.find_patterns()
+        return {"status": "ok", "patterns": patterns, "count": len(patterns)}
+
     async def run_forever(self) -> None:
         """Pattern analysis every 12h. RULE 2 — never crashes."""
         logger.info("[VECTOR][pattern_finder] run_forever started")

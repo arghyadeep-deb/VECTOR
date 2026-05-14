@@ -111,20 +111,48 @@ class AutonomousLoop:
         if not actions:
             return
 
-        candidates = [
-            Candidate(
-                action_type=a["action"],
-                params={"goal_id": a["goal_id"]},
-                goal_ids=[a["goal_id"]],
-                urgency={"high": 0.9, "medium": 0.5, "low": 0.2}.get(
-                    a.get("urgency", "low"), 0.5
-                ),
-                confidence=0.7,
-                source="think_loop",
-                situation=world_state,
+        # Map goal tags to concrete routable action types
+        _TAG_TO_ACTION = {
+            "kiit": "check_attendance",
+            "attendance": "check_attendance",
+            "git": "git_status",
+            "coding": "git_status",
+            "build": "git_status",
+            "research": "daily_digest",
+            "ml": "search_arxiv",
+            "karpathy": "search_arxiv",
+            "learning": "search_arxiv",
+            "finance": "monthly_report",
+            "health": "check_fatigue",
+            "placement": "search_web",
+            "interview": "search_web",
+            "dsa": "search_web",
+            "memory": "consolidate",
+            "reflection": "daily_review",
+        }
+
+        candidates = []
+        for a in actions:
+            # Derive a concrete action type from goal tags
+            tags = a.get("tags", [])
+            action_type = a["action"]  # default
+            for tag in tags:
+                if tag in _TAG_TO_ACTION:
+                    action_type = _TAG_TO_ACTION[tag]
+                    break
+            candidates.append(
+                Candidate(
+                    action_type=action_type,
+                    params={"goal_id": a["goal_id"], "title": a["title"]},
+                    goal_ids=[a["goal_id"]],
+                    urgency={"high": 0.9, "medium": 0.5, "low": 0.2}.get(
+                        a.get("urgency", "low"), 0.5
+                    ),
+                    confidence=0.7,
+                    source="think_loop",
+                    situation=world_state,
+                )
             )
-            for a in actions
-        ]
 
         decision = await self._get_decision().evaluate(candidates)
         if decision.winner.total_score > 0.3:
@@ -145,16 +173,22 @@ class AutonomousLoop:
                 "source": "autonomous_loop",
             })
 
+            # Check for real user feedback in episodic memory (RULE 7 — real outcomes)
+            user_feedback = self._get_recent_feedback(winner.action_type)
+
             # 5-factor RL reward (Architecture.md spec):
-            # user_feedback(0.40) + goal_progress(0.25) + not_overridden(0.15)
-            # + not_corrected(0.15) + completed(0.05)
             completed = 1.0 if result.get("status") in ("ok", "executed") else 0.0
             goal_progress = float(result.get("goal_progress", 0.5))
             not_overridden = 0.0 if result.get("overridden") else 1.0
             not_corrected = 0.0 if result.get("corrected") else 1.0
-            user_feedback = float(result.get("user_feedback", 0.5))
+            # Use real user feedback if available, else estimate from result
+            if user_feedback is not None:
+                uf = user_feedback
+            else:
+                uf = 0.7 if completed else 0.3
+
             reward = (
-                user_feedback * 0.40
+                uf * 0.40
                 + goal_progress * 0.25
                 + not_overridden * 0.15
                 + not_corrected * 0.15
@@ -177,11 +211,28 @@ class AutonomousLoop:
                 )
 
             logger.info(
-                f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward}"
-                + (f" chain={len(winner.reasoning_chain)} steps" if winner.reasoning_chain else "")
+                f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
+                + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
             )
         except Exception as e:
             logger.error(f"[VECTOR][act] _act_on failed: {e}")
+
+    def _get_recent_feedback(self, action_type: str) -> float | None:
+        """Check episodic memory for recent user feedback on this action type. Returns 0.0-1.0 or None."""
+        try:
+            mem = self._get_memory()
+            results = mem.recall(f"feedback: {action_type}", limit=1, event_type="user_feedback")
+            if results:
+                ctx = results[0].get("context") or {}
+                if isinstance(ctx, str):
+                    import json as _json
+                    ctx = _json.loads(ctx)
+                reward = ctx.get("reward")
+                if reward is not None:
+                    return float(reward)
+        except Exception:
+            pass
+        return None
 
     # ─── Reflect ──────────────────────────────────────────────────────────────
 
@@ -222,18 +273,19 @@ class AutonomousLoop:
     async def _reflect_tick(self) -> None:
         logger.info("[VECTOR][reflect] 2AM reflection starting...")
         try:
-            uptime = int(
-                (datetime.datetime.now(datetime.timezone.utc) - self._start_time).total_seconds()
-            ) if self._start_time else 0
+            from agents.districts.reflection.daily_reviewer import DailyReviewer
+            reviewer = DailyReviewer()
+            ok = await reviewer.review()
+            logger.info(f"[VECTOR][reflect] DailyReviewer done — ok={ok}")
+        except Exception as e:
+            logger.error(f"[VECTOR][reflect] DailyReviewer failed: {e}")
+            # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
-                content=f"2AM reflection — ticks={self._tick_count}, uptime={uptime}s",
+                content=f"2AM reflection fallback — ticks={self._tick_count}",
                 tags=["reflect", "daily"],
                 source="autonomous_loop",
             )
-            logger.info("[VECTOR][reflect] reflection complete ✓")
-        except Exception as e:
-            logger.error(f"[VECTOR][reflect] tick failed: {e}")
 
     # ─── Sync ─────────────────────────────────────────────────────────────────
 

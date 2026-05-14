@@ -177,6 +177,10 @@ class GrowthAnalyst(AgentBase):
             self.deduct_points(10, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        ok = await self.analyse()
+        return {"status": "ok" if ok else "error"}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][growth_analyst] run_forever — Sunday 02:30")
         while self.is_alive:

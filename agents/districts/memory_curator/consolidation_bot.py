@@ -210,6 +210,10 @@ class ConsolidationBot(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        count = await self.consolidate_old_episodes()
+        return {"status": "ok", "consolidated": count}
+
     async def run_forever(self) -> None:
         """Daily reflection + weekly consolidation. RULE 2 — never crashes."""
         logger.info("[VECTOR][consolidation_bot] run_forever started")

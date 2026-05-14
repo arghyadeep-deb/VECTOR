@@ -261,6 +261,11 @@ class AutoresearchRunner(AgentBase):
         return summary
 
 
+    async def run(self, task: dict) -> dict:
+        result = await self.run_experiment_cycle()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     import tempfile
     sys.stdout.reconfigure(encoding="utf-8")

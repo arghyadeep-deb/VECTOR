@@ -179,6 +179,12 @@ class CodeTyper(AgentBase):
             )
 
 
+    async def run(self, task: dict) -> dict:
+        summary = self.get_today_summary()
+        streak = self.get_streak()
+        return {"status": "ok", "summary": summary, "streak": streak}
+
+
 if __name__ == "__main__":
     import tempfile, os
     sys.stdout.reconfigure(encoding="utf-8")

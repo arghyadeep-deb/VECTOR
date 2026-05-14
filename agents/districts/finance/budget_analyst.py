@@ -183,6 +183,10 @@ class BudgetAnalyst(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        ok = await self.analyse()
+        return {"status": "ok" if ok else "error", "agent": self.name}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][budget_analyst] run_forever — monthly on 1st at 09:30")
         while self.is_alive:

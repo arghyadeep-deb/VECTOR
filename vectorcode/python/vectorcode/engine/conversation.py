@@ -86,9 +86,24 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
         tool_calls_total += len(tool_calls)
         logger.debug(f"Executing {len(tool_calls)} tool call(s) (total so far: {tool_calls_total})")
 
-        # Execute tools
-        registry = agent._get_registry()
-        dispatch_fn = registry.handle_function_call if registry else _noop_dispatch
+        # Execute tools — use Hermes model_tools.handle_function_call if available
+        try:
+            from model_tools import handle_function_call as _hermes_dispatch
+            def dispatch_fn(name, args, ctx):
+                return _hermes_dispatch(name, args)
+        except Exception:
+            registry = agent._get_registry()
+            if registry and hasattr(registry, "get_entry"):
+                def dispatch_fn(name, args, ctx):
+                    entry = registry.get_entry(name)
+                    if entry is None:
+                        return f"Error: tool {name!r} not registered"
+                    try:
+                        return entry.handler(**args)
+                    except Exception as e:
+                        return f"Error: {e}"
+            else:
+                dispatch_fn = _noop_dispatch
 
         if _should_parallelize_tool_batch(tool_calls):
             results = execute_tool_calls_concurrent(tool_calls, dispatch_fn, agent)
@@ -170,7 +185,25 @@ async def _call_model(agent: "AIAgent") -> Any:
     messages.extend(agent._history)
 
     registry = agent._get_registry()
-    tools = registry.get_tool_definitions(agent.toolset) if registry else []
+
+    # Get tool definitions via model_tools (Hermes API)
+    tools = []
+    try:
+        from model_tools import get_tool_definitions
+        tools = get_tool_definitions(
+            enabled_toolsets=[agent.toolset] if agent.toolset != "full" else None,
+            disabled_toolsets=None,
+            quiet_mode=True,
+        )
+    except Exception:
+        # Fallback: build from registry entries directly
+        if registry:
+            for entry in registry._snapshot_entries() if hasattr(registry, "_snapshot_entries") else []:
+                tools.append({"type": "function", "function": {
+                    "name": entry.name,
+                    "description": entry.description or "",
+                    "parameters": entry.schema if isinstance(entry.schema, dict) else {},
+                }})
 
     return await provider.chat(
         model=agent.model,

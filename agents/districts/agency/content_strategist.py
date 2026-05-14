@@ -385,6 +385,13 @@ Analyzed: {self._trends_cache[topic]['timestamp']}
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        ideas = self.get_topic_ideas(p.get("niche"))
+        result = await self.analyze_trends(p.get("topic", "social media"))
+        return {"status": "ok", "ideas": ideas, "trends": result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

@@ -1,6 +1,6 @@
 """MemoryManager — orchestrates VectorBuiltinMemoryProvider + at most one external provider.
 
-Ported from Hermes memory_manager.py. VectorCode simplification:
+Ported from reference memory_manager.py. VectorCode simplification:
 - builtin provider is auto-loaded via get_memory_manager() singleton
 - at most ONE external (non-builtin) provider allowed at a time
 - failures in one provider never block the other
@@ -446,3 +446,4 @@ if __name__ == "__main__":
         reset_memory_manager()
 
     print("memory/manager.py OK")
+

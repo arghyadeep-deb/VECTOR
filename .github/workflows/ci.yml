@@ -47,3 +47,25 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short -x 2>/dev/null || echo "No tests yet — skipping"
         continue-on-error: true
+
+  build-dashboard:
+    name: Build Holographic HUD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: core/ui/dashboard/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: core/ui/dashboard
+      - name: Build dashboard
+        run: npm run build
+        working-directory: core/ui/dashboard
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: core/ui/dashboard/dist/

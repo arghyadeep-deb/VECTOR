@@ -236,6 +236,14 @@ V.E.C.T.O.R. Response:"""
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("text"):
+            result = self.generate_response(p["text"], p.get("context"))
+            return {"status": "ok", **result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     import asyncio

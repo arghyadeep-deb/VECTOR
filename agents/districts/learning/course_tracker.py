@@ -204,6 +204,11 @@ class CourseTracker(AgentBase):
         return report
 
 
+    async def run(self, task: dict) -> dict:
+        result = self.generate_report()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = CourseTracker()

@@ -175,6 +175,11 @@ class WebScout(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        results = await self.search(p.get("query", "VECTOR AI"))
+        return {"status": "ok", "results": results}
+
     async def run_forever(self) -> None:
         """Runs on demand (triggered by governor). No autonomous loop needed here."""
         logger.info("[VECTOR][web_scout] ready — waiting for tasks")

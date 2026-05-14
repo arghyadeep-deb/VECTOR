@@ -151,6 +151,14 @@ class ExerciseLogger(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if task.get("type") == "log_exercise":
+            ok = self.log_session(p.get("activity", "walk"), p.get("duration_min", 30), p.get("notes", ""))
+            return {"status": "ok" if ok else "error"}
+        ok = await self.weekly_report()
+        return {"status": "ok" if ok else "error"}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][exercise_logger] run_forever — weekly report Sunday 09:00")
         while self.is_alive:

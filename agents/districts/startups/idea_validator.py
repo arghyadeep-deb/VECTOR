@@ -194,6 +194,13 @@ Return JSON: {{direct_competitors: [{{name, strength, weakness, pricing, market_
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        idea = p.get("idea", {"name": p.get("name", ""), "description": p.get("description", "")})
+        result = self.validate_idea(idea)
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = IdeaValidator()

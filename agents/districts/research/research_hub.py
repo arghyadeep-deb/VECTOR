@@ -794,6 +794,38 @@ class ResearchHub(AgentBase):
         return digest
 
 
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        t = task.get("type", "")
+        p = task.get("params", {})
+        if t in ("search_web", "search", "find"):
+            results = await self.search_web(p.get("query", ""))
+            return {"status": "ok", "results": results}
+        if t in ("daily_digest", "morning_brief"):
+            digest = await self.daily_digest()
+            return {"status": "ok", **digest}
+        if t in ("search_arxiv", "paper"):
+            results = await self.search_arxiv(p.get("query", "AI"))
+            return {"status": "ok", "results": results}
+        if t in ("get_hn", "hackernews", "news"):
+            results = await self.get_hn_top(p.get("limit", 10))
+            return {"status": "ok", "results": results}
+        if t in ("get_india_stocks", "stocks"):
+            results = await self.get_india_stocks(p.get("symbols", ["RELIANCE", "TCS"]))
+            return {"status": "ok", "results": results}
+        if t in ("find_api", "discover_api", "api_catalog"):
+            # Use public-apis catalog to find data sources
+            try:
+                from integrations.public_apis_catalog import search_apis
+                results = search_apis(p.get("query", ""), p.get("category", ""), limit=p.get("limit", 10))
+                return {"status": "ok", "apis": results, "count": len(results)}
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
+        # default: run daily digest
+        digest = await self.daily_digest()
+        return {"status": "ok", **digest}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

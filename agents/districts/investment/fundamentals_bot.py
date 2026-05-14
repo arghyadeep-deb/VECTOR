@@ -342,6 +342,12 @@ class FundamentalsBot(AgentBase):
         }
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.check_valuation(p.get("metric", "PE"), p.get("threshold", 25.0))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

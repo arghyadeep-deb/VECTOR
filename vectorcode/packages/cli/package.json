@@ -1,0 +1,25 @@
+{
+  "name": "@vector-code/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "vector": "./dist/index.js"
+  },
+  "dependencies": {
+    "@vector-code/core": "file:../core",
+    "commander": "^12.0.0",
+    "ink": "^5.1.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.5.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }
+}

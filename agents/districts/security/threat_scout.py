@@ -234,6 +234,13 @@ class ThreatScout(AgentBase):
 # ---------------------------------------------------------------------------
 # Smoke test
 # ---------------------------------------------------------------------------
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("file"):
+            return await self.scan_file(p["file"])
+        return await self.run_threat_assessment()
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ok = True

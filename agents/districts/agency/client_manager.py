@@ -308,6 +308,14 @@ class ClientManager(AgentBase):
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("name"):
+            result = self.get_client(p["name"])
+            return {"status": "ok", "client": result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

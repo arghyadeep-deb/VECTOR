@@ -1,0 +1,9 @@
+{
+  "name": "vector-code",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "start": "npm start -w @vector-code/cli"
+  }
+}

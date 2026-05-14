@@ -111,6 +111,10 @@ class FatigueMonitor(AgentBase):
 
         return status
 
+    async def run(self, task: dict) -> dict:
+        result = await self.check_once()
+        return {"status": "ok", **result}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][fatigue_monitor] run_forever — checking every 5 min")
         while self.is_alive:

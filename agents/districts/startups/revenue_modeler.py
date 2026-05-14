@@ -209,6 +209,13 @@ Return JSON: {{monthly_projection: [{{month: int, revenue: float, costs: float, 
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        idea = p.get("idea", {"name": p.get("name", ""), "description": p.get("description", "")})
+        result = self.model_revenue(idea)
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = RevenueModeler()

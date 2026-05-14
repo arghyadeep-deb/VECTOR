@@ -326,6 +326,15 @@ Note: Be clear these are rough estimates based on public data.
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        company = p.get("company", "")
+        if company:
+            result = await self.research_company(company)
+            return {"status": "ok", **result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     import asyncio

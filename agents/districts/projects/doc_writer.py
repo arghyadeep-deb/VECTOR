@@ -123,6 +123,11 @@ class DocWriter(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        ok = self.write_doc(p.get("project", "VECTOR"), p.get("doc_type", "readme"), p.get("context", ""))
+        return {"status": "ok" if ok else "error"}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][doc_writer] run_forever — event-driven (write_doc calls)")
         while self.is_alive:

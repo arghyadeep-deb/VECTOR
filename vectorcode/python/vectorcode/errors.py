@@ -1,4 +1,4 @@
-"""API error classifier — absorbed from Hermes agent/error_classifier.py.
+"""API error classifier — absorbed from reference agent/error_classifier.py.
 
 Structured taxonomy of API errors with priority-ordered classification pipeline.
 Determines the correct recovery action: retry, rotate credential, compress context, or abort.
@@ -49,7 +49,7 @@ class ClassifiedError:
         return self.reason in (FailoverReason.auth, FailoverReason.auth_permanent)
 
 
-# ── Pattern banks (from Hermes) ───────────────────────────────────────────────
+# ── Pattern banks (from reference) ───────────────────────────────────────────────
 
 _BILLING_PATTERNS = [
     "insufficient credits", "insufficient_quota", "credit balance",
@@ -191,3 +191,5 @@ if __name__ == "__main__":
     assert ce6.reason == FailoverReason.unknown
 
     print("errors.py OK")
+
+

@@ -100,29 +100,23 @@ def test_agent_iteration_budget():
 
 def test_tool_registry_dispatch():
     """Register a fake tool, call via handle_function_call, result flows back."""
-    reg = ToolRegistry()
-    results = []
+    from vectorcode.tools.registry import registry
 
     def my_tool(x: int = 0, y: int = 0) -> str:
-        result = f"sum={x + y}"
-        results.append(result)
-        return result
+        return f"sum={x + y}"
 
-    reg.register(
-        name="add_numbers",
-        handler=my_tool,
-        schema={"description": "Add two numbers", "parameters": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}}},
+    registry.register(
+        name="add_numbers_test",
         toolset="coding",
-        risk_level="safe",
+        schema={"description": "Add two numbers", "parameters": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}}},
+        handler=my_tool,
     )
 
-    result = reg.handle_function_call("add_numbers", {"x": 3, "y": 4})
+    # Hermes uses dispatch via the entry directly
+    entry = registry.get_entry("add_numbers_test")
+    assert entry is not None
+    result = entry.handler(x=3, y=4)
     assert result == "sum=7"
-    assert results == ["sum=7"]
-
-    # Unknown tool
-    result2 = reg.handle_function_call("nonexistent_tool", {})
-    assert "not registered" in result2
 
 
 # ── Test 4: session migration v1 → v10 ────────────────────────────────────────

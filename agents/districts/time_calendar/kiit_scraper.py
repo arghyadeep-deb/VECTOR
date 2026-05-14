@@ -213,6 +213,18 @@ class KIITScraper(AgentBase):
             logger.warning(f"[VECTOR][kiit] Close error: {e}")
 
 
+    async def run(self, task: dict) -> dict:
+        t = task.get("type", "")
+        try:
+            if t == "check_attendance":
+                alerts = await self.check_attendance_alerts()
+                return {"status": "ok", "alerts": alerts}
+            result = await self.scrape_all()
+            return {"status": "ok", **result}
+        finally:
+            await self.close()
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

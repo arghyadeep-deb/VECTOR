@@ -364,16 +364,19 @@ ollama create vector-ambient -f modelfiles/vector-ambient.modelfile && ollama cr
 
 ---
 
-## Native UI ✅ COMPLETE
+## Holographic HUD Dashboard ✅ NEW (2026-05-12)
 
 | Interface | File | Launch |
 |-----------|------|--------|
 | Terminal TUI (Rich) | `core/ui/chat.py` | `python -m core.ui.chat` |
-| Browser Dashboard | `core/ui/web_ui.py` | `http://127.0.0.1:8000/ui` (zero npm) |
+| Vectorcode Web UI | `core/ui/web_ui.py` | `http://127.0.0.1:8000/ui` |
+| **Holographic HUD** | `core/ui/dashboard/` | **`http://127.0.0.1:8000/`** (Vite+React+Three.js) |
 | MCP Server | `core/mcp_server.py` | auto via `.mcp.json` |
 
+**Holographic HUD features:** Full-screen 3D neural scene (glowing core, orbital rings, data nodes, particle field, radar sweep) with glass-panel overlays — TopBar (status, uptime, clock), Telemetry panel (agents alive, memory load, HP, model states), Live Event Feed, Command Interface, Districts list (25 districts with live indicators), Quick Actions bar. JARVIS-style pilot AR helmet aesthetic with cyan holographic color scheme, scanline overlay, and corner-bracket panels.  
+**Previous Next.js multi-page dashboard deleted** — replaced with single-page immersive HUD.
+
 **Terminal features:** banner + status line, /help /status /goals /search /note /districts /council /karpathy, rolling 10-exchange history, episodic memory on every turn (RULE 8)  
-**Browser features:** Chat, Research (HN/GitHub/DEV.to/ArXiv), Goals, Memory recall, Districts grid, Karpathy, Agents HP — all DOM-safe (no innerHTML with user data), polls /status every 30s  
 **MCP tools (14):** recall_memory, store_memory, get_world_state, get_goals, search_web, mine_reddit, read_paper, convene_council, review_code, git_status, karpathy_session, karpathy_streak, write_note, search_vault
 
 ---

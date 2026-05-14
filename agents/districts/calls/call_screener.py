@@ -320,6 +320,12 @@ Respond with ONLY: SPAM or NOT_SPAM
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.screen_call(p.get("caller_id", "unknown"))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

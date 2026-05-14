@@ -180,6 +180,11 @@ class RedditMiner(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        posts = await self.mine_all(p.get("posts_per_sub", 8))
+        return {"status": "ok", "posts": posts, "count": len(posts)}
+
     async def run_forever(self) -> None:
         """Daily intelligence report at 07:10. RULE 2 — never crashes."""
         logger.info("[VECTOR][reddit_miner] run_forever started — daily at 07:10")

@@ -1,6 +1,6 @@
 """Enhanced context compaction pipeline for VectorCode.
 
-Absorbs key algorithms from Hermes agent/context_compressor.py:
+Absorbs key algorithms from reference agent/context_compressor.py:
 - SUMMARY_PREFIX framing (CONTEXT COMPACTION — REFERENCE ONLY)
 - LEGACY_SUMMARY_PREFIX detection for iterative updates
 - Tool output pruning with informative 1-line summaries (_PRUNED_TOOL_PLACEHOLDER)
@@ -33,7 +33,7 @@ try:
 except ImportError:
     CONFIG = {}
 
-# ── Summary framing (from Hermes) ─────────────────────────────────────────────
+# ── Summary framing (from reference) ─────────────────────────────────────────────
 
 SUMMARY_PREFIX = (
     "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted "
@@ -62,7 +62,7 @@ _MIN_SUMMARY_TOKENS     = 2_000
 _SUMMARY_RATIO          = 0.20
 _SUMMARY_TOKENS_CEILING = 12_000
 _CHARS_PER_TOKEN        = 4
-_IMAGE_TOKEN_ESTIMATE   = 1_600   # flat cost per image part (matches Hermes)
+_IMAGE_TOKEN_ESTIMATE   = 1_600   # flat cost per image part ((VectorCode default)
 _IMAGE_CHAR_EQUIVALENT  = _IMAGE_TOKEN_ESTIMATE * _CHARS_PER_TOKEN
 
 _PRUNED_TOOL_PLACEHOLDER = "[Old tool output cleared to save context space]"
@@ -75,7 +75,7 @@ _DECISION_MARKERS = [
 ]
 
 
-# ── Content length helpers (Hermes-style) ─────────────────────────────────────
+# ── Content length helpers (reference-style) ─────────────────────────────────────
 
 def _content_length_for_budget(raw_content) -> int:
     """Return effective char-length of message content for token budgeting.
@@ -299,10 +299,10 @@ def _summarize_closed(messages: list[dict], model: str) -> list[dict]:
     return compressed
 
 
-# ── Stage 3: Summarize middle with LLM (Hermes-style framing) ────────────────
+# ── Stage 3: Summarize middle with LLM (reference-style framing) ────────────────
 
 def _build_summary_prompt(turns: list[dict], previous_summary: str | None = None) -> str:
-    """Build summarizer prompt with Hermes-style framing."""
+    """Build summarizer prompt with reference-style framing."""
     turns_text = []
     for msg in turns:
         role = msg.get("role", "unknown")
@@ -442,7 +442,7 @@ def _preserve_decisions(messages: list[dict], decisions: list[str]) -> list[dict
 # ── Public API ────────────────────────────────────────────────────────────────
 
 class ContextCompactor:
-    """Hermes-enhanced context compaction pipeline.
+    """VectorCode context compaction pipeline.
 
     Runs tool-pruning + LLM summarization + VECTOR.md injection + decision preservation.
     Call when context usage exceeds the configured threshold.
@@ -555,3 +555,5 @@ if __name__ == "__main__":
     assert _content_length_for_budget(multimodal) == _IMAGE_CHAR_EQUIVALENT + len("hello")
 
     print(f"compactor.py OK — {len(msgs)} -> {len(result)} messages")
+
+

@@ -3,7 +3,7 @@
 Owns format conversion (OpenAI → Anthropic) and response normalization.
 Does NOT own: client construction, credential refresh, or retry logic.
 
-Ported from NousResearch/hermes-agent agent/transports/anthropic.py.
+VectorCode implementation.py.
 Prompt caching logic ported from agent/prompt_caching.py.
 """
 
@@ -47,7 +47,7 @@ _STOP_REASON_MAP: Dict[str, str] = {
 }
 
 
-# ── Prompt-caching helpers (from hermes agent/prompt_caching.py) ─────────────
+# ── Prompt-caching helpers (from reference agent/prompt_caching.py) ─────────────
 
 def _apply_cache_marker(msg: dict, cache_marker: dict, native_anthropic: bool = False) -> None:
     """Add cache_control to a single message, handling all format variations."""
@@ -482,3 +482,4 @@ if __name__ == "__main__":
     assert t.validate_response(None) is False
 
     print("anthropic.py OK")
+

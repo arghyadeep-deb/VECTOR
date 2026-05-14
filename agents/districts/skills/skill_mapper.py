@@ -177,6 +177,12 @@ Return JSON: {{gaps: [{{skill_name, category, importance: 1-10, reason: string, 
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.track_skill_progress(p.get("skill", "python"))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = SkillMapper()

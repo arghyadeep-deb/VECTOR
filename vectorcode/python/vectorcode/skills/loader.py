@@ -1,7 +1,7 @@
-"""Skill loading and preprocessing — ported from Hermes skill_utils.py + skill_preprocessing.py.
+"""Skill loading and preprocessing — ported from reference skill_utils.py + skill_preprocessing.py.
 
 Discovers SKILL.md files from three directories (in order):
-  1. vectorcode/skills/     (absorbed Ruflo skills)
+  1. vectorcode/skills/     (absorbed reference skills)
   2. ~/.claude/skills/      (Claude Code installed skills)
   3. ~/.vector/skills/      (user custom skills)
 
@@ -143,7 +143,7 @@ def skill_matches_platform(frontmatter: Dict[str, Any]) -> bool:
 def get_all_skills_dirs() -> List[Path]:
     """Return all skill directories to search, in priority order.
 
-    1. vectorcode/skills/  (Ruflo absorbed skills shipped with VectorCode)
+    1. vectorcode/skills/  (reference absorbed skills shipped with VectorCode)
     2. ~/.claude/skills/   (Claude Code installed skills)
     3. ~/.vector/skills/   (user custom skills)
     """
@@ -546,3 +546,4 @@ if __name__ == "__main__":
     assert "Task:" not in formatted
 
     print("skills/loader.py OK")
+

@@ -131,6 +131,15 @@ class ExpenseTracker(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        t = task.get("type", "")
+        if t in ("monthly_report", "finance_report"):
+            ok = await self.write_monthly_report()
+            return {"status": "ok" if ok else "error"}
+        summary = self.summarise(p.get("days", 30))
+        return {"status": "ok", **summary}
+
     async def run_forever(self) -> None:
         logger.info("[VECTOR][expense_tracker] run_forever — monthly report on 1st at 09:00")
         while self.is_alive:

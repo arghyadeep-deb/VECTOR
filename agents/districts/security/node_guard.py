@@ -275,6 +275,11 @@ class NodeGuard(AgentBase):
 # ---------------------------------------------------------------------------
 # Smoke test
 # ---------------------------------------------------------------------------
+    async def run(self, task: dict) -> dict:
+        result = await self.monitor_tick()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ok = True

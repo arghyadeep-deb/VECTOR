@@ -212,6 +212,11 @@ Include: 1) Executive summary, 2) Key findings, 3) Data flow map summary, 4) Lea
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        result = self.generate_audit_report()
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = DataFlowAuditor()

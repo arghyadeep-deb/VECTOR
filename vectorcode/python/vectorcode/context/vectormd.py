@@ -3,7 +3,7 @@
 VECTOR.md lives at the project root (like CLAUDE.md).
 It's always embedded in the context and survives compaction.
 
-Absorbs from Hermes agent/prompt_builder.py:
+Absorbs from reference agent/prompt_builder.py:
 - _CONTEXT_THREAT_PATTERNS — 10 prompt-injection threat patterns
 - _CONTEXT_INVISIBLE_CHARS — invisible unicode detection
 - scan_for_injection() — called in load() before returning content
@@ -45,7 +45,7 @@ Name: {name}
 (things to check before committing)
 """
 
-# ── Security scanning (from Hermes prompt_builder.py) ─────────────────────────
+# ── Security scanning (from reference prompt_builder.py) ─────────────────────────
 
 _CONTEXT_THREAT_PATTERNS = [
     (r'ignore\s+(previous|all|above|prior)\s+instructions', "prompt_injection"),
@@ -203,3 +203,5 @@ if __name__ == "__main__":
     assert invisible.startswith("[BLOCKED:")
 
     print("vectormd.py OK")
+
+

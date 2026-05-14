@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
@@ -147,7 +147,7 @@ _DASHBOARD_HTML = """\
         <div class="msg sys">VECTOR v__VER__ ready &mdash; type a message or /help for commands.</div>
       </div>
       <div id="chat-bar">
-        <textarea id="chat-in" rows="1" placeholder="Message VECTOR..."></textarea>
+        <textarea id="chat-in" rows="1" placeholder="Message VECTOR..." maxlength="2000"></textarea>
         <button id="send-btn">Send</button>
       </div>
     </div>
@@ -289,6 +289,14 @@ _DASHBOARD_HTML = """\
 
   // ── Chat ────────────────────────────────────────────────────────────────────
   let chatHistory=[];
+  try{
+    const saved=sessionStorage.getItem("vector-chat");
+    if(saved)chatHistory=JSON.parse(saved);
+  }catch(e){}
+
+  function saveChat(){
+    try{sessionStorage.setItem("vector-chat",JSON.stringify(chatHistory));}catch(e){}
+  }
 
   document.getElementById("chat-in").addEventListener("keydown",e=>{
     if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}
@@ -324,6 +332,7 @@ _DASHBOARD_HTML = """\
       chatHistory.push({role:"user",content:text});
       chatHistory.push({role:"assistant",content:resp});
       if(chatHistory.length>20)chatHistory=chatHistory.slice(-20);
+      saveChat();
     }catch(e){addMsg("sys","Error: "+e.message);}
     btn.disabled=false;
     inp.focus();
@@ -545,7 +554,18 @@ _DASHBOARD_HTML = """\
       document.getElementById("r-urgent").textContent=comms.urgent??"—";
       document.getElementById("r-unread").textContent=comms.unread??"—";
       document.getElementById("r-pending").textContent=comms.pending??"—";
-    }catch(e){}
+    }catch(e){
+        document.getElementById("ollama-badge").className="badge red";
+        document.getElementById("ollama-badge").textContent="Ollama: LOST";
+        document.getElementById("loop-badge").className="badge red";
+        document.getElementById("loop-badge").textContent="Loop: UNKNOWN";
+        document.getElementById("r-ollama").textContent="—";
+        document.getElementById("r-loop").textContent="—";
+        document.getElementById("r-urgent").textContent="—";
+        document.getElementById("r-unread").textContent="—";
+        document.getElementById("r-pending").textContent="—";
+        console.warn("pollStatus failed:", e.message);
+    }
   }
 
   // ── Clock ────────────────────────────────────────────────────────────────────
@@ -570,8 +590,8 @@ _DASHBOARD_HTML = """\
       const runEl=document.getElementById("tasks-running");
       const recEl=document.getElementById("tasks-recent");
       if(!runEl||!recEl)return;
-      runEl.innerHTML="";
-      recEl.innerHTML="";
+      runEl.textContent="";
+      recEl.textContent="";
 
       const STATUS_COL={running:"#00ff41",done:"#39d353",failed:"#f85149",
                         cancelled:"#8b949e",queued:"#e3b341"};
@@ -715,6 +735,55 @@ async def web_chat(body: dict):
     except Exception as e:
         logger.error(f"[VECTOR][web_ui] chat: {e}")
         return {"error": str(e)}
+
+
+@router.websocket("/ws/chat")
+async def web_chat_ws(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        data = await websocket.receive_json()
+        user_message = (data.get("message") or "").strip()
+        history = data.get("history") or []
+        if not user_message:
+            await websocket.send_json({"type": "error", "message": "Empty message"})
+            return
+
+        from core.inference.ollama_safe import chat_stream
+        from core.loop.context_engine import ContextEngine
+        from core.memory.episodic import EpisodicMemory
+
+        hydration = ContextEngine().session_hydration_prompt()
+        messages = [{"role": "system", "content": hydration}]
+        messages += history[-10:]
+        messages.append({"role": "user", "content": user_message})
+
+        full = ""
+        for token in chat_stream(model=CONFIG["models"]["focus"], messages=messages):
+            if token:
+                full += token
+                await websocket.send_json({"type": "token", "text": token})
+
+        if not full:
+            full = "No response from model."
+        await websocket.send_json({"type": "done", "full": full})
+
+        try:
+            EpisodicMemory().store(
+                event_type="web_chat",
+                content=f"User: {user_message}\nVECTOR: {full[:500]}",
+                tags=["chat", "web"],
+                source="web_ui_ws",
+            )
+        except Exception:
+            pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error(f"[VECTOR][web_ui] ws chat: {e}")
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
 
 
 @router.get("/search")

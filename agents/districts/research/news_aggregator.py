@@ -217,6 +217,11 @@ class NewsAggregator(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        results = await self.fetch_newsapi(p.get("query", "artificial intelligence"))
+        return {"status": "ok", "articles": results, "count": len(results)}
+
     async def run_forever(self) -> None:
         """Morning brief at 07:05. RULE 2 — never crashes."""
         logger.info("[VECTOR][news_aggregator] run_forever started — daily at 07:05")

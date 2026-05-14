@@ -12,6 +12,9 @@ models/*.gguf
 models/*.bin
 
 # Python
+node_modules/
+core/ui/dashboard/dist/
+
 __pycache__/
 *.pyc
 *.pyo

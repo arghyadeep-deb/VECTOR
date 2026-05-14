@@ -371,6 +371,12 @@ Return the expanded script with the same format.
         return datetime.now(timezone.utc).isoformat()
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        result = self.generate_script(p.get("topic", "AI trends"), p.get("duration_min", 5.0))
+        return {"status": "ok", **result}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

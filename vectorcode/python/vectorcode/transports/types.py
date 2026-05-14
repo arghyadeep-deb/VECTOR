@@ -6,7 +6,7 @@ only fields that every downstream consumer reads are top-level.
 Protocol-specific state goes in ``provider_data`` dicts so that
 protocol-aware code paths can access it without polluting the shared type.
 
-Ported from NousResearch/hermes-agent agent/transports/types.py.
+VectorCode implementation.py.
 """
 
 # ── stdlib first — before any sys.path manipulation ──────────────────────────
@@ -253,3 +253,4 @@ if __name__ == "__main__":
     assert map_finish_reason("stop") == "stop"
 
     print("types.py OK")
+

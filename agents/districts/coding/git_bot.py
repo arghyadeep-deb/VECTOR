@@ -226,6 +226,52 @@ class GitBot(AgentBase):
             return {"error": str(e)}
 
 
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        t = task.get("type", "")
+        p = task.get("params", {})
+        if t in ("commit_code", "git_commit"):
+            return self.commit(p.get("message", "VECTOR auto-commit"), repo_path=p.get("repo", "."))
+        if t in ("git_status", "check_git"):
+            return self.get_status(p.get("repo", "."))
+        if t in ("git_log", "recent_commits"):
+            return {"commits": self.get_recent_commits(p.get("n", 5), p.get("repo", "."))}
+        if t in ("create_branch",):
+            return self.create_branch(p.get("name", "vector-branch"), p.get("repo", "."))
+        if t in ("analyze_codebase", "gitnexus"):
+            return await self.analyze_with_gitnexus(p.get("repo", "."))
+        return {"status": "ok", "agent": self.name, "task": t}
+
+    async def analyze_with_gitnexus(self, repo_path: str = ".") -> dict:
+        """
+        Use GitNexus to build a codebase knowledge graph and return impact analysis.
+        GitNexus runs as an MCP server via npx — this calls it via subprocess for standalone use.
+        For MCP-integrated use, GitNexus is available as an MCP tool in .mcp.json.
+        """
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["npx", "-y", "gitnexus@latest", "analyze", "--repo", repo_path, "--format", "json"],
+                capture_output=True, text=True, timeout=60,
+                cwd=repo_path,
+            )
+            if result.returncode == 0:
+                import json
+                try:
+                    data = json.loads(result.stdout)
+                    self.award_points(15, "gitnexus_analysis")
+                    return {"status": "ok", "analysis": data}
+                except Exception:
+                    return {"status": "ok", "output": result.stdout[:2000]}
+            else:
+                logger.warning(f"[VECTOR][git_bot] GitNexus failed: {result.stderr[:200]}")
+                return {"status": "error", "error": result.stderr[:200]}
+        except FileNotFoundError:
+            return {"status": "not_installed", "note": "Install Node.js to use GitNexus: npx gitnexus@latest"}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 

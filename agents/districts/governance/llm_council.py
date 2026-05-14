@@ -315,6 +315,14 @@ class LLMCouncil(AgentBase):
             "aggregate_rankings": aggregate,
         }
 
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        p = task.get("params", {})
+        question = p.get("question", task.get("type", "What should VECTOR do next?"))
+        stakes = p.get("stakes", "medium")
+        requester_hp = p.get("requester_hp", 700)
+        return await self.convene(question=question, stakes=stakes, requester_hp=requester_hp)
+
     # ── Loop (event-driven agent — listens for convene requests) ──────────────
 
     async def run_forever(self) -> None:

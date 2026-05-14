@@ -178,6 +178,12 @@ class AINewsBot(AgentBase):
         return alert
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        summary = self.generate_summary(p.get("url", ""))
+        return {"status": "ok", **summary}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     bot = AINewsBot()

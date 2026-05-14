@@ -271,6 +271,72 @@ def _make_server() -> "FastMCP":
             "ollama_host": CONFIG["ollama_host"],
         }, indent=2)
 
+    @mcp.tool
+    def find_public_api(query: str, category: str = "", free_only: bool = True) -> str:
+        """Search the public-apis catalog (1000+ free APIs) to find data sources for any topic."""
+        try:
+            from integrations.public_apis_catalog import search_apis, get_stats
+            results = search_apis(query, category=category, free_only=free_only, limit=10)
+            if not results:
+                stats = get_stats()
+                return f"No APIs found for '{query}'. Catalog has {stats['total']} total APIs."
+            lines = [f"Found {len(results)} APIs for '{query}':"]
+            for r in results:
+                lines.append(f"• {r['name']} ({r['category']}): {r['description'][:80]}")
+                if r.get("url"):
+                    lines.append(f"  URL: {r['url']}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"API catalog search failed: {e}"
+
+    # ── OpenMythos training tools ─────────────────────────────────────────────
+
+    @mcp.tool
+    def openmythos_check() -> str:
+        """Check if OpenMythos training environment is ready."""
+        try:
+            from integrations.openmythos.trainer import check_setup
+            import json
+            result = check_setup()
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return f"OpenMythos check failed: {e}"
+
+    @mcp.tool
+    def openmythos_export(min_reward: float = 0.7) -> str:
+        """Export VECTOR's high-reward reasoning chains as OpenMythos training data."""
+        try:
+            from integrations.openmythos.trainer import export_training_data
+            path = export_training_data(min_reward=min_reward)
+            if path:
+                return f"Exported training data to: {path}"
+            return "No training data found. Run VECTOR longer to accumulate reasoning chains."
+        except Exception as e:
+            return f"Export failed: {e}"
+
+    @mcp.tool
+    def openmythos_train(epochs: int = 3) -> str:
+        """
+        Fine-tune OpenMythos 1B on VECTOR's reasoning chains to create vector-chairman.
+        Requires: torch, peft, datasets. RTX 5070 Ti: ~1-2 hours.
+        """
+        try:
+            from integrations.openmythos.trainer import export_training_data, train, create_modelfile
+            data_path = export_training_data()
+            if not data_path:
+                return "No training data. Run VECTOR longer first."
+            model_dir = train(data_path, epochs=epochs)
+            if model_dir:
+                modelfile = create_modelfile(model_dir)
+                return (
+                    f"Training complete!\n"
+                    f"Model: {model_dir}\n"
+                    f"To activate: ollama create vector-chairman -f {modelfile}"
+                )
+            return "Training failed. Check logs."
+        except Exception as e:
+            return f"Training failed: {e}"
+
     _add_expansion_tools(mcp)
     return mcp
 

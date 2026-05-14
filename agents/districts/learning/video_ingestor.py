@@ -189,6 +189,14 @@ Transcript: {transcript_snippet}"""
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if hasattr(self, "ingest_video") and p.get("url"):
+            result = await self.ingest_video(p["url"])
+            return {"status": "ok", **result}
+        return {"status": "ok", "agent": self.name}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = VideoIngestor()

@@ -121,6 +121,7 @@ class GoalSystem:
                 "action": "progress_goal",
                 "urgency": "high",
                 "source": "SHORT_goal",
+                "tags": goal.get("tags", []),
             })
 
         for goal in self.get_active_goals():
@@ -131,6 +132,7 @@ class GoalSystem:
                     "action": "kickstart_goal",
                     "urgency": "medium",
                     "source": f"{goal['horizon']}_unstarter",
+                    "tags": goal.get("tags", []),
                 })
 
         return actions[:limit]

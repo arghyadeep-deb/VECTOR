@@ -174,6 +174,15 @@ class ContactManager(AgentBase):
         return result
 
 
+    async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        if p.get("name") and p.get("interaction"):
+            result = self.track_interaction(p["name"], p["interaction"])
+            return {"status": "ok", **result}
+        contact = self.get_contact(p.get("name", "")) if p.get("name") else {}
+        return {"status": "ok", "contact": contact}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = ContactManager()
