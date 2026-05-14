@@ -23,15 +23,18 @@ class Notifier:
         for ch in channels:
             try:
                 if ch == "vectorcode":
-                    from vectorcode.comms.messenger import MessagingHub
+                    from agents.districts.communications.communications_adapter import CommunicationsAdapter
                     import asyncio
-                    adapter = MessagingHub()
+                    if CommunicationsAdapter is None:
+                        results[ch] = {"status": "error", "detail": "MessagingHub unavailable"}
+                        continue
+                    adapter = CommunicationsAdapter()
                     try:
                         loop = asyncio.get_running_loop()
-                        loop.create_task(adapter.send_message("internal", "user", message))
+                        loop.create_task(adapter.send_notification(message, priority))
                         results[ch] = {"status": "queued"}
                     except RuntimeError:
-                        results[ch] = asyncio.run(adapter.send_message("internal", "user", message))
+                        results[ch] = asyncio.run(adapter.send_notification(message, priority))
                 elif ch == "phone":
                     logger.info(f"[VECTOR][notifier] Phone notification: {message}")
                     results[ch] = {"status": "ok"}
