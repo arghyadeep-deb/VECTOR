@@ -22,9 +22,9 @@ export const TopBar: React.FC<TopBarProps> = ({ status, gatewayHealthy }) => {
     <Box paddingX={1}>
       {/* Symbol + name */}
       <Text color={theme.brand} bold>
-        ▸
+        ⏣
       </Text>
-      <Text> </Text>
+      <Text>  </Text>
       <Text color={theme.brandText} bold>
         VectorCode
       </Text>

@@ -10,8 +10,8 @@ export const TopBar = ({ status, gatewayHealthy }) => {
     const tokens = (status.inputTokens ?? 0) + (status.outputTokens ?? 0);
     const cost = status.costUsd ?? 0;
     return (React.createElement(Box, { paddingX: 1 },
-        React.createElement(Text, { color: theme.brand, bold: true }, "\u25B8"),
-        React.createElement(Text, null, " "),
+        React.createElement(Text, { color: theme.brand, bold: true }, "\u23E3"),
+        React.createElement(Text, null, "  "),
         React.createElement(Text, { color: theme.brandText, bold: true }, "VectorCode"),
         React.createElement(Text, { color: theme.dim }, " \u00B7 "),
         React.createElement(Text, { color: theme.accent }, model),

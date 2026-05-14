@@ -11,10 +11,10 @@ export const Banner = ({ cwd = process.cwd() }) => {
         displayCwd = '...' + displayCwd.slice(-57);
     return (React.createElement(Box, { flexDirection: "column", paddingY: 1 },
         React.createElement(Box, null,
-            React.createElement(Text, { color: "cyan" }, "\u25B8 "),
+            React.createElement(Text, { color: "cyanBright" }, "\u23E3  "),
             React.createElement(Text, { color: "whiteBright", bold: true }, "VectorCode"),
             React.createElement(Text, { dimColor: true }, '  /help for commands · @file to attach · /quit to exit')),
         React.createElement(Box, null,
-            React.createElement(Text, { dimColor: true }, `     cwd: ${displayCwd}`))));
+            React.createElement(Text, { dimColor: true }, `      cwd: ${displayCwd}`))));
 };
 //# sourceMappingURL=Banner.js.map

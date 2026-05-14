@@ -18,7 +18,7 @@ export const Banner: React.FC<BannerProps> = ({ cwd = process.cwd() }) => {
   return (
     <Box flexDirection="column" paddingY={1}>
       <Box>
-        <Text color="cyan">▸ </Text>
+        <Text color="cyanBright">⏣  </Text>
         <Text color="whiteBright" bold>
           VectorCode
         </Text>
@@ -27,7 +27,7 @@ export const Banner: React.FC<BannerProps> = ({ cwd = process.cwd() }) => {
         </Text>
       </Box>
       <Box>
-        <Text dimColor>{`     cwd: ${displayCwd}`}</Text>
+        <Text dimColor>{`      cwd: ${displayCwd}`}</Text>
       </Box>
     </Box>
   );

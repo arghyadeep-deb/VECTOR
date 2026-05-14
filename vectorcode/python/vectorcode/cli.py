@@ -66,6 +66,7 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
     from pathlib import Path
 
     C  = "\x1b[36m"      # cyan
+    CB = "\x1b[96m"      # bright cyan
     W  = "\x1b[97;1m"    # white bold
     D  = "\x1b[2m"       # dim
     R  = "\x1b[0m"       # reset
@@ -76,8 +77,9 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
 
     out = sys.stderr
     print(file=out)
-    print(f"  {C}▸{R} {W}VectorCode{R}{D}  /help for commands · @file to attach · /quit to exit{R}", file=out)
-    print(f"     {D}cwd: {cwd}{R}", file=out)
+    # ⏣ is a heavy benzene-ring glyph — same visual weight as Claude's ✻
+    print(f"  {CB}⏣{R}  {W}VectorCode{R}{D}  /help for commands · @file to attach · /quit to exit{R}", file=out)
+    print(f"      {D}cwd: {cwd}{R}", file=out)
     print(file=out)
 
 
