@@ -185,8 +185,7 @@ class AutonomousLoop:
                     )
                     reward = 0.8 if vc_result.get("status") == "ok" else 0.3
                     pm = self._get_policy()
-                    import hashlib, json as _json
-                    sk = f"{winner.action_type}:{_json.dumps(winner.params, sort_keys=True, default=str)}"
+                    sk = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
                     h = hashlib.sha256(sk.encode()).hexdigest()[:12]
                     pm.update_from_outcome(winner.action_type, h, reward)
                     logger.info(f"[VECTOR][act] VectorCode {winner.action_type} → {vc_result.get('status')} reward={reward}")
