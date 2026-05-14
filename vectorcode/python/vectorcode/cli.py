@@ -61,74 +61,26 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """VectorCode welcome banner — minimal, production-grade."""
-    import datetime as _dt
+    """VectorCode JARVIS HUD — circular reactor splash with V.E.C.T.O.R. core."""
     import sys
 
-    # Colors
-    C   = "\x1b[36m"     # cyan
-    CB  = "\x1b[96m"     # bright cyan
-    W   = "\x1b[97;1m"   # white bold
-    G   = "\x1b[92m"     # green
-    Y   = "\x1b[93m"     # yellow
-    D   = "\x1b[2m"      # dim
-    R   = "\x1b[0m"      # reset
-
-    try:
-        import importlib.metadata
-        version = importlib.metadata.version("vectorcode")
-    except Exception:
-        version = "0.1.0"
-
-    mn  = (model_name or "vector-focus")[:36]
+    mn = (model_name or "vector-focus")[:36]
     oms = ollama_models or []
     n_models = len(oms)
-    status_dot = f"{G}●{R}" if oms else f"{Y}○{R}"
-    status_txt = f"online  {D}·  {n_models} models{R}" if oms else f"{D}offline{R}"
 
-    out = sys.stderr
-    print(file=out)
-
-    # Render arc reactor side-by-side with status block
+    # Render the JARVIS HUD
     try:
-        from ui.arc_reactor import arc_reactor_medium
-        reactor_lines = arc_reactor_medium().split("\n")
+        from ui.jarvis_hud import print_hud
+        print_hud(model=mn, n_models=n_models, has_vectormd=has_vectormd, tick=42)
     except Exception:
         try:
-            from vectorcode.ui.arc_reactor import arc_reactor_medium
-            reactor_lines = arc_reactor_medium().split("\n")
-        except Exception:
-            reactor_lines = [f"  {CB}⟨▶⟩{R}  "]
-
-    # Right-side status block (8 lines to match reactor height)
-    right_block = [
-        "",
-        f"{W}VectorCode{R}  {D}v{version}{R}",
-        f"{D}autonomous coding agent{R}",
-        f"{C}{'─' * 34}{R}",
-        f"{C}Model{R}     {W}{mn}{R}",
-        f"{C}Status{R}    {status_dot} {status_txt}",
-        (f"{G}●{R} {D}VECTOR.md loaded{R}" if has_vectormd
-         else f"{Y}○{R} {D}No VECTOR.md  ·  {CB}/init{R}"),
-        f"{C}{'─' * 34}{R}",
-    ]
-
-    # Print side-by-side
-    for i, r_line in enumerate(reactor_lines):
-        right = right_block[i] if i < len(right_block) else ""
-        print(f"  {r_line}    {right}", file=out)
-    print(file=out)
-
-    # Quick actions
-    actions = [
-        ("/help",         "list all commands"),
-        ("@<file>",       "attach files to context"),
-        ("/sparc <task>", "run SPARC pipeline"),
-        ("/quit",         "exit"),
-    ]
-    for cmd, desc in actions:
-        print(f"  {CB}{cmd:<18}{R}{D}{desc}{R}", file=out)
-    print(file=out)
+            from vectorcode.ui.jarvis_hud import print_hud
+            print_hud(model=mn, n_models=n_models, has_vectormd=has_vectormd, tick=42)
+        except Exception as e:
+            # Fallback: minimal banner
+            print(f"\n  VectorCode v0.1.0  ·  {mn}  ·  {n_models} models", file=sys.stderr)
+            print(f"  /help · @<file> · /sparc · /quit", file=sys.stderr)
+            print(file=sys.stderr)
 
 
 def _strip_ansi(s: str) -> str:
