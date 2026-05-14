@@ -271,11 +271,22 @@ class MultiDBManager:
         if not httpx:
             return False
 
+        # Validate table and column names before any string interpolation
+        if table not in self._ALLOWED_TABLES:
+            logger.error(f"[VECTOR][multi_db] _write_turso: unknown table '{table}' — blocked")
+            return False
+        for col in record.keys():
+            if not _SAFE_IDENTIFIER.match(col):
+                logger.error(f"[VECTOR][multi_db] _write_turso: unsafe column '{col}' — blocked")
+                return False
+
         url = self._get_config("turso_url")
         token = self._get_config("turso_token")
         if not url or not token:
             return False
 
+        columns = list(record.keys())
+        placeholders = ", ".join(["?" for _ in columns])
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(
@@ -286,8 +297,7 @@ class MultiDBManager:
                     },
                     json={
                         "statements": [
-                            f"INSERT INTO {table} ({', '.join(record.keys())}) "
-                            f"VALUES ({', '.join(['?' for _ in record])})"
+                            f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
                         ],
                         "params": [list(record.values())],
                     },
