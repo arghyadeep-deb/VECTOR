@@ -55,8 +55,16 @@ class MultiDBManager:
 
     # ─── Write Operations ──────────────────────────────────────────────────────
 
+    _ALLOWED_TABLES = frozenset({
+        "episodic_memory", "semantic_memory", "policy_memory",
+        "reasoning_chains", "skill_memory", "agent_history",
+    })
+
     def write_local(self, table: str, record: dict) -> bool:
         """Write to local SQLite. Always succeeds."""
+        if table not in self._ALLOWED_TABLES:
+            logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' — blocked")
+            return False
         try:
             conn = self._get_local().conn
             columns = list(record.keys())
@@ -64,7 +72,7 @@ class MultiDBManager:
             values = [record.get(c) for c in columns]
 
             conn.execute(
-                f"INSERT OR REPLACE INTO {table} VALUES ({placeholders})",
+                f"INSERT OR REPLACE INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
                 values
             )
             conn.commit()
