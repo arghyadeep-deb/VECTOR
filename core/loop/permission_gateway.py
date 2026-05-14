@@ -270,8 +270,12 @@ if __name__ == '__main__':
         r4 = await gw.execute(Action('write_note_personal', {'title': 'test'}, 'obsidian_sync'))
         assert r4.level == 'YELLOW', f"Expected YELLOW, got {r4.level}"
         task = asyncio.create_task(gw.execute(Action('overwrite_note_personal', {'title': 'test'}, 'obsidian_sync')))
-        # Give the task a real moment to reach event.wait() inside _wait_for_confirmation
-        await asyncio.sleep(0.05)
+        # Poll until the RED task registers its confirmation event (normally <10ms, cap at 2s)
+        deadline = asyncio.get_event_loop().time() + 2.0
+        while 'overwrite_note_personal' not in gw._pending_events:
+            await asyncio.sleep(0.01)
+            if asyncio.get_event_loop().time() > deadline:
+                break
         gw.confirm_action('overwrite_note_personal')
         r5 = await task
         assert r5.level == 'RED', f"Expected RED, got {r5.level}"
