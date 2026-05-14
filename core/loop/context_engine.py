@@ -91,14 +91,14 @@ class ContextEngine:
                 pass
         return self._kiit_scraper
 
-    def _get_hermes(self):
-        if self._hermes is None:
+    def _get_comms_hub(self):
+        if self._comms_hub is None:
             try:
-                from agents.districts.communications.hermes_adapter import HermesAdapter
-                self._hermes = HermesAdapter()
+                from agents.districts.communications.hermes_adapter import HermesAdapter as _VCCommsHub
+                self._comms_hub = _VCCommsHub()
             except Exception:
                 pass
-        return self._hermes
+        return self._comms_hub
 
     async def get_vault_context(self, query: str) -> str:
         """LightRAG hybrid query over Obsidian vault. Returns '' if not ready."""
