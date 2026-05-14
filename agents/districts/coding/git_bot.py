@@ -109,14 +109,34 @@ class GitBot(AgentBase):
             logger.info(f"[VECTOR][git_bot] Committed {commit_hash}: {message}")
             self.award_points(20, "commit_success")
 
-            # Fire through gateway for audit trail (YELLOW — commit_code)
-            asyncio.get_event_loop().run_until_complete(
-                self._gateway.execute(Action(
+            # RULE 3 — fire through gateway for audit trail (YELLOW — commit_code)
+            # RULE 8 — store reasoning chain
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._gateway.execute(Action(
                     action_type="commit_code",
                     params={"hash": commit_hash, "message": message},
                     proposed_by=self.name,
-                ))
-            ) if asyncio.get_event_loop().is_running() is False else None
+                )))
+            except RuntimeError:
+                asyncio.run(self._gateway.execute(Action(
+                    action_type="commit_code",
+                    params={"hash": commit_hash, "message": message},
+                    proposed_by=self.name,
+                )))
+
+            try:
+                from core.memory.episodic import EpisodicMemory
+                EpisodicMemory().store_chain(
+                    situation=f"git_commit:{repo_path}",
+                    goal_ids=["coding", "auto_commit"],
+                    steps=["stage_files", "create_commit", "gateway_audit"],
+                    action="commit_code",
+                    outcome=commit_hash,
+                    reward=1.0,
+                )
+            except Exception as _chain_err:
+                logger.warning(f"[VECTOR][git_bot] store_chain failed: {_chain_err}")
 
             return {"success": True, "hash": commit_hash, "message": message}
         except Exception as e:
