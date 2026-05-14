@@ -1,39 +1,66 @@
-import React from "react";
-import { Box, Text } from "ink";
+/**
+ * TopBar — persistent header showing model, mode, gateway health, token usage.
+ */
+
+import React from 'react';
+import { Box, Text } from 'ink';
+import { theme, glyphs } from './theme.js';
+import type { SessionStatus } from '../types.js';
 
 interface TopBarProps {
-  model: string;
-  mode: string;
-  tokens: number;
-  cost: string;
+  status: Partial<SessionStatus>;
+  gatewayHealthy: boolean;
 }
 
-const CYAN = "\x1b[96m";
+export const TopBar: React.FC<TopBarProps> = ({ status, gatewayHealthy }) => {
+  const model = status.model ?? 'unknown';
+  const mode = status.mode ?? 'standard';
+  const tokens = (status.inputTokens ?? 0) + (status.outputTokens ?? 0);
+  const cost = status.costUsd ?? 0;
 
-export function TopBar({ model, mode, tokens, cost }: TopBarProps) {
   return (
-    <Box
-      width="100%"
-      borderStyle="single"
-      borderColor="cyan"
-      paddingX={1}
-      paddingY={0}
-    >
-      <Box width="33%">
-        <Text bold color="cyan">
-          {CYAN}VectorCode{CYAN}
-        </Text>
-      </Box>
-      <Box width="34%" justifyContent="center">
-        <Text color="cyan" bold>
-          {model}
-        </Text>
-      </Box>
-      <Box width="33%" justifyContent="flex-end">
-        <Text color="cyan">
-          {mode}  │  {tokens} tok  │  ${cost}
+    <Box paddingX={1}>
+      {/* Logo + brand */}
+      <Text color={theme.brand} bold>
+        {glyphs.mark}
+      </Text>
+      <Text> </Text>
+      <Text color={theme.brandText} bold>
+        VectorCode
+      </Text>
+
+      {/* Separator */}
+      <Text color={theme.dim}> · </Text>
+
+      {/* Model */}
+      <Text color={theme.accent}>{model}</Text>
+
+      <Text color={theme.dim}> · </Text>
+
+      {/* Mode */}
+      <Text color={theme.active}>{mode}</Text>
+
+      <Text color={theme.dim}> · </Text>
+
+      {/* Gateway health */}
+      {gatewayHealthy ? (
+        <>
+          <Text color={theme.success}>{glyphs.online}</Text>
+          <Text color={theme.dim}> gateway</Text>
+        </>
+      ) : (
+        <>
+          <Text color={theme.error}>{glyphs.offline}</Text>
+          <Text color={theme.dim}> gateway down</Text>
+        </>
+      )}
+
+      {/* Token usage (right-side) */}
+      <Box flexGrow={1} justifyContent="flex-end">
+        <Text color={theme.dim}>
+          {tokens.toLocaleString()} tokens · ${cost.toFixed(4)}
         </Text>
       </Box>
     </Box>
   );
-}
+};

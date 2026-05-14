@@ -1,62 +1,136 @@
-import React from "react";
-import { Box, Text } from "ink";
+/**
+ * ChatPane — main conversation view.
+ * Renders user/assistant/tool messages with smooth streaming + colors.
+ */
 
-interface ChatMessage {
-  role: "user" | "assistant" | "tool";
-  content: string;
-  toolName?: string;
-}
+import React from 'react';
+import { Box, Text } from 'ink';
+import Spinner from 'ink-spinner';
+import { theme, glyphs } from './theme.js';
+import type { ChatMessage } from '../types.js';
 
 interface ChatPaneProps {
   messages: ChatMessage[];
-  height: number;
+  thinking?: boolean;
+  thinkingText?: string;
 }
 
-export function ChatPane({ messages, height }: ChatPaneProps) {
+export const ChatPane: React.FC<ChatPaneProps> = ({
+  messages,
+  thinking = false,
+  thinkingText = 'thinking',
+}) => {
   return (
-    <Box
-      flexDirection="column"
-      height={height}
-      borderStyle="round"
-      borderColor="cyan"
-      paddingX={1}
-    >
-      {messages.length === 0 && (
-        <Text dimColor>Type a message to start. Use /help for commands.</Text>
+    <Box flexDirection="column" flexGrow={1} paddingX={1}>
+      {messages.map((m) => (
+        <MessageView key={m.id} message={m} />
+      ))}
+      {thinking && (
+        <Box marginTop={1}>
+          <Text color={theme.dim}>
+            <Spinner type="dots" />
+          </Text>
+          <Text color={theme.dim}> {thinkingText}...</Text>
+        </Box>
       )}
-      {messages.map((msg, i) => {
-        switch (msg.role) {
-          case "user":
-            return (
-              <Box key={i} marginBottom={0}>
-                <Text bold color="cyan">{"> "}</Text>
-                <Text>{msg.content}</Text>
-              </Box>
-            );
-          case "tool":
-            return (
-              <Box key={i} flexDirection="column" marginLeft={2} marginBottom={0}>
-                <Text dimColor color="cyan">
-                  {"▶ "}{msg.toolName || "tool"}{": "}{msg.content.slice(0, 80)}
-                </Text>
-                {msg.content.length > 80 && (
-                  <Text dimColor>
-                    {"  "}{msg.content.slice(0, 200)}
-                  </Text>
-                )}
-              </Box>
-            );
-          case "assistant":
-            return (
-              <Box key={i} flexDirection="column" marginBottom={0}>
-                <Text>{msg.content.slice(0, 600)}</Text>
-                {msg.content.length > 600 && (
-                  <Text dimColor>{"  "}… ({msg.content.length - 600} more chars)</Text>
-                )}
-              </Box>
-            );
-        }
-      })}
     </Box>
   );
-}
+};
+
+const MessageView: React.FC<{ message: ChatMessage }> = ({ message }) => {
+  if (message.role === 'user') {
+    return (
+      <Box marginTop={1}>
+        <Text color={theme.user} bold>
+          {glyphs.prompt}{' '}
+        </Text>
+        <Text color={theme.brandText}>{message.content}</Text>
+      </Box>
+    );
+  }
+
+  if (message.role === 'assistant') {
+    return (
+      <Box marginTop={1} flexDirection="column">
+        <Text color={theme.assistant}>{message.content}</Text>
+        {message.streaming && (
+          <Text color={theme.dim}>
+            <Spinner type="line" />
+          </Text>
+        )}
+      </Box>
+    );
+  }
+
+  if (message.role === 'tool') {
+    return <ToolMessage message={message} />;
+  }
+
+  // system
+  return (
+    <Box marginTop={1}>
+      <Text color={theme.dim} italic>
+        {message.content}
+      </Text>
+    </Box>
+  );
+};
+
+const ToolMessage: React.FC<{ message: ChatMessage }> = ({ message }) => {
+  const status = message.toolStatus ?? 'running';
+  const name = message.toolName ?? 'unknown';
+  const argsPreview = message.toolArgs
+    ? Object.entries(message.toolArgs)
+        .slice(0, 2)
+        .map(([k, v]) => `${k}=${typeof v === 'string' ? v.slice(0, 40) : JSON.stringify(v).slice(0, 40)}`)
+        .join(', ')
+    : '';
+
+  const marker =
+    status === 'done'
+      ? glyphs.toolDone
+      : status === 'failed'
+      ? glyphs.toolFail
+      : glyphs.toolStart;
+
+  const markerColor =
+    status === 'done'
+      ? theme.success
+      : status === 'failed'
+      ? theme.error
+      : theme.accent;
+
+  return (
+    <Box marginTop={1} flexDirection="column">
+      {/* First line: marker tool(args) */}
+      <Box>
+        <Text color={markerColor}>{marker} </Text>
+        <Text color={theme.brandText} bold>
+          {name}
+        </Text>
+        {argsPreview && (
+          <Text color={theme.dim}>({argsPreview})</Text>
+        )}
+        {status === 'running' && (
+          <>
+            <Text> </Text>
+            <Text color={theme.dim}>
+              <Spinner type="dots" />
+            </Text>
+          </>
+        )}
+      </Box>
+
+      {/* Result line if available */}
+      {message.content && status !== 'running' && (
+        <Box marginLeft={2}>
+          <Text color={theme.dim}>
+            {message.content.slice(0, 200)}
+            {message.toolDurationMs !== undefined &&
+              ` · ${message.toolDurationMs}ms`}
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
+};
