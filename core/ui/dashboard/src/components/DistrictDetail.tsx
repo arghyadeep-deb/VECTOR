@@ -50,7 +50,15 @@ interface DistrictDetailProps {
 }
 
 export default function DistrictDetail({ district, onClose, zoneStyle }: DistrictDetailProps) {
-  const agents = useVectorStore((s) => s.agents).filter((a) => a.district === district)
+  const rawAgents = useVectorStore((s) => s.agents).filter((a) => a.district === district)
+  // Deduplicate by id — registry can return duplicates if bootstrap runs twice
+  const seen = new Set<string>()
+  const agents = rawAgents.filter((a) => {
+    const key = a.id || a.name
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
   const history = useMemo(() => generateHPHistory(), [])
 
   return (
