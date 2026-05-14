@@ -61,12 +61,16 @@ class PermissionConfig(BaseModel):
         "daily_digest", "search_arxiv", "get_hn", "hackernews",
         "check_fatigue", "consolidate", "daily_review", "reflect",
         "deadline_check", "progress",
+        # VectorCode read-only actions
+        "code_review_vc", "code_status", "read_code", "analyze_code",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
         "download_file", "set_reminder", "write_note_personal",
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
+        # VectorCode write/execute actions
+        "code_task", "code_generate", "code_fix", "code_debug", "run_tests",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
