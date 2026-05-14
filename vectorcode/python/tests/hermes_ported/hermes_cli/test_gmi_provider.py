@@ -353,9 +353,9 @@ class TestGmiMainFlow:
             _model_flow_api_key_provider(load_config(), "gmi", "old-model")
 
         import yaml
-        from vector_constants import get_hermes_home
+        from vector_constants import get_vector_home
 
-        config = yaml.safe_load((get_hermes_home() / "config.yaml").read_text()) or {}
+        config = yaml.safe_load((get_vector_home() / "config.yaml").read_text()) or {}
         model_cfg = config.get("model")
         assert isinstance(model_cfg, dict)
         assert model_cfg["provider"] == "gmi"

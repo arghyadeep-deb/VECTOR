@@ -273,7 +273,7 @@ class TestSlackNativeSlashes:
             assert isinstance(desc, str)
             assert isinstance(hint, str)
 
-    def test_hermes_catchall_is_first(self):
+    def test_vector_catchall_is_first(self):
         """``/vector`` must be reserved as the first slot so the legacy
         ``/vector <subcommand>`` form keeps working after we add new
         commands and hit the 50-slash cap."""

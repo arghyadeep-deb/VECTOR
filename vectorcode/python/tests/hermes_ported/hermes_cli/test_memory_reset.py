@@ -24,7 +24,7 @@ def memory_env(tmp_path, monkeypatch):
 
     # Create sample memory files
     (memories / "MEMORY.md").write_text(
-        "§\nHermes repo is at ~/.vector/vector-agent\n§\nUser prefers dark themes",
+        "§\nVectorCode repo is at ~/.vector/vector-agent\n§\nUser prefers dark themes",
         encoding="utf-8",
     )
     (memories / "USER.md").write_text(
@@ -39,9 +39,9 @@ def _run_memory_reset(target="all", yes=False, monkeypatch=None, confirm_input="
 
     Simulates what happens when `vector memory reset` is run.
     """
-    from vector_constants import get_hermes_home, display_hermes_home
+    from vector_constants import get_vector_home, display_vector_home
 
-    mem_dir = get_hermes_home() / "memories"
+    mem_dir = get_vector_home() / "memories"
     files_to_reset = []
     if target in ("all", "memory"):
         files_to_reset.append(("MEMORY.md", "agent notes"))
@@ -152,6 +152,6 @@ class TestMemoryReset:
         # No memories dir
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
 
-        # The memories dir won't exist; get_hermes_home() / "memories" won't have files
+        # The memories dir won't exist; get_vector_home() / "memories" won't have files
         result = _run_memory_reset(target="all", yes=True)
         assert result == "nothing"

@@ -8,8 +8,8 @@ import yaml
 
 from vector_cli.config import (
     DEFAULT_CONFIG,
-    get_hermes_home,
-    ensure_hermes_home,
+    get_vector_home,
+    ensure_vector_home,
     get_compatible_custom_providers,
     load_config,
     load_env,
@@ -23,23 +23,23 @@ from vector_cli.config import (
 )
 
 
-class TestGetHermesHome:
+class TestGetVectorCodeHome:
     def test_default_path(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("VECTOR_HOME", None)
-            home = get_hermes_home()
+            home = get_vector_home()
             assert home == Path.home() / ".vector"
 
     def test_env_override(self):
         with patch.dict(os.environ, {"VECTOR_HOME": "/custom/path"}):
-            home = get_hermes_home()
+            home = get_vector_home()
             assert home == Path("/custom/path")
 
 
-class TestEnsureHermesHome:
+class TestEnsureVectorCodeHome:
     def test_creates_subdirs(self, tmp_path):
         with patch.dict(os.environ, {"VECTOR_HOME": str(tmp_path)}):
-            ensure_hermes_home()
+            ensure_vector_home()
             assert (tmp_path / "cron").is_dir()
             assert (tmp_path / "sessions").is_dir()
             assert (tmp_path / "logs").is_dir()
@@ -47,7 +47,7 @@ class TestEnsureHermesHome:
 
     def test_creates_default_soul_md_if_missing(self, tmp_path):
         with patch.dict(os.environ, {"VECTOR_HOME": str(tmp_path)}):
-            ensure_hermes_home()
+            ensure_vector_home()
             soul_path = tmp_path / "SOUL.md"
             assert soul_path.exists()
             assert soul_path.read_text(encoding="utf-8").strip() != ""
@@ -56,7 +56,7 @@ class TestEnsureHermesHome:
         with patch.dict(os.environ, {"VECTOR_HOME": str(tmp_path)}):
             soul_path = tmp_path / "SOUL.md"
             soul_path.write_text("custom soul", encoding="utf-8")
-            ensure_hermes_home()
+            ensure_vector_home()
             assert soul_path.read_text(encoding="utf-8") == "custom soul"
 
 

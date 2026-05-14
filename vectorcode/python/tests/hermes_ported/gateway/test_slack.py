@@ -2064,7 +2064,7 @@ class TestSlashCommands:
         assert msg.text == "/model anthropic/claude-sonnet-4"
 
     @pytest.mark.asyncio
-    async def test_legacy_hermes_prefix_still_works(self, adapter):
+    async def test_legacy_vector_prefix_still_works(self, adapter):
         """Backward compat: /vector btw foo must still route to /btw foo.
 
         Old workspace manifests only declared /vector as the single slash.
@@ -2082,7 +2082,7 @@ class TestSlashCommands:
         assert msg.text == "/btw run the tests"
 
     @pytest.mark.asyncio
-    async def test_legacy_hermes_freeform_question(self, adapter):
+    async def test_legacy_vector_freeform_question(self, adapter):
         """/vector <free-form text> must stay as the raw text (non-command)."""
         command = {
             "command": "/vector",

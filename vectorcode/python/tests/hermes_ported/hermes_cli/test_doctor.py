@@ -167,7 +167,7 @@ def test_check_gateway_service_linger_skips_when_service_not_installed(monkeypat
 class TestDoctorMemoryProviderSection:
     """The ◆ Memory Provider section should respect memory.provider config."""
 
-    def _make_hermes_home(self, tmp_path, provider=""):
+    def _make_vector_home(self, tmp_path, provider=""):
         """Create a minimal VECTOR_HOME with config.yaml."""
         home = tmp_path / ".vector"
         home.mkdir(parents=True, exist_ok=True)
@@ -178,7 +178,7 @@ class TestDoctorMemoryProviderSection:
 
     def _run_doctor_and_capture(self, monkeypatch, tmp_path, provider=""):
         """Run doctor and capture stdout."""
-        home = self._make_hermes_home(tmp_path, provider)
+        home = self._make_vector_home(tmp_path, provider)
         monkeypatch.setattr(doctor_mod, "VECTOR_HOME", home)
         monkeypatch.setattr(doctor_mod, "PROJECT_ROOT", tmp_path / "project")
         monkeypatch.setattr(doctor_mod, "_DHH", str(home))

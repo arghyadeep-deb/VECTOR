@@ -34,7 +34,7 @@ class TestOfferOpenclawMigration:
         """Should return False when user declines the migration prompt."""
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_vector.py"
         script.write_text("# placeholder")
         with (
             patch("vector_cli.setup.Path.home", return_value=tmp_path),
@@ -55,7 +55,7 @@ class TestOfferOpenclawMigration:
         config_path.write_text("agent:\n  max_turns: 90\n")
 
         # Build a fake migration module
-        fake_mod = ModuleType("openclaw_to_hermes")
+        fake_mod = ModuleType("openclaw_to_vector")
         fake_mod.resolve_selected_options = MagicMock(return_value={"soul", "memory"})
         fake_migrator = MagicMock()
         fake_migrator.migrate.return_value = {
@@ -65,7 +65,7 @@ class TestOfferOpenclawMigration:
         }
         fake_mod.Migrator = MagicMock(return_value=fake_migrator)
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_vector.py"
         script.write_text("# placeholder")
 
         with (
@@ -123,7 +123,7 @@ class TestOfferOpenclawMigration:
         config_path = vector_home / "config.yaml"
         config_path.write_text("agent:\n  max_turns: 90\n")
 
-        fake_mod = ModuleType("openclaw_to_hermes")
+        fake_mod = ModuleType("openclaw_to_vector")
         fake_mod.resolve_selected_options = MagicMock(return_value={"soul", "memory"})
         fake_migrator = MagicMock()
         fake_migrator.migrate.return_value = {
@@ -132,7 +132,7 @@ class TestOfferOpenclawMigration:
         }
         fake_mod.Migrator = MagicMock(return_value=fake_migrator)
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_vector.py"
         script.write_text("# placeholder")
 
         # First prompt (preview): Yes, Second prompt (proceed): No
@@ -172,7 +172,7 @@ class TestOfferOpenclawMigration:
         config_path = vector_home / "config.yaml"
         config_path.write_text("")
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_vector.py"
         script.write_text("# placeholder")
 
         with (
@@ -198,7 +198,7 @@ class TestOfferOpenclawMigration:
         config_path = vector_home / "config.yaml"
         # config does NOT exist yet
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_vector.py"
         script.write_text("# placeholder")
 
         with (
@@ -240,9 +240,9 @@ class TestSetupWizardOpenclawIntegration:
         args = _first_time_args()
 
         with (
-            patch.object(setup_mod, "ensure_hermes_home"),
+            patch.object(setup_mod, "ensure_vector_home"),
             patch.object(setup_mod, "load_config", return_value={}),
-            patch.object(setup_mod, "get_hermes_home", return_value=tmp_path),
+            patch.object(setup_mod, "get_vector_home", return_value=tmp_path),
             patch.object(setup_mod, "get_env_value", return_value=""),
             patch.object(setup_mod, "is_interactive_stdin", return_value=True),
             patch("vector_cli.auth.get_active_provider", return_value=None),
@@ -278,9 +278,9 @@ class TestSetupWizardOpenclawIntegration:
             return {}
 
         with (
-            patch.object(setup_mod, "ensure_hermes_home"),
+            patch.object(setup_mod, "ensure_vector_home"),
             patch.object(setup_mod, "load_config", side_effect=tracking_load_config),
-            patch.object(setup_mod, "get_hermes_home", return_value=tmp_path),
+            patch.object(setup_mod, "get_vector_home", return_value=tmp_path),
             patch.object(setup_mod, "get_env_value", return_value=""),
             patch.object(setup_mod, "is_interactive_stdin", return_value=True),
             patch("vector_cli.auth.get_active_provider", return_value=None),
@@ -307,13 +307,13 @@ class TestSetupWizardOpenclawIntegration:
         reloaded_config = {"model": {"provider": "openrouter"}}
 
         with (
-            patch.object(setup_mod, "ensure_hermes_home"),
+            patch.object(setup_mod, "ensure_vector_home"),
             patch.object(
                 setup_mod,
                 "load_config",
                 side_effect=[initial_config, reloaded_config],
             ),
-            patch.object(setup_mod, "get_hermes_home", return_value=tmp_path),
+            patch.object(setup_mod, "get_vector_home", return_value=tmp_path),
             patch.object(setup_mod, "get_env_value", return_value=""),
             patch.object(setup_mod, "is_interactive_stdin", return_value=True),
             patch("vector_cli.auth.get_active_provider", return_value=None),
@@ -338,9 +338,9 @@ class TestSetupWizardOpenclawIntegration:
         args = _first_time_args()
 
         with (
-            patch.object(setup_mod, "ensure_hermes_home"),
+            patch.object(setup_mod, "ensure_vector_home"),
             patch.object(setup_mod, "load_config", return_value={}),
-            patch.object(setup_mod, "get_hermes_home", return_value=tmp_path),
+            patch.object(setup_mod, "get_vector_home", return_value=tmp_path),
             patch.object(
                 setup_mod,
                 "get_env_value",
@@ -605,12 +605,12 @@ class TestSetupWizardSkipsConfiguredSections:
         reloaded_config = {"model": "openai/gpt-4"}
 
         with (
-            patch.object(setup_mod, "ensure_hermes_home"),
+            patch.object(setup_mod, "ensure_vector_home"),
             patch.object(
                 setup_mod, "load_config",
                 side_effect=[{}, reloaded_config],
             ),
-            patch.object(setup_mod, "get_hermes_home", return_value=tmp_path),
+            patch.object(setup_mod, "get_vector_home", return_value=tmp_path),
             patch.object(setup_mod, "get_env_value", side_effect=env_side),
             patch.object(setup_mod, "is_interactive_stdin", return_value=True),
             patch("vector_cli.auth.get_active_provider", return_value=None),

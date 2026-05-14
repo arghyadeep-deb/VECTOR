@@ -701,7 +701,7 @@ class TestHasAnyProviderConfigured:
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         from vector_cli.main import _has_any_provider_configured
         assert _has_any_provider_configured() is True
 
@@ -711,7 +711,7 @@ class TestHasAnyProviderConfigured:
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         from vector_cli.main import _has_any_provider_configured
         assert _has_any_provider_configured() is True
 
@@ -721,7 +721,7 @@ class TestHasAnyProviderConfigured:
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         from vector_cli.main import _has_any_provider_configured
         assert _has_any_provider_configured() is True
 
@@ -732,7 +732,7 @@ class TestHasAnyProviderConfigured:
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setattr("vector_cli.copilot_auth.resolve_copilot_token", lambda: ("", ""))
         # Clear all provider env vars so earlier checks don't short-circuit
         _all_vars = {"OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
@@ -767,7 +767,7 @@ class TestHasAnyProviderConfigured:
             "model": {"default": "anthropic/claude-opus-4.6", "provider": "openrouter"},
         }))
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         # Clear all provider env vars
         for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
@@ -787,7 +787,7 @@ class TestHasAnyProviderConfigured:
             "model": {"default": "my-model", "base_url": "http://localhost:11434/v1"},
         }))
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
                      "ANTHROPIC_TOKEN", "OPENAI_BASE_URL"):
@@ -806,7 +806,7 @@ class TestHasAnyProviderConfigured:
             "model": {"default": "my-model", "api_key": "sk-test-key"},
         }))
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
                      "ANTHROPIC_TOKEN", "OPENAI_BASE_URL"):
@@ -826,7 +826,7 @@ class TestHasAnyProviderConfigured:
             "model": {"default": ""},
         }))
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         monkeypatch.setattr("vector_cli.copilot_auth.resolve_copilot_token", lambda: ("", ""))
         _all_vars = {"OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
@@ -841,7 +841,7 @@ class TestHasAnyProviderConfigured:
         from vector_cli.main import _has_any_provider_configured
         assert _has_any_provider_configured() is False
 
-    def test_claude_code_creds_counted_when_hermes_configured(self, monkeypatch, tmp_path):
+    def test_claude_code_creds_counted_when_vector_configured(self, monkeypatch, tmp_path):
         """Claude Code credentials should count when VectorCode has been explicitly configured."""
         import yaml
         from vector_cli import config as config_module
@@ -851,7 +851,7 @@ class TestHasAnyProviderConfigured:
         config_file = vector_home / "config.yaml"
         config_file.write_text(yaml.dump({"model": {"default": "my-local-model"}}))
         monkeypatch.setattr(config_module, "get_env_path", lambda: vector_home / ".env")
-        monkeypatch.setattr(config_module, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(config_module, "get_vector_home", lambda: vector_home)
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         # Clear all provider env vars
         for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",

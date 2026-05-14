@@ -4,12 +4,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from cli import HermesCLI
+from cli import VectorCodeCLI
 from vector_cli.commands import resolve_command
 
 
 def _make_cli():
-    cli_obj = HermesCLI.__new__(HermesCLI)
+    cli_obj = VectorCodeCLI.__new__(VectorCodeCLI)
     cli_obj.config = {}
     cli_obj.console = MagicMock()
     cli_obj.agent = None
@@ -70,7 +70,7 @@ def test_show_session_status_prints_gateway_style_summary():
         "started_at": 1775791440,
     }
 
-    with patch("cli.display_hermes_home", return_value="~/.vector"):
+    with patch("cli.display_vector_home", return_value="~/.vector"):
         cli_obj._show_session_status()
 
     printed = "\n".join(str(call.args[0]) for call in cli_obj.console.print.call_args_list)

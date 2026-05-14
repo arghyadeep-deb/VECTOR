@@ -258,67 +258,67 @@ class TestExchangeAuthCode:
         assert not setup_module.PENDING_AUTH_PATH.exists()
 
 
-class TestHermesConstantsFallback:
-    """Tests for _hermes_home.py fallback when vector_constants is unavailable."""
+class TestVectorCodeConstantsFallback:
+    """Tests for _vector_home.py fallback when vector_constants is unavailable."""
 
     HELPER_PATH = (
         Path(__file__).resolve().parents[2]
-        / "skills/productivity/google-workspace/scripts/_hermes_home.py"
+        / "skills/productivity/google-workspace/scripts/_vector_home.py"
     )
 
     def _load_helper(self, monkeypatch):
-        """Load _hermes_home.py with vector_constants blocked."""
+        """Load _vector_home.py with vector_constants blocked."""
         monkeypatch.setitem(sys.modules, "vector_constants", None)
-        spec = importlib.util.spec_from_file_location("_hermes_home_test", self.HELPER_PATH)
+        spec = importlib.util.spec_from_file_location("_vector_home_test", self.HELPER_PATH)
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None
         spec.loader.exec_module(module)
         return module
 
-    def test_fallback_uses_hermes_home_env_var(self, monkeypatch, tmp_path):
+    def test_fallback_uses_vector_home_env_var(self, monkeypatch, tmp_path):
         """When vector_constants is missing, VECTOR_HOME comes from env var."""
         monkeypatch.setenv("VECTOR_HOME", str(tmp_path / "custom-vector"))
         module = self._load_helper(monkeypatch)
-        assert module.get_hermes_home() == tmp_path / "custom-vector"
+        assert module.get_vector_home() == tmp_path / "custom-vector"
 
-    def test_fallback_defaults_to_dot_hermes(self, monkeypatch):
+    def test_fallback_defaults_to_dot_vector(self, monkeypatch):
         """When vector_constants is missing and VECTOR_HOME unset, default to ~/.vector."""
         monkeypatch.delenv("VECTOR_HOME", raising=False)
         module = self._load_helper(monkeypatch)
-        assert module.get_hermes_home() == Path.home() / ".vector"
+        assert module.get_vector_home() == Path.home() / ".vector"
 
-    def test_fallback_ignores_empty_hermes_home(self, monkeypatch):
+    def test_fallback_ignores_empty_vector_home(self, monkeypatch):
         """Empty/whitespace VECTOR_HOME is treated as unset."""
         monkeypatch.setenv("VECTOR_HOME", "  ")
         module = self._load_helper(monkeypatch)
-        assert module.get_hermes_home() == Path.home() / ".vector"
+        assert module.get_vector_home() == Path.home() / ".vector"
 
-    def test_fallback_display_hermes_home_shortens_path(self, monkeypatch):
-        """Fallback display_hermes_home() uses ~/ shorthand like the real one."""
+    def test_fallback_display_vector_home_shortens_path(self, monkeypatch):
+        """Fallback display_vector_home() uses ~/ shorthand like the real one."""
         monkeypatch.delenv("VECTOR_HOME", raising=False)
         module = self._load_helper(monkeypatch)
-        assert module.display_hermes_home() == "~/.vector"
+        assert module.display_vector_home() == "~/.vector"
 
-    def test_fallback_display_hermes_home_profile_path(self, monkeypatch):
-        """Fallback display_hermes_home() handles profile paths under ~/."""
+    def test_fallback_display_vector_home_profile_path(self, monkeypatch):
+        """Fallback display_vector_home() handles profile paths under ~/."""
         monkeypatch.setenv("VECTOR_HOME", str(Path.home() / ".vector/profiles/coder"))
         module = self._load_helper(monkeypatch)
-        assert module.display_hermes_home() == "~/.vector/profiles/coder"
+        assert module.display_vector_home() == "~/.vector/profiles/coder"
 
-    def test_fallback_display_hermes_home_custom_path(self, monkeypatch):
-        """Fallback display_hermes_home() returns full path for non-home locations."""
+    def test_fallback_display_vector_home_custom_path(self, monkeypatch):
+        """Fallback display_vector_home() returns full path for non-home locations."""
         monkeypatch.setenv("VECTOR_HOME", "/opt/vector-custom")
         module = self._load_helper(monkeypatch)
-        assert module.display_hermes_home() == "/opt/vector-custom"
+        assert module.display_vector_home() == "/opt/vector-custom"
 
-    def test_delegates_to_hermes_constants_when_available(self):
-        """When vector_constants IS importable, _hermes_home delegates to it."""
+    def test_delegates_to_vector_constants_when_available(self):
+        """When vector_constants IS importable, _vector_home delegates to it."""
         spec = importlib.util.spec_from_file_location(
-            "_hermes_home_happy", self.HELPER_PATH
+            "_vector_home_happy", self.HELPER_PATH
         )
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None
         spec.loader.exec_module(module)
         import vector_constants
-        assert module.get_hermes_home is vector_constants.get_hermes_home
-        assert module.display_hermes_home is vector_constants.display_hermes_home
+        assert module.get_vector_home is vector_constants.get_vector_home
+        assert module.display_vector_home is vector_constants.display_vector_home

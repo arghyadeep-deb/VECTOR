@@ -7,50 +7,50 @@ from unittest.mock import patch
 import pytest
 
 import vector_constants
-from vector_constants import get_default_hermes_root, is_container
+from vector_constants import get_default_vector_root, is_container
 
 
-class TestGetDefaultHermesRoot:
-    """Tests for get_default_hermes_root() — Docker/custom deployment awareness."""
+class TestGetDefaultVectorCodeRoot:
+    """Tests for get_default_vector_root() — Docker/custom deployment awareness."""
 
-    def test_no_hermes_home_returns_native(self, tmp_path, monkeypatch):
+    def test_no_vector_home_returns_native(self, tmp_path, monkeypatch):
         """When VECTOR_HOME is not set, returns ~/.vector."""
         monkeypatch.delenv("VECTOR_HOME", raising=False)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        assert get_default_hermes_root() == tmp_path / ".vector"
+        assert get_default_vector_root() == tmp_path / ".vector"
 
-    def test_hermes_home_is_native(self, tmp_path, monkeypatch):
+    def test_vector_home_is_native(self, tmp_path, monkeypatch):
         """When VECTOR_HOME = ~/.vector, returns ~/.vector."""
         native = tmp_path / ".vector"
         native.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(native))
-        assert get_default_hermes_root() == native
+        assert get_default_vector_root() == native
 
-    def test_hermes_home_is_profile(self, tmp_path, monkeypatch):
+    def test_vector_home_is_profile(self, tmp_path, monkeypatch):
         """When VECTOR_HOME is a profile under ~/.vector, returns ~/.vector."""
         native = tmp_path / ".vector"
         profile = native / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(profile))
-        assert get_default_hermes_root() == native
+        assert get_default_vector_root() == native
 
-    def test_hermes_home_is_docker(self, tmp_path, monkeypatch):
+    def test_vector_home_is_docker(self, tmp_path, monkeypatch):
         """When VECTOR_HOME points outside ~/.vector (Docker), returns VECTOR_HOME."""
         docker_home = tmp_path / "opt" / "data"
         docker_home.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(docker_home))
-        assert get_default_hermes_root() == docker_home
+        assert get_default_vector_root() == docker_home
 
-    def test_hermes_home_is_custom_path(self, tmp_path, monkeypatch):
+    def test_vector_home_is_custom_path(self, tmp_path, monkeypatch):
         """Any VECTOR_HOME outside ~/.vector is treated as the root."""
         custom = tmp_path / "my-vector-data"
         custom.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(custom))
-        assert get_default_hermes_root() == custom
+        assert get_default_vector_root() == custom
 
     def test_docker_profile_active(self, tmp_path, monkeypatch):
         """When a Docker profile is active (VECTOR_HOME=<root>/profiles/<name>),
@@ -60,7 +60,7 @@ class TestGetDefaultHermesRoot:
         profile.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(profile))
-        assert get_default_hermes_root() == docker_root
+        assert get_default_vector_root() == docker_root
 
 
 class TestIsContainer:

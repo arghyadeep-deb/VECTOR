@@ -21,7 +21,7 @@ class TestSaveConfigValueAtomic:
             "model": {"default": "test-model", "provider": "openrouter"},
             "display": {"skin": "default"},
         }))
-        monkeypatch.setattr("cli._hermes_home", vector_home)
+        monkeypatch.setattr("cli._vector_home", vector_home)
         return config_path
 
     def test_calls_atomic_yaml_write(self, config_env, monkeypatch):

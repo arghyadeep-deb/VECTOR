@@ -339,7 +339,7 @@ class TestResolveSessionName:
 
 
 class TestResolveConfigPath:
-    def test_prefers_hermes_home_when_exists(self, tmp_path):
+    def test_prefers_vector_home_when_exists(self, tmp_path):
         vector_home = tmp_path / "vector"
         vector_home.mkdir()
         local_cfg = vector_home / "honcho.json"
@@ -362,7 +362,7 @@ class TestResolveConfigPath:
             result = resolve_config_path()
         assert result == fake_home / ".honcho" / "config.json"
 
-    def test_falls_back_to_global_without_hermes_home_env(self, tmp_path):
+    def test_falls_back_to_global_without_vector_home_env(self, tmp_path):
         fake_home = tmp_path / "fakehome"
         fake_home.mkdir()
 
@@ -400,7 +400,7 @@ class TestResolveConfigPath:
 
 
 class TestResolveActiveHost:
-    def test_default_returns_hermes(self):
+    def test_default_returns_vector(self):
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("VECTOR_HONCHO_HOST", None)
             os.environ.pop("VECTOR_HOME", None)
@@ -416,13 +416,13 @@ class TestResolveActiveHost:
             with patch("vector_cli.profiles.get_active_profile_name", return_value="coder"):
                 assert resolve_active_host() == "vector.coder"
 
-    def test_default_profile_returns_hermes(self):
+    def test_default_profile_returns_vector(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("VECTOR_HONCHO_HOST", None)
             with patch("vector_cli.profiles.get_active_profile_name", return_value="default"):
                 assert resolve_active_host() == "vector"
 
-    def test_custom_profile_returns_hermes(self):
+    def test_custom_profile_returns_vector(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("VECTOR_HONCHO_HOST", None)
             with patch("vector_cli.profiles.get_active_profile_name", return_value="custom"):
@@ -584,7 +584,7 @@ class TestGetHonchoClient:
         not importlib.util.find_spec("honcho"),
         reason="honcho SDK not installed"
     )
-    def test_hermes_config_timeout_override_used_when_config_timeout_missing(self):
+    def test_vector_config_timeout_override_used_when_config_timeout_missing(self):
         fake_honcho = MagicMock(name="Honcho")
         cfg = HonchoClientConfig(
             api_key="test-key",
@@ -626,7 +626,7 @@ class TestGetHonchoClient:
         not importlib.util.find_spec("honcho"),
         reason="honcho SDK not installed"
     )
-    def test_hermes_request_timeout_alias_used(self):
+    def test_vector_request_timeout_alias_used(self):
         fake_honcho = MagicMock(name="Honcho")
         cfg = HonchoClientConfig(
             api_key="test-key",

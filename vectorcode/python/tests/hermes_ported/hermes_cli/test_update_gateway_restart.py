@@ -944,7 +944,7 @@ class TestFindGatewayPidsExclude:
         profile_dir = tmp_path / ".vector" / "profiles" / "orcha"
         profile_dir.mkdir(parents=True)
         monkeypatch.setattr(gateway_cli, "is_windows", lambda: False)
-        monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: profile_dir)
+        monkeypatch.setattr(gateway_cli, "get_vector_home", lambda: profile_dir)
 
         def fake_run(cmd, **kwargs):
             return subprocess.CompletedProcess(
@@ -994,10 +994,10 @@ class TestGatewayModeWritesExitCodeEarly:
         vector_home.mkdir()
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         import vector_cli.config as _cfg
-        monkeypatch.setattr(_cfg, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_cfg, "get_vector_home", lambda: vector_home)
         # Also patch the module-level ref used by cmd_update
         import vector_cli.main as _main_mod
-        monkeypatch.setattr(_main_mod, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_main_mod, "get_vector_home", lambda: vector_home)
 
         mock_run.side_effect = _make_run_side_effect(commit_count="1")
 
@@ -1024,9 +1024,9 @@ class TestGatewayModeWritesExitCodeEarly:
         vector_home.mkdir()
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         import vector_cli.config as _cfg
-        monkeypatch.setattr(_cfg, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_cfg, "get_vector_home", lambda: vector_home)
         import vector_cli.main as _main_mod
-        monkeypatch.setattr(_main_mod, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_main_mod, "get_vector_home", lambda: vector_home)
 
         mock_run.side_effect = _make_run_side_effect(commit_count="1")
 
@@ -1052,9 +1052,9 @@ class TestGatewayModeWritesExitCodeEarly:
         vector_home.mkdir()
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         import vector_cli.config as _cfg
-        monkeypatch.setattr(_cfg, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_cfg, "get_vector_home", lambda: vector_home)
         import vector_cli.main as _main_mod
-        monkeypatch.setattr(_main_mod, "get_hermes_home", lambda: vector_home)
+        monkeypatch.setattr(_main_mod, "get_vector_home", lambda: vector_home)
 
         exit_code_path = vector_home / ".update_exit_code"
 

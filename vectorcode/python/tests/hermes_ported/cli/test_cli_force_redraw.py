@@ -13,13 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cli import HermesCLI
+from cli import VectorCodeCLI
 
 
 @pytest.fixture
 def bare_cli():
-    """A HermesCLI with no __init__ — we only exercise the redraw helper."""
-    cli = object.__new__(HermesCLI)
+    """A VectorCodeCLI with no __init__ — we only exercise the redraw helper."""
+    cli = object.__new__(VectorCodeCLI)
     return cli
 
 
@@ -30,7 +30,7 @@ class TestForceFullRedraw:
         bare_cli._force_full_redraw()  # must not raise
 
     def test_missing_app_attr_is_safe(self, bare_cli):
-        # Simulate HermesCLI before the TUI has ever been constructed.
+        # Simulate VectorCodeCLI before the TUI has ever been constructed.
         bare_cli._force_full_redraw()  # must not raise
 
     def test_sends_full_clear_and_invalidates(self, bare_cli):

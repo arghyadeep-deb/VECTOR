@@ -305,7 +305,7 @@ class TestBuildSessionContextPrompt:
         assert "Local" in prompt
         assert "machine running this agent" in prompt
 
-    def test_local_delivery_path_uses_display_hermes_home(self):
+    def test_local_delivery_path_uses_display_vector_home(self):
         config = GatewayConfig()
         source = SessionSource(
             platform=Platform.LOCAL, chat_id="cli",
@@ -313,7 +313,7 @@ class TestBuildSessionContextPrompt:
         )
         ctx = build_session_context(source, config)
 
-        with patch("vector_constants.display_hermes_home", return_value="~/.vector/profiles/coder"):
+        with patch("vector_constants.display_vector_home", return_value="~/.vector/profiles/coder"):
             prompt = build_session_context_prompt(ctx)
 
         assert "~/.vector/profiles/coder/cron/output/" in prompt

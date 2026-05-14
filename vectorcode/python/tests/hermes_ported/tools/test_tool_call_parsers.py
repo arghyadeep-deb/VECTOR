@@ -32,7 +32,7 @@ class TestParserRegistry:
         parsers = list_parsers()
         assert len(parsers) > 0
 
-    def test_hermes_parser_registered(self):
+    def test_vector_parser_registered(self):
         parsers = list_parsers()
         assert "vector" in parsers
 
@@ -54,7 +54,7 @@ class TestParserRegistry:
 
 # ─── VectorCode parser tests ────────────────────────────────────────────────
 
-class TestHermesParser:
+class TestVectorCodeParser:
     @pytest.fixture
     def parser(self):
         return get_parser("vector")

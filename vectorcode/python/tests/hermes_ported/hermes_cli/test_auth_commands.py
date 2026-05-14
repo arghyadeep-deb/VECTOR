@@ -68,7 +68,7 @@ def test_auth_add_anthropic_oauth_persists_pool_entry(tmp_path, monkeypatch):
     _write_auth_store(tmp_path, {"version": 1, "providers": {}})
     token = _jwt_with_email("claude@example.com")
     monkeypatch.setattr(
-        "agent.anthropic_adapter.run_hermes_oauth_login_pure",
+        "agent.anthropic_adapter.run_vector_oauth_login_pure",
         lambda: {
             "access_token": token,
             "refresh_token": "refresh-token",
@@ -1384,7 +1384,7 @@ def test_seed_from_singletons_respects_qwen_suppression(tmp_path, monkeypatch):
     assert active == set()
 
 
-def test_seed_from_singletons_respects_hermes_pkce_suppression(tmp_path, monkeypatch):
+def test_seed_from_singletons_respects_vector_pkce_suppression(tmp_path, monkeypatch):
     """anthropic vector_pkce must not re-seed from ~/.vector/.anthropic_oauth.json when suppressed."""
     vector_home = tmp_path / "vector"
     vector_home.mkdir(parents=True, exist_ok=True)
@@ -1400,7 +1400,7 @@ def test_seed_from_singletons_respects_hermes_pkce_suppression(tmp_path, monkeyp
 
     # Stub the readers so only vector_pkce is "available"; claude_code returns None
     import agent.anthropic_adapter as aa
-    monkeypatch.setattr(aa, "read_hermes_oauth_credentials", lambda: {
+    monkeypatch.setattr(aa, "read_vector_oauth_credentials", lambda: {
         "accessToken": "tok", "refreshToken": "r", "expiresAt": 9999999999000,
     })
     monkeypatch.setattr(aa, "read_claude_code_credentials", lambda: None)

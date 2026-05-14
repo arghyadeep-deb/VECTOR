@@ -74,6 +74,31 @@ def get_vector_dir(*args, **kwargs) -> Path:
     return get_vector_home()
 
 
+def get_skills_dir() -> Path:
+    """Alias for get_vector_skills_dir."""
+    return get_vector_skills_dir()
+
+
+def get_sessions_dir() -> Path:
+    """Alias for get_vector_sessions_dir."""
+    return get_vector_sessions_dir()
+
+
+def get_memory_path() -> Path:
+    """Alias for get_vector_memory_path."""
+    return get_vector_memory_path()
+
+
+def get_logs_dir() -> Path:
+    """Alias for get_vector_logs_dir."""
+    return get_vector_logs_dir()
+
+
+def get_data_dir() -> Path:
+    """Alias for get_vector_data_dir."""
+    return get_vector_data_dir()
+
+
 # ── Provider base URLs ────────────────────────────────────────────────────────
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"

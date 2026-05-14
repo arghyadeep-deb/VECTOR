@@ -1,4 +1,4 @@
-"""Tests for acp_adapter.server — HermesACPAgent ACP server."""
+"""Tests for acp_adapter.server — VectorCodeACPAgent ACP server."""
 
 import asyncio
 import os
@@ -28,7 +28,7 @@ from acp.schema import (
     TextContentBlock,
     Usage,
 )
-from acp_adapter.server import HermesACPAgent, VECTOR_VERSION
+from acp_adapter.server import VectorCodeACPAgent, VECTOR_VERSION
 from acp_adapter.session import SessionManager
 from vector_state import SessionDB
 
@@ -41,8 +41,8 @@ def mock_manager():
 
 @pytest.fixture()
 def agent(mock_manager):
-    """HermesACPAgent backed by a mock session manager."""
-    return HermesACPAgent(session_manager=mock_manager)
+    """VectorCodeACPAgent backed by a mock session manager."""
+    return VectorCodeACPAgent(session_manager=mock_manager)
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +152,7 @@ class TestSessionOps:
         manager = SessionManager(
             agent_factory=lambda: SimpleNamespace(model="gpt-5.4", provider="openai-codex")
         )
-        acp_agent = HermesACPAgent(session_manager=manager)
+        acp_agent = VectorCodeACPAgent(session_manager=manager)
 
         with patch(
             "vector_cli.models.curated_models_for_provider",
@@ -408,7 +408,7 @@ class TestSessionConfiguration:
         manager = SessionManager(db=SessionDB(tmp_path / "state.db"))
 
         with patch("run_agent.AIAgent", side_effect=fake_agent):
-            acp_agent = HermesACPAgent(session_manager=manager)
+            acp_agent = VectorCodeACPAgent(session_manager=manager)
             state = manager.create_session(cwd="/tmp")
             result = await acp_agent.set_session_model(
                 model_id="anthropic:claude-sonnet-4-6",
@@ -788,7 +788,7 @@ class TestSlashCommands:
         manager = SessionManager(db=SessionDB(tmp_path / "state.db"))
 
         with patch("run_agent.AIAgent", side_effect=fake_agent):
-            acp_agent = HermesACPAgent(session_manager=manager)
+            acp_agent = VectorCodeACPAgent(session_manager=manager)
             state = manager.create_session(cwd="/tmp")
             result = acp_agent._cmd_model("anthropic:claude-sonnet-4-6", state)
 

@@ -51,7 +51,7 @@ def _reset_logging_state():
 def vector_home(tmp_path, monkeypatch):
     """Provide an isolated VECTOR_HOME for logging tests.
 
-    Uses the same tmp_path as the autouse _isolate_hermes_home from conftest,
+    Uses the same tmp_path as the autouse _isolate_vector_home from conftest,
     reading it back from the env var to avoid double-mkdir conflicts.
     """
     home = Path(os.environ["VECTOR_HOME"])
@@ -151,7 +151,7 @@ class TestSetupLogging:
     def test_writes_to_agent_log(self, vector_home):
         vector_logging.setup_logging(vector_home=vector_home)
 
-        test_logger = logging.getLogger("test_hermes_logging.write_test")
+        test_logger = logging.getLogger("test_vector_logging.write_test")
         test_logger.info("test message for agent.log")
 
         # Flush handlers
@@ -166,7 +166,7 @@ class TestSetupLogging:
     def test_warnings_appear_in_both_logs(self, vector_home):
         vector_logging.setup_logging(vector_home=vector_home)
 
-        test_logger = logging.getLogger("test_hermes_logging.warning_test")
+        test_logger = logging.getLogger("test_vector_logging.warning_test")
         test_logger.warning("this is a warning")
 
         for h in logging.getLogger().handlers:
@@ -180,7 +180,7 @@ class TestSetupLogging:
     def test_info_not_in_errors_log(self, vector_home):
         vector_logging.setup_logging(vector_home=vector_home)
 
-        test_logger = logging.getLogger("test_hermes_logging.info_test")
+        test_logger = logging.getLogger("test_vector_logging.info_test")
         test_logger.info("info only message")
 
         for h in logging.getLogger().handlers:
@@ -228,8 +228,8 @@ class TestSetupLogging:
         """The custom record factory injects session_tag on all records."""
         vector_logging.setup_logging(vector_home=vector_home)
         factory = logging.getLogRecordFactory()
-        assert getattr(factory, "_hermes_session_injector", False), (
-            "Record factory should have _hermes_session_injector marker"
+        assert getattr(factory, "_vector_session_injector", False), (
+            "Record factory should have _vector_session_injector marker"
         )
         # Verify session_tag exists on a fresh record
         record = factory("test", logging.INFO, "", 0, "msg", (), None)
@@ -570,7 +570,7 @@ class TestSetupVerboseLogging:
             h for h in root.handlers
             if isinstance(h, logging.StreamHandler)
             and not isinstance(h, RotatingFileHandler)
-            and getattr(h, "_hermes_verbose", False)
+            and getattr(h, "_vector_verbose", False)
         ]
         assert len(verbose_handlers) == 1
         assert verbose_handlers[0].level == logging.DEBUG
@@ -585,7 +585,7 @@ class TestSetupVerboseLogging:
             h for h in root.handlers
             if isinstance(h, logging.StreamHandler)
             and not isinstance(h, RotatingFileHandler)
-            and getattr(h, "_hermes_verbose", False)
+            and getattr(h, "_vector_verbose", False)
         ]
         assert len(verbose_handlers) == 1
 

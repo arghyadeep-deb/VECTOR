@@ -163,10 +163,10 @@ class TestTerminalIntegration:
     """Verify that the passthrough is checked in terminal's env sanitizers."""
 
     def test_blocklisted_var_blocked_by_default(self):
-        from tools.environments.local import _sanitize_subprocess_env, _HERMES_PROVIDER_ENV_BLOCKLIST
+        from tools.environments.local import _sanitize_subprocess_env, _VECTOR_PROVIDER_ENV_BLOCKLIST
 
         # Pick a var we know is in the blocklist
-        blocked_var = next(iter(_HERMES_PROVIDER_ENV_BLOCKLIST))
+        blocked_var = next(iter(_VECTOR_PROVIDER_ENV_BLOCKLIST))
         env = {blocked_var: "secret_value", "PATH": "/usr/bin"}
         result = _sanitize_subprocess_env(env)
         assert blocked_var not in result
@@ -179,10 +179,10 @@ class TestTerminalIntegration:
         defeat the execute_code sandbox scrubbing."""
         from tools.environments.local import (
             _sanitize_subprocess_env,
-            _HERMES_PROVIDER_ENV_BLOCKLIST,
+            _VECTOR_PROVIDER_ENV_BLOCKLIST,
         )
 
-        blocked_var = next(iter(_HERMES_PROVIDER_ENV_BLOCKLIST))
+        blocked_var = next(iter(_VECTOR_PROVIDER_ENV_BLOCKLIST))
         # Attempt to register — must be silently refused (logged warning).
         register_env_passthrough([blocked_var])
 
@@ -201,10 +201,10 @@ class TestTerminalIntegration:
         import os
         from tools.environments.local import (
             _make_run_env,
-            _HERMES_PROVIDER_ENV_BLOCKLIST,
+            _VECTOR_PROVIDER_ENV_BLOCKLIST,
         )
 
-        blocked_var = next(iter(_HERMES_PROVIDER_ENV_BLOCKLIST))
+        blocked_var = next(iter(_VECTOR_PROVIDER_ENV_BLOCKLIST))
         os.environ[blocked_var] = "secret_value"
         try:
             # Without passthrough — blocked
@@ -218,7 +218,7 @@ class TestTerminalIntegration:
         finally:
             os.environ.pop(blocked_var, None)
 
-    def test_non_hermes_api_key_still_registerable(self):
+    def test_non_vector_api_key_still_registerable(self):
         """Third-party API keys (TENOR_API_KEY, NOTION_TOKEN, etc.) are NOT
         VectorCode provider credentials and must still pass through — skills
         that legitimately wrap third-party APIs must keep working."""

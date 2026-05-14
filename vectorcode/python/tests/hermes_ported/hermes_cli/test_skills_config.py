@@ -186,7 +186,7 @@ class TestGetDisabledSkillNames:
         result = get_disabled_skill_names()
         assert result == {"discord-skill"}
 
-    def test_hermes_platform_takes_precedence(self, tmp_path, monkeypatch):
+    def test_vector_platform_takes_precedence(self, tmp_path, monkeypatch):
         """VECTOR_PLATFORM should win over VECTOR_SESSION_PLATFORM."""
         config = tmp_path / "config.yaml"
         config.write_text(

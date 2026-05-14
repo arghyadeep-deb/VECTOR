@@ -22,7 +22,7 @@ def _restore_stdout():
 @pytest.fixture()
 def server():
     with patch.dict("sys.modules", {
-        "vector_constants": MagicMock(get_hermes_home=MagicMock(return_value="/tmp/vector_test")),
+        "vector_constants": MagicMock(get_vector_home=MagicMock(return_value="/tmp/vector_test")),
         "vector_cli.env_loader": MagicMock(),
         "vector_cli.banner": MagicMock(),
         "vector_state": MagicMock(),
@@ -206,12 +206,12 @@ def test_session_resume_returns_hydrated_messages(server, monkeypatch):
 
 
 def test_config_load_missing(server, tmp_path):
-    server._hermes_home = tmp_path
+    server._vector_home = tmp_path
     assert server._load_cfg() == {}
 
 
 def test_config_roundtrip(server, tmp_path):
-    server._hermes_home = tmp_path
+    server._vector_home = tmp_path
     server._save_cfg({"model": "test/model"})
     assert server._load_cfg()["model"] == "test/model"
 

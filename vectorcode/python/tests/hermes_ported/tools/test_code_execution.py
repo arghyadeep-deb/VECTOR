@@ -39,7 +39,7 @@ from unittest.mock import patch, MagicMock
 from tools.code_execution_tool import (
     SANDBOX_ALLOWED_TOOLS,
     execute_code,
-    generate_hermes_tools_module,
+    generate_vector_tools_module,
     check_sandbox_requirements,
     build_execute_code_schema,
     EXECUTE_CODE_SCHEMA,
@@ -79,30 +79,30 @@ class TestSandboxRequirements(unittest.TestCase):
         self.assertIn("code", EXECUTE_CODE_SCHEMA["parameters"]["required"])
 
 
-class TestHermesToolsGeneration(unittest.TestCase):
+class TestVectorCodeToolsGeneration(unittest.TestCase):
     def test_generates_all_allowed_tools(self):
-        src = generate_hermes_tools_module(list(SANDBOX_ALLOWED_TOOLS))
+        src = generate_vector_tools_module(list(SANDBOX_ALLOWED_TOOLS))
         for tool in SANDBOX_ALLOWED_TOOLS:
             self.assertIn(f"def {tool}(", src)
 
     def test_generates_subset(self):
-        src = generate_hermes_tools_module(["terminal", "web_search"])
+        src = generate_vector_tools_module(["terminal", "web_search"])
         self.assertIn("def terminal(", src)
         self.assertIn("def web_search(", src)
         self.assertNotIn("def read_file(", src)
 
     def test_empty_list_generates_nothing(self):
-        src = generate_hermes_tools_module([])
+        src = generate_vector_tools_module([])
         self.assertNotIn("def terminal(", src)
         self.assertIn("def _call(", src)  # infrastructure still present
 
     def test_non_allowed_tools_ignored(self):
-        src = generate_hermes_tools_module(["vision_analyze", "terminal"])
+        src = generate_vector_tools_module(["vision_analyze", "terminal"])
         self.assertIn("def terminal(", src)
         self.assertNotIn("def vision_analyze(", src)
 
     def test_rpc_infrastructure_present(self):
-        src = generate_hermes_tools_module(["terminal"])
+        src = generate_vector_tools_module(["terminal"])
         self.assertIn("VECTOR_RPC_SOCKET", src)
         self.assertIn("AF_UNIX", src)
         self.assertIn("def _connect(", src)
@@ -110,14 +110,14 @@ class TestHermesToolsGeneration(unittest.TestCase):
 
     def test_convenience_helpers_present(self):
         """Verify json_parse, shell_quote, and retry helpers are generated."""
-        src = generate_hermes_tools_module(["terminal"])
+        src = generate_vector_tools_module(["terminal"])
         self.assertIn("def json_parse(", src)
         self.assertIn("def shell_quote(", src)
         self.assertIn("def retry(", src)
         self.assertIn("import json, os, socket, shlex, time", src)
 
     def test_file_transport_uses_tempfile_fallback_for_rpc_dir(self):
-        src = generate_hermes_tools_module(["terminal"], transport="file")
+        src = generate_vector_tools_module(["terminal"], transport="file")
         self.assertIn("import json, os, shlex, tempfile, time", src)
         self.assertIn("os.path.join(tempfile.gettempdir(), \"vector_rpc\")", src)
         self.assertNotIn('os.environ.get("VECTOR_RPC_DIR", "/tmp/vector_rpc")', src)
@@ -452,7 +452,7 @@ class TestStubSchemaDrift(unittest.TestCase):
     def test_generated_module_accepts_all_params(self):
         """The generated vector_tools.py module should accept all current params
         without TypeError when called with keyword arguments."""
-        src = generate_hermes_tools_module(list(SANDBOX_ALLOWED_TOOLS))
+        src = generate_vector_tools_module(list(SANDBOX_ALLOWED_TOOLS))
 
         # Compile the generated module to check for syntax errors
         compile(src, "vector_tools.py", "exec")
@@ -663,7 +663,7 @@ class TestEnvVarFiltering(unittest.TestCase):
         child_env = self._get_child_env()
         self.assertIn("HOME", child_env)
 
-    def test_hermes_rpc_socket_injected(self):
+    def test_vector_rpc_socket_injected(self):
         child_env = self._get_child_env()
         self.assertIn("VECTOR_RPC_SOCKET", child_env)
 

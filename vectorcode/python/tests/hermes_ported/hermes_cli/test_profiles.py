@@ -31,7 +31,7 @@ from vector_cli.profiles import (
     generate_bash_completion,
     generate_zsh_completion,
     _get_profiles_root,
-    _get_default_hermes_home,
+    _get_default_vector_home,
 )
 
 
@@ -44,7 +44,7 @@ def profile_env(tmp_path, monkeypatch):
     """Set up an isolated environment for profile tests.
 
     * Path.home() -> tmp_path  (so _get_profiles_root() = tmp_path/.vector/profiles)
-    * VECTOR_HOME  -> tmp_path/.vector  (so get_hermes_home() agrees)
+    * VECTOR_HOME  -> tmp_path/.vector  (so get_vector_home() agrees)
     * Creates the bare-minimum ~/.vector directory.
     """
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -97,7 +97,7 @@ class TestValidateProfileName:
 class TestGetProfileDir:
     """Tests for get_profile_dir()."""
 
-    def test_default_returns_hermes_home(self, profile_env):
+    def test_default_returns_vector_home(self, profile_env):
         tmp_path = profile_env
         result = get_profile_dir("default")
         assert result == tmp_path / ".vector"
@@ -283,7 +283,7 @@ class TestActiveProfile:
 class TestGetActiveProfileName:
     """Tests for get_active_profile_name()."""
 
-    def test_default_hermes_home_returns_default(self, profile_env):
+    def test_default_vector_home_returns_default(self, profile_env):
         # VECTOR_HOME points to tmp_path/.vector which is the default
         assert get_active_profile_name() == "default"
 
@@ -726,30 +726,30 @@ class TestCompletion:
         assert len(script) > 0
         assert "compdef" in script
 
-    def test_bash_completion_has_hermes_profiles_function(self):
+    def test_bash_completion_has_vector_profiles_function(self):
         script = generate_bash_completion()
-        assert "_hermes_profiles" in script
+        assert "_vector_profiles" in script
 
-    def test_zsh_completion_has_hermes_function(self):
+    def test_zsh_completion_has_vector_function(self):
         script = generate_zsh_completion()
-        assert "_hermes" in script
+        assert "_vector" in script
 
 
 # ===================================================================
-# TestGetProfilesRoot / TestGetDefaultHermesHome (internal helpers)
+# TestGetProfilesRoot / TestGetDefaultVectorCodeHome (internal helpers)
 # ===================================================================
 
 class TestInternalHelpers:
-    """Tests for _get_profiles_root() and _get_default_hermes_home()."""
+    """Tests for _get_profiles_root() and _get_default_vector_home()."""
 
     def test_profiles_root_under_home(self, profile_env):
         tmp_path = profile_env
         root = _get_profiles_root()
         assert root == tmp_path / ".vector" / "profiles"
 
-    def test_default_hermes_home(self, profile_env):
+    def test_default_vector_home(self, profile_env):
         tmp_path = profile_env
-        home = _get_default_hermes_home()
+        home = _get_default_vector_home()
         assert home == tmp_path / ".vector"
 
     def test_profiles_root_docker_deployment(self, tmp_path, monkeypatch):
@@ -761,13 +761,13 @@ class TestInternalHelpers:
         root = _get_profiles_root()
         assert root == docker_home / "profiles"
 
-    def test_default_hermes_home_docker(self, tmp_path, monkeypatch):
-        """In Docker, _get_default_hermes_home() returns VECTOR_HOME itself."""
+    def test_default_vector_home_docker(self, tmp_path, monkeypatch):
+        """In Docker, _get_default_vector_home() returns VECTOR_HOME itself."""
         docker_home = tmp_path / "opt" / "data"
         docker_home.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(docker_home))
-        home = _get_default_hermes_home()
+        home = _get_default_vector_home()
         assert home == docker_home
 
     def test_profiles_root_profile_mode(self, tmp_path, monkeypatch):

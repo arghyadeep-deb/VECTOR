@@ -29,7 +29,7 @@ def _reset_modules(prefixes: tuple[str, ...]):
 
 @pytest.fixture(autouse=True)
 def _restore_tool_modules():
-    original_hermes_home = os.environ.get("VECTOR_HOME")
+    original_vector_home = os.environ.get("VECTOR_HOME")
     original_modules = {
         name: module
         for name, module in sys.modules.items()
@@ -43,10 +43,10 @@ def _restore_tool_modules():
     try:
         yield
     finally:
-        if original_hermes_home is None:
+        if original_vector_home is None:
             os.environ.pop("VECTOR_HOME", None)
         else:
-            os.environ["VECTOR_HOME"] = original_hermes_home
+            os.environ["VECTOR_HOME"] = original_vector_home
         _reset_modules(("tools", "vector_cli", "modal"))
         sys.modules.update(original_modules)
 
@@ -65,7 +65,7 @@ def _install_modal_test_modules(
     vector_home = tmp_path / "vector-home"
     os.environ["VECTOR_HOME"] = str(vector_home)
     sys.modules["vector_cli.config"] = types.SimpleNamespace(
-        get_hermes_home=lambda: vector_home,
+        get_vector_home=lambda: vector_home,
     )
 
     tools_package = types.ModuleType("tools")

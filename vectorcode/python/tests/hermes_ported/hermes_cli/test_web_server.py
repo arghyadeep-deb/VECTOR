@@ -101,7 +101,7 @@ class TestWebServerEndpoints:
     """Test the FastAPI REST endpoints using Starlette TestClient."""
 
     @pytest.fixture(autouse=True)
-    def _setup_test_client(self, monkeypatch, _isolate_hermes_home):
+    def _setup_test_client(self, monkeypatch, _isolate_vector_home):
         """Create a TestClient and isolate the state DB under the test VECTOR_HOME."""
         try:
             from starlette.testclient import TestClient
@@ -109,10 +109,10 @@ class TestWebServerEndpoints:
             pytest.skip("fastapi/starlette not installed")
 
         import vector_state
-        from vector_constants import get_hermes_home
+        from vector_constants import get_vector_home
         from vector_cli.web_server import app, _SESSION_HEADER_NAME, _SESSION_TOKEN
 
-        monkeypatch.setattr(vector_state, "DEFAULT_DB_PATH", get_hermes_home() / "state.db")
+        monkeypatch.setattr(vector_state, "DEFAULT_DB_PATH", get_vector_home() / "state.db")
 
         self.client = TestClient(app)
         self.client.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN
@@ -549,17 +549,17 @@ class TestNewEndpoints:
     """Tests for session detail, logs, cron, skills, tools, raw config, analytics."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, monkeypatch, _isolate_hermes_home):
+    def _setup(self, monkeypatch, _isolate_vector_home):
         try:
             from starlette.testclient import TestClient
         except ImportError:
             pytest.skip("fastapi/starlette not installed")
 
         import vector_state
-        from vector_constants import get_hermes_home
+        from vector_constants import get_vector_home
         from vector_cli.web_server import app, _SESSION_HEADER_NAME, _SESSION_TOKEN
 
-        monkeypatch.setattr(vector_state, "DEFAULT_DB_PATH", get_hermes_home() / "state.db")
+        monkeypatch.setattr(vector_state, "DEFAULT_DB_PATH", get_vector_home() / "state.db")
 
         self.client = TestClient(app)
         self.client.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN
@@ -1738,7 +1738,7 @@ skip_on_windows = pytest.mark.skipif(
 @skip_on_windows
 class TestPtyWebSocket:
     @pytest.fixture(autouse=True)
-    def _setup(self, monkeypatch, _isolate_hermes_home):
+    def _setup(self, monkeypatch, _isolate_vector_home):
         from starlette.testclient import TestClient
 
         import vector_cli.web_server as ws

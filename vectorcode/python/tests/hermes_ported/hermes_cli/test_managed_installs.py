@@ -26,7 +26,7 @@ def test_format_managed_message_homebrew(monkeypatch):
     assert "brew upgrade vector-agent" in message
 
 
-def test_recommended_update_command_defaults_to_hermes_update(monkeypatch):
+def test_recommended_update_command_defaults_to_vector_update(monkeypatch):
     monkeypatch.delenv("VECTOR_MANAGED", raising=False)
 
     assert recommended_update_command() == "vector update"

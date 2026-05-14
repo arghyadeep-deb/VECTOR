@@ -15,7 +15,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_hermes_tree(root: Path) -> None:
+def _make_vector_tree(root: Path) -> None:
     """Create a realistic ~/.vector directory structure for testing."""
     (root / "config.yaml").write_text("model:\n  provider: openrouter\n")
     (root / ".env").write_text("OPENROUTER_API_KEY=sk-test-123\n")
@@ -73,7 +73,7 @@ def _make_hermes_tree(root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 class TestShouldExclude:
-    def test_excludes_hermes_agent(self):
+    def test_excludes_vector_agent(self):
         from vector_cli.backup import _should_exclude
         assert _should_exclude(Path("vector-agent/run_agent.py"))
         assert _should_exclude(Path("vector-agent/.git/HEAD"))
@@ -149,10 +149,10 @@ class TestBackup:
         """Backup creates a valid zip containing expected files."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
-        _make_hermes_tree(vector_home)
+        _make_vector_tree(vector_home)
 
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
-        # get_default_hermes_root needs this
+        # get_default_vector_root needs this
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
         out_zip = tmp_path / "backup.zip"
@@ -179,11 +179,11 @@ class TestBackup:
             # Skins
             assert "skins/cyber.yaml" in names
 
-    def test_excludes_hermes_agent(self, tmp_path, monkeypatch):
+    def test_excludes_vector_agent(self, tmp_path, monkeypatch):
         """Backup does NOT include vector-agent/ directory."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
-        _make_hermes_tree(vector_home)
+        _make_vector_tree(vector_home)
 
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -203,7 +203,7 @@ class TestBackup:
         """Backup does NOT include __pycache__ dirs."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
-        _make_hermes_tree(vector_home)
+        _make_vector_tree(vector_home)
 
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -223,7 +223,7 @@ class TestBackup:
         """Backup does NOT include PID files."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
-        _make_hermes_tree(vector_home)
+        _make_vector_tree(vector_home)
 
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -335,7 +335,7 @@ class TestImport:
         assert (vector_home / "skills" / "my-skill" / "SKILL.md").read_text() == "# My Skill\n"
         assert (vector_home / "profiles" / "coder" / "config.yaml").exists()
 
-    def test_strips_hermes_prefix(self, tmp_path, monkeypatch):
+    def test_strips_vector_prefix(self, tmp_path, monkeypatch):
         """Import strips .vector/ prefix if all entries share it."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -373,7 +373,7 @@ class TestImport:
         with pytest.raises(SystemExit):
             run_import(args)
 
-    def test_rejects_non_hermes_zip(self, tmp_path, monkeypatch):
+    def test_rejects_non_vector_zip(self, tmp_path, monkeypatch):
         """Import rejects a zip that doesn't look like a vector backup."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -482,7 +482,7 @@ class TestRoundTrip:
         # Source
         src_home = tmp_path / "source" / ".vector"
         src_home.mkdir(parents=True)
-        _make_hermes_tree(src_home)
+        _make_vector_tree(src_home)
 
         monkeypatch.setenv("VECTOR_HOME", str(src_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "source")
@@ -584,7 +584,7 @@ class TestValidation:
             ok, reason = _validate_backup_zip(zf)
         assert not ok
 
-    def test_detect_prefix_hermes(self):
+    def test_detect_prefix_vector(self):
         """Detects .vector/ prefix wrapping all entries."""
         import io
         from vector_cli.backup import _detect_prefix
@@ -630,7 +630,7 @@ class TestValidation:
 # ---------------------------------------------------------------------------
 
 class TestBackupEdgeCases:
-    def test_nonexistent_hermes_home(self, tmp_path, monkeypatch):
+    def test_nonexistent_vector_home(self, tmp_path, monkeypatch):
         """Backup exits when vector home doesn't exist."""
         fake_home = tmp_path / "nonexistent" / ".vector"
         monkeypatch.setenv("VECTOR_HOME", str(fake_home))
@@ -680,7 +680,7 @@ class TestBackupEdgeCases:
         # Should have .tar.zip suffix
         assert (tmp_path / "mybackup.tar.zip").exists()
 
-    def test_empty_hermes_home(self, tmp_path, monkeypatch):
+    def test_empty_vector_home(self, tmp_path, monkeypatch):
         """Backup handles empty vector home (no files to back up)."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -754,7 +754,7 @@ class TestBackupEdgeCases:
             # The pre-1980 file should be skipped, not crash the backup
             assert "ancient.txt" not in names
 
-    def test_skips_output_zip_inside_hermes(self, tmp_path, monkeypatch):
+    def test_skips_output_zip_inside_vector(self, tmp_path, monkeypatch):
         """Backup skips its own output zip if it's inside vector root."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -1255,7 +1255,7 @@ class TestPreUpdateBackup:
     def vector_home(self, tmp_path):
         root = tmp_path / ".vector"
         root.mkdir()
-        _make_hermes_tree(root)
+        _make_vector_tree(root)
         return root
 
     def test_creates_backup_under_backups_dir(self, vector_home):
@@ -1357,7 +1357,7 @@ class TestRunPreUpdateBackup:
     def vector_home(self, tmp_path, monkeypatch):
         root = tmp_path / ".vector"
         root.mkdir()
-        _make_hermes_tree(root)
+        _make_vector_tree(root)
         # Point VECTOR_HOME at the temp dir so config + backup paths resolve here
         monkeypatch.setenv("VECTOR_HOME", str(root))
         # Make Path.home() point at tmp_path for anything that uses it

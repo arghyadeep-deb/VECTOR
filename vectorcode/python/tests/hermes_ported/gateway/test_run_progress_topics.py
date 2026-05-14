@@ -174,7 +174,7 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
     adapter = ProgressCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
     source = SessionSource(
         platform=Platform.TELEGRAM,
@@ -221,7 +221,7 @@ async def test_run_agent_progress_does_not_use_event_message_id_for_telegram_dm(
     adapter = ProgressCaptureAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -263,7 +263,7 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
     adapter = ProgressCaptureAdapter(platform=Platform.SLACK)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -321,7 +321,7 @@ def _run_long_preview_helper(monkeypatch, tmp_path, preview_length=0):
     adapter = ProgressCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -529,7 +529,7 @@ async def _run_with_agent(
     gateway_run = importlib.import_module("gateway.run")
     if config_data and "streaming" in config_data:
         runner.config.streaming = StreamingConfig.from_dict(config_data["streaming"])
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     source = SessionSource(
         platform=platform,
@@ -831,7 +831,7 @@ async def test_run_agent_drops_tool_progress_after_generation_invalidation(monke
     adapter = ProgressCaptureAdapter(platform=Platform.DISCORD)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -892,7 +892,7 @@ async def test_run_agent_drops_interim_commentary_after_generation_invalidation(
     adapter = ProgressCaptureAdapter(platform=Platform.DISCORD)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_vector_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(

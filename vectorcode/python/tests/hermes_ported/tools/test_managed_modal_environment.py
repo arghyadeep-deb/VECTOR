@@ -52,7 +52,7 @@ def _install_fake_tools_package(*, credential_mounts=None):
     vector_cli.__path__ = []  # type: ignore[attr-defined]
     sys.modules["vector_cli"] = vector_cli
     sys.modules["vector_cli.config"] = types.SimpleNamespace(
-        get_hermes_home=lambda: Path(tempfile.gettempdir()) / "vector-home",
+        get_vector_home=lambda: Path(tempfile.gettempdir()) / "vector-home",
     )
 
     tools_package = types.ModuleType("tools")

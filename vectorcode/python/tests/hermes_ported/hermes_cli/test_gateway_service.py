@@ -572,7 +572,7 @@ class TestGatewaySystemServiceRouting:
         monkeypatch.setattr(gateway_cli, "_select_systemd_scope", lambda system=False: False)
         monkeypatch.setattr(gateway_cli, "get_systemd_unit_path", lambda system=False: unit)
         monkeypatch.setattr(gateway_cli, "has_conflicting_systemd_units", lambda: False)
-        monkeypatch.setattr(gateway_cli, "has_legacy_hermes_units", lambda: False)
+        monkeypatch.setattr(gateway_cli, "has_legacy_vector_units", lambda: False)
         monkeypatch.setattr(gateway_cli, "systemd_unit_is_current", lambda system=False: True)
         monkeypatch.setattr(gateway_cli, "_runtime_health_lines", lambda: ["⚠ Last shutdown reason: Gateway restart requested"])
         monkeypatch.setattr(gateway_cli, "get_systemd_linger_status", lambda: (True, ""))
@@ -835,7 +835,7 @@ class TestDetectVenvDir:
         assert result is None
 
 
-class TestSystemUnitHermesHome:
+class TestSystemUnitVectorCodeHome:
     """VECTOR_HOME in system units must reference the target user, not root."""
 
     def test_system_unit_uses_target_user_home_not_calling_user(self, monkeypatch):
@@ -874,7 +874,7 @@ class TestSystemUnitHermesHome:
         assert 'VECTOR_HOME=/home/alice/.vector/profiles/coder' in unit
         assert '/root/' not in unit
 
-    def test_system_unit_preserves_custom_hermes_home(self, monkeypatch):
+    def test_system_unit_preserves_custom_vector_home(self, monkeypatch):
         # Custom VECTOR_HOME not under any user's home — keep as-is
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
         monkeypatch.setenv("VECTOR_HOME", "/opt/vector-shared")
@@ -895,39 +895,39 @@ class TestSystemUnitHermesHome:
         # User-scope units should still use the calling user's VECTOR_HOME
         unit = gateway_cli.generate_systemd_unit(system=False)
 
-        vector_home = str(gateway_cli.get_hermes_home().resolve())
+        vector_home = str(gateway_cli.get_vector_home().resolve())
         assert f'VECTOR_HOME={vector_home}' in unit
 
 
-class TestHermesHomeForTargetUser:
-    """Unit tests for _hermes_home_for_target_user()."""
+class TestVectorCodeHomeForTargetUser:
+    """Unit tests for _vector_home_for_target_user()."""
 
     def test_remaps_default_home(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
         monkeypatch.delenv("VECTOR_HOME", raising=False)
 
-        result = gateway_cli._hermes_home_for_target_user("/home/alice")
+        result = gateway_cli._vector_home_for_target_user("/home/alice")
         assert result == "/home/alice/.vector"
 
     def test_remaps_profile_path(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
         monkeypatch.setenv("VECTOR_HOME", "/root/.vector/profiles/coder")
 
-        result = gateway_cli._hermes_home_for_target_user("/home/alice")
+        result = gateway_cli._vector_home_for_target_user("/home/alice")
         assert result == "/home/alice/.vector/profiles/coder"
 
     def test_keeps_custom_path(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
         monkeypatch.setenv("VECTOR_HOME", "/opt/vector")
 
-        result = gateway_cli._hermes_home_for_target_user("/home/alice")
+        result = gateway_cli._vector_home_for_target_user("/home/alice")
         assert result == "/opt/vector"
 
     def test_noop_when_same_user(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/home/alice")))
         monkeypatch.delenv("VECTOR_HOME", raising=False)
 
-        result = gateway_cli._hermes_home_for_target_user("/home/alice")
+        result = gateway_cli._vector_home_for_target_user("/home/alice")
         assert result == "/home/alice/.vector"
 
 
@@ -1204,7 +1204,7 @@ class TestPreflightUserSystemd:
 class TestProfileArg:
     """Tests for _profile_arg — returns '--profile <name>' for named profiles."""
 
-    def test_default_hermes_home_returns_empty(self, tmp_path, monkeypatch):
+    def test_default_vector_home_returns_empty(self, tmp_path, monkeypatch):
         """Default ~/.vector should not produce a --profile flag."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -1255,7 +1255,7 @@ class TestProfileArg:
         profile_dir.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(profile_dir))
-        monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: profile_dir)
+        monkeypatch.setattr(gateway_cli, "get_vector_home", lambda: profile_dir)
         unit = gateway_cli.generate_systemd_unit(system=False)
         assert "--profile mybot" in unit
         assert "gateway run --replace" in unit
@@ -1266,7 +1266,7 @@ class TestProfileArg:
         profile_dir.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("VECTOR_HOME", str(profile_dir))
-        monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: profile_dir)
+        monkeypatch.setattr(gateway_cli, "get_vector_home", lambda: profile_dir)
         plist = gateway_cli.generate_launchd_plist()
         assert "<string>--profile</string>" in plist
         assert "<string>mybot</string>" in plist
@@ -1281,7 +1281,7 @@ class TestProfileArg:
 
         monkeypatch.setattr(Path, "home", lambda: profile_home)
         monkeypatch.setenv("VECTOR_HOME", str(profile_dir))
-        monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: profile_dir)
+        monkeypatch.setattr(gateway_cli, "get_vector_home", lambda: profile_dir)
         monkeypatch.setattr(pwd, "getpwuid", lambda uid: SimpleNamespace(pw_dir=str(machine_home)))
 
         plist_path = gateway_cli.get_launchd_plist_path()
@@ -1331,7 +1331,7 @@ class TestSystemUnitPathRemapping:
 
         monkeypatch.setattr(Path, "home", lambda: root_home)
         monkeypatch.setenv("VECTOR_HOME", str(root_home / ".vector"))
-        monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: root_home / ".vector")
+        monkeypatch.setattr(gateway_cli, "get_vector_home", lambda: root_home / ".vector")
         monkeypatch.setattr(gateway_cli, "PROJECT_ROOT", project)
         monkeypatch.setattr(gateway_cli, "_detect_venv_dir", lambda: project / "venv")
         monkeypatch.setattr(gateway_cli, "get_python_path", lambda: str(venv_bin / "python"))
@@ -1437,8 +1437,8 @@ class TestDockerAwareGateway:
         assert "vector gateway run" in out
 
 
-class TestLegacyHermesUnitDetection:
-    """Tests for _find_legacy_hermes_units / has_legacy_hermes_units.
+class TestLegacyVectorCodeUnitDetection:
+    """Tests for _find_legacy_vector_units / has_legacy_vector_units.
 
     These guard against the scenario that tripped Luis in April 2026: an
     older install left a ``vector.service`` unit behind when the service was
@@ -1471,26 +1471,26 @@ class TestLegacyHermesUnitDetection:
         )
         return user_dir, system_dir
 
-    def test_detects_legacy_hermes_service_in_user_scope(self, tmp_path, monkeypatch):
+    def test_detects_legacy_vector_service_in_user_scope(self, tmp_path, monkeypatch):
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
         legacy = user_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
 
         assert len(results) == 1
         name, path, is_system = results[0]
         assert name == "vector.service"
         assert path == legacy
         assert is_system is False
-        assert gateway_cli.has_legacy_hermes_units() is True
+        assert gateway_cli.has_legacy_vector_units() is True
 
-    def test_detects_legacy_hermes_service_in_system_scope(self, tmp_path, monkeypatch):
+    def test_detects_legacy_vector_service_in_system_scope(self, tmp_path, monkeypatch):
         _, system_dir = self._setup_search_paths(tmp_path, monkeypatch)
         legacy = system_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
 
         assert len(results) == 1
         name, path, is_system = results[0]
@@ -1498,7 +1498,7 @@ class TestLegacyHermesUnitDetection:
         assert path == legacy
         assert is_system is True
 
-    def test_ignores_profile_unit_hermes_gateway_coder(self, tmp_path, monkeypatch):
+    def test_ignores_profile_unit_vector_gateway_coder(self, tmp_path, monkeypatch):
         """CRITICAL: profile units must NOT be flagged as legacy.
 
         Teknium's concern — ``vector-gateway-coder.service`` is our standard
@@ -1518,12 +1518,12 @@ class TestLegacyHermesUnitDetection:
                 self._OUR_UNIT_TEXT, encoding="utf-8"
             )
 
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
 
         assert results == []
-        assert gateway_cli.has_legacy_hermes_units() is False
+        assert gateway_cli.has_legacy_vector_units() is False
 
-    def test_ignores_unrelated_hermes_service(self, tmp_path, monkeypatch):
+    def test_ignores_unrelated_vector_service(self, tmp_path, monkeypatch):
         """Third-party ``vector.service`` that isn't ours stays untouched.
 
         If a user has some other package named ``vector`` installed as a
@@ -1536,16 +1536,16 @@ class TestLegacyHermesUnitDetection:
             encoding="utf-8",
         )
 
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
 
         assert results == []
-        assert gateway_cli.has_legacy_hermes_units() is False
+        assert gateway_cli.has_legacy_vector_units() is False
 
     def test_returns_empty_when_no_legacy_files_exist(self, tmp_path, monkeypatch):
         self._setup_search_paths(tmp_path, monkeypatch)
 
-        assert gateway_cli._find_legacy_hermes_units() == []
-        assert gateway_cli.has_legacy_hermes_units() is False
+        assert gateway_cli._find_legacy_vector_units() == []
+        assert gateway_cli.has_legacy_vector_units() is False
 
     def test_detects_both_scopes_simultaneously(self, tmp_path, monkeypatch):
         """When a user has BOTH user-scope and system-scope legacy units,
@@ -1554,7 +1554,7 @@ class TestLegacyHermesUnitDetection:
         (user_dir / "vector.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
         (system_dir / "vector.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
 
         scopes = sorted(is_system for _, _, is_system in results)
         assert scopes == [False, True]
@@ -1582,7 +1582,7 @@ class TestLegacyHermesUnitDetection:
                 f"[Unit]\nDescription=Old VectorCode\n[Service]\n{execstart}\n",
                 encoding="utf-8",
             )
-            results = gateway_cli._find_legacy_hermes_units()
+            results = gateway_cli._find_legacy_vector_units()
             assert len(results) == 1, f"Variant {i} not detected: {execstart!r}"
 
     def test_print_legacy_unit_warning_is_noop_when_empty(self, tmp_path, monkeypatch, capsys):
@@ -1620,12 +1620,12 @@ class TestLegacyHermesUnitDetection:
         monkeypatch.setattr(gateway_cli.Path, "read_text", raising_read_text)
 
         # Should not raise
-        results = gateway_cli._find_legacy_hermes_units()
+        results = gateway_cli._find_legacy_vector_units()
         assert results == []
 
 
-class TestRemoveLegacyHermesUnits:
-    """Tests for remove_legacy_hermes_units (the migration action)."""
+class TestRemoveLegacyVectorCodeUnits:
+    """Tests for remove_legacy_vector_units (the migration action)."""
 
     _OUR_UNIT_TEXT = (
         "[Unit]\nDescription=VectorCode Gateway\n[Service]\n"
@@ -1657,7 +1657,7 @@ class TestRemoveLegacyHermesUnits:
     def test_returns_zero_when_no_legacy_units(self, tmp_path, monkeypatch, capsys):
         self._setup(tmp_path, monkeypatch)
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 0
         assert remaining == []
@@ -1668,7 +1668,7 @@ class TestRemoveLegacyHermesUnits:
         legacy = user_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(
+        removed, remaining = gateway_cli.remove_legacy_vector_units(
             interactive=False, dry_run=True
         )
 
@@ -1684,7 +1684,7 @@ class TestRemoveLegacyHermesUnits:
         legacy = user_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 1
         assert remaining == []
@@ -1700,7 +1700,7 @@ class TestRemoveLegacyHermesUnits:
         legacy = system_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 0
         assert remaining == [legacy]
@@ -1713,7 +1713,7 @@ class TestRemoveLegacyHermesUnits:
         legacy = system_dir / "vector.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 1
         assert remaining == []
@@ -1734,7 +1734,7 @@ class TestRemoveLegacyHermesUnits:
         user_legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
         system_legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 2
         assert remaining == []
@@ -1753,7 +1753,7 @@ class TestRemoveLegacyHermesUnits:
         default_unit = user_dir / "vector-gateway.service"
         default_unit.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=False)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=False)
 
         assert removed == 0
         assert remaining == []
@@ -1769,7 +1769,7 @@ class TestRemoveLegacyHermesUnits:
 
         monkeypatch.setattr(gateway_cli, "prompt_yes_no", lambda *a, **k: False)
 
-        removed, remaining = gateway_cli.remove_legacy_hermes_units(interactive=True)
+        removed, remaining = gateway_cli.remove_legacy_vector_units(interactive=True)
 
         assert removed == 0
         assert remaining == [legacy]
@@ -1817,7 +1817,7 @@ class TestMigrateLegacyCommand:
             called["dry_run"] = dry_run
             return 0, []
 
-        monkeypatch.setattr(gateway_cli, "remove_legacy_hermes_units", fake_remove)
+        monkeypatch.setattr(gateway_cli, "remove_legacy_vector_units", fake_remove)
         monkeypatch.setattr(gateway_cli, "supports_systemd_services", lambda: True)
         monkeypatch.setattr(gateway_cli, "is_macos", lambda: False)
 
@@ -1855,7 +1855,7 @@ class TestGatewayStatusParser:
             called["dry_run"] = dry_run
             return 0, []
 
-        monkeypatch.setattr(gateway_cli, "remove_legacy_hermes_units", fake_remove)
+        monkeypatch.setattr(gateway_cli, "remove_legacy_vector_units", fake_remove)
         monkeypatch.setattr(gateway_cli, "supports_systemd_services", lambda: True)
         monkeypatch.setattr(gateway_cli, "is_macos", lambda: False)
 
@@ -1896,9 +1896,9 @@ class TestSystemdInstallOffersLegacyRemoval:
             remove_called["interactive"] = interactive
             return 1, []
 
-        # has_legacy_hermes_units must return True
-        monkeypatch.setattr(gateway_cli, "has_legacy_hermes_units", lambda: True)
-        monkeypatch.setattr(gateway_cli, "remove_legacy_hermes_units", fake_remove)
+        # has_legacy_vector_units must return True
+        monkeypatch.setattr(gateway_cli, "has_legacy_vector_units", lambda: True)
+        monkeypatch.setattr(gateway_cli, "remove_legacy_vector_units", fake_remove)
         monkeypatch.setattr(gateway_cli, "print_legacy_unit_warning", lambda: None)
         # Answer "yes" to the legacy-removal prompt
         monkeypatch.setattr(gateway_cli, "prompt_yes_no", lambda *a, **k: True)
@@ -1936,8 +1936,8 @@ class TestSystemdInstallOffersLegacyRemoval:
             remove_called["invoked"] = True
             return 0, []
 
-        monkeypatch.setattr(gateway_cli, "has_legacy_hermes_units", lambda: True)
-        monkeypatch.setattr(gateway_cli, "remove_legacy_hermes_units", fake_remove)
+        monkeypatch.setattr(gateway_cli, "has_legacy_vector_units", lambda: True)
+        monkeypatch.setattr(gateway_cli, "remove_legacy_vector_units", fake_remove)
         monkeypatch.setattr(gateway_cli, "print_legacy_unit_warning", lambda: None)
         monkeypatch.setattr(gateway_cli, "prompt_yes_no", lambda *a, **k: False)
 
@@ -1981,8 +1981,8 @@ class TestSystemdInstallOffersLegacyRemoval:
             remove_called["invoked"] = True
             return 0, []
 
-        monkeypatch.setattr(gateway_cli, "has_legacy_hermes_units", lambda: False)
-        monkeypatch.setattr(gateway_cli, "remove_legacy_hermes_units", fake_remove)
+        monkeypatch.setattr(gateway_cli, "has_legacy_vector_units", lambda: False)
+        monkeypatch.setattr(gateway_cli, "remove_legacy_vector_units", fake_remove)
         monkeypatch.setattr(gateway_cli, "prompt_yes_no", counting_prompt)
 
         unit_path = tmp_path / "vector-gateway.service"

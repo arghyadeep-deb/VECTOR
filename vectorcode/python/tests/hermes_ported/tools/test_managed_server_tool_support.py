@@ -4,7 +4,7 @@ Tests for ManagedServer / tool-parser integration.
 Validates that:
 1. The installed atroposlib API still matches VectorCode's expectations
 2. VectorCode's parser registry remains compatible with ManagedServer parsing
-3. HermesAgentBaseEnv wires the selected parser into ServerManager correctly
+3. VectorCodeAgentBaseEnv wires the selected parser into ServerManager correctly
 
 These tests verify the contract between vector-agent's environments/ code
 and atroposlib's ManagedServer. They detect API incompatibilities early.
@@ -143,7 +143,7 @@ class TestParserCompatibility:
 class TestBaseEnvCompatibility:
     """Test that vector_base_env.py's tool-parser wiring matches the current API."""
 
-    def test_hermes_base_env_sets_server_manager_tool_parser(self):
+    def test_vector_base_env_sets_server_manager_tool_parser(self):
         """VectorCode wires parser selection through ServerManager.tool_parser."""
         import ast
 
@@ -169,7 +169,7 @@ class TestBaseEnvCompatibility:
             "vector_base_env.py should set self.server.tool_parser from config.tool_call_parser"
         )
 
-    def test_hermes_base_env_uses_config_tool_call_parser(self):
+    def test_vector_base_env_uses_config_tool_call_parser(self):
         """Verify vector_base_env uses the config field rather than a local parser instance."""
         base_env_path = Path(__file__).parent.parent.parent / "environments" / "vector_base_env.py"
         source = base_env_path.read_text()

@@ -28,8 +28,8 @@ def vector_home(tmp_path, monkeypatch):
     monkeypatch.setenv("VECTOR_HOME", str(home))
     # Clear any cached vector_home computation
     import vector_constants
-    if hasattr(vector_constants, "_hermes_home_cache"):
-        vector_constants._hermes_home_cache = None
+    if hasattr(vector_constants, "_vector_home_cache"):
+        vector_constants._vector_home_cache = None
     return home
 
 
@@ -43,7 +43,7 @@ def _make_stub_cli(history):
     )
 
 
-def test_save_conversation_writes_under_hermes_home(vector_home, tmp_path, monkeypatch, capsys):
+def test_save_conversation_writes_under_vector_home(vector_home, tmp_path, monkeypatch, capsys):
     """Snapshot must land under ~/.vector/sessions/saved/, not CWD."""
     # Change CWD to a different directory to prove the file does NOT go there.
     work = tmp_path / "somewhere-else"
@@ -62,7 +62,7 @@ def test_save_conversation_writes_under_hermes_home(vector_home, tmp_path, monke
     ])
 
     # Call the unbound method against our stub.
-    cli.HermesCLI.save_conversation(stub)
+    cli.VectorCodeCLI.save_conversation(stub)
 
     # File must NOT be in CWD
     cwd_leak = list(work.glob("vector_conversation_*.json"))
@@ -94,7 +94,7 @@ def test_save_conversation_empty_history_does_nothing(vector_home, capsys):
     import cli
 
     stub = _make_stub_cli([])
-    cli.HermesCLI.save_conversation(stub)
+    cli.VectorCodeCLI.save_conversation(stub)
 
     saved_dir = vector_home / "sessions" / "saved"
     assert not saved_dir.exists() or not list(saved_dir.iterdir())

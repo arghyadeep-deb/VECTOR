@@ -23,7 +23,7 @@ from tools.environments.local import LocalEnvironment
 
 
 @pytest.fixture(autouse=True)
-def _isolate_hermes_home(tmp_path, monkeypatch):
+def _isolate_vector_home(tmp_path, monkeypatch):
     monkeypatch.setenv("VECTOR_HOME", str(tmp_path))
     (tmp_path / "logs").mkdir(exist_ok=True)
 

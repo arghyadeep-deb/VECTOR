@@ -73,7 +73,7 @@ def test_get_container_exec_info_none_without_file(tmp_path, monkeypatch):
     assert info is None
 
 
-def test_get_container_exec_info_skipped_when_hermes_dev(container_env, monkeypatch):
+def test_get_container_exec_info_skipped_when_vector_dev(container_env, monkeypatch):
     """Returns None when VECTOR_DEV=1 is set (dev mode bypass)."""
     monkeypatch.setenv("VECTOR_DEV", "1")
 
@@ -83,7 +83,7 @@ def test_get_container_exec_info_skipped_when_hermes_dev(container_env, monkeypa
     assert info is None
 
 
-def test_get_container_exec_info_not_skipped_when_hermes_dev_zero(container_env, monkeypatch):
+def test_get_container_exec_info_not_skipped_when_vector_dev_zero(container_env, monkeypatch):
     """VECTOR_DEV=0 does NOT trigger bypass — only '1' does."""
     monkeypatch.setenv("VECTOR_DEV", "0")
 
@@ -105,7 +105,7 @@ def test_get_container_exec_info_defaults():
         )
 
         with patch("vector_constants.is_container", return_value=False), \
-             patch("vector_cli.config.get_hermes_home", return_value=vector_home), \
+             patch("vector_cli.config.get_vector_home", return_value=vector_home), \
              patch.dict(os.environ, {}, clear=False):
             os.environ.pop("VECTOR_DEV", None)
             info = get_container_exec_info()

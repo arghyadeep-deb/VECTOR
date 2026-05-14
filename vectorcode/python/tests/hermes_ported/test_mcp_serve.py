@@ -25,12 +25,12 @@ import pytest
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(autouse=True)
-def _isolate_hermes_home(tmp_path, monkeypatch):
+def _isolate_vector_home(tmp_path, monkeypatch):
     """Redirect VECTOR_HOME to a temp directory."""
     monkeypatch.setenv("VECTOR_HOME", str(tmp_path))
     try:
         import vector_constants
-        monkeypatch.setattr(vector_constants, "get_hermes_home", lambda: tmp_path)
+        monkeypatch.setattr(vector_constants, "get_vector_home", lambda: tmp_path)
     except (ImportError, AttributeError):
         pass
     return tmp_path

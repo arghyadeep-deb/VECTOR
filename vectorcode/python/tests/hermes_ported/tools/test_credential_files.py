@@ -274,7 +274,7 @@ class TestPathTraversalSecurity:
         assert len(mounts) == 1
         assert "token.json" in mounts[0]["container_path"]
 
-    def test_nested_subdir_inside_hermes_home_allowed(self, tmp_path, monkeypatch):
+    def test_nested_subdir_inside_vector_home_allowed(self, tmp_path, monkeypatch):
         """Files in subdirectories of VECTOR_HOME must be allowed."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
@@ -401,7 +401,7 @@ class TestCacheDirectoryMounts:
         """Old-style dir names (e.g. document_cache) are resolved correctly."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()
-        # Use legacy dir name — get_hermes_dir prefers old if it exists
+        # Use legacy dir name — get_vector_dir prefers old if it exists
         (vector_home / "document_cache").mkdir()
         (vector_home / "image_cache").mkdir()
         monkeypatch.setenv("VECTOR_HOME", str(vector_home))
@@ -415,7 +415,7 @@ class TestCacheDirectoryMounts:
         assert "/root/.vector/cache/documents" in container_paths
         assert "/root/.vector/cache/images" in container_paths
 
-    def test_empty_hermes_home(self, tmp_path, monkeypatch):
+    def test_empty_vector_home(self, tmp_path, monkeypatch):
         """No cache dirs → empty list."""
         vector_home = tmp_path / ".vector"
         vector_home.mkdir()

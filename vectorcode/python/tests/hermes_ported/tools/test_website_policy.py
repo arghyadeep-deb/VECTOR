@@ -239,7 +239,7 @@ def test_load_website_blocklist_wraps_shared_file_read_errors(tmp_path, monkeypa
     assert result["rules"] == []  # shared file rules skipped
 
 
-def test_check_website_access_uses_dynamic_hermes_home(monkeypatch, tmp_path):
+def test_check_website_access_uses_dynamic_vector_home(monkeypatch, tmp_path):
     vector_home = tmp_path / "vector-home"
     vector_home.mkdir()
     (vector_home / "config.yaml").write_text(
@@ -261,7 +261,7 @@ def test_check_website_access_uses_dynamic_hermes_home(monkeypatch, tmp_path):
 
     # Invalidate the module-level cache so the new VECTOR_HOME is picked up.
     # A prior test may have cached a default policy (enabled=False) under the
-    # old VECTOR_HOME set by the autouse _isolate_hermes_home fixture.
+    # old VECTOR_HOME set by the autouse _isolate_vector_home fixture.
     from tools.website_policy import invalidate_cache
     invalidate_cache()
 

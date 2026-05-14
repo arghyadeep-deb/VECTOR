@@ -6,10 +6,10 @@ Hermetic-test invariants enforced here (see AGENTS.md for rationale):
    (ending in _API_KEY, _TOKEN, _SECRET, _PASSWORD, _CREDENTIALS, etc.)
    are unset before every test. Local developer keys cannot leak in.
 2. **Isolated VECTOR_HOME.** VECTOR_HOME points to a per-test tempdir so
-   code reading ``~/.vector/*`` via ``get_hermes_home()`` can't see the
+   code reading ``~/.vector/*`` via ``get_vector_home()`` can't see the
    real one. (We do NOT also redirect HOME — that broke subprocesses in
    CI. Code using ``Path.home() / ".vector"`` instead of the canonical
-   ``get_hermes_home()`` is a bug to fix at the callsite.)
+   ``get_vector_home()`` is a bug to fix at the callsite.)
 3. **Deterministic runtime.** TZ=UTC, LANG=C.UTF-8, PYTHONHASHSEED=0.
 4. **No VECTOR_SESSION_* inheritance** — the agent's current gateway
    session must not leak into tests.
@@ -159,7 +159,7 @@ def _looks_like_credential(name: str) -> bool:
 
 # VECTOR_* vars that change test behavior by being set. Unset all of these
 # unconditionally — individual tests that need them set do so explicitly.
-_HERMES_BEHAVIORAL_VARS = frozenset({
+_VECTOR_BEHAVIORAL_VARS = frozenset({
     "VECTOR_YOLO_MODE",
     "VECTOR_INTERACTIVE",
     "VECTOR_QUIET",
@@ -243,26 +243,26 @@ def _hermetic_environment(tmp_path, monkeypatch):
             monkeypatch.delenv(name, raising=False)
 
     # 2. Blank behavioral VECTOR_* vars that could change test semantics.
-    for name in _HERMES_BEHAVIORAL_VARS:
+    for name in _VECTOR_BEHAVIORAL_VARS:
         monkeypatch.delenv(name, raising=False)
 
     # 3. Redirect VECTOR_HOME to a per-test tempdir. Code that reads
-    #    ``~/.vector/*`` via ``get_hermes_home()`` now gets the tempdir.
+    #    ``~/.vector/*`` via ``get_vector_home()`` now gets the tempdir.
     #
     #    NOTE: We do NOT also redirect HOME. Doing so broke CI because
     #    some tests (and their transitive deps) spawn subprocesses that
     #    inherit HOME and expect it to be stable. If a test genuinely
     #    needs HOME isolated, it should set it explicitly in its own
     #    fixture. Any code in the codebase reading ``~/.vector/*`` via
-    #    ``Path.home() / ".vector"`` instead of ``get_hermes_home()``
+    #    ``Path.home() / ".vector"`` instead of ``get_vector_home()``
     #    is a bug to fix at the callsite.
-    fake_hermes_home = tmp_path / "vector_test"
-    fake_hermes_home.mkdir()
-    (fake_hermes_home / "sessions").mkdir()
-    (fake_hermes_home / "cron").mkdir()
-    (fake_hermes_home / "memories").mkdir()
-    (fake_hermes_home / "skills").mkdir()
-    monkeypatch.setenv("VECTOR_HOME", str(fake_hermes_home))
+    fake_vector_home = tmp_path / "vector_test"
+    fake_vector_home.mkdir()
+    (fake_vector_home / "sessions").mkdir()
+    (fake_vector_home / "cron").mkdir()
+    (fake_vector_home / "memories").mkdir()
+    (fake_vector_home / "skills").mkdir()
+    monkeypatch.setenv("VECTOR_HOME", str(fake_vector_home))
 
     # 4. Deterministic locale / timezone / hashseed. CI runs in UTC with
     #    C.UTF-8 locale; local dev often doesn't. Pin everything.
@@ -297,7 +297,7 @@ def _hermetic_environment(tmp_path, monkeypatch):
 # Backward-compat alias — old tests reference this fixture name. Keep it
 # as a no-op wrapper so imports don't break.
 @pytest.fixture(autouse=True)
-def _isolate_hermes_home(_hermetic_environment):
+def _isolate_vector_home(_hermetic_environment):
     """Alias preserved for any test that yields this name explicitly."""
     return None
 

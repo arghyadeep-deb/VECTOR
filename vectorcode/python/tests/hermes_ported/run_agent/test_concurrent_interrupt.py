@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolate_hermes(tmp_path, monkeypatch):
+def _isolate_vector(tmp_path, monkeypatch):
     monkeypatch.setenv("VECTOR_HOME", str(tmp_path / ".vector"))
     (tmp_path / ".vector").mkdir(exist_ok=True)
 

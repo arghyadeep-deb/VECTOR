@@ -719,8 +719,8 @@ class TestAdapterBehavior(unittest.TestCase):
     @patch.dict(
         os.environ,
         {
-            "FEISHU_BOT_OPEN_ID": "ou_hermes",
-            "FEISHU_BOT_USER_ID": "u_hermes",
+            "FEISHU_BOT_OPEN_ID": "ou_vector",
+            "FEISHU_BOT_USER_ID": "u_vector",
         },
         clear=True,
     )
@@ -741,8 +741,8 @@ class TestAdapterBehavior(unittest.TestCase):
     @patch.dict(
         os.environ,
         {
-            "FEISHU_BOT_OPEN_ID": "ou_hermes",
-            "FEISHU_BOT_USER_ID": "u_hermes",
+            "FEISHU_BOT_OPEN_ID": "ou_vector",
+            "FEISHU_BOT_USER_ID": "u_vector",
         },
         clear=True,
     )
@@ -754,13 +754,13 @@ class TestAdapterBehavior(unittest.TestCase):
         by_open_id = SimpleNamespace(
             sender=SimpleNamespace(
                 sender_type="bot",
-                sender_id=SimpleNamespace(open_id="ou_hermes", user_id="u_other"),
+                sender_id=SimpleNamespace(open_id="ou_vector", user_id="u_other"),
             )
         )
         by_user_id = SimpleNamespace(
             sender=SimpleNamespace(
                 sender_type="app",
-                sender_id=SimpleNamespace(open_id="ou_other", user_id="u_hermes"),
+                sender_id=SimpleNamespace(open_id="ou_other", user_id="u_vector"),
             )
         )
 
@@ -2689,7 +2689,7 @@ class TestHydrateBotIdentity(unittest.TestCase):
                 "code": 0,
                 "bot": {
                     "bot_name": "VectorCode Bot",
-                    "open_id": "ou_hermes_hydrated",
+                    "open_id": "ou_vector_hydrated",
                 },
             }
         ).encode("utf-8")
@@ -2698,7 +2698,7 @@ class TestHydrateBotIdentity(unittest.TestCase):
 
         asyncio.run(adapter._hydrate_bot_identity())
 
-        self.assertEqual(adapter._bot_open_id, "ou_hermes_hydrated")
+        self.assertEqual(adapter._bot_open_id, "ou_vector_hydrated")
         self.assertEqual(adapter._bot_name, "VectorCode Bot")
         # Application-info fallback must NOT run when bot_name is already set.
         self.assertFalse(
@@ -2772,7 +2772,7 @@ class TestHydrateBotIdentity(unittest.TestCase):
         adapter = self._make_adapter()
         adapter._client = Mock()
         payload = json.dumps(
-            {"code": 0, "bot": {"bot_name": "VectorCode", "open_id": "ou_hermes"}}
+            {"code": 0, "bot": {"bot_name": "VectorCode", "open_id": "ou_vector"}}
         ).encode("utf-8")
         adapter._client.request = Mock(return_value=SimpleNamespace(raw=SimpleNamespace(content=payload)))
 
@@ -2781,7 +2781,7 @@ class TestHydrateBotIdentity(unittest.TestCase):
         self_event = SimpleNamespace(
             sender=SimpleNamespace(
                 sender_type="bot",
-                sender_id=SimpleNamespace(open_id="ou_hermes", user_id=""),
+                sender_id=SimpleNamespace(open_id="ou_vector", user_id=""),
             )
         )
         peer_event = SimpleNamespace(

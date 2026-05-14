@@ -3,7 +3,7 @@ import os
 import sys
 from pathlib import Path
 
-from vector_cli.env_loader import load_hermes_dotenv
+from vector_cli.env_loader import load_vector_dotenv
 
 
 def test_user_env_overrides_stale_shell_values(tmp_path, monkeypatch):
@@ -14,7 +14,7 @@ def test_user_env_overrides_stale_shell_values(tmp_path, monkeypatch):
 
     monkeypatch.setenv("OPENAI_BASE_URL", "https://old.example/v1")
 
-    loaded = load_hermes_dotenv(vector_home=home)
+    loaded = load_vector_dotenv(vector_home=home)
 
     assert loaded == [env_file]
     assert os.getenv("OPENAI_BASE_URL") == "https://new.example/v1"
@@ -27,7 +27,7 @@ def test_project_env_overrides_stale_shell_values_when_user_env_missing(tmp_path
 
     monkeypatch.setenv("OPENAI_BASE_URL", "https://old.example/v1")
 
-    loaded = load_hermes_dotenv(vector_home=home, project_env=project_env)
+    loaded = load_vector_dotenv(vector_home=home, project_env=project_env)
 
     assert loaded == [project_env]
     assert os.getenv("OPENAI_BASE_URL") == "https://project.example/v1"
@@ -45,7 +45,7 @@ def test_project_env_is_sanitized_before_loading(tmp_path, monkeypatch):
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
-    loaded = load_hermes_dotenv(vector_home=home, project_env=project_env)
+    loaded = load_vector_dotenv(vector_home=home, project_env=project_env)
 
     assert loaded == [project_env]
     assert os.getenv("TELEGRAM_BOT_TOKEN") == "8356550917:AAGGEkzg06Hrc3Hjb3Sa1jkGVDOdU_lYy2Q"
@@ -63,7 +63,7 @@ def test_user_env_takes_precedence_over_project_env(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENAI_BASE_URL", "https://old.example/v1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    loaded = load_hermes_dotenv(vector_home=home, project_env=project_env)
+    loaded = load_vector_dotenv(vector_home=home, project_env=project_env)
 
     assert loaded == [user_env, project_env]
     assert os.getenv("OPENAI_BASE_URL") == "https://user.example/v1"
@@ -74,7 +74,7 @@ def test_main_import_applies_user_env_over_shell_values(tmp_path, monkeypatch):
     home = tmp_path / "vector"
     home.mkdir()
     (home / ".env").write_text(
-        "OPENAI_BASE_URL=https://new.example/v1\nHERMES_INFERENCE_PROVIDER=custom\n",
+        "OPENAI_BASE_URL=https://new.example/v1\nVECTOR_INFERENCE_PROVIDER=custom\n",
         encoding="utf-8",
     )
 

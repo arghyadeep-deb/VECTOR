@@ -137,7 +137,7 @@ class TestFirecrawlClientConfig:
                     api_url="https://firecrawl-gateway.nousresearch.com",
                 )
 
-    def test_nous_auth_token_respects_hermes_home_override(self, tmp_path):
+    def test_nous_auth_token_respects_vector_home_override(self, tmp_path):
         """Auth lookup should read from VECTOR_HOME/auth.json, not ~/.vector/auth.json."""
         real_home = tmp_path / "real-home"
         (real_home / ".vector").mkdir(parents=True)

@@ -777,6 +777,41 @@ def cmd_doctor(args):
     print("=" * 60)
 
 
+def cmd_vector_cli_dispatch(module_name: str):
+    """Generic dispatcher: invoke any vector_cli/<module>.py main()/cli() if exposed."""
+    def _dispatch(args):
+        import sys, importlib
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent))
+        try:
+            mod = importlib.import_module(f"vector_cli.{module_name}")
+        except ImportError as e:
+            print(f"[VECTOR] {module_name}: module not found ({e})")
+            return 1
+        # Try common entry points in order of preference
+        for entry in ("main", "cli", "run", "execute", f"cmd_{module_name}", "handle"):
+            if hasattr(mod, entry):
+                fn = getattr(mod, entry)
+                if callable(fn):
+                    try:
+                        # Try with args first
+                        try:
+                            return fn(args)
+                        except TypeError:
+                            # Then without
+                            return fn()
+                    except SystemExit:
+                        return 0
+                    except Exception as e:
+                        print(f"[VECTOR] {module_name}.{entry}() failed: {e}")
+                        return 1
+        # No standard entry — print module info
+        funcs = [n for n in dir(mod) if not n.startswith("_") and callable(getattr(mod, n, None))]
+        print(f"[VECTOR] {module_name}: no main/cli entry. Public functions: {funcs[:8]}")
+        return 0
+    return _dispatch
+
+
 def cmd_self_update(args):
     """Upgrade VectorCode to the latest version."""
     import sys
@@ -1115,6 +1150,49 @@ def main():
     # version subcommand
     sub.add_parser("version", help="Print VectorCode version")
 
+    # ── Wired vector_cli subcommands (catch-all signature) ──────────────────
+    _vc_subs = [
+        ("backup", "Backup VectorCode state"),
+        ("banner", "Print VectorCode banner"),
+        ("claw", "Claw integration"),
+        ("clipboard", "Clipboard helper"),
+        ("copilot-auth", "GitHub Copilot OAuth flow"),
+        ("curses-ui", "Full-screen curses TUI"),
+        ("debug", "Debug helpers"),
+        ("dingtalk-auth", "DingTalk OAuth flow"),
+        ("dump", "Dump session/state to JSON"),
+        ("fallback", "Configure fallback model"),
+        ("hooks", "Plugin hooks management"),
+        ("logs", "View VectorCode logs"),
+        ("mcp-config", "Configure MCP servers"),
+        ("memory-setup", "Initialize memory provider"),
+        ("model-catalog", "Browse model catalog"),
+        ("model-normalize", "Normalize model identifiers"),
+        ("model-switch", "Switch active model"),
+        ("nous-subscription", "Manage Nous Research subscription"),
+        ("oneshot", "Non-interactive task execution"),
+        ("pairing", "Device pairing flow"),
+        ("platforms", "List supported platforms"),
+        ("plugins-cmd", "Plugin command surface"),
+        ("providers", "Manage provider configs"),
+        ("pty-bridge", "PTY bridge for terminal multiplexing"),
+        ("runtime-provider", "Runtime provider config"),
+        ("setup", "Initial setup wizard"),
+        ("skills-config", "Configure skills per platform"),
+        ("skills-hub", "Skill marketplace"),
+        ("skin-engine", "Color theme system"),
+        ("slack", "Slack CLI integration"),
+        ("tips", "Show contextual tips"),
+        ("tools-config", "Configure tool toolsets"),
+        ("uninstall", "Uninstall VectorCode"),
+        ("voice", "Voice mode"),
+        ("webhook", "Webhook server"),
+        ("web-server", "Web UI server"),
+    ]
+    for name, desc in _vc_subs:
+        p = sub.add_parser(name, help=desc)
+        p.add_argument("rest", nargs="*", help="Pass-through args to underlying module")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -1140,6 +1218,43 @@ def main():
         "plugins":    cmd_plugins,
         "self-update": cmd_self_update,
         "version":    cmd_version,
+        # Wired vector_cli subcommands (auto-dispatch to vector_cli/<name>.py)
+        "backup":      cmd_vector_cli_dispatch("backup"),
+        "banner":      cmd_vector_cli_dispatch("banner"),
+        "claw":        cmd_vector_cli_dispatch("claw"),
+        "clipboard":   cmd_vector_cli_dispatch("clipboard"),
+        "copilot-auth": cmd_vector_cli_dispatch("copilot_auth"),
+        "curses-ui":   cmd_vector_cli_dispatch("curses_ui"),
+        "debug":       cmd_vector_cli_dispatch("debug"),
+        "dingtalk-auth": cmd_vector_cli_dispatch("dingtalk_auth"),
+        "dump":        cmd_vector_cli_dispatch("dump"),
+        "fallback":    cmd_vector_cli_dispatch("fallback_cmd"),
+        "hooks":       cmd_vector_cli_dispatch("hooks"),
+        "logs":        cmd_vector_cli_dispatch("logs"),
+        "mcp-config":  cmd_vector_cli_dispatch("mcp_config"),
+        "memory-setup": cmd_vector_cli_dispatch("memory_setup"),
+        "model-catalog": cmd_vector_cli_dispatch("model_catalog"),
+        "model-normalize": cmd_vector_cli_dispatch("model_normalize"),
+        "model-switch": cmd_vector_cli_dispatch("model_switch"),
+        "nous-subscription": cmd_vector_cli_dispatch("nous_subscription"),
+        "oneshot":     cmd_vector_cli_dispatch("oneshot"),
+        "pairing":     cmd_vector_cli_dispatch("pairing"),
+        "platforms":   cmd_vector_cli_dispatch("platforms"),
+        "plugins-cmd": cmd_vector_cli_dispatch("plugins_cmd"),
+        "providers":   cmd_vector_cli_dispatch("providers"),
+        "pty-bridge":  cmd_vector_cli_dispatch("pty_bridge"),
+        "runtime-provider": cmd_vector_cli_dispatch("runtime_provider"),
+        "setup":       cmd_vector_cli_dispatch("setup"),
+        "skills-config": cmd_vector_cli_dispatch("skills_config"),
+        "skills-hub":  cmd_vector_cli_dispatch("skills_hub"),
+        "skin-engine": cmd_vector_cli_dispatch("skin_engine"),
+        "slack":       cmd_vector_cli_dispatch("slack_cli"),
+        "tips":        cmd_vector_cli_dispatch("tips"),
+        "tools-config": cmd_vector_cli_dispatch("tools_config"),
+        "uninstall":   cmd_vector_cli_dispatch("uninstall"),
+        "voice":       cmd_vector_cli_dispatch("voice"),
+        "webhook":     cmd_vector_cli_dispatch("webhook"),
+        "web-server":  cmd_vector_cli_dispatch("web_server"),
         None:         cmd_repl,
     }
 

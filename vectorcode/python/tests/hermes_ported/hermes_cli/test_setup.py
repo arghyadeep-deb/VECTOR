@@ -480,28 +480,28 @@ def test_modal_setup_persists_direct_mode_when_user_chooses_their_own_account(tm
     assert config["terminal"]["modal_mode"] == "direct"
 
 
-def test_resolve_hermes_chat_argv_prefers_which(monkeypatch):
+def test_resolve_vector_chat_argv_prefers_which(monkeypatch):
     from vector_cli import setup as setup_mod
 
     monkeypatch.setattr(setup_mod.shutil, "which", lambda name: "/usr/local/bin/vector" if name == "vector" else None)
 
-    assert setup_mod._resolve_hermes_chat_argv() == ["/usr/local/bin/vector", "chat"]
+    assert setup_mod._resolve_vector_chat_argv() == ["/usr/local/bin/vector", "chat"]
 
 
-def test_resolve_hermes_chat_argv_falls_back_to_module(monkeypatch):
+def test_resolve_vector_chat_argv_falls_back_to_module(monkeypatch):
     from vector_cli import setup as setup_mod
 
     monkeypatch.setattr(setup_mod.shutil, "which", lambda _name: None)
     monkeypatch.setattr(setup_mod.importlib.util, "find_spec", lambda name: object() if name == "vector_cli" else None)
 
-    assert setup_mod._resolve_hermes_chat_argv() == [sys.executable, "-m", "vector_cli.main", "chat"]
+    assert setup_mod._resolve_vector_chat_argv() == [sys.executable, "-m", "vector_cli.main", "chat"]
 
 
 def test_offer_launch_chat_execs_fresh_process(monkeypatch):
     from vector_cli import setup as setup_mod
 
     monkeypatch.setattr(setup_mod, "prompt_yes_no", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr(setup_mod, "_resolve_hermes_chat_argv", lambda: ["/usr/local/bin/vector", "chat"])
+    monkeypatch.setattr(setup_mod, "_resolve_vector_chat_argv", lambda: ["/usr/local/bin/vector", "chat"])
 
     exec_calls = []
 
@@ -521,7 +521,7 @@ def test_offer_launch_chat_manual_fallback_when_unresolvable(monkeypatch, capsys
     from vector_cli import setup as setup_mod
 
     monkeypatch.setattr(setup_mod, "prompt_yes_no", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr(setup_mod, "_resolve_hermes_chat_argv", lambda: None)
+    monkeypatch.setattr(setup_mod, "_resolve_vector_chat_argv", lambda: None)
 
     setup_mod._offer_launch_chat()
 

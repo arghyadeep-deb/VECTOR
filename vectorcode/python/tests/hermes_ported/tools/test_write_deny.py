@@ -32,13 +32,13 @@ class TestWriteDenyExactPaths:
         path = os.path.join(str(Path.home()), ".netrc")
         assert _is_write_denied(path) is True
 
-    def test_hermes_env(self):
+    def test_vector_env(self):
         # ``.env`` under the active VECTOR_HOME (profile-aware, not just
         # ``~/.vector``) must be write-denied. The hermetic test conftest
-        # points VECTOR_HOME at a tempdir — resolve via get_hermes_home()
+        # points VECTOR_HOME at a tempdir — resolve via get_vector_home()
         # to match the denylist.
-        from vector_constants import get_hermes_home
-        path = str(get_hermes_home() / ".env")
+        from vector_constants import get_vector_home
+        path = str(get_vector_home() / ".env")
         assert _is_write_denied(path) is True
 
     def test_shell_profiles(self):
@@ -83,6 +83,6 @@ class TestWriteAllowed:
     def test_project_file(self):
         assert _is_write_denied("/home/user/project/main.py") is False
 
-    def test_hermes_config_not_env(self):
+    def test_vector_config_not_env(self):
         path = os.path.join(str(Path.home()), ".vector", "config.yaml")
         assert _is_write_denied(path) is False

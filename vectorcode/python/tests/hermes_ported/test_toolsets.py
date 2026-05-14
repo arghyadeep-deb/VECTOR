@@ -197,7 +197,7 @@ class TestToolsetConsistency:
             for inc in ts["includes"]:
                 assert inc in TOOLSETS, f"{name} includes unknown toolset '{inc}'"
 
-    def test_hermes_platforms_share_core_tools(self):
+    def test_vector_platforms_share_core_tools(self):
         """All vector-* platform toolsets share the same core tools.
 
         Platform-specific additions (e.g. ``discord`` / ``discord_admin``

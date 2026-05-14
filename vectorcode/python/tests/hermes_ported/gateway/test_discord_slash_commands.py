@@ -104,7 +104,7 @@ def adapter():
         tree=FakeTree(),
         get_channel=lambda _id: None,
         fetch_channel=AsyncMock(),
-        user=SimpleNamespace(id=99999, name="HermesBot"),
+        user=SimpleNamespace(id=99999, name="VectorCodeBot"),
     )
     adapter._text_batch_delay_seconds = 0  # disable batching for tests
     return adapter
@@ -522,7 +522,7 @@ async def test_auto_create_thread_strips_mention_syntax_from_name(adapter):
 
 
 @pytest.mark.asyncio
-async def test_auto_create_thread_falls_back_to_hermes_when_only_mentions(adapter):
+async def test_auto_create_thread_falls_back_to_vector_when_only_mentions(adapter):
     """If a message contains only mention syntax, the stripped content is
     empty — fall back to the 'VectorCode' default rather than ''."""
     thread = SimpleNamespace(id=999, name="VectorCode")
