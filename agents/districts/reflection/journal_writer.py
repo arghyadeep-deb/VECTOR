@@ -67,12 +67,11 @@ class JournalWriter(AgentBase):
             "Be concise, genuine, and specific."
         )
         try:
-            import ollama
-            r = ollama.chat(
-                model=_CHAIRMAN,
-                messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
-            )
-            return r["message"]["content"]
+            from core.inference.ollama_safe import chat
+            text = chat(model=_CHAIRMAN, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=120.0)
+            if not text:
+                raise ValueError("ollama_safe returned empty response")
+            return text
         except Exception as e:
             logger.warning(f"[VECTOR][journal_writer] LLM unavailable: {e}")
             return f"*{len(events)} events logged. Narrative synthesis unavailable.*"
