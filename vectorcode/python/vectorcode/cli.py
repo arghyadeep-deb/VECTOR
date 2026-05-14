@@ -61,13 +61,15 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """Minimal welcome banner — one symbol, one name, one tip line."""
-    import sys, os
+    """Welcome banner — small AI robot face + status, Claude Code style."""
+    import sys
     from pathlib import Path
 
     C  = "\x1b[36m"      # cyan
     CB = "\x1b[96m"      # bright cyan
     W  = "\x1b[97;1m"    # white bold
+    G  = "\x1b[92m"      # green
+    Y  = "\x1b[93m"      # yellow
     D  = "\x1b[2m"       # dim
     R  = "\x1b[0m"       # reset
 
@@ -75,11 +77,35 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
     if len(cwd) > 50:
         cwd = "..." + cwd[-47:]
 
+    mn = (model_name or "vector-focus")[:36]
+    n_models = len(ollama_models or [])
+    online = f"{G}● online{R}" if n_models > 0 else f"{Y}○ offline{R}"
+
+    # 5-line robot face mascot
+    robot = [
+        f"{CB}    ╭───────╮{R}",
+        f"{CB}   ╱{R} {W}◉{R} {C}─{R} {W}◉{R} {CB}╲{R}",
+        f"{CB}  │{R}   {C}━━━{R}   {CB}│{R}",
+        f"{CB}   ╲{R} {C}▰▰▰▰▰{R} {CB}╱{R}",
+        f"{CB}    ╰──┬──╯{R}",
+    ]
+
+    # Right-side status block (5 lines to align with robot)
+    right = [
+        f"{W}VectorCode{R}{D}  v0.1.0{R}",
+        f"{D}autonomous coding agent{R}",
+        f"",
+        f"{C}model{R}  {W}{mn}{R}  {D}·{R}  {online}  {D}·{R} {W}{n_models}{R} {D}models{R}",
+        f"{D}cwd:   {cwd}{R}",
+    ]
+
     out = sys.stderr
     print(file=out)
-    # ⏣ is a heavy benzene-ring glyph — same visual weight as Claude's ✻
-    print(f"  {CB}⏣{R}  {W}VectorCode{R}{D}  /help for commands · @file to attach · /quit to exit{R}", file=out)
-    print(f"      {D}cwd: {cwd}{R}", file=out)
+    for i, line in enumerate(robot):
+        side = right[i] if i < len(right) else ""
+        print(f"  {line}    {side}", file=out)
+    print(file=out)
+    print(f"  {D}/help for commands  ·  @file to attach  ·  /sparc <task>  ·  /quit to exit{R}", file=out)
     print(file=out)
 
 
