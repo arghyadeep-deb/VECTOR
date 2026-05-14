@@ -1,18 +1,17 @@
 """
-VECTOR Communications Service — Hermes bridge.
+VECTOR Communications Service — VectorCode gateway bridge.
 
-RULE 10: Hermes already has multi-platform messaging, skill creation,
+VectorCode provides multi-platform messaging, MCP server integration,
 and persistent memory. This service is a thin adapter that:
-  1. Starts the Hermes agent via subprocess
-  2. Exposes a minimal webhook for VECTOR → Hermes routing
-  3. NEVER rebuilds what Hermes already provides
+  1. Starts the VectorCode gateway via VectorCodeBridge
+  2. Exposes a minimal webhook for VECTOR → VectorCode routing
+  3. NEVER rebuilds what VectorCode already provides
 
-Start Hermes:
-  ollama launch hermes --model vector-reasoning
+Start VectorCode gateway:
+  VectorCodeBridge().start_mcp_server(port=9001)
 Then run this service alongside it.
 """
 import sys
-import subprocess
 import asyncio
 import datetime
 from pathlib import Path
@@ -26,14 +25,14 @@ import uvicorn
 
 app = FastAPI(title="VECTOR Comms Bridge", version="1.0.0")
 
-_hermes_proc: subprocess.Popen | None = None
+_vc_bridge = None
 
 
 @app.get("/status")
 async def status():
     return {
         "status": "online",
-        "hermes_running": _hermes_proc is not None and _hermes_proc.poll() is None,
+        "vectorcode_running": _vc_bridge is not None,
         "timestamp": datetime.datetime.now().isoformat(),
     }
 
@@ -41,7 +40,7 @@ async def status():
 @app.post("/send")
 async def send_message(payload: dict):
     """
-    Route a message through Hermes.
+    Route a message through VectorCode.
     payload: {"platform": "whatsapp"|"telegram"|"discord", "to": "...", "message": "..."}
     RULE 3: all outgoing messages are YELLOW actions — notify immediately.
     """
@@ -52,37 +51,35 @@ async def send_message(payload: dict):
     if not message:
         return {"ok": False, "error": "empty message"}
 
-    # Log the outgoing message intent (actual delivery via Hermes)
+    # Log the outgoing message intent (actual delivery via VectorCode)
     logger.info(f"[VECTOR][comms] → {platform}:{to} — {message[:50]}")
 
     return {
         "ok": True,
         "platform": platform,
         "queued_at": datetime.datetime.now().isoformat(),
-        "note": "Delivered via Hermes",
+        "note": "Delivered via VectorCode",
     }
 
 
-def start_hermes() -> None:
-    """Launch Hermes agent process. Non-blocking."""
-    global _hermes_proc
+def start_vectorcode_gateway() -> None:
+    """Launch VectorCode gateway. Non-blocking."""
+    global _vc_bridge
     try:
-        _hermes_proc = subprocess.Popen(
-            ["ollama", "launch", "hermes", "--model", CONFIG["models"]["reasoning"]],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        logger.info(f"[VECTOR][comms] Hermes started PID={_hermes_proc.pid}")
-    except FileNotFoundError:
-        logger.warning("[VECTOR][comms] Hermes not found — messaging in stub mode")
+        from integrations.vectorcode_bridge import VectorCodeBridge
+        _vc_bridge = VectorCodeBridge()
+        _vc_bridge.start_mcp_server(port=9001)
+        logger.info("[VECTOR][comms] VectorCode gateway started on port 9001")
+    except ImportError:
+        logger.warning("[VECTOR][comms] VectorCodeBridge not found — messaging in stub mode")
     except Exception as e:
-        logger.warning(f"[VECTOR][comms] Hermes start failed: {e}")
+        logger.warning(f"[VECTOR][comms] VectorCode gateway start failed: {e}")
 
 
 if __name__ == "__main__":
     import os
     sys.stdout.reconfigure(encoding="utf-8")
-    start_hermes()
+    start_vectorcode_gateway()
     port = int(os.environ.get("PORT", 8001))
     logger.info(f"[VECTOR][comms] starting on :{port}")
     uvicorn.run("service:app", host="0.0.0.0", port=port, log_level="info")
