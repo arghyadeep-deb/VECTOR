@@ -676,6 +676,34 @@ def cmd_doctor(args):
             print(f"  [{status}] {name}")
 
 
+def cmd_self_update(args):
+    """Upgrade VectorCode to the latest version."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    try:
+        from cli.self_update import self_update
+        docker = getattr(args, "docker", False)
+        exit_code = self_update(docker=docker)
+        sys.exit(exit_code)
+    except ImportError:
+        import subprocess
+        print("[VECTOR] Upgrading via pip...")
+        subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "vectorcode"])
+
+
+def cmd_version(_args):
+    """Print VectorCode version."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    try:
+        from cli.self_update import get_current_version
+        print(f"vectorcode {get_current_version()}")
+    except Exception:
+        print("vectorcode 0.1.0")
+
+
 def cmd_cron(args):
     """Manage scheduled cron jobs."""
     action = getattr(args, "action", "list") or "list"
@@ -934,6 +962,13 @@ def main():
     plugins_install = plugins_sub.add_parser("install", help="Install a plugin")
     plugins_install.add_argument("source", help="Plugin directory or git URL")
 
+    # self-update subcommand
+    update_p = sub.add_parser("self-update", help="Upgrade VectorCode to latest version")
+    update_p.add_argument("--docker", action="store_true", help="Pull latest Docker image instead")
+
+    # version subcommand
+    sub.add_parser("version", help="Print VectorCode version")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -957,6 +992,8 @@ def main():
         "cron":       cmd_cron,
         "acp":        cmd_acp,
         "plugins":    cmd_plugins,
+        "self-update": cmd_self_update,
+        "version":    cmd_version,
         None:         cmd_repl,
     }
 
