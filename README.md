@@ -223,7 +223,7 @@ Obsidian Vault Sync
    - HolidayTracker: Cultural observance recognition, planning assistance
 
 05. **communications/**
-   - Hermes: Message routing, protocol translation, delivery confirmation
+   - VectorCode: Message routing, protocol translation, delivery confirmation
    - Kimi K2.6 Adapter: Multilingual support, translation quality assessment
    - NotificationManager: Priority-based alerting, channel selection, do-not-disturb
    - LanguageDetector: Automatic language identification, dialect recognition
