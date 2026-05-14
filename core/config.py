@@ -133,6 +133,14 @@ class CodingConfig(BaseModel):
     repo_path: str = str(_BASE_DIR)
 
 
+class VectorCodeConfig(BaseModel):
+    enabled: bool = True
+    python_path: str = str(_BASE_DIR / "vectorcode" / "python" / "vectorcode")
+    mcp_port: int = Field(9001, ge=1024, le=65535)
+    base_url: str = "http://127.0.0.1:9001"
+    timeout_sec: float = Field(300.0, ge=10.0, le=3600.0)
+
+
 class HermesConfig(BaseModel):
     local_url: str = "http://127.0.0.1:8080"
     port: int = Field(8080, ge=1024, le=65535)
