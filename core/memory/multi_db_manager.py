@@ -273,7 +273,8 @@ class MultiDBManager:
                     },
                     json={
                         "statements": [
-                            f"INSERT INTO {table} VALUES ({', '.join(['?' for _ in record])})"
+                            f"INSERT INTO {table} ({', '.join(record.keys())}) "
+                            f"VALUES ({', '.join(['?' for _ in record])})"
                         ],
                         "params": [list(record.values())],
                     },
