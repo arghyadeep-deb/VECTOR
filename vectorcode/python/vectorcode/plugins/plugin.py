@@ -1,4 +1,4 @@
-"""Ruflo v3 Plugin — core contract for extensible capabilities."""
+"""VectorCode v3 Plugin — core contract for extensible capabilities."""
 
 import logging
 from typing import Any, Callable, Optional

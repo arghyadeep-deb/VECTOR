@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py (run_conversation)
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py (run_conversation)
 """The main think→act→observe loop."""
 import json
 import time
@@ -86,7 +86,7 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
         tool_calls_total += len(tool_calls)
         logger.debug(f"Executing {len(tool_calls)} tool call(s) (total so far: {tool_calls_total})")
 
-        # Execute tools — use Hermes model_tools.handle_function_call if available
+        # Execute tools — use VectorCode model_tools.handle_function_call if available
         try:
             from model_tools import handle_function_call as _hermes_dispatch
             def dispatch_fn(name, args, ctx):
@@ -186,7 +186,7 @@ async def _call_model(agent: "AIAgent") -> Any:
 
     registry = agent._get_registry()
 
-    # Get tool definitions via model_tools (Hermes API)
+    # Get tool definitions via model_tools (VectorCode API)
     tools = []
     try:
         from model_tools import get_tool_definitions

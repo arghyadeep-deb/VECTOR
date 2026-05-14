@@ -1,12 +1,12 @@
-# ruflo-jujutsu
+# vector-jujutsu
 
 Advanced git workflows with diff analysis, risk scoring, and reviewer recommendations.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-jujutsu@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-jujutsu@vector
 ```
 
 ## Features

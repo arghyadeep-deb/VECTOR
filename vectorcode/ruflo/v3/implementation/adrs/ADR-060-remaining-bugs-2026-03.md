@@ -89,7 +89,7 @@ ADR-059 triaged 30 open issues and 11 were fixed in v3.5.3 (PR #1297, #1298). Th
 - **Effort:** Trivial.
 - **Status:** ✅ **FIXED** in PR #1300 (v3.5.4). Added `.unref()` to 6 `setInterval` calls across `mcp-server.ts`, `output.ts`, `worker-queue.ts`, `container-worker-pool.ts`.
 
-### 10. Zero swarms always: `ruflo spawn hive-mind --claude` (#1279)
+### 10. Zero swarms always: `vector spawn hive-mind --claude` (#1279)
 - **Impact:** Hive-mind spawning returns zero agents. Multi-agent feature is non-functional via CLI.
 - **Fix:** Debug agent spawn path — likely missing topology init or agent pool connection.
 - **Effort:** Medium.
@@ -122,7 +122,7 @@ ADR-059 triaged 30 open issues and 11 were fixed in v3.5.3 (PR #1297, #1298). Th
 - **Effort:** Medium.
 
 ### 16. npm ECOMPROMISED cache corruption (#1231)
-- **Impact:** Some users get ECOMPROMISED errors on `npx ruflo`. Related to the removed preinstall script.
+- **Impact:** Some users get ECOMPROMISED errors on `npx vector`. Related to the removed preinstall script.
 - **Fix:** Document cache clear workaround: `npm cache clean --force`. The preinstall removal in v3.5.3 should prevent new occurrences.
 - **Effort:** Trivial — documentation only.
 
@@ -153,7 +153,7 @@ ADR-059 triaged 30 open issues and 11 were fixed in v3.5.3 (PR #1297, #1298). Th
 ### 22. Ship `dsp` as bin entry (#1236)
 - **Type:** Feature request for convenience alias.
 
-### 23. ADR-058: Self-Contained ruflo.rvf Appliance (#1245)
+### 23. ADR-058: Self-Contained vector.rvf Appliance (#1245)
 - **Type:** Enhancement. Phase 3-4 implementation exists.
 
 ### 24. ADR-057: Replace sql.js with RVF native storage (#1242)

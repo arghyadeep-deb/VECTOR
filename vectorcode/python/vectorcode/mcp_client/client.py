@@ -1,6 +1,6 @@
 """VectorCode MCP CLIENT — connects to external MCP servers via stdio.
 
-Ports the MCP client side of Hermes mcp_tool.py for VectorCode. The server
+Ports the MCP client side of VectorCode mcp_tool.py for VectorCode. The server
 side already lives at core/mcp_server.py. This module gives VectorCode agents
 the ability to discover and call tools exposed by external MCP servers
 (filesystem, GitHub, Playwright, etc.).

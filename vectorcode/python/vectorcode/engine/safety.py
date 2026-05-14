@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py
 """Safety utilities: SafeWriter, surrogate sanitization, destructive command detection."""
 import os
 import re

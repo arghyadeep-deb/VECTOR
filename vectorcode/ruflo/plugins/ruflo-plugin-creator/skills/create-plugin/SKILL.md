@@ -42,7 +42,7 @@ When you want to create a new plugin that extends Claude Code with skills, comma
 6. **Generate command files** with name and description frontmatter
 7. **Generate agent files** with name, description, and `model: sonnet`
 8. **Generate README.md** with install instructions, features, commands, and skills
-9. **Update marketplace.json** if adding to the ruflo marketplace
+9. **Update marketplace.json** if adding to the vector marketplace
 
 ## Plugin.json schema
 

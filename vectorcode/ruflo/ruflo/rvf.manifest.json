@@ -104,7 +104,7 @@
           "display_name": "Agents & Orchestration",
           "endpoint": "/mcp/agents",
           "description": "Agent spawn, swarm, hive-mind, task orchestration",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["agent_", "swarm_", "hive_", "task_"]
         },
         "memory": {
@@ -112,7 +112,7 @@
           "display_name": "Memory & Knowledge",
           "endpoint": "/mcp/memory",
           "description": "Memory store/search/retrieve, embeddings, session",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["memory_", "embedding_", "session_"]
         },
         "devtools": {
@@ -120,7 +120,7 @@
           "display_name": "Dev Tools & Analysis",
           "endpoint": "/mcp/devtools",
           "description": "Performance, security, deployment, config, doctor tools",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["perf_", "security_", "deploy_", "config_", "doctor_", "plugin_", "workflow_", "provider_"]
         },
         "security": {
@@ -128,7 +128,7 @@
           "display_name": "Security & Safety",
           "endpoint": "/mcp/security",
           "description": "Security scanning, CVE detection, threat analysis",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["security_"]
         },
         "browser": {
@@ -136,7 +136,7 @@
           "display_name": "Browser Automation",
           "endpoint": "/mcp/browser",
           "description": "Headless browser — navigate, click, fill, screenshot",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["browser_"]
         },
         "neural": {
@@ -144,7 +144,7 @@
           "display_name": "Neural & DAA",
           "endpoint": "/mcp/neural",
           "description": "Neural training, DAA autonomous agents",
-          "source": "ruflo",
+          "source": "vector",
           "prefixes": ["neural_", "daa_"]
         },
         "agentic-flow": {
@@ -247,7 +247,7 @@
     "ruvector_integration": true,
     "ruflo_integration": true,
     "agentic_flow_integration": true,
-    "external_mcp_backends": ["ruvector", "ruflo", "agentic-flow", "claude-code", "gemini", "codex"],
+    "external_mcp_backends": ["ruvector", "vector", "agentic-flow", "claude-code", "gemini", "codex"],
     "test_harness": true
   }
 }

@@ -112,7 +112,7 @@ def test_tool_registry_dispatch():
         handler=my_tool,
     )
 
-    # Hermes uses dispatch via the entry directly
+    # VectorCode uses dispatch via the entry directly
     entry = registry.get_entry("add_numbers_test")
     assert entry is not None
     result = entry.handler(x=3, y=4)

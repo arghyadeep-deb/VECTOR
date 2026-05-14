@@ -6,7 +6,7 @@ allowed-tools: mcp__claude-flow__browser_open mcp__claude-flow__browser_click mc
 
 # Browser Testing
 
-Automated UI testing using Playwright via the ruflo browser MCP tools.
+Automated UI testing using Playwright via the vector browser MCP tools.
 
 ## When to use
 

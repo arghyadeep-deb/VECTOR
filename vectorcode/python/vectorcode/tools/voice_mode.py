@@ -6,7 +6,7 @@ sounddevice or system audio players.
 
 Dependencies (optional):
     pip install sounddevice numpy
-    or: pip install hermes-agent[voice]
+    or: pip install vectorcode[voice]
 """
 
 import logging
@@ -49,7 +49,7 @@ def _audio_available() -> bool:
         return False
 
 
-from hermes_constants import is_termux as _is_termux_environment
+from vector_constants import is_termux as _is_termux_environment
 
 
 def _voice_capture_install_hint() -> str:
@@ -103,7 +103,7 @@ def detect_audio_environment() -> dict:
         warnings.append("Running over SSH -- no audio devices available")
 
     # Docker/Podman container detection
-    from hermes_constants import is_container
+    from vector_constants import is_container
     if is_container():
         warnings.append("Running inside Docker container -- no audio devices")
 

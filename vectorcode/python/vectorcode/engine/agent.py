@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py (AIAgent class)
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py (AIAgent class)
 """AIAgent — main agent class. Orchestrates the think→act→observe loop."""
 import json
 import os

@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/tools/terminal_tool.py
+# Ported from GitHub/NousResearch_vectorcode/repo/tools/terminal_tool.py
 """Terminal tool — execute shell commands with approval gate."""
 import json
 import os

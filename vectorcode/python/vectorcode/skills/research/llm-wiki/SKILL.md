@@ -2,10 +2,10 @@
 name: llm-wiki
 description: "Karpathy's LLM Wiki: build/query interlinked markdown KB."
 version: 2.1.0
-author: Hermes Agent
+author: VectorCode
 license: MIT
 metadata:
-  hermes:
+  vector:
     tags: [wiki, knowledge-base, research, notes, markdown, rag-alternative]
     category: research
     related_skills: [obsidian, arxiv]
@@ -34,7 +34,7 @@ Use this skill when the user:
 
 ## Wiki Location
 
-**Location:** Set via `WIKI_PATH` environment variable (e.g. in `~/.hermes/.env`).
+**Location:** Set via `WIKI_PATH` environment variable (e.g. in `~/.vectorcode/.env`).
 
 If unset, defaults to `~/wiki`.
 

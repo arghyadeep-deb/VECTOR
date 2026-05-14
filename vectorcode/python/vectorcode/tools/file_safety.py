@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/agent/file_safety.py
+# Ported from GitHub/NousResearch_vectorcode/repo/agent/file_safety.py
 """File write/read safety rules."""
 from __future__ import annotations
 import os

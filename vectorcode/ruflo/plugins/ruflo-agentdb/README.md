@@ -1,14 +1,14 @@
-# ruflo-agentdb
+# vector-agentdb
 
 AgentDB memory controllers with HNSW vector search, RuVector embeddings, and causal knowledge graphs.
 
-Wraps Ruflo's AgentDB MCP tools (agentdb_*, embeddings_*, ruvllm_hnsw_*) into skills and commands for Claude Code.
+Wraps VectorCode's AgentDB MCP tools (agentdb_*, embeddings_*, ruvllm_hnsw_*) into skills and commands for Claude Code.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-agentdb@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-agentdb@vector
 ```
 
 ## Features

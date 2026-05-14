@@ -1,14 +1,14 @@
-# ruflo-intelligence
+# vector-intelligence
 
 Self-learning neural intelligence with SONA patterns, trajectory learning, and model routing.
 
-Wraps Ruflo's intelligence MCP tools (neural_*, hooks_intelligence_*, hooks_model-*) into skills and commands for Claude Code.
+Wraps VectorCode's intelligence MCP tools (neural_*, hooks_intelligence_*, hooks_model-*) into skills and commands for Claude Code.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-intelligence@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-intelligence@vector
 ```
 
 ## Features

@@ -1,5 +1,5 @@
 # VectorCode — Complete Gap Analysis
-> As of 2026-05-13. Measured against NousResearch/hermes-agent and ruvnet/ruflo.
+> As of 2026-05-13. Measured against NousResearch/vectorcode and vectorcode.
 
 ---
 
@@ -7,15 +7,15 @@
 
 | Source | % Absorbed | Status |
 |--------|-----------|--------|
-| Hermes Agent | ~22% | Infrastructure absorbed, core loop missing |
-| Ruflo | ~52% | Skills + swarm absorbed, v2/v3/MCP missing |
+| VectorCode | ~22% | Infrastructure absorbed, core loop missing |
+| VectorCode | ~52% | Skills + swarm absorbed, v2/v3/MCP missing |
 | **Grand Total** | **~25%** | Not production-ready |
 
-**Critical miss:** `run_agent.py` (13,268 lines) — Hermes's entire agent execution loop — is completely absent from VectorCode. Without it, VectorCode is a chatbot that talks about using tools but never actually calls them in a loop.
+**Critical miss:** `run_agent.py` (13,268 lines) — VectorCode's entire agent execution loop — is completely absent from VectorCode. Without it, VectorCode is a chatbot that talks about using tools but never actually calls them in a loop.
 
 ---
 
-## Part 1: Hermes Agent Gaps
+## Part 1: VectorCode Gaps
 
 ### 1.1 CRITICAL — Agent Execution Loop (0% done)
 **Source:** `run_agent.py` — 13,268 lines  
@@ -48,14 +48,14 @@
 **What's missing:**
 - `model_tools.py` — central `handle_function_call()` router, `get_tool_definitions()`, `check_toolset_requirements()`
 - `tools/terminal_tool.py` — shell execution with Docker/SSH/local env, `set_approval_callback`, VM cleanup
-- `tools/file_tools.py` (Hermes version) — `read_file`, `write_file`, `patch`, `search_files` with full error handling
+- `tools/file_tools.py` (VectorCode version) — `read_file`, `write_file`, `patch`, `search_files` with full error handling
 - `tools/memory_tool.py` — memory read/write tools with session scoping
 - `tools/skills_tool.py` — `skill_view`, `skills_list` with frontmatter parsing
 - `tools/session_search_tool.py` — FTS5 search over session history
 - `tools/delegate_tool.py` — subagent spawning with independent iteration budget
 - `tools/todo_tool.py` — structured TODO list management
 - `tools/clarify_tool.py` — interactive clarification requests
-- `tools/web_tools.py` (Hermes version) — `web_search`, `web_extract` with firecrawl/ddg
+- `tools/web_tools.py` (VectorCode version) — `web_search`, `web_extract` with firecrawl/ddg
 - `tools/browser_tool.py` — headless browser with CDP
 - `tools/vision_tools.py` — image analysis
 - `tools/tool_result_storage.py` — `maybe_persist_tool_result`, `enforce_turn_budget`
@@ -82,56 +82,56 @@
 ---
 
 ### 1.4 HIGH — Plugin System (8% done)
-**Source:** `hermes_cli/plugins.py`, `hermes_cli/plugins_cmd.py`  
+**Source:** `vector_cli/plugins.py`, `vector_cli/plugins_cmd.py`  
 **VectorCode:** `hooks/registry.py` has Python hooks but no plugin discovery.
 
 **What's missing:**
-- Plugin discovery (`~/.hermes/plugins/` scan)
+- Plugin discovery (`~/.vectorcode/plugins/` scan)
 - Plugin manifest format (`plugin.toml`)
 - Plugin hook registration (pre_tool_call, post_tool_call, etc.)
-- Plugin management CLI (`hermes plugins install`, `list`, `remove`)
+- Plugin management CLI (`vector plugins install`, `list`, `remove`)
 - `invoke_hook()` with priority + block decisions
 - Plugin isolation (subprocess or importlib)
 
 ---
 
 ### 1.5 HIGH — CLI System (25% done)
-**Source:** `hermes_cli/` — 58 Python files  
-**VectorCode:** `cli.py` has 8 subcommands. Hermes has 58+ CLI modules.
+**Source:** `vector_cli/` — 58 Python files  
+**VectorCode:** `cli.py` has 8 subcommands. VectorCode has 58+ CLI modules.
 
 **Key missing CLI modules:**
-- `hermes_cli/main.py` — argparse with 30+ flags, skin engine init, profile support
-- `hermes_cli/auth.py` — OAuth PKCE flow, device code, credential management
-- `hermes_cli/auth_commands.py` — `hermes auth add/remove/list/status`
-- `hermes_cli/memory_setup.py` — memory provider setup wizard
-- `hermes_cli/skills_config.py` — skill enable/disable per platform
-- `hermes_cli/skills_hub.py` — skill hub install/search/publish
-- `hermes_cli/model_catalog.py` — model discovery and listing
-- `hermes_cli/commands.py` — slash command handler (30+ commands)
-- `hermes_cli/config.py` — config file management
-- `hermes_cli/skin_engine.py` — color theme system
-- `hermes_cli/oneshot.py` — `hermes run` non-interactive with JSON output
-- `hermes_cli/profiles.py` — named profiles (`hermes --profile work`)
-- `hermes_cli/cron.py` — scheduled task management
-- `hermes_cli/doctor.py` — dependency/config diagnostics
-- `hermes_cli/banner.py` — ASCII banner generation
-- `hermes_cli/voice.py` — TTS/STT integration
-- `hermes_cli/curses_ui.py` — full-screen TUI with curses
-- `hermes_cli/env_loader.py` — `load_hermes_dotenv()` for `~/.hermes/.env`
-- `hermes_cli/timeouts.py` — per-provider request/stale timeouts
+- `vector_cli/main.py` — argparse with 30+ flags, skin engine init, profile support
+- `vector_cli/auth.py` — OAuth PKCE flow, device code, credential management
+- `vector_cli/auth_commands.py` — `vector auth add/remove/list/status`
+- `vector_cli/memory_setup.py` — memory provider setup wizard
+- `vector_cli/skills_config.py` — skill enable/disable per platform
+- `vector_cli/skills_hub.py` — skill hub install/search/publish
+- `vector_cli/model_catalog.py` — model discovery and listing
+- `vector_cli/commands.py` — slash command handler (30+ commands)
+- `vector_cli/config.py` — config file management
+- `vector_cli/skin_engine.py` — color theme system
+- `vector_cli/oneshot.py` — `vector run` non-interactive with JSON output
+- `vector_cli/profiles.py` — named profiles (`vector --profile work`)
+- `vector_cli/cron.py` — scheduled task management
+- `vector_cli/doctor.py` — dependency/config diagnostics
+- `vector_cli/banner.py` — ASCII banner generation
+- `vector_cli/voice.py` — TTS/STT integration
+- `vector_cli/curses_ui.py` — full-screen TUI with curses
+- `vector_cli/env_loader.py` — `load_vector_dotenv()` for `~/.vectorcode/.env`
+- `vector_cli/timeouts.py` — per-provider request/stale timeouts
 
 ---
 
 ### 1.6 MEDIUM — State Management (45% done)
-**Source:** `hermes_state.py` (partially done), `hermes_logging.py`, `hermes_time.py`  
+**Source:** `vector_state.py` (partially done), `vector_logging.py`, `vector_time.py`  
 **VectorCode:** `session_db.py` covers sessions table, missing full state machine.
 
 **What's missing:**
-- `hermes_logging.py` — production logging (file rotation, JSON structured logs, log levels per subsystem, `~/.hermes/logs/`)
-- `hermes_time.py` — `HermesTime`, `format_duration()`, `parse_relative_time()`, timezone handling
+- `vector_logging.py` — production logging (file rotation, JSON structured logs, log levels per subsystem, `~/.vectorcode/logs/`)
+- `vector_time.py` — `VectorCodeTime`, `format_duration()`, `parse_relative_time()`, timezone handling
 - Session cost tracking (`billing_provider`, `billing_mode`, `estimated_cost_usd`, `actual_cost_usd`, `cost_status`)
 - API call count tracking per session
-- `hermes_state.py` SCHEMA_VERSION 10 full schema (we have v1)
+- `vector_state.py` SCHEMA_VERSION 10 full schema (we have v1)
 - Parent session chain (`parent_session_id` for subagents)
 
 ---
@@ -179,7 +179,7 @@
 ---
 
 ### 1.10 LOW — Utilities (0% done)
-**Source:** `utils.py`, `hermes_constants.py` (partially done), `agent/file_safety.py`, `agent/redact.py`, `agent/subdirectory_hints.py`, `agent/title_generator.py`
+**Source:** `utils.py`, `vector_constants.py` (partially done), `agent/file_safety.py`, `agent/redact.py`, `agent/subdirectory_hints.py`, `agent/title_generator.py`
 
 **What's missing from utils.py:**
 - `atomic_json_write()` — write JSON atomically (temp file + rename)
@@ -212,14 +212,14 @@
 - Session management via ACP (fork/resume)
 - Slash command handling through ACP
 - Permission/approval callback bridge for ACP clients
-- `HermesACPAgent(acp.Agent)` equivalent for VectorCode
+- `VectorCodeACPAgent(acp.Agent)` equivalent for VectorCode
 
 ---
 
-## Part 2: Ruflo Gaps
+## Part 2: VectorCode Gaps
 
 ### 2.1 HIGH — Agent Execution Loop v2 (0% done)
-**Source:** `ruflo/v2/` — TypeScript SDK examples with SPARC methodology  
+**Source:** `vector/v2/` — TypeScript SDK examples with SPARC methodology  
 **VectorCode:** Nothing.
 
 **What's missing (from v2 examples):**
@@ -233,7 +233,7 @@
 ---
 
 ### 2.2 HIGH — MCP Bridge (0% done)
-**Source:** `ruflo/src/mcp-bridge/index.js`, `mcp-stdio-kernel.js`  
+**Source:** `vector/src/mcp-bridge/index.js`, `mcp-stdio-kernel.js`  
 **VectorCode:** `core/mcp_server.py` is an MCP SERVER. We have no MCP CLIENT.
 
 **What's missing:**
@@ -254,7 +254,7 @@
 **What's missing:**
 - Full agent behavior implementations (CoderAgent actually codes, ReviewerAgent actually reviews)
 - Agent communication via MessageBus with ACL
-- Per-agent skill assignment from Ruflo skills
+- Per-agent skill assignment from VectorCode skills
 - Agent HP-gated model access (>800 HP → Sonnet, 600-800 → kimi-k2.6)
 - Agent resurrection with ghost memory inheritance
 - Collective intelligence patterns (pool results, vote on best)
@@ -262,7 +262,7 @@
 ---
 
 ### 2.4 MEDIUM — AgentDB / Vector Memory (0% done)
-**Source:** Ruflo `agentdb-*` skills + `ruflo-agentdb-vector-search.md`
+**Source:** VectorCode `agentdb-*` skills + `vector-agentdb-vector-search.md`
 
 **What's missing:**
 - AgentDB integration for vector memory storage
@@ -274,7 +274,7 @@
 ---
 
 ### 2.5 LOW — Chat UI / Web Interface (0% done)
-**Source:** `ruflo/src/ruvocal/` — SvelteKit HuggingChat fork
+**Source:** `vector/src/ruvocal/` — SvelteKit HuggingChat fork
 
 **What's missing:**
 - Web-based chat interface for VectorCode
@@ -290,7 +290,7 @@
 |----------|-----|--------|--------|
 | **P0** | Agent execution loop (`run_agent.py` core) | 5 days | Makes VectorCode actually work as an agent |
 | **P0** | Tool execution system (model_tools + terminal) | 3 days | Tools actually execute |
-| **P1** | MCP client bridge (Ruflo) | 2 days | 300+ external tools |
+| **P1** | MCP client bridge (VectorCode) | 2 days | 300+ external tools |
 | **P1** | Gateway HTTP server | 2 days | VectorCode as a service |
 | **P1** | Plugin system | 1 day | Extensibility |
 | **P2** | CLI completeness | 3 days | Auth, profiles, doctor |

@@ -49,6 +49,31 @@ def get_vector_config_path() -> Path:
     return Path.home() / ".config" / "vector" / "config.toml"
 
 
+def display_vector_home() -> str:
+    """Return a human-friendly string for the VectorCode home directory."""
+    home = get_vector_home()
+    home_str = str(home)
+    user_home = str(Path.home())
+    if home_str.startswith(user_home):
+        return "~" + home_str[len(user_home):]
+    return home_str
+
+
+def get_vector_data_dir() -> Path:
+    """Return the data subdirectory: ~/.vector/data."""
+    return get_vector_home() / "data"
+
+
+def get_vector_logs_dir() -> Path:
+    """Return the logs subdirectory: ~/.vector/logs."""
+    return get_vector_home() / "logs"
+
+
+def get_config_path() -> Path:
+    """Alias for get_vector_config_path — back-compat for legacy imports."""
+    return get_vector_config_path()
+
+
 # ── Module-level singletons (re-evaluated each import so env overrides work) ──
 
 VECTOR_HOME = get_vector_home()

@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py
 """Handle graceful budget exhaustion."""
 from typing import Any, Dict, TYPE_CHECKING
 from loguru import logger

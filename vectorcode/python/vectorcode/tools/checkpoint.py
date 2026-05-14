@@ -1,5 +1,5 @@
 """
-VectorCode Checkpoint Tool — ported from Hermes checkpoint_manager.py.
+VectorCode Checkpoint Tool — ported from VectorCode checkpoint_manager.py.
 
 Provides transparent filesystem snapshots via shadow git repos.
 Shadow repo lives at: ~/.vector/checkpoints/{sha256(abs_dir)[:16]}/

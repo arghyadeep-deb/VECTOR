@@ -1,12 +1,12 @@
-# ruflo-loop-workers
+# vector-loop-workers
 
 Cache-aware /loop workers and CronCreate background automation.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-loop-workers@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-loop-workers@vector
 ```
 
 ## What's Included
@@ -19,4 +19,4 @@ Cache-aware /loop workers and CronCreate background automation.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

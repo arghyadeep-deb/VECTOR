@@ -1,12 +1,12 @@
-# ruflo-aidefence
+# vector-aidefence
 
 AI safety scanning, PII detection, prompt injection defense, and adaptive threat learning.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-aidefence@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-aidefence@vector
 ```
 
 ## Features

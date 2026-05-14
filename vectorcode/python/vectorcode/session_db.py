@@ -476,7 +476,7 @@ class SessionDB:
         return "\n".join(lines)
 
     def migrate_up(self) -> None:
-        """Migrate this database to SCHEMA_VERSION 10 (Hermes-compatible schema)."""
+        """Migrate this database to SCHEMA_VERSION 10 (VectorCode-compatible schema)."""
         from vectorcode.migrations.v1_to_v10 import migrate_v1_to_v10
         with self._lock:
             migrate_v1_to_v10(self._conn)
@@ -603,7 +603,7 @@ if __name__ == "__main__":
 
 
     def migrate_up(self) -> None:
-        """Migrate this database to SCHEMA_VERSION 10 (Hermes-compatible schema)."""
+        """Migrate this database to SCHEMA_VERSION 10 (VectorCode-compatible schema)."""
         from vectorcode.migrations.v1_to_v10 import migrate_v1_to_v10
         with self._lock:
             migrate_v1_to_v10(self._conn)

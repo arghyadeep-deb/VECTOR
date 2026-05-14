@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py
 """Error recovery with credential pool rotation."""
 from typing import Any, Optional, TYPE_CHECKING
 from loguru import logger

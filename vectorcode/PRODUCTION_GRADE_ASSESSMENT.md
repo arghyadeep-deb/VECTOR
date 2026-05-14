@@ -10,7 +10,7 @@
 
 | Component | Completeness | Notes |
 |-----------|-------------|-------|
-| Neural Router (3-layer GNN) | ~96% | Fully absorbed from Ruflo, self-tests pass |
+| Neural Router (3-layer GNN) | ~96% | Fully absorbed from VectorCode, self-tests pass |
 | Message Bus (ACL, QoS, DLQ) | ~97% | Complete with all channel types and filters |
 | Queen Coordinator (consensus) | ~82% | Core coordination loop, strategies, decomposition |
 | Swarm Topologies (8 types) | ~45% | BYZANTINE, RAFT, GOSSIP, CRDT, QUORUM etc. ported |
@@ -65,7 +65,7 @@
 
 ### 5. Tool System — HIGH (biggest gap)
 
-**Current state:** 8 of ~70 tools from Hermes are ported. No code execution, no MCP client, no SSH/Docker, no image gen, no cron.
+**Current state:** 8 of ~70 tools from VectorCode are ported. No code execution, no MCP client, no SSH/Docker, no image gen, no cron.
 
 **Ported so far (8):**
 - file_tools.py, bash_tools.py, git_tools.py
@@ -133,5 +133,5 @@
 
 **Total estimated effort:** ~6 months for a solo developer  
 **Current completeness:** ~25%  
-**Strongest area:** Ruflo algorithmic absorption (router, message bus, queen, swarm)  
-**Weakest area:** Hermes production infrastructure (tools, error handling, testing, observability)
+**Strongest area:** VectorCode algorithmic absorption (router, message bus, queen, swarm)  
+**Weakest area:** VectorCode production infrastructure (tools, error handling, testing, observability)

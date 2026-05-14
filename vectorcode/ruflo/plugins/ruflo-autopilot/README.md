@@ -1,14 +1,14 @@
-# ruflo-autopilot
+# vector-autopilot
 
 Autonomous /loop-driven task completion with learning and prediction.
 
-Combines Ruflo's 10 autopilot MCP tools with Claude Code's native `/loop` + `ScheduleWakeup` for persistent, cache-aware task completion loops.
+Combines VectorCode's 10 autopilot MCP tools with Claude Code's native `/loop` + `ScheduleWakeup` for persistent, cache-aware task completion loops.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-autopilot@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-autopilot@vector
 ```
 
 ## Features

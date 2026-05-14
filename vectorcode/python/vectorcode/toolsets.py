@@ -28,7 +28,7 @@ from typing import List, Dict, Any, Set, Optional
 
 # Shared tool list for CLI and all messaging platform toolsets.
 # Edit this once to update all platforms simultaneously.
-_HERMES_CORE_TOOLS = [
+_VECTOR_CORE_TOOLS = [
     # Web
     "web_search", "web_extract",
     # Terminal + process management
@@ -266,13 +266,13 @@ TOOLSETS = {
     },
     
     # ==========================================================================
-    # Full Hermes toolsets (CLI + messaging platforms)
+    # Full VectorCode toolsets (CLI + messaging platforms)
     #
     # All platforms share the same core tools (including send_message,
     # which is gated on gateway running via its check_fn).
     # ==========================================================================
 
-    "hermes-acp": {
+    "vector-acp": {
         "description": "Editor integration (VS Code, Zed, JetBrains) — coding-focused tools without messaging, audio, or clarify UI",
         "tools": [
             "web_search", "web_extract",
@@ -291,7 +291,7 @@ TOOLSETS = {
         "includes": []
     },
 
-    "hermes-api-server": {
+    "vector-api-server": {
         "description": "OpenAI-compatible API server — full agent tools accessible via HTTP (no interactive UI tools like clarify or send_message)",
         "tools": [
             # Web
@@ -324,95 +324,95 @@ TOOLSETS = {
         "includes": []
     },
     
-    "hermes-cli": {
+    "vector-cli": {
         "description": "Full interactive CLI toolset - all default tools plus cronjob management",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-cron": {
-        # Mirrors hermes-cli so cron's "default" toolset is the same set of
-        # core tools users see interactively — then `hermes tools` filters
+    "vector-cron": {
+        # Mirrors vector-cli so cron's "default" toolset is the same set of
+        # core tools users see interactively — then `vector tools` filters
         # them down per the platform config. _DEFAULT_OFF_TOOLSETS (moa,
         # homeassistant, rl) are excluded by _get_platform_tools() unless
         # the user explicitly enables them.
-        "description": "Default cron toolset - same core tools as hermes-cli; gated by `hermes tools`",
-        "tools": _HERMES_CORE_TOOLS,
+        "description": "Default cron toolset - same core tools as vector-cli; gated by `vector tools`",
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-telegram": {
+    "vector-telegram": {
         "description": "Telegram bot toolset - full access for personal use (terminal has safety checks)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
     
-    "hermes-discord": {
+    "vector-discord": {
         "description": "Discord bot toolset - full access (terminal has safety checks via dangerous command approval)",
-        "tools": _HERMES_CORE_TOOLS + [
+        "tools": _VECTOR_CORE_TOOLS + [
             "discord",
             "discord_admin",
         ],
         "includes": []
     },
     
-    "hermes-whatsapp": {
+    "vector-whatsapp": {
         "description": "WhatsApp bot toolset - similar to Telegram (personal messaging, more trusted)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
     
-    "hermes-slack": {
+    "vector-slack": {
         "description": "Slack bot toolset - full access for workspace use (terminal has safety checks)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
     
-    "hermes-signal": {
+    "vector-signal": {
         "description": "Signal bot toolset - encrypted messaging platform (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-bluebubbles": {
+    "vector-bluebubbles": {
         "description": "BlueBubbles iMessage bot toolset - Apple iMessage via local BlueBubbles server",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-homeassistant": {
+    "vector-homeassistant": {
         "description": "Home Assistant bot toolset - smart home event monitoring and control",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-email": {
-        "description": "Email bot toolset - interact with Hermes via email (IMAP/SMTP)",
-        "tools": _HERMES_CORE_TOOLS,
+    "vector-email": {
+        "description": "Email bot toolset - interact with VectorCode via email (IMAP/SMTP)",
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-mattermost": {
+    "vector-mattermost": {
         "description": "Mattermost bot toolset - self-hosted team messaging (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-matrix": {
+    "vector-matrix": {
         "description": "Matrix bot toolset - decentralized encrypted messaging (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-dingtalk": {
+    "vector-dingtalk": {
         "description": "DingTalk bot toolset - enterprise messaging platform (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-feishu": {
+    "vector-feishu": {
         "description": "Feishu/Lark bot toolset - enterprise messaging via Feishu/Lark (full access)",
-        "tools": _HERMES_CORE_TOOLS + [
+        "tools": _VECTOR_CORE_TOOLS + [
             "feishu_doc_read",
             "feishu_drive_list_comments",
             "feishu_drive_list_comment_replies",
@@ -422,33 +422,33 @@ TOOLSETS = {
         "includes": []
     },
 
-    "hermes-weixin": {
+    "vector-weixin": {
         "description": "Weixin bot toolset - personal WeChat messaging via iLink (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-qqbot": {
+    "vector-qqbot": {
         "description": "QQBot toolset - QQ messaging via Official Bot API v2 (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-wecom": {
+    "vector-wecom": {
         "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-wecom-callback": {
+    "vector-wecom-callback": {
         "description": "WeCom callback toolset - enterprise self-built app messaging (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-yuanbao": {
+    "vector-yuanbao": {
         "description": "Yuanbao Bot 元宝消息平台工具集 - 群信息、成员查询、私聊、贴纸表情",
-        "tools": _HERMES_CORE_TOOLS + [
+        "tools": _VECTOR_CORE_TOOLS + [
             "yb_query_group_info",
             "yb_query_group_members",
             "yb_send_dm",
@@ -459,22 +459,22 @@ TOOLSETS = {
         "includes": []
     },
 
-    "hermes-sms": {
-        "description": "SMS bot toolset - interact with Hermes via SMS (Twilio)",
-        "tools": _HERMES_CORE_TOOLS,
+    "vector-sms": {
+        "description": "SMS bot toolset - interact with VectorCode via SMS (Twilio)",
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-webhook": {
+    "vector-webhook": {
         "description": "Webhook toolset - receive and process external webhook events",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _VECTOR_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-gateway": {
+    "vector-gateway": {
         "description": "Gateway toolset - union of all messaging platform tools",
         "tools": [],
-        "includes": ["hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-bluebubbles", "hermes-homeassistant", "hermes-email", "hermes-sms", "hermes-mattermost", "hermes-matrix", "hermes-dingtalk", "hermes-feishu", "hermes-wecom", "hermes-wecom-callback", "hermes-weixin", "hermes-qqbot", "hermes-webhook", "hermes-yuanbao"]
+        "includes": ["vector-telegram", "vector-discord", "vector-whatsapp", "vector-slack", "vector-signal", "vector-bluebubbles", "vector-homeassistant", "vector-email", "vector-sms", "vector-mattermost", "vector-matrix", "vector-dingtalk", "vector-feishu", "vector-wecom", "vector-wecom-callback", "vector-weixin", "vector-qqbot", "vector-webhook", "vector-yuanbao"]
     }
 }
 

@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/hermes_time.py
+# Ported from GitHub/NousResearch_vectorcode/repo/vector_time.py
 """Timezone-aware clock for VectorCode."""
 import logging
 import os
@@ -17,7 +17,7 @@ _cache_resolved: bool = False
 
 
 def _resolve_timezone_name() -> str:
-    tz_env = os.getenv("VECTOR_TIMEZONE", os.getenv("HERMES_TIMEZONE", "")).strip()
+    tz_env = os.getenv("VECTOR_TIMEZONE", os.getenv("VECTOR_TIMEZONE", "")).strip()
     if tz_env:
         return tz_env
     try:
@@ -102,4 +102,4 @@ def parse_relative_time(text: str) -> Optional[datetime]:
 
 # Backwards-compat alias
 VectorTime = now
-HermesTime = now
+VectorCodeTime = now

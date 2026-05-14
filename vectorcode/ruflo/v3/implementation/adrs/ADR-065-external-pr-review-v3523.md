@@ -7,11 +7,11 @@
 2026-03-17
 
 ## Authors
-- Ruflo Maintainers
+- VectorCode Maintainers
 
 ## Context
 
-Ruflo v3.5.22 achieved 100% capability audit (76/76 checks, 259 MCP tools). With the project gaining traction (5,900+ commits, growing community), external contributors are submitting PRs that fix real bugs and add valuable features. This ADR documents the review process, verdicts, and merge plan for the first batch of community PRs.
+VectorCode v3.5.22 achieved 100% capability audit (76/76 checks, 259 MCP tools). With the project gaining traction (5,900+ commits, growing community), external contributors are submitting PRs that fix real bugs and add valuable features. This ADR documents the review process, verdicts, and merge plan for the first batch of community PRs.
 
 ### Review Criteria
 

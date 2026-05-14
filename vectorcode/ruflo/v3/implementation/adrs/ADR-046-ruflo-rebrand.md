@@ -1,4 +1,4 @@
-# ADR-046: Dual Umbrella Packages — claude-flow + ruflo
+# ADR-046: Dual Umbrella Packages — claude-flow + vector
 
 **Status:** Accepted
 **Date:** 2026-02-07
@@ -7,7 +7,7 @@
 
 ## Context
 
-The umbrella package is published to npm as `claude-flow`. As the ecosystem grows and the product establishes its own identity, a second umbrella package `ruflo` is introduced alongside the original.
+The umbrella package is published to npm as `claude-flow`. As the ecosystem grows and the product establishes its own identity, a second umbrella package `vector` is introduced alongside the original.
 
 ### Current State
 
@@ -24,13 +24,13 @@ The umbrella package is published to npm as `claude-flow`. As the ecosystem grow
 1. **Brand Cohesion**: Aligns with the ruv ecosystem (ruv.io, @ruvector/*, ruv-swarm)
 2. **Trademark Safety**: Removes potential trademark concerns with "Claude" in product name
 3. **Product Identity**: Establishes independent product identity beyond Claude integration
-4. **Discoverability**: "ruflo" is unique, memorable, and searchable
+4. **Discoverability**: "vector" is unique, memorable, and searchable
 5. **Future Flexibility**: Enables the platform to support multiple AI backends without name confusion
 6. **Zero Disruption**: Keeping `claude-flow` ensures no existing users are broken
 
 ## Decision
 
-Publish **two independent npm umbrella packages** — `claude-flow` (original) and `ruflo` (new) — both backed by `@claude-flow/cli`.
+Publish **two independent npm umbrella packages** — `claude-flow` (original) and `vector` (new) — both backed by `@claude-flow/cli`.
 
 ### Package Architecture
 
@@ -38,8 +38,8 @@ Publish **two independent npm umbrella packages** — `claude-flow` (original) a
 npm registry
 ├── claude-flow          ← original umbrella (bundles @claude-flow/cli)
 │   └── bin: claude-flow → v3/@claude-flow/cli/bin/cli.js
-├── ruflo              ← new umbrella (depends on @claude-flow/cli)
-│   └── bin: ruflo     → @claude-flow/cli/bin/cli.js
+├── vector              ← new umbrella (depends on @claude-flow/cli)
+│   └── bin: vector     → @claude-flow/cli/bin/cli.js
 └── @claude-flow/cli     ← shared CLI implementation
 ```
 
@@ -47,11 +47,11 @@ npm registry
 
 | Aspect | Before | After |
 |--------|--------|-------|
-| npm packages | `claude-flow` only | `claude-flow` + `ruflo` |
-| CLI binaries | `claude-flow` | `claude-flow` + `ruflo` |
-| Install commands | `npx claude-flow@latest` | Both `npx claude-flow@latest` and `npx ruflo@latest` |
-| README branding | "Claude-Flow" | "Ruflo" (primary), "claude-flow" (supported) |
-| Product name | Claude-Flow | Ruflo (with claude-flow alias) |
+| npm packages | `claude-flow` only | `claude-flow` + `vector` |
+| CLI binaries | `claude-flow` | `claude-flow` + `vector` |
+| Install commands | `npx claude-flow@latest` | Both `npx claude-flow@latest` and `npx vector@latest` |
+| README branding | "Claude-Flow" | "VectorCode" (primary), "claude-flow" (supported) |
+| Product name | Claude-Flow | VectorCode (with claude-flow alias) |
 
 ### What Stays the Same
 
@@ -69,7 +69,7 @@ npm registry
 ### Positive
 
 1. **Zero Disruption**: Existing `claude-flow` users unaffected
-2. **Unified Brand**: New `ruflo` package for the ruv ecosystem
+2. **Unified Brand**: New `vector` package for the ruv ecosystem
 3. **Trademark Safety**: Users can choose the non-"Claude" branded package
 4. **Dual Discovery**: Package discoverable under both names on npm
 5. **Future Proof**: Can add non-Claude integrations without name confusion
@@ -94,22 +94,22 @@ npm registry
 ├── package.json            # name: "claude-flow" (original umbrella)
 │                           # bin: claude-flow → v3/@claude-flow/cli/bin/cli.js
 │                           # bundles CLI files directly
-└── ruflo/
-    ├── package.json        # name: "ruflo" (new umbrella)
-    │                       # bin: ruflo → ./bin/ruflo.js
+└── vector/
+    ├── package.json        # name: "vector" (new umbrella)
+    │                       # bin: vector → ./bin/vector.js
     │                       # depends on @claude-flow/cli
     ├── bin/
-    │   └── ruflo.js      # thin wrapper, imports @claude-flow/cli
-    └── README.md           # Ruflo-branded docs
+    │   └── vector.js      # thin wrapper, imports @claude-flow/cli
+    └── README.md           # VectorCode-branded docs
 ```
 
 ### Phase 1: Preparation (This PR)
 
 1. Create ADR-046 (this document)
 2. Keep root `package.json` as `claude-flow` (original umbrella)
-3. Create `ruflo/` directory with new umbrella package
-4. Update main README.md with Ruflo branding
-5. Update install scripts to reference `ruflo`
+3. Create `vector/` directory with new umbrella package
+4. Update main README.md with VectorCode branding
+5. Update install scripts to reference `vector`
 
 ### Phase 2: Publishing
 
@@ -124,10 +124,10 @@ npm publish --tag v3alpha
 npm dist-tag add claude-flow@<version> latest
 npm dist-tag add claude-flow@<version> alpha
 
-# 3. Publish ruflo umbrella (new)
-cd /workspaces/claude-flow/ruflo
+# 3. Publish vector umbrella (new)
+cd /workspaces/claude-flow/vector
 npm publish --tag alpha
-npm dist-tag add ruflo@<version> latest
+npm dist-tag add vector@<version> latest
 ```
 
 ### Phase 3: Ongoing
@@ -135,7 +135,7 @@ npm dist-tag add ruflo@<version> latest
 1. Both packages maintained indefinitely
 2. Version numbers kept in sync
 3. README shows both install options
-4. `ruflo` promoted as primary in new documentation
+4. `vector` promoted as primary in new documentation
 
 ## Publishing Checklist
 
@@ -145,11 +145,11 @@ When publishing updates, **all three packages** must be published:
 |-------|---------|---------|------|
 | 1 | `@claude-flow/cli` | `npm publish --tag alpha` | alpha, latest |
 | 2 | `claude-flow` | `npm publish --tag v3alpha` | v3alpha, alpha, latest |
-| 3 | `ruflo` | `npm publish --tag alpha` | alpha, latest |
+| 3 | `vector` | `npm publish --tag alpha` | alpha, latest |
 
 ## Alternatives Considered
 
-### 1. Replace claude-flow with ruflo (single package)
+### 1. Replace claude-flow with vector (single package)
 
 **Pros:** Simpler, one package to maintain
 **Cons:** Breaks existing users, loses download history
@@ -159,9 +159,9 @@ When publishing updates, **all three packages** must be published:
 
 **Pros:** Matches ruv-swarm pattern
 **Cons:** Inconsistent with @ruvector (no hyphen)
-**Decision:** Rejected - "ruflo" is cleaner and matches ruvector pattern
+**Decision:** Rejected - "vector" is cleaner and matches ruvector pattern
 
-### 3. Rename internal packages too (@ruflo/*)
+### 3. Rename internal packages too (@vector/*)
 
 **Pros:** Complete rebrand
 **Cons:** Major breaking change, complex migration, npm scope registration
@@ -169,7 +169,7 @@ When publishing updates, **all three packages** must be published:
 
 ### 4. Deprecate claude-flow
 
-**Pros:** Forces migration to ruflo
+**Pros:** Forces migration to vector
 **Cons:** Breaks existing users, bad developer experience
 **Decision:** Rejected - both packages coexist permanently
 
@@ -179,7 +179,7 @@ When publishing updates, **all three packages** must be published:
 
 ```bash
 # Recommended
-npx ruflo@latest init --wizard
+npx vector@latest init --wizard
 
 # Also works
 npx claude-flow@latest init --wizard
@@ -192,13 +192,13 @@ No migration required. `claude-flow` continues to work. Optionally switch:
 ```bash
 # Switch MCP server (optional)
 claude mcp remove claude-flow
-claude mcp add ruflo npx ruflo@latest mcp start
+claude mcp add vector npx vector@latest mcp start
 ```
 
 ### For Contributors
 
 1. Root `package.json` is the `claude-flow` umbrella
-2. `ruflo/package.json` is the `ruflo` umbrella
+2. `vector/package.json` is the `vector` umbrella
 3. Internal imports remain `@claude-flow/*`
 4. GitHub repo remains `ruvnet/claude-flow`
 
@@ -209,12 +209,12 @@ claude mcp add ruflo npx ruflo@latest mcp start
 | Combined npm downloads | Maintain or grow | npm weekly stats (both packages) |
 | GitHub stars | Maintain or grow | GitHub metrics |
 | Issues from confusion | < 10 in 30 days | GitHub issues |
-| ruflo adoption | 50%+ new installs in 90 days | npm stats |
+| vector adoption | 50%+ new installs in 90 days | npm stats |
 
 ## References
 
 - GitHub Issue: #1101
-- npm: https://npmjs.com/package/ruflo
+- npm: https://npmjs.com/package/vector
 - npm: https://npmjs.com/package/claude-flow
 - Related: ADR-017 (RuVector Integration)
 
@@ -224,18 +224,18 @@ claude mcp add ruflo npx ruflo@latest mcp start
 
 | Context | Use |
 |---------|-----|
-| npm packages | `ruflo` and `claude-flow` (both lowercase) |
-| README title | "Ruflo" (PascalCase) |
-| CLI binaries | `ruflo` or `claude-flow` (both lowercase) |
-| In prose | "Ruflo" (PascalCase) |
+| npm packages | `vector` and `claude-flow` (both lowercase) |
+| README title | "VectorCode" (PascalCase) |
+| CLI binaries | `vector` or `claude-flow` (both lowercase) |
+| In prose | "VectorCode" (PascalCase) |
 
 ### Command Examples
 
 ```bash
 # New recommended style
-npx ruflo@latest init
-npx ruflo@latest agent spawn -t coder
-npx ruflo@latest swarm init --topology hierarchical
+npx vector@latest init
+npx vector@latest agent spawn -t coder
+npx vector@latest swarm init --topology hierarchical
 
 # Legacy style (still fully supported)
 npx claude-flow@latest init

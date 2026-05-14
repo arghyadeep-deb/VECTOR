@@ -1,12 +1,12 @@
-# ruflo-rvf
+# vector-rvf
 
 RVF format for portable agent memory, session persistence, and cross-platform transfer.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-rvf@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-rvf@vector
 ```
 
 ## Features

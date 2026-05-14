@@ -1,12 +1,12 @@
-# ruflo-rag-memory
+# vector-rag-memory
 
 RuVector memory with HNSW search, AgentDB, and semantic retrieval.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-rag-memory@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-rag-memory@vector
 ```
 
 ## What's Included
@@ -20,4 +20,4 @@ RuVector memory with HNSW search, AgentDB, and semantic retrieval.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

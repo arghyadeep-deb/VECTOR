@@ -1,12 +1,12 @@
-# ruflo-testgen
+# vector-testgen
 
 Test gap detection, coverage analysis, and automated test generation.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-testgen@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-testgen@vector
 ```
 
 ## What's Included
@@ -20,4 +20,4 @@ Test gap detection, coverage analysis, and automated test generation.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

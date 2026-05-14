@@ -1,6 +1,6 @@
 ---
 name: doctor
-description: Run health checks on the Ruflo installation and fix common issues
+description: Run health checks on the VectorCode installation and fix common issues
 allowed-tools: Bash(npx *)
 ---
 Run `npx @claude-flow/cli@latest doctor --fix` to diagnose and auto-repair common issues.

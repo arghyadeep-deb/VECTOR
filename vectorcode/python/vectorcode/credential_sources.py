@@ -31,7 +31,7 @@ class CredentialSource(str, Enum):
     ENV      = "env"          # environment variable
     PKCE     = "pkce"         # OAuth PKCE token file  (~/.vector/oauth_tokens.json)
     CLAUDE   = "claude_code"  # ~/.claude/credentials.json
-    NOUS     = "nous"         # Hermes config file  (~/.hermes/config.json)
+    NOUS     = "nous"         # VectorCode config file  (~/.vectorcode/config.json)
     CODEX    = "codex"        # OpenAI Codex config (~/.openai/credentials)
     QWEN     = "qwen"         # Qwen config         (~/.qwen/config.json)
     COPILOT  = "copilot"      # GitHub Copilot token (~/.config/github-copilot/hosts.json)
@@ -142,7 +142,7 @@ class CredentialSourceRegistry:
         )
         self._steps[CredentialSource.NOUS] = RemovalStep(
             source=CredentialSource.NOUS,
-            description="Remove from Hermes config (~/.hermes/config.json)",
+            description="Remove from VectorCode config (~/.vectorcode/config.json)",
             execute=self._remove_nous,
         )
         self._steps[CredentialSource.CODEX] = RemovalStep(
@@ -306,7 +306,7 @@ class CredentialSourceRegistry:
             k for k in os.environ
             if upper_name in k.upper()
             or k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GITHUB_TOKEN",
-                     "QWEN_API_KEY", "HERMES_API_KEY", "CODEX_API_KEY",
+                     "QWEN_API_KEY", "VECTOR_API_KEY", "CODEX_API_KEY",
                      "COPILOT_TOKEN", "VECTORCODE_API_KEY")
         ]
         if candidates:
@@ -395,20 +395,20 @@ class CredentialSourceRegistry:
             )
 
     def _remove_nous(self) -> RemovalResult:
-        """Remove *credential_name* from Hermes config (~/.hermes/config.json)."""
+        """Remove *credential_name* from VectorCode config (~/.vectorcode/config.json)."""
         name = self._current_name
-        config_path = Path.home() / ".hermes" / "config.json"
+        config_path = Path.home() / ".vector" / "config.json"
         if not config_path.exists():
             return RemovalResult(
                 source=CredentialSource.NOUS,
                 cleaned=False,
-                hints=["~/.hermes/config.json does not exist — skipped."],
+                hints=["~/.vectorcode/config.json does not exist — skipped."],
             )
         try:
             data = json.loads(config_path.read_text(encoding="utf-8"))
             removed = False
 
-            # Hermes stores credentials under "api_key" at top level or in "credentials"
+            # VectorCode stores credentials under "api_key" at top level or in "credentials"
             NOUS_KEY_FIELDS = {"api_key", "token", "secret"}
             for field_name in NOUS_KEY_FIELDS:
                 if field_name in data and isinstance(data[field_name], str):

@@ -1,7 +1,7 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/hermes_state.py (schema migration)
+# Ported from GitHub/NousResearch_vectorcode/repo/vector_state.py (schema migration)
 """Migration: session_db v1 → SCHEMA_VERSION 10.
 
-Adds columns required for full Hermes compatibility:
+Adds columns required for full VectorCode compatibility:
   sessions: parent_session_id, billing_provider, billing_mode,
             estimated_cost_usd, actual_cost_usd, cost_status,
             api_call_count, focus_topic

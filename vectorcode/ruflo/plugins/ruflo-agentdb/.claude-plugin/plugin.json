@@ -1,15 +1,15 @@
 {
-  "name": "ruflo-agentdb",
+  "name": "vector-agentdb",
   "description": "AgentDB memory controllers with HNSW vector search, RuVector embeddings, and causal knowledge graphs",
   "version": "0.1.0",
   "author": {
     "name": "ruvnet",
     "url": "https://github.com/ruvnet"
   },
-  "homepage": "https://github.com/ruvnet/ruflo",
+  "homepage": "https://github.com/vectorcode",
   "license": "MIT",
   "keywords": [
-    "ruflo",
+    "vector",
     "agentdb",
     "ruvector",
     "hnsw",

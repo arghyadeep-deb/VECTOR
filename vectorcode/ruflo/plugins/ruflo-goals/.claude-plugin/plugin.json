@@ -1,12 +1,12 @@
 {
-  "name": "ruflo-goals",
+  "name": "vector-goals",
   "description": "Long-horizon goal planning, deep research orchestration, and adaptive replanning using GOAP algorithms",
   "version": "0.1.0",
   "author": {
     "name": "ruvnet",
     "url": "https://github.com/ruvnet"
   },
-  "homepage": "https://github.com/ruvnet/ruflo",
+  "homepage": "https://github.com/vectorcode",
   "license": "MIT",
-  "keywords": ["ruflo", "goals", "goap", "research", "planning", "deep-research", "long-horizon"]
+  "keywords": ["vector", "goals", "goap", "research", "planning", "deep-research", "long-horizon"]
 }

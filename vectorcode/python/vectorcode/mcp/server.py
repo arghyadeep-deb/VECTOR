@@ -1,4 +1,4 @@
-"""Ruflo v3 MCP Server — expose tools, config, and memory via MCP protocol."""
+"""VectorCode v3 MCP Server — expose tools, config, and memory via MCP protocol."""
 
 import json
 import logging

@@ -35,51 +35,51 @@ const TOOL_GROUPS = {
     prefixes: ["hooks_"],
   },
 
-  // --- Agents & Orchestration (ruflo) ---
+  // --- Agents & Orchestration (vector) ---
   agents: {
     enabled: process.env.MCP_GROUP_AGENTS !== "false",
-    description: "Agent lifecycle, swarm coordination, task management, workflows (ruflo)",
-    source: "ruflo",
+    description: "Agent lifecycle, swarm coordination, task management, workflows (vector)",
+    source: "vector",
     prefixes: ["agent_", "swarm_", "task_", "session_", "hive-mind_", "workflow_", "coordination_"],
   },
 
-  // --- Memory & Knowledge (ruflo) ---
+  // --- Memory & Knowledge (vector) ---
   memory: {
     enabled: process.env.MCP_GROUP_MEMORY !== "false",
-    description: "Vector memory, AgentDB, embeddings, semantic search (ruflo)",
-    source: "ruflo",
+    description: "Vector memory, AgentDB, embeddings, semantic search (vector)",
+    source: "vector",
     prefixes: ["memory_", "agentdb_", "embeddings_"],
   },
 
-  // --- Dev Tools (ruflo) ---
+  // --- Dev Tools (vector) ---
   devtools: {
     enabled: process.env.MCP_GROUP_DEVTOOLS !== "false",
-    description: "Hooks, code analysis, performance profiling, GitHub integration (ruflo)",
-    source: "ruflo",
+    description: "Hooks, code analysis, performance profiling, GitHub integration (vector)",
+    source: "vector",
     prefixes: ["hooks_", "analyze_", "performance_", "github_", "terminal_", "config_", "system_", "progress_"],
   },
 
-  // --- Security & Safety (ruflo) ---
+  // --- Security & Safety (vector) ---
   security: {
     enabled: process.env.MCP_GROUP_SECURITY === "true",
-    description: "AI defence, PII detection, claims management, pattern transfer (ruflo)",
-    source: "ruflo",
+    description: "AI defence, PII detection, claims management, pattern transfer (vector)",
+    source: "vector",
     prefixes: ["aidefence_", "claims_", "transfer_"],
   },
 
-  // --- Browser Automation (ruflo) ---
+  // --- Browser Automation (vector) ---
   browser: {
     enabled: process.env.MCP_GROUP_BROWSER === "true",
-    description: "Headless browser control — navigate, click, fill, screenshot (ruflo)",
-    source: "ruflo",
+    description: "Headless browser control — navigate, click, fill, screenshot (vector)",
+    source: "vector",
     prefixes: ["browser_"],
   },
 
-  // --- Neural & DAA (ruflo) ---
+  // --- Neural & DAA (vector) ---
   neural: {
     enabled: process.env.MCP_GROUP_NEURAL === "true",
-    description: "Neural network training, DAA autonomous agents, cognitive patterns (ruflo)",
-    source: "ruflo",
+    description: "Neural network training, DAA autonomous agents, cognitive patterns (vector)",
+    source: "vector",
     prefixes: ["neural_", "daa_"],
   },
 
@@ -252,7 +252,7 @@ class StdioMcpClient {
 
 const BACKEND_DEFS = [
   { name: "ruvector",       command: "npx", args: ["-y", "ruvector", "mcp", "start"],   groups: ["intelligence"] },
-  { name: "ruflo",          command: "npx", args: ["-y", "ruflo", "mcp", "start"],      groups: ["agents", "memory", "devtools", "security", "browser", "neural"] },
+  { name: "vector",          command: "npx", args: ["-y", "vector", "mcp", "start"],      groups: ["agents", "memory", "devtools", "security", "browser", "neural"] },
   { name: "agentic-flow",   command: "npx", args: ["-y", "agentic-flow@alpha", "mcp", "start"], groups: ["agentic-flow"] },
   { name: "claude",         command: "claude", args: ["mcp", "serve"],                  groups: ["claude-code"] },
   { name: "gemini-mcp",     command: "npx", args: ["-y", "gemini-mcp-server"],          groups: ["gemini"] },
@@ -446,7 +446,7 @@ Self-learning intelligence tools for routing and vector memory.
 - To store important findings for cross-session memory
 - To recall previously stored patterns or solutions`,
 
-    agents: `# Agents & Orchestration Group (ruflo)
+    agents: `# Agents & Orchestration Group (vector)
 
 Multi-agent lifecycle management, swarm coordination, and task workflows.
 
@@ -465,7 +465,7 @@ Multi-agent lifecycle management, swarm coordination, and task workflows.
 - Pipeline workflows with sequential or parallel steps
 - Distributed task management`,
 
-    memory: `# Memory & Knowledge Group (ruflo)
+    memory: `# Memory & Knowledge Group (vector)
 
 Vector storage, semantic search, AgentDB pattern learning, and embeddings.
 
@@ -484,7 +484,7 @@ Vector storage, semantic search, AgentDB pattern learning, and embeddings.
 - Finding similar past solutions or patterns
 - Building semantic search over custom data`,
 
-    devtools: `# Dev Tools Group (ruflo)
+    devtools: `# Dev Tools Group (vector)
 
 Code analysis, performance profiling, GitHub integration, and terminal access.
 
@@ -501,7 +501,7 @@ Code analysis, performance profiling, GitHub integration, and terminal access.
 - Performance analysis and optimization
 - GitHub repository management`,
 
-    security: `# Security & Safety Group (ruflo)
+    security: `# Security & Safety Group (vector)
 
 AI defence, PII detection, and claims-based authorization.
 
@@ -517,7 +517,7 @@ AI defence, PII detection, and claims-based authorization.
 - PII detection before processing sensitive data
 - Work item management across agents`,
 
-    browser: `# Browser Automation Group (ruflo)
+    browser: `# Browser Automation Group (vector)
 
 Headless browser control for web interaction and testing.
 
@@ -534,7 +534,7 @@ Headless browser control for web interaction and testing.
 - Automated testing (E2E)
 - Form filling and web interaction`,
 
-    neural: `# Neural & DAA Group (ruflo)
+    neural: `# Neural & DAA Group (vector)
 
 Neural network operations and Decentralized Autonomous Agents.
 
@@ -1222,7 +1222,7 @@ Pattern learning, routing, code analysis, and trajectory tracking. ${TOOL_GROUPS
 - **ruvector__hooks_stats** — View learning statistics and metrics.
 - **ruvector__hooks_doctor** — Run diagnostics on the intelligence system.
 
-## Group 3: Agents & Orchestration (ruflo)
+## Group 3: Agents & Orchestration (vector)
 Spawn agents, coordinate swarms, manage tasks and workflows. ${TOOL_GROUPS.agents.enabled ? "ACTIVE" : "DISABLED"}
 
 ### Agent Lifecycle:
@@ -1286,7 +1286,7 @@ Spawn agents, coordinate swarms, manage tasks and workflows. ${TOOL_GROUPS.agent
 - **ruflo__session_restore** — Restore a previous session.
 - **ruflo__session_list** — List available sessions.
 
-## Group 4: Memory & Knowledge (ruflo)
+## Group 4: Memory & Knowledge (vector)
 Persistent memory, vector search, embeddings, and pattern storage. ${TOOL_GROUPS.memory.enabled ? "ACTIVE" : "DISABLED"}
 
 ### Memory Operations:
@@ -1319,7 +1319,7 @@ Persistent memory, vector search, embeddings, and pattern storage. ${TOOL_GROUPS
 - **ruflo__agentdb_session-start** / **ruflo__agentdb_session-end** — Session tracking.
 - **ruflo__agentdb_hierarchical-store** / **ruflo__agentdb_hierarchical-recall** — Hierarchical memory.
 
-## Group 5: Dev Tools & Analysis (ruflo)
+## Group 5: Dev Tools & Analysis (vector)
 Performance, system health, GitHub integration, code analysis, terminal. ${TOOL_GROUPS.devtools.enabled ? "ACTIVE" : "DISABLED"}
 
 ### System & Performance:

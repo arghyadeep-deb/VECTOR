@@ -1,19 +1,19 @@
-# ruflo-plugin-creator
+# vector-plugin-creator
 
 Scaffold, validate, and publish new Claude Code plugins with proper structure and MCP tool wiring.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-plugin-creator@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-plugin-creator@vector
 ```
 
 ## Features
 
 - **Scaffold plugins**: Generate complete plugin directory structure in seconds
 - **Validate format**: Check plugin.json, SKILL.md frontmatter, and file references
-- **MCP tool wiring**: Auto-discover and wire ruflo MCP tools into skills
+- **MCP tool wiring**: Auto-discover and wire vector MCP tools into skills
 - **Marketplace integration**: Update marketplace.json for distribution
 
 ## Commands

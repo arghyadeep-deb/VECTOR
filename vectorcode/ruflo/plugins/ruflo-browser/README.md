@@ -1,12 +1,12 @@
-# ruflo-browser
+# vector-browser
 
 Agentic browser automation with Playwright for testing, scraping, and UI interaction.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-browser@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-browser@vector
 ```
 
 ## Features

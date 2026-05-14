@@ -1,4 +1,4 @@
-"""Ruflo v3 Agent — domain entity for the agent lifecycle system."""
+"""VectorCode v3 Agent — domain entity for the agent lifecycle system."""
 
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional

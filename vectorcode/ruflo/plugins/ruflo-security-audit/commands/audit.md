@@ -3,7 +3,7 @@ name: audit
 description: Run a security audit on the project
 ---
 $ARGUMENTS
-Run a Ruflo security audit. Accepts optional flags:
+Run a VectorCode security audit. Accepts optional flags:
 
 Usage: /audit [--depth quick|standard|full] [--path <dir>] [--fix]
 

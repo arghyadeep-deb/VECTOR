@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Ruflo Installer (formerly Claude Flow)
-# https://github.com/ruvnet/ruflo
+# VectorCode Installer (formerly Claude Flow)
+# https://github.com/vectorcode
 #
 # Usage:
 #   curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/claude-flow@main/scripts/install.sh | bash
@@ -34,7 +34,7 @@ DIM='\033[2m'
 NC='\033[0m' # No Color
 
 # Default configuration (can be overridden by env vars)
-VERSION="${RUFLO_VERSION:-${CLAUDE_FLOW_VERSION:-latest}}"
+VERSION="${VECTOR_VERSION:-${CLAUDE_FLOW_VERSION:-latest}}"
 MINIMAL="${CLAUDE_FLOW_MINIMAL:-0}"
 GLOBAL="${CLAUDE_FLOW_GLOBAL:-0}"
 SETUP_MCP="${CLAUDE_FLOW_SETUP_MCP:-0}"
@@ -80,12 +80,12 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help|-h)
-            echo "Ruflo Installer"
+            echo "VectorCode Installer"
             echo ""
             echo "Usage: curl -fsSL .../install.sh | bash -s -- [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --global, -g     Install globally (npm install -g ruflo)"
+            echo "  --global, -g     Install globally (npm install -g vector)"
             echo "  --minimal, -m    Minimal install (skip optional deps)"
             echo "  --setup-mcp      Auto-configure MCP server for Claude Code"
             echo "  --doctor, -d     Run diagnostics after install"
@@ -101,7 +101,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-PACKAGE="ruflo@${VERSION}"
+PACKAGE="vector@${VERSION}"
 
 # Progress animation
 SPINNER_CHARS="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -115,7 +115,7 @@ spinner() {
 print_banner() {
     echo ""
     echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}  ${BOLD}Ruflo${NC} — AI Agent Orchestration for Claude Code     ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${BOLD}VectorCode${NC} — AI Agent Orchestration for Claude Code     ${CYAN}║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -256,10 +256,10 @@ verify_installation() {
 
     local VERSION_OUTPUT
     if [ "$GLOBAL" = "1" ]; then
-        VERSION_OUTPUT=$(ruflo --version 2>/dev/null || claude-flow --version 2>/dev/null || echo "")
+        VERSION_OUTPUT=$(vector --version 2>/dev/null || claude-flow --version 2>/dev/null || echo "")
         if [ -z "$VERSION_OUTPUT" ]; then
             print_warning "Global command not found in PATH"
-            print_substep "Try: ${BOLD}npm install -g ruflo@${VERSION}${NC}"
+            print_substep "Try: ${BOLD}npm install -g vector@${VERSION}${NC}"
             return 0  # Don't fail - npm might need PATH refresh
         fi
     else
@@ -285,27 +285,27 @@ show_quickstart() {
 
     if [ "$GLOBAL" = "1" ]; then
         echo -e "  ${DIM}# Initialize project${NC}"
-        echo -e "  ${BOLD}ruflo init --wizard${NC}"
+        echo -e "  ${BOLD}vector init --wizard${NC}"
         echo ""
         echo -e "  ${DIM}# Run system diagnostics${NC}"
-        echo -e "  ${BOLD}ruflo doctor${NC}"
+        echo -e "  ${BOLD}vector doctor${NC}"
         echo ""
         echo -e "  ${DIM}# Add as MCP server to Claude Code${NC}"
-        echo -e "  ${BOLD}claude mcp add ruflo -- ruflo mcp start${NC}"
+        echo -e "  ${BOLD}claude mcp add vector -- vector mcp start${NC}"
     else
         echo -e "  ${DIM}# Initialize project${NC}"
-        echo -e "  ${BOLD}npx ruflo@latest init --wizard${NC}"
+        echo -e "  ${BOLD}npx vector@latest init --wizard${NC}"
         echo ""
         echo -e "  ${DIM}# Run system diagnostics${NC}"
-        echo -e "  ${BOLD}npx ruflo@latest doctor${NC}"
+        echo -e "  ${BOLD}npx vector@latest doctor${NC}"
         echo ""
         echo -e "  ${DIM}# Add as MCP server to Claude Code${NC}"
-        echo -e "  ${BOLD}claude mcp add ruflo -- npx -y ruflo@latest mcp start${NC}"
+        echo -e "  ${BOLD}claude mcp add vector -- npx -y vector@latest mcp start${NC}"
     fi
 
     echo ""
-    echo -e "${DIM}Documentation: https://github.com/ruvnet/ruflo${NC}"
-    echo -e "${DIM}Issues: https://github.com/ruvnet/ruflo/issues${NC}"
+    echo -e "${DIM}Documentation: https://github.com/vectorcode${NC}"
+    echo -e "${DIM}Issues: https://github.com/vectorcode/issues${NC}"
     echo ""
 }
 
@@ -322,7 +322,7 @@ setup_mcp_server() {
     fi
 
     # Check if already configured
-    if claude mcp list 2>/dev/null | grep -q "ruflo\|claude-flow"; then
+    if claude mcp list 2>/dev/null | grep -q "vector\|claude-flow"; then
         print_substep "MCP server already configured ✓"
         return 0
     fi
@@ -330,13 +330,13 @@ setup_mcp_server() {
     # Add MCP server (pass CLAUDE_FLOW_CWD so tools resolve paths correctly
     # even when the MCP server is spawned with cwd='/')
     if [ "$GLOBAL" = "1" ]; then
-        claude mcp add ruflo -e CLAUDE_FLOW_CWD="$HOME" -- ruflo mcp start 2>/dev/null && \
+        claude mcp add vector -e CLAUDE_FLOW_CWD="$HOME" -- vector mcp start 2>/dev/null && \
             print_substep "MCP server configured ✓" || \
-            print_warning "MCP setup failed - run manually: claude mcp add ruflo -e CLAUDE_FLOW_CWD=\"\$HOME\" -- ruflo mcp start"
+            print_warning "MCP setup failed - run manually: claude mcp add vector -e CLAUDE_FLOW_CWD=\"\$HOME\" -- vector mcp start"
     else
-        claude mcp add ruflo -e CLAUDE_FLOW_CWD="$HOME" -- npx -y ruflo@${VERSION} mcp start 2>/dev/null && \
+        claude mcp add vector -e CLAUDE_FLOW_CWD="$HOME" -- npx -y vector@${VERSION} mcp start 2>/dev/null && \
             print_substep "MCP server configured ✓" || \
-            print_warning "MCP setup failed - run manually: claude mcp add ruflo -e CLAUDE_FLOW_CWD=\"\$HOME\" -- npx -y ruflo@latest mcp start"
+            print_warning "MCP setup failed - run manually: claude mcp add vector -e CLAUDE_FLOW_CWD=\"\$HOME\" -- npx -y vector@latest mcp start"
     fi
     echo ""
 }
@@ -350,9 +350,9 @@ run_doctor() {
     echo ""
 
     if [ "$GLOBAL" = "1" ]; then
-        ruflo doctor 2>&1 || true
+        vector doctor 2>&1 || true
     else
-        npx ruflo@${VERSION} doctor 2>&1 || true
+        npx vector@${VERSION} doctor 2>&1 || true
     fi
     echo ""
 }
@@ -366,9 +366,9 @@ run_init() {
     echo ""
 
     if [ "$GLOBAL" = "1" ]; then
-        ruflo init --yes 2>&1 || true
+        vector init --yes 2>&1 || true
     else
-        npx ruflo@${VERSION} init --yes 2>&1 || true
+        npx vector@${VERSION} init --yes 2>&1 || true
     fi
     echo ""
 }
@@ -385,7 +385,7 @@ main() {
     run_init
     show_quickstart
 
-    print_success "${BOLD}Ruflo is ready!${NC}"
+    print_success "${BOLD}VectorCode is ready!${NC}"
     echo ""
 }
 

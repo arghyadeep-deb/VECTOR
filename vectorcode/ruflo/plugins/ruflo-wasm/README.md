@@ -1,12 +1,12 @@
-# ruflo-wasm
+# vector-wasm
 
 Sandboxed WASM agent creation, execution, and gallery sharing.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-wasm@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-wasm@vector
 ```
 
 ## Features

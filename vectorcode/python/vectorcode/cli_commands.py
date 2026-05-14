@@ -1,4 +1,4 @@
-"""VectorCode CLI commands — consolidated from Hermes 52+ CLI files."""
+"""VectorCode CLI commands — consolidated from VectorCode 52+ CLI files."""
 
 import argparse
 import json

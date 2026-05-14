@@ -1,12 +1,12 @@
-# ruflo-daa
+# vector-daa
 
 Dynamic Agentic Architecture with cognitive patterns, knowledge sharing, and adaptive agents.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-daa@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-daa@vector
 ```
 
 ## Features

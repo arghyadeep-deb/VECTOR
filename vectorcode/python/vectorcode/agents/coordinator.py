@@ -1,4 +1,4 @@
-"""Ruflo v3 SwarmCoordinator — multi-agent coordination with topologies."""
+"""VectorCode v3 SwarmCoordinator — multi-agent coordination with topologies."""
 
 import asyncio
 import logging

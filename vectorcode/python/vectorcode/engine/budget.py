@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py (IterationBudget class)
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py (IterationBudget class)
 """Thread-safe iteration counter for an agent."""
 import threading
 

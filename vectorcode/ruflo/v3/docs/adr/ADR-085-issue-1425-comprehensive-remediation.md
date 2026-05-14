@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-Issue [#1425](https://github.com/ruvnet/ruflo/issues/1425) identified systemic quality problems in the codebase, independently confirmed by an external audit. After initial fixes in v3.5.43 (PR #1435, ADR-067) and v3.5.69, the following items remain unresolved in v3:
+Issue [#1425](https://github.com/vectorcode/issues/1425) identified systemic quality problems in the codebase, independently confirmed by an external audit. After initial fixes in v3.5.43 (PR #1435, ADR-067) and v3.5.69, the following items remain unresolved in v3:
 
 1. **~19 `any` types in v3 CLI commands** — TypeScript type safety gaps
 2. **3 websocket implementations** — CLI, hooks, and MCP bridge each have separate WS logic with different auth and reconnection behavior

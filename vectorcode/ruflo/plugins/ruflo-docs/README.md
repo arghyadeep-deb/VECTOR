@@ -1,12 +1,12 @@
-# ruflo-docs
+# vector-docs
 
 Documentation generation, drift detection, and API docs automation.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-docs@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-docs@vector
 ```
 
 ## What's Included
@@ -20,4 +20,4 @@ Documentation generation, drift detection, and API docs automation.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

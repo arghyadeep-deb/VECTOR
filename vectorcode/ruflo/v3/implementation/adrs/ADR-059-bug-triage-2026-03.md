@@ -6,7 +6,7 @@
 
 ## Context
 
-As of v3.5.2, ruflo has 30 open issues spanning security, platform stability, CLI correctness, MCP protocol compliance, and Chat UI runtime bugs. This ADR triages every open issue into a priority matrix to guide engineering effort.
+As of v3.5.2, vector has 30 open issues spanning security, platform stability, CLI correctness, MCP protocol compliance, and Chat UI runtime bugs. This ADR triages every open issue into a priority matrix to guide engineering effort.
 
 Note: `@claude-flow/memory` (AgentDB) is now published at `@latest`, which affects several wiring issues below.
 
@@ -24,7 +24,7 @@ Note: `@claude-flow/memory` (AgentDB) is now published at `@latest`, which affec
 ## P0 — Critical (Fix Immediately)
 
 ### 1. Obfuscated preinstall script deletes npm cache entries (#1261)
-- **Impact:** Supply-chain trust — the `preinstall` script in `package.json` silently deletes npm cache entries for `claude-flow` and `ruflo`. This resembles malicious behavior and will trigger security scanners (Socket, Snyk, npm audit).
+- **Impact:** Supply-chain trust — the `preinstall` script in `package.json` silently deletes npm cache entries for `claude-flow` and `vector`. This resembles malicious behavior and will trigger security scanners (Socket, Snyk, npm audit).
 - **Risk:** Package ban from npm registry; user trust erosion.
 - **Fix:** Remove the obfuscated preinstall script entirely. If cache-busting is needed, document it as an explicit post-install step.
 - **Status:** ✅ **FIXED** in PR #1298. Preinstall script removed from root `package.json`. Issue #1261 closed.
@@ -89,11 +89,11 @@ Note: `@claude-flow/memory` (AgentDB) is now published at `@latest`, which affec
 - **Fix:** Add `.unref()` to all `setInterval` timers in CacheManager.
 
 ### 13. MCP server and statusline report 'claude-flow' v3.0.0 branding (#1280)
-- **Impact:** Confusing branding — MCP server still identifies as `claude-flow` v3.0.0 instead of `ruflo` v3.5.x.
+- **Impact:** Confusing branding — MCP server still identifies as `claude-flow` v3.0.0 instead of `vector` v3.5.x.
 - **Fix:** Update MCP server metadata, version string, and statusline template.
 - **Status:** ✅ **FIXED** in PR #1298. MCP `system-tools.ts` now reads version from `package.json` at runtime via `getPackageVersion()`. Branding updated to "RuFlo" across 20+ CLI files. Statusline.cjs updated. Issue #1280 closed.
 
-### 14. Statusline shows 'Claude Flow V3' instead of 'Ruflo V3' (#1254)
+### 14. Statusline shows 'Claude Flow V3' instead of 'VectorCode V3' (#1254)
 - **Impact:** Branding inconsistency in IDE status bar.
 - **Fix:** Update statusline configuration defaults.
 - **Status:** ✅ **FIXED** in PR #1298. Updated `statusline.cjs` (lines 3, 552, 619) from "Claude Flow V3" to "RuFlo V3". Updated `settings.json` version to 3.5.2. Issue #1254 closed.
@@ -111,7 +111,7 @@ Note: `@claude-flow/memory` (AgentDB) is now published at `@latest`, which affec
 - **Impact:** `status` command shows STOPPED for a correctly-running stdio-mode MCP server. Confusing UX.
 - **Fix:** Detect stdio transport mode and report status accordingly.
 
-### 18. Zero swarms always: `ruflo spawn hive-mind --claude` (#1279)
+### 18. Zero swarms always: `vector spawn hive-mind --claude` (#1279)
 - **Impact:** Hive-mind spawning returns zero agents. The flagship multi-agent feature is non-functional via CLI.
 - **Fix:** Debug agent spawn path; likely missing topology init or agent pool connection.
 
@@ -153,13 +153,13 @@ Note: `@claude-flow/memory` (AgentDB) is now published at `@latest`, which affec
 ### 27. Ship `dsp` as bin entry for `--dangerously-skip-permissions` (#1236)
 - **Type:** Feature request for convenience alias.
 
-### 28. ADR-058: Self-Contained ruflo.rvf Appliance (#1245)
+### 28. ADR-058: Self-Contained vector.rvf Appliance (#1245)
 - **Type:** Enhancement. Already has implementation from Phase 3-4.
 
 ### 29. ADR-057: Replace sql.js with RVF native storage (#1242)
 - **Type:** Enhancement. Architectural improvement.
 
-### 30. "How to use ruflo" (#1251)
+### 30. "How to use vector" (#1251)
 - **Type:** Documentation/support request. Needs getting-started guide.
 
 ---

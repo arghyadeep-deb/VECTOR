@@ -1,6 +1,6 @@
 """VectorCode delegate_task tool — subagent architecture.
 
-Ports the subagent delegation pattern from Hermes delegate_tool.py into
+Ports the subagent delegation pattern from VectorCode delegate_tool.py into
 VectorCode's engine. Spawns a child VectorAgent in a thread with an
 independent IterationBudget, a focused system prompt, and a restricted
 toolset (no clarify, memory_write, or recursive delegate calls).
@@ -95,7 +95,7 @@ class DelegateResult:
 def _build_child_system_prompt(task: str, context: str = "") -> str:
     """Build a focused system prompt for a delegated subagent.
 
-    Mirrors Hermes _build_child_system_prompt() without the orchestrator
+    Mirrors VectorCode _build_child_system_prompt() without the orchestrator
     branch — VectorCode subagents are always leaves (depth 1 flat hierarchy).
     """
     parts = [

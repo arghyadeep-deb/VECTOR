@@ -54,7 +54,7 @@ function buildTestRvfa(name = 'test-appliance'): Buffer {
   const writer = new RvfaWriter({ ...header, name });
   writer.addSection('kernel', Buffer.from('kernel-data'), { compression: 'none' });
   writer.addSection('runtime', Buffer.from('runtime-data'), { compression: 'none' });
-  writer.addSection('ruflo', Buffer.from('ruflo-data'), { compression: 'none' });
+  writer.addSection('vector', Buffer.from('vector-data'), { compression: 'none' });
   return writer.build();
 }
 

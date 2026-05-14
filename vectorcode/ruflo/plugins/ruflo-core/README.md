@@ -1,12 +1,12 @@
-# ruflo-core
+# vector-core
 
-Core Ruflo MCP tools, commands, and Claude Code orchestration patterns.
+Core VectorCode MCP tools, commands, and Claude Code orchestration patterns.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-core@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-core@vector
 ```
 
 ## What's Included

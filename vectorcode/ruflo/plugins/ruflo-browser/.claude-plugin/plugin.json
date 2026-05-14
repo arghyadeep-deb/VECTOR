@@ -1,15 +1,15 @@
 {
-  "name": "ruflo-browser",
+  "name": "vector-browser",
   "description": "Agentic browser automation with Playwright for testing, scraping, and UI interaction",
   "version": "0.1.0",
   "author": {
     "name": "ruvnet",
     "url": "https://github.com/ruvnet"
   },
-  "homepage": "https://github.com/ruvnet/ruflo",
+  "homepage": "https://github.com/vectorcode",
   "license": "MIT",
   "keywords": [
-    "ruflo",
+    "vector",
     "browser",
     "playwright",
     "testing",

@@ -2,11 +2,11 @@
 name: ascii-art
 description: "ASCII art: pyfiglet, cowsay, boxes, image-to-ascii."
 version: 4.0.0
-author: 0xbyt4, Hermes Agent
+author: 0xbyt4, VectorCode
 license: MIT
 dependencies: []
 metadata:
-  hermes:
+  vector:
     tags: [ASCII, Art, Banners, Creative, Unicode, Text-Art, pyfiglet, figlet, cowsay, boxes]
     related_skills: [excalidraw]
 

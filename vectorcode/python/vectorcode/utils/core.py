@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/utils.py
+# Ported from GitHub/NousResearch_vectorcode/repo/utils.py
 """Core utility functions for VectorCode."""
 import json
 import os

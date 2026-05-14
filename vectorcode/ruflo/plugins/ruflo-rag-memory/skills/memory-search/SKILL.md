@@ -1,6 +1,6 @@
 ---
 name: memory-search
-description: Semantic search across Ruflo AgentDB with HNSW vector indexing
+description: Semantic search across VectorCode AgentDB with HNSW vector indexing
 allowed-tools: mcp__claude-flow__memory_search mcp__claude-flow__memory_store mcp__claude-flow__memory_list mcp__claude-flow__memory_retrieve Bash(npx *)
 argument-hint: "[query]"
 ---

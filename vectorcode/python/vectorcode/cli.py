@@ -778,21 +778,17 @@ def cmd_tools(args):
             if p not in sys.path:
                 sys.path.insert(0, p)
 
-        # Import tools to trigger self-registration
-        for mod_name in ["file_tools", "terminal", "delegate_tool", "memory_tool",
-                         "session_search_tool", "todo_tool", "web_tools", "mcp_tool",
-                         "vision_tools", "send_message_tool", "cron_tools"]:
-            try:
-                __import__(f"tools.{mod_name}")
-            except Exception:
-                pass
+        # Import tools to trigger self-registration (use discovery from registry)
+        from tools.registry import registry, discover_builtin_tools
+        try:
+            discover_builtin_tools()
+        except Exception:
+            pass
 
-        from tools.registry import ToolRegistry
-        reg = ToolRegistry.global_instance()
-        names = sorted(reg.get_all_tool_names())
+        names = sorted([e.name for e in registry._snapshot_entries()])
         print(f"Registered tools ({len(names)}):")
         for name in names:
-            entry = reg._tools.get(name)
+            entry = registry.get_entry(name)
             toolset = getattr(entry, "toolset", "?") if entry else "?"
             print(f"  {name:<30} [{toolset}]")
 

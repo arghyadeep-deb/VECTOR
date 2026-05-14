@@ -1,7 +1,7 @@
 /**
  * Live Repo Integration Tests
  *
- * Tests the agentic-qe tool handlers against real files in the ruflo repository.
+ * Tests the agentic-qe tool handlers against real files in the vector repository.
  * Each test imports the actual handler, calls it with real paths, and validates
  * the response structure and content.
  */

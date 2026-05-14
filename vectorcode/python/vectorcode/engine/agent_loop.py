@@ -1,10 +1,10 @@
 """
-VectorCode Agent Loop — ported from Hermes run_agent.py core.
+VectorCode Agent Loop — ported from VectorCode run_agent.py core.
 
 The actual Think→Act→Observe execution loop that makes VectorCode an agent,
 not just a chatbot. Without this, tool definitions are never executed.
 
-Key patterns absorbed from Hermes:
+Key patterns absorbed from VectorCode:
   - IterationBudget (thread-safe, parent/subagent independent)
   - run_conversation() main loop: call model → check tool_calls → execute → repeat
   - _execute_tool_calls_sequential() and _concurrent()
@@ -35,7 +35,7 @@ except ImportError:
     CONFIG = {}
 
 
-# ── SafeWriter (Hermes _SafeWriter) ───────────────────────────────────────────
+# ── SafeWriter (VectorCode _SafeWriter) ───────────────────────────────────────────
 
 class _SafeWriter:
     """Transparent stdout/stderr wrapper — catches OSError/ValueError from broken pipes.
@@ -78,7 +78,7 @@ def _install_safe_stdio() -> None:
             setattr(sys, stream_name, _SafeWriter(stream))
 
 
-# ── Surrogate sanitization (Hermes _sanitize_surrogates) ─────────────────────
+# ── Surrogate sanitization (VectorCode _sanitize_surrogates) ─────────────────────
 
 _SURROGATE_RE = re.compile(r'[\ud800-\udfff]')
 
@@ -90,7 +90,7 @@ def _sanitize_surrogates(text: str) -> str:
     return text
 
 
-# ── Parallel tool execution helpers (Hermes) ─────────────────────────────────
+# ── Parallel tool execution helpers (VectorCode) ─────────────────────────────────
 
 _NEVER_PARALLEL_TOOLS = frozenset({"clarify", "bash", "terminal"})
 
@@ -138,7 +138,7 @@ def _should_parallelize(tool_calls: list) -> bool:
     return all(n in _PARALLEL_SAFE_TOOLS for n in names)
 
 
-# ── IterationBudget (Hermes IterationBudget) ──────────────────────────────────
+# ── IterationBudget (VectorCode IterationBudget) ──────────────────────────────────
 
 class IterationBudget:
     """Thread-safe iteration counter. Parent default=90, subagent default=50."""
@@ -174,7 +174,7 @@ class IterationBudget:
 
 class VectorAgent:
     """
-    VectorCode's agent execution loop — ported from Hermes AIAgent.
+    VectorCode's agent execution loop — ported from VectorCode AIAgent.
 
     Core contract:
       1. call model with current messages + tool schemas
@@ -621,7 +621,7 @@ class VectorAgent:
                     continue
                 from_role = "human" if role == "user" else "gpt"
                 if isinstance(content, str) and content.strip():
-                    # Convert REASONING_SCRATCHPAD → <think> (Hermes pattern)
+                    # Convert REASONING_SCRATCHPAD → <think> (VectorCode pattern)
                     content = content.replace(
                         "<REASONING_SCRATCHPAD>", "<think>"
                     ).replace("</REASONING_SCRATCHPAD>", "</think>")

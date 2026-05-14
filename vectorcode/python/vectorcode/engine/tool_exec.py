@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py
 """Tool execution: sequential, concurrent, and parallel-safety detection."""
 import json
 import os

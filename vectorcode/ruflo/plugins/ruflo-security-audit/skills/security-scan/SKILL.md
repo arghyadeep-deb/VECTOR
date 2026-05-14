@@ -1,6 +1,6 @@
 ---
 name: security-scan
-description: Run full security scans on the codebase using Ruflo security tools
+description: Run full security scans on the codebase using VectorCode security tools
 allowed-tools: Bash(npx *) mcp__claude-flow__memory_store mcp__claude-flow__hooks_post-task Read Grep
 argument-hint: "[depth: quick|standard|full]"
 ---

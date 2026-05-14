@@ -42,7 +42,7 @@
 Only tool besides OpenCode that supports all major providers + local models. Claude Code locks you into Anthropic. Aider supports many but not Cloudflare, NVIDIA, xAI, Perplexity, Fireworks.
 
 ### 2. Multi-Agent Swarm Orchestration **UNIQUE**
-No other tool has 8 swarm topologies with Byzantine fault tolerance, RAFT consensus, CRDT merge, GNN routing. This is Ruflo's algorithmic moat — VectorCode is the only Python implementation.
+No other tool has 8 swarm topologies with Byzantine fault tolerance, RAFT consensus, CRDT merge, GNN routing. This is VectorCode's algorithmic moat — VectorCode is the only Python implementation.
 
 ### 3. 3-Layer GNN Router **UNIQUE**
 No other coding agent uses machine learning (cosine similarity on embeddings) to route tasks to models. Everyone else uses static keyword matching or hardcoded model selection.
@@ -61,7 +61,7 @@ Claude Code costs $10-20/month. VectorCode is free if you bring your own API key
 ## Weaknesses (Where VectorCode Lags)
 
 ### 1. Tool System (biggest gap)
-**VectorCode:** 8 of ~70 tools from Hermes ported.  
+**VectorCode:** 8 of ~70 tools from VectorCode ported.  
 **Claude Code:** 40+ production-grade tools.  
 **Missing:** Code execution sandbox, SSH/Docker backends, MCP client, image generation, TTS/STT, cron, Discord/Slack/Email bots, checkpoint, delegate improvements.
 
@@ -141,7 +141,7 @@ Verdict:             Different use cases. Cursor for IDE users. VectorCode for t
                        testing, docs)
 ```
 
-**VectorCode is the most architecturally ambitious coding agent** — it's the only one with multi-agent swarm orchestration, GNN-based routing, and enterprise messaging. But it's also the least production-ready. The Ruflo absorption gives it unique capabilities (~48% complete), but the Hermes infrastructure (tools, errors, testing) is only ~18% done.
+**VectorCode is the most architecturally ambitious coding agent** — it's the only one with multi-agent swarm orchestration, GNN-based routing, and enterprise messaging. But it's also the least production-ready. The VectorCode absorption gives it unique capabilities (~48% complete), but the VectorCode infrastructure (tools, errors, testing) is only ~18% done.
 
 ### The Opportunity
 

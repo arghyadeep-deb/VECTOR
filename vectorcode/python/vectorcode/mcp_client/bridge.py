@@ -1,11 +1,11 @@
-# Ported from GitHub/ruvnet_ruflo/repo/ruflo/src/mcp-bridge/index.js
-"""Ruflo MCP bridge — group-based tool routing to multiple MCP servers."""
+# Ported from GitHub/ruvnet_ruflo/repo/vector/src/mcp-bridge/index.js
+"""VectorCode MCP bridge — group-based tool routing to multiple MCP servers."""
 import os
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-# Tool group definitions (from Ruflo mcp-bridge/index.js)
+# Tool group definitions (from VectorCode mcp-bridge/index.js)
 TOOL_GROUPS: Dict[str, dict] = {
     "intelligence": {
         "enabled": os.getenv("MCP_GROUP_INTELLIGENCE", "true") != "false",
@@ -67,7 +67,7 @@ def is_tool_enabled(tool_name: str) -> bool:
 class MCPBridge:
     """Routes tool calls to the appropriate MCP server based on tool group.
 
-    Ported from Ruflo mcp-bridge/index.js.
+    Ported from VectorCode mcp-bridge/index.js.
     """
 
     def __init__(self):

@@ -1,12 +1,12 @@
-# ruflo-security-audit
+# vector-security-audit
 
 Security review, dependency scanning, policy gates, and CVE monitoring.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-security-audit@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-security-audit@vector
 ```
 
 ## What's Included
@@ -20,4 +20,4 @@ Security review, dependency scanning, policy gates, and CVE monitoring.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

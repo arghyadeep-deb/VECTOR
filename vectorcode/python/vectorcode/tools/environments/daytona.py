@@ -77,7 +77,7 @@ class DaytonaEnvironment(BaseEnvironment):
         resources = Resources(cpu=cpu, memory=memory_gib, disk=disk_gib)
 
         labels = {"hermes_task_id": task_id}
-        sandbox_name = f"hermes-{task_id}"
+        sandbox_name = f"vector-{task_id}"
 
         if self._persistent:
             try:
@@ -131,7 +131,7 @@ class DaytonaEnvironment(BaseEnvironment):
         logger.info("Daytona: resolved home to %s, cwd to %s", self._remote_home, self.cwd)
 
         self._sync_manager = FileSyncManager(
-            get_files_fn=lambda: iter_sync_files(f"{self._remote_home}/.hermes"),
+            get_files_fn=lambda: iter_sync_files(f"{self._remote_home}/.vector"),
             upload_fn=self._daytona_upload,
             delete_fn=self._daytona_delete,
             bulk_upload_fn=self._daytona_bulk_upload,
@@ -169,8 +169,8 @@ class DaytonaEnvironment(BaseEnvironment):
         self._sandbox.fs.upload_files(uploads)
 
     def _daytona_bulk_download(self, dest: Path) -> None:
-        """Download remote .hermes/ as a tar archive."""
-        rel_base = f"{self._remote_home}/.hermes".lstrip("/")
+        """Download remote .vectorcode/ as a tar archive."""
+        rel_base = f"{self._remote_home}/.vector".lstrip("/")
         # PID-suffixed remote temp path avoids collisions if sync_back fires
         # concurrently for the same sandbox (e.g. retry after partial failure).
         remote_tar = f"/tmp/.hermes_sync.{os.getpid()}.tar"

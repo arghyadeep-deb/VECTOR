@@ -1,12 +1,12 @@
-# ruflo-goals
+# vector-goals
 
 Long-horizon goal planning, deep research orchestration, and adaptive replanning.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-goals@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-goals@vector
 ```
 
 ## Features

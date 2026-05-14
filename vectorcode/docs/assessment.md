@@ -1,5 +1,5 @@
 # VectorCode — Production Grade Assessment
-> Measured against Hermes Agent production standard. Date: 2026-05-13.
+> Measured against VectorCode production standard. Date: 2026-05-13.
 
 ---
 
@@ -20,7 +20,7 @@
 | `message_bus.py` | ✅ Production | ACL-gated 7 operations |
 | `comms/messenger.py` | ✅ Production | Telegram, Discord, email, pushover |
 | `comms/inbound.py` | ✅ Production | Rate limit, dedup, thread tracking |
-| `context/compactor.py` | ✅ Production | Hermes SUMMARY_PREFIX, tool pruning |
+| `context/compactor.py` | ✅ Production | VectorCode SUMMARY_PREFIX, tool pruning |
 | `context/vectormd.py` | ✅ Production | Injection scanning, 10 threat patterns |
 | `providers/rate_limit.py` | ✅ Production | 12-header schema, ASCII bar chart |
 | `providers/retry.py` | ✅ Production | Jittered backoff, decorrelated |
@@ -97,14 +97,14 @@
 **9. Skills loaded but not wired to system prompt**
 - `skills/loader.py` has `SkillRegistry`
 - `repl.py` still uses old `_scan_skills()` function from `~/.claude/skills/`
-- 143 Ruflo skills in `vectorcode/skills/` are never offered to user
+- 143 VectorCode skills in `vectorcode/skills/` are never offered to user
 - **Fix:** Replace `_scan_skills()` with `SkillRegistry.search()`, add `vectorcode/skills/` to search path
 
 **10. No MCP client**
 - VectorCode exposes an MCP server (`core/mcp_server.py`) — ✅
 - VectorCode cannot consume external MCP servers as a client
-- Ruflo's 300+ tools via MCP bridge are inaccessible
-- **Fix:** Port `ruflo/src/mcp-bridge/` to `mcp/client.py`
+- VectorCode's 300+ tools via MCP bridge are inaccessible
+- **Fix:** Port `vector/src/mcp-bridge/` to `mcp/client.py`
 
 ---
 
@@ -164,13 +164,13 @@ Goal: Handles failures gracefully, multi-provider.
 [ ] hooks/plugins.py — full plugin discovery
 [ ] agent/redact.py — scrub secrets from logs
 [ ] agent/subdirectory_hints.py — codebase navigation hints
-[ ] Wire 143 Ruflo skills into SkillRegistry
+[ ] Wire 143 VectorCode skills into SkillRegistry
 ```
 
 **Acceptance test:** `vector run "fix all type errors in src/"` → agent finds errors, fixes files, reruns type checker, iterates.
 
 ### Phase 3 — Make It Complete (Week 3)
-Goal: Feature parity with Hermes.
+Goal: Feature parity with VectorCode.
 
 ```
 [ ] ACP protocol adapter
@@ -185,7 +185,7 @@ Goal: Feature parity with Hermes.
 
 ## Bottom Line
 
-VectorCode has excellent infrastructure (transport layer, credential pool, session DB, memory, skills, 143 Ruflo skills, 8 swarm topologies) but zero of it is wired together into a functioning agent.
+VectorCode has excellent infrastructure (transport layer, credential pool, session DB, memory, skills, 143 VectorCode skills, 8 swarm topologies) but zero of it is wired together into a functioning agent.
 
 **The gap isn't architecture — it's execution.** The agent loop is missing.
 

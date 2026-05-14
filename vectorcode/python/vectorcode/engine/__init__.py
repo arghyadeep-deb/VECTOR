@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/run_agent.py
+# Ported from GitHub/NousResearch_vectorcode/repo/run_agent.py
 """VectorCode engine — the agent execution runtime."""
 from .agent import AIAgent
 from .budget import IterationBudget

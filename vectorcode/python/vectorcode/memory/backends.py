@@ -1,4 +1,4 @@
-"""Ruflo v3 Memory backends — SQLite, Hybrid, AgentDB persistence."""
+"""VectorCode v3 Memory backends — SQLite, Hybrid, AgentDB persistence."""
 
 import json
 import sqlite3

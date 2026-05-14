@@ -1,11 +1,11 @@
 {
-  "name": "ruflo",
+  "name": "vector",
   "version": "3.6.5",
-  "description": "Ruflo - Enterprise AI agent orchestration platform. Deploy 60+ specialized agents in coordinated swarms with self-learning, fault-tolerant consensus, vector memory, and MCP integration",
-  "main": "bin/ruflo.js",
+  "description": "VectorCode - Enterprise AI agent orchestration platform. Deploy 60+ specialized agents in coordinated swarms with self-learning, fault-tolerant consensus, vector memory, and MCP integration",
+  "main": "bin/vector.js",
   "type": "module",
   "bin": {
-    "ruflo": "./bin/ruflo.js"
+    "vector": "./bin/vector.js"
   },
   "homepage": "https://github.com/ruvnet/claude-flow#readme",
   "bugs": {
@@ -47,10 +47,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/ruvnet/claude-flow.git",
-    "directory": "ruflo"
+    "directory": "vector"
   },
   "keywords": [
-    "ruflo",
+    "vector",
     "claude-flow",
     "claude",
     "claude-code",

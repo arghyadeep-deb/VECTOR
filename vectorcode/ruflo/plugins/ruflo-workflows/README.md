@@ -1,12 +1,12 @@
-# ruflo-workflows
+# vector-workflows
 
 Visual workflow automation with templates, orchestration, and lifecycle management.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-workflows@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-workflows@vector
 ```
 
 ## Features

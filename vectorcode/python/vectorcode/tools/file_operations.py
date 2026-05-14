@@ -32,7 +32,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from pathlib import Path
-from hermes_constants import get_hermes_home
+from vector_constants import get_vector_home
 from tools.binary_extensions import BINARY_EXTENSIONS
 
 from agent.file_safety import (
@@ -55,7 +55,7 @@ WRITE_DENIED_PREFIXES = build_write_denied_prefixes(_HOME)
 
 
 def _get_safe_write_root() -> Optional[str]:
-    """Return the resolved HERMES_WRITE_SAFE_ROOT path, or None if unset.
+    """Return the resolved VECTOR_WRITE_SAFE_ROOT path, or None if unset.
 
     When set, all write_file/patch operations are constrained to this
     directory tree.  Writes outside it are denied even if the target is

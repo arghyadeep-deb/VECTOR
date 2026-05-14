@@ -1,15 +1,15 @@
 {
-  "name": "ruflo-jujutsu",
+  "name": "vector-jujutsu",
   "description": "Advanced git workflows with diff analysis, risk scoring, and reviewer recommendations",
   "version": "0.1.0",
   "author": {
     "name": "ruvnet",
     "url": "https://github.com/ruvnet"
   },
-  "homepage": "https://github.com/ruvnet/ruflo",
+  "homepage": "https://github.com/vectorcode",
   "license": "MIT",
   "keywords": [
-    "ruflo",
+    "vector",
     "jujutsu",
     "git",
     "diff",

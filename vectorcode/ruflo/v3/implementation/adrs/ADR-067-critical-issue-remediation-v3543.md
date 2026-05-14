@@ -26,7 +26,7 @@ This ADR documents all findings, root causes, and the remediation plan for v3.5.
 | **P1 — High** | `memory init` hangs after completion | #1428 | ONNX worker threads + SQLite connection never terminated; no `process.exit()` after init |
 | **P2 — Medium** | AgentDB bridge unavailable | #1399 | CLI bundles `@claude-flow/memory@alpha.11` (missing `ControllerRegistry`); runtime patch targets v1.x paths |
 | **P2 — Medium** | MCP array schema missing `items` | #1404 | `type: 'array'` without `items` in ruvllm-tools.ts — invalid JSON Schema, breaks VSCode Copilot |
-| **P2 — Medium** | Hive-mind uses native tools instead of MCP | #1422 | No tool preference enforcement; Claude defaults to native tools over Ruflo MCP |
+| **P2 — Medium** | Hive-mind uses native tools instead of MCP | #1422 | No tool preference enforcement; Claude defaults to native tools over VectorCode MCP |
 
 ## Decision
 
@@ -132,13 +132,13 @@ File: `v3/@claude-flow/cli/src/commands/memory.ts` (init handler)
 
 Files: `ruvllm-tools.ts`, `process-manager-tools.ts`, and all other MCP tool definitions.
 
-Audit all `type: 'array'` properties and add appropriate `items` schema. This is partially addressed in PR #73 (ruflo repo).
+Audit all `type: 'array'` properties and add appropriate `items` schema. This is partially addressed in PR #73 (vector repo).
 
-**4.2 — Enforce Ruflo MCP tool preference in hive-mind**
+**4.2 — Enforce VectorCode MCP tool preference in hive-mind**
 
 Options:
-- **A**: Add `--allowedTools` constraint when spawning hive-mind sessions to prefer Ruflo MCP tools
-- **B**: Add system prompt injection that instructs Claude to use Ruflo MCP tools for orchestration
+- **A**: Add `--allowedTools` constraint when spawning hive-mind sessions to prefer VectorCode MCP tools
+- **B**: Add system prompt injection that instructs Claude to use VectorCode MCP tools for orchestration
 - **C**: Document expected behavior and provide configuration guidance
 
 ### Phase 5: Code Quality (from #1425 audit)
@@ -191,8 +191,8 @@ Phase 5.x (code quality)       ← ongoing
 
 Each phase must pass:
 1. Unit tests for changed code paths
-2. Integration test: `npx ruflo daemon start` → workers execute successfully
-3. Integration test: `npx ruflo memory init` → process exits cleanly
+2. Integration test: `npx vector daemon start` → workers execute successfully
+3. Integration test: `npx vector memory init` → process exits cleanly
 4. Integration test: `agentdb_health` returns `available: true`
 5. Schema validation: all MCP tools pass strict JSON Schema validation
 6. Stress test: 8 projects with daemons running — no process accumulation after 1 hour

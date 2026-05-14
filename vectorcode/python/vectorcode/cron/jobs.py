@@ -1,8 +1,8 @@
 """
 Cron job storage and management.
 
-Jobs are stored in ~/.hermes/cron/jobs.json
-Output is saved to ~/.hermes/cron/output/{job_id}/{timestamp}.md
+Jobs are stored in ~/.vectorcode/cron/jobs.json
+Output is saved to ~/.vectorcode/cron/output/{job_id}/{timestamp}.md
 """
 
 import copy
@@ -15,12 +15,12 @@ import re
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from hermes_constants import get_hermes_home
+from vector_constants import get_vector_home
 from typing import Optional, Dict, List, Any, Union
 
 logger = logging.getLogger(__name__)
 
-from hermes_time import now as _hermes_now
+from vector_time import now as _hermes_now
 
 try:
     from croniter import croniter
@@ -32,8 +32,8 @@ except ImportError:
 # Configuration
 # =============================================================================
 
-HERMES_DIR = get_hermes_home().resolve()
-CRON_DIR = HERMES_DIR / "cron"
+VECTOR_DIR = get_vector_home().resolve()
+CRON_DIR = VECTOR_DIR / "cron"
 JOBS_FILE = CRON_DIR / "jobs.json"
 
 # In-process lock protecting load_jobs→modify→save_jobs cycles.
@@ -210,13 +210,13 @@ def parse_schedule(schedule: str) -> Dict[str, Any]:
 
 
 def _ensure_aware(dt: datetime) -> datetime:
-    """Return a timezone-aware datetime in Hermes configured timezone.
+    """Return a timezone-aware datetime in VectorCode configured timezone.
 
     Backward compatibility:
     - Older stored timestamps may be naive.
     - Naive values are interpreted as *system-local wall time* (the timezone
       `datetime.now()` used when they were created), then converted to the
-      configured Hermes timezone.
+      configured VectorCode timezone.
 
     This preserves relative ordering for legacy naive timestamps across
     timezone changes and avoids false not-due results.
@@ -314,7 +314,7 @@ def compute_next_run(schedule: Dict[str, Any], last_run_at: Optional[str] = None
             logger.warning(
                 "Cannot compute next run for cron schedule %r: 'croniter' "
                 "is not installed. Install the 'cron' extra (pip install "
-                "'hermes-agent[cron]') to re-enable recurring cron jobs.",
+                "'vectorcode[cron]') to re-enable recurring cron jobs.",
                 schedule.get("expr"),
             )
             return None

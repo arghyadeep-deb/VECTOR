@@ -21,7 +21,7 @@ import { RvfaReader } from '../../@claude-flow/cli/src/appliance/rvfa-format.js'
 // Helpers
 // ---------------------------------------------------------------------------
 
-const EXPECTED_SECTION_IDS = ['kernel', 'runtime', 'ruflo', 'models', 'data', 'verify'];
+const EXPECTED_SECTION_IDS = ['kernel', 'runtime', 'vector', 'models', 'data', 'verify'];
 
 /** Paths to clean up after each test. */
 const cleanupPaths: string[] = [];

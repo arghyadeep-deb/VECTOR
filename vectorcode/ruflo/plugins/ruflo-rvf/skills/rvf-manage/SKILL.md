@@ -1,6 +1,6 @@
 ---
 name: rvf-manage
-description: Manage RVF (Ruflo Vector Format) files for portable agent memory and cross-platform transfer
+description: Manage RVF (VectorCode Vector Format) files for portable agent memory and cross-platform transfer
 allowed-tools: mcp__claude-flow__memory_store mcp__claude-flow__memory_retrieve mcp__claude-flow__memory_list mcp__claude-flow__memory_delete mcp__claude-flow__memory_stats mcp__claude-flow__memory_import_claude mcp__claude-flow__memory_migrate mcp__claude-flow__hooks_transfer Bash
 ---
 
@@ -22,7 +22,7 @@ When you need to export agent memory to RVF format for backup, transfer between 
 
 ## RVF format
 
-RVF (Ruflo Vector Format) stores:
+RVF (VectorCode Vector Format) stores:
 - Vector embeddings (384-dim ONNX)
 - Metadata (timestamps, namespaces, tags)
 - Causal relationships between entries

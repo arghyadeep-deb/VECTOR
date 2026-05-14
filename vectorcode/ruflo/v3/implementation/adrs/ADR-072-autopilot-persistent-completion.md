@@ -3,7 +3,7 @@
 - **Status**: Proposed
 - **Date**: 2026-03-25
 - **Depends on**: ADR-058 (Autopilot Swarm Completion in agentic-flow)
-- **Related**: ADR-037 (Autopilot Chat Mode in Ruflo UI), ADR-071 (Guidance MCP Tools)
+- **Related**: ADR-037 (Autopilot Chat Mode in VectorCode UI), ADR-071 (Guidance MCP Tools)
 
 ## Problem Statement
 

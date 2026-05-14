@@ -1,12 +1,12 @@
-# ruflo-swarm
+# vector-swarm
 
 Agent teams, swarm coordination, Monitor streams, and worktree isolation.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-swarm@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-swarm@vector
 ```
 
 ## What's Included
@@ -20,4 +20,4 @@ Agent teams, swarm coordination, Monitor streams, and worktree isolation.
 
 ## Requires
 
-- `ruflo-core` plugin (provides MCP server)
+- `vector-core` plugin (provides MCP server)

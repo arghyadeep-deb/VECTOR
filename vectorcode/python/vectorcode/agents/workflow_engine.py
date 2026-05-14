@@ -1,4 +1,4 @@
-"""Ruflo v3 WorkflowEngine — task execution pipeline with lifecycle."""
+"""VectorCode v3 WorkflowEngine — task execution pipeline with lifecycle."""
 
 import asyncio
 import logging

@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/hermes_cli/plugins.py (runtime parts)
+# Ported from GitHub/NousResearch_vectorcode/repo/vector_cli/plugins.py (runtime parts)
 """Plugin discovery and loading for VectorCode."""
 import importlib
 import importlib.util

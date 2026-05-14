@@ -1,12 +1,12 @@
-# ruflo-ruvllm
+# vector-ruvllm
 
 RuVLLM local inference with chat formatting, model configuration, and MicroLoRA fine-tuning.
 
 ## Install
 
 ```
-/plugin marketplace add ruvnet/ruflo
-/plugin install ruflo-ruvllm@ruflo
+/plugin marketplace add vectorcode
+/plugin install vector-ruvllm@vector
 ```
 
 ## Features

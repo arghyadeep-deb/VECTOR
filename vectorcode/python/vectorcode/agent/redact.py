@@ -56,12 +56,12 @@ _SENSITIVE_BODY_KEYS = frozenset({
 })
 
 # Snapshot at import time so runtime env mutations (e.g. LLM-generated
-# `export HERMES_REDACT_SECRETS=true`) cannot enable/disable redaction
+# `export VECTOR_REDACT_SECRETS=true`) cannot enable/disable redaction
 # mid-session.  OFF by default — user must opt in via
 # `security.redact_secrets: true` in config.yaml (bridged to this env var
-# in hermes_cli/main.py and gateway/run.py) or `HERMES_REDACT_SECRETS=true`
-# in ~/.hermes/.env.
-_REDACT_ENABLED = os.getenv("HERMES_REDACT_SECRETS", "").lower() in ("1", "true", "yes", "on")
+# in vector_cli/main.py and gateway/run.py) or `VECTOR_REDACT_SECRETS=true`
+# in ~/.vectorcode/.env.
+_REDACT_ENABLED = os.getenv("VECTOR_REDACT_SECRETS", "").lower() in ("1", "true", "yes", "on")
 
 # Known API key prefixes -- match the prefix + contiguous token chars
 _PREFIX_PATTERNS = [

@@ -1,4 +1,4 @@
-# Ported from GitHub/NousResearch_hermes-agent/repo/hermes_cli/setup.py (self-update)
+# Ported from GitHub/NousResearch_vectorcode/repo/vector_cli/setup.py (self-update)
 """vector self-update — upgrade VectorCode from PyPI."""
 import importlib.metadata
 import subprocess

@@ -1,7 +1,7 @@
 """VectorCode display system — spinner, diff preview, renderer."""
 from vectorcode.display.spinner import VectorSpinner, get_tool_emoji, get_tool_message
 
-# Hermes compatibility alias
+# VectorCode compatibility alias
 KawaiiSpinner = VectorSpinner
 
 try:

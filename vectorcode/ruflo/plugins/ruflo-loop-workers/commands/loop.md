@@ -1,6 +1,6 @@
 ---
 name: loop
-description: Start a /loop worker for periodic Ruflo task execution
+description: Start a /loop worker for periodic VectorCode task execution
 ---
 $ARGUMENTS
 Start a cache-aware /loop worker. Parse the worker name from $ARGUMENTS.

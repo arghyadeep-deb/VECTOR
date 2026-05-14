@@ -1,0 +1,15 @@
+"""
+VectorCode CLI - Unified command-line interface for VectorCode.
+
+Provides subcommands for:
+- vector chat          - Interactive chat (same as ./vector)
+- vector gateway       - Run gateway in foreground
+- vector gateway start - Start gateway service
+- vector gateway stop  - Stop gateway service  
+- vector setup         - Interactive setup wizard
+- vector status        - Show status of all components
+- vector cron          - Manage cron jobs
+"""
+
+__version__ = "0.11.0"
+__release_date__ = "2026.4.23"

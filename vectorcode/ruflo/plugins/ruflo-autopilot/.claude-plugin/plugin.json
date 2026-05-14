@@ -1,15 +1,15 @@
 {
-  "name": "ruflo-autopilot",
+  "name": "vector-autopilot",
   "description": "Autonomous /loop-driven task completion with learning, prediction, and progress tracking",
   "version": "0.1.0",
   "author": {
     "name": "ruvnet",
     "url": "https://github.com/ruvnet"
   },
-  "homepage": "https://github.com/ruvnet/ruflo",
+  "homepage": "https://github.com/vectorcode",
   "license": "MIT",
   "keywords": [
-    "ruflo",
+    "vector",
     "autopilot",
     "loop",
     "autonomous",

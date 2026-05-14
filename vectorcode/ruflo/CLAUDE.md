@@ -1,8 +1,8 @@
-# Claude Code Configuration - Ruflo v3.5
+# Claude Code Configuration - VectorCode v3.5
 
-> **Ruflo v3.5** (2026-04-07) — Stable release with verified capabilities.
+> **VectorCode v3.5** (2026-04-07) — Stable release with verified capabilities.
 > 6,000+ commits, 314 MCP tools, 16 agent roles + custom types, 19 AgentDB controllers.
-> Packages: `@claude-flow/cli@3.5.65`, `claude-flow@3.5.65`, `ruflo@3.5.65`
+> Packages: `@claude-flow/cli@3.5.65`, `claude-flow@3.5.65`, `vector@3.5.65`
 
 ## Behavioral Rules (Always Enforced)
 
@@ -874,9 +874,9 @@ memory_search_unified({ query: "authentication security", limit: 5 })
 
 ### Publishing Rules
 
-- MUST publish ALL THREE packages when publishing CLI changes: `@claude-flow/cli`, `claude-flow`, AND `ruflo`
+- MUST publish ALL THREE packages when publishing CLI changes: `@claude-flow/cli`, `claude-flow`, AND `vector`
 - MUST update ALL dist-tags for ALL THREE packages after publishing
-- Publish order: `@claude-flow/cli` first, then `claude-flow` (umbrella), then `ruflo` (alias umbrella)
+- Publish order: `@claude-flow/cli` first, then `claude-flow` (umbrella), then `vector` (alias umbrella)
 - MUST run verification for ALL THREE before telling user publishing is complete
 
 ```bash
@@ -896,18 +896,18 @@ npm publish --tag v3alpha
 npm dist-tag add claude-flow@3.0.0-alpha.XXX latest
 npm dist-tag add claude-flow@3.0.0-alpha.XXX alpha
 
-# STEP 4: Publish ruflo umbrella (CRITICAL - DON'T FORGET!)
-cd /workspaces/claude-flow/ruflo
+# STEP 4: Publish vector umbrella (CRITICAL - DON'T FORGET!)
+cd /workspaces/claude-flow/vector
 npm version 3.0.0-alpha.XXX --no-git-tag-version
 npm publish --tag alpha
-npm dist-tag add ruflo@3.0.0-alpha.XXX latest
+npm dist-tag add vector@3.0.0-alpha.XXX latest
 ```
 
 **Verification (run before telling user):**
 ```bash
 npm view @claude-flow/cli dist-tags --json
 npm view claude-flow dist-tags --json
-npm view ruflo dist-tags --json
+npm view vector dist-tags --json
 # ALL THREE packages need: alpha AND latest pointing to newest version
 ```
 
@@ -920,12 +920,12 @@ npm view ruflo dist-tags --json
 | `claude-flow` | `alpha` | `npx claude-flow@alpha` — EASY TO FORGET |
 | `claude-flow` | `latest` | `npx claude-flow@latest` |
 | `claude-flow` | `v3alpha` | `npx claude-flow@v3alpha` |
-| `ruflo` | `alpha` | `npx ruflo@alpha` — EASY TO FORGET |
-| `ruflo` | `latest` | `npx ruflo@latest` |
+| `vector` | `alpha` | `npx vector@alpha` — EASY TO FORGET |
+| `vector` | `latest` | `npx vector@latest` |
 
-- Never forget the `ruflo` package — it's a thin wrapper users run via `npx ruflo@alpha`
+- Never forget the `vector` package — it's a thin wrapper users run via `npx vector@alpha`
 - Never forget the umbrella `alpha` tag — users run `npx claude-flow@alpha`
-- `ruflo` source is in `/ruflo/` — it depends on `@claude-flow/cli`
+- `vector` source is in `/vector/` — it depends on `@claude-flow/cli`
 
 ## Plugin Registry Maintenance (IPFS/Pinata)
 
