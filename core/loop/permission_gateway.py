@@ -223,9 +223,12 @@ class PermissionGateway:
         event = asyncio.Event()
         self._pending_events[key] = event
         try:
-            await asyncio.wait_for(event.wait(), timeout=timeout)
+            # Do NOT nest wait_for here — the outer wait_for in execute() owns the timeout.
+            # Nested wait_for causes spurious TimeoutError on Python 3.13 when the outer
+            # cancels this coroutine.  Just await the event directly.
+            await event.wait()
             return True
-        except asyncio.TimeoutError:
+        except asyncio.CancelledError:
             return False
         finally:
             self._pending_events.pop(key, None)
