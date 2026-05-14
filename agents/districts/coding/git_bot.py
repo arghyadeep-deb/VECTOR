@@ -266,7 +266,7 @@ class GitBot(AgentBase):
                 msg = result["output"].strip().split("\n")[0][:72]
                 return msg
         except Exception as e:
-            logger.warning(f"[GitBot] VectorCode commit message failed: {e}")
+            logger.warning(f"[VECTOR][git_bot] VectorCode commit message failed: {e}")
         return f"auto: {diff_summary[:60]}"
 
     async def run(self, task: dict) -> dict:
