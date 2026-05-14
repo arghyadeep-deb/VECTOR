@@ -54,6 +54,9 @@ export default function App() {
       }}>
         <TelemetryPanel />
         <SystemMetricsPanel />
+        <div style={{ marginTop: 5 }}>
+          <VectorCodePanel />
+        </div>
       </div>
 
       {/* ── RIGHT COLUMN: Districts ── */}
