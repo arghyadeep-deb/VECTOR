@@ -4,7 +4,7 @@ Sends notifications to the user via VectorCode, phone, browser, and all availabl
 """
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))  # agents/ -> codebase root
 from loguru import logger
 from core.config import CONFIG
 
