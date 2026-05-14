@@ -73,58 +73,49 @@ class GitBot(AgentBase):
             self.deduct_points(5, "get_status_failed")
             return {}
 
-    def commit(self, message: str, files: list = None, repo_path: str = ".") -> dict:
+    async def commit(self, message: str, files: list = None, repo_path: str = ".") -> dict:
         """
         Stage files (or all modified/untracked) and create a commit.
         Returns {success: bool, hash: str, message: str}.
-        commit_code is YELLOW in the permission matrix — action is logged through gateway but
-        the actual git operation executes here (gateway notifies owner).
+        RULE 3: commit_code is YELLOW — gateway is awaited directly (not fire-and-forget).
+        RULE 8: reasoning chain stored on every commit.
         """
         try:
-            repo = self._get_repo(repo_path)
+            repo = await asyncio.to_thread(self._get_repo, repo_path)
             if repo is None:
                 return {"success": False, "hash": "", "message": "Repo not found"}
 
             if files:
-                repo.index.add(files)
+                await asyncio.to_thread(repo.index.add, files)
                 logger.info(f"[VECTOR][git_bot] Staged {len(files)} files: {files}")
             else:
-                # Stage all modified tracked files + new untracked files
-                repo.git.add(A=True)
+                await asyncio.to_thread(repo.git.add, A=True)
                 logger.info("[VECTOR][git_bot] Staged all changes (git add -A)")
 
             # Check if there's anything to commit
-            if not repo.index.diff("HEAD") and not repo.untracked_files:
-                # Also check if there are staged changes vs tree
+            has_staged = await asyncio.to_thread(lambda: bool(repo.index.diff("HEAD") or repo.untracked_files))
+            if not has_staged:
                 try:
-                    diff_staged = repo.git.diff("--cached", "--name-only")
+                    diff_staged = await asyncio.to_thread(repo.git.diff, "--cached", "--name-only")
                     if not diff_staged:
                         logger.warning("[VECTOR][git_bot] Nothing to commit")
                         return {"success": False, "hash": "", "message": "Nothing to commit"}
                 except Exception:
                     pass
 
-            commit_obj = repo.index.commit(message)
+            commit_obj = await asyncio.to_thread(repo.index.commit, message)
             commit_hash = commit_obj.hexsha[:8]
             logger.info(f"[VECTOR][git_bot] Committed {commit_hash}: {message}")
             self.award_points(20, "commit_success")
 
-            # RULE 3 — fire through gateway for audit trail (YELLOW — commit_code)
-            # RULE 8 — store reasoning chain
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self._gateway.execute(Action(
-                    action_type="commit_code",
-                    params={"hash": commit_hash, "message": message},
-                    proposed_by=self.name,
-                )))
-            except RuntimeError:
-                asyncio.run(self._gateway.execute(Action(
-                    action_type="commit_code",
-                    params={"hash": commit_hash, "message": message},
-                    proposed_by=self.name,
-                )))
+            # RULE 3 — await gateway directly so audit trail is guaranteed (not fire-and-forget)
+            await self._gateway.execute(Action(
+                action_type="commit_code",
+                params={"hash": commit_hash, "message": message},
+                proposed_by=self.name,
+            ))
 
+            # RULE 8 — store reasoning chain
             try:
                 from core.memory.episodic import EpisodicMemory
                 EpisodicMemory().store_chain(
