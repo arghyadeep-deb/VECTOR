@@ -55,17 +55,14 @@ def preflight_checks() -> None:
             "run: ollama serve"
         )
 
-    # 2. Hermes repo present
-    hermes_repo = _P(_cfg.get("hermes", {}).get(
-        "repo_path",
-        "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/GitHub/NousResearch_hermes-agent/repo",
-    ))
-    if hermes_repo.exists():
-        logger.info(f"[VECTOR][preflight] Hermes repo found at {hermes_repo}")
+    # 2. VectorCode available
+    vc_entry = _P(__file__).parent / "vectorcode" / "vector.py"
+    if vc_entry.exists():
+        logger.info(f"[VECTOR][preflight] VectorCode found at {vc_entry.parent}")
     else:
         logger.warning(
-            f"[VECTOR][preflight] Hermes repo missing at {hermes_repo} — "
-            "District 6 comms will be unavailable"
+            f"[VECTOR][preflight] VectorCode entry not found at {vc_entry} — "
+            "coding tasks will fall back to built-in district agents"
         )
 
     # 3. Obsidian vault
