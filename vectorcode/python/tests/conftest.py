@@ -2,13 +2,15 @@
 import sys
 from pathlib import Path
 
-# Add the directories where Python files live so both `from vectorcode.X` and
-# `from X` work consistently in tests.
-_TESTS_DIR = Path(__file__).parent
-_VC_PYTHON = _TESTS_DIR.parent  # vectorcode/python/
-_VC_PACKAGE = _VC_PYTHON / "vectorcode"  # vectorcode/python/vectorcode/
+_TESTS_DIR    = Path(__file__).parent
+_VC_PYTHON    = _TESTS_DIR.parent                    # vectorcode/python/
+_VC_ROOT      = _VC_PYTHON.parent                    # vectorcode/
+_VC_SRC       = _VC_ROOT / "src"                     # vectorcode/src/  (restructured)
+_PROJECT_ROOT = _VC_ROOT.parent                      # V.E.C.T.O.R. Codebase/
 
-for p in (_VC_PYTHON, _VC_PACKAGE):
+for p in (_PROJECT_ROOT, _VC_ROOT, _VC_SRC):
     p_str = str(p)
     if p_str not in sys.path:
         sys.path.insert(0, p_str)
+
+collect_ignore_glob = ["legacy_ported/*"]
