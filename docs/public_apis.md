@@ -51,7 +51,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ## Communications District (`agents/districts/communications/hermes_adapter.py`)
 
-Routed through Hermes (RULE 10 — not rebuilt, adapter only).
+Routed through VectorCode (fully integrated).
 
 | Platform | Notes |
 |----------|-------|
