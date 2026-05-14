@@ -1,15 +1,18 @@
 """
 StyleModel — DEPRECATED. Redirects to VectorCode persona module.
 
-Hermes dependency removed. VectorCode's StyleModel is the replacement.
+VectorCode StyleModel — canonical style model (canonical VectorCode implementation).
 All new code should import from:
   agents.districts.coding.vectorcode.persona.style_model import StyleModel
 """
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from agents.districts.coding.vectorcode.persona.style_model import StyleModel
+_VC_SRC = Path(__file__).parent.parent.parent.parent / "vectorcode" / "src"
+if _VC_SRC.exists():
+    sys.path.insert(0, str(_VC_SRC))
+
+from persona.style_model import StyleModel
 
 __all__ = ["StyleModel"]
 
