@@ -199,6 +199,17 @@ class Governor:
         agent = None
 
         try:
+            # ── Council review for RED-tier task types ────────────────────────────
+            # Must happen BEFORE we touch any agent so we can pass the best-HP
+            # agent to the council (or fall back to hp=500 if no agents yet).
+            # Council failure / timeout never blocks execution — task proceeds.
+            if await self._should_convene_council(task):
+                _pre_agents = self._get_registry().get_by_district(district)
+                _council_agent = max(_pre_agents, key=lambda a: a.health_points) if _pre_agents else None
+                council_result = await self._run_council_review(task, _council_agent)
+                if council_result:
+                    task.setdefault("params", {})["council_verdict"] = council_result.get("verdict", "")
+
             agents = self._get_registry().get_by_district(district)
 
             if not agents:
