@@ -106,7 +106,7 @@ class PermissionGateway:
                 "proposed_by": action.proposed_by,
                 "priority": action.priority,
             }
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             # HumanLayer SDK is sync; run in executor so we don't block the event loop
             approved = await loop.run_in_executor(
                 None,
