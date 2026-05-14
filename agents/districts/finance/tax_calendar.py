@@ -142,7 +142,7 @@ class TaxCalendar(AgentBase):
             return False
 
     async def run(self, task: dict) -> dict:
-        deadlines = self.get_upcoming_deadlines()
+        deadlines = self.upcoming_deadlines()
         return {"status": "ok", "deadlines": deadlines, "count": len(deadlines)}
 
     async def run_forever(self) -> None:
