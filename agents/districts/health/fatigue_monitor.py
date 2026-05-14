@@ -69,16 +69,14 @@ class FatigueMonitor(AgentBase):
     def _notify(self, message: str) -> None:
         logger.warning(f"[VECTOR][fatigue_monitor] ALERT: {message}")
         try:
-            import ollama
+            from core.inference.ollama_safe import chat
             hydration = self._context.session_hydration_prompt()
-            r = ollama.chat(
-                model=_FOCUS,
-                messages=[
-                    {"role": "system", "content": hydration},
-                    {"role": "user", "content": f"Fatigue alert for Arghyadeep: {message}. Give a brief, friendly 1-sentence reminder to take a break."},
-                ],
-            )
-            logger.info(f"[VECTOR][fatigue_monitor] suggestion: {r['message']['content'][:100]}")
+            text = chat(model=_FOCUS, messages=[
+                {"role": "system", "content": hydration},
+                {"role": "user", "content": f"Fatigue alert for Arghyadeep: {message}. Give a brief, friendly 1-sentence reminder to take a break."},
+            ], timeout=30.0)
+            if text:
+                logger.info(f"[VECTOR][fatigue_monitor] suggestion: {text[:100]}")
         except Exception:
             pass
 
