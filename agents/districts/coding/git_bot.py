@@ -83,6 +83,18 @@ class GitBot(AgentBase):
         try:
             repo = await asyncio.to_thread(self._get_repo, repo_path)
             if repo is None:
+                try:
+                    from core.memory.episodic import EpisodicMemory
+                    EpisodicMemory().store_chain(
+                        situation=f"git_commit:{repo_path}",
+                        goal_ids=["coding", "auto_commit"],
+                        steps=["repo_not_found"],
+                        action="commit_code",
+                        outcome="repo_not_found",
+                        reward=0.0,
+                    )
+                except Exception:
+                    pass
                 return {"success": False, "hash": "", "message": "Repo not found"}
 
             if files:
