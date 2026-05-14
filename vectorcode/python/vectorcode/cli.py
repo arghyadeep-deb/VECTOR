@@ -61,112 +61,63 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """Claude Code-style welcome banner: minimal, info-dense, with contextual tips."""
+    """VectorCode welcome banner — minimal, production-grade."""
     import datetime as _dt
-    import os
     import sys
-    from pathlib import Path
 
-    # ANSI colors
+    # Colors
     C   = "\x1b[36m"     # cyan
     CB  = "\x1b[96m"     # bright cyan
     W   = "\x1b[97;1m"   # white bold
     G   = "\x1b[92m"     # green
     Y   = "\x1b[93m"     # yellow
-    M   = "\x1b[35m"     # magenta
     D   = "\x1b[2m"      # dim
     R   = "\x1b[0m"      # reset
 
-    # Try version from package
     try:
         import importlib.metadata
         version = importlib.metadata.version("vectorcode")
     except Exception:
-        version = "0.1.0-dev"
+        version = "0.1.0"
 
-    mn  = (model_name or "vector-focus")[:32]
+    mn  = (model_name or "vector-focus")[:36]
     oms = ollama_models or []
     n_models = len(oms)
-    cwd = Path.cwd()
-    cwd_short = str(cwd).replace(str(Path.home()), "~")
-    if len(cwd_short) > 50:
-        cwd_short = "..." + cwd_short[-47:]
-
-    # Detect git branch
-    git_branch = ""
-    try:
-        import subprocess
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=cwd, capture_output=True, text=True, timeout=2
-        )
-        if result.returncode == 0:
-            git_branch = result.stdout.strip()
-    except Exception:
-        pass
-
-    # Online status
-    if oms:
-        status = f"{G}●{R} online"
-    else:
-        status = f"{Y}○{R} offline"
+    status_dot = f"{G}●{R}" if oms else f"{Y}○{R}"
+    status_txt = f"online  {D}·  {n_models} models{R}" if oms else f"{D}offline{R}"
 
     out = sys.stderr
-    width = 64
-
-    # Top border
     print(file=out)
-    print(f"  {C}╭{'─' * (width - 2)}╮{R}", file=out)
 
-    # Title row
-    title = f"{W}VECTOR{R} {D}·{R} {C}v{version}{R} {D}·{R} {CB}repl{R}"
-    title_padding = width - len(_strip_ansi(f"VECTOR · v{version} · repl")) - 4
-    print(f"  {C}│{R}  {title}{' ' * title_padding}{C}│{R}", file=out)
+    # Logo + title row — ⟨▶⟩ is the VectorCode mark
+    print(f"  {CB}⟨▶⟩{R}  {W}VectorCode{R}{' ' * 44}{D}v{version}{R}", file=out)
 
-    # Empty row
-    print(f"  {C}│{' ' * (width - 2)}│{R}", file=out)
+    # Tagline
+    print(f"  {D}      autonomous coding agent{R}", file=out)
+    print(file=out)
 
-    # Status rows
-    rows = [
-        ("Model",   f"{W}{mn}{R}"),
-        ("Status",  f"{status}  {D}·  {n_models} models  ·  ready{R}"),
-        ("Project", f"{D}{cwd_short}{R}" + (f"  {D}·  {M}{git_branch}{R}" if git_branch else "")),
+    # Separator
+    print(f"  {C}{'─' * 60}{R}", file=out)
+    print(file=out)
+
+    # Status block — left-aligned, monospaced columns
+    print(f"  {C}Model{R}     {W}{mn}{R}", file=out)
+    print(f"  {C}Status{R}    {status_dot} {status_txt}", file=out)
+    print(file=out)
+
+    # Bottom separator
+    print(f"  {C}{'─' * 60}{R}", file=out)
+    print(file=out)
+
+    # Quick actions (Claude Code style)
+    actions = [
+        (f"/help",        "list all commands"),
+        (f"@<file>",      "attach files to context"),
+        (f"/sparc <task>", "run SPARC pipeline"),
+        (f"/quit",        "exit"),
     ]
-    for label, value in rows:
-        plain_value = _strip_ansi(value)
-        padding = width - len(plain_value) - len(label) - 8
-        if padding < 0:
-            padding = 0
-        line = f"  {C}│{R}  {C}{label:<8}{R}{value}{' ' * padding}  {C}│{R}"
-        print(line, file=out)
-
-    # Bottom border
-    print(f"  {C}╰{'─' * (width - 2)}╯{R}", file=out)
-    print(file=out)
-
-    # Contextual tips (Claude Code style)
-    tips = [
-        ("/help", "show all commands"),
-        ("@path/to/file", "attach files to context"),
-        ("/sparc full <task>", "run SPARC methodology pipeline"),
-        ("Ctrl+C", "interrupt · /quit to exit"),
-    ]
-    print(f"  {D}Tips:{R}", file=out)
-    for cmd, desc in tips:
-        print(f"  {D}▸{R} {CB}{cmd:<22}{R}{D}{desc}{R}", file=out)
-    print(file=out)
-
-    # VECTOR.md status
-    if has_vectormd:
-        print(f"  {G}●{R} {D}VECTOR.md loaded{R}", file=out)
-    else:
-        print(f"  {Y}○{R} {D}No VECTOR.md  ·  run {CB}/init{R}{D} to create one{R}", file=out)
-
-    # Model preview
-    if oms and len(oms) > 0:
-        names = [m.replace("ollama/", "") for m in oms[:4]]
-        suf = f"  +{len(oms)-4} more" if len(oms) > 4 else ""
-        print(f"  {D}  {' · '.join(names)}{suf}{R}", file=out)
+    for cmd, desc in actions:
+        print(f"  {CB}{cmd:<18}{R}{D}{desc}{R}", file=out)
     print(file=out)
 
 
