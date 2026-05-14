@@ -64,17 +64,15 @@ class ScreenObserver:
     # ── private ───────────────────────────────────────────────────────────────
 
     def _ensure_mss(self) -> bool:
-        """Lazy-init mss. Returns True if successful."""
+        """Returns True if mss is importable (instance created per-capture to avoid resource leak)."""
         try:
-            if self._sct is None:
-                import mss
-                self._sct = mss.MSS()
+            import mss  # noqa: F401
             return True
         except ImportError as exc:
             logger.warning(f"[VECTOR][screen] mss unavailable: {exc}")
             return False
         except Exception as exc:
-            logger.warning(f"[VECTOR][screen] mss init failed: {exc}")
+            logger.warning(f"[VECTOR][screen] mss check failed: {exc}")
             return False
 
     def _ensure_tesseract(self) -> bool:
