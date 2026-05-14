@@ -1,9 +1,6 @@
 """
-PersonModel — DEPRECATED. Redirects to VectorCode persona module.
-
-VectorCode PersonModel — canonical person model (canonical VectorCode implementation).
-All new code should import from:
-  agents.districts.coding.vectorcode.persona.person_model import PersonModel
+PersonModel — thin redirect to VectorCode persona module.
+Canonical source: vectorcode/src/persona/person_model.py
 """
 import sys
 from pathlib import Path
