@@ -230,10 +230,20 @@ class ThreatScout(AgentBase):
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
+    async def run_forever(self) -> None:
+        logger.info("[VECTOR][threat_scout] run_forever started — fires every 6 hours")
+        while self.is_alive:
+            try:
+                await self.run_threat_assessment()
+            except Exception as e:
+                logger.error(f"[VECTOR][threat_scout] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+            for _ in range(3600):
+                if not self.is_alive:
+                    break
+                await asyncio.sleep(1)
+        logger.warning("[VECTOR][threat_scout] died — HP=0")
 
-# ---------------------------------------------------------------------------
-# Smoke test
-# ---------------------------------------------------------------------------
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         if p.get("file"):
@@ -241,6 +251,9 @@ class ThreatScout(AgentBase):
         return await self.run_threat_assessment()
 
 
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ok = True
