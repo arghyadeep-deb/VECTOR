@@ -202,7 +202,7 @@ class MultiDBManager:
             if latency:
                 results["latency_ms"]["d1"] = latency
 
-        ok_count = sum(1 for v in [results["local"]] if results["local"] else 0)
+        ok_count = sum(1 for v in [results["local"], results["supabase"], results["turso"], results["d1"]] if v)
         results["overall"] = "healthy" if ok_count >= 1 else "degraded"
 
         return results
