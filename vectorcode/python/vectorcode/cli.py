@@ -663,7 +663,8 @@ def cmd_doctor(args):
     try:
         from vectorcode.cli.doctor import run_doctor
         run_doctor()
-    except ImportError:
+    except (ImportError, UnicodeEncodeError):
+        # Fallback for Windows cp1252 terminals
         print("[VECTOR] doctor: running basic checks...")
         import sys, shutil
         checks = [
@@ -774,8 +775,22 @@ def cmd_tools(args):
     if action == "list":
         import sys
         from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        sys.path.insert(0, str(Path(__file__).parent))
+        # Ensure both module paths are available
+        _py = str(Path(__file__).parent.parent.parent)
+        _vc = str(Path(__file__).parent)
+        for p in [_py, _vc]:
+            if p not in sys.path:
+                sys.path.insert(0, p)
+
+        # Import tools to trigger self-registration
+        for mod_name in ["file_tools", "terminal", "delegate_tool", "memory_tool",
+                         "session_search_tool", "todo_tool", "web_tools", "mcp_tool",
+                         "vision_tools", "send_message_tool", "cron_tools"]:
+            try:
+                __import__(f"tools.{mod_name}")
+            except Exception:
+                pass
+
         from tools.registry import ToolRegistry
         reg = ToolRegistry.global_instance()
         names = sorted(reg.get_all_tool_names())
