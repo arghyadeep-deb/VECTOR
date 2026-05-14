@@ -69,6 +69,44 @@ def get_vector_logs_dir() -> Path:
     return get_vector_home() / "logs"
 
 
+def get_vector_dir(*args, **kwargs) -> Path:
+    """Alias for get_vector_home — matches some legacy callers (accepts ignored args)."""
+    return get_vector_home()
+
+
+# ── Provider base URLs ────────────────────────────────────────────────────────
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com"
+MISTRAL_BASE_URL = "https://api.mistral.ai/v1"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+OLLAMA_DEFAULT_URL = "http://localhost:11434"
+
+
+# ── Platform detection ───────────────────────────────────────────────────────
+
+def is_termux() -> bool:
+    """Detect if running under Termux (Android)."""
+    return bool(os.environ.get("PREFIX", "").startswith("/data/data/com.termux"))
+
+
+def is_windows() -> bool:
+    return os.name == "nt"
+
+
+def is_macos() -> bool:
+    import sys
+    return sys.platform == "darwin"
+
+
+def is_linux() -> bool:
+    import sys
+    return sys.platform.startswith("linux") and not is_termux()
+
+
 def get_config_path() -> Path:
     """Alias for get_vector_config_path — back-compat for legacy imports."""
     return get_vector_config_path()
