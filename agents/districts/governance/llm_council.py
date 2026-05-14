@@ -162,7 +162,7 @@ class LLMCouncil(AgentBase):
             "Identify consensus, weigh rankings, and be decisive."
         )
 
-        text = self._call_model(model=_CHAIRMAN, system=hydration, user=chairman_prompt)
+        text = await asyncio.to_thread(self._call_model, _CHAIRMAN, hydration, chairman_prompt)
         if not text:
             text = stage1[0]["response"] if stage1 else "Council failed to produce a verdict."
             logger.warning("[VECTOR][llm_council] chairman unavailable — using best stage1 fallback")
