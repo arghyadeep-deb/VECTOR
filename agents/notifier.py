@@ -22,7 +22,7 @@ class Notifier:
         results = {}
         for ch in channels:
             try:
-                if ch == "hermes":
+                if ch == "vectorcode":
                     from agents.districts.communications.hermes_adapter import HermesAdapter
                     import asyncio
                     adapter = HermesAdapter()
