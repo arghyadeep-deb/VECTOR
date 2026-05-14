@@ -16,7 +16,7 @@ export default function FloatingPanel({ title, subtitle, children, style, onClos
   const [open, setOpen] = useState(defaultOpen)
   const [exiting, setExiting] = useState(false)
   const [countdown, setCountdown] = useState(autoDismiss ?? 0)
-  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   useEffect(() => {
     if (!injected) {
