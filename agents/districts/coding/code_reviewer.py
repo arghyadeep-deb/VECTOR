@@ -334,6 +334,20 @@ class CodeReviewer(AgentBase):
             return {"status": "ok", **result}
         return {"status": "ok", "note": "no file specified"}
 
+    async def run_forever(self) -> None:
+        """RULE 2 — never stops. CodeReviewer is event-driven; this keeps the agent alive."""
+        logger.info("[VECTOR][code_reviewer] run_forever started — event-driven mode")
+        while self.is_alive:
+            try:
+                for _ in range(60):
+                    if not self.is_alive:
+                        break
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"[VECTOR][code_reviewer] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+        logger.warning("[VECTOR][code_reviewer] died — HP=0")
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
