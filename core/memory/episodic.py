@@ -179,32 +179,32 @@ class EpisodicMemory:
     def remember(self, key, value, category='general', confidence=0.5) -> bool:
         try:
             updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            self.conn.execute("""
-                INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET
-                    value=excluded.value,
-                    category=excluded.category,
-                    confidence=excluded.confidence,
-                    updated_at=excluded.updated_at
-            """, (key, value, category, confidence, updated_at))
-            self.conn.commit()
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(key) DO UPDATE SET
+                        value=excluded.value,
+                        category=excluded.category,
+                        confidence=excluded.confidence,
+                        updated_at=excluded.updated_at
+                """, (key, value, category, confidence, updated_at))
             return True
         except Exception as e:
             logger.error(f"Remember failed: {e}")
             return False
-    
+
     def recall_fact(self, key) -> dict | None:
         try:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT * FROM semantic_memory
-                WHERE key = ?
-            """, (key,))
-            row = cursor.fetchone()
-            if row:
-                columns = [desc[0] for desc in cursor.description]
-                return dict(zip(columns, row))
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM semantic_memory
+                    WHERE key = ?
+                """, (key,))
+                row = cursor.fetchone()
+                if row:
+                    columns = [desc[0] for desc in cursor.description]
+                    return dict(zip(columns, row))
             return None
         except Exception as e:
             logger.error(f"Recall fact failed: {e}")
