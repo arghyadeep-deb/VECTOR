@@ -61,13 +61,23 @@ class AgentBase:
         model_changed = self.model != old_model
         logger.warning(f'[VECTOR][city] {self.name} -{points}HP ({reason}) | {old_hp}->{self.health_points}')
         if self.health_points == 0:
-            return self.die()
+            ghost = self.die()
+            return {
+                "old_hp": old_hp,
+                "new_hp": 0,
+                "model_changed": True,
+                "new_model": None,
+                "reason": reason,
+                "died": True,
+                "ghost": ghost,
+            }
         return {
             "old_hp": old_hp,
             "new_hp": self.health_points,
             "model_changed": model_changed,
             "new_model": self.model,
-            "reason": reason
+            "reason": reason,
+            "died": False,
         }
 
     def die(self) -> dict:
