@@ -333,7 +333,10 @@ class LLMCouncil(AgentBase):
         logger.info("[VECTOR][llm_council] run_forever started")
         while self.is_alive:
             try:
-                await asyncio.sleep(60)
+                for _ in range(60):
+                    if not self.is_alive:
+                        break
+                    await asyncio.sleep(1)
             except Exception as e:
                 logger.error(f"[VECTOR][llm_council] tick error: {e}")
                 self.deduct_points(5, "tick error")
