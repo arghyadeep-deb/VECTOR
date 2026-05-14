@@ -287,11 +287,11 @@ CONFIG: dict = {
         "github_token": _s.GITHUB_TOKEN.get_secret_value(),
         "repo_path": _s.coding.repo_path,
     },
-    "hermes": {
-        "local_url": _s.hermes.local_url,
-        "port": _s.hermes.port,
-        "timeout_sec": _s.hermes.timeout_sec,
-        "repo_path": _s.hermes.repo_path,
+    "comms": {
+        "local_url": _s.comms.local_url,
+        "port": _s.comms.port,
+        "timeout_sec": _s.comms.timeout_sec,
+        "repo_path": _s.comms.repo_path,
     },
     "turso_url": _s.TURSO_URL or _s.turso.url,
     "turso_token": _s.TURSO_TOKEN.get_secret_value() or _s.turso.token,
