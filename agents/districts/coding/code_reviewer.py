@@ -300,6 +300,32 @@ class CodeReviewer(AgentBase):
             return {"error": str(e)}
 
 
+    async def review_with_vectorcode(self, file_path: str) -> dict:
+        """
+        LLM-backed deep review via VectorCode. Augments static analysis with
+        semantic understanding. Falls back to static-only if VectorCode unavailable.
+        """
+        static = self.review_file(file_path)
+        try:
+            from integrations.vectorcode_bridge import get_bridge
+            bridge = get_bridge()
+            if not bridge.is_available():
+                static["vectorcode_review"] = "unavailable"
+                return static
+            task = (
+                f"Review {file_path} for: bugs, security issues, VECTOR rule violations "
+                f"(session_hydration, no direct LLM calls, loguru not print, asyncio not threading). "
+                f"Static analysis already found: {len(static.get('issues', []))} issues. "
+                f"Provide actionable fix suggestions."
+            )
+            vc_result = await bridge.run_task(task, mode="run", timeout=120)
+            static["vectorcode_review"] = vc_result.get("output", "")[:1000]
+            static["vectorcode_status"] = vc_result.get("status", "error")
+        except Exception as e:
+            logger.warning(f"[CodeReviewer] VectorCode review failed: {e}")
+            static["vectorcode_review"] = f"error: {e}"
+        return static
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         file_path = p.get("file", p.get("path", ""))
