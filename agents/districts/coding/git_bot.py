@@ -226,6 +226,29 @@ class GitBot(AgentBase):
             return {"error": str(e)}
 
 
+    async def generate_commit_message_vc(self, diff_summary: str) -> str:
+        """
+        Generate a semantic commit message via VectorCode.
+        Falls back to generic message if VectorCode unavailable.
+        """
+        try:
+            from integrations.vectorcode_bridge import get_bridge
+            bridge = get_bridge()
+            if not bridge.is_available():
+                return f"auto: {diff_summary[:60]}"
+            task = (
+                f"Write a concise git commit message (one line, max 72 chars) for this change: {diff_summary[:300]}. "
+                f"Follow conventional commits format: type(scope): description. "
+                f"Reply with ONLY the commit message, nothing else."
+            )
+            result = await bridge.run_task(task, mode="run", timeout=60)
+            if result.get("status") == "ok" and result.get("output"):
+                msg = result["output"].strip().split("\n")[0][:72]
+                return msg
+        except Exception as e:
+            logger.warning(f"[GitBot] VectorCode commit message failed: {e}")
+        return f"auto: {diff_summary[:60]}"
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         t = task.get("type", "")
