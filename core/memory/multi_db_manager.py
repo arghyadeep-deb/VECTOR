@@ -10,9 +10,12 @@ All sync uses last-write-wins based on updated_at timestamp.
 """
 
 import sys
+import re
 import asyncio
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+_SAFE_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 from loguru import logger
 from typing import Optional
