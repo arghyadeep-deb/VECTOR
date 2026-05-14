@@ -120,7 +120,7 @@
 | `core/memory/obsidian_sync.py` | ✅ LightRAG vault bridge, watchdog, ingest |
 | `cloud/brain_server/main.py` | ✅ FastAPI — /status → 200 (verified) |
 | `cloud/agent_workers/workers.py` + `scheduler.py` | ✅ APScheduler 5 jobs |
-| `cloud/comms_service/service.py` | ✅ Hermes bridge (RULE 10) |
+| `cloud/comms_service/service.py` | ✅ VectorCode bridge |
 | `api/src/` | ✅ Cloudflare Worker — Bearer auth + KV rate limiter |
 | `dashboard/src/app/` | ✅ 7 Next.js pages |
 
