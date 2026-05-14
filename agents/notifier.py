@@ -1,6 +1,6 @@
 """
 V.E.C.T.O.R. notifier.
-Sends notifications to the user via all available channels.
+Sends notifications to the user via VectorCode, phone, browser, and all available channels.
 """
 import sys
 from pathlib import Path
