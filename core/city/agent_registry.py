@@ -71,6 +71,21 @@ class AgentRegistry:
             self.register(successor)
         except Exception as e:
             logger.error(f"[VECTOR][agent_registry] evolution spawn failed: {e}")
+            # Fallback: plain gen+1 AgentBase so the district stays staffed (RULE 9)
+            try:
+                import uuid as _uuid
+                from core.city.agent_base import AgentBase
+                successor = AgentBase(
+                    str(_uuid.uuid4()),
+                    agent.name,
+                    agent.district,
+                    generation=agent.generation + 1,
+                )
+                successor.inherit_ghost(ghost_data)
+                self.register(successor)
+                logger.info(f"[VECTOR][agent_registry] fallback spawn: {agent.name} gen={successor.generation}")
+            except Exception as fe:
+                logger.error(f"[VECTOR][agent_registry] fallback spawn also failed: {fe}")
 
     def _persist_ghost(self, agent) -> None:
         """Save dead agent's history for next-generation inheritance."""
