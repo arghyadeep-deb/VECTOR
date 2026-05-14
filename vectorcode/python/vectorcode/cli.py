@@ -61,70 +61,119 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """JARVIS-style banner: dense hexagonal reactor left, VECTOR HUD right."""
-    import datetime as _dt, sys
+    """Claude Code-style welcome banner: minimal, info-dense, with contextual tips."""
+    import datetime as _dt
+    import os
+    import sys
+    from pathlib import Path
 
-    C  = "\x1b[36m"    # cyan
-    CB = "\x1b[96m"    # bright cyan
-    B  = "\x1b[94m"    # blue
-    W  = "\x1b[97;1m"  # white bold
-    G  = "\x1b[92m"    # green
-    Y  = "\x1b[93m"    # yellow
-    D  = "\x1b[2m"     # dim
-    R  = "\x1b[0m"     # reset
+    # ANSI colors
+    C   = "\x1b[36m"     # cyan
+    CB  = "\x1b[96m"     # bright cyan
+    W   = "\x1b[97;1m"   # white bold
+    G   = "\x1b[92m"     # green
+    Y   = "\x1b[93m"     # yellow
+    M   = "\x1b[35m"     # magenta
+    D   = "\x1b[2m"      # dim
+    R   = "\x1b[0m"      # reset
 
-    now = _dt.datetime.now(_dt.timezone.utc)
-    ut  = f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-    mn  = (model_name or "vector-focus")[:26]
+    # Try version from package
+    try:
+        import importlib.metadata
+        version = importlib.metadata.version("vectorcode")
+    except Exception:
+        version = "0.1.0-dev"
+
+    mn  = (model_name or "vector-focus")[:32]
     oms = ollama_models or []
-    ol  = f"{G}ONLINE{R}  {D}{len(oms)} models{R}" if oms else f"{Y}OFFLINE{R}"
+    n_models = len(oms)
+    cwd = Path.cwd()
+    cwd_short = str(cwd).replace(str(Path.home()), "~")
+    if len(cwd_short) > 50:
+        cwd_short = "..." + cwd_short[-47:]
 
-    # Dense hexagonal arc reactor — 11 rows, pure ASCII, Windows-safe
-    reactor = [
-        f"  {C}+--+--+--+--+--+{R}  ",
-        f" {C}/{CB}  {C}\\{CB}  {C}+{CB}  {C}/{CB}  {C}\\{R} ",
-        f"{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{R}",
-        f"{C}|{CB}  {C}\\{CB}  {W}+--+{R}{CB}  {C}/{CB}  {C}|{R}",
-        f"{C}+{CB}--{C}+{CB}--{W}|  |{R}{CB}--{C}+{CB}--{C}+{R}",
-        f"{C}|{CB}  {C}/{CB}  {W}+--+{R}{CB}  {C}\\{CB}  {C}|{R}",
-        f"{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{R}",
-        f" {C}\\{CB}  {C}+{CB}  {C}\\{CB}  {C}+{CB}  {C}/{R} ",
-        f"  {C}+--+--+--+--+--+{R}  ",
-    ]
+    # Detect git branch
+    git_branch = ""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=cwd, capture_output=True, text=True, timeout=2
+        )
+        if result.returncode == 0:
+            git_branch = result.stdout.strip()
+    except Exception:
+        pass
 
-    sep = f"{C}{'=' * 36}{R}"
-    panel = [
-        f"",
-        f"  {W}V . E . C . T . O . R{R}",
-        f"  {D}Virtual Entity for Cognitive Tasks{R}",
-        f"  {D}& Operational Reasoning{R}",
-        f"  {sep}",
-        f"  {C}STATUS  {R}  {G}ONLINE{R}",
-        f"  {C}UPTIME  {R}  {ut}",
-        f"  {C}MODE    {R}  repl",
-        f"  {C}MODEL   {R}  {mn}",
-        f"  {C}OLLAMA  {R}  {ol}",
-        f"  {sep}",
-        f"",
-    ]
+    # Online status
+    if oms:
+        status = f"{G}●{R} online"
+    else:
+        status = f"{Y}○{R} offline"
 
     out = sys.stderr
-    print(file=out)
-    pad = (len(panel) - len(reactor)) // 2
-    for i, p in enumerate(panel):
-        r_idx = i - pad
-        r = f"  {reactor[r_idx]}" if 0 <= r_idx < len(reactor) else f"  {'                   '}"
-        print(f"{r}    {p}", file=out)
+    width = 64
 
-    if oms:
-        names = ", ".join(m.replace("ollama/", "") for m in oms[:5])
-        suf = f" {D}+{len(oms)-5} more{R}" if len(oms) > 5 else ""
-        print(f"  {D}  {names}{suf}{R}", file=out)
-    if has_vectormd:
-        print(f"  {G}  [OK] VECTOR.md loaded{R}", file=out)
-    else:
-        print(f"  {Y}  [!]  No VECTOR.md  --  run /init{R}", file=out)
+    # Top border
     print(file=out)
+    print(f"  {C}╭{'─' * (width - 2)}╮{R}", file=out)
+
+    # Title row
+    title = f"{W}VECTOR{R} {D}·{R} {C}v{version}{R} {D}·{R} {CB}repl{R}"
+    title_padding = width - len(_strip_ansi(f"VECTOR · v{version} · repl")) - 4
+    print(f"  {C}│{R}  {title}{' ' * title_padding}{C}│{R}", file=out)
+
+    # Empty row
+    print(f"  {C}│{' ' * (width - 2)}│{R}", file=out)
+
+    # Status rows
+    rows = [
+        ("Model",   f"{W}{mn}{R}"),
+        ("Status",  f"{status}  {D}·  {n_models} models  ·  ready{R}"),
+        ("Project", f"{D}{cwd_short}{R}" + (f"  {D}·  {M}{git_branch}{R}" if git_branch else "")),
+    ]
+    for label, value in rows:
+        plain_value = _strip_ansi(value)
+        padding = width - len(plain_value) - len(label) - 8
+        if padding < 0:
+            padding = 0
+        line = f"  {C}│{R}  {C}{label:<8}{R}{value}{' ' * padding}  {C}│{R}"
+        print(line, file=out)
+
+    # Bottom border
+    print(f"  {C}╰{'─' * (width - 2)}╯{R}", file=out)
+    print(file=out)
+
+    # Contextual tips (Claude Code style)
+    tips = [
+        ("/help", "show all commands"),
+        ("@path/to/file", "attach files to context"),
+        ("/sparc full <task>", "run SPARC methodology pipeline"),
+        ("Ctrl+C", "interrupt · /quit to exit"),
+    ]
+    print(f"  {D}Tips:{R}", file=out)
+    for cmd, desc in tips:
+        print(f"  {D}▸{R} {CB}{cmd:<22}{R}{D}{desc}{R}", file=out)
+    print(file=out)
+
+    # VECTOR.md status
+    if has_vectormd:
+        print(f"  {G}●{R} {D}VECTOR.md loaded{R}", file=out)
+    else:
+        print(f"  {Y}○{R} {D}No VECTOR.md  ·  run {CB}/init{R}{D} to create one{R}", file=out)
+
+    # Model preview
+    if oms and len(oms) > 0:
+        names = [m.replace("ollama/", "") for m in oms[:4]]
+        suf = f"  +{len(oms)-4} more" if len(oms) > 4 else ""
+        print(f"  {D}  {' · '.join(names)}{suf}{R}", file=out)
+    print(file=out)
+
+
+def _strip_ansi(s: str) -> str:
+    """Strip ANSI escape codes for length calculations."""
+    import re
+    return re.sub(r'\x1b\[[0-9;]*m', '', s)
 
 
 def cmd_repl(_args):

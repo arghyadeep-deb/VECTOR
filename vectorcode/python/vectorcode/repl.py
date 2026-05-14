@@ -533,13 +533,15 @@ class VectorREPL:
                 return str(e)
 
         if raw == "/help":
-            lines = ["", "  Commands:"]
+            lines = ["", "  \x1b[36mCommands\x1b[0m"]
             for k, v in self.COMMANDS.items():
-                lines.append(f"    \033[1m{k:<14}\033[0m {v}")
+                lines.append(f"    \x1b[96m{k:<14}\x1b[0m \x1b[2m{v}\x1b[0m")
             if self._skills:
-                lines.append("\n  Skills (type /<name>):")
+                lines.append(f"\n  \x1b[36mSkills\x1b[0m \x1b[2m(type /<name>)\x1b[0m")
                 for slug in sorted(self._skills)[:20]:
-                    lines.append(f"    /{slug}")
+                    lines.append(f"    \x1b[96m/{slug}\x1b[0m")
+                if len(self._skills) > 20:
+                    lines.append(f"    \x1b[2m+{len(self._skills) - 20} more — see /skills\x1b[0m")
             return "\n".join(lines)
 
         if raw == "/status":
@@ -924,11 +926,17 @@ Runner: {cfg["runner"]}
         conv_history = [m for m in self._history if m["role"] != "system"]
 
         def _on_tool_start(name, args_preview):
-            print(f"  \033[2m▶ {name}({args_preview[:70]})\033[0m", flush=True)
+            # Claude Code-style: cyan dot + tool name + dim args
+            args_str = args_preview[:70] if args_preview else ""
+            print(f"  \033[36m●\033[0m \033[1m{name}\033[0m\033[2m({args_str})\033[0m", flush=True)
 
         def _on_tool_done(name, result_preview, duration_ms):
-            print(f"  \033[2m✓ {name} → {result_preview[:70]} ({duration_ms}ms)\033[0m",
-                  flush=True)
+            # Claude Code-style: green check + dim duration
+            preview = (result_preview or "").strip()[:80]
+            if preview:
+                print(f"    \033[32m✓\033[0m \033[2m{preview} · {duration_ms}ms\033[0m", flush=True)
+            else:
+                print(f"    \033[32m✓\033[0m \033[2mdone · {duration_ms}ms\033[0m", flush=True)
 
         try:
             from engine.agent_loop import VectorAgent
@@ -1017,7 +1025,13 @@ Runner: {cfg["runner"]}
 
         while self._running:
             try:
-                raw = input("\n\x1b[96mvector\u276F\x1b[0m ").strip()
+                # Claude Code-style prompt: dim context line + bright > on next line
+                model_short = (self.session.current_model or "vector").replace("ollama/", "")[:24]
+                mode_short = (self.session.mode or "repl")[:8]
+                ctx_line = f"\n\x1b[2m{mode_short} · {model_short}\x1b[0m"
+                print(ctx_line)
+                raw = input("\x1b[96m>\x1b[0m \x1b[97m").strip()
+                print("\x1b[0m", end="")  # reset
                 if not raw:
                     continue
 
