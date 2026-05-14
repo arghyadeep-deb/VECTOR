@@ -132,7 +132,8 @@ class LLMCouncil(AgentBase):
 
         results = []
         for model in _COUNCIL_MEMBERS:
-            text = self._call_model(model=model, system=hydration, user=ranking_prompt)
+            # RULE 2 — run blocking Ollama call off the event loop thread
+            text = await asyncio.to_thread(self._call_model, model, hydration, ranking_prompt)
             if text:
                 parsed = self._parse_ranking(text)
                 results.append({"model": model, "ranking": text, "parsed": parsed})
