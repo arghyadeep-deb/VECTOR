@@ -193,7 +193,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             ("security", "ThreatScout, MalwareHunter"),
             ("coding", "GitBot, CodeReviewer, BugHunter"),
             ("time_calendar", "KIITScraper, DeadlineManager"),
-            ("communications", "Hermes, multi-platform"),
+            ("communications", "VectorCode, multi-platform"),
             ("memory_curator", "LightRAG, ConsolidationBot"),
             ("research", "WebScout, PaperReader, NewsAggregator"),
             ("intelligence", "PatternDetective, NewsTrends"),
