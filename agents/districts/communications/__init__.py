@@ -1,6 +1,6 @@
 """
 V.E.C.T.O.R. communications district.
-Person model, style model, Hermes adapter.
+Person model, style model, VectorCode comms adapter.
 """
 import sys
 from pathlib import Path
