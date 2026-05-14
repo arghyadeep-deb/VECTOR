@@ -10,10 +10,10 @@ from core.config import CONFIG
 
 
 class Notifier:
-    """Send notifications to the user via Hermes, phone, browser, etc."""
+    """Send notifications to the user via VectorCode, phone, browser, etc."""
 
     def __init__(self):
-        self._channels = CONFIG.get("notifier", {}).get("channels", ["hermes"])
+        self._channels = CONFIG.get("notifier", {}).get("channels", ["vectorcode"])
         logger.info("[VECTOR][notifier] Notifier initialized")
 
     def notify(self, message: str, priority: str = "normal", channel: str | None = None) -> dict:
