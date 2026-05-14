@@ -271,15 +271,28 @@ class NodeGuard(AgentBase):
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
+    async def run_forever(self) -> None:
+        logger.info("[VECTOR][node_guard] run_forever started — fires every 5 minutes")
+        while self.is_alive:
+            try:
+                await self.monitor_tick()
+            except Exception as e:
+                logger.error(f"[VECTOR][node_guard] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+            for _ in range(300):
+                if not self.is_alive:
+                    break
+                await asyncio.sleep(1)
+        logger.warning("[VECTOR][node_guard] died — HP=0")
 
-# ---------------------------------------------------------------------------
-# Smoke test
-# ---------------------------------------------------------------------------
     async def run(self, task: dict) -> dict:
         result = await self.monitor_tick()
         return {"status": "ok", **result}
 
 
+# ---------------------------------------------------------------------------
+# Smoke test
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ok = True
