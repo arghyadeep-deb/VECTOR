@@ -20,7 +20,7 @@ DISTRICT_KEYWORDS = {
     "finance": ["budget", "expense", "upi", "money", "finance", "tax", "invest"],
     "projects": ["project", "deadline", "planning", "doc", "documentation", "progress"],
     "reflection": ["reflect", "journal", "review", "grow", "learn", "insight"],
-    "communications": ["message", "hermes", "communicate", "style", "person", "email"],
+    "communications": ["message", "vectorcode", "communicate", "style", "person", "email"],
     "content": ["video", "script", "caption", "upload", "youtube", "content", "thumbnail"],
     "calls": ["call", "voice", "transcribe", "respond", "screener"],
     "interview_prep": ["interview", "mock", "company", "feedback", "question"],
