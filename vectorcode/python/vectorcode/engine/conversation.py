@@ -34,6 +34,31 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
         except Exception as e:
             logger.warning(f"Memory prefetch failed: {e}")
 
+    # Memory cadence — track turn count for periodic memory review
+    if not hasattr(agent, "_user_turn_count"):
+        agent._user_turn_count = 0
+    agent._user_turn_count += 1
+
+    # Plugin pre-LLM hook — invoke before model call so plugins can inject context
+    plugin_context_extras = []
+    try:
+        from vectorcode.plugins import init_plugins  # lazy
+        for plugin_mod in getattr(agent, "_plugins", []) or []:
+            hook = getattr(plugin_mod, "pre_llm_call", None)
+            if callable(hook):
+                try:
+                    extras = hook(agent, user_message)
+                    if extras:
+                        plugin_context_extras.append(str(extras))
+                except Exception as e:
+                    logger.warning(f"Plugin pre_llm_call hook failed: {e}")
+    except Exception:
+        pass
+
+    # If plugins added context, inject it before the user message
+    if plugin_context_extras:
+        user_message = "\n\n".join(plugin_context_extras) + "\n\n" + user_message
+
     # Append user turn
     agent._history.append({"role": "user", "content": user_message})
 
@@ -152,6 +177,30 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
             await _maybe_sync_memory(agent, final_text)
         except Exception as e:
             logger.warning(f"Memory sync failed: {e}")
+
+    # Plugin post-LLM hook — invoke after model finishes so plugins can react
+    try:
+        for plugin_mod in getattr(agent, "_plugins", []) or []:
+            hook = getattr(plugin_mod, "post_llm_call", None)
+            if callable(hook):
+                try:
+                    hook(agent, final_text, tool_calls_total)
+                except Exception as e:
+                    logger.warning(f"Plugin post_llm_call hook failed: {e}")
+    except Exception:
+        pass
+
+    # Memory review cadence — every N turns, write a summary memory
+    cadence = getattr(agent, "_memory_nudge_interval", 10)
+    if cadence > 0 and agent._user_turn_count % cadence == 0 and agent.memory_manager:
+        try:
+            mm = agent.memory_manager
+            if hasattr(mm, "review"):
+                review_result = mm.review(agent._user_turn_count)
+                if hasattr(review_result, "__await__"):
+                    await review_result
+        except Exception as e:
+            logger.warning(f"Memory review failed: {e}")
 
     return {
         "status": "ok",

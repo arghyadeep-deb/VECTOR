@@ -7,7 +7,7 @@ name = "vectorcode"
 version = "0.1.0"
 description = "Autonomous coding agent — multi-provider, multi-platform, production-grade"
 readme = "vectorcode/README.md"
-authors = [{ name = "Arghyadeep Deb", email = "arghyadeep@kiit.ac.in" }]
+authors = [{ name = "Arghyadeep Deb", email = "arghyadeepdeb020703@gmail.com" }]
 license = { text = "MIT" }
 requires-python = ">=3.11"
 classifiers = [

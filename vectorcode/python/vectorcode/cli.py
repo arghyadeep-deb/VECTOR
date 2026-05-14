@@ -635,42 +635,146 @@ def cmd_gateway(args):
 
 
 def cmd_auth(args):
-    """Manage API credentials."""
+    """Manage API credentials (auth add/remove/list/test/from-env)."""
     action = getattr(args, "action", "list") or "list"
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
     try:
-        from vectorcode.cli.auth import handle_auth_command
-        handle_auth_command(action, args)
-    except ImportError:
-        print(f"[VECTOR] auth {action}: not yet implemented")
+        # Try the rich VectorCode auth module (formerly hermes_cli)
+        from vector_cli import auth_commands as _auth_cmds
+        if action == "add":
+            return _auth_cmds.cmd_auth_add(args)
+        elif action == "list":
+            return _auth_cmds.cmd_auth_list(args)
+        elif action == "remove":
+            return _auth_cmds.cmd_auth_remove(args)
+        elif action == "test":
+            return _auth_cmds.cmd_auth_test(args)
+        elif action == "from-env":
+            return _auth_cmds.cmd_auth_from_env(args)
+        else:
+            print(f"[VECTOR] Unknown auth action: {action}")
+            print("  Available: add, remove, list, test, from-env")
+    except ImportError as e:
+        # Fallback: use basic credentials.py module
+        try:
+            from credentials import CredentialManager
+            cm = CredentialManager.global_instance() if hasattr(CredentialManager, "global_instance") else None
+            if action == "list":
+                if cm and hasattr(cm, "list_all_creds"):
+                    creds = cm.list_all_creds()
+                    if creds:
+                        print(f"Credentials ({len(creds)}):")
+                        for c in creds:
+                            print(f"  {c}")
+                    else:
+                        print("No credentials stored.")
+                else:
+                    print("[VECTOR] auth list: credential manager unavailable")
+            else:
+                print(f"[VECTOR] auth {action}: requires vector_cli.auth_commands ({e})")
+        except Exception as ex:
+            print(f"[VECTOR] auth error: {ex}")
 
 
 def cmd_profile(args):
     """Manage named profiles."""
     action = getattr(args, "profile_action", "list") or "list"
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
     try:
-        from vectorcode.cli.profiles import handle_profile_command
-        handle_profile_command(action, args)
-    except ImportError:
-        print(f"[VECTOR] profile {action}: not yet implemented")
+        from vector_cli import profiles as _profiles
+        if action == "list":
+            return _profiles.cmd_profile_list(args) if hasattr(_profiles, "cmd_profile_list") else _profiles.list_profiles()
+        elif action == "use":
+            return _profiles.cmd_profile_use(args) if hasattr(_profiles, "cmd_profile_use") else _profiles.use_profile(args.name)
+        elif action == "show":
+            return _profiles.cmd_profile_show(args) if hasattr(_profiles, "cmd_profile_show") else _profiles.show_profile(getattr(args, "name", None))
+        elif action == "create":
+            return _profiles.cmd_profile_create(args) if hasattr(_profiles, "cmd_profile_create") else None
+        elif action == "delete":
+            return _profiles.cmd_profile_delete(args) if hasattr(_profiles, "cmd_profile_delete") else None
+        else:
+            print(f"[VECTOR] Unknown profile action: {action}")
+    except ImportError as e:
+        print(f"[VECTOR] profile {action}: {e}")
+    except AttributeError:
+        # Module exists but functions don't — list available
+        try:
+            from vector_cli import profiles as _profiles
+            funcs = [x for x in dir(_profiles) if not x.startswith("_") and callable(getattr(_profiles, x))]
+            print(f"[VECTOR] profile module loaded. Available: {', '.join(funcs[:10])}")
+        except Exception as ex:
+            print(f"[VECTOR] profile error: {ex}")
 
 
 def cmd_doctor(args):
-    """Run diagnostics."""
+    """Run diagnostics — comprehensive system + dependency check."""
+    import sys, shutil, os
+    from pathlib import Path
+
+    print()
+    print("VectorCode Doctor")
+    print("=" * 60)
+
+    # Python checks
+    py_ok = sys.version_info >= (3, 11)
+    print(f"  [{'OK' if py_ok else 'FAIL'}] Python 3.11+    : {sys.version.split()[0]}")
+
+    # Required binaries
+    for binary, required in [("ollama", False), ("git", True), ("docker", False)]:
+        found = shutil.which(binary) is not None
+        marker = "OK" if found else ("FAIL" if required else "WARN")
+        print(f"  [{marker:<4}] {binary:<13}: {'installed' if found else 'not found'}")
+
+    # Check ollama daemon
     try:
-        from vectorcode.cli.doctor import run_doctor
-        run_doctor()
-    except (ImportError, UnicodeEncodeError):
-        # Fallback for Windows cp1252 terminals
-        print("[VECTOR] doctor: running basic checks...")
-        import sys, shutil
-        checks = [
-            ("Python 3.11+", sys.version_info >= (3, 11)),
-            ("ollama binary", shutil.which("ollama") is not None),
-            ("git binary", shutil.which("git") is not None),
-        ]
-        for name, ok in checks:
-            status = "OK" if ok else "FAIL"
-            print(f"  [{status}] {name}")
+        import urllib.request, json as _json
+        r = urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3)
+        data = _json.loads(r.read().decode())
+        n = len(data.get("models", []))
+        print(f"  [OK]   Ollama daemon: running ({n} models)")
+    except Exception:
+        print(f"  [WARN] Ollama daemon: not reachable on localhost:11434")
+
+    # Required deps
+    print()
+    print("Python dependencies:")
+    deps = ["loguru", "fastapi", "uvicorn", "pydantic", "httpx", "anthropic", "openai"]
+    for dep in deps:
+        try:
+            __import__(dep)
+            print(f"  [OK]   {dep}")
+        except ImportError:
+            print(f"  [FAIL] {dep:<20} (run: pip install {dep})")
+
+    # VectorCode core
+    print()
+    print("VectorCode core:")
+    sys.path.insert(0, str(Path(__file__).parent))
+    for mod in ["engine", "tools.registry", "providers", "session_db", "credentials", "memory.manager"]:
+        try:
+            __import__(mod)
+            print(f"  [OK]   {mod}")
+        except Exception as e:
+            print(f"  [FAIL] {mod:<25} ({e})")
+
+    # Env vars
+    print()
+    print("Environment:")
+    env_vars = ["VECTOR_HOME", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY", "OLLAMA_BASE_URL"]
+    for v in env_vars:
+        val = os.environ.get(v, "")
+        if val:
+            mask = val[:5] + "..." if len(val) > 8 else "set"
+            print(f"  [OK]   {v:<22} = {mask}")
+        else:
+            print(f"  [--]   {v:<22} (not set)")
+
+    print()
+    print("=" * 60)
 
 
 def cmd_self_update(args):
