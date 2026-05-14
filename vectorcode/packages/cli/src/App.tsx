@@ -6,7 +6,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { TopBar } from './ui/TopBar.js';
 import { Banner } from './ui/Banner.js';
-import VectorHUD from './ui/VectorHUD.js';
 import { ChatPane } from './ui/ChatPane.js';
 import { ToolPane } from './ui/ToolPane.js';
 import { InputBar } from './ui/InputBar.js';
@@ -26,8 +25,6 @@ interface AppProps {
   initialModel?: string;
   initialMode?: SessionStatus['mode'];
   showBanner?: boolean;
-  /** Show the animated JARVIS HUD splash on launch */
-  showHud?: boolean;
 }
 
 export const App: React.FC<AppProps> = ({
@@ -35,13 +32,11 @@ export const App: React.FC<AppProps> = ({
   initialModel = 'vector-focus',
   initialMode = 'standard',
   showBanner = true,
-  showHud = true,
 }) => {
   const { exit } = useApp();
   const clientRef = useRef<GatewayClient | null>(null);
   const streamRef = useRef<{ close: () => void } | null>(null);
 
-  const [hudVisible, setHudVisible] = useState(showHud);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [toolEvents, setToolEvents] = useState<ToolEvent[]>([]);
   const [busy, setBusy] = useState(false);
@@ -329,17 +324,6 @@ export const App: React.FC<AppProps> = ({
   );
 
   // Layout
-  if (hudVisible) {
-    return (
-      <VectorHUD
-        model={sessionStatus.model}
-        modelsOnline={sessionStatus.modelsAvailable ?? (gatewayHealthy ? 21 : 0)}
-        hasVectorMd={false}
-        onDismiss={() => setHudVisible(false)}
-      />
-    );
-  }
-
   return (
     <Box flexDirection="column" minHeight={20}>
       {/* Top bar */}
@@ -347,11 +331,7 @@ export const App: React.FC<AppProps> = ({
 
       {/* Banner (dismissable on first input) */}
       {!bannerDismissed && messages.length === 0 && (
-        <Banner
-          version="0.1.0"
-          model={sessionStatus.model}
-          modelsOnline={gatewayHealthy ? sessionStatus.modelsAvailable ?? 0 : 0}
-        />
+        <Banner cwd={process.cwd()} />
       )}
 
       {/* Main split: chat pane + (optional) tool pane */}

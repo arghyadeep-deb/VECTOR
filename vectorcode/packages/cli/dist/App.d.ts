@@ -8,8 +8,6 @@ interface AppProps {
     initialModel?: string;
     initialMode?: SessionStatus['mode'];
     showBanner?: boolean;
-    /** Show the animated JARVIS HUD splash on launch */
-    showHud?: boolean;
 }
 export declare const App: React.FC<AppProps>;
 export {};

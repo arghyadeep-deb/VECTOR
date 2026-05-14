@@ -4,14 +4,13 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { theme, glyphs } from './theme.js';
-import { ArcReactor } from './ArcReactor.js';
 export const TopBar = ({ status, gatewayHealthy }) => {
     const model = status.model ?? 'unknown';
     const mode = status.mode ?? 'standard';
     const tokens = (status.inputTokens ?? 0) + (status.outputTokens ?? 0);
     const cost = status.costUsd ?? 0;
     return (React.createElement(Box, { paddingX: 1 },
-        React.createElement(ArcReactor, { size: "small" }),
+        React.createElement(Text, { color: theme.brand, bold: true }, "\u25B8"),
         React.createElement(Text, null, " "),
         React.createElement(Text, { color: theme.brandText, bold: true }, "VectorCode"),
         React.createElement(Text, { color: theme.dim }, " \u00B7 "),

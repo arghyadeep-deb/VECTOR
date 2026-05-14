@@ -22,7 +22,6 @@ program
     .option('-m, --model <id>', 'Initial model (e.g. anthropic/claude-sonnet-4-5)', 'vector-focus')
     .option('--mode <mode>', 'Initial mode (cautious|standard|autonomous|read-only)', 'standard')
     .option('--no-banner', 'Skip welcome banner')
-    .option('--no-hud', 'Skip JARVIS HUD splash on launch')
     .parse(process.argv);
 const opts = program.opts();
 const validModes = [
@@ -38,6 +37,5 @@ render(React.createElement(App, {
     initialModel: opts.model,
     initialMode: mode,
     showBanner: opts.banner !== false,
-    showHud: opts.hud !== false,
 }));
 //# sourceMappingURL=index.js.map

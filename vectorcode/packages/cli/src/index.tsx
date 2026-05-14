@@ -30,7 +30,6 @@ program
     'standard',
   )
   .option('--no-banner', 'Skip welcome banner')
-  .option('--no-hud', 'Skip JARVIS HUD splash on launch')
   .parse(process.argv);
 
 const opts = program.opts();
@@ -50,6 +49,5 @@ render(
     initialModel: opts.model,
     initialMode: mode,
     showBanner: opts.banner !== false,
-    showHud: opts.hud !== false,
   }),
 );

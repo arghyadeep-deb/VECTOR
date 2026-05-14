@@ -5,18 +5,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import { TopBar } from './ui/TopBar.js';
 import { Banner } from './ui/Banner.js';
-import VectorHUD from './ui/VectorHUD.js';
 import { ChatPane } from './ui/ChatPane.js';
 import { ToolPane } from './ui/ToolPane.js';
 import { InputBar } from './ui/InputBar.js';
 import { StatusLine } from './ui/StatusLine.js';
 import { GatewayClient } from './gatewayClient.js';
 import { SLASH_COMMANDS } from './slashCommands.js';
-export const App = ({ gatewayUrl, initialModel = 'vector-focus', initialMode = 'standard', showBanner = true, showHud = true, }) => {
+export const App = ({ gatewayUrl, initialModel = 'vector-focus', initialMode = 'standard', showBanner = true, }) => {
     const { exit } = useApp();
     const clientRef = useRef(null);
     const streamRef = useRef(null);
-    const [hudVisible, setHudVisible] = useState(showHud);
     const [messages, setMessages] = useState([]);
     const [toolEvents, setToolEvents] = useState([]);
     const [busy, setBusy] = useState(false);
@@ -276,12 +274,9 @@ export const App = ({ gatewayUrl, initialModel = 'vector-focus', initialMode = '
         sessionStatus.outputTokens,
     ]);
     // Layout
-    if (hudVisible) {
-        return (React.createElement(VectorHUD, { model: sessionStatus.model, modelsOnline: sessionStatus.modelsAvailable ?? (gatewayHealthy ? 21 : 0), hasVectorMd: false, onDismiss: () => setHudVisible(false) }));
-    }
     return (React.createElement(Box, { flexDirection: "column", minHeight: 20 },
         React.createElement(TopBar, { status: sessionStatus, gatewayHealthy: gatewayHealthy }),
-        !bannerDismissed && messages.length === 0 && (React.createElement(Banner, { version: "0.1.0", model: sessionStatus.model, modelsOnline: gatewayHealthy ? sessionStatus.modelsAvailable ?? 0 : 0 })),
+        !bannerDismissed && messages.length === 0 && (React.createElement(Banner, { cwd: process.cwd() })),
         React.createElement(Box, { flexGrow: 1, flexDirection: "row" },
             React.createElement(ChatPane, { messages: messages, thinking: thinking }),
             showToolPane && React.createElement(ToolPane, { events: toolEvents })),

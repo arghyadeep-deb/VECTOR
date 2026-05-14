@@ -61,26 +61,24 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """VectorCode JARVIS HUD — circular reactor splash with V.E.C.T.O.R. core."""
-    import sys
+    """Minimal welcome banner — one symbol, one name, one tip line."""
+    import sys, os
+    from pathlib import Path
 
-    mn = (model_name or "vector-focus")[:36]
-    oms = ollama_models or []
-    n_models = len(oms)
+    C  = "\x1b[36m"      # cyan
+    W  = "\x1b[97;1m"    # white bold
+    D  = "\x1b[2m"       # dim
+    R  = "\x1b[0m"       # reset
 
-    # Render the JARVIS HUD
-    try:
-        from ui.jarvis_hud import print_hud
-        print_hud(model=mn, n_models=n_models, has_vectormd=has_vectormd, tick=42)
-    except Exception:
-        try:
-            from vectorcode.ui.jarvis_hud import print_hud
-            print_hud(model=mn, n_models=n_models, has_vectormd=has_vectormd, tick=42)
-        except Exception as e:
-            # Fallback: minimal banner
-            print(f"\n  VectorCode v0.1.0  ·  {mn}  ·  {n_models} models", file=sys.stderr)
-            print(f"  /help · @<file> · /sparc · /quit", file=sys.stderr)
-            print(file=sys.stderr)
+    cwd = str(Path.cwd()).replace(str(Path.home()), "~")
+    if len(cwd) > 50:
+        cwd = "..." + cwd[-47:]
+
+    out = sys.stderr
+    print(file=out)
+    print(f"  {C}▸{R} {W}VectorCode{R}{D}  /help for commands · @file to attach · /quit to exit{R}", file=out)
+    print(f"     {D}cwd: {cwd}{R}", file=out)
+    print(file=out)
 
 
 def _strip_ansi(s: str) -> str:
