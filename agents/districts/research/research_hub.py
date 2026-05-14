@@ -794,6 +794,22 @@ class ResearchHub(AgentBase):
         return digest
 
 
+    async def run_forever(self) -> None:
+        logger.info("[VECTOR][research_hub] run_forever started — fires at 06:00")
+        while self.is_alive:
+            try:
+                now = datetime.datetime.now()
+                if now.hour == 6 and now.minute == 0:
+                    await self.daily_digest()
+            except Exception as e:
+                logger.error(f"[VECTOR][research_hub] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+            for _ in range(3600):
+                if not self.is_alive:
+                    break
+                await asyncio.sleep(1)
+        logger.warning("[VECTOR][research_hub] died — HP=0")
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         t = task.get("type", "")
