@@ -61,11 +61,9 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """Print the VECTOR arc reactor banner with status HUD."""
-    import datetime as _dt
-    import sys
+    """JARVIS-style banner: dense hexagonal reactor left, VECTOR HUD right."""
+    import datetime as _dt, sys
 
-    # Colors
     C  = "\x1b[36m"    # cyan
     CB = "\x1b[96m"    # bright cyan
     B  = "\x1b[94m"    # blue
@@ -75,72 +73,57 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
     D  = "\x1b[2m"     # dim
     R  = "\x1b[0m"     # reset
 
-    # Arc reactor symbol (pure ASCII + safe box chars, Windows-compatible)
-    # Left: reactor | Right: VECTOR name + status
     now = _dt.datetime.now(_dt.timezone.utc)
     ut  = f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-    mn  = model_name or "vector-focus"
+    mn  = (model_name or "vector-focus")[:26]
     oms = ollama_models or []
-    ol_status = f"{G}ONLINE  {len(oms)} models{R}" if oms else f"{Y}OFFLINE{R}"
+    ol  = f"{G}ONLINE{R}  {D}{len(oms)} models{R}" if oms else f"{Y}OFFLINE{R}"
 
-    # Arc reactor rows (21 rows) paired with info rows on the right
+    # Dense hexagonal arc reactor — 11 rows, pure ASCII, Windows-safe
     reactor = [
-        f"         {C}|{R}         ",
-        f"   {B}.{R}     {C}|{R}     {B}.{R}   ",
-        f"  {B}.{R} {C}={R}   {CB}-{R}  {C}|{R}  {CB}-{R}   {C}={R} {B}.{R} ",
-        f" {B}.{R} {C}={R} {CB}-{R}  {B}.{R}  {C}|{R}  {B}.{R}  {CB}-{R} {C}={R} {B}.{R}",
-        f"{B}.{R} {C}={R}{CB}-{R} {B}.{R} {CB}-{R}   {C}|{R}   {CB}-{R} {B}.{R} {CB}-{R}{C}={R} {B}.{R}",
-        f" {C}={CB}-{R} {B}.{R} {CB}-{C}={R}  {B}.{R}  {C}={R}{CB}|{C}={R}  {B}.{R}  {C}={CB}-{R} {B}.{R} {CB}-{C}={R} ",
-        f"{C}={CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R}  {C}={CB}|{C}={R}  {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{C}={R}",
-        f" {C}={CB}-{R}{B}.{R}{CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {C}|{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R}{CB}-{C}={R} ",
-        f"{C}-------------------------------------------{R}",
-        f" {C}={CB}-{R}{B}.{R}{CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {C}|{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R}{CB}-{C}={R} ",
-        f"{C}={CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R}  {C}={CB}|{C}={R}  {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{C}={R}",
-        f" {C}={CB}-{R} {B}.{R} {CB}-{C}={R}  {B}.{R}  {C}={CB}|{C}={R}  {B}.{R}  {C}={CB}-{R} {B}.{R} {CB}-{C}={R} ",
-        f"{B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{R}   {C}|{R}   {CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R}",
-        f" {B}.{R} {C}={R} {CB}-{R}  {B}.{R}  {C}|{R}  {B}.{R}  {CB}-{R} {C}={R} {B}.{R}",
-        f"  {B}.{R} {C}={R}   {CB}-{R}  {C}|{R}  {CB}-{R}   {C}={R} {B}.{R} ",
-        f"   {B}.{R}     {C}|{R}     {B}.{R}   ",
-        f"         {C}|{R}         ",
+        f"  {C}+--+--+--+--+--+{R}  ",
+        f" {C}/{CB}  {C}\\{CB}  {C}+{CB}  {C}/{CB}  {C}\\{R} ",
+        f"{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{R}",
+        f"{C}|{CB}  {C}\\{CB}  {W}+--+{R}{CB}  {C}/{CB}  {C}|{R}",
+        f"{C}+{CB}--{C}+{CB}--{W}|  |{R}{CB}--{C}+{CB}--{C}+{R}",
+        f"{C}|{CB}  {C}/{CB}  {W}+--+{R}{CB}  {C}\\{CB}  {C}|{R}",
+        f"{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{CB}--{C}+{R}",
+        f" {C}\\{CB}  {C}+{CB}  {C}\\{CB}  {C}+{CB}  {C}/{R} ",
+        f"  {C}+--+--+--+--+--+{R}  ",
     ]
 
-    # Right-side info panel lines (aligned to reactor height)
-    info = [
+    sep = f"{C}{'=' * 36}{R}"
+    panel = [
         f"",
-        f"  {W}V E C T O R{R}",
-        f"  {D}Virtual Entity for Cognitive Tasks & Operational Reasoning{R}",
-        f"",
-        f"  {C}STATUS   {R}{G}ONLINE{R}",
-        f"  {C}UPTIME   {R}{ut}",
-        f"  {C}MODE     {R}repl",
-        f"  {C}MODEL    {R}{mn}",
-        f"  {C}OLLAMA   {R}{ol_status}",
-        f"",
-        f"  {C}{'=' * 40}{R}",
+        f"  {W}V . E . C . T . O . R{R}",
+        f"  {D}Virtual Entity for Cognitive Tasks{R}",
+        f"  {D}& Operational Reasoning{R}",
+        f"  {sep}",
+        f"  {C}STATUS  {R}  {G}ONLINE{R}",
+        f"  {C}UPTIME  {R}  {ut}",
+        f"  {C}MODE    {R}  repl",
+        f"  {C}MODEL   {R}  {mn}",
+        f"  {C}OLLAMA  {R}  {ol}",
+        f"  {sep}",
         f"",
     ]
 
-    # Print reactor lines with info on the right
     out = sys.stderr
     print(file=out)
-    for i, row in enumerate(reactor):
-        right = info[i] if i < len(info) else ""
-        print(f"  {row}    {right}", file=out)
+    pad = (len(panel) - len(reactor)) // 2
+    for i, p in enumerate(panel):
+        r_idx = i - pad
+        r = f"  {reactor[r_idx]}" if 0 <= r_idx < len(reactor) else f"  {'                   '}"
+        print(f"{r}    {p}", file=out)
 
-    # Print remaining info lines
-    for j in range(len(reactor), len(info)):
-        print(f"  {'                   '}    {info[j]}", file=out)
-
-    # Ollama model list
     if oms:
-        names = [m.replace("ollama/", "") for m in oms[:6]]
-        suffix = f" {D}...{R}" if len(oms) > 6 else ""
-        print(f"  {C}Models: {R}{D}{', '.join(names)}{suffix}{R}", file=out)
-
+        names = ", ".join(m.replace("ollama/", "") for m in oms[:5])
+        suf = f" {D}+{len(oms)-5} more{R}" if len(oms) > 5 else ""
+        print(f"  {D}  {names}{suf}{R}", file=out)
     if has_vectormd:
-        print(f"  {G}[OK] VECTOR.md loaded{R}", file=out)
+        print(f"  {G}  [OK] VECTOR.md loaded{R}", file=out)
     else:
-        print(f"  {Y}[!]  No VECTOR.md found -- run /init to create one{R}", file=out)
+        print(f"  {Y}  [!]  No VECTOR.md  --  run /init{R}", file=out)
     print(file=out)
 
 
