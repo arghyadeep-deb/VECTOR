@@ -61,7 +61,7 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """Welcome banner — small AI robot face + status, Claude Code style."""
+    """Welcome banner — circular reactor + status, Claude Code style."""
     import sys
     from pathlib import Path
 
@@ -81,16 +81,16 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
     n_models = len(ollama_models or [])
     online = f"{G}● online{R}" if n_models > 0 else f"{Y}○ offline{R}"
 
-    # 5-line robot face mascot
-    robot = [
-        f"{CB}    ╭───────╮{R}",
-        f"{CB}   ╱{R} {W}◉{R} {C}─{R} {W}◉{R} {CB}╲{R}",
-        f"{CB}  │{R}   {C}━━━{R}   {CB}│{R}",
-        f"{CB}   ╲{R} {C}▰▰▰▰▰{R} {CB}╱{R}",
-        f"{CB}    ╰──┬──╯{R}",
+    # 5-line circular arc reactor — concentric rings, glowing core
+    reactor = [
+        f"{C}    ╭─────╮{R}",
+        f"{C}   ╱{R} {CB}╭───╮{R} {C}╲{R}",
+        f"{C}  │{R} {CB}│{R}  {W}◉{R}  {CB}│{R} {C}│{R}",
+        f"{C}   ╲{R} {CB}╰───╯{R} {C}╱{R}",
+        f"{C}    ╰─────╯{R}",
     ]
 
-    # Right-side status block (5 lines to align with robot)
+    # Right-side status block (5 lines aligned)
     right = [
         f"{W}VectorCode{R}{D}  v0.1.0{R}",
         f"{D}autonomous coding agent{R}",
@@ -101,7 +101,7 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
 
     out = sys.stderr
     print(file=out)
-    for i, line in enumerate(robot):
+    for i, line in enumerate(reactor):
         side = right[i] if i < len(right) else ""
         print(f"  {line}    {side}", file=out)
     print(file=out)

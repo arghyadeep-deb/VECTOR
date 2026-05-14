@@ -1,10 +1,11 @@
 /**
- * Banner — minimal welcome line, Claude Code style.
- * Just one symbol + name + tip. No frames, no reactor, no animation.
+ * Banner — circular reactor + status panel, Claude Code style.
  */
 import React from 'react';
 interface BannerProps {
     cwd?: string;
+    model?: string;
+    modelsOnline?: number;
 }
 export declare const Banner: React.FC<BannerProps>;
 export {};
