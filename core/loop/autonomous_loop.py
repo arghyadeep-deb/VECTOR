@@ -437,6 +437,7 @@ class AutonomousLoop:
             self.sync_loop(),
             self.obsidian_loop(),
             self.phone_loop(),
+            self.vectorcode_loop(),
             return_exceptions=True,
         )
 
