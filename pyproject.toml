@@ -144,11 +144,11 @@ Source = "https://github.com/Arghyadeep-Deb/vectorcode"
 Issues = "https://github.com/Arghyadeep-Deb/vectorcode/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["vectorcode/python/vectorcode"]
+packages = ["vectorcode/src"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "vectorcode/python/vectorcode/**",
+    "vectorcode/src/**",
     "vectorcode/skills/**",
     "vectorcode/docs/**",
     "vectorcode/README.md",
