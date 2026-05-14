@@ -101,7 +101,7 @@
 | `coding/` | GitBot, CodeReviewer, ArchitectBot | ✅ YELLOW/RED gateway wired; AST analysis |
 | `time_calendar/` | KIITScraper, DeadlineManager, TimeBlocker | ✅ Playwright scraper |
 | `security/` | ThreatScout, NodeGuard | ✅ process + startup + 166 connections |
-| `communications/` | Hermes adapter | ⚠️ Stub — RULE 10: use Hermes, do not rebuild |
+| `communications/` | VectorCode adapter | ✅ Absorbed into VectorCode |
 
 **Day 5 Gate:** KIIT schedule + auto-commit ✅ (Gmail pending T6)
 
