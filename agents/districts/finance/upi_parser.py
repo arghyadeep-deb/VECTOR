@@ -156,7 +156,7 @@ class UPIParser(AgentBase):
         if sms:
             result = parse_sms(sms)
             if result:
-                self.ingest_sms(sms)
+                self.ingest(sms)
                 return {"status": "ok", "transaction": result}
             return {"status": "not_financial"}
         txns = self.get_recent_transactions(p.get("days", 30))
