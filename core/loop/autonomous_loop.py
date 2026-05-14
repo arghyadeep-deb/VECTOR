@@ -116,8 +116,8 @@ class AutonomousLoop:
             "kiit": "check_attendance",
             "attendance": "check_attendance",
             "git": "git_status",
-            "coding": "git_status",
-            "build": "git_status",
+            "coding": "code_task",
+            "build": "code_task",
             "research": "daily_digest",
             "ml": "search_arxiv",
             "karpathy": "search_arxiv",
@@ -129,6 +129,12 @@ class AutonomousLoop:
             "dsa": "search_web",
             "memory": "consolidate",
             "reflection": "daily_review",
+            "debug": "code_task",
+            "fix": "code_task",
+            "implement": "code_task",
+            "write_code": "code_task",
+            "code_review": "code_review_vc",
+            "refactor": "code_task",
         }
 
         candidates = []
