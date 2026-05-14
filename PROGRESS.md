@@ -320,7 +320,7 @@ Triple notification on complete/fail: terminal line + episodic memory (RULE 8) +
 | `research/research_hub.py` | +7 sources: CoinGecko, Econdb, Crossref, OpenAQ, Yahoo Finance NSE, tech-feed, ProductHunt |
 | `investment/stock_analyst.py` | CoinGecko crypto quotes + Yahoo Finance NSE/BSE (yfinance fallback) |
 | `coding/code_reviewer.py` | Severity tiers (error/warning/info) + AgentShield prompt-injection patterns |
-| `communications/hermes_adapter.py` | `schedule_cron_job()` + `register_skill()` + KNOWN_PLATFORMS routing |
+| `communications/hermes_adapter.py` | `schedule_cron_job()` + `register_skill()` + KNOWN_PLATFORMS routing | (compat alias → VectorCode)
 | `content/comfyui_adapter.py` | NEW — local Stable Diffusion via ComfyUI HTTP API; graceful if offline |
 | `docs/public_apis.md` | NEW — complete zero-key API catalog for all districts |
 
