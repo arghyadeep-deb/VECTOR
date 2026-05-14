@@ -330,6 +330,21 @@ class GitBot(AgentBase):
             return {"status": "error", "error": str(e)}
 
 
+    async def run_forever(self) -> None:
+        """RULE 2 — never stops. GitBot is event-driven; this keeps the agent alive."""
+        logger.info("[VECTOR][git_bot] run_forever started — event-driven mode")
+        while self.is_alive:
+            try:
+                for _ in range(60):
+                    if not self.is_alive:
+                        break
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"[VECTOR][git_bot] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+        logger.warning("[VECTOR][git_bot] died — HP=0")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
