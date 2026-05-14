@@ -212,6 +212,23 @@ class DeadlineManager(AgentBase):
         ctx = self.get_schedule_context()
         return {"status": "ok", "events": events, "context": ctx}
 
+    async def run_forever(self) -> None:
+        """RULE 2 — never stops. Checks deadlines every 30 minutes."""
+        logger.info("[VECTOR][deadline_manager] run_forever started — 30min check interval")
+        while self.is_alive:
+            try:
+                context = self.get_schedule_context()
+                if context.get("attendance_risk"):
+                    logger.warning(f"[VECTOR][deadline_manager] attendance risk: {context['attendance_risk']}")
+            except Exception as e:
+                logger.error(f"[VECTOR][deadline_manager] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+            for _ in range(1800):
+                if not self.is_alive:
+                    break
+                await asyncio.sleep(1)
+        logger.warning("[VECTOR][deadline_manager] died — HP=0")
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
