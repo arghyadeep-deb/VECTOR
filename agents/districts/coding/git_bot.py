@@ -133,6 +133,18 @@ class GitBot(AgentBase):
         except Exception as e:
             logger.error(f"[VECTOR][git_bot] commit error: {e}")
             self.deduct_points(20, "commit_failed")
+            try:
+                from core.memory.episodic import EpisodicMemory
+                EpisodicMemory().store_chain(
+                    situation=f"git_commit:{repo_path}",
+                    goal_ids=["coding", "auto_commit"],
+                    steps=["commit_failed"],
+                    action="commit_code",
+                    outcome=str(e),
+                    reward=0.0,
+                )
+            except Exception as _chain_err:
+                logger.warning(f"[VECTOR][git_bot] store_chain (failure) failed: {_chain_err}")
             return {"success": False, "hash": "", "message": str(e)}
 
     def get_recent_commits(self, n: int = 10, repo_path: str = ".") -> list:
