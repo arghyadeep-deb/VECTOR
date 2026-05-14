@@ -217,77 +217,74 @@ class EpisodicMemory:
             steps_json = json.dumps(steps)
             is_training = 1 if reward > 0.7 else 0
             timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            
-            self.conn.execute("""
-                INSERT INTO reasoning_chains
-                (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp))
-            self.conn.commit()
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO reasoning_chains
+                    (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp))
             return chain_id
         except Exception as e:
             logger.error(f"Store chain failed: {e}")
             return ""
-    
+
     def get_training_data(self, limit=100) -> list[dict]:
         try:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT * FROM reasoning_chains
-                WHERE is_training_data = 1
-                ORDER BY reward DESC
-                LIMIT ?
-            """, (limit,))
-            
-            columns = [desc[0] for desc in cursor.description]
-            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM reasoning_chains
+                    WHERE is_training_data = 1
+                    ORDER BY reward DESC
+                    LIMIT ?
+                """, (limit,))
+                columns = [desc[0] for desc in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Get training data failed: {e}")
             return []
-    
+
     def update_skill(self, skill_name, confidence, evidence=None) -> bool:
         try:
             evidence_json = json.dumps(evidence) if evidence else None
-            self.conn.execute("""
-                INSERT INTO skill_memory (skill_name, confidence, evidence)
-                VALUES (?, ?, ?)
-                ON CONFLICT(skill_name) DO UPDATE SET
-                    confidence=excluded.confidence,
-                    evidence=COALESCE(excluded.evidence, skill_memory.evidence)
-            """, (skill_name, confidence, evidence_json))
-            self.conn.commit()
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO skill_memory (skill_name, confidence, evidence)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(skill_name) DO UPDATE SET
+                        confidence=excluded.confidence,
+                        evidence=COALESCE(excluded.evidence, skill_memory.evidence)
+                """, (skill_name, confidence, evidence_json))
             return True
         except Exception as e:
             logger.error(f"Update skill failed: {e}")
             return False
-    
+
     def get_skill(self, skill_name) -> dict | None:
         try:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT * FROM skill_memory
-                WHERE skill_name = ?
-            """, (skill_name,))
-            row = cursor.fetchone()
-            if row:
-                columns = [desc[0] for desc in cursor.description]
-                return dict(zip(columns, row))
+            with get_temp_cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM skill_memory
+                    WHERE skill_name = ?
+                """, (skill_name,))
+                row = cursor.fetchone()
+                if row:
+                    columns = [desc[0] for desc in cursor.description]
+                    return dict(zip(columns, row))
             return None
         except Exception as e:
             logger.error(f"Get skill failed: {e}")
             return None
-    
+
     def get_stats(self) -> dict:
         _TABLES = ("episodic_memory", "semantic_memory", "policy_memory",
                    "reasoning_chains", "skill_memory", "agent_history")
         try:
             stats = {}
-            for table in _TABLES:
-                cursor = self.conn.cursor()
-                # Table name comes from a closed constant — not user input — so f-string is safe.
-                # SQLite doesn't support parameterised identifiers, so we use the constant directly.
-                cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
-                stats[table] = cursor.fetchone()[0]
+            with get_temp_cursor() as cursor:
+                for table in _TABLES:
+                    # Table name from closed constant, not user input — f-string is safe here.
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
+                    stats[table] = cursor.fetchone()[0]
             return stats
         except Exception as e:
             logger.error(f"Get stats failed: {e}")
