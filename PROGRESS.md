@@ -353,7 +353,7 @@ ollama create vector-ambient -f modelfiles/vector-ambient.modelfile && ollama cr
 
 | Repo | Integration | Status |
 |------|------------|--------|
-| `NousResearch/hermes-agent` | RULE 10 — used directly, not rebuilt | ✅ |
+| `vectorcode` | Absorbed into VectorCode | ✅ |
 | `lyogavin/airllm` | 70B inference on RTX 5070 Ti via `AirLLM` | ✅ wired in models config |
 | `kyegomez/OpenMythos` | Custom LLM training pipeline (Month 2) | ✅ referenced in roadmap |
 | `PrefectHQ/fastmcp` | `core/mcp_server.py` — 14 tools + 1 resource exposed to Claude Code | ✅ |
