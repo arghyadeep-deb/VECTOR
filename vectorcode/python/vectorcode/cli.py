@@ -676,6 +676,70 @@ def cmd_doctor(args):
             print(f"  [{status}] {name}")
 
 
+def cmd_cron(args):
+    """Manage scheduled cron jobs."""
+    action = getattr(args, "action", "list") or "list"
+    import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
+    from tools.cron_tools import cron_add, cron_list, cron_remove
+    if action == "add":
+        print(cron_add(args.schedule, args.prompt))
+    elif action == "list":
+        import json
+        data = json.loads(cron_list())
+        jobs = data.get("jobs", [])
+        if not jobs:
+            print("No cron jobs scheduled.")
+        for j in jobs:
+            status = "ON" if j["enabled"] else "OFF"
+            print(f"  #{j['id']} [{status}] {j['schedule']} — {j['prompt'][:60]}")
+    elif action == "remove":
+        print(cron_remove(args.id))
+    elif action == "daemon":
+        sub = getattr(args, "daemon_action", "start") or "start"
+        if sub == "start":
+            from vectorcode.cron import start_daemon
+            start_daemon()
+            print("[VECTOR] Cron daemon started. Press Ctrl+C to stop.")
+            import time
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                from vectorcode.cron import stop_daemon
+                stop_daemon()
+
+
+def cmd_acp(args):
+    """ACP protocol server."""
+    action = getattr(args, "action", "serve") or "serve"
+    host = getattr(args, "host", "127.0.0.1") or "127.0.0.1"
+    port = int(getattr(args, "port", 8765) or 8765)
+    if action == "serve":
+        from vectorcode.acp.server import ACPServer
+        import asyncio
+        srv = ACPServer(host=host, port=port)
+        print(f"[VECTOR] Starting ACP server on http://{host}:{port}")
+        asyncio.run(srv.start())
+
+
+def cmd_plugins(args):
+    """Manage plugins."""
+    action = getattr(args, "action", "list") or "list"
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    sys.path.insert(0, str(Path(__file__).parent))
+    if action == "list":
+        from plugins.loader import discover_plugins
+        plugins = discover_plugins()
+        if not plugins:
+            print("No plugins installed. Add plugins to ~/.vectorcode/plugins/")
+        for p in plugins:
+            print(f"  {p.name}")
+    elif action == "install":
+        print(f"[VECTOR] Plugin install: {getattr(args, 'source', '?')} (not yet implemented)")
+
+
 def cmd_tools(args):
     """List registered tools."""
     action = getattr(args, "action", "list") or "list"
@@ -844,6 +908,32 @@ def main():
     tools_sub = tools_p.add_subparsers(dest="action")
     tools_sub.add_parser("list", help="List all registered tools")
 
+    # cron subcommand
+    cron_p = sub.add_parser("cron", help="Manage scheduled tasks")
+    cron_sub = cron_p.add_subparsers(dest="action")
+    cron_add_p = cron_sub.add_parser("add", help="Add a cron job")
+    cron_add_p.add_argument("schedule", help="Cron expression e.g. '0 9 * * *'")
+    cron_add_p.add_argument("prompt", help="Task to run")
+    cron_sub.add_parser("list", help="List cron jobs")
+    cron_rm = cron_sub.add_parser("remove", help="Remove a cron job")
+    cron_rm.add_argument("id", type=int)
+    cron_daemon = cron_sub.add_parser("daemon", help="Cron daemon control")
+    cron_daemon.add_argument("daemon_action", choices=["start", "stop"], default="start", nargs="?")
+
+    # acp subcommand
+    acp_p = sub.add_parser("acp", help="ACP protocol server")
+    acp_sub = acp_p.add_subparsers(dest="action")
+    acp_serve = acp_sub.add_parser("serve", help="Start ACP server")
+    acp_serve.add_argument("--host", default="127.0.0.1")
+    acp_serve.add_argument("--port", type=int, default=8765)
+
+    # plugins subcommand
+    plugins_p = sub.add_parser("plugins", help="Manage plugins")
+    plugins_sub = plugins_p.add_subparsers(dest="action")
+    plugins_sub.add_parser("list", help="List installed plugins")
+    plugins_install = plugins_sub.add_parser("install", help="Install a plugin")
+    plugins_install.add_argument("source", help="Plugin directory or git URL")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -864,6 +954,9 @@ def main():
         "profile":    cmd_profile,
         "doctor":     cmd_doctor,
         "tools":      cmd_tools,
+        "cron":       cmd_cron,
+        "acp":        cmd_acp,
+        "plugins":    cmd_plugins,
         None:         cmd_repl,
     }
 

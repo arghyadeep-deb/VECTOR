@@ -204,20 +204,16 @@ class ACPServer:
         return self._sessions[session_id]
 
     async def _execute(self, session: ACPSession, user_input: str) -> str:
-        """Execute a task via VectorAgent. Returns response string."""
+        """Execute a task via AIAgent. Returns response string."""
         try:
-            from engine.agent_loop import VectorAgent
-
-            agent = VectorAgent(
-                model_id=session.model or "ollama/vector-focus",
-                project_dir=".",
-            )
-            result = agent.run_conversation(user_input)
-            response = result.get("response", "")
+            from vectorcode.engine import AIAgent
+            agent = AIAgent(model=session.model or "", session_id=session.session_id)
+            agent._history = [{"role": m.role, "content": m.content} for m in session.messages]
+            result = await agent.run_conversation(user_input)
+            response = result.get("text", "")
             session.messages.append(ACPMessage(role="user", content=user_input))
             session.messages.append(ACPMessage(role="assistant", content=response))
             session.status = "complete"
-            logger.info(f"[ACP] session={session.session_id} completed — {len(response)} chars")
             return response
         except Exception as exc:
             session.status = "error"
