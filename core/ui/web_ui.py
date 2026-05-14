@@ -458,7 +458,7 @@ _DASHBOARD_HTML = """\
     ["02","security","ThreatScout, Malware"],
     ["03","coding","GitBot, BugHunter"],
     ["04","time_calendar","KIITScraper, Deadlines"],
-    ["05","communications","Hermes multi-platform"],
+    ["05","communications","VectorCode multi-platform"],
     ["06","memory_curator","LightRAG, Consolidation"],
     ["07","research","WebScout, PaperReader"],
     ["08","intelligence","PatternDetective"],
