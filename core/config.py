@@ -228,6 +228,7 @@ class VectorSettings(BaseSettings):
     turso: TursoConfig = Field(default_factory=TursoConfig)
     karpathy: KarpathyConfig = Field(default_factory=KarpathyConfig)
     airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
+    vectorcode: VectorCodeConfig = Field(default_factory=VectorCodeConfig)
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
