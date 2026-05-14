@@ -717,6 +717,20 @@ Runner: {cfg["runner"]}
             except Exception as e:
                 return f"compact error: {e}"
 
+        if raw.startswith("/sparc"):
+            parts = raw.split(None, 2)
+            stage = parts[1] if len(parts) > 1 else "full"
+            task = parts[2] if len(parts) > 2 else ""
+            if not task:
+                return "Usage: /sparc [stage|full] <task description>"
+            try:
+                from skills.builtin.sparc.coordinator import sparc_slash_command
+                from engine.agent import AIAgent
+                agent = AIAgent(model=self.session.current_model)
+                return sparc_slash_command(stage, task, agent)
+            except Exception as e:
+                return f"sparc error: {e}"
+
         if raw == "/cost":
             u = self.session.token_usage
             model_id = self.session.current_model
