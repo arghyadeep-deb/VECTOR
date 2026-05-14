@@ -55,9 +55,9 @@ Routed through VectorCode (fully integrated).
 
 | Platform | Notes |
 |----------|-------|
-| Telegram | Bot token via `.env` → `HERMES_TELEGRAM_TOKEN` |
-| Discord | Bot token via `.env` → `HERMES_DISCORD_TOKEN` |
-| Slack | App token via `.env` → `HERMES_SLACK_TOKEN` |
+| Telegram | Bot token via `.env` → `VECTORCODE_TELEGRAM_TOKEN` |
+| Discord | Bot token via `.env` → `VECTORCODE_DISCORD_TOKEN` |
+| Slack | App token via `.env` → `VECTORCODE_SLACK_TOKEN` |
 | WhatsApp | Twilio sandbox (key-optional free tier) |
 | Signal | signal-cli bridge (local) |
 | Email | SMTP / Gmail (Google API — OAuth2) |
