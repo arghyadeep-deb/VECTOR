@@ -806,27 +806,62 @@ def cmd_version(_args):
 
 
 def cmd_cron(args):
-    """Manage scheduled cron jobs."""
+    """Manage scheduled cron jobs (uses ~/.vectorcode/cron.db)."""
     action = getattr(args, "action", "list") or "list"
-    import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent))
-    from tools.cron_tools import cron_add, cron_list, cron_remove
+    import sys, sqlite3, json
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+
+    db_path = Path.home() / ".vectorcode" / "cron.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _conn():
+        c = sqlite3.connect(str(db_path))
+        c.execute("""CREATE TABLE IF NOT EXISTS cron_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            schedule TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_run TEXT,
+            run_count INTEGER DEFAULT 0
+        )""")
+        return c
+
     if action == "add":
-        print(cron_add(args.schedule, args.prompt))
+        with _conn() as c:
+            cur = c.execute("INSERT INTO cron_jobs (schedule, prompt) VALUES (?, ?)",
+                            (args.schedule, args.prompt))
+            c.commit()
+            print(f"Added cron job #{cur.lastrowid}: {args.schedule} -> {args.prompt[:60]}")
+
     elif action == "list":
-        import json
-        data = json.loads(cron_list())
-        jobs = data.get("jobs", [])
-        if not jobs:
+        with _conn() as c:
+            rows = c.execute("SELECT id, schedule, prompt, enabled, last_run, run_count "
+                             "FROM cron_jobs ORDER BY id").fetchall()
+        if not rows:
             print("No cron jobs scheduled.")
-        for j in jobs:
-            status = "ON" if j["enabled"] else "OFF"
-            print(f"  #{j['id']} [{status}] {j['schedule']} — {j['prompt'][:60]}")
+            return
+        print(f"Cron jobs ({len(rows)}):")
+        for (jid, sched, prompt, enabled, last_run, run_count) in rows:
+            status = "[ON]" if enabled else "[OFF]"
+            last = f" last={last_run}" if last_run else ""
+            print(f"  #{jid} {status} {sched:<14} runs={run_count}{last}  -> {prompt[:50]}")
+
     elif action == "remove":
-        print(cron_remove(args.id))
+        with _conn() as c:
+            c.execute("DELETE FROM cron_jobs WHERE id = ?", (args.id,))
+            c.commit()
+            print(f"Removed cron job #{args.id}")
+
     elif action == "daemon":
         sub = getattr(args, "daemon_action", "start") or "start"
         if sub == "start":
-            from vectorcode.cron import start_daemon
+            try:
+                from cron import start_daemon
+            except ImportError:
+                print("[VECTOR] Cron daemon not implemented in this build")
+                return
             start_daemon()
             print("[VECTOR] Cron daemon started. Press Ctrl+C to stop.")
             import time
