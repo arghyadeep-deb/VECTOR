@@ -211,7 +211,13 @@ class MultiDBManager:
                 results["latency_ms"]["d1"] = latency
 
         ok_count = sum(1 for v in [results["local"], results["supabase"], results["turso"], results["d1"]] if v)
-        results["overall"] = "healthy" if ok_count >= 1 else "degraded"
+        results["ok_count"] = ok_count
+        if ok_count == 4:
+            results["overall"] = "fully_healthy"
+        elif ok_count >= 1:
+            results["overall"] = "degraded"   # local works but cloud DBs unreachable
+        else:
+            results["overall"] = "critical"    # even local SQLite is down
 
         return results
 
