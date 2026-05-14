@@ -23,12 +23,15 @@ class Notifier:
         for ch in channels:
             try:
                 if ch == "vectorcode":
-                    from agents.districts.communications.hermes_adapter import HermesAdapter
+                    from vectorcode.comms.messenger import MessagingHub
                     import asyncio
-                    adapter = HermesAdapter()
-                    results[ch] = asyncio.get_event_loop().run_until_complete(
-                        adapter.send_message("internal", "user", message)
-                    )
+                    adapter = MessagingHub()
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(adapter.send_message("internal", "user", message))
+                        results[ch] = {"status": "queued"}
+                    except RuntimeError:
+                        results[ch] = asyncio.run(adapter.send_message("internal", "user", message))
                 elif ch == "phone":
                     logger.info(f"[VECTOR][notifier] Phone notification: {message}")
                     results[ch] = {"status": "ok"}
