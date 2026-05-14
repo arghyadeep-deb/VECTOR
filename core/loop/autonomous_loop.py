@@ -105,7 +105,8 @@ class AutonomousLoop:
         from core.loop.decision_engine import Candidate
 
         # RULE 1 — world state snapshot before any reasoning
-        world_state = self._get_context().get_world_state()
+        # Run in thread — get_world_state() calls ScreenObserver.observe() (blocking OCR)
+        world_state = await asyncio.to_thread(self._get_context().get_world_state)
 
         actions = self._get_goals().generate_immediate_actions(limit=4)
         if not actions:
