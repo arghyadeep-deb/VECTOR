@@ -60,75 +60,88 @@ GR = "\x1b[92m"
 AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
-LOGO = [
-    f"                    \x1b[36m\u2502\x1b[0m                                  ",
-    f"            \x1b[94m\xB7\x1b[0m       \x1b[36m\u2502\x1b[0m       \x1b[94m\xB7\x1b[0m                          ",
-    f"        \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m     \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m     \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m                      ",
-    f"     \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m   \x1b[94m\xB7\x1b[0m    \x1b[36m\u2502\x1b[0m    \x1b[94m\xB7\x1b[0m   \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m                   ",
-    f"   \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m   \x1b[96m\u2500\x1b[0m    \x1b[36m\u2502\x1b[0m    \x1b[96m\u2500\x1b[0m   \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m                 ",
-    f" \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m     \x1b[36m\u2502\x1b[0m     \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m               ",
-    f"\x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m    \x1b[36m\u2550\u2502\u2550\x1b[0m    \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m              ",
-    f" \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m               ",
-    f" \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m               ",
-    f"\x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m              ",
-    f"\x1b[36m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\x1b[0m\x1b[97;1mVECTOR\x1b[0m\x1b[36m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\x1b[0m",
-    f"\x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m              ",
-    f" \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m               ",
-    f" \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m               ",
-    f"\x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m    \x1b[36m\u2550\u2502\u2550\x1b[0m    \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m              ",
-    f" \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m     \x1b[36m\u2502\x1b[0m     \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m \x1b[96m\u2500\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m               ",
-    f"   \x1b[94m\xB7\x1b[0m \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[94m\xB7\x1b[0m   \x1b[96m\u2500\x1b[0m    \x1b[36m\u2502\x1b[0m    \x1b[96m\u2500\x1b[0m   \x1b[94m\xB7\x1b[0m  \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m \x1b[94m\xB7\x1b[0m                 ",
-    f"     \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m  \x1b[96m\u2500\x1b[0m   \x1b[94m\xB7\x1b[0m    \x1b[36m\u2502\x1b[0m    \x1b[94m\xB7\x1b[0m   \x1b[96m\u2500\x1b[0m  \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m                   ",
-    f"        \x1b[94m\xB7\x1b[0m  \x1b[36m\u2550\x1b[0m     \x1b[96m\u2500\x1b[0m  \x1b[36m\u2502\x1b[0m  \x1b[96m\u2500\x1b[0m     \x1b[36m\u2550\x1b[0m  \x1b[94m\xB7\x1b[0m                      ",
-    f"            \x1b[94m\xB7\x1b[0m       \x1b[36m\u2502\x1b[0m       \x1b[94m\xB7\x1b[0m                          ",
-    f"                    \x1b[36m\u2502\x1b[0m                                  ",
-]
-
-
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    for line in LOGO:
-        print(f"  {line}", file=sys.stderr)
-    print(file=sys.stderr)
-
-    # Status block
+    """Print the VECTOR arc reactor banner with status HUD."""
     import datetime as _dt
+    import sys
+
+    # Colors
+    C  = "\x1b[36m"    # cyan
+    CB = "\x1b[96m"    # bright cyan
+    B  = "\x1b[94m"    # blue
+    W  = "\x1b[97;1m"  # white bold
+    G  = "\x1b[92m"    # green
+    Y  = "\x1b[93m"    # yellow
+    D  = "\x1b[2m"     # dim
+    R  = "\x1b[0m"     # reset
+
+    # Arc reactor symbol (pure ASCII + safe box chars, Windows-compatible)
+    # Left: reactor | Right: VECTOR name + status
     now = _dt.datetime.now(_dt.timezone.utc)
-    ut = f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-    mn = model_name or "(none)"
-    sep = f"{C1}  {'\u2500' * 51}{R}"
-    def _row(label, value):
-        return f"{C2}  {label:<9}{R}{C1}\u2502{R}\x1b[97m  {value}{R}"
-    srows = [
-        "",
-        sep,
-        _row("STATUS", f"{GR}ONLINE{R}"),
-        _row("UPTIME", ut),
-        _row("MODE",   "repl"),
-        _row("MODEL",  mn),
-        _row("SKILLS", "64 loaded"),
-        _row("MEMORY", ".vector/memory.md"),
-        sep,
-        "",
-    ]
-    for line in srows:
-        print(f"  {line}", file=sys.stderr)
-
-    # Ollama status
+    ut  = f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}"
+    mn  = model_name or "vector-focus"
     oms = ollama_models or []
-    if not oms:
-        print(f"  {AM}\u25CB Ollama offline \u2014 local models unavailable{R}", file=sys.stderr)
-    else:
-        names = [m.replace("ollama/", "") for m in oms[:6]]
-        suffix = f" \x1b[2m\u2026{R}" if len(oms) > 6 else ""
-        print(f"  {GR}\u25CF Ollama online \u2014 {len(oms)} models available{R}", file=sys.stderr)
-        print(f"  {C1}Models: {R}\x1b[2m{', '.join(names)}{suffix}{R}", file=sys.stderr)
+    ol_status = f"{G}ONLINE  {len(oms)} models{R}" if oms else f"{Y}OFFLINE{R}"
 
-    # VECTOR.md
+    # Arc reactor rows (21 rows) paired with info rows on the right
+    reactor = [
+        f"         {C}|{R}         ",
+        f"   {B}.{R}     {C}|{R}     {B}.{R}   ",
+        f"  {B}.{R} {C}={R}   {CB}-{R}  {C}|{R}  {CB}-{R}   {C}={R} {B}.{R} ",
+        f" {B}.{R} {C}={R} {CB}-{R}  {B}.{R}  {C}|{R}  {B}.{R}  {CB}-{R} {C}={R} {B}.{R}",
+        f"{B}.{R} {C}={R}{CB}-{R} {B}.{R} {CB}-{R}   {C}|{R}   {CB}-{R} {B}.{R} {CB}-{R}{C}={R} {B}.{R}",
+        f" {C}={CB}-{R} {B}.{R} {CB}-{C}={R}  {B}.{R}  {C}={R}{CB}|{C}={R}  {B}.{R}  {C}={CB}-{R} {B}.{R} {CB}-{C}={R} ",
+        f"{C}={CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R}  {C}={CB}|{C}={R}  {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{C}={R}",
+        f" {C}={CB}-{R}{B}.{R}{CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {C}|{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R}{CB}-{C}={R} ",
+        f"{C}-------------------------------------------{R}",
+        f" {C}={CB}-{R}{B}.{R}{CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {C}|{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R}{CB}-{C}={R} ",
+        f"{C}={CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R} {C}={CB}-{R}  {C}={CB}|{C}={R}  {CB}-{C}={R} {B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{C}={R}",
+        f" {C}={CB}-{R} {B}.{R} {CB}-{C}={R}  {B}.{R}  {C}={CB}|{C}={R}  {B}.{R}  {C}={CB}-{R} {B}.{R} {CB}-{C}={R} ",
+        f"{B}.{R} {C}={CB}-{R} {B}.{R} {CB}-{R}   {C}|{R}   {CB}-{R} {B}.{R} {CB}-{C}={R} {B}.{R}",
+        f" {B}.{R} {C}={R} {CB}-{R}  {B}.{R}  {C}|{R}  {B}.{R}  {CB}-{R} {C}={R} {B}.{R}",
+        f"  {B}.{R} {C}={R}   {CB}-{R}  {C}|{R}  {CB}-{R}   {C}={R} {B}.{R} ",
+        f"   {B}.{R}     {C}|{R}     {B}.{R}   ",
+        f"         {C}|{R}         ",
+    ]
+
+    # Right-side info panel lines (aligned to reactor height)
+    info = [
+        f"",
+        f"  {W}V E C T O R{R}",
+        f"  {D}Virtual Entity for Cognitive Tasks & Operational Reasoning{R}",
+        f"",
+        f"  {C}STATUS   {R}{G}ONLINE{R}",
+        f"  {C}UPTIME   {R}{ut}",
+        f"  {C}MODE     {R}repl",
+        f"  {C}MODEL    {R}{mn}",
+        f"  {C}OLLAMA   {R}{ol_status}",
+        f"",
+        f"  {C}{'=' * 40}{R}",
+        f"",
+    ]
+
+    # Print reactor lines with info on the right
+    out = sys.stderr
+    print(file=out)
+    for i, row in enumerate(reactor):
+        right = info[i] if i < len(info) else ""
+        print(f"  {row}    {right}", file=out)
+
+    # Print remaining info lines
+    for j in range(len(reactor), len(info)):
+        print(f"  {'                   '}    {info[j]}", file=out)
+
+    # Ollama model list
+    if oms:
+        names = [m.replace("ollama/", "") for m in oms[:6]]
+        suffix = f" {D}...{R}" if len(oms) > 6 else ""
+        print(f"  {C}Models: {R}{D}{', '.join(names)}{suffix}{R}", file=out)
+
     if has_vectormd:
-        print(f"  {GR}\U0001F4CB VECTOR.md loaded{R}", file=sys.stderr)
+        print(f"  {G}[OK] VECTOR.md loaded{R}", file=out)
     else:
-        print(f"  {AM}\U0001F4A1 No VECTOR.md found \u2014 run /init to create one{R}", file=sys.stderr)
-    print(file=sys.stderr)
+        print(f"  {Y}[!]  No VECTOR.md found -- run /init to create one{R}", file=out)
+    print(file=out)
 
 
 def cmd_repl(_args):
