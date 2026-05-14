@@ -90,7 +90,8 @@ class PermissionGateway:
             self._write_audit(action, result)
             return result
 
-        # UNKNOWN ??? treat as RED
+        # UNKNOWN — default to RED, never silently allow
+        logger.critical(f"[VECTOR][gateway] UNKNOWN action type: '{action.action_type}' — blocked. Add to GREEN/YELLOW/RED in config.")
         result = GatewayResult(False, 'UNKNOWN', False, {}, f'Unknown action type: {action.action_type}')
         self._write_audit(action, result)
         return result
