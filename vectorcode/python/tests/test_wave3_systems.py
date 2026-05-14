@@ -395,7 +395,7 @@ def test_context_references_importable():
 # ── Vector_state DB ──────────────────────────────────────────────────────────
 
 def test_vector_state_module_loads():
-    """vector_state.py (formerly hermes_state) loads."""
+    """vector_state.py loads."""
     try:
         import vector_state
         assert hasattr(vector_state, "__name__")

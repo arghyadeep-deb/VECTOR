@@ -23,7 +23,7 @@ def test_read_file_basic():
         tmp = f.name
     try:
         result = read_file_tool(tmp)
-        # Hermes read_file_tool returns either content or JSON error
+        # read_file_tool returns either content or JSON error
         # Pass if content found OR if we got a structured response
         if "hello world" in result:
             return  # ideal case

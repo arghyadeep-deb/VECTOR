@@ -641,7 +641,7 @@ def cmd_auth(args):
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
     try:
-        # Try the rich VectorCode auth module (formerly hermes_cli)
+        # Try the rich VectorCode auth module
         from vector_cli import auth_commands as _auth_cmds
         if action == "add":
             return _auth_cmds.cmd_auth_add(args)
