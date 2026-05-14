@@ -88,6 +88,17 @@ def bootstrap_agents() -> int:
     registry = get_registry()
     created = 0
 
+    # ── VectorCode bridge ─────────────────────────────────────────────────────
+    try:
+        from integrations.vectorcode_bridge import get_bridge as _get_vc_bridge
+        _vc = _get_vc_bridge()
+        if _vc.is_available():
+            logger.info("[bootstrap] VectorCode bridge ready")
+        else:
+            logger.warning("[bootstrap] VectorCode bridge unavailable — check vectorcode/vector.py")
+    except Exception as e:
+        logger.warning(f"[bootstrap] VectorCode bridge: {e}")
+
     def _reg(agent):
         if not registry.get(agent.id):
             registry.register(agent)
