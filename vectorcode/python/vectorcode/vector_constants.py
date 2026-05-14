@@ -74,6 +74,30 @@ def get_config_path() -> Path:
     return get_vector_config_path()
 
 
+def get_subprocess_home() -> Path:
+    """Return the home directory for subprocess execution.
+
+    Used by environment runners to set HOME env var for child processes.
+    Defaults to the actual user home (not VECTOR_HOME).
+    """
+    return Path.home()
+
+
+def get_log_dir() -> Path:
+    """Return the logs directory: ~/.vector/logs."""
+    return get_vector_logs_dir()
+
+
+def get_skills_hub_dir() -> Path:
+    """Return the skills hub cache directory."""
+    return get_vector_skills_dir() / ".hub"
+
+
+def display_home() -> str:
+    """Alias for display_vector_home."""
+    return display_vector_home()
+
+
 # ── Module-level singletons (re-evaluated each import so env overrides work) ──
 
 VECTOR_HOME = get_vector_home()
