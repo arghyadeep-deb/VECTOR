@@ -225,6 +225,23 @@ class KIITScraper(AgentBase):
         finally:
             await self.close()
 
+    async def run_forever(self) -> None:
+        """RULE 2 — never stops. Scrapes KIIT portal daily at 07:00."""
+        logger.info("[VECTOR][kiit_scraper] run_forever started — fires at 07:00")
+        while self.is_alive:
+            try:
+                now = datetime.datetime.now()
+                if now.hour == 7 and 0 <= now.minute < 5:
+                    await self.scrape_all()
+            except Exception as e:
+                logger.error(f"[VECTOR][kiit_scraper] tick error: {e}")
+                self.deduct_points(5, "tick_error")
+            for _ in range(300):
+                if not self.is_alive:
+                    break
+                await asyncio.sleep(1)
+        logger.warning("[VECTOR][kiit_scraper] died — HP=0")
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
