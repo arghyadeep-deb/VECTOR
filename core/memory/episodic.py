@@ -114,7 +114,7 @@ class EpisodicMemory:
 
     def store(self, event_type, content, tags=None, context=None, source='vector') -> str:
         """Store an event in episodic memory with retry logic."""
-        id = str(uuid.uuid4())
+        event_id = str(uuid.uuid4())
         tags_json = json.dumps(tags) if tags else None
         context_json = json.dumps(context) if context else None
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
