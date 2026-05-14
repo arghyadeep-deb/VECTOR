@@ -1,9 +1,6 @@
 """
-StyleModel — DEPRECATED. Redirects to VectorCode persona module.
-
-VectorCode StyleModel — canonical style model (canonical VectorCode implementation).
-All new code should import from:
-  agents.districts.coding.vectorcode.persona.style_model import StyleModel
+StyleModel — thin redirect to VectorCode persona module.
+Canonical source: vectorcode/src/persona/style_model.py
 """
 import sys
 from pathlib import Path
