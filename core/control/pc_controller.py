@@ -50,7 +50,7 @@ class PCController:
                 raise RuntimeError("mss not available")
 
             with mss.mss() as sct:
-                monitor = sct.monitors[0]  # 0 = all monitors combined
+                monitor = sct.monitors[1]  # 1 = primary monitor (consistent with screen_observer)
                 raw = sct.grab(monitor)
                 # mss returns BGRA; convert to RGB numpy array
                 frame = np.frombuffer(raw.bgra, dtype=np.uint8).reshape(
