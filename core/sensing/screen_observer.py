@@ -103,10 +103,12 @@ class ScreenObserver:
             if not self._ensure_mss():
                 return np.zeros((100, 100, 3), dtype=np.uint8)
 
-            monitor = self._sct.monitors[1]   # monitors[0] = all combined
-            sct_img = self._sct.grab(monitor)
-            # mss returns BGRA; drop alpha channel to get BGR
-            bgr = np.array(sct_img, dtype=np.uint8)[:, :, :3]
+            import mss
+            with mss.mss() as sct:
+                monitor = sct.monitors[1]   # monitors[0] = all combined, [1] = primary
+                sct_img = sct.grab(monitor)
+                # mss returns BGRA; drop alpha channel to get BGR
+                bgr = np.array(sct_img, dtype=np.uint8)[:, :, :3]
             logger.debug(
                 f"[VECTOR][screen] Captured frame {bgr.shape[1]}x{bgr.shape[0]}"
             )
