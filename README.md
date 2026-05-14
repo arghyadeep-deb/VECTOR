@@ -127,7 +127,7 @@ Each district follows a standardized agent template with:
 2. **Security**: ThreatScout (anomaly detection), MalwareHunter (signature analysis), NodeGuard (intrusion prevention)
 3. **Coding**: GitBot (repository management), CodeReviewer (quality analysis), BugHunter (defect detection), ArchitectBot (design suggestions)
 4. **Time/Calendar**: KIITScraper (academic schedule automation), DeadlineManager (priority-based scheduling)
-5. **Communications**: Hermes (messaging backbone), Kimi K2.6 adapter (multilingual support)
+5. **Communications**: VectorCode (messaging backbone), Kimi K2.6 adapter (multilingual support)
 6. **Memory Curator**: LightRAG (vector storage), ConsolidationBot (memory merging), PatternFinder (trend detection)
 7. **Research**: OpenCLI (automated command-line research), PaperReader (academic parsing), NewsAggregator (current events)
 8. **Intelligence**: PatternDetective (cross-domain correlations), NewsTrends (media analysis)
