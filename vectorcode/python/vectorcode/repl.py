@@ -452,6 +452,11 @@ class VectorREPL:
         try:
             from session_db import get_session_db
             self._db = get_session_db()
+            # Auto-migrate to latest schema
+            try:
+                self._db.migrate_up()
+            except Exception:
+                pass
             self._db.create_session(
                 self.session.session_id,
                 self.session.current_model,
@@ -472,19 +477,11 @@ class VectorREPL:
             parts = raw.split(maxsplit=1)
             model_id = parts[1].strip()
             try:
-                from config import VectorConfig
-                cfg = VectorConfig(self._project_dir)
-                providers = cfg.get("providers", default={})
+                from providers import ModelRouter
+                router = ModelRouter()
                 if "/" not in model_id:
-                    return (f"Invalid format: '{model_id}'. Use provider/name, "
-                            f"e.g. ollama/llama4:scout")
-                provider = model_id.split("/", 1)[0]
-                if provider not in providers:
-                    available = list(providers.keys())
-                    return (f"Unknown provider '{provider}'. "
-                            f"Configured: {available}")
+                    return f"Invalid format: '{model_id}'. Use provider/name, e.g. ollama/llama4:scout"
                 self.session.current_model = model_id
-                self.session.started_at = datetime.datetime.now(datetime.timezone.utc)
                 return f"Switched to {model_id}"
             except Exception as e:
                 return f"model error: {e}"
@@ -494,56 +491,34 @@ class VectorREPL:
 
         if raw == "/models":
             try:
-                import os
-                import urllib.request
-                import urllib.error
-                from config import VectorConfig
-                cfg = VectorConfig(self._project_dir)
-                providers = cfg.get("providers", default={})
-                lines = []
-                lines.append(f"  current : {self.session.current_model}")
-                lines.append("")
-                for prov_name, prov_cfg in providers.items():
-                    api_key_env = prov_cfg.get("api_key_env", "")
-                    base_url = prov_cfg.get("base_url", "")
-                    reachable = False
-                    check_method = ""
-                    if prov_name == "ollama":
-                        check_url = base_url.rstrip("/") + "/api/tags"
-                        try:
-                            req = urllib.request.urlopen(check_url, timeout=3)
-                            data = json.loads(req.read().decode())
-                            installed = data.get("models", [])
-                            reachable = True
-                            check_method = f"{len(installed)} models"
-                        except Exception:
-                            pass
-                    elif api_key_env:
-                        env_val = os.environ.get(api_key_env, "")
-                        if env_val:
-                            reachable = True
-                        check_method = f"env ${api_key_env} {'SET' if reachable else 'MISSING'}"
-                    elif base_url:
-                        try:
-                            urllib.request.urlopen(base_url, timeout=3)
-                            reachable = True
-                        except Exception:
-                            pass
-                        check_method = f"ping {base_url}"
-                    else:
-                        check_method = "no endpoint"
-                    dot = "\033[32m●\033[0m" if reachable else "\033[31m●\033[0m"
-                    label = f"{dot}  {prov_name}"
-                    extras = f"  ({check_method})" if check_method else ""
-                    lines.append(f"  {label}{extras}")
-                    if prov_name == "ollama" and reachable and installed:
-                        for m in installed:
-                            size_gb = m.get("size", 0) / 1e9
-                            lines.append(f"       {m['name']}  ({size_gb:.1f}GB)")
-                lines.append("")
-                lines.append(f"  default: {cfg.default_model}")
-                lines.append(f"  fast:    {cfg.fast_model}")
-                lines.append(f"  local:   {cfg.local_model}")
+                import os, urllib.request, urllib.error
+                lines = [f"  current : {self.session.current_model}", ""]
+
+                # Check Ollama
+                ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+                try:
+                    req = urllib.request.urlopen(ollama_url + "/api/tags", timeout=3)
+                    data = json.loads(req.read().decode())
+                    installed = data.get("models", [])
+                    lines.append(f"  [ON]  ollama  ({len(installed)} models)")
+                    for m in installed[:10]:
+                        size_gb = m.get("size", 0) / 1e9
+                        lines.append(f"       {m['name']}  ({size_gb:.1f}GB)")
+                except Exception:
+                    lines.append("  [OFF] ollama  (offline)")
+
+                # Check cloud providers via env vars
+                cloud = [
+                    ("anthropic", "ANTHROPIC_API_KEY"),
+                    ("openai", "OPENAI_API_KEY"),
+                    ("google", "GOOGLE_API_KEY"),
+                    ("groq", "GROQ_API_KEY"),
+                ]
+                for name, env_var in cloud:
+                    val = os.getenv(env_var, "")
+                    status = "[ON] " if val else "[OFF]"
+                    lines.append(f"  {status} {name}  (env ${env_var} {'SET' if val else 'MISSING'})")
+
                 return "\n".join(lines)
             except Exception as e:
                 return f"models error: {e}"
