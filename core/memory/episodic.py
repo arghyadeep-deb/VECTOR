@@ -125,8 +125,8 @@ class EpisodicMemory:
                     INSERT INTO episodic_memory
                     (id, event_type, content, tags, context_snapshot, timestamp, source)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (id, event_type, content, tags_json, context_json, timestamp, source))
-            return id
+                """, (event_id, event_type, content, tags_json, context_json, timestamp, source))
+            return event_id
         except Exception as e:
             logger.error(f"Store failed: {e}")
             return ""
