@@ -8,6 +8,19 @@ from loguru import logger
 from core.config import CONFIG
 
 
+# RED-tier task types that require LLM Council review before execution.
+# Mirrors the RED permission tier in critical_rules.md.
+_COUNCIL_TASK_TYPES: frozenset[str] = frozenset({
+    "push_github",
+    "deploy_production",
+    "delete_files",
+    "financial_transaction",
+    "send_email",
+    "execute_code",
+    "overwrite_note_personal",
+    "create_pr",
+})
+
 DISTRICT_TASK_MAP: dict[str, str] = {
     "code": "coding",
     "git": "coding",
