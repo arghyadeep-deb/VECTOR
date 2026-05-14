@@ -180,8 +180,7 @@ class AmbientListener:
         """Call vector-ambient model to classify intent → {action_type, params}."""
         try:
             import httpx
-            from core.main import get_ollama_host
-            ollama_host = get_ollama_host()
+            ollama_host = CONFIG["ollama_host"]
             model = CONFIG["models"]["ambient"]
             prompt = (
                 f"{hydration}\n\n"
