@@ -386,6 +386,29 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][phone] loop unavailable: {e}")
 
+    # ─── VectorCode MCP server ────────────────────────────────────────────────
+
+    async def vectorcode_loop(self) -> None:
+        """Start VectorCode MCP server at startup. Restarts if it crashes."""
+        logger.info("[VECTOR][vectorcode] loop starting")
+        try:
+            from integrations.vectorcode_bridge import get_bridge
+            bridge = get_bridge()
+            if not bridge.is_available():
+                logger.warning("[VECTOR][vectorcode] VectorCode not available — skipping MCP server")
+                return
+            mcp_port = 9001
+            try:
+                from core.config import CONFIG
+                mcp_port = CONFIG.get("vectorcode", {}).get("mcp_port", 9001)
+            except Exception:
+                pass
+            proc = await bridge.start_mcp_server(port=mcp_port)
+            if proc:
+                logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][vectorcode] loop failed: {e}")
+
     # ─── Main entry ───────────────────────────────────────────────────────────
 
     async def run_forever(self) -> None:
