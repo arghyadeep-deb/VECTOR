@@ -139,6 +139,7 @@ class AgentRegistry:
 
     def list_all(self) -> list[dict]:
         agents = []
+        seen_ids: set[str] = set()
         for agent in self._agents.values():
             if hasattr(agent, "to_dict"):
                 data = agent.to_dict()
@@ -150,9 +151,17 @@ class AgentRegistry:
                     "generation": getattr(agent, "generation", 1),
                     "health_points": getattr(agent, "health_points", 0),
                 }
-            data["agent_id"] = data.get("id", "")
+            # Guarantee id is always populated
+            if not data.get("id"):
+                data["id"] = getattr(agent, "id", f"agent-{len(agents)}")
+            # Skip duplicates by id (guards against double-bootstrap)
+            agent_id = data["id"]
+            if agent_id in seen_ids:
+                continue
+            seen_ids.add(agent_id)
+            data["agent_id"] = agent_id
             data["status"] = agent.get_status() if hasattr(agent, "get_status") else "unknown"
-            data["is_alive"] = bool(getattr(agent, "is_alive", False))
+            data["is_alive"] = bool(getattr(agent, "health_points", 0) > 0)
             agents.append(data)
         return agents
 
