@@ -184,7 +184,7 @@ class ContextEngine:
 
         comms_status: dict = {"urgent": 0, "unread": 0, "pending": 0}
         try:
-            ha = self._get_hermes()
+            ha = self._get_comms_hub()
             if ha:
                 if hasattr(ha, "get_comms_status"):
                     comms_status = ha.get_comms_status()
