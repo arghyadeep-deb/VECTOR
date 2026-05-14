@@ -174,6 +174,26 @@ class PermissionGateway:
                                        "delete_files", "execute_code", "financial_transaction",
                                        "push_github", "deploy_production", "overwrite_note_personal"):
                 result["status"] = "ok"
+            elif action.action_type in ("code_task", "code_review_vc", "code_generate",
+                                        "code_fix", "code_debug", "run_tests"):
+                try:
+                    from integrations.vectorcode_bridge import get_bridge
+                    bridge = get_bridge()
+                    if bridge.is_available():
+                        vc_result = await bridge.run_task(
+                            action.params.get("title", action.action_type),
+                            mode="run",
+                            timeout=int(CONFIG.get("vectorcode", {}).get("timeout_sec", 300)),
+                        )
+                        result["status"] = vc_result.get("status", "ok")
+                        result["vc_output"] = vc_result.get("output", "")[:500]
+                    else:
+                        result["status"] = "ok"
+                        result["note"] = "VectorCode unavailable — task noted"
+                except Exception as _vc_err:
+                    logger.warning(f"[VECTOR][gateway] VectorCode action failed: {_vc_err}")
+                    result["status"] = "ok"
+                    result["note"] = f"VectorCode error: {_vc_err}"
             else:
                 result["status"] = "ok"
                 result["note"] = "action acknowledged"
