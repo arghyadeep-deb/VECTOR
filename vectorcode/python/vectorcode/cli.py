@@ -89,32 +89,42 @@ def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
     out = sys.stderr
     print(file=out)
 
-    # Logo + title row — ⟨▶⟩ is the VectorCode mark
-    print(f"  {CB}⟨▶⟩{R}  {W}VectorCode{R}{' ' * 44}{D}v{version}{R}", file=out)
+    # Render arc reactor side-by-side with status block
+    try:
+        from ui.arc_reactor import arc_reactor_medium
+        reactor_lines = arc_reactor_medium().split("\n")
+    except Exception:
+        try:
+            from vectorcode.ui.arc_reactor import arc_reactor_medium
+            reactor_lines = arc_reactor_medium().split("\n")
+        except Exception:
+            reactor_lines = [f"  {CB}⟨▶⟩{R}  "]
 
-    # Tagline
-    print(f"  {D}      autonomous coding agent{R}", file=out)
+    # Right-side status block (8 lines to match reactor height)
+    right_block = [
+        "",
+        f"{W}VectorCode{R}  {D}v{version}{R}",
+        f"{D}autonomous coding agent{R}",
+        f"{C}{'─' * 34}{R}",
+        f"{C}Model{R}     {W}{mn}{R}",
+        f"{C}Status{R}    {status_dot} {status_txt}",
+        (f"{G}●{R} {D}VECTOR.md loaded{R}" if has_vectormd
+         else f"{Y}○{R} {D}No VECTOR.md  ·  {CB}/init{R}"),
+        f"{C}{'─' * 34}{R}",
+    ]
+
+    # Print side-by-side
+    for i, r_line in enumerate(reactor_lines):
+        right = right_block[i] if i < len(right_block) else ""
+        print(f"  {r_line}    {right}", file=out)
     print(file=out)
 
-    # Separator
-    print(f"  {C}{'─' * 60}{R}", file=out)
-    print(file=out)
-
-    # Status block — left-aligned, monospaced columns
-    print(f"  {C}Model{R}     {W}{mn}{R}", file=out)
-    print(f"  {C}Status{R}    {status_dot} {status_txt}", file=out)
-    print(file=out)
-
-    # Bottom separator
-    print(f"  {C}{'─' * 60}{R}", file=out)
-    print(file=out)
-
-    # Quick actions (Claude Code style)
+    # Quick actions
     actions = [
-        (f"/help",        "list all commands"),
-        (f"@<file>",      "attach files to context"),
-        (f"/sparc <task>", "run SPARC pipeline"),
-        (f"/quit",        "exit"),
+        ("/help",         "list all commands"),
+        ("@<file>",       "attach files to context"),
+        ("/sparc <task>", "run SPARC pipeline"),
+        ("/quit",         "exit"),
     ]
     for cmd, desc in actions:
         print(f"  {CB}{cmd:<18}{R}{D}{desc}{R}", file=out)

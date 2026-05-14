@@ -1,11 +1,11 @@
 /**
- * Welcome banner — VectorCode ⟨▶⟩ mark, version, tips.
- * Mirrors the Python CLI banner aesthetic.
+ * Welcome banner — JARVIS arc reactor with VECTOR core + status block.
  */
 
 import React from 'react';
 import { Box, Text } from 'ink';
 import { theme, glyphs } from './theme.js';
+import { ArcReactor } from './ArcReactor.js';
 
 interface BannerProps {
   version?: string;
@@ -22,55 +22,70 @@ export const Banner: React.FC<BannerProps> = ({
 }) => {
   return (
     <Box flexDirection="column" paddingY={1} paddingX={2}>
-      {/* Title row: ⟨▶⟩ VectorCode <pad> v0.1.0 */}
+      {/* Reactor + tagline (side-by-side) */}
       <Box>
-        <Text color={theme.brand} bold>
-          {glyphs.mark}{' '}
-        </Text>
-        <Text color={theme.brandText} bold>
-          VectorCode
-        </Text>
-        <Text color={theme.dim}> · autonomous coding agent · </Text>
-        <Text color={theme.dim}>v{version}</Text>
-      </Box>
+        {/* Left: arc reactor */}
+        <ArcReactor size="medium" />
 
-      {/* Separator */}
-      <Box marginTop={1}>
-        <Text color={theme.accent}>{glyphs.horizontal.repeat(60)}</Text>
-      </Box>
-
-      {/* Status block */}
-      <Box flexDirection="column" marginTop={1}>
-        <Box>
-          <Text color={theme.accent}>Model </Text>
-          <Text>    </Text>
-          <Text color={theme.brandText} bold>
-            {model}
-          </Text>
+        {/* Right: brand + status */}
+        <Box flexDirection="column" marginLeft={2} paddingTop={1}>
+          <Box>
+            <Text color={theme.brandText} bold>
+              VectorCode
+            </Text>
+            <Text color={theme.dim}>  v{version}</Text>
+          </Box>
+          <Box>
+            <Text color={theme.dim} italic>
+              autonomous coding agent
+            </Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text color={theme.accent}>{glyphs.horizontal.repeat(34)}</Text>
+          </Box>
+          <Box>
+            <Text color={theme.accent}>Model </Text>
+            <Text>    </Text>
+            <Text color={theme.brandText} bold>
+              {model}
+            </Text>
+          </Box>
+          <Box>
+            <Text color={theme.accent}>Status</Text>
+            <Text>    </Text>
+            {modelsOnline > 0 ? (
+              <>
+                <Text color={theme.success}>{glyphs.online} </Text>
+                <Text>online </Text>
+                <Text color={theme.dim}>
+                  · {modelsOnline} models · ready
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text color={theme.warning}>{glyphs.offline} </Text>
+                <Text color={theme.dim}>offline</Text>
+              </>
+            )}
+          </Box>
+          <Box>
+            {hasVectorMd ? (
+              <>
+                <Text color={theme.success}>{glyphs.online} </Text>
+                <Text color={theme.dim}>VECTOR.md loaded</Text>
+              </>
+            ) : (
+              <>
+                <Text color={theme.warning}>{glyphs.offline} </Text>
+                <Text color={theme.dim}>No VECTOR.md · </Text>
+                <Text color={theme.accent}>/init</Text>
+              </>
+            )}
+          </Box>
+          <Box marginTop={1}>
+            <Text color={theme.accent}>{glyphs.horizontal.repeat(34)}</Text>
+          </Box>
         </Box>
-        <Box>
-          <Text color={theme.accent}>Status</Text>
-          <Text>    </Text>
-          {modelsOnline > 0 ? (
-            <>
-              <Text color={theme.success}>{glyphs.online} </Text>
-              <Text>online </Text>
-              <Text color={theme.dim}>
-                · {modelsOnline} models · ready
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text color={theme.warning}>{glyphs.offline} </Text>
-              <Text color={theme.dim}>offline</Text>
-            </>
-          )}
-        </Box>
-      </Box>
-
-      {/* Separator */}
-      <Box marginTop={1}>
-        <Text color={theme.accent}>{glyphs.horizontal.repeat(60)}</Text>
       </Box>
 
       {/* Quick actions */}
@@ -79,25 +94,6 @@ export const Banner: React.FC<BannerProps> = ({
         <ActionRow cmd="@<file>" desc="attach files to context" />
         <ActionRow cmd="/sparc <task>" desc="run SPARC pipeline" />
         <ActionRow cmd="Ctrl+C" desc="cancel · /quit to exit" />
-      </Box>
-
-      {/* VECTOR.md status */}
-      <Box marginTop={1}>
-        {hasVectorMd ? (
-          <>
-            <Text color={theme.success}>{glyphs.online} </Text>
-            <Text color={theme.dim}>VECTOR.md loaded</Text>
-          </>
-        ) : (
-          <>
-            <Text color={theme.warning}>{glyphs.offline} </Text>
-            <Text color={theme.dim}>
-              No VECTOR.md · run{' '}
-            </Text>
-            <Text color={theme.accent}>/init</Text>
-            <Text color={theme.dim}> to create one</Text>
-          </>
-        )}
       </Box>
     </Box>
   );

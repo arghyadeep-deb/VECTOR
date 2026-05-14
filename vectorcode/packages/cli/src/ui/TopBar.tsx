@@ -5,6 +5,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { theme, glyphs } from './theme.js';
+import { ArcReactor } from './ArcReactor.js';
 import type { SessionStatus } from '../types.js';
 
 interface TopBarProps {
@@ -20,10 +21,8 @@ export const TopBar: React.FC<TopBarProps> = ({ status, gatewayHealthy }) => {
 
   return (
     <Box paddingX={1}>
-      {/* Logo + brand */}
-      <Text color={theme.brand} bold>
-        {glyphs.mark}
-      </Text>
+      {/* Logo: small arc reactor + brand */}
+      <ArcReactor size="small" />
       <Text> </Text>
       <Text color={theme.brandText} bold>
         VectorCode

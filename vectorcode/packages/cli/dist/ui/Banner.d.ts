@@ -1,6 +1,5 @@
 /**
- * Welcome banner — VectorCode ⟨▶⟩ mark, version, tips.
- * Mirrors the Python CLI banner aesthetic.
+ * Welcome banner — JARVIS arc reactor with VECTOR core + status block.
  */
 import React from 'react';
 interface BannerProps {
