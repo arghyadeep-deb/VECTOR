@@ -34,6 +34,7 @@ class AmbientListener:
         self._tts = None
         self._lang = None
         self._gateway = None
+        self._context = None
         self._wake_task: asyncio.Task | None = None
         self._session_active = False
         self._last_speech_time: float = 0.0
