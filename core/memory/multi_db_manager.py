@@ -68,9 +68,13 @@ class MultiDBManager:
         if table not in self._ALLOWED_TABLES:
             logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' — blocked")
             return False
+        columns = list(record.keys())
+        for col in columns:
+            if not _SAFE_IDENTIFIER.match(col):
+                logger.error(f"[VECTOR][multi_db] write_local: unsafe column '{col}' — blocked")
+                return False
         try:
             conn = self._get_local().conn
-            columns = list(record.keys())
             placeholders = ", ".join(["?" for _ in columns])
             values = [record.get(c) for c in columns]
 
