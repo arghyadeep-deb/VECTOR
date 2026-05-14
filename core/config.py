@@ -305,6 +305,13 @@ CONFIG: dict = {
         "cache_dir": _s.airllm.cache_dir,
         "max_gpu_memory_gb": _s.airllm.max_gpu_memory_gb,
     },
+    "vectorcode": {
+        "enabled": _s.vectorcode.enabled,
+        "python_path": _s.vectorcode.python_path,
+        "mcp_port": _s.vectorcode.mcp_port,
+        "base_url": _s.vectorcode.base_url,
+        "timeout_sec": _s.vectorcode.timeout_sec,
+    },
     "obsidian": {
         "vault_path": _s.VECTOR_VAULT_PATH,
         "lightrag_working_dir": "./data/lightrag_vault",
