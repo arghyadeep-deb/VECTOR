@@ -145,6 +145,40 @@ class Governor:
         logger.warning(f"[VECTOR][governor] unknown task '{task_type}' → defaulting to research")
         return "research"
 
+    async def _should_convene_council(self, task: dict) -> bool:
+        """Return True if this task type warrants LLM Council review (RED-tier actions only)."""
+        return task.get("type", "") in _COUNCIL_TASK_TYPES
+
+    async def _run_council_review(self, task: dict, agent) -> dict | None:
+        """Convene the LLM Council for a high-stakes task.
+
+        Returns the verdict dict on success, or None if the council is
+        unavailable (import error, timeout, any exception).  The caller
+        MUST NOT block task execution on a None return.
+        """
+        try:
+            from agents.districts.governance.llm_council import LLMCouncil
+            council = LLMCouncil()
+            hp = agent.health_points if agent else 500
+            result = await council.convene(
+                question=(
+                    f"Should VECTOR execute this task: {task.get('type')} "
+                    f"with params {task.get('params', {})}?"
+                ),
+                stakes="high",
+                requester_hp=hp,
+            )
+            logger.info(
+                f"[VECTOR][governor] Council verdict for {task.get('type')}: "
+                f"{str(result.get('verdict', ''))[:80]}"
+            )
+            return result
+        except Exception as e:
+            logger.warning(
+                f"[VECTOR][governor] Council review failed: {e} — proceeding without review"
+            )
+            return None
+
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
