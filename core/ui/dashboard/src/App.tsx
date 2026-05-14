@@ -19,6 +19,7 @@ import CompassPanel from './components/CompassPanel'
 import VoiceWaveform from './components/VoiceWaveform'
 import FloatingPanelManager from './components/FloatingPanelManager'
 import SystemMetricsPanel from './components/SystemMetricsPanel'
+import VectorCodePanel from './components/VectorCodePanel'
 import DailyInfoPanel from './components/DailyInfoPanel'
 import { Z } from './lib/zIndex'
 
