@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 @functools.lru_cache(maxsize=1)
-def vectorcode.src_commit() -> str:
+def vector_commit() -> str:
     """Return the vectorcode.src repo's HEAD commit (cached, lru-1).
 
     Returns ``"unknown"`` if git is unavailable or the path isn't a repo.

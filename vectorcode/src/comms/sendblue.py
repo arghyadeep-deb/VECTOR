@@ -1,5 +1,4 @@
-"""
-"""SendBlue channel — iMessage/SMS API adapter.
+"""SendBlue channel -- iMessage/SMS API adapter.
 
 Sends and receives iMessages (blue bubbles!) and SMS via the SendBlue API.
 The agent gets a dedicated phone number; users text that number to interact.

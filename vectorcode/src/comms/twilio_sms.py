@@ -1,4 +1,3 @@
-"""
 """Twilio SMS channel for sending and receiving text messages."""
 
 from __future__ import annotations

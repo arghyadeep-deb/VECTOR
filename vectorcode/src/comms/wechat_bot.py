@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 _WECHAT_API_BASE = "https://qyapi.weixin.qq.com/cgi-bin"
 
-
 class WeChatBot:
     def __init__(self, bot_id: str = "", token: str = "", corp_id: str = "", agent_id: str = ""):
         self.bot_id = bot_id
