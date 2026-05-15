@@ -197,11 +197,13 @@ def ensure_init(directory: Path) -> None:
 
 
 def main() -> None:
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     total_written = total_skipped = 0
 
-    print("\n═══════════════════════════════════════════════════")
-    print("  VECTOR ← OpenJarvis Gap Absorption")
-    print("═══════════════════════════════════════════════════\n")
+    print("\n" + "=" * 51)
+    print("  VECTOR <- OpenJarvis Gap Absorption")
+    print("=" * 51 + "\n")
 
     # ── TIER 1: Full directory absorptions ────────────────────────────────────
     print("▸ TIER 1 — Full directory absorptions\n")
