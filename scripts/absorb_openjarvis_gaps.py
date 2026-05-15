@@ -174,7 +174,7 @@ def absorb_individual_files(src_dir: Path, dest_dir: Path, filenames: list[str])
     for name in filenames:
         src_file = src_dir / name
         if not src_file.exists():
-            print(f"  ⚠ MISSING in OJ: {name}")
+            print(f"  [WARN]MISSING in OJ: {name}")
             skipped += 1
             continue
         dest_file = dest_dir / name
@@ -209,7 +209,7 @@ def main() -> None:
     print("▸ TIER 1 — Full directory absorptions\n")
     for src_dir, dest_dir, desc in TIER1:
         if not src_dir.exists():
-            print(f"  ⚠ OJ source missing: {src_dir}")
+            print(f"  [WARN]OJ source missing: {src_dir}")
             continue
         print(f"[{desc}]")
         w, s = absorb_dir(src_dir, dest_dir)
@@ -227,7 +227,7 @@ def main() -> None:
         total_written += w
         total_skipped += s
     else:
-        print("  ⚠ OpenJarvis mining/ not found")
+        print("  [WARN]OpenJarvis mining/ not found")
     print()
 
     # ── TIER 1: Skills missing management files ───────────────────────────────
@@ -248,7 +248,7 @@ def main() -> None:
             total_written += w2
             total_skipped += s2
     else:
-        print("  ⚠ OpenJarvis skills/ not found")
+        print("  [WARN]OpenJarvis skills/ not found")
     print()
 
     # ── TIER 2: Missing messaging channels ───────────────────────────────────
@@ -260,7 +260,7 @@ def main() -> None:
         total_written += w
         total_skipped += s
     else:
-        print("  ⚠ OpenJarvis channels/ not found")
+        print("  [WARN]OpenJarvis channels/ not found")
     print()
 
     # ── TIER 2: Tools storage/context.py ─────────────────────────────────────
@@ -276,7 +276,7 @@ def main() -> None:
         else:
             print("  → already current")
     else:
-        print("  ⚠ context.py not found in OJ tools/storage/")
+        print("  [WARN]context.py not found in OJ tools/storage/")
     print()
 
     # ── Summary ───────────────────────────────────────────────────────────────
