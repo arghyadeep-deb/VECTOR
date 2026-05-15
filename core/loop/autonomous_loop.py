@@ -378,6 +378,38 @@ class AutonomousLoop:
             except Exception as _vc_err:
                 logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} — falling through to governor")
 
+        # RedTeamAgent adversarial review for RED-level actions (JARVIS Gap 2)
+        _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
+        if winner.action_type in _RED_ACTION_TYPES:
+            red_team = self._get_red_team()
+            if red_team is not None:
+                try:
+                    review = red_team.attack_plan({
+                        "action_type": winner.action_type,
+                        "params": winner.params,
+                        "goal_ids": winner.goal_ids,
+                        "score": winner.total_score,
+                    })
+                    verdict = str(review.get("verdict", "APPROVED")).upper()
+                    if verdict.startswith("BLOCKED"):
+                        logger.warning(
+                            f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
+                            f"{review.get('reason', 'adversarial review failed')}"
+                        )
+                        return
+                    elif verdict.startswith("MODIFY"):
+                        logger.info(
+                            f"[VECTOR][red_team] RED action '{winner.action_type}' MODIFIED: "
+                            f"{review.get('modification', '')}"
+                        )
+                        # Apply suggested modification to params if provided
+                        if "modified_params" in review:
+                            winner.params = {**winner.params, **review["modified_params"]}
+                    else:
+                        logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
+                except Exception as rte:
+                    logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
+
         try:
             result = await self._get_governor().dispatch({
                 "type": winner.action_type,
