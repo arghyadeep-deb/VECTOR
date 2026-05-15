@@ -41,10 +41,10 @@ async def launch_vectorcode(body: LaunchRequest):
                     creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
                 )
             except FileNotFoundError:
-                # wt.exe not found — use plain cmd
+                # wt.exe not found — use cmd.exe with explicit args (no shell=True)
                 subprocess.Popen(
-                    f'start "VectorCode" cmd /k "{cmd_str}"',
-                    shell=True, cwd=str(_VC_ENTRY.parent.parent),
+                    ["cmd.exe", "/c", "start", "VectorCode", "cmd", "/k", cmd_str],
+                    shell=False, cwd=str(_VC_ENTRY.parent.parent),
                 )
         else:
             # Linux/macOS
