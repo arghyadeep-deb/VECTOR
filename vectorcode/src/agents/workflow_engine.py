@@ -29,8 +29,11 @@ class WorkflowEngine:
     async def _execute_step(self, step: dict, index: int) -> Any:
         action = step.get("action", "")
         if action == "bash":
-            import subprocess
-            r = subprocess.run(step["command"], shell=True, capture_output=True, text=True, timeout=30)
+            import subprocess, shlex
+            cmd = step["command"]
+            # Never shell=True — split into args to prevent injection
+            args = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
+            r = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30)
             return r.stdout[:5000] or r.stderr[:5000]
         elif action == "llm":
             return f"[LLM call: {step.get('prompt', '')[:100]}]"
