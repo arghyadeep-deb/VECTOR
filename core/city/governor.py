@@ -208,7 +208,20 @@ class Governor:
                 _council_agent = max(_pre_agents, key=lambda a: a.health_points) if _pre_agents else None
                 council_result = await self._run_council_review(task, _council_agent)
                 if council_result:
-                    task.setdefault("params", {})["council_verdict"] = council_result.get("verdict", "")
+                    verdict = council_result.get("verdict", "")
+                    confidence = float(council_result.get("confidence", 0.5))
+                    task.setdefault("params", {})["council_verdict"] = verdict
+                    task["params"]["council_confidence"] = confidence
+                    if confidence < 0.4:
+                        logger.warning(
+                            f"[VECTOR][governor] Council rejected '{task_type}' "
+                            f"(confidence={confidence:.2f} < 0.4) — proceeding with caution"
+                        )
+                    else:
+                        logger.info(
+                            f"[VECTOR][governor] Council approved '{task_type}' "
+                            f"(confidence={confidence:.2f}): {str(verdict)[:60]}"
+                        )
 
             agents = self._get_registry().get_by_district(district)
 
