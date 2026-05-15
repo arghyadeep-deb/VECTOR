@@ -84,6 +84,15 @@ class DecisionEngine:
             self._memory = EpisodicMemory()
         return self._memory
 
+    def _get_epistemic(self):
+        if self._epistemic is None:
+            try:
+                from core.brain.epistemic_tracker import EpistemicTracker
+                self._epistemic = EpistemicTracker()
+            except Exception as e:
+                logger.debug(f"[VECTOR][decision_engine] EpistemicTracker unavailable: {e}")
+        return self._epistemic
+
     def _score_goal_alignment(self, candidate: Candidate) -> float:
         """How well does this action serve active goals? 0.0-1.0"""
         if not candidate.goal_ids:
