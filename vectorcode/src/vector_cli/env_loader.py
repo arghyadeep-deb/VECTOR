@@ -173,3 +173,19 @@ def load_hermes_dotenv(
         loaded.append(project_env_path)
 
     return loaded
+
+
+def load_vectorcode_dotenv(path=None) -> bool:
+    """Load VECTOR .env file. Returns True if loaded."""
+    import os
+    from pathlib import Path as _P
+    env_path = _P(path) if path else (_P.home() / ".vector" / ".env")
+    if not env_path.exists():
+        return False
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip())
+    return True

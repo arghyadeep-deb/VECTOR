@@ -13,3 +13,8 @@ Provides subcommands for:
 
 __version__ = "0.11.0"
 __release_date__ = "2026.4.23"
+
+try:
+    from vectorcode.src.vector_cli import kanban_db
+except ImportError:
+    pass

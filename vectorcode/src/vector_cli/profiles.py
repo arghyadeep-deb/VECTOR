@@ -1109,3 +1109,6 @@ def resolve_profile_env(profile_name: str) -> str:
         )
 
     return str(profile_dir)
+
+def normalize_profile_name(name: str) -> str:
+    return name.lower().strip()

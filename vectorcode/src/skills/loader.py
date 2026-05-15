@@ -541,3 +541,6 @@ def discover_skills(search_path=None, *, include_optional: bool = False):
             for toml in opt.rglob('skill.toml'):
                 skills.append({'path': str(toml.parent), 'name': toml.parent.name})
     return skills
+
+def load_skill_directory(path=None) -> list:
+    """Load skills from a directory."""

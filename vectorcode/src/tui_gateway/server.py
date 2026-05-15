@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from vector_constants import get_vectorcode_home
-from vectorcode_cli.env_loader import load_vectorcode_dotenv
+from vectorcode.src.vector_cli.env_loader import load_vectorcode_dotenv
 from vectorcode.tui_gateway.transport import (
     StdioTransport,
     Transport,
@@ -106,7 +106,7 @@ def _thread_panic_hook(args):
 threading.excepthook = _thread_panic_hook
 
 try:
-    from vectorcode_cli.banner import prefetch_update_check
+    from vectorcode.src.vector_cli.banner import prefetch_update_check
 
     prefetch_update_check()
 except Exception:
@@ -262,7 +262,7 @@ def _load_busy_input_mode() -> str:
 def _notify_session_boundary(event_type: str, session_id: str | None) -> None:
     """Fire session lifecycle hooks with CLI parity."""
     try:
-        from vectorcode_cli.plugins import invoke_hook as _invoke_hook
+        from vectorcode.src.vector_cli.plugins import invoke_hook as _invoke_hook
 
         _invoke_hook(event_type, session_id=session_id, platform="tui")
     except Exception:
@@ -593,7 +593,7 @@ def _clear_pending(sid: str | None = None) -> None:
 
 def resolve_skin() -> dict:
     try:
-        from vectorcode_cli.skin_engine import init_skin_from_config, get_active_skin
+        from vectorcode.src.vector_cli.skin_engine import init_skin_from_config, get_active_skin
 
         init_skin_from_config(_load_cfg())
         skin = get_active_skin()
@@ -639,7 +639,7 @@ def _resolve_startup_runtime() -> tuple[str, str | None]:
         return model, None
 
     try:
-        from vectorcode_cli.models import detect_static_provider_for_model
+        from vectorcode.src.vector_cli.models import detect_static_provider_for_model
 
         cfg = _load_cfg().get("model") or {}
         current_provider = (
@@ -721,8 +721,8 @@ def _load_tool_progress_mode() -> str:
 
 def _load_enabled_toolsets() -> list[str] | None:
     try:
-        from vectorcode_cli.config import load_config
-        from vectorcode_cli.tools_config import _get_platform_tools
+        from vectorcode.src.vector_cli.config import load_config
+        from vectorcode.src.vector_cli.tools_config import _get_platform_tools
 
         # Runtime toolset resolution must include default MCP servers so the
         # agent can actually call them. Passing ``False`` here is the
@@ -763,7 +763,7 @@ def _restart_slash_worker(session: dict):
 
 
 def _persist_model_switch(result) -> None:
-    from vectorcode_cli.config import save_config
+    from vectorcode.src.vector_cli.config import save_config
 
     cfg = _load_cfg()
     model_cfg = cfg.get("model")
@@ -781,8 +781,8 @@ def _persist_model_switch(result) -> None:
 
 
 def _apply_model_switch(sid: str, session: dict, raw_input: str) -> dict:
-    from vectorcode_cli.model_switch import parse_model_flags, switch_model
-    from vectorcode_cli.runtime_provider import resolve_runtime_provider
+    from vectorcode.src.vector_cli.model_switch import parse_model_flags, switch_model
+    from vectorcode.src.vector_cli.runtime_provider import resolve_runtime_provider
 
     model_input, explicit_provider, persist_global = parse_model_flags(raw_input)
     if not model_input:
@@ -806,7 +806,7 @@ def _apply_model_switch(sid: str, session: dict, raw_input: str) -> dict:
     user_provs = None
     custom_provs = None
     try:
-        from vectorcode_cli.config import get_compatible_custom_providers, load_config
+        from vectorcode.src.vector_cli.config import get_compatible_custom_providers, load_config
 
         cfg = load_config()
         user_provs = [
@@ -1007,7 +1007,7 @@ def _session_info(agent) -> dict:
     except Exception:
         pass
     try:
-        from vectorcode_cli.banner import get_available_skills
+        from vectorcode.src.vector_cli.banner import get_available_skills
 
         info["skills"] = get_available_skills()
     except Exception:
@@ -1019,8 +1019,8 @@ def _session_info(agent) -> dict:
     except Exception:
         info["mcp_servers"] = []
     try:
-        from vectorcode_cli.banner import get_update_result
-        from vectorcode_cli.config import recommended_update_command
+        from vectorcode.src.vector_cli.banner import get_update_result
+        from vectorcode.src.vector_cli.config import recommended_update_command
 
         info["update_behind"] = get_update_result(timeout=0.5)
         info["update_command"] = recommended_update_command()
@@ -1261,7 +1261,7 @@ def _wire_callbacks(sid: str):
                 "skipped": True,
                 "message": "skipped",
             }
-        from vectorcode_cli.config import save_env_value_secure
+        from vectorcode.src.vector_cli.config import save_env_value_secure
 
         return {
             **save_env_value_secure(env_var, val),
@@ -1290,7 +1290,7 @@ def _available_personalities(cfg: dict | None = None) -> dict:
         return (load_cli_config().get("agent") or {}).get("personalities", {}) or {}
     except Exception:
         try:
-            from vectorcode_cli.config import load_config as _load_full_cfg
+            from vectorcode.src.vector_cli.config import load_config as _load_full_cfg
 
             return (_load_full_cfg().get("agent") or {}).get("personalities", {}) or {}
         except Exception:
@@ -1402,7 +1402,7 @@ def _reset_session_agent(sid: str, session: dict) -> dict:
 
 def _make_agent(sid: str, key: str, session_id: str | None = None):
     from run_agent import AIAgent
-    from vectorcode_cli.runtime_provider import resolve_runtime_provider
+    from vectorcode.src.vector_cli.runtime_provider import resolve_runtime_provider
 
     cfg = _load_cfg()
     system_prompt = ((cfg.get("agent") or {}).get("system_prompt", "") or "").strip()
@@ -2437,7 +2437,7 @@ def _(rid, params: dict) -> dict:
                         _read_main_model,
                         _read_main_provider,
                     )
-                    from vectorcode_cli.config import load_config as _tui_load_config
+                    from vectorcode.src.vector_cli.config import load_config as _tui_load_config
 
                     _cfg = _tui_load_config()
                     _mode = decide_image_input_mode(
@@ -2570,14 +2570,14 @@ def _(rid, params: dict) -> dict:
                 and _voice_tts_enabled()
             ):
                 try:
-                    from vectorcode_cli.voice import speak_text
+                    from vectorcode.src.vector_cli.voice import speak_text
 
                     spoken = raw
                     threading.Thread(
                         target=speak_text, args=(spoken,), daemon=True
                     ).start()
                 except ImportError:
-                    logger.warning("voice TTS skipped: vectorcode_cli.voice unavailable")
+                    logger.warning("voice TTS skipped: vectorcode.src.vector_cli.voice unavailable")
                 except Exception as e:
                     logger.warning("voice TTS dispatch failed: %s", e)
         except Exception as e:
@@ -2618,7 +2618,7 @@ def _(rid, params: dict) -> dict:
     if err:
         return err
     try:
-        from vectorcode_cli.clipboard import has_clipboard_image, save_clipboard_image
+        from vectorcode.src.vector_cli.clipboard import has_clipboard_image, save_clipboard_image
     except Exception as e:
         return _err(rid, 5027, f"clipboard unavailable: {e}")
 
@@ -2903,7 +2903,7 @@ def _(rid, params: dict) -> dict:
 
         overrides = None
         if nv == "fast":
-            from vectorcode_cli.models import resolve_fast_mode_overrides
+            from vectorcode.src.vector_cli.models import resolve_fast_mode_overrides
 
             target_model = (
                 getattr(agent, "model", None) if agent is not None else _resolve_model()
@@ -3176,7 +3176,7 @@ def _(rid, params: dict) -> dict:
     key = params.get("key", "")
     if key == "provider":
         try:
-            from vectorcode_cli.models import list_available_providers, normalize_provider
+            from vectorcode.src.vector_cli.models import list_available_providers, normalize_provider
 
             model = _resolve_model()
             parts = model.split("/", 1)
@@ -3295,7 +3295,7 @@ def _(rid, params: dict) -> dict:
 @method("setup.status")
 def _(rid, params: dict) -> dict:
     try:
-        from vectorcode_cli.main import _has_any_provider_configured
+        from vectorcode.src.vector_cli.main import _has_any_provider_configured
 
         return _ok(rid, {"provider_configured": bool(_has_any_provider_configured())})
     except Exception as e:
@@ -3368,7 +3368,7 @@ _PENDING_INPUT_COMMANDS: frozenset[str] = frozenset(
 def _(rid, params: dict) -> dict:
     """Registry-backed slash metadata for the TUI — categorized, no aliases."""
     try:
-        from vectorcode_cli.commands import (
+        from vectorcode.src.vector_cli.commands import (
             COMMAND_REGISTRY,
             SUBCOMMANDS,
             _build_description,
@@ -3481,7 +3481,7 @@ def _cli_exec_blocked(argv: list[str]) -> str | None:
 
 @method("cli.exec")
 def _(rid, params: dict) -> dict:
-    """Run `python -m vectorcode_cli.main` with argv; capture stdout/stderr (non-interactive only)."""
+    """Run `python -m vectorcode.src.vector_cli.main` with argv; capture stdout/stderr (non-interactive only)."""
     argv = params.get("argv", [])
     if not isinstance(argv, list) or not all(isinstance(x, str) for x in argv):
         return _err(rid, 4003, "argv must be list[str]")
@@ -3490,7 +3490,7 @@ def _(rid, params: dict) -> dict:
         return _ok(rid, {"blocked": True, "hint": hint, "code": -1, "output": ""})
     try:
         r = subprocess.run(
-            [sys.executable, "-m", "vectorcode_cli.main", *argv],
+            [sys.executable, "-m", "vectorcode.src.vector_cli.main", *argv],
             capture_output=True,
             text=True,
             timeout=min(int(params.get("timeout", 240)), 600),
@@ -3511,7 +3511,7 @@ def _(rid, params: dict) -> dict:
 @method("command.resolve")
 def _(rid, params: dict) -> dict:
     try:
-        from vectorcode_cli.commands import resolve_command
+        from vectorcode.src.vector_cli.commands import resolve_command
 
         r = resolve_command(params.get("name", ""))
         if r:
@@ -3530,7 +3530,7 @@ def _(rid, params: dict) -> dict:
 
 def _resolve_name(name: str) -> str:
     try:
-        from vectorcode_cli.commands import resolve_command
+        from vectorcode.src.vector_cli.commands import resolve_command
 
         r = resolve_command(name)
         return r.name if r else name
@@ -3573,7 +3573,7 @@ def _(rid, params: dict) -> dict:
             return _ok(rid, {"type": "alias", "target": qc.get("target", "")})
 
     try:
-        from vectorcode_cli.plugins import get_plugin_command_handler
+        from vectorcode.src.vector_cli.plugins import get_plugin_command_handler
 
         handler = get_plugin_command_handler(name)
         if handler:
@@ -4092,7 +4092,7 @@ def _(rid, params: dict) -> dict:
         return _ok(rid, {"items": []})
 
     try:
-        from vectorcode_cli.commands import SlashCommandCompleter
+        from vectorcode.src.vector_cli.commands import SlashCommandCompleter
         from prompt_toolkit.document import Document
         from prompt_toolkit.formatted_text import to_plain_text
 
@@ -4155,7 +4155,7 @@ def _(rid, params: dict) -> dict:
 @method("model.options")
 def _(rid, params: dict) -> dict:
     try:
-        from vectorcode_cli.model_switch import list_authenticated_providers
+        from vectorcode.src.vector_cli.model_switch import list_authenticated_providers
 
         session = _sessions.get(params.get("session_id", ""))
         agent = session.get("agent") if session else None
@@ -4392,7 +4392,7 @@ def _(rid, params: dict) -> dict:
             # Disabling the mode must tear the continuous loop down; the
             # loop holds the microphone and would otherwise keep running.
             try:
-                from vectorcode_cli.voice import stop_continuous
+                from vectorcode.src.vector_cli.voice import stop_continuous
 
                 stop_continuous()
             except ImportError:
@@ -4438,7 +4438,7 @@ def _(rid, params: dict) -> dict:
                 global _voice_event_sid
                 _voice_event_sid = params.get("session_id") or _voice_event_sid
 
-            from vectorcode_cli.voice import start_continuous
+            from vectorcode.src.vector_cli.voice import start_continuous
 
             voice_cfg = _load_cfg().get("voice", {})
             start_continuous(
@@ -4453,7 +4453,7 @@ def _(rid, params: dict) -> dict:
             return _ok(rid, {"status": "recording"})
 
         # action == "stop"
-        from vectorcode_cli.voice import stop_continuous
+        from vectorcode.src.vector_cli.voice import stop_continuous
 
         stop_continuous()
         return _ok(rid, {"status": "stopped"})
@@ -4471,7 +4471,7 @@ def _(rid, params: dict) -> dict:
     if not text:
         return _err(rid, 4020, "text required")
     try:
-        from vectorcode_cli.voice import speak_text
+        from vectorcode.src.vector_cli.voice import speak_text
 
         threading.Thread(target=speak_text, args=(text,), daemon=True).start()
         return _ok(rid, {"status": "speaking"})
@@ -4668,7 +4668,7 @@ def _(rid, params: dict) -> dict:
 @method("plugins.list")
 def _(rid, params: dict) -> dict:
     try:
-        from vectorcode_cli.plugins import get_plugin_manager
+        from vectorcode.src.vector_cli.plugins import get_plugin_manager
 
         return _ok(
             rid,
@@ -4809,8 +4809,8 @@ def _(rid, params: dict) -> dict:
         return _err(rid, 4018, "names required")
 
     try:
-        from vectorcode_cli.config import load_config, save_config
-        from vectorcode_cli.tools_config import (
+        from vectorcode.src.vector_cli.config import load_config, save_config
+        from vectorcode.src.vector_cli.tools_config import (
             CONFIGURABLE_TOOLSETS,
             _apply_mcp_change,
             _apply_toolset_change,
@@ -4952,7 +4952,7 @@ def _(rid, params: dict) -> dict:
     action, query = params.get("action", "list"), params.get("query", "")
     try:
         if action == "list":
-            from vectorcode_cli.banner import get_available_skills
+            from vectorcode.src.vector_cli.banner import get_available_skills
 
             return _ok(rid, {"skills": get_available_skills()})
         if action == "search":
@@ -4980,7 +4980,7 @@ def _(rid, params: dict) -> dict:
                 },
             )
         if action == "install":
-            from vectorcode_cli.skills_hub import do_install
+            from vectorcode.src.vector_cli.skills_hub import do_install
 
             class _Q:
                 def print(self, *a, **k):
@@ -4989,7 +4989,7 @@ def _(rid, params: dict) -> dict:
             do_install(query, skip_confirm=True, console=_Q())
             return _ok(rid, {"installed": True, "name": query})
         if action == "browse":
-            from vectorcode_cli.skills_hub import browse_skills
+            from vectorcode.src.vector_cli.skills_hub import browse_skills
 
             pg = int(params.get("page", 0) or 0) or (
                 int(query) if query.isdigit() else 1
@@ -4998,7 +4998,7 @@ def _(rid, params: dict) -> dict:
                 rid, browse_skills(page=pg, page_size=int(params.get("page_size", 20)))
             )
         if action == "inspect":
-            from vectorcode_cli.skills_hub import inspect_skill
+            from vectorcode.src.vector_cli.skills_hub import inspect_skill
 
             return _ok(rid, {"info": inspect_skill(query) or {}})
         return _err(rid, 4017, f"unknown skills action: {action}")

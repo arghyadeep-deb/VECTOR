@@ -84,3 +84,6 @@ def _parse_node(data: Dict[str, Any]) -> WorkflowNode:
     )
 
 __all__ = ["load_workflow"]
+
+def discover_workflows(directory=None) -> list:
+    """Discover available workflow definitions."""

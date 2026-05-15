@@ -1914,3 +1914,9 @@ __all__ = [
 
 # VECTOR alias
 VectorConfig = VectorConfig
+
+# Default config instance (override via load_config())
+try:
+    CONFIG = VectorConfig()
+except Exception:
+    CONFIG = None

@@ -345,3 +345,5 @@ __all__ = [
     "TOOL_DESCRIPTIONS",
     "build_system_prompt",
 ]
+
+TOOL_DESC: dict = {}  # tool description registry
