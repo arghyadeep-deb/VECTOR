@@ -47,6 +47,13 @@ def preflight_checks() -> None:
                     "[VECTOR][preflight] vector-focus model missing — "
                     "run: ollama create vector-focus -f modelfiles/vector-focus.modelfile"
                 )
+            # 1a. Warm the parallel-execution pool so the first per-district
+            # request is instant (matches OLLAMA_MAX_LOADED_MODELS=4 daemon config).
+            try:
+                from core.inference.ollama_safe import warm_models
+                warm_models()
+            except Exception as warm_err:
+                logger.warning(f"[VECTOR][preflight] warm-pool init failed: {warm_err}")
         else:
             logger.warning("[VECTOR][preflight] Ollama returned non-200 — run: ollama serve")
     except Exception:
@@ -518,7 +525,6 @@ async def run_loop() -> None:
 
 def run_api(host: str, port: int) -> None:
     """Start the local FastAPI server using the modular API over HTTPS."""
-    bootstrap_agents()
     import uvicorn
     from core.api import create_app
 
