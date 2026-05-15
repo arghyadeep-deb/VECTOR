@@ -403,6 +403,13 @@ class AutonomousLoop:
         _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
         if winner.action_type in _VC_ACTION_TYPES:
             try:
+                # RULE 3: gate through permission_gateway before executing
+                gw = self._get_gateway()
+                if gw is not None:
+                    allowed, reason = await gw.evaluate(winner)
+                    if not allowed:
+                        logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' blocked by gateway: {reason}")
+                        return
                 from integrations.vectorcode_bridge import get_bridge
                 bridge = get_bridge()
                 if bridge.is_available():
