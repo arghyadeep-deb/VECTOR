@@ -437,7 +437,7 @@ class VectorREPL:
     def __init__(self, project_dir: "Path | None" = None) -> None:
         self.session      = VectorCodeSession.get()
         self.session.set_mode("repl")
-        self.router       = GNNRouter()          # reference NeuralDomainMapper (Layer 1+2+3)
+        self.router       = GNNRouter()          # GNNRouter: 3-layer routing (GNN cosine + EMA keyword + regex fallback)
         self.gsd          = GSDLoop(mode="repl")
         self._skills      = _scan_skills()
         self._project_dir = project_dir or Path.cwd()

@@ -1,12 +1,12 @@
 """
-GNNRouter — complete reference NeuralDomainMapper absorption.
+GNNRouter — VECTOR GNN routing architecture.
 
 Architecture (3 layers):
   Layer 1 — GNNRouter  : feature-vector cosine-similarity routing (true GNN concept)
   Layer 2 — NeuralRouter: learned keyword weight matrix (EMA)
   Layer 3 — SemanticRouter: static regex fallback (always works)
 
-reference reference: v2/src/neural/NeuralDomainMapper.ts
+architecture: VECTOR GNN routing architecture
   DomainNode  → DomainNode (feature_vector, activation, task_count)
   DomainEdge  → DomainEdge (weight, frequency, latency, reliability, bandwidth)
   cohesion    → domain_cohesion()
@@ -84,7 +84,7 @@ _GNN_FILE      = Path.home() / ".vector" / "router_gnn.json"
 
 @dataclass
 class DomainNode:
-    """NeuralDomainMapper.DomainNode — feature vector per model domain."""
+    """GNNRouter.DomainNode — feature vector per model domain."""
     name:        str
     feature_vec: list    = field(default_factory=list)   # averaged embedding
     activation:  float   = 0.5
@@ -98,7 +98,7 @@ class DomainNode:
 
 @dataclass
 class DomainEdge:
-    """NeuralDomainMapper.DomainEdge — cross-domain relationship."""
+    """GNNRouter.DomainEdge — cross-domain relationship."""
     source:      str
     target:      str
     weight:      float = 0.0
@@ -238,7 +238,7 @@ class NeuralRouter(SemanticRouter):
 class GNNRouter(NeuralRouter):
     """
     Layer 1 — true GNN-style routing with feature vectors and domain graph.
-    Complete absorption of NeuralDomainMapper.ts.
+    Complete absorption of VECTOR GNN routing architecture.
 
     Routing priority:
       1. Cosine similarity against DomainNode feature vectors (when embeddings available)
@@ -383,7 +383,7 @@ class GNNRouter(NeuralRouter):
 
         self._save_gnn()
 
-    # ── reference NeuralDomainMapper API ───────────────────────────────────────────
+    # ── reference GNNRouter API ───────────────────────────────────────────
 
     def domain_cohesion(self, model: str) -> float:
         """Reference: DomainNode cohesion score — how strongly a model owns its domain."""
