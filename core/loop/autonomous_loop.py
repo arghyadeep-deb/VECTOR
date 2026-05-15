@@ -69,6 +69,24 @@ class AutonomousLoop:
             self._memory = EpisodicMemory()
         return self._memory
 
+    def _get_red_team(self):
+        if self._red_team is None:
+            try:
+                from core.brain.red_team_agent import RedTeamAgent
+                self._red_team = RedTeamAgent()
+            except Exception as e:
+                logger.debug(f"[VECTOR][act] RedTeamAgent unavailable: {e}")
+        return self._red_team
+
+    def _get_hypothesis_engine(self):
+        if self._hypothesis_engine is None:
+            try:
+                from core.brain.hypothesis_engine import HypothesisEngine
+                self._hypothesis_engine = HypothesisEngine()
+            except Exception as e:
+                logger.debug(f"[VECTOR][hypothesis] HypothesisEngine unavailable: {e}")
+        return self._hypothesis_engine
+
     # ─── Scheduler + Workflow integrations (VectorCode-absorbed) ─────────────
 
     def _get_scheduler(self):
