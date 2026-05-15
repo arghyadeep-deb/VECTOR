@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/scheduler/tools.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,10 +10,9 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
-from vectorcode.src.oj_core.registry import ToolRegistry
-from vectorcode.src.oj_core.types import ToolResult
-from vectorcode.src.oj_tools._stubs import BaseTool, ToolSpec
-
+from vectorcode.src.vc_core.registry import ToolRegistry
+from vectorcode.src.vc_core.types import ToolResult
+from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
 
 @ToolRegistry.register("schedule_task")
 class ScheduleTaskTool(BaseTool):
@@ -115,7 +113,6 @@ class ScheduleTaskTool(BaseTool):
                 success=False,
             )
 
-
 @ToolRegistry.register("list_scheduled_tasks")
 class ListScheduledTasksTool(BaseTool):
     """List all scheduled tasks."""
@@ -165,7 +162,6 @@ class ListScheduledTasksTool(BaseTool):
                 content=f"Failed to list tasks: {exc}",
                 success=False,
             )
-
 
 @ToolRegistry.register("pause_scheduled_task")
 class PauseScheduledTaskTool(BaseTool):
@@ -226,7 +222,6 @@ class PauseScheduledTaskTool(BaseTool):
                 success=False,
             )
 
-
 @ToolRegistry.register("resume_scheduled_task")
 class ResumeScheduledTaskTool(BaseTool):
     """Resume a paused scheduled task."""
@@ -286,7 +281,6 @@ class ResumeScheduledTaskTool(BaseTool):
                 success=False,
             )
 
-
 @ToolRegistry.register("cancel_scheduled_task")
 class CancelScheduledTaskTool(BaseTool):
     """Cancel a scheduled task."""
@@ -345,7 +339,6 @@ class CancelScheduledTaskTool(BaseTool):
                 content=f"Failed to cancel task: {exc}",
                 success=False,
             )
-
 
 __all__ = [
     "CancelScheduledTaskTool",

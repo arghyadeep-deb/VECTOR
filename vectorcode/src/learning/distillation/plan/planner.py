@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/plan/planner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -77,7 +76,6 @@ Each edit object must have ALL of these fields:
 Respond with ONLY a JSON object: {{"edits": [...]}}
 """
 
-
 def _validate_clusters(
     clusters: list[FailureCluster],
 ) -> tuple[list[FailureCluster], list[FailureCluster]]:
@@ -103,7 +101,6 @@ def _validate_clusters(
         else:
             surviving.append(cluster)
     return surviving, dropped
-
 
 class LearningPlanner:
     """Converts a diagnosis into a frozen LearningPlan.
@@ -177,7 +174,7 @@ class LearningPlanner:
         )
 
         # Make the teacher call
-        from vector.core.types import Message, Role
+        from vectorcode.src.vc_core.types import Message, Role
 
         messages = [
             Message(role=Role.SYSTEM, content=_PLANNER_SYSTEM_PROMPT),

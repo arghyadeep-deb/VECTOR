@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/frames.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -29,7 +28,6 @@ _DEFAULT_INPUT_PROMPT = """Please answer the question below. You should:
 Here is the question:
 
 {question}"""
-
 
 class FRAMESDataset(DatasetProvider):
     """FRAMES multi-hop factual retrieval benchmark."""
@@ -142,6 +140,5 @@ class FRAMESDataset(DatasetProvider):
             subject=subject,
             metadata=metadata,
         )
-
 
 __all__ = ["FRAMESDataset"]

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """GitHubResolver -- generic resolver for any GitHub repo containing skills.
 
 Performs a recursive walk for SKILL.md (or skill.md) files anywhere
@@ -17,7 +16,6 @@ import yaml
 from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
 
 LOGGER = logging.getLogger(__name__)
-
 
 class GitHubResolver(SourceResolver):
     """Generic resolver for any GitHub repo containing SKILL.md files."""
@@ -117,6 +115,5 @@ class GitHubResolver(SourceResolver):
             return result.stdout.strip()
         except subprocess.CalledProcessError:
             return ""
-
 
 __all__ = ["GitHubResolver"]

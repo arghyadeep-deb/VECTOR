@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/personal/scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -13,7 +12,6 @@ from typing import Any, Dict, Optional, Tuple
 from vectorcode.src.evals.core.backend import InferenceBackend
 from vectorcode.src.evals.core.scorer import LLMJudgeScorer
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class PersonalBenchmarkScorer(LLMJudgeScorer):
     """Judges a candidate response against the best-known response from traces."""
@@ -51,6 +49,5 @@ class PersonalBenchmarkScorer(LLMJudgeScorer):
         first_line = response.strip().split("\n")[0].strip().upper()
         is_correct = first_line.startswith("YES")
         return is_correct, {"judge_response": response}
-
 
 __all__ = ["PersonalBenchmarkScorer"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/backends/tb_agent.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,8 +10,7 @@ from __future__ import annotations
 from terminal_bench.agents.naive_agent import NaiveAgent
 from terminal_bench.llms.lite_llm import LiteLLM
 
-
-class OpenJarvisTerminalBenchAgent(NaiveAgent):
+class VectorCodeTerminalBenchAgent(NaiveAgent):
     """NaiveAgent that constructs its own LiteLLM from string kwargs.
 
     This avoids serialization issues in terminal-bench's lock file

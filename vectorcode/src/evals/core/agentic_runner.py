@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/agentic_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -31,11 +30,9 @@ from vectorcode.src.evals.core.trace import QueryTrace, TurnTrace
 
 LOGGER = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Energy computation helpers
 # ---------------------------------------------------------------------------
-
 
 def _compute_energy_delta(
     readings: list[Any],
@@ -49,7 +46,6 @@ def _compute_energy_delta(
         return delta if delta >= 0 else None
     return None
 
-
 def _compute_power_avg(
     readings: list[Any],
     power_field: str = "gpu_power_w",
@@ -59,14 +55,12 @@ def _compute_power_avg(
     values = [v for v in values if v is not None and math.isfinite(v)]
     return statistics.mean(values) if values else None
 
-
 # ---------------------------------------------------------------------------
 # Patch extraction helpers
 # ---------------------------------------------------------------------------
 
 _FENCED_DIFF_RE = re.compile(r"```(?:diff|patch)\s*\n(.*?)```", re.DOTALL)
 _UNIFIED_DIFF_MARKERS = ("diff --git", "--- a/", "+++ b/", "@@ ")
-
 
 def _extract_patch(text: str) -> Optional[str]:
     """Extract a unified-diff patch from agent response text."""
@@ -86,7 +80,6 @@ def _extract_patch(text: str) -> Optional[str]:
     if patch_lines:
         return "\n".join(patch_lines)
     return None
-
 
 class AgenticRunner:
     """Orchestrate multi-turn agent runs with energy telemetry correlation.
@@ -330,7 +323,7 @@ class AgenticRunner:
         event_recorder.clear()
 
         # Bridge EventBus → EventRecorder so tool events are captured.
-        # ToolExecutor publishes to JarvisSystem.bus; we relay those into
+        # ToolExecutor publishes to VectorSystem.bus; we relay those into
         # the EventRecorder for transcript building and trace enrichment.
         _bus_unsubs: list[tuple] = []
         agent_bus = getattr(agent, "bus", None)
@@ -396,7 +389,7 @@ class AgenticRunner:
                 else:
                     # Standard one-shot agent execution
                     if hasattr(agent, "ask"):
-                        # SystemBuilder-based agent (JarvisSystem)
+                        # SystemBuilder-based agent (VectorSystem)
                         result = agent.ask(record.problem)
                         if isinstance(result, dict):
                             response_text = result.get("content", "")
@@ -534,7 +527,7 @@ class AgenticRunner:
             if turn.cost_usd is None and (
                 turn.input_tokens > 0 or turn.output_tokens > 0
             ):
-                from vector.evals.core.pricing import compute_turn_cost
+                from vectorcode.src.evals.core.pricing import compute_turn_cost
 
                 turn.cost_usd = compute_turn_cost(
                     model, turn.input_tokens, turn.output_tokens
@@ -800,6 +793,5 @@ class AgenticRunner:
     def traces(self) -> list[QueryTrace]:
         """Return collected traces."""
         return list(self._traces)
-
 
 __all__ = ["AgenticRunner"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/agents/skill_optimizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -25,12 +24,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_core.types import Trace, TraceStep
-from vectorcode.src.oj_skills.manager import SkillManager
-from vectorcode.src.oj_skills.overlay import SkillOverlay, write_overlay
+from vectorcode.src.vc_core.types import Trace, TraceStep
+from vectorcode.src.vc_skills.manager import SkillManager
+from vectorcode.src.vc_skills.overlay import SkillOverlay, write_overlay
 
 LOGGER = logging.getLogger(__name__)
-
 
 @dataclass(slots=True)
 class SkillOptimizationResult:
@@ -42,14 +40,12 @@ class SkillOptimizationResult:
     overlay_path: Optional[Path] = None
     error: str = ""
 
-
 @dataclass(slots=True)
 class _OptimizerOutput:
     """Internal: extracted output from the underlying DSPy/GEPA optimizer."""
 
     description: str = ""
     few_shot: List[Dict[str, str]] = field(default_factory=list)
-
 
 class SkillOptimizer:
     """Per-skill optimization wrapper around DSPyAgentOptimizer / GEPA.
@@ -91,7 +87,7 @@ class SkillOptimizer:
         if overlay_dir is None:
             # Try config first; fall back to the default tree.
             try:
-                from vector.core.config import load_config
+                from vectorcode.src.vc_core.config import load_config
 
                 cfg = load_config()
                 cfg_dir = getattr(
@@ -206,8 +202,8 @@ class SkillOptimizer:
         optimizer's output `system_prompt` as the new skill description if
         non-empty.  Plan 2B will measure and refine.
         """
-        from vector.core.config import DSPyOptimizerConfig
-        from vector.learning.agents.dspy_optimizer import DSPyAgentOptimizer
+        from vectorcode.src.vc_core.config import DSPyOptimizerConfig
+        from vectorcode.src.learning.agents.dspy_optimizer import DSPyAgentOptimizer
 
         cfg = DSPyOptimizerConfig(
             min_traces=max(1, self._min_traces),
@@ -265,8 +261,8 @@ class SkillOptimizer:
         skill_traces: List[Trace],
     ) -> _OptimizerOutput:
         """Run GEPAAgentOptimizer on the bucket.  Same shape as _run_dspy."""
-        from vector.core.config import GEPAOptimizerConfig
-        from vector.learning.agents.gepa_optimizer import GEPAAgentOptimizer
+        from vectorcode.src.vc_core.config import GEPAOptimizerConfig
+        from vectorcode.src.learning.agents.gepa_optimizer import GEPAAgentOptimizer
 
         cfg = GEPAOptimizerConfig(min_traces=max(1, self._min_traces))
         optimizer = GEPAAgentOptimizer(cfg)
@@ -313,6 +309,5 @@ class SkillOptimizer:
                 if tr.query and tr.result:
                     few_shot.append({"input": tr.query, "output": tr.result})
         return _OptimizerOutput(description=description, few_shot=few_shot)
-
 
 __all__ = ["SkillOptimizer", "SkillOptimizationResult"]

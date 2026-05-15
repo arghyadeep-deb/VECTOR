@@ -1,10 +1,8 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Per-channel config->kwargs mappers for ChannelRegistry.create()."""
 
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional
-
 
 def _telegram(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -14,10 +12,8 @@ def _telegram(c: Any) -> Dict[str, Any]:
         kw["parse_mode"] = c.parse_mode
     return kw
 
-
 def _discord(c: Any) -> Dict[str, Any]:
     return {"bot_token": c.bot_token} if c.bot_token else {}
-
 
 def _slack(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -26,7 +22,6 @@ def _slack(c: Any) -> Dict[str, Any]:
     if c.app_token:
         kw["app_token"] = c.app_token
     return kw
-
 
 def _webhook(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -37,7 +32,6 @@ def _webhook(c: Any) -> Dict[str, Any]:
     if c.method:
         kw["method"] = c.method
     return kw
-
 
 def _email(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {
@@ -55,7 +49,6 @@ def _email(c: Any) -> Dict[str, Any]:
         kw["password"] = c.password
     return kw
 
-
 def _whatsapp(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
     if c.access_token:
@@ -63,7 +56,6 @@ def _whatsapp(c: Any) -> Dict[str, Any]:
     if c.phone_number_id:
         kw["phone_number_id"] = c.phone_number_id
     return kw
-
 
 def _signal(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -73,10 +65,8 @@ def _signal(c: Any) -> Dict[str, Any]:
         kw["phone_number"] = c.phone_number
     return kw
 
-
 def _google_chat(c: Any) -> Dict[str, Any]:
     return {"webhook_url": c.webhook_url} if c.webhook_url else {}
-
 
 def _irc(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {"port": c.port, "use_tls": c.use_tls}
@@ -88,10 +78,8 @@ def _irc(c: Any) -> Dict[str, Any]:
         kw["password"] = c.password
     return kw
 
-
 def _webchat(c: Any) -> Dict[str, Any]:
     return {}
-
 
 def _teams(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -103,7 +91,6 @@ def _teams(c: Any) -> Dict[str, Any]:
         kw["service_url"] = c.service_url
     return kw
 
-
 def _matrix(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
     if c.homeserver:
@@ -111,7 +98,6 @@ def _matrix(c: Any) -> Dict[str, Any]:
     if c.access_token:
         kw["access_token"] = c.access_token
     return kw
-
 
 def _mattermost(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -121,7 +107,6 @@ def _mattermost(c: Any) -> Dict[str, Any]:
         kw["token"] = c.token
     return kw
 
-
 def _feishu(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
     if c.app_id:
@@ -129,7 +114,6 @@ def _feishu(c: Any) -> Dict[str, Any]:
     if c.app_secret:
         kw["app_secret"] = c.app_secret
     return kw
-
 
 def _bluebubbles(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {}
@@ -139,7 +123,6 @@ def _bluebubbles(c: Any) -> Dict[str, Any]:
         kw["password"] = c.password
     return kw
 
-
 def _whatsapp_baileys(c: Any) -> Dict[str, Any]:
     kw: Dict[str, Any] = {"assistant_has_own_number": c.assistant_has_own_number}
     if c.auth_dir:
@@ -147,7 +130,6 @@ def _whatsapp_baileys(c: Any) -> Dict[str, Any]:
     if c.assistant_name:
         kw["assistant_name"] = c.assistant_name
     return kw
-
 
 def _sendblue(c: Any) -> Dict[str, Any]:
     if c is None:
@@ -160,7 +142,6 @@ def _sendblue(c: Any) -> Dict[str, Any]:
     if getattr(c, "from_number", ""):
         kw["from_number"] = c.from_number
     return kw
-
 
 # Maps channel key -> (config.channel.<attr>, mapper).
 # Omit a channel here to have it fall through with only {"bus": bus}.
@@ -183,7 +164,6 @@ _CHANNEL_MAPPERS: Dict[str, tuple] = {
     "whatsapp_baileys": ("whatsapp_baileys", _whatsapp_baileys),
     "sendblue": ("sendblue", _sendblue),
 }
-
 
 def build_channel_kwargs(channel_config: Any, key: str) -> Dict[str, Any]:
     """Return channel-specific kwargs for ChannelRegistry.create(key, ...).

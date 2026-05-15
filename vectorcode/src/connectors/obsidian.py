@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/obsidian.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,8 +19,8 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from urllib.parse import quote
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -41,7 +40,6 @@ _SKIP_DIRS = {
 # ---------------------------------------------------------------------------
 # Frontmatter parser (no PyYAML dependency)
 # ---------------------------------------------------------------------------
-
 
 def _parse_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
     """Extract YAML frontmatter and return ``(metadata, body)``.
@@ -91,11 +89,9 @@ def _parse_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
 
     return metadata, body
 
-
 # ---------------------------------------------------------------------------
 # ObsidianConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("obsidian")
 class ObsidianConnector(BaseConnector):

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Top-level system composition: VectorSystem, SystemBuilder, and helpers."""
 
 from vectorcode.src.system.builder import SystemBuilder

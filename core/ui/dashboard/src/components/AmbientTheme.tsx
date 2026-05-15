@@ -2,10 +2,10 @@ import { useEffect, useRef } from 'react'
 import { useVectorStore } from '../store/vectorStore'
 
 const MOODS = {
-  IDLE:        { accent: '#00d4ff', glow: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.25)', grid: 'rgba(0,51,102,0.06)' },
-  PROCESSING:  { accent: '#00FFD4', glow: 'rgba(0,255,212,0.15)', border: 'rgba(0,255,212,0.30)', grid: 'rgba(0,80,70,0.08)' },
+  IDLE:        { accent: '#4FC3F7', glow: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.25)', grid: 'rgba(0,51,102,0.06)' },
+  PROCESSING:  { accent: '#81D4FA', glow: 'rgba(0,255,212,0.15)', border: 'rgba(0,255,212,0.30)', grid: 'rgba(0,80,70,0.08)' },
   ERROR:       { accent: '#FF3D3D', glow: 'rgba(255,61,61,0.18)', border: 'rgba(255,61,61,0.35)', grid: 'rgba(80,10,10,0.10)' },
-  COUNCIL:     { accent: '#BF5FFF', glow: 'rgba(191,95,255,0.10)', border: 'rgba(191,95,255,0.25)', grid: 'rgba(60,10,80,0.08)' },
+  COUNCIL:     { accent: '#64B5F6', glow: 'rgba(191,95,255,0.10)', border: 'rgba(191,95,255,0.25)', grid: 'rgba(60,10,80,0.08)' },
   CRITICAL:    { accent: '#FF0000', glow: 'rgba(255,0,0,0.20)', border: 'rgba(255,0,0,0.40)', grid: 'rgba(80,0,0,0.12)' },
 } as const
 

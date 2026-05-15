@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/daemon/service.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -46,14 +45,12 @@ LAUNCHD_TEMPLATE = """\
 </plist>
 """
 
-
 def generate_systemd_service(output: Path | None = None) -> str:
     content = SYSTEMD_TEMPLATE.format(python=sys.executable)
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(content)
     return content
-
 
 def generate_launchd_plist(output: Path | None = None) -> str:
     content = LAUNCHD_TEMPLATE.format(python=sys.executable)

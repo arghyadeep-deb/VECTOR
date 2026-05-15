@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/gpu_monitor.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -24,11 +23,9 @@ try:
 except ImportError:
     _PYNVML_AVAILABLE = False
 
-
 # ---------------------------------------------------------------------------
 # Hardware spec database
 # ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class GpuHardwareSpec:
@@ -37,7 +34,6 @@ class GpuHardwareSpec:
     tflops_fp16: float
     bandwidth_gb_s: float
     tdp_watts: float
-
 
 GPU_SPECS: Dict[str, GpuHardwareSpec] = {
     # NVIDIA
@@ -58,7 +54,6 @@ GPU_SPECS: Dict[str, GpuHardwareSpec] = {
     "M2 Ultra": GpuHardwareSpec(tflops_fp16=27, bandwidth_gb_s=800, tdp_watts=60),
 }
 
-
 def lookup_gpu_spec(name: str) -> Optional[GpuHardwareSpec]:
     """Return the :class:`GpuHardwareSpec` for *name*, or ``None`` if unknown.
 
@@ -71,11 +66,9 @@ def lookup_gpu_spec(name: str) -> Optional[GpuHardwareSpec]:
             return spec
     return None
 
-
 # ---------------------------------------------------------------------------
 # Snapshot & aggregated sample
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class GpuSnapshot:
@@ -86,7 +79,6 @@ class GpuSnapshot:
     memory_used_gb: float
     temperature_c: float
     device_id: int = 0
-
 
 @dataclass
 class GpuSample:
@@ -104,11 +96,9 @@ class GpuSample:
     duration_seconds: float = 0.0
     num_snapshots: int = 0
 
-
 # ---------------------------------------------------------------------------
 # Monitor
 # ---------------------------------------------------------------------------
-
 
 class GpuMonitor:
     """Background GPU poller using pynvml.
@@ -316,7 +306,6 @@ class GpuMonitor:
             except Exception as exc:
                 logger.debug("Failed to shut down GPU monitor: %s", exc)
             self._initialized = False
-
 
 __all__ = [
     "GpuHardwareSpec",

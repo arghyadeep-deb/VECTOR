@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/policy_model.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -34,7 +33,6 @@ except ImportError:
     torch = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
-
 
 class OrchestratorPolicyModel:
     """Wrapper around a causal LM for orchestrator policy prediction.
@@ -281,6 +279,5 @@ class OrchestratorPolicyModel:
         return (
             f"OrchestratorPolicyModel(model={model_name}, max_tokens={self.max_tokens})"
         )
-
 
 __all__ = ["OrchestratorPolicyModel"]

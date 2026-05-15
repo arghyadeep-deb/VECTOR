@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/diagnose/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -19,7 +18,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Optional
 
-
 @dataclass(slots=True)
 class TraceMeta:
     """Lightweight summary of a trace for browsing."""
@@ -32,7 +30,6 @@ class TraceMeta:
     feedback: Optional[float]
     started_at: float
 
-
 @dataclass(slots=True)
 class BenchmarkTask:
     """One task from the personal benchmark."""
@@ -41,7 +38,6 @@ class BenchmarkTask:
     query: str
     reference_answer: str
     category: str = "chat"
-
 
 @dataclass(slots=True)
 class StudentRun:
@@ -54,7 +50,6 @@ class StudentRun:
     latency_seconds: float
     tokens_used: int
 
-
 @dataclass(slots=True)
 class TeacherRun:
     """Result of the teacher running itself on a benchmark task."""
@@ -65,7 +60,6 @@ class TeacherRun:
     cost_usd: float
     tokens_used: int
 
-
 @dataclass(slots=True)
 class ComparisonResult:
     """Structured comparison between student and teacher outputs."""
@@ -75,7 +69,6 @@ class ComparisonResult:
     teacher_score: float
     judge_reasoning: str
 
-
 @dataclass(slots=True)
 class ToolMeta:
     """Metadata about a tool in the ToolRegistry."""
@@ -84,7 +77,6 @@ class ToolMeta:
     description: str
     category: str
     agents: list[str] = field(default_factory=list)
-
 
 @dataclass(slots=True)
 class DiagnosticTool:
@@ -110,7 +102,6 @@ class DiagnosticTool:
                 "parameters": self.parameters,
             },
         }
-
 
 @dataclass(slots=True)
 class ToolCallRecord:

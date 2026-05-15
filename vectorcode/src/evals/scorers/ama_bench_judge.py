@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/ama_bench_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -47,7 +46,6 @@ _JUDGE_PROMPT = (
 
 _THINK_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
-
 def _compute_token_f1(prediction: str, reference: str) -> float:
     """Compute token-level F1 between prediction and reference (SQuAD-style)."""
     pred_tokens = _normalize_and_tokenize(prediction)
@@ -64,13 +62,11 @@ def _compute_token_f1(prediction: str, reference: str) -> float:
     recall = num_common / len(ref_tokens)
     return 2 * precision * recall / (precision + recall)
 
-
 def _normalize_and_tokenize(text: str) -> list[str]:
     """Lowercase, strip punctuation, collapse whitespace, tokenize."""
     text = text.lower()
     text = text.translate(str.maketrans("", "", string.punctuation))
     return text.split()
-
 
 class AMABenchScorer(LLMJudgeScorer):
     """Score AMA-Bench QA via LLM judge + token F1.
@@ -133,7 +129,6 @@ class AMABenchScorer(LLMJudgeScorer):
             "f1": round(f1, 4),
             "capability": record.metadata.get("capability", ""),
         }
-
 
 def _parse_judge_label(raw: str) -> Optional[str]:
     """Parse binary yes/no label from judge response.

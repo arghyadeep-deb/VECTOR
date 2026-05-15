@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,7 +12,6 @@ from typing import Any, Dict, Optional, Tuple
 
 from vectorcode.src.evals.core.backend import InferenceBackend
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class Scorer(ABC):
     """Base class for all scorers."""
@@ -31,7 +29,6 @@ class Scorer(ABC):
         Returns (is_correct, metadata) where is_correct may be None
         if scoring could not be determined.
         """
-
 
 class LLMJudgeScorer(Scorer):
     """Base for scorers that need an LLM to judge answers."""
@@ -56,6 +53,5 @@ class LLMJudgeScorer(Scorer):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-
 
 __all__ = ["LLMJudgeScorer", "Scorer"]

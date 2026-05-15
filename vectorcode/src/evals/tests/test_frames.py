@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_frames.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from vectorcode.src.evals.core.types import EvalRecord
 from vectorcode.src.evals.scorers.frames_judge import _GRADER_TEMPLATE, FRAMESScorer
 from vectorcode.src.evals.tests.conftest import MockBackend
-
 
 class TestGraderTemplate:
     def test_template_formatting(self):
@@ -30,7 +28,6 @@ class TestGraderTemplate:
         assert "## Ground Truth Answer" in _GRADER_TEMPLATE
         assert "## Predicted Answer" in _GRADER_TEMPLATE
         assert "extracted_final_answer:" in _GRADER_TEMPLATE
-
 
 class TestFRAMESScorer:
     def _make_record(self, reference="Paris"):

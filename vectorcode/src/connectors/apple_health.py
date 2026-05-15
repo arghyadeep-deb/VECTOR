@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/apple_health.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -28,8 +27,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ _HEART_RATE = "HKQuantityTypeIdentifierHeartRate"
 _RESTING_HEART_RATE = "HKQuantityTypeIdentifierRestingHeartRate"
 _ACTIVE_ENERGY = "HKQuantityTypeIdentifierActiveEnergyBurned"
 
-
 def _parse_health_date(date_str: str) -> datetime:
     """Parse date strings from Apple Health export XML.
 
@@ -60,11 +58,9 @@ def _parse_health_date(date_str: str) -> datetime:
         # Fallback: try ISO-8601
         return datetime.fromisoformat(date_str.strip())
 
-
 def _day_key(dt: datetime) -> str:
     """Return ``YYYY-MM-DD`` for a datetime."""
     return dt.strftime("%Y-%m-%d")
-
 
 def _format_duration(seconds: float) -> str:
     """Return a human-readable duration like ``7h 23m``."""
@@ -75,7 +71,6 @@ def _format_duration(seconds: float) -> str:
     if hours:
         return f"{hours}h"
     return f"{minutes}m"
-
 
 @ConnectorRegistry.register("apple_health")
 class AppleHealthConnector(BaseConnector):

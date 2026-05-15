@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/comparison/table_gen.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -35,24 +34,19 @@ from pydantic import BaseModel, ValidationError
 
 LOGGER = logging.getLogger(__name__)
 
-
 class TableGenError(Exception):
     """Base for table-generation problems."""
-
 
 class MixedCommitError(TableGenError):
     """Raised when one (framework, model, benchmark) cell has multiple commits."""
 
-
 class NoResultsError(TableGenError):
     """Raised when no valid summary files were loaded."""
-
 
 class _MetricStats(BaseModel):
     mean: float
     std: float
     n: int
-
 
 class _SummarySchema(BaseModel):
     framework: str
@@ -62,14 +56,12 @@ class _SummarySchema(BaseModel):
     n_tasks: int
     metrics: Dict[str, _MetricStats]
 
-
 @dataclass(slots=True)
 class ResultsFrame:
     """Long-format DataFrame of all loaded summary.json results."""
 
     df: pl.DataFrame
     unloadable_count: int = 0
-
 
 def load_results(glob_pattern: str) -> ResultsFrame:
     """Glob summary.json files, validate, return long-format ResultsFrame."""
@@ -134,7 +126,6 @@ def load_results(glob_pattern: str) -> ResultsFrame:
 
     return ResultsFrame(df=df, unloadable_count=unloadable)
 
-
 def _format_cell(value: Optional[float], precision: int = 2) -> str:
     """Format a single numeric cell; em-dash for missing values."""
     if value is None or (
@@ -144,7 +135,6 @@ def _format_cell(value: Optional[float], precision: int = 2) -> str:
     if isinstance(value, float):
         return f"{value:.{precision}f}"
     return str(value)
-
 
 def _render_booktabs(
     df: pl.DataFrame,
@@ -185,14 +175,12 @@ def _render_booktabs(
     )
     return fragment, standalone
 
-
 T1_FRAMEWORKS_ORDER = [
     "openclaw",
     "hermes",
     "vector",
     "vector-distilled",
 ]
-
 
 def _build_t1(frame: ResultsFrame) -> Tuple[str, str]:
     """T1: Portability triangulation.
@@ -220,7 +208,6 @@ def _build_t1(frame: ResultsFrame) -> Tuple[str, str]:
         precision=2,
     )
 
-
 T2_METRICS = [
     ("latency_seconds", "Latency (s)"),
     ("energy_joules_per_query", "Energy (J)"),
@@ -229,7 +216,6 @@ T2_METRICS = [
     ("output_tokens_per_query", "Out tok"),
     ("cost_usd_per_query", "$/query"),
 ]
-
 
 def _build_t2(frame: ResultsFrame) -> Tuple[str, str]:
     """T2: Master efficiency comparison (mean across all benchmarks)."""
@@ -255,7 +241,6 @@ def _build_t2(frame: ResultsFrame) -> Tuple[str, str]:
         label="tab:t2_efficiency",
         precision=2,
     )
-
 
 def _build_t3(frame: ResultsFrame) -> Tuple[str, str]:
     """T3: Per-benchmark efficiency (one detail panel — pick PinchBench)."""
@@ -287,7 +272,6 @@ def _build_t3(frame: ResultsFrame) -> Tuple[str, str]:
         label="tab:t3_pb",
     )
 
-
 def _build_t4(frame: ResultsFrame) -> Tuple[str, str]:
     """T4: 4-framework x all-model accuracy matrix (avg across benchmarks)."""
     df = frame.df.filter(pl.col("metric_name") == "accuracy")
@@ -303,7 +287,6 @@ def _build_t4(frame: ResultsFrame) -> Tuple[str, str]:
         label="tab:t4_per_model",
     )
 
-
 def _build_t5(frame: ResultsFrame) -> Tuple[str, str]:
     """T5: Hardware x framework efficiency (placeholder until per-hw data lands).
 
@@ -318,7 +301,6 @@ def _build_t5(frame: ResultsFrame) -> Tuple[str, str]:
             label="tab:t5_hw",
         )
     return _build_t2(frame)
-
 
 def _build_t6(frame: ResultsFrame) -> Tuple[str, str]:
     """T6: Token economy decomposition (preliminary; total in/out only).
@@ -341,7 +323,6 @@ def _build_t6(frame: ResultsFrame) -> Tuple[str, str]:
         label="tab:t6_tokens",
     )
 
-
 def _build_t7(frame: ResultsFrame) -> Tuple[str, str]:
     """T7: Edit category x framework — preliminary (raw deltas).
 
@@ -362,7 +343,6 @@ def _build_t7(frame: ResultsFrame) -> Tuple[str, str]:
         label="tab:t7_edit",
     )
 
-
 _TABLE_BUILDERS: Dict[str, "object"] = {
     "T1": _build_t1,
     "T2": _build_t2,
@@ -373,10 +353,8 @@ _TABLE_BUILDERS: Dict[str, "object"] = {
     "T7": _build_t7,
 }
 
-
 def _table_gen_default_output_dir() -> Path:
     return Path("experiments/framework_comparison/tables")
-
 
 @click.command()
 @click.option(
@@ -424,7 +402,6 @@ def main(results_glob: str, tables: str, output_dir: Optional[Path]) -> None:
         (out / f"{name}.tex").write_text(fragment + "\n")
         (out / "preview" / f"{name}_preview.tex").write_text(standalone)
         click.echo(f"  ✓ {name} → {out}/{name}.tex (+ preview)")
-
 
 if __name__ == "__main__":
     main()

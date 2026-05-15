@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """MessengerChannel — Facebook Messenger adapter via pymessenger."""
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
-
 
 @ChannelRegistry.register("messenger")
 class MessengerChannel(BaseChannel):
@@ -132,6 +130,5 @@ class MessengerChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["MessengerChannel"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/coding_assistant.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -22,7 +21,6 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
-
 def _extract_code(answer: str) -> str:
     """Extract Python code from model answer, handling markdown fences."""
     fence_match = re.search(
@@ -44,7 +42,6 @@ def _extract_code(answer: str) -> str:
             code_lines.append(line)
 
     return "\n".join(code_lines) if code_lines else answer.strip()
-
 
 def _extract_test_functions(test_code: str) -> Dict[str, str]:
     """Parse test code into individual test functions by name."""
@@ -88,7 +85,6 @@ def _extract_test_functions(test_code: str) -> Dict[str, str]:
 
     return tests
 
-
 def _run_single_test(code: str, test_code: str) -> bool:
     """Run a single test function against the given code. Returns True if passes."""
     # Make the code importable as 'solution'
@@ -110,7 +106,6 @@ def _run_single_test(code: str, test_code: str) -> bool:
         return False
     finally:
         sys.modules.pop("solution", None)
-
 
 class CodingAssistantScorer(Scorer):
     """Score coding assistant bug fixes by test execution."""
@@ -173,6 +168,5 @@ class CodingAssistantScorer(Scorer):
             "total_tests": total_tests,
             "test_results": test_results,
         }
-
 
 __all__ = ["CodingAssistantScorer"]

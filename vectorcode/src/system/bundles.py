@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Bundle dataclasses that group cohesive subsystems of VectorSystem."""
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
     from vectorcode.src.vc_traces.collector import TraceCollector
     from vectorcode.src.vc_traces.store import TraceStore
 
-
 @dataclass
 class SecurityContext:
     """Security policy, audit, and boundary enforcement."""
@@ -29,7 +27,6 @@ class SecurityContext:
     capability_policy: Optional[CapabilityPolicy] = None
     audit_logger: Optional[AuditLogger] = None
     boundary_guard: Optional[BoundaryGuard] = None
-
 
 @dataclass
 class Observability:
@@ -40,7 +37,6 @@ class Observability:
     trace_collector: Optional[TraceCollector] = None
     gpu_monitor: Optional[GpuMonitor] = None
 
-
 @dataclass
 class AgentRuntime:
     """Active agent and agent lifecycle managers."""
@@ -50,7 +46,6 @@ class AgentRuntime:
     manager: Optional[AgentManager] = None
     scheduler: Optional[AgentScheduler] = None
     executor: Optional[AgentExecutor] = None
-
 
 @dataclass
 class Scheduling:

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/bench/energy.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,14 +13,13 @@ from typing import Any, List, Optional
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult
-from vectorcode.src.oj_core.registry import BenchmarkRegistry
-from vectorcode.src.oj_core.types import Message, Role
-from vectorcode.src.oj_engine._stubs import InferenceEngine
+from vectorcode.src.vc_core.registry import BenchmarkRegistry
+from vectorcode.src.vc_core.types import Message, Role
+from vectorcode.src.vc_engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
 _PROMPT = "Write a short paragraph about artificial intelligence."
-
 
 class EnergyBenchmark(BaseBenchmark):
     """Measures energy per token at thermal equilibrium.
@@ -67,7 +65,7 @@ class EnergyBenchmark(BaseBenchmark):
         energy_method = ""
 
         if energy_monitor is not None:
-            from vector.telemetry.steady_state import SteadyStateDetector
+            from core.telemetry.steady_state import SteadyStateDetector
 
             detector = SteadyStateDetector()
             energy_method = getattr(energy_monitor, "energy_method", lambda: "")()
@@ -158,11 +156,9 @@ class EnergyBenchmark(BaseBenchmark):
             energy_method=energy_method,
         )
 
-
 def ensure_registered() -> None:
     """Register the energy benchmark if not already present."""
     if not BenchmarkRegistry.contains("energy"):
         BenchmarkRegistry.register_value("energy", EnergyBenchmark)
-
 
 __all__ = ["EnergyBenchmark"]

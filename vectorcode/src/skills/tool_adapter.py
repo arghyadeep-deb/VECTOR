@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillTool -- wraps a skill as a tool that agents can invoke."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from vectorcode.src.skills.types import SkillManifest
 from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
 
 _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
-
 
 class SkillTool(BaseTool):
     """Wraps a SkillManifest as a BaseTool that agents can invoke.
@@ -192,6 +190,5 @@ class SkillTool(BaseTool):
             success=True,
             metadata=self._build_result_metadata(steps_run=len(self._manifest.steps)),
         )
-
 
 __all__ = ["SkillTool"]

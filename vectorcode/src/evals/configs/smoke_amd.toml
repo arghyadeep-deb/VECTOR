@@ -3,7 +3,7 @@
 # Purpose: verify full-stack metrics collection with minimal samples (3 per benchmark)
 # Engines: vLLM (ROCm), Ollama (ROCm)
 # Note: gpt-oss-120b omitted — needs 2× MI300X (384 GB total); add with num_gpus=2 if available
-# Run: uv run python -m openjarvis.evals run -c src/openjarvis/evals/configs/smoke_amd.toml
+# Run: uv run python -m vector.evals run -c src/vector/evals/configs/smoke_amd.toml
 
 [meta]
 name = "smoke-amd"

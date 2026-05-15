@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/plan/risk_tier.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -42,11 +41,9 @@ TIER_TABLE: dict[EditOp, EditRiskTier] = {
     EditOp.LORA_FINETUNE: EditRiskTier.MANUAL,
 }
 
-
 def assign_tier(op: EditOp) -> EditRiskTier:
     """Return the deterministic risk tier for a given edit op."""
     return TIER_TABLE[op]
-
 
 def assign_tiers(edits: Sequence[Edit]) -> list[Edit]:
     """Overwrite each edit's risk_tier from the canonical lookup table.

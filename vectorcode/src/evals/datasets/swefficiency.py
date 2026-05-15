@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/swefficiency.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -42,7 +41,6 @@ Target speedup: **{expected_speedup}x**
 - Focus on algorithmic improvements, data structure changes, or computation optimizations.
 - Return ONLY the patch — no explanation, no markdown fences."""
 
-
 def _parse_test_list(value: object) -> List[str]:
     """Parse a test list that may be JSON string, plain list, or single string."""
     if value is None:
@@ -61,7 +59,6 @@ def _parse_test_list(value: object) -> List[str]:
         except (json.JSONDecodeError, TypeError):
             return [value]
     return []
-
 
 class SWEfficiencyDataset(DatasetProvider):
     """SWEfficiency agentic performance optimization benchmark."""
@@ -174,6 +171,5 @@ class SWEfficiencyDataset(DatasetProvider):
             subject=repo,
             metadata=metadata,
         )
-
 
 __all__ = ["SWEfficiencyDataset"]

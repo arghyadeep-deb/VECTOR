@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Dashboard route — serves the savings dashboard HTML page."""
 
 from __future__ import annotations
@@ -426,11 +425,9 @@ setInterval(refresh, 5000);
 </html>
 """
 
-
 @dashboard_router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
     """Serve the savings dashboard page."""
     return HTMLResponse(content=DASHBOARD_HTML)
-
 
 __all__ = ["dashboard_router"]

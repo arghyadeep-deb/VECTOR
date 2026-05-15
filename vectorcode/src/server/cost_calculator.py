@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Cost calculator -- estimate monthly cloud API costs for common use cases."""
 
 from __future__ import annotations
@@ -7,7 +6,6 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 from vectorcode.src.server.savings import CLOUD_PRICING
-
 
 @dataclass(slots=True)
 class CostEstimate:
@@ -21,7 +19,6 @@ class CostEstimate:
     output_cost: float
     total_calls_per_month: int
 
-
 @dataclass(slots=True)
 class Scenario:
     """A prebuilt usage scenario."""
@@ -32,7 +29,6 @@ class Scenario:
     calls_per_month: int
     avg_input_tokens: int
     avg_output_tokens: int
-
 
 SCENARIOS: Dict[str, Scenario] = {
     "daily_briefing": Scenario(
@@ -77,7 +73,6 @@ SCENARIOS: Dict[str, Scenario] = {
     ),
 }
 
-
 def estimate_monthly_cost(
     calls_per_month: int,
     avg_input_tokens: int,
@@ -106,7 +101,6 @@ def estimate_monthly_cost(
         total_calls_per_month=calls_per_month,
     )
 
-
 def estimate_scenario(scenario_name: str) -> List[CostEstimate]:
     """Estimate costs for all providers for a named scenario."""
     scenario = SCENARIOS.get(scenario_name)
@@ -122,11 +116,9 @@ def estimate_scenario(scenario_name: str) -> List[CostEstimate]:
         for provider_key in CLOUD_PRICING
     ]
 
-
 def estimate_all_scenarios() -> Dict[str, List[CostEstimate]]:
     """Estimate costs for all scenarios and all providers."""
     return {name: estimate_scenario(name) for name in SCENARIOS}
-
 
 __all__ = [
     "SCENARIOS",

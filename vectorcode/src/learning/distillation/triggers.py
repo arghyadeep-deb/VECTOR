@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/triggers.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -20,14 +19,12 @@ from typing import Any
 
 from vectorcode.src.learning.distillation.models import TriggerKind
 
-
 @dataclass
 class OnDemandTrigger:
     """User ran ``vector learning run`` from the CLI."""
 
     kind: TriggerKind = TriggerKind.ON_DEMAND
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class UserFlagTrigger:
@@ -40,7 +37,6 @@ class UserFlagTrigger:
     def metadata(self) -> dict[str, Any]:
         return {"trace_id": self.trace_id}
 
-
 @dataclass
 class ScheduledTrigger:
     """Cron-based scheduled trigger."""
@@ -52,7 +48,6 @@ class ScheduledTrigger:
     @property
     def metadata(self) -> dict[str, Any]:
         return {"cron": self.cron, "new_trace_count": self.new_trace_count}
-
 
 @dataclass
 class ClusterTrigger:

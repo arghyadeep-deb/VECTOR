@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/gaia_exact.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,11 +20,9 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Normalization helpers (ported from IPW)
 # ---------------------------------------------------------------------------
-
 
 def _normalize_number_str(number_str: str) -> float:
     for char in ["$", "%", ","]:
@@ -35,7 +32,6 @@ def _normalize_number_str(number_str: str) -> float:
     except ValueError:
         return float("inf")
 
-
 def _normalize_str(input_str: str, remove_punct: bool = True) -> str:
     no_spaces = re.sub(r"\s", "", input_str)
     if remove_punct:
@@ -43,13 +39,11 @@ def _normalize_str(input_str: str, remove_punct: bool = True) -> str:
         return no_spaces.lower().translate(translator)
     return no_spaces.lower()
 
-
 def _split_string(s: str, char_list: list[str] | None = None) -> list[str]:
     if char_list is None:
         char_list = [",", ";"]
     pattern = f"[{''.join(char_list)}]"
     return re.split(pattern, s)
-
 
 def _is_float(element: object) -> bool:
     try:
@@ -57,7 +51,6 @@ def _is_float(element: object) -> bool:
         return True
     except (ValueError, TypeError):
         return False
-
 
 def exact_match(model_answer: str, ground_truth: str) -> bool:
     """GAIA exact-match scorer with normalization for numbers, lists, and strings."""
@@ -86,7 +79,6 @@ def exact_match(model_answer: str, ground_truth: str) -> bool:
 
     return _normalize_str(model_answer) == _normalize_str(ground_truth)
 
-
 # ---------------------------------------------------------------------------
 # LLM fallback prompt
 # ---------------------------------------------------------------------------
@@ -106,7 +98,6 @@ Your response MUST use exactly this format:
 extracted_final_answer: <the final answer extracted from the predicted answer, or 'None' if no answer is present>
 reasoning: <brief explanation of why the extracted answer matches or does not match the gold target>
 correct: <yes or no>"""
-
 
 class GAIAScorer(LLMJudgeScorer):
     """GAIA evaluation: exact match with normalization + LLM fallback."""
@@ -168,6 +159,5 @@ class GAIAScorer(LLMJudgeScorer):
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["GAIAScorer", "exact_match"]

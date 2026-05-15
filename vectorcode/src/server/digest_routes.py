@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """FastAPI routes for the morning digest."""
 
 from __future__ import annotations
@@ -17,13 +16,11 @@ from vectorcode.src.cli.digest_cmd import (
 )
 from vectorcode.src.vc_core.config import load_config
 
-
 class ScheduleUpdate(BaseModel):
     """Request body for updating the digest schedule."""
 
     enabled: bool
     cron: Optional[str] = None
-
 
 def create_digest_router(*, db_path: str = "") -> APIRouter:
     """Create a digest API router with the given store path."""

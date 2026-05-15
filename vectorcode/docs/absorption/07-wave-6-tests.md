@@ -1,6 +1,6 @@
 # Wave 6 — Tests + CI
 
-**Goal:** Port Hermes's 821 tests + Ruflo's tests to pytest. Wire up GitHub Actions CI. Reach 80%+ code coverage.
+**Goal:** Port VectorCode's 821 tests + VectorCode's tests to pytest. Wire up GitHub Actions CI. Reach 80%+ code coverage.
 
 **Dependencies:** Waves 0–5 complete (everything must be ported before tests can pass).
 
@@ -12,8 +12,8 @@
 
 1. `00-MASTER-PLAN.md`
 2. `vectorcode/python/tests/conftest.py` (existing fixtures)
-3. `GitHub/NousResearch_hermes-agent/repo/tests/conftest.py` (Hermes fixtures)
-4. `GitHub/NousResearch_hermes-agent/repo/tests/` directory listing
+3. `GitHub/VectorCode_vectorcode/repo/tests/conftest.py` (VectorCode fixtures)
+4. `GitHub/VectorCode_vectorcode/repo/tests/` directory listing
 5. `pytest.ini` at repo root
 
 ---
@@ -22,10 +22,10 @@
 
 | Source | Files | Notes |
 |--------|------:|-------|
-| `hermes/tests/` | 821 | Already pytest-style |
-| `ruflo/tests/` | 9 | Jest — need conversion |
-| `ruflo/v3/__tests__/` | ~20 | Jest — convert |
-| `ruflo/v2/tests/` | ~30 | Jest — convert |
+| `vectorcode/tests/` | 821 | Already pytest-style |
+| `vectorcode/tests/` | 9 | Jest — need conversion |
+| `vectorcode/v3/__tests__/` | ~20 | Jest — convert |
+| `vectorcode/v2/tests/` | ~30 | Jest — convert |
 | Existing VectorCode tests | 7 | Keep (vc1–vc7 plan tests) |
 
 **Total target:** ~880 test files, ~40,000 test lines.
@@ -72,9 +72,9 @@ Add fixtures in `vectorcode/python/tests/conftest.py`:
 
 ### Batch 6A — Engine tests (Wave 0 modules, ~80 files)
 
-Source: `hermes/tests/test_run_agent_*.py`, `test_iteration_budget*.py`, `test_state*.py`
+Source: `vectorcode/tests/test_run_agent_*.py`, `test_iteration_budget*.py`, `test_state*.py`
 
-| Hermes test | Target |
+| VectorCode test | Target |
 |-------------|--------|
 | `test_run_agent_basic.py` | `tests/engine/test_agent_basic.py` |
 | `test_run_agent_iteration.py` | `tests/engine/test_iteration_budget.py` |
@@ -89,7 +89,7 @@ Source: `hermes/tests/test_run_agent_*.py`, `test_iteration_budget*.py`, `test_s
 For every tool ported in Wave 1, port its test file. Use the source path mapping:
 
 ```
-hermes/tests/test_<tool_name>.py → tests/tools/test_<tool_name>.py
+vectorcode/tests/test_<tool_name>.py → tests/tools/test_<tool_name>.py
 ```
 
 Categories:
@@ -108,9 +108,9 @@ Replace any `mock_anthropic_client()` with VectorCode `mock_provider` fixture.
 
 ### Batch 6C — Agent subsystem tests (Wave 2, ~150 files)
 
-Source: `hermes/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_context*.py`, `test_memory*.py`, `test_display*.py`, etc.
+Source: `vectorcode/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_context*.py`, `test_memory*.py`, `test_display*.py`, etc.
 
-| Hermes test | Target |
+| VectorCode test | Target |
 |-------------|--------|
 | `test_anthropic_adapter.py` | `tests/transports/test_anthropic.py` |
 | `test_bedrock_adapter.py` | `tests/transports/test_bedrock.py` |
@@ -123,7 +123,7 @@ Source: `hermes/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_
 
 ### Batch 6D — Gateway tests (Wave 3 part A, ~80 files)
 
-| Hermes test | Target |
+| VectorCode test | Target |
 |-------------|--------|
 | `test_gateway_run.py` | `tests/gateway/test_run.py` |
 | `test_gateway_session.py` | `tests/gateway/test_session.py` |
@@ -134,7 +134,7 @@ Source: `hermes/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_
 
 ### Batch 6E — CLI tests (Wave 3 part B, ~100 files)
 
-| Hermes test | Target |
+| VectorCode test | Target |
 |-------------|--------|
 | `test_cli_main.py` | `tests/cli/test_main.py` |
 | `test_cli_auth.py` | `tests/cli/test_auth.py` |
@@ -146,7 +146,7 @@ Source: `hermes/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_
 
 ### Batch 6F — Plugin / cron / ACP tests (Wave 4, ~60 files)
 
-| Hermes test | Target |
+| VectorCode test | Target |
 |-------------|--------|
 | `test_plugins_loader.py` | `tests/plugins/test_loader.py` |
 | `test_plugins_sandbox.py` | `tests/plugins/test_sandbox.py` |
@@ -155,13 +155,13 @@ Source: `hermes/tests/test_anthropic_adapter*.py`, `test_credential*.py`, `test_
 | `test_acp_session.py` | `tests/acp/test_session.py` |
 | ... | ... |
 
-### Batch 6G — Ruflo tests (Wave 5, ~60 files)
+### Batch 6G — VectorCode tests (Wave 5, ~60 files)
 
 Convert Jest → pytest:
 
-| Ruflo test (TS/Jest) | Target (Python/pytest) |
+| VectorCode test (TS/Jest) | Target (Python/pytest) |
 |----------------------|------------------------|
-| `ruflo/tests/mcp-bridge.test.ts` | `tests/mcp/test_bridge.py` |
+| `vectorcode/tests/mcp-bridge.test.ts` | `tests/mcp/test_bridge.py` |
 | `v3/__tests__/agent.test.ts` | `tests/agents/v3/test_agent.py` |
 | `v3/__tests__/coordinator.test.ts` | `tests/agents/v3/test_coordinator.py` |
 | `v2/sparc/__tests__/*.test.ts` | `tests/skills/sparc/test_*.py` |

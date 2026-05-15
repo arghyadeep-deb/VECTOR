@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/operators/loader.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -16,7 +15,6 @@ try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
-
 
 def load_operator(path: str | Path) -> OperatorManifest:
     """Load an operator manifest from a TOML file.
@@ -72,6 +70,5 @@ def load_operator(path: str | Path) -> OperatorManifest:
         settings=op_data.get("settings", {}),
         metadata=op_data.get("metadata", {}),
     )
-
 
 __all__ = ["load_operator"]

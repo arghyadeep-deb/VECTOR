@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/hackernews.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -18,10 +17,9 @@ from typing import Any, Dict, Iterator, List, Optional
 import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _HN_API_BASE = "https://hacker-news.firebaseio.com/v0"
-
 
 def _hn_top_story_ids() -> List[int]:
     """Fetch the list of top story IDs."""
@@ -29,13 +27,11 @@ def _hn_top_story_ids() -> List[int]:
     resp.raise_for_status()
     return resp.json()
 
-
 def _hn_item(item_id: int) -> Dict[str, Any]:
     """Fetch a single HN item by ID."""
     resp = httpx.get(f"{_HN_API_BASE}/item/{item_id}.json", timeout=30.0)
     resp.raise_for_status()
     return resp.json()
-
 
 @ConnectorRegistry.register("hackernews")
 class HackerNewsConnector(BaseConnector):

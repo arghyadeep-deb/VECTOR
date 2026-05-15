@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/cli.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -164,7 +163,6 @@ BACKENDS = {
     "openclaw": "Real OpenClaw via Node subprocess",
 }
 
-
 def _setup_logging(verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -172,7 +170,6 @@ def _setup_logging(verbose: bool) -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-
 
 def _build_backend(
     backend_name: str,
@@ -194,9 +191,9 @@ def _build_backend(
     ``[backend.external]`` section or env vars.
     """
     if backend_name == "vector-agent":
-        from vector.evals.backends.jarvis_agent import JarvisAgentBackend
+        from vectorcode.src.evals.backends.vector_agent import VectorAgentBackend
 
-        return JarvisAgentBackend(
+        return VectorAgentBackend(
             engine_key=engine_key,
             agent_name=agent_name,
             tools=tools,
@@ -206,15 +203,15 @@ def _build_backend(
             max_turns=max_turns,
         )
     elif backend_name == "vector-direct":
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-        return JarvisDirectBackend(
+        return VectorDirectBackend(
             engine_key=engine_key,
             telemetry=telemetry,
             gpu_metrics=gpu_metrics,
         )
     elif backend_name == "hermes":
-        from vector.evals.backends.external import HermesBackend
+        from vectorcode.src.evals.backends.external import HermesBackend
 
         if not base_url or not api_key:
             raise click.UsageError(
@@ -227,7 +224,7 @@ def _build_backend(
             api_key=api_key,
         )
     elif backend_name == "openclaw":
-        from vector.evals.backends.external import OpenClawBackend
+        from vectorcode.src.evals.backends.external import OpenClawBackend
 
         if not base_url or not api_key:
             raise click.UsageError(
@@ -244,327 +241,324 @@ def _build_backend(
             f"unknown backend {backend_name!r}; valid: {list(BACKENDS)}"
         )
 
-
 def _build_dataset(benchmark: str, subset: str | None = None):
     """Construct the dataset provider for a benchmark."""
     if benchmark == "supergpqa":
-        from vector.evals.datasets.supergpqa import SuperGPQADataset
+        from vectorcode.src.evals.datasets.supergpqa import SuperGPQADataset
 
         return SuperGPQADataset()
     elif benchmark == "gpqa":
-        from vector.evals.datasets.gpqa import GPQADataset
+        from vectorcode.src.evals.datasets.gpqa import GPQADataset
 
         return GPQADataset()
     elif benchmark == "mmlu-pro":
-        from vector.evals.datasets.mmlu_pro import MMLUProDataset
+        from vectorcode.src.evals.datasets.mmlu_pro import MMLUProDataset
 
         return MMLUProDataset()
     elif benchmark == "math500":
-        from vector.evals.datasets.math500 import MATH500Dataset
+        from vectorcode.src.evals.datasets.math500 import MATH500Dataset
 
         return MATH500Dataset()
     elif benchmark == "natural-reasoning":
-        from vector.evals.datasets.natural_reasoning import NaturalReasoningDataset
+        from vectorcode.src.evals.datasets.natural_reasoning import NaturalReasoningDataset
 
         return NaturalReasoningDataset()
     elif benchmark == "hle":
-        from vector.evals.datasets.hle import HLEDataset
+        from vectorcode.src.evals.datasets.hle import HLEDataset
 
         return HLEDataset()
     elif benchmark == "simpleqa":
-        from vector.evals.datasets.simpleqa import SimpleQADataset
+        from vectorcode.src.evals.datasets.simpleqa import SimpleQADataset
 
         return SimpleQADataset()
     elif benchmark == "wildchat":
-        from vector.evals.datasets.wildchat import WildChatDataset
+        from vectorcode.src.evals.datasets.wildchat import WildChatDataset
 
         return WildChatDataset()
     elif benchmark == "ipw":
-        from vector.evals.datasets.ipw_mixed import IPWDataset
+        from vectorcode.src.evals.datasets.ipw_mixed import IPWDataset
 
         return IPWDataset()
     elif benchmark == "gaia":
-        from vector.evals.datasets.gaia import GAIADataset
+        from vectorcode.src.evals.datasets.gaia import GAIADataset
 
         return GAIADataset()
     elif benchmark == "frames":
-        from vector.evals.datasets.frames import FRAMESDataset
+        from vectorcode.src.evals.datasets.frames import FRAMESDataset
 
         return FRAMESDataset()
     elif benchmark == "swebench":
-        from vector.evals.datasets.swebench import SWEBenchDataset
+        from vectorcode.src.evals.datasets.swebench import SWEBenchDataset
 
         return SWEBenchDataset()
     elif benchmark == "swefficiency":
-        from vector.evals.datasets.swefficiency import SWEfficiencyDataset
+        from vectorcode.src.evals.datasets.swefficiency import SWEfficiencyDataset
 
         return SWEfficiencyDataset()
     elif benchmark == "terminalbench":
-        from vector.evals.datasets.terminalbench import TerminalBenchDataset
+        from vectorcode.src.evals.datasets.terminalbench import TerminalBenchDataset
 
         return TerminalBenchDataset()
     elif benchmark == "terminalbench-native":
-        from vector.evals.datasets.terminalbench_native import (
+        from vectorcode.src.evals.datasets.terminalbench_native import (
             TerminalBenchNativeDataset,
         )
 
         return TerminalBenchNativeDataset()
     elif benchmark == "email_triage":
-        from vector.evals.datasets.email_triage import EmailTriageDataset
+        from vectorcode.src.evals.datasets.email_triage import EmailTriageDataset
 
         return EmailTriageDataset()
     elif benchmark == "morning_brief":
-        from vector.evals.datasets.morning_brief import MorningBriefDataset
+        from vectorcode.src.evals.datasets.morning_brief import MorningBriefDataset
 
         return MorningBriefDataset()
     elif benchmark == "research_mining":
-        from vector.evals.datasets.research_mining import ResearchMiningDataset
+        from vectorcode.src.evals.datasets.research_mining import ResearchMiningDataset
 
         return ResearchMiningDataset()
     elif benchmark == "knowledge_base":
-        from vector.evals.datasets.knowledge_base import KnowledgeBaseDataset
+        from vectorcode.src.evals.datasets.knowledge_base import KnowledgeBaseDataset
 
         return KnowledgeBaseDataset()
     elif benchmark == "coding_task":
-        from vector.evals.datasets.coding_task import CodingTaskDataset
+        from vectorcode.src.evals.datasets.coding_task import CodingTaskDataset
 
         return CodingTaskDataset()
     elif benchmark == "loghub":
-        from vector.evals.datasets.loghub import LogHubDataset
+        from vectorcode.src.evals.datasets.loghub import LogHubDataset
 
         return LogHubDataset()
     elif benchmark == "ama-bench":
-        from vector.evals.datasets.ama_bench import AMABenchDataset
+        from vectorcode.src.evals.datasets.ama_bench import AMABenchDataset
 
         return AMABenchDataset()
     elif benchmark == "lifelong-agent":
-        from vector.evals.datasets.lifelong_agent import LifelongAgentDataset
+        from vectorcode.src.evals.datasets.lifelong_agent import LifelongAgentDataset
 
         return LifelongAgentDataset(subset=subset or "db_bench")
     elif benchmark == "deepplanning":
-        from vector.evals.datasets.deepplanning import DeepPlanningDataset
+        from vectorcode.src.evals.datasets.deepplanning import DeepPlanningDataset
 
         return DeepPlanningDataset()
     elif benchmark == "paperarena":
-        from vector.evals.datasets.paperarena import PaperArenaDataset
+        from vectorcode.src.evals.datasets.paperarena import PaperArenaDataset
 
         return PaperArenaDataset()
     elif benchmark == "webchorearena":
-        from vector.evals.datasets.webchorearena import WebChoreArenaDataset
+        from vectorcode.src.evals.datasets.webchorearena import WebChoreArenaDataset
 
         return WebChoreArenaDataset()
     elif benchmark == "workarena":
-        from vector.evals.datasets.workarena import WorkArenaDataset
+        from vectorcode.src.evals.datasets.workarena import WorkArenaDataset
 
         return WorkArenaDataset()
     elif benchmark == "coding_assistant":
-        from vector.evals.datasets.coding_assistant import CodingAssistantDataset
+        from vectorcode.src.evals.datasets.coding_assistant import CodingAssistantDataset
 
         return CodingAssistantDataset()
     elif benchmark == "security_scanner":
-        from vector.evals.datasets.security_scanner import SecurityScannerDataset
+        from vectorcode.src.evals.datasets.security_scanner import SecurityScannerDataset
 
         return SecurityScannerDataset()
     elif benchmark == "daily_digest":
-        from vector.evals.datasets.daily_digest import DailyDigestDataset
+        from vectorcode.src.evals.datasets.daily_digest import DailyDigestDataset
 
         return DailyDigestDataset()
     elif benchmark == "doc_qa":
-        from vector.evals.datasets.doc_qa import DocQADataset
+        from vectorcode.src.evals.datasets.doc_qa import DocQADataset
 
         return DocQADataset()
     elif benchmark == "browser_assistant":
-        from vector.evals.datasets.browser_assistant import BrowserAssistantDataset
+        from vectorcode.src.evals.datasets.browser_assistant import BrowserAssistantDataset
 
         return BrowserAssistantDataset()
     elif benchmark == "pinchbench":
-        from vector.evals.datasets.pinchbench import PinchBenchDataset
+        from vectorcode.src.evals.datasets.pinchbench import PinchBenchDataset
 
         return PinchBenchDataset(path=subset)
     elif benchmark == "taubench":
-        from vector.evals.datasets.taubench import TauBenchDataset
+        from vectorcode.src.evals.datasets.taubench import TauBenchDataset
 
         domains = subset.split(",") if subset else None
         return TauBenchDataset(domains=domains)
     elif benchmark == "livecodebench":
-        from vector.evals.datasets.livecodebench import LiveCodeBenchDataset
+        from vectorcode.src.evals.datasets.livecodebench import LiveCodeBenchDataset
 
         return LiveCodeBenchDataset()
     elif benchmark in ("liveresearch", "deepresearch"):
-        from vector.evals.datasets.liveresearch import LiveResearchBenchDataset
+        from vectorcode.src.evals.datasets.liveresearch import LiveResearchBenchDataset
 
         return LiveResearchBenchDataset(path=subset)
     elif benchmark == "liveresearchbench":
-        from vector.evals.datasets.liveresearchbench import (
+        from vectorcode.src.evals.datasets.liveresearchbench import (
             LiveResearchBenchDataset as LRBDataset,
         )
 
         return LRBDataset()
     elif benchmark == "toolcall15":
-        from vector.evals.datasets.toolcall15 import ToolCall15Dataset
+        from vectorcode.src.evals.datasets.toolcall15 import ToolCall15Dataset
 
         return ToolCall15Dataset()
     else:
         raise click.ClickException(f"Unknown benchmark: {benchmark}")
 
-
 def _build_scorer(benchmark: str, judge_backend, judge_model: str):
     """Construct the scorer for a benchmark."""
     if benchmark == "supergpqa":
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         return SuperGPQAScorer(judge_backend, judge_model)
     elif benchmark == "gpqa":
-        from vector.evals.scorers.gpqa_mcq import GPQAScorer
+        from vectorcode.src.evals.scorers.gpqa_mcq import GPQAScorer
 
         return GPQAScorer(judge_backend, judge_model)
     elif benchmark == "mmlu-pro":
-        from vector.evals.scorers.mmlu_pro_mcq import MMLUProScorer
+        from vectorcode.src.evals.scorers.mmlu_pro_mcq import MMLUProScorer
 
         return MMLUProScorer(judge_backend, judge_model)
     elif benchmark == "math500" or benchmark == "natural-reasoning":
-        from vector.evals.scorers.reasoning_judge import ReasoningJudgeScorer
+        from vectorcode.src.evals.scorers.reasoning_judge import ReasoningJudgeScorer
 
         return ReasoningJudgeScorer(judge_backend, judge_model)
     elif benchmark == "hle":
-        from vector.evals.scorers.hle_judge import HLEScorer
+        from vectorcode.src.evals.scorers.hle_judge import HLEScorer
 
         return HLEScorer(judge_backend, judge_model)
     elif benchmark == "simpleqa":
-        from vector.evals.scorers.simpleqa_judge import SimpleQAScorer
+        from vectorcode.src.evals.scorers.simpleqa_judge import SimpleQAScorer
 
         return SimpleQAScorer(judge_backend, judge_model)
     elif benchmark == "wildchat":
-        from vector.evals.scorers.wildchat_judge import WildChatScorer
+        from vectorcode.src.evals.scorers.wildchat_judge import WildChatScorer
 
         return WildChatScorer(judge_backend, judge_model)
     elif benchmark == "ipw":
-        from vector.evals.scorers.ipw_mixed import IPWMixedScorer
+        from vectorcode.src.evals.scorers.ipw_mixed import IPWMixedScorer
 
         return IPWMixedScorer(judge_backend, judge_model)
     elif benchmark == "gaia":
-        from vector.evals.scorers.gaia_exact import GAIAScorer
+        from vectorcode.src.evals.scorers.gaia_exact import GAIAScorer
 
         return GAIAScorer(judge_backend, judge_model)
     elif benchmark == "frames":
-        from vector.evals.scorers.frames_judge import FRAMESScorer
+        from vectorcode.src.evals.scorers.frames_judge import FRAMESScorer
 
         return FRAMESScorer(judge_backend, judge_model)
     elif benchmark == "swebench":
-        from vector.evals.scorers.swebench_structural import SWEBenchScorer
+        from vectorcode.src.evals.scorers.swebench_structural import SWEBenchScorer
 
         return SWEBenchScorer(judge_backend, judge_model)
     elif benchmark == "swefficiency":
-        from vector.evals.scorers.swefficiency_structural import SWEfficiencyScorer
+        from vectorcode.src.evals.scorers.swefficiency_structural import SWEfficiencyScorer
 
         return SWEfficiencyScorer(judge_backend, judge_model)
     elif benchmark == "terminalbench":
-        from vector.evals.scorers.terminalbench_judge import TerminalBenchScorer
+        from vectorcode.src.evals.scorers.terminalbench_judge import TerminalBenchScorer
 
         return TerminalBenchScorer(judge_backend, judge_model)
     elif benchmark == "terminalbench-native":
-        from vector.evals.scorers.terminalbench_native_structural import (
+        from vectorcode.src.evals.scorers.terminalbench_native_structural import (
             TerminalBenchNativeScorer,
         )
 
         return TerminalBenchNativeScorer(judge_backend, judge_model)
     elif benchmark == "email_triage":
-        from vector.evals.scorers.email_triage import EmailTriageScorer
+        from vectorcode.src.evals.scorers.email_triage import EmailTriageScorer
 
         return EmailTriageScorer(judge_backend, judge_model)
     elif benchmark == "morning_brief":
-        from vector.evals.scorers.morning_brief import MorningBriefScorer
+        from vectorcode.src.evals.scorers.morning_brief import MorningBriefScorer
 
         return MorningBriefScorer(judge_backend, judge_model)
     elif benchmark == "research_mining":
-        from vector.evals.scorers.research_mining import ResearchMiningScorer
+        from vectorcode.src.evals.scorers.research_mining import ResearchMiningScorer
 
         return ResearchMiningScorer(judge_backend, judge_model)
     elif benchmark == "knowledge_base":
-        from vector.evals.scorers.knowledge_base import KnowledgeBaseScorer
+        from vectorcode.src.evals.scorers.knowledge_base import KnowledgeBaseScorer
 
         return KnowledgeBaseScorer(judge_backend, judge_model)
     elif benchmark == "coding_task":
-        from vector.evals.scorers.coding_task import CodingTaskScorer
+        from vectorcode.src.evals.scorers.coding_task import CodingTaskScorer
 
         return CodingTaskScorer(judge_backend, judge_model)
     elif benchmark == "loghub":
-        from vector.evals.scorers.loghub_scorer import LogHubScorer
+        from vectorcode.src.evals.scorers.loghub_scorer import LogHubScorer
 
         return LogHubScorer(judge_backend, judge_model)
     elif benchmark == "ama-bench":
-        from vector.evals.scorers.ama_bench_judge import AMABenchScorer
+        from vectorcode.src.evals.scorers.ama_bench_judge import AMABenchScorer
 
         return AMABenchScorer(judge_backend, judge_model)
     elif benchmark == "lifelong-agent":
-        from vector.evals.scorers.lifelong_agent_scorer import LifelongAgentScorer
+        from vectorcode.src.evals.scorers.lifelong_agent_scorer import LifelongAgentScorer
 
         return LifelongAgentScorer(judge_backend, judge_model)
     elif benchmark == "deepplanning":
-        from vector.evals.scorers.deepplanning_scorer import DeepPlanningScorer
+        from vectorcode.src.evals.scorers.deepplanning_scorer import DeepPlanningScorer
 
         return DeepPlanningScorer(judge_backend, judge_model)
     elif benchmark == "paperarena":
-        from vector.evals.scorers.paperarena_judge import PaperArenaScorer
+        from vectorcode.src.evals.scorers.paperarena_judge import PaperArenaScorer
 
         return PaperArenaScorer(judge_backend, judge_model)
     elif benchmark == "webchorearena":
-        from vector.evals.scorers.webchorearena_scorer import WebChoreArenaScorer
+        from vectorcode.src.evals.scorers.webchorearena_scorer import WebChoreArenaScorer
 
         return WebChoreArenaScorer(judge_backend, judge_model)
     elif benchmark == "workarena":
-        from vector.evals.scorers.workarena_scorer import WorkArenaScorer
+        from vectorcode.src.evals.scorers.workarena_scorer import WorkArenaScorer
 
         return WorkArenaScorer(judge_backend, judge_model)
     elif benchmark == "coding_assistant":
-        from vector.evals.scorers.coding_assistant import CodingAssistantScorer
+        from vectorcode.src.evals.scorers.coding_assistant import CodingAssistantScorer
 
         return CodingAssistantScorer(judge_backend, judge_model)
     elif benchmark == "security_scanner":
-        from vector.evals.scorers.security_scanner import SecurityScannerScorer
+        from vectorcode.src.evals.scorers.security_scanner import SecurityScannerScorer
 
         return SecurityScannerScorer(judge_backend, judge_model)
     elif benchmark == "daily_digest":
-        from vector.evals.scorers.daily_digest import DailyDigestScorer
+        from vectorcode.src.evals.scorers.daily_digest import DailyDigestScorer
 
         return DailyDigestScorer(judge_backend, judge_model)
     elif benchmark == "doc_qa":
-        from vector.evals.scorers.doc_qa import DocQAScorer
+        from vectorcode.src.evals.scorers.doc_qa import DocQAScorer
 
         return DocQAScorer(judge_backend, judge_model)
     elif benchmark == "browser_assistant":
-        from vector.evals.scorers.browser_assistant import BrowserAssistantScorer
+        from vectorcode.src.evals.scorers.browser_assistant import BrowserAssistantScorer
 
         return BrowserAssistantScorer(judge_backend, judge_model)
     elif benchmark == "pinchbench":
-        from vector.evals.scorers.pinchbench import PinchBenchScorer
+        from vectorcode.src.evals.scorers.pinchbench import PinchBenchScorer
 
         return PinchBenchScorer(judge_backend, judge_model)
     elif benchmark == "taubench":
-        from vector.evals.scorers.taubench import TauBenchScorer
+        from vectorcode.src.evals.scorers.taubench import TauBenchScorer
 
         return TauBenchScorer(judge_backend, judge_model)
     elif benchmark == "livecodebench":
-        from vector.evals.scorers.livecodebench import LiveCodeBenchScorer
+        from vectorcode.src.evals.scorers.livecodebench import LiveCodeBenchScorer
 
         return LiveCodeBenchScorer(judge_backend, judge_model)
     elif benchmark in ("liveresearch", "deepresearch"):
-        from vector.evals.scorers.liveresearch import LiveResearchBenchScorer
+        from vectorcode.src.evals.scorers.liveresearch import LiveResearchBenchScorer
 
         return LiveResearchBenchScorer(judge_backend, judge_model)
     elif benchmark == "liveresearchbench":
-        from vector.evals.scorers.liveresearchbench import (
+        from vectorcode.src.evals.scorers.liveresearchbench import (
             LiveResearchBenchScorer as LRBScorer,
         )
 
         return LRBScorer(judge_backend, judge_model)
     elif benchmark == "toolcall15":
-        from vector.evals.scorers.toolcall15 import ToolCall15Scorer
+        from vectorcode.src.evals.scorers.toolcall15 import ToolCall15Scorer
 
         return ToolCall15Scorer(judge_backend, judge_model)
     else:
         raise click.ClickException(f"Unknown benchmark: {benchmark}")
-
 
 def _build_judge_backend(judge_model: str, engine_key: str = "cloud"):
     """Build the judge backend for LLM-as-judge scoring.
@@ -574,10 +568,10 @@ def _build_judge_backend(judge_model: str, engine_key: str = "cloud"):
     LLM-judge scorers will raise a clear error when they actually try
     to use the backend rather than failing at startup.
     """
-    from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+    from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
     try:
-        return JarvisDirectBackend(engine_key=engine_key)
+        return VectorDirectBackend(engine_key=engine_key)
     except RuntimeError as exc:
         LOGGER.warning(
             "Judge backend (%s) unavailable: %s — "
@@ -587,7 +581,6 @@ def _build_judge_backend(judge_model: str, engine_key: str = "cloud"):
             exc,
         )
         return None
-
 
 def _print_summary(
     summary,
@@ -607,13 +600,12 @@ def _print_summary(
         print_subject_table(console, summary.per_subject)
     print_completion(console, summary, output_path, traces_dir)
 
-
 def _build_trackers(config) -> list:
     """Build tracker instances from RunConfig fields."""
     trackers = []
     if getattr(config, "wandb_project", ""):
         try:
-            from vector.evals.trackers.wandb_tracker import WandbTracker
+            from vectorcode.src.evals.trackers.wandb_tracker import WandbTracker
 
             trackers.append(
                 WandbTracker(
@@ -629,7 +621,7 @@ def _build_trackers(config) -> list:
             ) from exc
     if getattr(config, "sheets_spreadsheet_id", ""):
         try:
-            from vector.evals.trackers.sheets_tracker import SheetsTracker
+            from vectorcode.src.evals.trackers.sheets_tracker import SheetsTracker
 
             trackers.append(
                 SheetsTracker(
@@ -645,13 +637,12 @@ def _build_trackers(config) -> list:
             ) from exc
     return trackers
 
-
 def _run_terminalbench_native(config, console: Console) -> object:
     """Run TerminalBench V2 natively via terminal-bench Harness."""
-    from vector.evals.backends.terminalbench_native import (
+    from vectorcode.src.evals.backends.terminalbench_native import (
         TerminalBenchNativeBackend,
     )
-    from vector.evals.core.types import RunSummary
+    from vectorcode.src.evals.core.types import RunSummary
 
     model = config.model
     # LiteLLM expects "openai/<model>" for OpenAI-compatible servers
@@ -700,10 +691,9 @@ def _run_terminalbench_native(config, console: Console) -> object:
         total_cost_usd=0.0,
     )
 
-
 def _run_single(config, console: Optional[Console] = None) -> object:
     """Run a single eval from a RunConfig and return the summary."""
-    from vector.evals.core.runner import EvalRunner
+    from vectorcode.src.evals.core.runner import EvalRunner
 
     if console is None:
         console = Console()
@@ -778,7 +768,6 @@ def _run_single(config, console: Optional[Console] = None) -> object:
         if judge_backend is not None:
             judge_backend.close()
 
-
 def _run_agentic(
     config,
     console: Optional[Console] = None,
@@ -790,9 +779,9 @@ def _run_agentic(
     import asyncio
     from pathlib import Path as _Path
 
-    from vector.evals.core.agentic_runner import AgenticRunner
-    from vector.evals.core.event_recorder import EventRecorder
-    from vector.evals.core.export import (
+    from vectorcode.src.evals.core.agentic_runner import AgenticRunner
+    from vectorcode.src.evals.core.event_recorder import EventRecorder
+    from vectorcode.src.evals.core.export import (
         export_artifacts_manifest,
         export_jsonl,
         export_summary_json,
@@ -833,7 +822,7 @@ def _run_agentic(
             )
 
     # Build agent via SystemBuilder
-    from vector.system import SystemBuilder
+    from vectorcode.src.vc_system import SystemBuilder
 
     builder = SystemBuilder()
     if config.engine_key:
@@ -849,8 +838,8 @@ def _run_agentic(
     # Build TelemetrySession (optional — only if energy monitoring available)
     telemetry_session = None
     try:
-        from vector.telemetry.energy_monitor import create_energy_monitor
-        from vector.telemetry.session import TelemetrySession
+        from core.telemetry.energy_monitor import create_energy_monitor
+        from core.telemetry.session import TelemetrySession
 
         monitor = create_energy_monitor()
         if monitor is not None:
@@ -929,7 +918,7 @@ def _run_agentic(
 
     # Try HF dataset export (optional)
     try:
-        from vector.evals.core.export import export_hf_dataset
+        from vectorcode.src.evals.core.export import export_hf_dataset
 
         hf_path = run_dir / "hf_dataset"
         export_hf_dataset(traces, hf_path)
@@ -941,13 +930,11 @@ def _run_agentic(
     print_section(console, "Agentic Results")
     _print_agentic_summary(console, traces, config)
 
-
 def _nullctx():
     """Return a no-op context manager."""
     from contextlib import nullcontext
 
     return nullcontext()
-
 
 def _print_agentic_summary(console: Console, traces, config) -> None:
     """Print a rich summary of agentic run results."""
@@ -1010,7 +997,6 @@ def _print_agentic_summary(console: Console, traces, config) -> None:
 
     console.print(table)
 
-
 def _run_from_config(
     config_path: str,
     verbose: bool,
@@ -1018,7 +1004,7 @@ def _run_from_config(
     model_filter: str | None = None,
 ) -> None:
     """Load a TOML config and run the full models x benchmarks matrix."""
-    from vector.evals.core.config import expand_suite, load_eval_config
+    from vectorcode.src.evals.core.config import expand_suite, load_eval_config
 
     console = Console()
 
@@ -1074,11 +1060,9 @@ def _run_from_config(
         print_section(console, "Suite Results")
         print_suite_summary(console, summaries, suite_name)
 
-
 @click.group()
 def main():
     """VectorCode Evaluation Framework."""
-
 
 @main.command()
 @click.option(
@@ -1274,7 +1258,7 @@ def run(
             "Missing option '-m' / '--model' (required when --config is not provided)"
         )
 
-    from vector.evals.core.types import RunConfig
+    from vectorcode.src.evals.core.types import RunConfig
 
     tool_list = [t.strip() for t in tools.split(",") if t.strip()] if tools else []
 
@@ -1369,7 +1353,6 @@ def run(
         trace_detail=trace_detail,
     )
 
-
 @main.command("run-all")
 @click.option("-m", "--model", required=True, help="Model identifier")
 @click.option("-e", "--engine", "engine_key", default=None, help="Engine key")
@@ -1387,8 +1370,8 @@ def run_all(
     """Run all benchmarks."""
     _setup_logging(verbose)
 
-    from vector.evals.core.runner import EvalRunner
-    from vector.evals.core.types import RunConfig
+    from vectorcode.src.evals.core.runner import EvalRunner
+    from vectorcode.src.evals.core.types import RunConfig
 
     console = Console()
 
@@ -1469,7 +1452,6 @@ def run_all(
         print_section(console, "Suite Results")
         print_suite_summary(console, summaries, f"All Benchmarks / {model}")
 
-
 @main.command()
 @click.argument("jsonl_path", type=click.Path(exists=True))
 def summarize(jsonl_path):
@@ -1500,7 +1482,6 @@ def summarize(jsonl_path):
     console.print(f"[cyan]Correct:[/cyan]   {len(correct)}")
     console.print(f"[cyan]Accuracy:[/cyan]  [bold]{accuracy:.4f}[/bold]")
     console.print(f"[cyan]Errors:[/cyan]    {len(errors)}")
-
 
 @main.command("reparse-judge")
 @click.option(
@@ -1545,7 +1526,7 @@ def reparse_judge(jsonl_path, out_path, in_place, summary_out):
     import statistics
     from pathlib import Path as _Path
 
-    from vector.evals.scorers.liveresearch import rescore_from_metadata
+    from vectorcode.src.evals.scorers.liveresearch import rescore_from_metadata
 
     in_path = _Path(jsonl_path)
     if in_place:
@@ -1649,7 +1630,6 @@ def reparse_judge(jsonl_path, out_path, in_place, summary_out):
         f"mean shift {mean_shift:+.4f}, accuracy shift {acc_shift:+.2%}"
     )
 
-
 @main.command("list")
 def list_cmd():
     """List available benchmarks and backends."""
@@ -1680,7 +1660,6 @@ def list_cmd():
     for name, desc in BACKENDS.items():
         backend_table.add_row(name, desc)
     console.print(backend_table)
-
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/wildchat.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,7 +15,6 @@ from typing import Iterable, List, MutableMapping, Optional, Sequence
 
 from vectorcode.src.evals.core.dataset import DatasetProvider
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class WildChatDataset(DatasetProvider):
     """WildChat conversation quality benchmark."""
@@ -112,6 +110,5 @@ class WildChatDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["WildChatDataset"]

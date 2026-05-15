@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/grpo_trainer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,8 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Protocol, runtime_checkable
 
-from vectorcode.src.oj_core.config import GRPOConfig
-from vectorcode.src.oj_core.registry import LearningRegistry
+from vectorcode.src.vc_core.config import GRPOConfig
+from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._stubs import IntelligenceLearningPolicy
 
 logger = logging.getLogger(__name__)
@@ -38,13 +37,11 @@ try:
 except ImportError:
     HAS_TRANSFORMERS = False
 
-
 @runtime_checkable
 class RewardFn(Protocol):
     """Protocol for reward functions used by GRPOTrainer."""
 
     def score(self, prompt: str, response: str, ground_truth: str | None) -> float: ...
-
 
 class DefaultRewardFn:
     """Default reward function using length-normalized response quality heuristics."""
@@ -72,7 +69,6 @@ class DefaultRewardFn:
                 score += 0.2
 
         return max(0.0, min(1.0, score))
-
 
 class GRPOTrainer:
     """General-purpose GRPO trainer.
@@ -144,7 +140,7 @@ class GRPOTrainer:
 
     def _mine_prompts(self, trace_store: Any) -> List[str]:
         """Extract unique prompts from the trace store."""
-        from vector.learning.training.data import TrainingDataMiner
+        from vectorcode.src.learning.training.data import TrainingDataMiner
 
         miner = TrainingDataMiner(trace_store, min_quality=0.5)
         agent_filter = self.config.agent_filter or None
@@ -360,7 +356,6 @@ class GRPOTrainer:
 
         return total_loss.item()
 
-
 @LearningRegistry.register("grpo")
 class _GRPOLearningPolicy(IntelligenceLearningPolicy):
     """Wrapper to register GRPOTrainer in the LearningRegistry."""
@@ -369,11 +364,10 @@ class _GRPOLearningPolicy(IntelligenceLearningPolicy):
         pass
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
-        from vector.core.config import GRPOConfig
+        from vectorcode.src.vc_core.config import GRPOConfig
 
         config = GRPOConfig()
         trainer = GRPOTrainer(config)
         return trainer.train(trace_store)
-
 
 __all__ = ["DefaultRewardFn", "GRPOTrainer", "RewardFn"]

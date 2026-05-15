@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/loghub.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -51,7 +50,6 @@ _DATASETS = {
         "window_size": 100,
     },
 }
-
 
 class LogHubDataset(DatasetProvider):
     """LogHub log anomaly detection benchmark."""
@@ -261,6 +259,5 @@ class LogHubDataset(DatasetProvider):
             )
 
         return records
-
 
 __all__ = ["LogHubDataset"]

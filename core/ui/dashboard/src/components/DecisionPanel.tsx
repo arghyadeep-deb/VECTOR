@@ -10,10 +10,10 @@ function useScores() {
   const total = agents.length
   const hpTotal = agents.reduce((s, a) => s + (a.health_points || 0), 0)
   return useMemo(() => [
-    { label: 'System Load', value: Math.round((m?.cpu_percent ?? 0) / 2), color: '#00CFFF' },
-    { label: 'Memory Pressure', value: Math.round((m?.memory_percent ?? 0) / 2.5), color: '#00CFFF' },
-    { label: 'Agent Vitality', value: Math.round(Math.min(100, (hpTotal / (total || 1)) / 10)), color: '#00CFFF' },
-    { label: 'Alive Ratio', value: Math.round((alive / (total || 1)) * 100), color: '#00CFFF' },
+    { label: 'System Load', value: Math.round((m?.cpu_percent ?? 0) / 2), color: '#4FC3F7' },
+    { label: 'Memory Pressure', value: Math.round((m?.memory_percent ?? 0) / 2.5), color: '#4FC3F7' },
+    { label: 'Agent Vitality', value: Math.round(Math.min(100, (hpTotal / (total || 1)) / 10)), color: '#4FC3F7' },
+    { label: 'Alive Ratio', value: Math.round((alive / (total || 1)) * 100), color: '#4FC3F7' },
   ], [m?.cpu_percent, m?.memory_percent, hpTotal, total, alive])
 }
 
@@ -78,7 +78,7 @@ export default function DecisionPanel({ onClose, zoneStyle }: DecisionPanelProps
               <div style={{ flex: 1, height: 6, background: 'rgba(0,207,255,0.06)', border: '1px solid rgba(0,207,255,0.08)' }}>
                 <div style={{ width: `${s.value}%`, height: '100%', background: `linear-gradient(90deg, rgba(0,207,255,0.2), ${s.color})`, boxShadow: `0 0 6px ${s.color}66`, transition: 'width 0.5s ease' }} />
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#00CFFF', width: 28, textAlign: 'right' }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4FC3F7', width: 28, textAlign: 'right' }}>
                 {s.value}%
               </span>
             </div>
@@ -98,12 +98,12 @@ export default function DecisionPanel({ onClose, zoneStyle }: DecisionPanelProps
             }}>
               <span style={{
                 fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
-                color: c.winner ? '#00CFFF' : '#3388aa',
+                color: c.winner ? '#4FC3F7' : '#3388aa',
               }}>
                 {c.winner ? '→ ' : '  '}{c.name}
               </span>
               <span style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: c.winner ? '#00CFFF' : '#1a4466',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: c.winner ? '#4FC3F7' : '#1a4466',
               }}>
                 {c.score}
               </span>
@@ -115,7 +115,7 @@ export default function DecisionPanel({ onClose, zoneStyle }: DecisionPanelProps
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a4466', letterSpacing: '0.15em', marginBottom: 2 }}>
             FINAL SCORE
           </div>
-          <div style={{ fontFamily: "'Orbitron', sans-serif', monospace", fontSize: 28, fontWeight: 700, color: '#00CFFF', lineHeight: 1 }}>
+          <div style={{ fontFamily: "'Orbitron', sans-serif', monospace", fontSize: 28, fontWeight: 700, color: '#4FC3F7', lineHeight: 1 }}>
             {candidates.find((c) => c.winner)?.score ?? 0}
           </div>
         </div>

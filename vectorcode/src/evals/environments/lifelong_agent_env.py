@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/environments/lifelong_agent_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -41,7 +40,6 @@ MAX_TURNS_DB = 3
 MAX_TURNS_KG = 15
 MAX_TURNS_OS = 5
 
-
 def _infer_oracle_result(
     func_name: str,
     current_action: str,
@@ -79,11 +77,9 @@ def _infer_oracle_result(
     # intersection, argmax, argmin, count → generic acknowledgement
     return f"(oracle: {current_action} executed)"
 
-
 # ====================================================================
 # DB Environment
 # ====================================================================
-
 
 def _mysql_available() -> bool:
     """Check if Docker + MySQL image is available."""
@@ -98,7 +94,6 @@ def _mysql_available() -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
-
 
 class DBEnvironment(TaskEnvironment):
     """Multi-turn DB environment matching the original's interaction protocol.
@@ -274,7 +269,7 @@ class DBEnvironment(TaskEnvironment):
             )
             meta["ref_sql_sqlite_error"] = str(exc)
             meta["fallback"] = "normalized_sql_comparison"
-            from vector.evals.scorers.lifelong_agent_scorer import (
+            from vectorcode.src.evals.scorers.lifelong_agent_scorer import (
                 _normalize_sql,
             )
 
@@ -348,7 +343,7 @@ class DBEnvironment(TaskEnvironment):
 
         # Strategy 2: Parse text from final answer
         if self._agent_final_answer:
-            from vector.evals.scorers.lifelong_agent_scorer import (
+            from vectorcode.src.evals.scorers.lifelong_agent_scorer import (
                 _parse_text_answer,
             )
 
@@ -566,11 +561,9 @@ class DBEnvironment(TaskEnvironment):
                 pass
             self._mysql_container = None
 
-
 # ====================================================================
 # KG Environment
 # ====================================================================
-
 
 class _Variable:
     """Variable in the KG variable store, matching the original's Variable class."""
@@ -589,7 +582,6 @@ class _Variable:
 
     def __repr__(self) -> str:
         return f"#_{self.idx}"
-
 
 class KGEnvironment(TaskEnvironment):
     """KG API simulation environment.
@@ -834,7 +826,6 @@ class KGEnvironment(TaskEnvironment):
     def close(self) -> None:
         pass
 
-
 # ====================================================================
 # OS Environment
 # ====================================================================
@@ -842,7 +833,6 @@ class KGEnvironment(TaskEnvironment):
 # The original uses "local-os/default", a custom image.  We try that first
 # then fall back to ubuntu:22.04 with a warning.
 _OS_IMAGES = ["local-os/default", "ubuntu:22.04"]
-
 
 class OSEnvironment(TaskEnvironment):
     """Docker-based OS interaction environment.
@@ -1051,11 +1041,9 @@ class OSEnvironment(TaskEnvironment):
                 pass
             self._container_name = None
 
-
 # ====================================================================
 # Helpers (shared with scorer — avoid duplication)
 # ====================================================================
-
 
 def _build_sqlite_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
     """Build an in-memory SQLite DB from table_info."""
@@ -1090,7 +1078,6 @@ def _build_sqlite_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
     conn.commit()
     return conn
 
-
 def _get_table_rows(
     conn: Optional[sqlite3.Connection],
     table_name: str,
@@ -1099,7 +1086,6 @@ def _get_table_rows(
         return []
     cursor = conn.execute(f'SELECT * FROM "{table_name}" ORDER BY rowid')
     return [list(row) for row in cursor.fetchall()]
-
 
 def _compare_table_states(
     expected: List[List[Any]],
@@ -1114,7 +1100,6 @@ def _compare_table_states(
             if not values_match(ev, av):
                 return False, f"value_mismatch at row {i} col {j}: {ev!r} vs {av!r}"
     return True, "all_match"
-
 
 def _extract_bash_commands_from_response(text: str) -> List[str]:
     """Extract bash commands from agent response.
@@ -1162,7 +1147,6 @@ def _extract_bash_commands_from_response(text: str) -> List[str]:
 
     return commands
 
-
 def create_task_environment(
     record: EvalRecord,
     *,
@@ -1180,7 +1164,6 @@ def create_task_environment(
         return OSEnvironment(image=os_image, timeout=os_timeout)
     else:
         raise ValueError(f"Unknown LifelongAgentBench subset: {subset}")
-
 
 __all__ = [
     "TaskEnvironment",

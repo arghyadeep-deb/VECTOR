@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/appliers/tools.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,7 +19,6 @@ from vectorcode.src.learning.distillation.execute.base import (
     ValidationResult,
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
-
 
 class AddToolToAgentApplier(EditApplier):
     """Add a tool to an agent's tool list in config."""
@@ -70,7 +68,6 @@ class AddToolToAgentApplier(EditApplier):
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
 
-
 class RemoveToolFromAgentApplier(EditApplier):
     """Remove a tool from an agent's tool list in config."""
 
@@ -113,7 +110,6 @@ class RemoveToolFromAgentApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
-
 
 class EditToolDescriptionApplier(EditApplier):
     """Update a tool's LM-facing description in descriptions.toml."""

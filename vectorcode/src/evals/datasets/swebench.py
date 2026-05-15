@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/swebench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -38,7 +37,6 @@ _DEFAULT_PROMPT = """You are a software engineer working on the repository **{re
 - The patch must apply cleanly against commit `{base_commit}`.
 - Return ONLY the patch — no explanation, no markdown fences."""
 
-
 def _parse_test_list(value: object) -> List[str]:
     """Parse a test list that may be JSON string, plain list, or single string."""
     if value is None:
@@ -58,7 +56,6 @@ def _parse_test_list(value: object) -> List[str]:
         except (json.JSONDecodeError, TypeError):
             return [value]
     return []
-
 
 class SWEBenchDataset(DatasetProvider):
     """SWE-bench agentic coding benchmark."""
@@ -169,6 +166,5 @@ class SWEBenchDataset(DatasetProvider):
             subject=repo,
             metadata=metadata,
         )
-
 
 __all__ = ["SWEBenchDataset"]

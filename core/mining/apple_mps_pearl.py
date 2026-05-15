@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Experimental Apple-GPU Pearl mining provider via PyTorch MPS.
 
 This provider is a correctness-first bridge to upstream Pearl ``miner-base``.
@@ -26,7 +25,6 @@ from ._pearl_subprocess import PearlSubprocessLauncher
 from ._stubs import MiningCapabilities, MiningConfig
 from .cpu_pearl import CpuPearlProvider, _log_dir
 
-
 def _torch_mps_available() -> tuple[bool, str | None]:
     try:
         import torch
@@ -37,7 +35,6 @@ def _torch_mps_available() -> tuple[bool, str | None]:
     if not torch.backends.mps.is_available():
         return False, "PyTorch MPS is not available on this host"
     return True, None
-
 
 class AppleMpsPearlProvider(CpuPearlProvider):
     """Experimental MPS-backed Pearl provider."""
@@ -95,7 +92,6 @@ class AppleMpsPearlProvider(CpuPearlProvider):
         self._config = config
         self._started_at = time.time()
         self._write_sidecar()
-
 
 def ensure_registered() -> None:
     """Idempotently register AppleMpsPearlProvider in MinerRegistry."""

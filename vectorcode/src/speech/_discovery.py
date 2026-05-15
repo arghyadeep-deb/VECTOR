@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/_discovery.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,8 +11,8 @@ import os
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from vector.core.config import JarvisConfig
-    from vector.speech._stubs import SpeechBackend
+    from vectorcode.src.vc_core.config import VectorConfig
+    from vectorcode.src.speech._stubs import SpeechBackend
 
 # Priority order: local first, then cloud
 DISCOVERY_ORDER = [
@@ -22,13 +21,12 @@ DISCOVERY_ORDER = [
     "deepgram",
 ]
 
-
 def _create_backend(
     key: str,
-    config: "JarvisConfig",
+    config: "VectorConfig",
 ) -> Optional["SpeechBackend"]:
     """Try to instantiate a speech backend by registry key."""
-    from vector.core.registry import SpeechRegistry
+    from vectorcode.src.vc_core.registry import SpeechRegistry
 
     if not SpeechRegistry.contains(key):
         return None
@@ -57,15 +55,14 @@ def _create_backend(
     except Exception:
         return None
 
-
-def get_speech_backend(config: "JarvisConfig") -> Optional["SpeechBackend"]:
+def get_speech_backend(config: "VectorConfig") -> Optional["SpeechBackend"]:
     """Resolve the speech backend from config.
 
     If ``config.speech.backend`` is ``"auto"``, tries backends in
     priority order and returns the first healthy one.
     """
     # Trigger registration of built-in backends
-    import vector.speech  # noqa: F401
+    import vectorcode.src.speech  # noqa: F401
 
     backend_key = config.speech.backend
 

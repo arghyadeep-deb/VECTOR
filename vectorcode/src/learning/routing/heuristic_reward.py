@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/routing/heuristic_reward.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from typing import Any
 
 from vectorcode.src.learning._stubs import RewardFunction, RoutingContext
-
 
 class HeuristicRewardFunction(RewardFunction):
     """Computes a scalar reward based on latency, cost, and token efficiency.
@@ -57,6 +55,5 @@ class HeuristicRewardFunction(RewardFunction):
             + self.weight_efficiency * efficiency_score
         )
         return max(0.0, min(1.0, reward))
-
 
 __all__ = ["HeuristicRewardFunction"]

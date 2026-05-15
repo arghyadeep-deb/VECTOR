@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/bench/latency.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,9 +13,9 @@ from typing import Any, List
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult
-from vectorcode.src.oj_core.registry import BenchmarkRegistry
-from vectorcode.src.oj_core.types import Message, Role
-from vectorcode.src.oj_engine._stubs import InferenceEngine
+from vectorcode.src.vc_core.registry import BenchmarkRegistry
+from vectorcode.src.vc_core.types import Message, Role
+from vectorcode.src.vc_engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,6 @@ _CANNED_PROMPTS = [
     "What is 2+2?",
     "Explain gravity in one sentence",
 ]
-
 
 class LatencyBenchmark(BaseBenchmark):
     """Measures per-call inference latency with short prompts."""
@@ -88,11 +86,9 @@ class LatencyBenchmark(BaseBenchmark):
             errors=errors,
         )
 
-
 def ensure_registered() -> None:
     """Register the latency benchmark if not already present."""
     if not BenchmarkRegistry.contains("latency"):
         BenchmarkRegistry.register_value("latency", LatencyBenchmark)
-
 
 __all__ = ["LatencyBenchmark"]

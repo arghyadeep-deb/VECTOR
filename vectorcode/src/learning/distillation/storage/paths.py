@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/storage/paths.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -11,7 +10,7 @@ must NEVER be inside the VectorCode source tree. ``resolve_distillation_root``
 walks up from this module's ``__file__`` looking for a ``pyproject.toml`` that
 identifies the VectorCode source root, then refuses to operate if the resolved
 root is inside it. Defense in depth — if a user accidentally points
-``OPENJARVIS_HOME`` at the repo, the system fails loudly instead of silently
+``VECTOR_HOME`` at the repo, the system fails loudly instead of silently
 writing artifacts into the working tree.
 """
 
@@ -20,12 +19,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from vectorcode.src.oj_security.file_utils import secure_mkdir
-
+from vectorcode.src.vc_security.file_utils import secure_mkdir
 
 class ConfigurationError(RuntimeError):
     """Raised when path configuration would violate isolation guarantees."""
-
 
 def _find_source_root() -> Path | None:
     """Walk upward from this module to find the VectorCode source root.
@@ -46,24 +43,22 @@ def _find_source_root() -> Path | None:
                 return candidate
     return None
 
-
-def _resolve_openjarvis_home() -> Path:
-    """Resolve the OPENJARVIS_HOME directory (env var or default)."""
-    env = os.environ.get("OPENJARVIS_HOME")
+def _resolve_vector_home() -> Path:
+    """Resolve the VECTOR_HOME directory (env var or default)."""
+    env = os.environ.get("VECTOR_HOME")
     if env:
         return Path(env).expanduser().resolve()
     return (Path.home() / ".vector").resolve()
 
-
 def resolve_distillation_root() -> Path:
     """Return the absolute path of the distillation root directory.
 
-    The root is ``$OPENJARVIS_HOME/learning`` (or ``~/.vector/learning``
+    The root is ``$VECTOR_HOME/learning`` (or ``~/.vector/learning``
     by default). Raises ``ConfigurationError`` if the resolved path lies
     inside the VectorCode source tree, to prevent dev artifacts from leaking
     into the repo.
     """
-    home = _resolve_openjarvis_home()
+    home = _resolve_vector_home()
     source_root = _find_source_root()
     if source_root is not None:
         try:
@@ -72,13 +67,12 @@ def resolve_distillation_root() -> Path:
             pass  # Good — not inside the source tree.
         else:
             raise ConfigurationError(
-                f"OPENJARVIS_HOME ({home}) is inside the source tree "
+                f"VECTOR_HOME ({home}) is inside the source tree "
                 f"({source_root}). Distillation refuses to write runtime "
-                "artifacts inside the VectorCode repo. Set OPENJARVIS_HOME "
+                "artifacts inside the VectorCode repo. Set VECTOR_HOME "
                 "to a directory outside the repo (default: ~/.vector)."
             )
     return home / "learning"
-
 
 def ensure_distillation_dirs() -> Path:
     """Create the distillation directory layout if missing.

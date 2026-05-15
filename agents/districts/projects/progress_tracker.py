@@ -99,12 +99,11 @@ class ProgressTracker(AgentBase):
             "Be specific and direct."
         )
         try:
-            import ollama
-            r = ollama.chat(
-                model=_FOCUS,
-                messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
-            )
-            return r["message"]["content"]
+            from core.inference.ollama_safe import chat
+            text = chat(model=_FOCUS, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            if not text:
+                raise ValueError("empty response")
+            return text
         except Exception as e:
             logger.warning(f"[VECTOR][progress_tracker] LLM unavailable: {e}")
             return f"{len(git_activity)} commits, {len(progress_events)} updates. Summary unavailable."

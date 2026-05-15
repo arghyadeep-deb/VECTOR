@@ -1,6 +1,6 @@
 # Wave 2 — Agent Subsystems Port
 
-**Goal:** Port Hermes `agent/` directory (52 files, ~1.15 MB, ~35k lines). Provider adapters, context management, credentials, display, prompts, memory.
+**Goal:** Port VectorCode `agent/` directory (52 files, ~1.15 MB, ~35k lines). Provider adapters, context management, credentials, display, prompts, memory.
 
 **Dependencies:** Wave 0. Can run parallel with Wave 1.
 
@@ -13,7 +13,7 @@
 1. `00-MASTER-PLAN.md`, `01-wave-0-runtime.md`
 2. `vectorcode/python/vectorcode/transports/` (existing adapter base)
 3. `vectorcode/python/vectorcode/providers/` (existing router)
-4. `GitHub/NousResearch_hermes-agent/repo/agent/__init__.py`
+4. `GitHub/VectorCode_vectorcode/repo/agent/__init__.py`
 
 ---
 

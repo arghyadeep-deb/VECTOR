@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/aggregator.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -15,7 +14,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass(slots=True)
 class ModelStats:
@@ -43,7 +41,6 @@ class ModelStats:
     avg_median_itl_ms: float = 0.0
     avg_p95_itl_ms: float = 0.0
 
-
 @dataclass(slots=True)
 class EngineStats:
     """Aggregated statistics for a single engine backend."""
@@ -67,7 +64,6 @@ class EngineStats:
     avg_median_itl_ms: float = 0.0
     avg_p95_itl_ms: float = 0.0
 
-
 @dataclass(slots=True)
 class AggregatedStats:
     """Top-level summary combining per-model and per-engine stats."""
@@ -88,7 +84,6 @@ class AggregatedStats:
     avg_p95_itl_ms: float = 0.0
     per_model: List[ModelStats] = field(default_factory=list)
     per_engine: List[EngineStats] = field(default_factory=list)
-
 
 class TelemetryAggregator:
     """Read-only query layer over the telemetry SQLite database."""
@@ -421,7 +416,6 @@ class TelemetryAggregator:
 
     def close(self) -> None:
         self._conn.close()
-
 
 __all__ = [
     "AggregatedStats",

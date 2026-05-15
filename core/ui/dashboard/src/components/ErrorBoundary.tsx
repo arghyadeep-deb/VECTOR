@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div style={{ position:'fixed', inset:0, background:'#020B18', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:40 }}>
-          <div style={{ fontFamily:"'Orbitron', sans-serif", fontSize:24, color:'#00CFFF', letterSpacing:'0.2em', border:'1px solid #00CFFF', padding:'12px 24px' }}>
+          <div style={{ fontFamily:"'Orbitron', sans-serif", fontSize:24, color:'#4FC3F7', letterSpacing:'0.2em', border:'1px solid #4FC3F7', padding:'12px 24px' }}>
             SYSTEM ERROR
           </div>
           <div style={{ position:'fixed', top:4, right:8, fontFamily:"'JetBrains Mono', monospace", fontSize:8, color:'#004466' }}>BUILD_v3_Suspense+startTransition</div>
@@ -29,7 +29,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               {this.state.stack}
             </div>
           )}
-          <button onClick={() => window.location.reload()} style={{ background:'transparent', border:'1px solid #00CFFF', color:'#00CFFF', fontFamily:"'Orbitron', sans-serif", fontSize:12, padding:'10px 24px', cursor:'pointer', letterSpacing:'0.15em', marginTop:12 }}>
+          <button onClick={() => window.location.reload()} style={{ background:'transparent', border:'1px solid #4FC3F7', color:'#4FC3F7', fontFamily:"'Orbitron', sans-serif", fontSize:12, padding:'10px 24px', cursor:'pointer', letterSpacing:'0.15em', marginTop:12 }}>
             RELOAD
           </button>
         </div>

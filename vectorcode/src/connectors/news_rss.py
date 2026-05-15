@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/news_rss.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -23,18 +22,16 @@ from typing import Dict, Iterator, List, Optional
 import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _DEFAULT_CONFIG_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "news_rss.json")
-
 
 def _fetch_feed(url: str) -> str:
     """Download raw XML from a feed URL."""
     resp = httpx.get(url, timeout=30.0, follow_redirects=True)
     resp.raise_for_status()
     return resp.text
-
 
 def _parse_rss_items(xml_text: str, max_items: int = 5) -> List[Dict[str, str]]:
     """Parse RSS or Atom XML and return up to *max_items* entries."""
@@ -77,7 +74,6 @@ def _parse_rss_items(xml_text: str, max_items: int = 5) -> List[Dict[str, str]]:
 
     return items
 
-
 def _parse_pub_date(date_str: str) -> Optional[datetime]:
     """Best-effort parse of an RSS pubDate or Atom updated timestamp."""
     if not date_str:
@@ -90,7 +86,6 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
         return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return None
-
 
 @ConnectorRegistry.register("news_rss")
 class NewsRSSConnector(BaseConnector):

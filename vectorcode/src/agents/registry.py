@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 from loguru import logger
 
-
 @dataclass
 class AgentDefinition:
     """Metadata for a single VECTOR agent."""
@@ -26,7 +25,6 @@ class AgentDefinition:
     hp: int = 500
     capabilities: list[str] = field(default_factory=list)
     config: dict = field(default_factory=dict)
-
 
 class AgentRegistry:
     """Registry that stores and queries AgentDefinition objects by name."""
@@ -117,13 +115,11 @@ class AgentRegistry:
         logger.info(f"[VECTOR][registry] loaded {total} agent definitions from {dir}")
         return total
 
-
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _registry: Optional[AgentRegistry] = None
 
 _DEFINITIONS_DIR = Path(__file__).parent / "definitions"
-
 
 def get_registry() -> AgentRegistry:
     """Return the global AgentRegistry singleton.
@@ -183,7 +179,6 @@ def get_registry() -> AgentRegistry:
             logger.warning(f"[VECTOR][registry] agent_types import skipped: {e}")
 
     return _registry
-
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

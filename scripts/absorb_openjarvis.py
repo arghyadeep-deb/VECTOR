@@ -1,12 +1,12 @@
-"""Absorb OpenJarvis high-value modules into VECTOR.
+"""Absorb VectorCode high-value modules into VECTOR.
 
-Source: GitHub/OpenJarvis/src/openjarvis/<module>/
+Source: GitHub/VectorCode/src/vector/<module>/
 Target: vectorcode/src/<module>/  or  core/<module>/
 
 For each module:
   1. Copy every .py and asset file
-  2. Branding: openjarvis -> vector, OpenJarvis -> VectorCode, Jarvis -> VECTOR
-  3. Rewrite imports `from openjarvis.X` -> `from vectorcode.src.<dest>`
+  2. Branding: vector -> vector, VectorCode -> VectorCode, Jarvis -> VECTOR
+  3. Rewrite imports `from vector.X` -> `from vectorcode.src.<dest>`
      where <dest> is `oj_X` if X collides with VECTOR's existing dirs.
   4. Add VECTOR-INGESTED header.
 """
@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\OpenJarvis\src\openjarvis")
+SRC = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\VectorCode\src\vector")
 DST_VC = ROOT / "vectorcode" / "src"
 DST_CORE = ROOT / "core"
 
@@ -57,7 +57,7 @@ MODULES: list[tuple[str, str, str]] = [
 ]
 
 # OJ submodule names that collide with VECTOR's existing vectorcode/src/ dirs.
-# When OJ code does `from openjarvis.<name>`, redirect to vectorcode.src.oj_<name>.
+# When OJ code does `from vector.<name>`, redirect to vectorcode.src.oj_<name>.
 COLLIDING = {
     "core", "agents", "tools", "engine", "system", "mcp", "security",
     "templates", "traces", "skills", "memory", "providers",
@@ -67,10 +67,10 @@ COLLIDING = {
 CORE_MODULES = {"telemetry", "sandbox", "scheduler"}
 
 REPLACEMENTS_TEXT = [
-    (r"\bOpenJarvis\b", "VectorCode"),
-    (r"\bopenjarvis\b", "vector"),
-    (r"\bopen-jarvis\b", "vector"),
-    (r"\bopenJarvis\b", "vector"),
+    (r"\bVectorCode\b", "VectorCode"),
+    (r"\bvector\b", "vector"),
+    (r"\bvector\b", "vector"),
+    (r"\bvector\b", "vector"),
     (r"\bJarvis\b", "VECTOR"),
     (r"\bjarvis\b", "vector"),
     (r"\bIntelligence Per Watt\b", "VECTOR Per Watt"),
@@ -81,7 +81,7 @@ REPLACEMENTS_TEXT = [
 def header(src_path: str) -> str:
     return (
         f"# VECTOR-INGESTED MODULE\n"
-        f"# Source: github/open-jarvis/OpenJarvis/src/openjarvis/{src_path}\n"
+        f"# Source: github/vector/VectorCode/src/vector/{src_path}\n"
         f"# Personalized for VECTOR runtime.\n"
         f"# Owner: Arghyadeep Deb\n"
         f"# Ingested: {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n\n"
@@ -172,7 +172,7 @@ def main() -> int:
         print(f"ERROR: {SRC} not found")
         return 1
 
-    print(f"OpenJarvis -> VECTOR absorption")
+    print(f"VectorCode -> VECTOR absorption")
     print(f"  Source: {SRC}")
     print(f"  Target: vectorcode/src/ + core/")
     print()

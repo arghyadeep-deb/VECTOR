@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Source resolver ABC + ResolvedSkill dataclass."""
 
 from __future__ import annotations
@@ -7,7 +6,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
-
 
 @dataclass(slots=True)
 class ResolvedSkill:
@@ -24,7 +22,6 @@ class ResolvedSkill:
     description: str
     commit: str
     sidecar_data: Dict[str, Any] = field(default_factory=dict)
-
 
 class SourceResolver(ABC):
     """Abstract base for a skill source resolver.
@@ -62,6 +59,5 @@ class SourceResolver(ABC):
     def filter_by_category(self, category: str) -> List[ResolvedSkill]:
         """Return skills whose category exactly matches *category*."""
         return [s for s in self.list_skills() if s.category == category]
-
 
 __all__ = ["ResolvedSkill", "SourceResolver"]

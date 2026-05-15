@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Structural protocols for substituting fakes in place of VectorSystem."""
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ if TYPE_CHECKING:
     from vectorcode.src.vc_tools.storage._stubs import MemoryBackend
     from vectorcode.src.vc_traces.collector import TraceCollector
     from vectorcode.src.vc_traces.store import TraceStore
-
 
 class OrchestratorDeps(Protocol):
     """Minimum surface of VectorSystem that QueryOrchestrator depends on.

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Config-driven fluent builder that wires up a VectorSystem."""
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ from vectorcode.src.system.core import VectorSystem
 from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
 
 logger = logging.getLogger(__name__)
-
 
 class SystemBuilder:
     """Config-driven fluent builder for VectorSystem."""

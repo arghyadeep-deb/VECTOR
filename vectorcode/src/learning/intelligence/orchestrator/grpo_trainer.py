@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/grpo_trainer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -36,11 +35,10 @@ except ImportError:
     torch = None  # type: ignore[assignment]
     F = None  # type: ignore[assignment]
 
-from vectorcode.src.oj_core.registry import LearningRegistry
+from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._stubs import IntelligenceLearningPolicy
 
 logger = logging.getLogger(__name__)
-
 
 def _select_torch_device():
     """Select the best available PyTorch device (cuda > mps > cpu)."""
@@ -52,11 +50,9 @@ def _select_torch_device():
         return torch.device("mps")
     return torch.device("cpu")
 
-
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class OrchestratorGRPOConfig:
@@ -100,11 +96,9 @@ class OrchestratorGRPOConfig:
     use_8bit_ref: bool = True
     use_8bit_optimizer: bool = False
 
-
 # ---------------------------------------------------------------------------
 # Trainer
 # ---------------------------------------------------------------------------
-
 
 class OrchestratorGRPOTrainer:
     """GRPO trainer for orchestrator policy.
@@ -126,7 +120,7 @@ class OrchestratorGRPOTrainer:
     # -- Initialisation ------------------------------------------------------
 
     def _init_model(self) -> None:
-        from vector.learning.intelligence.orchestrator.policy_model import (
+        from vectorcode.src.learning.intelligence.orchestrator.policy_model import (
             OrchestratorPolicyModel,
         )
 
@@ -238,12 +232,12 @@ class OrchestratorGRPOTrainer:
         all_advantages: list[float] = []
         all_rewards: list[float] = []
 
-        from vector.learning.intelligence.orchestrator.reward import (
+        from vectorcode.src.learning.intelligence.orchestrator.reward import (
             MultiObjectiveReward,
             Normalizers,
             RewardWeights,
         )
-        from vector.learning.intelligence.orchestrator.types import (
+        from vectorcode.src.learning.intelligence.orchestrator.types import (
             Episode,
         )
 
@@ -461,11 +455,9 @@ class OrchestratorGRPOTrainer:
         for old in checkpoints[self.config.keep_last_n :]:
             shutil.rmtree(old)
 
-
 # ---------------------------------------------------------------------------
 # Registry wrapper
 # ---------------------------------------------------------------------------
-
 
 def _ensure_registered() -> None:
     if LearningRegistry.contains("orchestrator_grpo"):
@@ -487,9 +479,7 @@ def _ensure_registered() -> None:
             trainer.train()
             return {"status": "grpo_training_complete"}
 
-
 _ensure_registered()
-
 
 __all__ = [
     "OrchestratorGRPOConfig",

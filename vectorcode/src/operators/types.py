@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/operators/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -10,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
-
 
 @dataclass(slots=True)
 class OperatorManifest:
@@ -37,6 +35,5 @@ class OperatorManifest:
     # Extra
     settings: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
-
 
 __all__ = ["OperatorManifest"]

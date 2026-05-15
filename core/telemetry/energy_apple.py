@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/energy_apple.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -30,7 +29,6 @@ try:
 except ImportError:
     _ZEUS_APPLE_AVAILABLE = False
 
-
 # Typical package TDP (watts) by chip family.  Used for the CPU-time fallback.
 _CHIP_TDP: dict[str, float] = {
     "M1": 15.0,
@@ -49,7 +47,6 @@ _CHIP_TDP: dict[str, float] = {
     "M4 Pro": 30.0,
     "M4 Max": 60.0,
 }
-
 
 def _detect_chip() -> tuple[str, float]:
     """Return (chip_name, tdp_watts) for the current Apple Silicon SoC."""
@@ -70,7 +67,6 @@ def _detect_chip() -> tuple[str, float]:
             return chip, tdp
 
     return brand or "Apple Silicon", 20.0
-
 
 class AppleEnergyMonitor(EnergyMonitor):
     """Apple Silicon energy monitor.
@@ -125,7 +121,7 @@ class AppleEnergyMonitor(EnergyMonitor):
         result: EnergySample,
     ) -> Generator[EnergySample, None, None]:
         assert self._monitor is not None
-        window_name = f"openjarvis_{time.monotonic_ns()}"
+        window_name = f"vector_{time.monotonic_ns()}"
         t_start = time.monotonic()
         self._monitor.begin_window(window_name)
 
@@ -185,6 +181,5 @@ class AppleEnergyMonitor(EnergyMonitor):
     def close(self) -> None:
         self._monitor = None
         self._zeus_ok = False
-
 
 __all__ = ["AppleEnergyMonitor"]

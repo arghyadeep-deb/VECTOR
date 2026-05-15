@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/sandbox/mount_security.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -49,11 +48,9 @@ DEFAULT_BLOCKED_PATTERNS: List[str] = [
     ".pypirc",
 ]
 
-
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class AllowedRoot:
@@ -61,7 +58,6 @@ class AllowedRoot:
 
     path: str
     read_only: bool = True
-
 
 @dataclass(slots=True)
 class MountAllowlist:
@@ -72,11 +68,9 @@ class MountAllowlist:
         default_factory=lambda: list(DEFAULT_BLOCKED_PATTERNS),
     )
 
-
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------
-
 
 def load_mount_allowlist(path: str) -> MountAllowlist:
     """Load a mount allowlist from a JSON file.
@@ -108,7 +102,6 @@ def load_mount_allowlist(path: str) -> MountAllowlist:
     blocked = data.get("blocked_patterns", list(DEFAULT_BLOCKED_PATTERNS))
     return MountAllowlist(roots=roots, blocked_patterns=blocked)
 
-
 def _is_blocked(mount_path: str, patterns: List[str]) -> bool:
     """Check whether any component of *mount_path* matches a block pattern."""
     resolved = Path(mount_path).resolve()
@@ -124,7 +117,6 @@ def _is_blocked(mount_path: str, patterns: List[str]) -> bool:
             if fnmatch.fnmatch(part, pattern):
                 return True
     return False
-
 
 def _is_under_allowed_root(
     mount_path: str,
@@ -143,7 +135,6 @@ def _is_under_allowed_root(
         except ValueError:
             continue
     return False
-
 
 def validate_mount(
     mount_path: str,
@@ -171,7 +162,6 @@ def validate_mount(
 
     return True
 
-
 def validate_mounts(
     mounts: List[str],
     allowlist: MountAllowlist,
@@ -189,7 +179,6 @@ def validate_mounts(
         else:
             raise ValueError(f"Mount path not under any allowed root: {mount}")
     return valid
-
 
 __all__ = [
     "AllowedRoot",

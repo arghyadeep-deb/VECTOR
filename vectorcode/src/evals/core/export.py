@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/export.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,7 +16,6 @@ from typing import Any, Optional, Sequence
 
 from vectorcode.src.evals.core.trace import QueryTrace
 
-
 def _agg_stats(values: Sequence[Optional[float]]) -> dict[str, Optional[float]]:
     """Return {avg, median, min, max, std} filtering None values."""
     clean = [v for v in values if v is not None]
@@ -30,7 +28,6 @@ def _agg_stats(values: Sequence[Optional[float]]) -> dict[str, Optional[float]]:
         "max": max(clean),
         "std": statistics.stdev(clean) if len(clean) > 1 else 0.0,
     }
-
 
 def _compute_efficiency(
     traces: list[QueryTrace],
@@ -58,7 +55,6 @@ def _compute_efficiency(
         "ipj": (accuracy / total_gpu_energy if accuracy and total_gpu_energy else None),
         "ipw": (accuracy / avg_gpu_power if accuracy and avg_gpu_power else None),
     }
-
 
 def _compute_normalized(
     traces: list[QueryTrace],
@@ -145,7 +141,6 @@ def _compute_normalized(
         "normalized_efficiency": norm_efficiency,
     }
 
-
 def export_jsonl(traces: list[QueryTrace], path: Path) -> Path:
     """Export traces as JSONL (one JSON object per line).
 
@@ -161,7 +156,6 @@ def export_jsonl(traces: list[QueryTrace], path: Path) -> Path:
         for trace in traces:
             f.write(json.dumps(trace.to_dict()) + "\n")
     return path
-
 
 def export_hf_dataset(traces: list[QueryTrace], path: Path) -> Path:
     """Export traces as a HuggingFace Arrow dataset.
@@ -181,11 +175,10 @@ def export_hf_dataset(traces: list[QueryTrace], path: Path) -> Path:
     ds.save_to_disk(str(path))
     return path
 
-
 def _hardware_info_dict() -> dict[str, Any]:
     """Detect hardware and return a JSON-serializable dict."""
     try:
-        from vector.core.config import detect_hardware
+        from vectorcode.src.vc_core.config import detect_hardware
 
         hw = detect_hardware()
         info: dict[str, Any] = {
@@ -206,7 +199,6 @@ def _hardware_info_dict() -> dict[str, Any]:
         return info
     except Exception:
         return {}
-
 
 def export_summary_json(
     traces: list[QueryTrace],
@@ -452,7 +444,6 @@ def export_summary_json(
     path.write_text(json.dumps(summary, indent=2, default=str))
     return path
 
-
 def export_artifacts_manifest(run_dir: Path) -> Optional[Path]:
     """Scan ``{run_dir}/artifacts/`` and write ``artifacts_manifest.json``.
 
@@ -481,7 +472,6 @@ def export_artifacts_manifest(run_dir: Path) -> Optional[Path]:
     manifest_path = run_dir / "artifacts_manifest.json"
     manifest_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
     return manifest_path
-
 
 __all__ = [
     "export_jsonl",

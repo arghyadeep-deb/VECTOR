@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/browser_assistant.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -32,7 +31,6 @@ from vectorcode.src.evals.scorers._checklist import (
 LOGGER = logging.getLogger(__name__)
 
 _URL_PATTERN = re.compile(r"https?://\S+")
-
 
 def _exact_match_score(
     model_answer: str,
@@ -73,7 +71,6 @@ def _exact_match_score(
 
     return score, details
 
-
 def _sources_cited(model_answer: str) -> bool:
     """Check if the answer includes any URL or source references."""
     if _URL_PATTERN.search(model_answer):
@@ -90,7 +87,6 @@ def _sources_cited(model_answer: str) -> bool:
         "as stated in",
     ]
     return any(ind in ans_lower for ind in source_indicators)
-
 
 class BrowserAssistantScorer(Scorer):
     """Score web research output by fact accuracy and sourcing."""
@@ -237,6 +233,5 @@ class BrowserAssistantScorer(Scorer):
             "semantic_details": semantic_details,
             "quality_details": quality_details,
         }
-
 
 __all__ = ["BrowserAssistantScorer"]

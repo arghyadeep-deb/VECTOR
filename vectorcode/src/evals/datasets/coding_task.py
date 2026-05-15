@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/coding_task.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -233,7 +232,6 @@ _TASKS = [
     },
 ]
 
-
 class CodingTaskDataset(DatasetProvider):
     """Coding task benchmark: function-level code generation with test cases."""
 
@@ -285,6 +283,5 @@ class CodingTaskDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["CodingTaskDataset"]

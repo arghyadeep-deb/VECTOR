@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/_stubs.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,7 +11,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-
 @dataclass
 class Segment:
     """A timed segment of transcribed text."""
@@ -21,7 +19,6 @@ class Segment:
     start: float  # Start time in seconds
     end: float  # End time in seconds
     confidence: Optional[float] = None
-
 
 @dataclass
 class TranscriptionResult:
@@ -32,7 +29,6 @@ class TranscriptionResult:
     confidence: Optional[float] = None
     duration_seconds: float = 0.0
     segments: List[Segment] = field(default_factory=list)
-
 
 class SpeechBackend(ABC):
     """Abstract base class for speech-to-text backends."""
@@ -56,6 +52,5 @@ class SpeechBackend(ABC):
     @abstractmethod
     def supported_formats(self) -> List[str]:
         """Return list of supported audio formats."""
-
 
 __all__ = ["Segment", "SpeechBackend", "TranscriptionResult"]

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Webhook endpoints for receiving messages from external platforms."""
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ from starlette.responses import PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
-
 def _log_task_exception(task: asyncio.Task) -> None:
     """Log exceptions from background message handling tasks."""
     if task.cancelled():
@@ -27,7 +25,6 @@ def _log_task_exception(task: asyncio.Task) -> None:
             exc,
             exc_info=exc,
         )
-
 
 def _validate_twilio_signature(
     auth_token: str,
@@ -55,7 +52,6 @@ def _validate_twilio_signature(
         )
         return False
 
-
 def _format_for_sms(text: str) -> str:
     """Strip markdown/LaTeX formatting for clean iMessage/SMS display."""
     import re
@@ -81,7 +77,6 @@ def _format_for_sms(text: str) -> str:
     # Collapse excessive blank lines
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
-
 
 def create_webhook_router(
     bridge: Any,

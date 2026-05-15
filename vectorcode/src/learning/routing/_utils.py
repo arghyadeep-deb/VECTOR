@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/routing/_utils.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,7 +22,6 @@ _MATH_RE = re.compile(
     re.IGNORECASE,
 )
 
-
 def classify_query(query: str) -> str:
     """Classify a query into a broad category for routing."""
     if _CODE_RE.search(query):
@@ -35,6 +33,5 @@ def classify_query(query: str) -> str:
     if len(query) > 500:
         return "long"
     return "general"
-
 
 __all__ = ["classify_query"]

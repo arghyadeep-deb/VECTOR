@@ -870,8 +870,8 @@ async def web_karpathy():
 @router.get("/agents")
 async def web_agents():
     try:
-        from core.city.agent_registry import AgentRegistry
-        agents = AgentRegistry().list_agents()
+        from core.city.agent_registry import get_registry
+        agents = get_registry().list_all()
         return {"agents": [
             {"name": a.get("name", "?"), "hp": a.get("health_points", 0),
              "district": a.get("district", "?"), "generation": a.get("generation", 1)}

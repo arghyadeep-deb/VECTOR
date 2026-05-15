@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/outlook.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,11 +19,10 @@ from typing import Iterator, Optional
 
 from vectorcode.src.connectors._stubs import Document
 from vectorcode.src.connectors.gmail_imap import GmailIMAPConnector
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "outlook.json")
-
 
 @ConnectorRegistry.register("outlook")
 class OutlookConnector(GmailIMAPConnector):

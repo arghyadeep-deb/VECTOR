@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/deepplanning.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -43,7 +42,6 @@ _SYSTEM_PROMPT = (
     "attribute values that match each constraint\n"
     "- Present your final answer as a clear list of selected products"
 )
-
 
 class DeepPlanningDataset(DatasetProvider):
     """DeepPlanning long-horizon planning benchmark.
@@ -237,6 +235,5 @@ class DeepPlanningDataset(DatasetProvider):
                 "meta_info": meta_info,
             },
         )
-
 
 __all__ = ["DeepPlanningDataset"]

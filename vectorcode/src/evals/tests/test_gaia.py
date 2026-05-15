@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_gaia.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -18,7 +17,6 @@ from vectorcode.src.evals.scorers.gaia_exact import (
     exact_match,
 )
 from vectorcode.src.evals.tests.conftest import MockBackend
-
 
 class TestNormalization:
     def test_normalize_number_str(self):
@@ -42,7 +40,6 @@ class TestNormalization:
         assert _is_float("abc") is False
         assert _is_float(None) is False
 
-
 class TestExactMatch:
     def test_number_match(self):
         assert exact_match("42", "42") is True
@@ -64,7 +61,6 @@ class TestExactMatch:
     def test_punctuation_handling(self):
         assert exact_match("Hello!", "Hello") is True
         assert exact_match("test.", "test") is True
-
 
 class TestGAIAScorer:
     def _make_record(self, reference="42"):

@@ -12,39 +12,39 @@
 }
 
 :root {
-  /* Core palette */
-  --bg-deep:       #020b14;
-  --bg-mid:        #040f1c;
-  --cyan:          #00d4ff;
-  --cyan-bright:   #00f0ff;
-  --cyan-dim:      rgba(0,212,255,0.4);
-  --teal:          #00FFD4;
-  --blue:          #0066ff;
-  --amber:         #ffaa00;
-  --red:           #ff3333;
-  --purple:        #BF5FFF;
-  --green:         #00FF88;
+  /* Core palette — monotonic JARVIS blue-on-black */
+  --bg-deep:       #020a14;
+  --bg-mid:        #060e1c;
+  --cyan:          #4FC3F7;
+  --cyan-bright:   #81D4FA;
+  --cyan-dim:      rgba(79,195,247,0.3);
+  --teal:          #4FC3F7;
+  --blue:          #2979AA;
+  --amber:         #42A5F5;
+  --red:           #EF5350;
+  --purple:        #64B5F6;
+  --green:         #4FC3F7;
 
   /* Panel system */
-  --panel-glass:   rgba(4,12,24,0.90);
-  --panel-border:  rgba(0,212,255,0.10);
-  --panel-glow:    rgba(0,212,255,0.04);
+  --panel-glass:   rgba(4,12,24,0.92);
+  --panel-border:  rgba(79,195,247,0.10);
+  --panel-glow:    rgba(79,195,247,0.03);
 
-  /* Status colors */
-  --status-nominal:  #00CFFF;
-  --status-active:   #00FF88;
-  --status-warning:  #FFB300;
-  --status-critical: #FF3D3D;
-  --status-dead:     #4a0000;
-  --status-council:  #BF5FFF;
-  --status-ghost:    #1a4a6b;
-  --status-offline:  #2a2a2a;
+  /* Status colors — all blue shades */
+  --status-nominal:  #4FC3F7;
+  --status-active:   #81D4FA;
+  --status-warning:  #42A5F5;
+  --status-critical: #EF5350;
+  --status-dead:     #1a0030;
+  --status-council:  #64B5F6;
+  --status-ghost:    #1a3a5a;
+  --status-offline:  #1a1a1a;
 
   /* Theme tokens (animatable) */
-  --theme-accent:  #00d4ff;
-  --theme-glow:    rgba(0,212,255,0.15);
-  --theme-border:  rgba(0,212,255,0.20);
-  --theme-grid:    rgba(0,40,80,0.07);
+  --theme-accent:  #4FC3F7;
+  --theme-glow:    rgba(79,195,247,0.12);
+  --theme-border:  rgba(79,195,247,0.15);
+  --theme-grid:    rgba(20,60,100,0.06);
 }
 
 @property --theme-accent {
@@ -160,13 +160,13 @@ html, body, #root {
 }
 
 @keyframes orb-think {
-  0%, 100% { filter: drop-shadow(0 0 15px #00d4ff); }
-  50%       { filter: drop-shadow(0 0 40px #ffaa00); }
+  0%, 100% { filter: drop-shadow(0 0 15px #4FC3F7); }
+  50%       { filter: drop-shadow(0 0 40px #81D4FA); }
 }
 
 @keyframes orb-alert {
-  0%, 100% { filter: drop-shadow(0 0 15px #00d4ff); }
-  50%       { filter: drop-shadow(0 0 50px #ff3333); }
+  0%, 100% { filter: drop-shadow(0 0 15px #4FC3F7); }
+  50%       { filter: drop-shadow(0 0 50px #EF5350); }
 }
 
 @keyframes data-stream {
@@ -189,8 +189,8 @@ html, body, #root {
 }
 
 @keyframes execPulse {
-  0%, 100% { box-shadow: 0 0 5px rgba(0,212,255,0.2); }
-  50%       { box-shadow: 0 0 20px rgba(0,212,255,0.5), 0 0 40px rgba(0,212,255,0.2); }
+  0%, 100% { box-shadow: 0 0 5px rgba(79,195,247,0.2); }
+  50%       { box-shadow: 0 0 20px rgba(79,195,247,0.5), 0 0 40px rgba(79,195,247,0.2); }
 }
 
 @keyframes status-blink {
@@ -247,9 +247,9 @@ html, body, #root {
 .shimmer-fill {
   background: linear-gradient(
     90deg,
-    rgba(0,212,255,0.2) 0%,
-    rgba(0,212,255,0.7) 50%,
-    rgba(0,212,255,0.2) 100%
+    rgba(79,195,247,0.15) 0%,
+    rgba(79,195,247,0.6) 50%,
+    rgba(79,195,247,0.15) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
@@ -261,7 +261,7 @@ button {
   transition: all 0.2s ease;
 }
 button:hover:not(:disabled) {
-  box-shadow: 0 0 12px rgba(0,212,255,0.2);
+  box-shadow: 0 0 12px rgba(79,195,247,0.2);
   filter: brightness(1.15);
 }
 button:active:not(:disabled) {
@@ -269,8 +269,8 @@ button:active:not(:disabled) {
 }
 
 input:focus {
-  border-bottom-color: #00d4ff !important;
-  box-shadow: 0 1px 0 0 rgba(0,212,255,0.2) !important;
+  border-bottom-color: #4FC3F7 !important;
+  box-shadow: 0 1px 0 0 rgba(79,195,247,0.2) !important;
 }
 
 /* ── HUD Flicker (subtle, occasional) ─────────────────────────────────────── */
@@ -284,7 +284,7 @@ input:focus {
 .waveform-bar {
   display: inline-block;
   width: 2px;
-  background: #00FFD4;
+  background: #4FC3F7;
   border-radius: 1px;
   transform-origin: bottom;
   animation: waveform 0.6s ease-in-out infinite;
@@ -309,6 +309,6 @@ input:focus {
   border-radius: 50%;
   display: inline-block;
 }
-.status-dot.online  { background: #00FF88; box-shadow: 0 0 8px #00FF88; animation: v-pulse 3s ease-in-out infinite; }
-.status-dot.warning { background: #FFB300; box-shadow: 0 0 8px #FFB300; animation: v-pulse 1.5s ease-in-out infinite; }
-.status-dot.offline { background: #2a2a2a; }
+.status-dot.online  { background: #4FC3F7; box-shadow: 0 0 8px #4FC3F7; animation: v-pulse 3s ease-in-out infinite; }
+.status-dot.warning { background: #42A5F5; box-shadow: 0 0 8px #42A5F5; animation: v-pulse 1.5s ease-in-out infinite; }
+.status-dot.offline { background: #1a1a1a; }

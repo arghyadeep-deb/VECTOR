@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/liveresearch.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -32,7 +31,6 @@ LOGGER = logging.getLogger(__name__)
 LIVERESEARCH_REPO = "https://github.com/Ayanami0730/deep_research_bench.git"
 CACHE_DIR = Path.home() / ".cache" / "liveresearch_bench"
 
-
 def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
     """Load a JSONL file into a list of dicts."""
     records: List[Dict[str, Any]] = []
@@ -42,7 +40,6 @@ def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
             if line:
                 records.append(json.loads(line))
     return records
-
 
 def _build_criteria_index(
     criteria_records: List[Dict[str, Any]],
@@ -54,7 +51,6 @@ def _build_criteria_index(
         if rec_id is not None:
             index[int(rec_id)] = rec
     return index
-
 
 class LiveResearchBenchDataset(DatasetProvider):
     """DeepResearchBench — deep research with 100 expert-curated tasks.
@@ -198,6 +194,5 @@ class LiveResearchBenchDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["LiveResearchBenchDataset"]

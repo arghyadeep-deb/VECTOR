@@ -19,9 +19,9 @@ function hpColor(hp: number): string {
 }
 
 function statusBadge(status: string, isAlive: boolean): { text: string; color: string } {
-  if (status === 'council' || status === 'governance') return { text: 'COUNCIL', color: '#ffaa00' }
+  if (status === 'council' || status === 'governance') return { text: 'COUNCIL', color: '#42A5F5' }
   if (!isAlive) return { text: 'DEAD', color: '#ff3355' }
-  return { text: 'ACTIVE', color: '#00CFFF' }
+  return { text: 'ACTIVE', color: '#4FC3F7' }
 }
 
 function HPHistorySparkline({ history }: { history: number[] }) {
@@ -30,8 +30,8 @@ function HPHistorySparkline({ history }: { history: number[] }) {
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]} ${p[1]}`).join(' ')
   return (
     <svg width={w} height={h}>
-      <path d={d} fill="none" stroke="#00CFFF" strokeWidth={1} opacity={0.4} />
-      {pts.length > 0 && <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={1.5} fill="#00CFFF" />}
+      <path d={d} fill="none" stroke="#4FC3F7" strokeWidth={1} opacity={0.4} />
+      {pts.length > 0 && <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={1.5} fill="#4FC3F7" />}
     </svg>
   )
 }

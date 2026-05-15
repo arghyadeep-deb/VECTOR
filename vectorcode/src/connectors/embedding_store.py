@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/embedding_store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -39,7 +38,6 @@ CREATE TABLE IF NOT EXISTS embedding_index (
 );
 """
 
-
 class EmbeddingStore:
     """Stores ColBERT token-level embeddings on disk.
 
@@ -57,7 +55,7 @@ class EmbeddingStore:
 
     def __init__(self, store_dir: str = "") -> None:
         if not store_dir:
-            from vector.core.config import DEFAULT_CONFIG_DIR
+            from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 
             store_dir = str(DEFAULT_CONFIG_DIR / "embeddings")
 
@@ -180,6 +178,5 @@ class EmbeddingStore:
             self._conn.close()
         except Exception:
             pass
-
 
 __all__ = ["EmbeddingStore"]

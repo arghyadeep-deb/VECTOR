@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/workflow/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,7 +11,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
 
-
 class NodeType(str, Enum):
     AGENT = "agent"
     TOOL = "tool"
@@ -20,7 +18,6 @@ class NodeType(str, Enum):
     PARALLEL = "parallel"
     LOOP = "loop"
     TRANSFORM = "transform"
-
 
 @dataclass(slots=True)
 class WorkflowNode:
@@ -36,13 +33,11 @@ class WorkflowNode:
     # For transform nodes
     transform_expr: str = ""
 
-
 @dataclass(slots=True)
 class WorkflowEdge:
     source: str
     target: str
     condition: str = ""  # optional condition for conditional routing
-
 
 @dataclass(slots=True)
 class WorkflowStepResult:
@@ -52,7 +47,6 @@ class WorkflowStepResult:
     duration_seconds: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(slots=True)
 class WorkflowResult:
     workflow_name: str = ""
@@ -61,7 +55,6 @@ class WorkflowResult:
     final_output: str = ""
     total_duration_seconds: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
-
 
 __all__ = [
     "NodeType",

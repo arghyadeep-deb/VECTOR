@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/skill_benchmark.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -31,11 +30,9 @@ CONDITIONS = (
     "skills_optimized_gepa",
 )
 
-
 # ---------------------------------------------------------------------------
 # Config + result types
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class SkillBenchmarkConfig:
@@ -68,7 +65,6 @@ class SkillBenchmarkConfig:
         default_factory=lambda: Path("~/.vector/learning/skills-gepa/").expanduser()
     )
 
-
 @dataclass(slots=True)
 class ConditionResult:
     """Aggregated result for a single condition across all seeds."""
@@ -83,7 +79,6 @@ class ConditionResult:
     total_tokens: int
     total_runtime_seconds: float
 
-
 @dataclass(slots=True)
 class ConditionComparison:
     """Top-level result of a SkillBenchmarkRunner sweep."""
@@ -93,7 +88,6 @@ class ConditionComparison:
     ended_at: str
     results: Dict[str, ConditionResult]
     deltas: Dict[str, float]
-
 
 class SkillBenchmarkRunner:
     """Orchestrates the 4-condition × N-seed × M-task PinchBench sweep.
@@ -124,7 +118,7 @@ class SkillBenchmarkRunner:
     # ------------------------------------------------------------------
 
     def _backend_kwargs_for_condition(self, condition: str) -> Dict[str, Any]:
-        """Return the kwargs to pass to JarvisAgentBackend for *condition*.
+        """Return the kwargs to pass to VectorAgentBackend for *condition*.
 
         Pure function — no side effects, no SystemBuilder construction.
         Tested in isolation so we can verify the per-condition switches
@@ -156,15 +150,15 @@ class SkillBenchmarkRunner:
         )
 
     def _build_backend_for_condition(self, condition: str) -> Any:
-        """Construct a JarvisAgentBackend for *condition*.
+        """Construct a VectorAgentBackend for *condition*.
 
         Separate from `_backend_kwargs_for_condition` so the kwarg logic
         can be tested without instantiating an engine.
         """
-        from vector.evals.backends.jarvis_agent import JarvisAgentBackend
+        from vectorcode.src.evals.backends.vector_agent import VectorAgentBackend
 
         kw = self._backend_kwargs_for_condition(condition)
-        return JarvisAgentBackend(
+        return VectorAgentBackend(
             engine_key=self._config.engine,
             agent_name=self._config.agent,
             tools=list(self._config.tools),
@@ -193,11 +187,11 @@ class SkillBenchmarkRunner:
         shim so tests can monkeypatch it without instantiating an
         engine or running real benchmark tasks.
         """
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
-        from vector.evals.core.runner import EvalRunner
-        from vector.evals.core.types import RunConfig
-        from vector.evals.datasets.pinchbench import PinchBenchDataset
-        from vector.evals.scorers.pinchbench import PinchBenchScorer
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
+        from vectorcode.src.evals.core.runner import EvalRunner
+        from vectorcode.src.evals.core.types import RunConfig
+        from vectorcode.src.evals.datasets.pinchbench import PinchBenchDataset
+        from vectorcode.src.evals.scorers.pinchbench import PinchBenchScorer
 
         backend = self._build_backend_for_condition(condition)
 
@@ -212,7 +206,7 @@ class SkillBenchmarkRunner:
         # backend.  We reuse the same engine the agent uses (typically
         # a local Ollama model) so the headline run is fully local.
         try:
-            judge_backend = JarvisDirectBackend(
+            judge_backend = VectorDirectBackend(
                 engine_key=self._config.engine,
             )
         except RuntimeError as exc:
@@ -503,7 +497,6 @@ class SkillBenchmarkRunner:
 
         path.write_text("\n".join(lines), encoding="utf-8")
         return path
-
 
 __all__ = [
     "CONDITIONS",

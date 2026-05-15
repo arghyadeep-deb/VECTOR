@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/_checklist.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,13 +22,11 @@ from typing import Any, Dict, List, Tuple
 
 LOGGER = logging.getLogger(__name__)
 
-
 def normalize_str(text: str) -> str:
     """Lowercase, remove punctuation, collapse whitespace."""
     text = text.lower()
     text = text.translate(str.maketrans("", "", string.punctuation))
     return " ".join(text.split())
-
 
 def normalize_number_str(number_str: str) -> float:
     """Strip currency/percent symbols and parse as float."""
@@ -39,7 +36,6 @@ def normalize_number_str(number_str: str) -> float:
         return float(number_str)
     except ValueError:
         return float("inf")
-
 
 def contains_key_phrases(
     answer: str,
@@ -58,7 +54,6 @@ def contains_key_phrases(
     matched = sum(1 for p in phrases if p in ans_norm)
     return matched / len(phrases) >= threshold
 
-
 _CHECKLIST_JUDGE_PROMPT = """You are evaluating an AI response against a checklist of binary criteria.
 
 For each numbered item below, answer YES or NO, followed by a brief reason.
@@ -75,7 +70,6 @@ Checklist:
 Respond with exactly one line per item in this format:
 <number>. <yes or no> — <brief reason>
 """
-
 
 class ChecklistScorer:
     """Scores model output against binary yes/no checklist items.
@@ -168,7 +162,6 @@ class ChecklistScorer:
             )
 
         return details
-
 
 __all__ = [
     "ChecklistScorer",

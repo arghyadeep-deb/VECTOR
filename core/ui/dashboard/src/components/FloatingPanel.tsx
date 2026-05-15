@@ -59,9 +59,9 @@ export default function FloatingPanel({ title, subtitle, children, style, onClos
       style={{
         position: 'absolute',
         background: 'rgba(2, 18, 32, 0.92)',
-        border: '1px solid #00CFFF',
+        border: '1px solid #4FC3F7',
         clipPath: 'polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px)',
-        boxShadow: '0 0 20px #00CFFF22, inset 0 0 30px #00CFFF08',
+        boxShadow: '0 0 20px #4FC3F722, inset 0 0 30px #4FC3F708',
         animation: exiting
           ? 'fpExit 200ms cubic-bezier(0.23,1,0.32,1) forwards'
           : 'fpEnter 300ms cubic-bezier(0.23,1,0.32,1) forwards',
@@ -102,7 +102,7 @@ export default function FloatingPanel({ title, subtitle, children, style, onClos
                 letterSpacing: '0.05em',
                 transition: 'all 0.15s',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#00CFFF'; e.currentTarget.style.borderColor = 'rgba(0,207,255,0.35)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#4FC3F7'; e.currentTarget.style.borderColor = 'rgba(0,207,255,0.35)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = '#3388aa'; e.currentTarget.style.borderColor = 'rgba(0,207,255,0.15)' }}
             >
               ✕

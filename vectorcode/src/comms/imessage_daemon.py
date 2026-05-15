@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """iMessage daemon — polls chat.db and routes to DeepResearchAgent.
 
 Monitors a designated iMessage conversation for new messages, routes
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DB_PATH = str(Path.home() / "Library" / "Messages" / "chat.db")
 _POLL_INTERVAL = 5
 _PID_FILE = str(Path.home() / ".vector" / "imessage-agent.pid")
-
 
 def poll_new_messages(
     *,
@@ -57,7 +55,6 @@ def poll_new_messages(
     finally:
         conn.close()
 
-
 def send_imessage(chat_identifier: str, message: str) -> bool:
     """Send an iMessage via AppleScript."""
     escaped = message.replace("\\", "\\\\").replace('"', '\\"')
@@ -79,7 +76,6 @@ def send_imessage(chat_identifier: str, message: str) -> bool:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         logger.error("Failed to send iMessage via AppleScript")
         return False
-
 
 def run_daemon(
     *,
@@ -143,7 +139,6 @@ def run_daemon(
         pid_path.unlink()
     logger.info("iMessage daemon stopped")
 
-
 def _get_max_rowid(db_path: str) -> int:
     """Get the current max ROWID from chat.db."""
     try:
@@ -153,7 +148,6 @@ def _get_max_rowid(db_path: str) -> int:
         return row[0] or 0
     except sqlite3.OperationalError:
         return 0
-
 
 def is_running() -> bool:
     """Check if the daemon is currently running."""
@@ -167,7 +161,6 @@ def is_running() -> bool:
     except (ValueError, ProcessLookupError, PermissionError):
         pid_path.unlink(missing_ok=True)
         return False
-
 
 def stop_daemon() -> bool:
     """Stop the running daemon. Returns True if stopped."""

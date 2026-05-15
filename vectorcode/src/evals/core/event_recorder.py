@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/event_recorder.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,7 +12,6 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
-
 
 class EventType(str, Enum):
     """Supported event types for agent telemetry."""
@@ -30,7 +28,6 @@ class EventType(str, Enum):
     SUBMODEL_CALL_START = "submodel_call_start"
     SUBMODEL_CALL_END = "submodel_call_end"
 
-
 @dataclass
 class AgentEvent:
     """Single event recorded during agent execution."""
@@ -44,7 +41,6 @@ class AgentEvent:
             f"AgentEvent({self.event_type!r}, "
             f"ts={self.timestamp:.3f}, meta={self.metadata})"
         )
-
 
 class EventRecorder:
     """Thread-safe recorder for agent execution events.
@@ -99,6 +95,5 @@ class EventRecorder:
         """Return the number of recorded events."""
         with self._lock:
             return len(self._events)
-
 
 __all__ = ["AgentEvent", "EventRecorder", "EventType"]

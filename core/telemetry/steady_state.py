@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/steady_state.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ import statistics
 from dataclasses import dataclass, field
 from typing import List
 
-
 @dataclass
 class SteadyStateConfig:
     """Configuration for steady-state detection."""
@@ -22,7 +20,6 @@ class SteadyStateConfig:
     cv_threshold: float = 0.05
     min_steady_samples: int = 3
     metric: str = "throughput"
-
 
 @dataclass
 class SteadyStateResult:
@@ -36,7 +33,6 @@ class SteadyStateResult:
     warmup_energies: List[float] = field(default_factory=list)
     steady_throughputs: List[float] = field(default_factory=list)
     steady_energies: List[float] = field(default_factory=list)
-
 
 class SteadyStateDetector:
     """Detect steady state using coefficient of variation over a sliding window.
@@ -126,7 +122,6 @@ class SteadyStateDetector:
         self._energies.clear()
         self._consecutive_stable = 0
         self._steady_state_reached = False
-
 
 __all__ = [
     "SteadyStateConfig",

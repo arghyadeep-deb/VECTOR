@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_config.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -29,18 +28,15 @@ from vectorcode.src.evals.core.types import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _write_toml(tmp_path: Path, content: str) -> Path:
     """Write a TOML string to a temp file and return its path."""
     p = tmp_path / "suite.toml"
     p.write_text(textwrap.dedent(content))
     return p
 
-
 # ---------------------------------------------------------------------------
 # Dataclass defaults
 # ---------------------------------------------------------------------------
-
 
 class TestDataclassDefaults:
     def test_meta_config_defaults(self):
@@ -98,11 +94,9 @@ class TestDataclassDefaults:
         assert s.models == []
         assert s.benchmarks == []
 
-
 # ---------------------------------------------------------------------------
 # TOML loading
 # ---------------------------------------------------------------------------
-
 
 class TestLoadEvalConfig:
     def test_minimal_config(self, tmp_path):
@@ -383,11 +377,9 @@ class TestLoadEvalConfig:
         assert suite.run.telemetry is True
         assert suite.run.gpu_metrics is True
 
-
 # ---------------------------------------------------------------------------
 # Example config files load correctly
 # ---------------------------------------------------------------------------
-
 
 class TestExampleConfigs:
     @pytest.fixture(
@@ -414,11 +406,9 @@ class TestExampleConfigs:
         assert len(suite.models) == 3
         assert len(suite.benchmarks) == 4
 
-
 # ---------------------------------------------------------------------------
 # Matrix expansion
 # ---------------------------------------------------------------------------
-
 
 class TestExpandSuite:
     def test_single_model_single_benchmark(self):
@@ -654,17 +644,15 @@ class TestExpandSuite:
         assert configs[0].telemetry is True
         assert configs[0].gpu_metrics is True
 
-
 # ---------------------------------------------------------------------------
 # CLI integration
 # ---------------------------------------------------------------------------
-
 
 class TestCLIConfig:
     def test_run_missing_benchmark_and_config(self):
         from click.testing import CliRunner
 
-        from vector.evals.cli import main
+        from vectorcode.src.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "-m", "qwen3:8b"])
@@ -674,7 +662,7 @@ class TestCLIConfig:
     def test_run_missing_model_and_config(self):
         from click.testing import CliRunner
 
-        from vector.evals.cli import main
+        from vectorcode.src.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "-b", "supergpqa"])
@@ -684,7 +672,7 @@ class TestCLIConfig:
     def test_run_config_file_not_found(self):
         from click.testing import CliRunner
 
-        from vector.evals.cli import main
+        from vectorcode.src.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "--config", "/nonexistent.toml"])
@@ -700,7 +688,7 @@ class TestCLIConfig:
 
         from click.testing import CliRunner
 
-        from vector.evals.cli import main
+        from vectorcode.src.evals.cli import main
 
         p = _write_toml(
             tmp_path,

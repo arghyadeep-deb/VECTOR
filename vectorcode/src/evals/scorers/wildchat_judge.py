@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/wildchat_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -67,7 +66,6 @@ Return **only** a JSON object that matches the provided schema:
 "verdict": "<one verdict token from: [[A>>B]], [[A>B]], [[A=B]], [[B>A]], [[B>>A]]>"
 }
 ```"""
-
 
 class WildChatScorer(LLMJudgeScorer):
     """Dual-comparison LLM-as-judge for chat quality."""
@@ -174,6 +172,5 @@ class WildChatScorer(LLMJudgeScorer):
 
         verdict_map = verdict_map_a if generated_is_a else verdict_map_b
         return verdict_map.get(verdict)
-
 
 __all__ = ["WildChatScorer"]

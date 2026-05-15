@@ -120,9 +120,9 @@ function AlertPanel({ pos, onClose, children }: { pos: React.CSSProperties; onCl
         zIndex: Z.ALERTS,
         width: 380,
         background: 'rgba(2, 18, 32, 0.95)',
-        border: '1px solid #00CFFF',
+        border: '1px solid #4FC3F7',
         clipPath: 'polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px)',
-        boxShadow: '0 0 20px #00CFFF22, inset 0 0 30px #00CFFF08',
+        boxShadow: '0 0 20px #4FC3F722, inset 0 0 30px #4FC3F708',
         animation: exiting ? 'fpExit 200ms ease forwards' : 'fpEnter 300ms ease forwards',
         ...pos,
       }}
@@ -131,7 +131,7 @@ function AlertPanel({ pos, onClose, children }: { pos: React.CSSProperties; onCl
         {children}
         {/* Progress bar */}
         <div style={{ height: 2, background: 'rgba(0,207,255,0.05)' }}>
-          <div style={{ width: `${progress}%`, height: '100%', background: '#00CFFF', transition: 'width 0.1s linear' }} />
+          <div style={{ width: `${progress}%`, height: '100%', background: '#4FC3F7', transition: 'width 0.1s linear' }} />
         </div>
         {/* Close button */}
         <button

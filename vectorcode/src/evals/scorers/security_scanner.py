@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/security_scanner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -89,7 +88,6 @@ _VULN_TYPE_ALIASES: Dict[str, List[str]] = {
     "jwt_none": ["jwt none", "jwt algorithm none", "alg none"],
 }
 
-
 def _vuln_type_matches(model_text_norm: str, vuln_type: str) -> bool:
     """Check if normalized model text mentions the given vulnerability type."""
     vuln_norm = normalize_str(vuln_type)
@@ -104,12 +102,10 @@ def _vuln_type_matches(model_text_norm: str, vuln_type: str) -> bool:
                     return True
     return False
 
-
 def _file_mentioned(model_text_norm: str, filename: str) -> bool:
     """Check if the model mentions a specific filename."""
     fname_norm = normalize_str(filename)
     return fname_norm in model_text_norm
-
 
 def _count_false_positives(
     model_text: str,
@@ -143,7 +139,6 @@ def _count_false_positives(
                         break
 
     return fp_count
-
 
 class SecurityScannerScorer(Scorer):
     """Score security scanner output by vulnerability detection accuracy."""
@@ -264,6 +259,5 @@ class SecurityScannerScorer(Scorer):
             "vuln_details": vuln_details,
             "checklist_details": checklist_details,
         }
-
 
 __all__ = ["SecurityScannerScorer"]

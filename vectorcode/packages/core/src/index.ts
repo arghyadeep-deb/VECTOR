@@ -1,6 +1,6 @@
 /**
  * VectorCode Core — unified exports
- * Ruflo v3 domain layer + VectorCode agent/context/permissions/providers/tools
+ * VectorCode v3 domain layer + VectorCode agent/context/permissions/providers/tools
  */
 
 // VectorCode original modules

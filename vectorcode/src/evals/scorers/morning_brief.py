@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/morning_brief.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -49,7 +48,6 @@ actionability: <1-5>
 key_priorities_covered: <yes or partial or no>
 reasoning: <brief explanation>
 overall_correct: <yes or no>"""
-
 
 class MorningBriefScorer(LLMJudgeScorer):
     """Score morning briefings on quality dimensions."""
@@ -129,6 +127,5 @@ class MorningBriefScorer(LLMJudgeScorer):
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["MorningBriefScorer"]

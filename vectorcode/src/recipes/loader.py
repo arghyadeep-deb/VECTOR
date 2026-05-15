@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/recipes/loader.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -25,14 +24,12 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
 
-
 # Built-in recipes directory (package data)
 _PROJECT_RECIPES_DIR = Path(__file__).resolve().parent / "data"
 _PROJECT_OPERATORS_DIR = _PROJECT_RECIPES_DIR / "operators"
 # User-level directories
 _USER_RECIPES_DIR = Path.home() / ".vector" / "recipes"
 _USER_OPERATORS_DIR = Path.home() / ".vector" / "operators"
-
 
 @dataclass(slots=True)
 class Recipe:
@@ -142,7 +139,7 @@ class Recipe:
         and the recipe's benchmarks (or *benchmarks* override) as
         ``[[benchmarks]]``, inheriting agent type and tools.
         """
-        from vector.recipes.composer import recipe_to_eval_suite
+        from vectorcode.src.recipes.composer import recipe_to_eval_suite
 
         return recipe_to_eval_suite(
             self,
@@ -153,15 +150,13 @@ class Recipe:
 
     def to_operator_manifest(self) -> Any:
         """Convert this recipe into an ``OperatorManifest``."""
-        from vector.recipes.composer import recipe_to_operator
+        from vectorcode.src.recipes.composer import recipe_to_operator
 
         return recipe_to_operator(self)
-
 
 # ------------------------------------------------------------------ #
 # TOML loader
 # ------------------------------------------------------------------ #
-
 
 def load_recipe(path: str | Path) -> Recipe:
     """Load a recipe from a TOML file.
@@ -239,7 +234,6 @@ def load_recipe(path: str | Path) -> Recipe:
         raw=data,
     )
 
-
 def _load_operator_as_recipe(path: Path, data: Dict[str, Any]) -> Recipe:
     """Convert a legacy ``[operator]`` manifest into a Recipe."""
     op = data["operator"]
@@ -278,11 +272,9 @@ def _load_operator_as_recipe(path: Path, data: Dict[str, Any]) -> Recipe:
         raw=data,
     )
 
-
 # ------------------------------------------------------------------ #
 # Discovery
 # ------------------------------------------------------------------ #
-
 
 def discover_recipes(
     extra_dirs: Optional[List[str | Path]] = None,
@@ -325,7 +317,6 @@ def discover_recipes(
 
     return list(recipes.values())
 
-
 def resolve_recipe(name: str) -> Optional[Recipe]:
     """Find a recipe by name from all known directories.
 
@@ -335,6 +326,5 @@ def resolve_recipe(name: str) -> Optional[Recipe]:
         if recipe.name == name:
             return recipe
     return None
-
 
 __all__ = ["Recipe", "discover_recipes", "load_recipe", "resolve_recipe"]

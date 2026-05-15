@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/openai_tts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -13,11 +12,10 @@ from typing import List
 
 import httpx
 
-from vectorcode.src.oj_core.registry import TTSRegistry
+from vectorcode.src.vc_core.registry import TTSRegistry
 from vectorcode.src.speech.tts import TTSBackend, TTSResult
 
 _OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
-
 
 def _openai_tts_request(
     api_key: str,
@@ -42,7 +40,6 @@ def _openai_tts_request(
     )
     resp.raise_for_status()
     return resp.content
-
 
 @TTSRegistry.register("openai_tts")
 class OpenAITTSBackend(TTSBackend):

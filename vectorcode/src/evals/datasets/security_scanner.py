@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/security_scanner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -1009,7 +1008,6 @@ _HARD_TASKS: List[Dict[str, Any]] = [
     },
 ]
 
-
 def _build_all_tasks() -> List[Dict[str, Any]]:
     tasks = []
     for task in _EASY_TASKS:
@@ -1020,9 +1018,7 @@ def _build_all_tasks() -> List[Dict[str, Any]]:
         tasks.append({**task, "difficulty": "hard"})
     return tasks
 
-
 _ALL_TASKS = _build_all_tasks()
-
 
 class SecurityScannerDataset(DatasetProvider):
     """30 vulnerable code projects for security auditing evaluation."""
@@ -1075,6 +1071,5 @@ class SecurityScannerDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["SecurityScannerDataset"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/bench/__init__.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -9,19 +8,17 @@
 from __future__ import annotations
 
 from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult, BenchmarkSuite
-from vectorcode.src.oj_core.registry import BenchmarkRegistry
-
+from vectorcode.src.vc_core.registry import BenchmarkRegistry
 
 def ensure_registered() -> None:
     """Ensure all benchmark implementations are registered."""
-    from vector.bench.energy import ensure_registered as _reg_energy
-    from vector.bench.latency import ensure_registered as _reg_latency
-    from vector.bench.throughput import ensure_registered as _reg_throughput
+    from vectorcode.src.bench.energy import ensure_registered as _reg_energy
+    from vectorcode.src.bench.latency import ensure_registered as _reg_latency
+    from vectorcode.src.bench.throughput import ensure_registered as _reg_throughput
 
     _reg_latency()
     _reg_throughput()
     _reg_energy()
-
 
 # Trigger registration on import
 ensure_registered()

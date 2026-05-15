@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/terminalbench_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -46,7 +45,6 @@ Your response MUST use exactly this format:
 extracted_final_answer: <the final answer extracted from the predicted answer, or 'None' if no answer is present>
 reasoning: <brief explanation of why the extracted answer is or is not correct>
 correct: <yes or no>"""
-
 
 class TerminalBenchScorer(LLMJudgeScorer):
     """LLM-as-judge evaluation for TerminalBench terminal tasks."""
@@ -110,6 +108,5 @@ class TerminalBenchScorer(LLMJudgeScorer):
         except Exception as exc:
             LOGGER.error("TerminalBench scoring failed: %s", exc)
             return None, {"error": str(exc)}
-
 
 __all__ = ["TerminalBenchScorer"]

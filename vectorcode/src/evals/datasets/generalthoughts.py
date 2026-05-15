@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/generalthoughts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -35,7 +34,6 @@ HF_SPLIT = "train"
 PROBLEM_COLS = ("question",)
 SOLUTION_COLS = ("model_answer", "reference_answer")
 
-
 def _first_present(
     row: MutableMapping[str, object], keys: Sequence[str]
 ) -> Optional[str]:
@@ -44,7 +42,6 @@ def _first_present(
         if isinstance(v, str) and v.strip():
             return v
     return None
-
 
 class GeneralThoughtsDataset(DatasetProvider):
     """GeneralThought-430K (filtered) external reasoning corpus for LLM-guided spec search."""
@@ -119,6 +116,5 @@ class GeneralThoughtsDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["GeneralThoughtsDataset"]

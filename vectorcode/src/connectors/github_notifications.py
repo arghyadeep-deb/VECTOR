@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/github_notifications.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,11 +19,10 @@ from typing import Any, Dict, Iterator, List, Optional
 import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _DEFAULT_TOKEN_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "github.json")
-
 
 def _github_api_get(
     token: str, params: Optional[Dict[str, str]] = None
@@ -41,7 +39,6 @@ def _github_api_get(
     )
     resp.raise_for_status()
     return resp.json()
-
 
 @ConnectorRegistry.register("github_notifications")
 class GitHubNotificationsConnector(BaseConnector):

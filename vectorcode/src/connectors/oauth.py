@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/oauth.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -22,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
 
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 
 # ---------------------------------------------------------------------------
 # Connector credentials directory
@@ -33,7 +32,6 @@ _CONNECTORS_DIR = DEFAULT_CONFIG_DIR / "connectors"
 # ---------------------------------------------------------------------------
 # OAuth provider registry
 # ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class OAuthProvider:
@@ -55,7 +53,6 @@ class OAuthProvider:
     connector_ids: Tuple[str, ...] = ()
     # Filenames in ~/.vector/connectors/ to save tokens to
     credential_files: Tuple[str, ...] = ()
-
 
 # Combined scopes for all Google connectors so a single OAuth consent
 # authorises Drive, Calendar, Contacts, Gmail, and Tasks at once.
@@ -122,7 +119,6 @@ OAUTH_PROVIDERS: Dict[str, OAuthProvider] = {
     ),
 }
 
-
 def get_provider_for_connector(connector_id: str) -> Optional[OAuthProvider]:
     """Return the OAuthProvider that covers *connector_id*, or ``None``."""
     for provider in OAUTH_PROVIDERS.values():
@@ -130,11 +126,9 @@ def get_provider_for_connector(connector_id: str) -> Optional[OAuthProvider]:
             return provider
     return None
 
-
 # ---------------------------------------------------------------------------
 # Credential helpers
 # ---------------------------------------------------------------------------
-
 
 def get_client_credentials(
     provider: OAuthProvider,
@@ -142,8 +136,8 @@ def get_client_credentials(
     """Load stored client_id and client_secret for *provider*.
 
     Checks credential files in ``~/.vector/connectors/`` and falls
-    back to environment variables ``OPENJARVIS_{NAME}_CLIENT_ID`` and
-    ``OPENJARVIS_{NAME}_CLIENT_SECRET``.
+    back to environment variables ``VECTOR_{NAME}_CLIENT_ID`` and
+    ``VECTOR_{NAME}_CLIENT_SECRET``.
     """
     # Check credential files
     for filename in provider.credential_files:
@@ -153,14 +147,13 @@ def get_client_credentials(
             return tokens["client_id"], tokens["client_secret"]
 
     # Check environment variables
-    prefix = f"OPENJARVIS_{provider.name.upper()}"
+    prefix = f"VECTOR_{provider.name.upper()}"
     env_id = os.environ.get(f"{prefix}_CLIENT_ID", "")
     env_secret = os.environ.get(f"{prefix}_CLIENT_SECRET", "")
     if env_id and env_secret:
         return env_id, env_secret
 
     return None
-
 
 def save_client_credentials(
     provider: OAuthProvider,
@@ -175,7 +168,6 @@ def save_client_credentials(
         existing["client_secret"] = client_secret
         save_tokens(str(path), existing)
 
-
 # ---------------------------------------------------------------------------
 # Shared credentials file — one OAuth flow covers all Google connectors
 # ---------------------------------------------------------------------------
@@ -186,11 +178,9 @@ _GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 _DEFAULT_REDIRECT_URI = "http://localhost:8789/callback"
 _DEFAULT_SCOPES: List[str] = ["openid", "email", "profile"]
 
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-
 
 def build_google_auth_url(
     client_id: str,
@@ -228,7 +218,6 @@ def build_google_auth_url(
     }
     return f"{_GOOGLE_AUTH_ENDPOINT}?{urlencode(params)}"
 
-
 def resolve_google_credentials(connector_path: str) -> str:
     """Return the best available Google credentials file path.
 
@@ -241,7 +230,6 @@ def resolve_google_credentials(connector_path: str) -> str:
     if Path(_SHARED_GOOGLE_CREDENTIALS_PATH).exists():
         return _SHARED_GOOGLE_CREDENTIALS_PATH
     return connector_path
-
 
 def load_tokens(path: str) -> Optional[Dict[str, Any]]:
     """Load OAuth tokens from a JSON file.
@@ -258,7 +246,6 @@ def load_tokens(path: str) -> Optional[Dict[str, Any]]:
     except (OSError, json.JSONDecodeError):
         return None
 
-
 def save_tokens(path: str, tokens: Dict[str, Any]) -> None:
     """Persist *tokens* to *path* as JSON with owner-only (0o600) permissions.
 
@@ -269,18 +256,15 @@ def save_tokens(path: str, tokens: Dict[str, Any]) -> None:
     p.write_text(json.dumps(tokens, indent=2), encoding="utf-8")
     os.chmod(path, 0o600)
 
-
 def delete_tokens(path: str) -> None:
     """Delete the credentials file at *path* if it exists."""
     p = Path(path)
     if p.exists():
         p.unlink()
 
-
 # ---------------------------------------------------------------------------
 # Token exchange & full OAuth flow
 # ---------------------------------------------------------------------------
-
 
 def exchange_google_token(
     code: str,
@@ -322,7 +306,6 @@ def exchange_google_token(
     )
     resp.raise_for_status()
     return resp.json()
-
 
 def run_oauth_flow(
     client_id: str,
@@ -478,11 +461,9 @@ def run_oauth_flow(
 
     return tokens
 
-
 # ---------------------------------------------------------------------------
 # Generic OAuth flow — works with any OAuthProvider
 # ---------------------------------------------------------------------------
-
 
 def _wait_for_callback_code(
     host: str = "127.0.0.1",
@@ -562,7 +543,6 @@ def _wait_for_callback_code(
         raise RuntimeError("OAuth callback timed out")
     return auth_code[0]
 
-
 def _exchange_token(
     provider: OAuthProvider,
     code: str,
@@ -590,7 +570,6 @@ def _exchange_token(
     resp = httpx.post(provider.token_endpoint, data=data, headers=headers, timeout=30.0)
     resp.raise_for_status()
     return resp.json()
-
 
 def run_connector_oauth(
     connector_id: str,

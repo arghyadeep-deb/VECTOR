@@ -36,7 +36,7 @@ export default function CommunicationTraces() {
             <path
               d={d}
               fill="none"
-              stroke="var(--theme-accent, #00d4ff)"
+              stroke="var(--theme-accent, #4FC3F7)"
               strokeWidth="0.5"
               opacity={isActive ? 0.2 : 0.06}
               strokeDasharray="4 6"
@@ -47,7 +47,7 @@ export default function CommunicationTraces() {
               )}
             </path>
             {isActive && (
-              <circle r="2" fill="var(--theme-accent, #00d4ff)" opacity="0.6">
+              <circle r="2" fill="var(--theme-accent, #4FC3F7)" opacity="0.6">
                 <animateMotion dur={`${3 + i * 0.3}s`} repeatCount="indefinite" path={d} />
               </circle>
             )}

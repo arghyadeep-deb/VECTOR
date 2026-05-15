@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/pricing.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -8,8 +7,7 @@
 
 from __future__ import annotations
 
-from vectorcode.src.oj_engine.cloud import PRICING, estimate_cost
-
+from vectorcode.src.vc_engine.cloud import PRICING, estimate_cost
 
 def compute_turn_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """Compute USD cost for a single agent turn.
@@ -18,6 +16,5 @@ def compute_turn_cost(model: str, input_tokens: int, output_tokens: int) -> floa
     Returns 0.0 for models not in the pricing table (e.g. local models).
     """
     return estimate_cost(model, input_tokens, output_tokens)
-
 
 __all__ = ["PRICING", "compute_turn_cost", "estimate_cost"]

@@ -24,13 +24,23 @@ except ImportError:
     _FASTMCP_AVAILABLE = False
     logger.warning("[VECTOR][mcp] fastmcp not installed — run: pip install fastmcp")
 
+# Absorbed OJ MCP layer — provides transport fallback when FastMCP is absent
+try:
+    from vectorcode.src.vc_mcp import MCPServer, MCPClient, StreamableHTTPTransport
+    _VC_MCP_AVAILABLE = True
+except Exception:
+    _VC_MCP_AVAILABLE = False
+
 from core.config import CONFIG
 
 
-def _make_server() -> "FastMCP":
+def _make_server():
     if not _FASTMCP_AVAILABLE:
+        extra = ""
+        if _VC_MCP_AVAILABLE:
+            extra = " (OJ MCP fallback available at vectorcode.src.vc_mcp)"
         raise ImportError(
-            "fastmcp not installed — run: pip install fastmcp"
+            "fastmcp not installed — run: pip install fastmcp" + extra
         )
     mcp = FastMCP(
         "VECTOR",

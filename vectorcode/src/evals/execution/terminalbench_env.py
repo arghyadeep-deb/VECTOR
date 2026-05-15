@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/execution/terminalbench_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -15,7 +14,6 @@ from types import TracebackType
 from typing import Any, MutableMapping, Optional, Type
 
 LOGGER = logging.getLogger(__name__)
-
 
 class TerminalBenchTaskEnv:
     """Per-task Docker environment for TerminalBench.
@@ -184,6 +182,5 @@ class TerminalBenchTaskEnv:
             self._metadata["is_resolved"] = False
             self._metadata["test_results"] = results
             return False, results
-
 
 __all__ = ["TerminalBenchTaskEnv"]

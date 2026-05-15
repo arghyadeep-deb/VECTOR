@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/apple_contacts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -27,8 +26,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -51,11 +50,9 @@ _LABEL_SUFFIX = ">!$_"
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _apple_ts_to_datetime(apple_seconds: float) -> datetime:
     """Convert an Apple seconds timestamp to a UTC datetime."""
     return _APPLE_EPOCH + timedelta(seconds=apple_seconds)
-
 
 def _clean_label(raw: str | None) -> str:
     """Strip Apple's internal label markup (``_$!<Work>!$_`` → ``Work``)."""
@@ -65,7 +62,6 @@ def _clean_label(raw: str | None) -> str:
         return raw[len(_LABEL_PREFIX) : -len(_LABEL_SUFFIX)]
     return raw
 
-
 def _build_name(first: str, middle: str, last: str, org: str) -> str:
     """Build a display name from name components."""
     parts = [p for p in (first, middle, last) if p]
@@ -73,7 +69,6 @@ def _build_name(first: str, middle: str, last: str, org: str) -> str:
     if not name and org:
         return org
     return name
-
 
 def _format_address(
     street: str, city: str, state: str, zipcode: str, country: str
@@ -88,7 +83,6 @@ def _format_address(
         line2 = f"{line2}, {country}".strip(", ")
     lines = [part for part in (line1, line2) if part]
     return "\n".join(lines)
-
 
 # ---------------------------------------------------------------------------
 # SQL queries
@@ -165,7 +159,6 @@ LIMIT  ?
 # ---------------------------------------------------------------------------
 # AppleContactsConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("apple_contacts")
 class AppleContactsConnector(BaseConnector):

@@ -1,6 +1,6 @@
 # Wave 0 — Runtime Foundation
 
-**Goal:** Port Hermes's agent execution loop, tool router, state schema, and base utilities. After this wave, VectorCode is a functioning agent (calls model → executes tools → iterates).
+**Goal:** Port VectorCode's agent execution loop, tool router, state schema, and base utilities. After this wave, VectorCode is a functioning agent (calls model → executes tools → iterates).
 
 **Dependencies:** None. This is the root of the DAG.
 
@@ -14,7 +14,7 @@
 2. `vectorcode/python/vectorcode/engine/agent_loop.py` (existing skeleton)
 3. `vectorcode/python/vectorcode/tools/registry.py` (existing skeleton)
 4. `vectorcode/python/vectorcode/session_db.py` (existing v1 schema)
-5. `GitHub/NousResearch_hermes-agent/repo/run_agent.py` (the master source)
+5. `GitHub/VectorCode_vectorcode/repo/run_agent.py` (the master source)
 
 ---
 
@@ -24,10 +24,10 @@
 |---|--------|------:|--------|-------|
 | 0.1 | `run_agent.py` | 12,229 | `engine/agent_loop.py` (rewrite) | Split into submodules if >2000 lines |
 | 0.2 | `model_tools.py` | ~800 | `tools/registry.py` (rewrite) | Merge with existing registry skeleton |
-| 0.3 | `hermes_state.py` | ~2,500 | `session_db.py` (extend) | Migrate to SCHEMA_VERSION 10 |
-| 0.4 | `hermes_logging.py` | ~450 | `utils/logging.py` (extend) | File rotation, JSON, per-subsystem levels |
-| 0.5 | `hermes_time.py` | ~100 | `utils/time_utils.py` (new) | `HermesTime`, `format_duration`, `parse_relative_time` |
-| 0.6 | `hermes_constants.py` | ~350 | `vector_constants.py` (extend) | Copy missing constants |
+| 0.3 | `vector_state.py` | ~2,500 | `session_db.py` (extend) | Migrate to SCHEMA_VERSION 10 |
+| 0.4 | `vector_logging.py` | ~450 | `utils/logging.py` (extend) | File rotation, JSON, per-subsystem levels |
+| 0.5 | `vector_time.py` | ~100 | `utils/time_utils.py` (new) | `VectorCodeTime`, `format_duration`, `parse_relative_time` |
+| 0.6 | `vector_constants.py` | ~350 | `vector_constants.py` (extend) | Copy missing constants |
 | 0.7 | `utils.py` | ~300 | `utils/core.py` (new) | `atomic_json_write`, `env_var_enabled`, `safe_json_loads`, URL utils |
 | 0.8 | `toolsets.py` + `toolset_distributions.py` | ~1,100 | `tools/toolset.py` (extend) | Toolset grouping + platform distributions |
 
@@ -69,7 +69,7 @@ Port `model_tools.py` verbatim. Functions needed:
 
 ### Step 0.3 — Extend `session_db.py` to SCHEMA_VERSION 10
 
-Port `hermes_state.py`. Add columns/tables:
+Port `vector_state.py`. Add columns/tables:
 - `parent_session_id` (subagent chain)
 - `billing_provider`, `billing_mode`, `estimated_cost_usd`, `actual_cost_usd`, `cost_status`
 - `api_call_count`
@@ -81,21 +81,21 @@ Port `hermes_state.py`. Add columns/tables:
 
 ### Step 0.4 — `utils/logging.py`
 
-Port `hermes_logging.py`:
+Port `vector_logging.py`:
 - Rotating file handler at `~/.vectorcode/logs/vector.log` (10 MB × 5)
 - JSON structured log option (`VECTOR_LOG_JSON=1`)
 - Per-subsystem log levels via `VECTOR_LOG_LEVEL_<SUBSYSTEM>`
 - `redact_sensitive_text()` hook (uses Wave 2's redact.py later, stub for now)
 
-**CHECKPOINT 0.4:** `loguru` output matches Hermes format. Sensitive data is not leaked (stub passes through for now).
+**CHECKPOINT 0.4:** `loguru` output matches VectorCode format. Sensitive data is not leaked (stub passes through for now).
 
 ### Step 0.5 — `utils/time_utils.py`
 
-Small file. Port `hermes_time.py` directly: `HermesTime` → `VectorTime`, rename class but keep method signatures.
+Small file. Port `vector_time.py` directly: `VectorCodeTime` → `VectorTime`, rename class but keep method signatures.
 
 ### Step 0.6 — `vector_constants.py`
 
-Merge `hermes_constants.py` into existing `vector_constants.py`. Rename `HERMES_*` → `VECTOR_*`. Add backwards-compat aliases `HERMES_HOME = VECTOR_HOME` for copy-pasted code paths.
+Merge `vector_constants.py` into existing `vector_constants.py`. Rename `VECTOR_*` → `VECTOR_*`. Add backwards-compat aliases `VECTOR_HOME = VECTOR_HOME` for copy-pasted code paths.
 
 ### Step 0.7 — `utils/core.py`
 

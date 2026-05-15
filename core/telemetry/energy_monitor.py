@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/energy_monitor.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,7 +16,6 @@ from typing import Generator, Optional
 
 logger = logging.getLogger(__name__)
 
-
 class EnergyVendor(str, Enum):
     """Supported energy measurement vendors."""
 
@@ -25,7 +23,6 @@ class EnergyVendor(str, Enum):
     AMD = "amd"
     APPLE = "apple"
     CPU_RAPL = "cpu_rapl"
-
 
 @dataclass
 class EnergySample:
@@ -61,7 +58,6 @@ class EnergySample:
     gpu_energy_joules: float = 0.0
     dram_energy_joules: float = 0.0
     ane_energy_joules: float = 0.0
-
 
 class EnergyMonitor(ABC):
     """Abstract base class for energy measurement backends.
@@ -105,7 +101,6 @@ class EnergyMonitor(ABC):
     def close(self) -> None:
         """Release any resources (handles, threads, etc.)."""
 
-
 def create_energy_monitor(
     poll_interval_ms: int = 50,
     prefer_vendor: Optional[str] = None,
@@ -124,7 +119,7 @@ def create_energy_monitor(
     default_order: list[type[EnergyMonitor]] = []
 
     try:
-        from vector.telemetry.energy_nvidia import NvidiaEnergyMonitor
+        from core.telemetry.energy_nvidia import NvidiaEnergyMonitor
 
         vendor_map["nvidia"] = NvidiaEnergyMonitor
         default_order.append(NvidiaEnergyMonitor)
@@ -132,7 +127,7 @@ def create_energy_monitor(
         logger.debug("Failed to load NVIDIA energy monitor: %s", exc)
 
     try:
-        from vector.telemetry.energy_amd import AmdEnergyMonitor
+        from core.telemetry.energy_amd import AmdEnergyMonitor
 
         vendor_map["amd"] = AmdEnergyMonitor
         default_order.append(AmdEnergyMonitor)
@@ -140,7 +135,7 @@ def create_energy_monitor(
         logger.debug("Failed to load AMD energy monitor: %s", exc)
 
     try:
-        from vector.telemetry.energy_apple import AppleEnergyMonitor
+        from core.telemetry.energy_apple import AppleEnergyMonitor
 
         vendor_map["apple"] = AppleEnergyMonitor
         default_order.append(AppleEnergyMonitor)
@@ -148,7 +143,7 @@ def create_energy_monitor(
         logger.debug("Failed to load Apple energy monitor: %s", exc)
 
     try:
-        from vector.telemetry.energy_rapl import RaplEnergyMonitor
+        from core.telemetry.energy_rapl import RaplEnergyMonitor
 
         vendor_map["cpu_rapl"] = RaplEnergyMonitor
         default_order.append(RaplEnergyMonitor)
@@ -172,7 +167,6 @@ def create_energy_monitor(
             continue
 
     return None
-
 
 __all__ = [
     "EnergyMonitor",

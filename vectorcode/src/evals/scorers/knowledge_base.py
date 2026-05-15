@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/knowledge_base.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,13 +22,11 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
-
 def _normalize(text: str) -> str:
     """Lowercase, remove punctuation, collapse whitespace."""
     text = text.lower()
     text = text.translate(str.maketrans("", "", string.punctuation))
     return " ".join(text.split())
-
 
 def _contains_key_phrases(answer: str, reference: str) -> bool:
     """Check if answer contains the key phrases from the reference."""
@@ -43,7 +40,6 @@ def _contains_key_phrases(answer: str, reference: str) -> bool:
 
     matched = sum(1 for p in phrases if p in ans_norm)
     return matched / len(phrases) >= 0.5
-
 
 _LLM_JUDGE_PROMPT = """You are evaluating a knowledge base QA response.
 
@@ -59,7 +55,6 @@ factually_correct: <yes or no>
 completeness: <complete, partial, or missing>
 reasoning: <brief explanation>
 overall_correct: <yes or no>"""
-
 
 class KnowledgeBaseScorer(LLMJudgeScorer):
     """Score knowledge base QA: answer correctness."""
@@ -119,6 +114,5 @@ class KnowledgeBaseScorer(LLMJudgeScorer):
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["KnowledgeBaseScorer"]

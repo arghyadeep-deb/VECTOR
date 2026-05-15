@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/reasoning_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -26,7 +25,6 @@ LOGGER = logging.getLogger(__name__)
 # Normalization helpers
 # ---------------------------------------------------------------------------
 
-
 def _normalize_number_str(number_str: str) -> float:
     for char in ["$", "%", ","]:
         number_str = number_str.replace(char, "")
@@ -35,12 +33,10 @@ def _normalize_number_str(number_str: str) -> float:
     except ValueError:
         return float("inf")
 
-
 def _normalize_str(input_str: str) -> str:
     no_spaces = re.sub(r"\s", "", input_str)
     translator = str.maketrans("", "", string.punctuation)
     return no_spaces.lower().translate(translator)
-
 
 def _is_float(element: object) -> bool:
     try:
@@ -49,14 +45,12 @@ def _is_float(element: object) -> bool:
     except (ValueError, TypeError):
         return False
 
-
 def _extract_boxed(text: str) -> Optional[str]:
     r"""Extract content from \boxed{...} if present."""
     match = re.search(r"\\boxed\{([^}]+)\}", text)
     if match:
         return match.group(1).strip()
     return None
-
 
 def reasoning_exact_match(model_answer: str, ground_truth: str) -> bool:
     """Normalized exact match for reasoning answers.
@@ -82,7 +76,6 @@ def reasoning_exact_match(model_answer: str, ground_truth: str) -> bool:
 
     return _normalize_str(model_answer) == _normalize_str(ground_truth)
 
-
 # ---------------------------------------------------------------------------
 # LLM judge grading template
 # ---------------------------------------------------------------------------
@@ -101,7 +94,6 @@ Your response MUST use exactly this format:
 extracted_final_answer: <the final answer extracted from the predicted answer>
 reasoning: <brief explanation>
 correct: <yes or no>"""
-
 
 class ReasoningJudgeScorer(LLMJudgeScorer):
     """LLM-as-judge evaluation for reasoning tasks.
@@ -167,6 +159,5 @@ class ReasoningJudgeScorer(LLMJudgeScorer):
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["ReasoningJudgeScorer", "reasoning_exact_match"]

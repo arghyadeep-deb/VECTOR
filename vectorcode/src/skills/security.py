@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Skill security -- capability validation and trust tiers."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ DANGEROUS_CAPABILITIES: frozenset[str] = frozenset(
     {"shell:execute", "network:listen", "filesystem:write"}
 )
 
-
 class TrustTier(str, Enum):
     """Trust tier for a skill, ordered from most to least trusted."""
 
@@ -20,7 +18,6 @@ class TrustTier(str, Enum):
     INDEXED = "indexed"
     WORKSPACE = "workspace"
     UNREVIEWED = "unreviewed"
-
 
 def classify_trust_tier(
     *,
@@ -41,7 +38,6 @@ def classify_trust_tier(
         return TrustTier.INDEXED
     return TrustTier.UNREVIEWED
 
-
 def validate_capabilities(manifest: SkillManifest, allowed: Set[str]) -> List[str]:
     """Return a list of capabilities required by *manifest* that are not in *allowed*.
 
@@ -49,13 +45,11 @@ def validate_capabilities(manifest: SkillManifest, allowed: Set[str]) -> List[st
     """
     return [cap for cap in manifest.required_capabilities if cap not in allowed]
 
-
 def has_dangerous_capabilities(manifest: SkillManifest) -> List[str]:
     """Return the subset of *manifest*'s required capabilities that are dangerous."""
     return [
         cap for cap in manifest.required_capabilities if cap in DANGEROUS_CAPABILITIES
     ]
-
 
 __all__ = [
     "DANGEROUS_CAPABILITIES",

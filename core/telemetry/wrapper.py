@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/wrapper.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,10 +11,9 @@ import time
 from collections.abc import Sequence
 from typing import Any, Dict
 
-from vectorcode.src.oj_core.events import EventBus, EventType
-from vectorcode.src.oj_core.types import Message, TelemetryRecord
-from vectorcode.src.oj_engine._base import InferenceEngine
-
+from vectorcode.src.vc_core.events import EventBus, EventType
+from vectorcode.src.vc_core.types import Message, TelemetryRecord
+from vectorcode.src.vc_engine._base import InferenceEngine
 
 def instrumented_generate(
     engine: InferenceEngine,
@@ -58,6 +56,5 @@ def instrumented_generate(
     bus.publish(EventType.TELEMETRY_RECORD, {"record": rec})
 
     return result
-
 
 __all__ = ["instrumented_generate"]

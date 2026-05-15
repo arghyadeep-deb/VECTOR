@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/faster_whisper.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -11,14 +10,13 @@ from __future__ import annotations
 import tempfile
 from typing import List, Optional
 
-from vectorcode.src.oj_core.registry import SpeechRegistry
+from vectorcode.src.vc_core.registry import SpeechRegistry
 from vectorcode.src.speech._stubs import Segment, SpeechBackend, TranscriptionResult
 
 try:
     from faster_whisper import WhisperModel
 except ImportError:
     WhisperModel = None  # type: ignore[assignment, misc]
-
 
 @SpeechRegistry.register("faster-whisper")
 class FasterWhisperBackend(SpeechBackend):

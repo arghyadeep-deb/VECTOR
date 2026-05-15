@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -21,7 +20,6 @@ from typing import Any, Dict, List, Optional, Tuple
 # Answer grading utilities
 # ---------------------------------------------------------------------------
 
-
 def normalize_number(s: str) -> Optional[float]:
     """Try to parse a string as a number.
 
@@ -35,7 +33,6 @@ def normalize_number(s: str) -> Optional[float]:
         return float(s)
     except ValueError:
         return None
-
 
 def extract_answer(text: str) -> str:
     """Extract the core answer from a potentially verbose response.
@@ -61,7 +58,6 @@ def extract_answer(text: str) -> str:
             return match.group(1).strip()
 
     return text
-
 
 def grade_answer(predicted: str, expected: str, tolerance: float = 1e-6) -> bool:
     """Grade an answer against expected, with smart matching.
@@ -104,11 +100,9 @@ def grade_answer(predicted: str, expected: str, tolerance: float = 1e-6) -> bool
 
     return False
 
-
 # ---------------------------------------------------------------------------
 # Core dataclasses
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class OrchestratorAction:
@@ -125,7 +119,6 @@ class OrchestratorAction:
 
     is_final_answer: bool = False
     """Whether this action provides the final answer."""
-
 
 @dataclass
 class OrchestratorObservation:
@@ -149,7 +142,6 @@ class OrchestratorObservation:
     tokens: int = 0
     """Tokens consumed."""
 
-
 @dataclass
 class EpisodeStep:
     """Single step in an episode."""
@@ -162,7 +154,6 @@ class EpisodeStep:
 
     observation: OrchestratorObservation
     """Result of action."""
-
 
 @dataclass
 class Episode:
@@ -260,7 +251,6 @@ class Episode:
             "ipj": self.compute_ipj(),
         }
 
-
 @dataclass
 class EpisodeState:
     """Mutable state during episode execution."""
@@ -303,7 +293,6 @@ class EpisodeState:
             episode.add_step(action, observation)
         return episode
 
-
 @dataclass
 class PolicyOutput:
     """Output from policy model prediction."""
@@ -325,7 +314,6 @@ class PolicyOutput:
 
     confidence: float = 1.0
     """Confidence score (if available)."""
-
 
 __all__ = [
     "Episode",

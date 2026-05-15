@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/gmail.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -29,9 +28,9 @@ from vectorcode.src.connectors.oauth import (
     resolve_google_credentials,
     save_tokens,
 )
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -44,7 +43,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "gmail.json"
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _gmail_api_list_messages(
     token: str,
@@ -84,7 +82,6 @@ def _gmail_api_list_messages(
     resp.raise_for_status()
     return resp.json()
 
-
 def _gmail_api_get_message(token: str, msg_id: str) -> Dict[str, Any]:
     """Fetch a single Gmail message by ID (``full`` format).
 
@@ -109,11 +106,9 @@ def _gmail_api_get_message(token: str, msg_id: str) -> Dict[str, Any]:
     resp.raise_for_status()
     return resp.json()
 
-
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
-
 
 def _extract_header(headers: List[Dict[str, str]], name: str) -> str:
     """Return the value of the first header matching *name* (case-insensitive)."""
@@ -122,7 +117,6 @@ def _extract_header(headers: List[Dict[str, str]], name: str) -> str:
         if h.get("name", "").lower() == name_lower:
             return h.get("value", "")
     return ""
-
 
 def _decode_body(payload: Dict[str, Any]) -> str:
     """Decode the message body from a Gmail payload dict.
@@ -154,7 +148,6 @@ def _decode_body(payload: Dict[str, Any]) -> str:
     except Exception:  # noqa: BLE001
         return ""
 
-
 def _parse_date(date_str: str) -> datetime:
     """Parse an RFC 2822 email date string into a :class:`~datetime.datetime`.
 
@@ -167,11 +160,9 @@ def _parse_date(date_str: str) -> datetime:
     except Exception:  # noqa: BLE001
         return datetime.now()
 
-
 # ---------------------------------------------------------------------------
 # GmailConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("gmail")
 class GmailConnector(BaseConnector):

@@ -50,7 +50,7 @@ export default function QuickActions() {
 
   const btnStyle = (active = false): React.CSSProperties => ({
     ...btn,
-    color: active ? '#00d4ff' : '#1a6688',
+    color: active ? '#4FC3F7' : '#1a6688',
     borderColor: active ? 'rgba(0,212,255,0.4)' : 'rgba(0,212,255,0.12)',
     boxShadow: active ? '0 0 12px rgba(0,212,255,0.15)' : 'none',
   })
@@ -63,12 +63,12 @@ export default function QuickActions() {
           style={btnStyle(label === 'MORTALITY' && showMortality)}
           onClick={onClick as () => void}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#00d4ff'
+            e.currentTarget.style.color = '#4FC3F7'
             e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'
             e.currentTarget.style.boxShadow = '0 0 20px rgba(0,212,255,0.2), 0 0 40px rgba(0,212,255,0.1)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = label === 'MORTALITY' && showMortality ? '#00d4ff' : '#1a6688'
+            e.currentTarget.style.color = label === 'MORTALITY' && showMortality ? '#4FC3F7' : '#1a6688'
             e.currentTarget.style.borderColor = 'rgba(0,212,255,0.12)'
             e.currentTarget.style.boxShadow = 'none'
           }}

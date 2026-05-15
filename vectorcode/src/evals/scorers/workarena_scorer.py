@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/workarena_scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,7 +20,6 @@ from typing import Any, Dict, Optional, Tuple
 
 from vectorcode.src.evals.core.scorer import Scorer
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class WorkArenaScorer(Scorer):
     """Environment-validated scorer for WorkArena++ tasks.
@@ -89,6 +87,5 @@ class WorkArenaScorer(Scorer):
             "reason": "is_resolved_missing",
             "test_results": test_results,
         }
-
 
 __all__ = ["WorkArenaScorer"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/diagnose/runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -79,7 +78,6 @@ Budget: max ~{max_turns} tool calls, max ${max_cost_usd:.2f} USD.
 Remember: You MUST end your response with the ```json ... ``` block described above.
 """
 
-
 @dataclass
 class DiagnosisResult:
     """The output of a diagnosis run."""
@@ -88,7 +86,6 @@ class DiagnosisResult:
     clusters: list[FailureCluster] = field(default_factory=list)
     cost_usd: float = 0.0
     tool_call_records: list[ToolCallRecord] = field(default_factory=list)
-
 
 class DiagnosisRunner:
     """Orchestrates phase 1 of the distillation loop.
@@ -112,7 +109,7 @@ class DiagnosisRunner:
     session_id :
         Current session id.
     config :
-        Dict with config_path and openjarvis_home.
+        Dict with config_path and vector_home.
     max_turns :
         Max teacher tool calls (default 30).
     max_cost_usd :
@@ -262,7 +259,6 @@ class DiagnosisRunner:
             logger.warning("Fallback extraction also produced no clusters")
         return clusters
 
-
 def _parse_clusters(content: str) -> list[FailureCluster]:
     """Extract failure clusters from teacher diagnosis output.
 
@@ -288,7 +284,6 @@ def _parse_clusters(content: str) -> list[FailureCluster]:
 
     logger.warning("No failure clusters found in diagnosis output")
     return []
-
 
 def _parse_cluster_list(json_str: str) -> list[FailureCluster]:
     """Parse a JSON string into a list of FailureCluster."""

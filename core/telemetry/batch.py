@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/batch.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,7 +12,6 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Generator, List, Optional
-
 
 @dataclass
 class BatchMetrics:
@@ -30,7 +28,6 @@ class BatchMetrics:
     prefill_energy_joules: float = 0.0
     decode_energy_joules: float = 0.0
     per_request_energy: List[float] = field(default_factory=list)
-
 
 class EnergyBatch:
     """Group inference requests into a batch and compute per-token energy.
@@ -93,7 +90,6 @@ class EnergyBatch:
             per_request_energy=per_request_energy,
         )
 
-
 class _BatchContext:
     """Accumulator for per-request stats within an ``EnergyBatch.sample()`` block."""
 
@@ -124,7 +120,6 @@ class _BatchContext:
         self._total_requests += 1
         self._total_energy += energy_joules
         self._per_request_energy.append(energy_joules)
-
 
 __all__ = [
     "BatchMetrics",

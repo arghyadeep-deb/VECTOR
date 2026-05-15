@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/learning_orchestrator.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -20,7 +19,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
 logger = logging.getLogger(__name__)
-
 
 class LearningOrchestrator:
     """Orchestrate a single trace->learn->eval cycle.
@@ -60,8 +58,8 @@ class LearningOrchestrator:
         lora_config: Optional[Any] = None,
         model_name: Optional[str] = None,
     ) -> None:
-        from vector.learning.agents.agent_evolver import AgentConfigEvolver
-        from vector.learning.training.data import TrainingDataMiner
+        from vectorcode.src.learning.agents.agent_evolver import AgentConfigEvolver
+        from vectorcode.src.learning.training.data import TrainingDataMiner
 
         self._trace_store = trace_store
         self._config_dir = Path(config_dir)
@@ -109,7 +107,7 @@ class LearningOrchestrator:
         # rather than mined as SFT pairs, so they can be optimized even when
         # there's no other training data available.
         try:
-            from vector.core.config import load_config
+            from vectorcode.src.vc_core.config import load_config
 
             cfg = load_config()
             skills_cfg = getattr(cfg.learning, "skills", None)
@@ -206,7 +204,7 @@ class LearningOrchestrator:
     ) -> Optional[Dict[str, Any]]:
         """Attempt LoRA training, returning result or None on failure."""
         try:
-            from vector.learning.training.lora import (
+            from vectorcode.src.learning.training.lora import (
                 HAS_TORCH,
                 LoRATrainer,
             )
@@ -241,9 +239,9 @@ class LearningOrchestrator:
         if not auto_optimize:
             return None
         try:
-            from vector.core.events import EventBus
-            from vector.learning.agents.skill_optimizer import SkillOptimizer
-            from vector.skills.manager import SkillManager
+            from vectorcode.src.vc_core.events import EventBus
+            from vectorcode.src.learning.agents.skill_optimizer import SkillOptimizer
+            from vectorcode.src.vc_skills.manager import SkillManager
 
             mgr = SkillManager(bus=EventBus())
             mgr.discover()
@@ -257,6 +255,5 @@ class LearningOrchestrator:
 
             logging.getLogger(__name__).warning("Skill auto-optimize failed: %s", exc)
             return None
-
 
 __all__ = ["LearningOrchestrator"]

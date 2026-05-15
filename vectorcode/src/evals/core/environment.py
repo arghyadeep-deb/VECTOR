@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/environment.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple
 
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class EnvironmentProvider(ABC):
     """Manages an external environment for evaluation benchmarks.

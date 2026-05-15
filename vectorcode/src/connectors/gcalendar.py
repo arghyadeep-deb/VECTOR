@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/gcalendar.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -28,9 +27,9 @@ from vectorcode.src.connectors.oauth import (
     run_oauth_flow,
     save_tokens,
 )
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -43,7 +42,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "gcalendar.j
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _gcal_api_calendars_list(token: str) -> Dict[str, Any]:
     """Call the Calendar ``calendarList.list`` endpoint.
@@ -65,7 +63,6 @@ def _gcal_api_calendars_list(token: str) -> Dict[str, Any]:
     )
     resp.raise_for_status()
     return resp.json()
-
 
 def _gcal_api_events_list(
     token: str,
@@ -113,11 +110,9 @@ def _gcal_api_events_list(
     resp.raise_for_status()
     return resp.json()
 
-
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
-
 
 def _format_event(event: Dict[str, Any]) -> str:
     """Return a human-readable text representation of a calendar event.
@@ -169,7 +164,6 @@ def _format_event(event: Dict[str, Any]) -> str:
 
     return "\n".join(lines)
 
-
 def _parse_event_timestamp(event: Dict[str, Any]) -> datetime:
     """Extract the start datetime from an event resource.
 
@@ -187,11 +181,9 @@ def _parse_event_timestamp(event: Dict[str, Any]) -> datetime:
     except (ValueError, TypeError):
         return datetime.now()
 
-
 # ---------------------------------------------------------------------------
 # GCalendarConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("gcalendar")
 class GCalendarConnector(BaseConnector):

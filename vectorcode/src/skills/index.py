@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Skill index -- load and search a remote/local skill catalog."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
 
-
 @dataclass(slots=True)
 class SkillIndexEntry:
     """A single entry in the skill index catalog."""
@@ -25,7 +23,6 @@ class SkillIndexEntry:
     sha256: str
     tags: list[str] = field(default_factory=list)
     required_capabilities: list[str] = field(default_factory=list)
-
 
 class SkillIndex:
     """Catalog of available skills loaded from an ``index.toml`` file.
@@ -95,6 +92,5 @@ class SkillIndex:
     def get(self, name: str) -> Optional[SkillIndexEntry]:
         """Look up a skill by exact name, returning ``None`` if not found."""
         return self._entries.get(name)
-
 
 __all__ = ["SkillIndexEntry", "SkillIndex"]

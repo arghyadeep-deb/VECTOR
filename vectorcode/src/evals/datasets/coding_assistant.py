@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/coding_assistant.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -1564,7 +1563,6 @@ _HARD_TASKS: List[Dict[str, Any]] = [
     },
 ]
 
-
 def _build_all_tasks() -> List[Dict[str, Any]]:
     """Combine all difficulty tiers with assigned difficulty labels."""
     tasks = []
@@ -1576,9 +1574,7 @@ def _build_all_tasks() -> List[Dict[str, Any]]:
         tasks.append({**task, "difficulty": "hard"})
     return tasks
 
-
 _ALL_TASKS = _build_all_tasks()
-
 
 class CodingAssistantDataset(DatasetProvider):
     """30 buggy code projects for agent-based debugging evaluation."""
@@ -1633,6 +1629,5 @@ class CodingAssistantDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["CodingAssistantDataset"]

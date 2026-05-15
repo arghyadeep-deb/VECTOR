@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/a2a/tool.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,11 +11,10 @@ import logging
 from typing import Any
 
 from vectorcode.src.a2a.client import A2AClient
-from vectorcode.src.oj_core.types import ToolResult
-from vectorcode.src.oj_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_core.types import ToolResult
+from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
 
 logger = logging.getLogger(__name__)
-
 
 class A2AAgentTool(BaseTool):
     """Wraps an external A2A agent as a BaseTool.
@@ -82,6 +80,5 @@ class A2AAgentTool(BaseTool):
                 content=f"A2A call failed: {exc}",
                 success=False,
             )
-
 
 __all__ = ["A2AAgentTool"]

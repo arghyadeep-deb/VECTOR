@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/bench/_stubs.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,8 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_engine._stubs import InferenceEngine
-
+from vectorcode.src.vc_engine._stubs import InferenceEngine
 
 @dataclass(slots=True)
 class BenchmarkResult:
@@ -33,7 +31,6 @@ class BenchmarkResult:
     total_energy_joules: float = 0.0
     energy_per_token_joules: float = 0.0
     energy_method: str = ""
-
 
 class BaseBenchmark(ABC):
     """Base class for all benchmark implementations.
@@ -62,7 +59,6 @@ class BaseBenchmark(ABC):
         **kwargs: Any,
     ) -> BenchmarkResult:
         """Execute the benchmark and return results."""
-
 
 class BenchmarkSuite:
     """Run a collection of benchmarks and aggregate results."""
@@ -117,6 +113,5 @@ class BenchmarkSuite:
                 for r in results
             ],
         }
-
 
 __all__ = ["BaseBenchmark", "BenchmarkResult", "BenchmarkSuite"]

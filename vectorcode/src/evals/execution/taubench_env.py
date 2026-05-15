@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/execution/taubench_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,18 +22,16 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Message conversion helpers
 # ---------------------------------------------------------------------------
-
 
 def _tau2_to_oj_messages(
     tau2_messages: list,
 ) -> list:
     """Convert tau2 Message objects to VectorCode Message objects."""
-    from vector.core.types import Message, Role
-    from vector.core.types import ToolCall as OJToolCall
+    from vectorcode.src.vc_core.types import Message, Role
+    from vectorcode.src.vc_core.types import ToolCall as OJToolCall
 
     oj_msgs: list = []
     for m in tau2_messages:
@@ -83,7 +80,6 @@ def _tau2_to_oj_messages(
             )
     return oj_msgs
 
-
 def _strip_think_tags(text: str) -> str:
     """Remove ``<think>...</think>`` blocks from model output."""
     import re
@@ -91,7 +87,6 @@ def _strip_think_tags(text: str) -> str:
     text = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r"^.*?</think>\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
     return text.strip()
-
 
 def _oj_result_to_tau2_msg(result: dict):
     """Convert VectorCode engine.generate() result to a tau2 AssistantMessage."""
@@ -124,11 +119,9 @@ def _oj_result_to_tau2_msg(result: dict):
         cost=result.get("cost_usd", 0.0),
     )
 
-
 # ---------------------------------------------------------------------------
 # VECTOR-powered tau2 agent
 # ---------------------------------------------------------------------------
-
 
 class JarvisHalfDuplexAgent:
     """A tau2 HalfDuplexAgent backed by VectorCode's inference engine.
@@ -233,11 +226,9 @@ class JarvisHalfDuplexAgent:
         """Cleanup hook called by orchestrator."""
         pass
 
-
 # ---------------------------------------------------------------------------
 # Task environment
 # ---------------------------------------------------------------------------
-
 
 class TauBenchTaskEnv:
     """Per-task environment for TauBench evaluation.
@@ -277,7 +268,7 @@ class TauBenchTaskEnv:
 
     def __enter__(self) -> TauBenchTaskEnv:
         # Build VectorCode system for engine access
-        from vector.system import SystemBuilder
+        from vectorcode.src.vc_system import SystemBuilder
 
         builder = SystemBuilder()
         if self._engine_key:
@@ -410,6 +401,5 @@ class TauBenchTaskEnv:
             except Exception:
                 pass
             self._system = None
-
 
 __all__ = ["TauBenchTaskEnv"]

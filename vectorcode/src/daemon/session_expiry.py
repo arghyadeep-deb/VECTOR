@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/daemon/session_expiry.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -8,8 +7,7 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from vectorcode.src.oj_core.types import Message
-
+from vectorcode.src.vc_core.types import Message
 
 class SessionExpiryHook:
     """Proactive memory flush before session reset."""

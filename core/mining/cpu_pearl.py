@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """CPU-based Pearl mining provider (decoupled from inference).
 
 See spec ``docs/design/2026-05-05-apple-silicon-pearl-mining-design.md`` §13
@@ -40,16 +39,13 @@ from ._stubs import (
     Sidecar,
 )
 
-
 def _sidecar_path() -> Path:
     """Return the runtime sidecar path. Override in tests."""
     return SIDECAR_PATH
 
-
 def _log_dir() -> Path:
     """Return the logs directory. Override in tests."""
     return Path.home() / ".vector" / "logs" / "mining"
-
 
 def _parse_gateway_metrics(text: str, *, provider_id: str) -> MiningStats:
     """Parse Prometheus exposition format into a MiningStats.
@@ -90,7 +86,6 @@ def _parse_gateway_metrics(text: str, *, provider_id: str) -> MiningStats:
         elif bare_name == "pearl_gateway_blocks_found_total":
             stats.blocks_found = int(value)
     return stats
-
 
 class CpuPearlProvider(MiningProvider):
     """v1 cpu-pearl: decoupled CPU mining via py-pearl-mining + pearl-gateway."""
@@ -200,7 +195,6 @@ class CpuPearlProvider(MiningProvider):
                 "miner_loop_pid": pids[1],
             },
         )
-
 
 def ensure_registered() -> None:
     """Idempotently register CpuPearlProvider in MinerRegistry.

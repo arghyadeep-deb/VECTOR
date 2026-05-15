@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/bench/throughput.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,14 +13,13 @@ from typing import Any, List
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult
-from vectorcode.src.oj_core.registry import BenchmarkRegistry
-from vectorcode.src.oj_core.types import Message, Role
-from vectorcode.src.oj_engine._stubs import InferenceEngine
+from vectorcode.src.vc_core.registry import BenchmarkRegistry
+from vectorcode.src.vc_core.types import Message, Role
+from vectorcode.src.vc_engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
 _PROMPT = "Write a short paragraph about artificial intelligence."
-
 
 class ThroughputBenchmark(BaseBenchmark):
     """Measures inference throughput in tokens per second."""
@@ -97,11 +95,9 @@ class ThroughputBenchmark(BaseBenchmark):
             errors=errors,
         )
 
-
 def ensure_registered() -> None:
     """Register the throughput benchmark if not already present."""
     if not BenchmarkRegistry.contains("throughput"):
         BenchmarkRegistry.register_value("throughput", ThroughputBenchmark)
-
 
 __all__ = ["ThroughputBenchmark"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/energy_nvidia.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -28,7 +27,6 @@ try:
     _PYNVML_AVAILABLE = True
 except ImportError:
     _PYNVML_AVAILABLE = False
-
 
 class NvidiaEnergyMonitor(EnergyMonitor):
     """NVIDIA energy monitor using pynvml.
@@ -258,6 +256,5 @@ class NvidiaEnergyMonitor(EnergyMonitor):
             except Exception as exc:
                 logger.debug("Failed to shut down NVIDIA energy monitor: %s", exc)
             self._initialized = False
-
 
 __all__ = ["NvidiaEnergyMonitor"]

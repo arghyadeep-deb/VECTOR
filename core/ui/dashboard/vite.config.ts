@@ -12,10 +12,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
-      '/status': 'http://127.0.0.1:8000',
-      '/ui': 'http://127.0.0.1:8000',
-      '/ws': 'http://127.0.0.1:8000',
+      '^/(api|status|ui|ws|vectorcode|agent|agents|command|csrf-token|system|daily|memory|council)(/.*)?$': {
+        target: 'https://127.0.0.1:8001',
+        secure: false,
+      },
     },
   },
 })

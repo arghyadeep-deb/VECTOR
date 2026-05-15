@@ -13,7 +13,7 @@ function seededRand(n: number): number {
   return x - Math.floor(x)
 }
 
-export default function Sparkline({ width = 30, height = 14, color = '#00CFFF', data, seed = 0 }: SparklineProps) {
+export default function Sparkline({ width = 30, height = 14, color = '#4FC3F7', data, seed = 0 }: SparklineProps) {
   const points = useMemo(() => {
     if (data && data.length >= 2) {
       return data.map((v, i) => [(i / (data.length - 1)) * width, height - (v / 1000) * height] as [number, number])

@@ -12,9 +12,9 @@
 
 1. `00-MASTER-PLAN.md`
 2. `vectorcode/package.json` (existing TS scaffolding — archive)
-3. `GitHub/NousResearch_hermes-agent/repo/pyproject.toml`
-4. `GitHub/NousResearch_hermes-agent/repo/Dockerfile`
-5. `GitHub/NousResearch_hermes-agent/repo/setup-hermes.sh`
+3. `GitHub/VectorCode_vectorcode/repo/pyproject.toml`
+4. `GitHub/VectorCode_vectorcode/repo/Dockerfile`
+5. `GitHub/VectorCode_vectorcode/repo/setup-vectorcode.sh`
 
 ---
 
@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 [project]
 name = "vectorcode"
 version = "0.1.0"
-description = "Autonomous coding agent — Hermes + Ruflo absorbed into Python"
+description = "Autonomous coding agent — VectorCode + VectorCode absorbed into Python"
 readme = "vectorcode/README.md"
 authors = [{ name = "Arghyadeep Deb" }]
 license = { text = "MIT" }
@@ -353,7 +353,7 @@ After Wave 7:
 - [ ] Docker image pulls + runs: `ghcr.io/<user>/vectorcode:latest`
 - [ ] `vector --version` reports `0.1.0` matching git tag
 - [ ] README install + run flow validated by clean-machine test
-- [ ] All Hermes + Ruflo capabilities reachable from `vector` CLI
+- [ ] All VectorCode + VectorCode capabilities reachable from `vector` CLI
 
 Tag: `git tag v0.1.0` → triggers release workflow.
 

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/workflow/loader.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -18,7 +17,6 @@ try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
-
 
 def load_workflow(path: str | Path) -> WorkflowGraph:
     """Load a workflow definition from a TOML file.
@@ -71,7 +69,6 @@ def load_workflow(path: str | Path) -> WorkflowGraph:
 
     return graph
 
-
 def _parse_node(data: Dict[str, Any]) -> WorkflowNode:
     """Parse a single node from TOML data."""
     node_type = NodeType(data.get("type", "agent"))
@@ -85,6 +82,5 @@ def _parse_node(data: Dict[str, Any]) -> WorkflowNode:
         max_iterations=data.get("max_iterations", 10),
         transform_expr=data.get("transform_expr", data.get("transform", "")),
     )
-
 
 __all__ = ["load_workflow"]

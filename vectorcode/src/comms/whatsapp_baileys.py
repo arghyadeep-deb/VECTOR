@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """WhatsAppBaileysChannel -- bidirectional WhatsApp messaging via Baileys protocol.
 
 Spawns a Node.js subprocess that runs the Baileys bridge (JSON-line protocol
@@ -40,7 +39,6 @@ if not _BRIDGE_SRC.exists():
 
 # Default runtime directory (npm install + auth state).
 _DEFAULT_RUNTIME_DIR = Path.home() / ".vector" / "whatsapp_baileys_bridge"
-
 
 @ChannelRegistry.register("whatsapp_baileys")
 class WhatsAppBaileysChannel(BaseChannel):
@@ -336,6 +334,5 @@ class WhatsAppBaileysChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["WhatsAppBaileysChannel"]

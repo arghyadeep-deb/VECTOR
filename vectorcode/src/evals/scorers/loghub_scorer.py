@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/loghub_scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,7 +15,6 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 _ANOMALY_PATTERN = re.compile(r"\bANOMAL(?:Y|OUS)\b", re.IGNORECASE)
 _NORMAL_PATTERN = re.compile(r"\bNORMAL\b", re.IGNORECASE)
-
 
 class LogHubScorer(LLMJudgeScorer):
     """Score log anomaly detection: extract ANOMALY/NORMAL classification."""

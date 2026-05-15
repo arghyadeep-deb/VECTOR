@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """LineChannel — LINE Messaging API adapter via line-bot-sdk."""
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
-
 
 @ChannelRegistry.register("line")
 class LineChannel(BaseChannel):
@@ -152,6 +150,5 @@ class LineChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["LineChannel"]

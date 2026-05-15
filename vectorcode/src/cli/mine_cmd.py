@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis mine`` command group."""
 
 from __future__ import annotations
@@ -43,18 +42,15 @@ from vectorcode.src.mining._models import (
 from vectorcode.src.mining._stubs import Sidecar
 from vectorcode.src.mining.vllm_pearl import ensure_registered as ensure_vllm_registered
 
-
 def _detect_hardware() -> HardwareInfo:
     """Wrapper to make hardware detection mockable in CLI tests."""
     return detect_hardware()
-
 
 def _docker_from_env():
     """Wrapper to make Docker client creation mockable in CLI tests."""
     import docker
 
     return docker.from_env()
-
 
 def _ensure_providers_registered() -> None:
     ensure_vllm_registered()
@@ -70,11 +66,9 @@ def _ensure_providers_registered() -> None:
     except ImportError:
         pass
 
-
 def _provider_ids() -> tuple[str, ...]:
     _ensure_providers_registered()
     return tuple(MinerRegistry.keys())
-
 
 def _select_provider(provider: str) -> str:
     if provider != "auto":
@@ -87,7 +81,6 @@ def _select_provider(provider: str) -> str:
         return "vllm-pearl"
     return "cpu-pearl"
 
-
 def _stats_from_metrics_url(
     metrics_url: str,
     provider_id: str,
@@ -99,11 +92,9 @@ def _stats_from_metrics_url(
         return None, str(exc)
     return parse_gateway_metrics(text, provider_id=provider_id), None
 
-
 def _get_json(url: str, *, timeout: float) -> dict[str, Any]:
     with urllib.request.urlopen(url, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
-
 
 def _post_json(url: str, payload: dict[str, Any], *, timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(
@@ -114,7 +105,6 @@ def _post_json(url: str, payload: dict[str, Any], *, timeout: float) -> dict[str
     )
     with urllib.request.urlopen(request, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
-
 
 def _hf_json(
     path: str,
@@ -130,7 +120,6 @@ def _hf_json(
     with urllib.request.urlopen(request, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
 
-
 def _extract_model_ids(models_payload: dict[str, Any]) -> set[str]:
     data = models_payload.get("data", [])
     ids: set[str] = set()
@@ -142,11 +131,9 @@ def _extract_model_ids(models_payload: dict[str, Any]) -> set[str]:
                 ids.add(item)
     return ids
 
-
 def _hf_model_path(model_id: str, suffix: str) -> str:
     encoded = urllib.parse.quote(model_id, safe="/")
     return f"/api/models/{encoded}{suffix}"
-
 
 def _artifact_file_paths(tree_payload: Any) -> set[str]:
     paths: set[str] = set()
@@ -156,13 +143,11 @@ def _artifact_file_paths(tree_payload: Any) -> set[str]:
                 paths.add(item["path"])
     return paths
 
-
 def _artifact_has_weights(paths: set[str]) -> bool:
     return any(
         path.endswith(".safetensors") or path.endswith(".bin") or path.endswith(".gguf")
         for path in paths
     )
-
 
 def _artifact_quant_method(model_payload: Any) -> str:
     if not isinstance(model_payload, dict):
@@ -175,7 +160,6 @@ def _artifact_quant_method(model_payload: Any) -> str:
         return ""
     return str(quant_config.get("quant_method") or "")
 
-
 def _artifact_architectures(model_payload: Any) -> list[str]:
     if not isinstance(model_payload, dict):
         return []
@@ -186,7 +170,6 @@ def _artifact_architectures(model_payload: Any) -> list[str]:
     if not isinstance(architectures, list):
         return []
     return [str(item) for item in architectures if isinstance(item, str)]
-
 
 def _local_artifact_payload_and_paths(path: Path) -> tuple[dict[str, Any], set[str]]:
     config_path = path / "config.json"
@@ -200,7 +183,6 @@ def _local_artifact_payload_and_paths(path: Path) -> tuple[dict[str, Any], set[s
     }
     return payload, paths
 
-
 def _pid_alive(pid: int | None) -> bool:
     if not pid:
         return False
@@ -209,7 +191,6 @@ def _pid_alive(pid: int | None) -> bool:
     except OSError:
         return False
     return True
-
 
 def _terminate_pid(pid: int | None, *, grace_seconds: float = 3.0) -> None:
     if not pid or not _pid_alive(pid):
@@ -223,21 +204,17 @@ def _terminate_pid(pid: int | None, *, grace_seconds: float = 3.0) -> None:
     if _pid_alive(pid):
         os.kill(pid, signal.SIGKILL)
 
-
 def _row(name: str, ok: bool, info: str) -> None:
     marker = "OK" if ok else "FAIL"
     click.echo(f"  {name:<22} {info:<45} {marker}")
-
 
 def _validation_row(results: list[bool], name: str, ok: bool, info: str) -> None:
     results.append(ok)
     _row(name, ok, info)
 
-
 @click.group()
 def mine() -> None:
     """Configure and run Pearl mining."""
-
 
 @mine.command("models")
 def models() -> None:
@@ -253,7 +230,6 @@ def models() -> None:
         )
         if spec.notes:
             click.echo(f"  {spec.notes}")
-
 
 @mine.command()
 def doctor() -> None:
@@ -340,7 +316,6 @@ def doctor() -> None:
     else:
         click.echo(f"  Sidecar                present ({SIDECAR_PATH})")
         click.echo(f"  Container              {sidecar.get('container_id', '?')}")
-
 
 @mine.command()
 @click.option(
@@ -472,7 +447,7 @@ def init(
 
     from vectorcode.src.vc_core.config import DEFAULT_CONFIG_PATH
 
-    config_path = Path(os.environ.get("OPENJARVIS_CONFIG", DEFAULT_CONFIG_PATH))
+    config_path = Path(os.environ.get("VECTOR_CONFIG", DEFAULT_CONFIG_PATH))
     config_path.parent.mkdir(parents=True, exist_ok=True)
     section = f"""
 [mining]
@@ -534,7 +509,6 @@ pearld_rpc_password_env = "{pearld_password_env}"
         PearlDockerLauncher(client=_docker_from_env()).ensure_image(image)
     click.echo("Done. Run `jarvis mine start` to begin mining.")
 
-
 @mine.command()
 def start() -> None:
     """Launch the configured mining provider."""
@@ -548,7 +522,6 @@ def start() -> None:
     provider = MinerRegistry.get(cfg.provider)()
     asyncio.run(provider.start(cfg))
     click.echo(f"Started {cfg.provider}. Run `jarvis mine status` for live stats.")
-
 
 @mine.command()
 def stop() -> None:
@@ -569,7 +542,6 @@ def stop() -> None:
     provider = MinerRegistry.get(cfg.provider)()
     asyncio.run(provider.stop())
     click.echo("Mining stopped.")
-
 
 @mine.command()
 def status() -> None:
@@ -619,7 +591,6 @@ def status() -> None:
     click.echo(f"last error:         {stats.last_error or '-'}")
     click.echo(f"payout target:      {stats.payout_target}")
     click.echo(f"fees owed:          {stats.fees_owed}")
-
 
 @mine.command("validate-model")
 @click.option("--model", default=None, help="Pearl model id to validate.")
@@ -805,7 +776,6 @@ def validate_model(
         raise click.ClickException("Pearl model validation checks failed.")
     click.echo("Validation checks passed.")
 
-
 @mine.command("inspect-model")
 @click.option("--model", default=DEFAULT_PEARL_MODEL, help="Pearl model id to inspect.")
 @click.option(
@@ -960,7 +930,6 @@ def inspect_model(
         raise click.ClickException("Pearl model artifact inspection failed.")
     click.echo("Artifact inspection passed.")
 
-
 @mine.command()
 @click.option("--vllm-endpoint", required=True)
 @click.option("--gateway-url", required=True)
@@ -991,7 +960,6 @@ def attach(
         },
     )
     click.echo(f"Sidecar written to {SIDECAR_PATH}")
-
 
 @mine.command()
 @click.option("-n", "--tail", "tail_n", default=200, type=int)

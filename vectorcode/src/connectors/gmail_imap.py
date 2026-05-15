@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/gmail_imap.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -24,14 +23,13 @@ from typing import Iterator, List, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "gmail_imap.json")
-
 
 def _decode_subject(raw: str) -> str:
     """Decode a possibly-encoded email subject header."""
@@ -44,7 +42,6 @@ def _decode_subject(raw: str) -> str:
         else part
         for part, enc in decoded_parts
     )
-
 
 def _extract_text_body(msg: email_lib.message.Message) -> str:
     """Extract plain-text body from an email Message object."""
@@ -67,7 +64,6 @@ def _extract_text_body(msg: email_lib.message.Message) -> str:
         return payload.decode("utf-8", errors="replace")
     return ""
 
-
 def _parse_date(msg: email_lib.message.Message) -> datetime:
     """Parse the Date header, falling back to now."""
     date_str = msg.get("Date", "")
@@ -77,7 +73,6 @@ def _parse_date(msg: email_lib.message.Message) -> datetime:
         return parsedate_to_datetime(date_str)
     except Exception:
         return datetime.now()
-
 
 @ConnectorRegistry.register("gmail_imap")
 class GmailIMAPConnector(BaseConnector):

@@ -1,8 +1,8 @@
 # VectorCode 100% Absorption — Master Plan
 
 **Sources:**
-- `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\NousResearch_hermes-agent\repo` (Hermes, Python)
-- `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\ruvnet_ruflo\repo` (Ruflo, TypeScript)
+- `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\VectorCode_vectorcode\repo` (VectorCode, Python)
+- `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\vectorcode_vectorcode\repo` (VectorCode, TypeScript)
 
 **Target:** `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\vectorcode\python\vectorcode\`
 
@@ -14,12 +14,12 @@
 
 | Source | Files | Lines | Bytes |
 |--------|-------|-------|-------|
-| Hermes `*.py` (excl tests) | ~390 | **261,041** | ~11 MB |
-| Hermes `run_agent.py` alone | 1 | 12,229 | 675 KB |
-| Hermes `tests/` | 821 | ~100k | 11 MB |
-| Ruflo `ruflo/src/` (TS/JS) | 276 | ~20,376 | 926 KB |
-| Ruflo `v3/` (TS) | 1230 | ~100k+ | 18 MB |
-| Ruflo `v2/` (TS+MD) | 993+1115 | — | 25 MB |
+| VectorCode `*.py` (excl tests) | ~390 | **261,041** | ~11 MB |
+| VectorCode `run_agent.py` alone | 1 | 12,229 | 675 KB |
+| VectorCode `tests/` | 821 | ~100k | 11 MB |
+| VectorCode `vectorcode/src/` (TS/JS) | 276 | ~20,376 | 926 KB |
+| VectorCode `v3/` (TS) | 1230 | ~100k+ | 18 MB |
+| VectorCode `v2/` (TS+MD) | 993+1115 | — | 25 MB |
 
 **Currently absorbed:** ~30,000 Python lines (~12% by line count; ~45% by feature count per last assessment).
 
@@ -38,7 +38,7 @@ Wave 3 (gateway + CLI) ←──┘
     ↓
 Wave 4 (plugins, cron, acp, skills_hub, voice, curses_ui)
     ↓
-Wave 5 (Ruflo TS → Python)   [can run parallel to Wave 1–4 after Wave 0]
+Wave 5 (VectorCode TS → Python)   [can run parallel to Wave 1–4 after Wave 0]
     ↓
 Wave 6 (tests + CI)
     ↓
@@ -62,7 +62,7 @@ Each wave has its own plan file (`01-wave-0.md` … `07-wave-7.md`) with:
 | 2 | Agent subsystems | 52 | 45 | 35,000 |
 | 3 | Gateway + CLI | 53 + 58 | 90 | 80,000 |
 | 4 | Extensibility (plugins/cron/acp/skills_hub/voice) | 60 | 55 | 15,000 |
-| 5 | Ruflo TS → Python | ~500 TS | ~150 py | 30,000 |
+| 5 | VectorCode TS → Python | ~500 TS | ~150 py | 30,000 |
 | 6 | Tests + CI | 821 | 800 | ~40,000 |
 | 7 | Packaging | — | 6 | 500 |
 | **Total** | | **~1,600** | **~1,240** | **~257,500** |
@@ -74,7 +74,7 @@ Each wave has its own plan file (`01-wave-0.md` … `07-wave-7.md`) with:
 Each wave session starts with this prompt template:
 
 ```
-You are porting Hermes/Ruflo → VectorCode. Read these first, in order:
+You are porting VectorCode/VectorCode → VectorCode. Read these first, in order:
 1. vectorcode/docs/absorption/00-MASTER-PLAN.md
 2. vectorcode/docs/absorption/NN-wave-N.md  (the wave assigned)
 3. vectorcode/docs/vectorcode_specs.md
@@ -91,7 +91,7 @@ Hard rules:
 - Every ported file must keep a header comment: # Ported from <source_path>
 - All model calls route through providers/ + transports/ (no direct httpx
   to provider APIs in tools or agent code).
-- Preserve Hermes behavior exactly where possible. Improvements go in
+- Preserve VectorCode behavior exactly where possible. Improvements go in
   a separate commit after the base port passes tests.
 ```
 
@@ -104,7 +104,7 @@ Hard rules:
 3. **Ollama-first, cloud-optional.** Every provider path must degrade gracefully when cloud creds are missing.
 4. **Permission gateway is mandatory.** Every tool call routes through `permissions/` before execution.
 5. **No new dependencies** without updating `requirements.txt` AND `pyproject.toml` AND `docs/absorption/deps.md`.
-6. **All file writes are atomic.** Use `utils.atomic_json_write()` pattern from Hermes.
+6. **All file writes are atomic.** Use `utils.atomic_json_write()` pattern from VectorCode.
 7. **No surrogates in JSON.** Sanitize with `_sanitize_surrogates()` before serialize.
 8. **Subagents inherit iteration budget** from parent; never reset to fresh 90.
 
@@ -113,14 +113,14 @@ Hard rules:
 ## Definition of Done (100% absorption)
 
 - [ ] `vector run "<task>"` executes a full think→act→observe loop with real tool calls
-- [ ] All 82 Hermes tools callable from the loop (with matching schemas)
-- [ ] All 58 Hermes CLI commands available under `vector <cmd>`
+- [ ] All 82 VectorCode tools callable from the loop (with matching schemas)
+- [ ] All 58 VectorCode CLI commands available under `vector <cmd>`
 - [ ] HTTP gateway serves `/run`, `/stream`, `/status` with auth
 - [ ] Plugin system discovers and loads user plugins from `~/.vectorcode/plugins/`
 - [ ] MCP client connects to external MCP servers; tools surface in `/tools`
-- [ ] 143 Ruflo skills + Hermes built-in skills both discoverable
-- [ ] SPARC workflow methodology (Ruflo v2) invokable as a slash command
-- [ ] All 821 Hermes tests + Ruflo tests ported and passing in pytest
+- [ ] 143 VectorCode skills + VectorCode built-in skills both discoverable
+- [ ] SPARC workflow methodology (VectorCode v2) invokable as a slash command
+- [ ] All 821 VectorCode tests + VectorCode tests ported and passing in pytest
 - [ ] `pip install vectorcode` works from a fresh venv
 - [ ] `docker build` produces a runnable image
 - [ ] README + API docs complete; CI green
@@ -134,7 +134,7 @@ Hard rules:
 - `03-wave-2-agent.md` — Agent subsystems
 - `04-wave-3-gateway-cli.md` — Gateway + CLI
 - `05-wave-4-extensibility.md` — Plugins, cron, ACP, voice, TUI
-- `06-wave-5-ruflo.md` — Ruflo TS → Python port
+- `06-wave-5-vectorcode.md` — VectorCode TS → Python port
 - `07-wave-6-tests.md` — Test port + CI
 - `08-wave-7-packaging.md` — pip / docker / release
 
@@ -147,6 +147,6 @@ Status of each wave plan: `[ ] not written` | `[x] ready` | `[RUN] in progress` 
 | 2 | 03-wave-2-agent.md | [x] ready |
 | 3 | 04-wave-3-gateway-cli.md | [x] ready |
 | 4 | 05-wave-4-extensibility.md | [x] ready |
-| 5 | 06-wave-5-ruflo.md | [x] ready |
+| 5 | 06-wave-5-vectorcode.md | [x] ready |
 | 6 | 07-wave-6-tests.md | [x] ready |
 | 7 | 08-wave-7-packaging.md | [x] ready |

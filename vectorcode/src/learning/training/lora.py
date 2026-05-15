@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/training/lora.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -49,11 +48,9 @@ except ImportError:
     TaskType = None  # type: ignore[assignment,misc]
     get_peft_model = None  # type: ignore[assignment,misc]
 
-
 # ---------------------------------------------------------------------------
 # Device selection (shared with orchestrator sft_trainer)
 # ---------------------------------------------------------------------------
-
 
 def _select_device(hint: Optional[str] = None) -> str:
     """Select the best available PyTorch device.
@@ -70,11 +67,9 @@ def _select_device(hint: Optional[str] = None) -> str:
         return "mps"
     return "cpu"
 
-
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class LoRATrainingConfig:
@@ -111,11 +106,9 @@ class LoRATrainingConfig:
         if self.num_epochs < 1:
             raise ValueError(f"num_epochs must be >= 1, got {self.num_epochs}")
 
-
 # ---------------------------------------------------------------------------
 # Trainer
 # ---------------------------------------------------------------------------
-
 
 class LoRATrainer:
     """Fine-tune a local causal LM with LoRA (or QLoRA) adapters.
@@ -427,7 +420,6 @@ class LoRATrainer:
             self.tokenizer.save_pretrained(path)
 
         logger.info("Adapter saved to %s", path)
-
 
 __all__ = [
     "HAS_TORCH",

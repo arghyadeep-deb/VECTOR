@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/daily_digest.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -24,7 +23,6 @@ from vectorcode.src.evals.scorers._checklist import ChecklistScorer, normalize_s
 
 LOGGER = logging.getLogger(__name__)
 
-
 def _phrase_match_score(
     model_answer: str,
     must_mention: List[str],
@@ -47,7 +45,6 @@ def _phrase_match_score(
     score = mentioned / total if total > 0 else 1.0
 
     return score, details
-
 
 def _ordering_score(
     model_answer: str,
@@ -76,7 +73,6 @@ def _ordering_score(
 
     score = in_first_half / len(priority_order)
     return score, details
-
 
 class DailyDigestScorer(Scorer):
     """Score daily digest output by coverage, ordering, and quality."""
@@ -170,6 +166,5 @@ class DailyDigestScorer(Scorer):
             "ordering_details": order_details,
             "checklist_details": checklist_details,
         }
-
 
 __all__ = ["DailyDigestScorer"]

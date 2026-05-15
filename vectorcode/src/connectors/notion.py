@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/notion.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -23,9 +22,9 @@ import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,7 +38,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "notion.json
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
 
-
 def _notion_headers(token: str) -> Dict[str, str]:
     """Build the standard Notion API request headers."""
     return {
@@ -47,7 +45,6 @@ def _notion_headers(token: str) -> Dict[str, str]:
         "Notion-Version": _NOTION_VERSION,
         "Content-Type": "application/json",
     }
-
 
 def _notion_api_search(
     token: str,
@@ -84,7 +81,6 @@ def _notion_api_search(
     resp.raise_for_status()
     return resp.json()
 
-
 def _notion_api_get_blocks(token: str, block_id: str) -> List[Dict[str, Any]]:
     """Fetch child blocks for a page (or block) by ID.
 
@@ -109,17 +105,14 @@ def _notion_api_get_blocks(token: str, block_id: str) -> List[Dict[str, Any]]:
     resp.raise_for_status()
     return resp.json().get("results", [])
 
-
 # ---------------------------------------------------------------------------
 # Block-to-markdown renderer
 # ---------------------------------------------------------------------------
-
 
 def _extract_rich_text(block_data: Dict[str, Any]) -> str:
     """Concatenate plain_text from all rich_text entries in *block_data*."""
     rich_text: List[Dict[str, Any]] = block_data.get("rich_text", [])
     return "".join(entry.get("plain_text", "") for entry in rich_text)
-
 
 def _render_blocks_to_markdown(blocks: List[Dict[str, Any]]) -> str:
     """Convert a list of Notion block objects to a markdown string.
@@ -201,11 +194,9 @@ def _render_blocks_to_markdown(blocks: List[Dict[str, Any]]) -> str:
 
     return "\n".join(lines)
 
-
 # ---------------------------------------------------------------------------
 # Title extractor
 # ---------------------------------------------------------------------------
-
 
 def _extract_page_title(page: Dict[str, Any]) -> str:
     """Extract the plain-text title from a Notion page object."""
@@ -222,7 +213,6 @@ def _extract_page_title(page: Dict[str, Any]) -> str:
 
     return "(Untitled)"
 
-
 def _parse_iso_datetime(dt_str: str) -> datetime:
     """Parse an ISO 8601 datetime string (as returned by Notion) into a datetime."""
     if not dt_str:
@@ -233,11 +223,9 @@ def _parse_iso_datetime(dt_str: str) -> datetime:
     except (ValueError, AttributeError):
         return datetime.now(tz=timezone.utc)
 
-
 # ---------------------------------------------------------------------------
 # NotionConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("notion")
 class NotionConnector(BaseConnector):

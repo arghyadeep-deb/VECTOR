@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/lifelong_agent.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -104,7 +103,6 @@ _OS_SYSTEM_PROMPT = (
     "Act: finish"
 )
 
-
 def _parse_field(raw: Any) -> Any:
     """Parse a field that may be a Python-repr string or already a dict/list."""
     if isinstance(raw, (dict, list)):
@@ -121,7 +119,6 @@ def _parse_field(raw: Any) -> Any:
         pass
     return raw
 
-
 def _parse_skills(raw: Any) -> List[str]:
     if isinstance(raw, list):
         return [str(s) for s in raw]
@@ -133,7 +130,6 @@ def _parse_skills(raw: Any) -> List[str]:
         except (ValueError, SyntaxError):
             pass
     return []
-
 
 class LifelongAgentDataset(DatasetProvider):
     """LifelongAgentBench dataset loader.
@@ -271,7 +267,7 @@ class LifelongAgentDataset(DatasetProvider):
         This is called by EvalRunner when episode_mode=True and enables
         the faithful multi-turn interaction protocol matching the original.
         """
-        from vector.evals.environments.lifelong_agent_env import (
+        from vectorcode.src.evals.environments.lifelong_agent_env import (
             create_task_environment,
         )
 
@@ -518,6 +514,5 @@ class LifelongAgentDataset(DatasetProvider):
                 "skills": skills,
             },
         )
-
 
 __all__ = ["LifelongAgentDataset"]

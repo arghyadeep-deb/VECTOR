@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """CLI commands for skill management."""
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from vectorcode.src.vc_core.config import load_config
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.skills.manager import SkillManager
 
-
 def _get_trace_store():
     """Return a TraceStore instance from the user config (or None)."""
     try:
@@ -26,16 +24,13 @@ def _get_trace_store():
     except Exception:
         return None
 
-
 def _get_discovered_dir() -> Path:
     """Return the directory where discovered skill manifests are written."""
     return Path("~/.vector/skills/discovered/").expanduser()
 
-
 def _get_overlay_dir() -> Path:
     """Return the directory where optimization overlays are stored."""
     return Path("~/.vector/learning/skills/").expanduser()
-
 
 def _get_skill_paths() -> List[Path]:
     paths: List[Path] = []
@@ -46,17 +41,14 @@ def _get_skill_paths() -> List[Path]:
     paths.append(user_dir)
     return paths
 
-
 def _get_manager() -> SkillManager:
     mgr = SkillManager(bus=EventBus())
     mgr.discover(paths=_get_skill_paths())
     return mgr
 
-
 @click.group()
 def skill():
     """Manage reusable skills."""
-
 
 @skill.command("list")
 def list_skills():
@@ -78,7 +70,6 @@ def list_skills():
         desc = m.description[:50] + "..." if len(m.description) > 50 else m.description
         table.add_row(name, desc, m.version, tags)
     console.print(table)
-
 
 @skill.command("info")
 @click.argument("skill_name")
@@ -111,7 +102,6 @@ def info(skill_name: str):
         f"Model invocation: {'disabled' if m.disable_model_invocation else 'enabled'}"
     )
 
-
 @skill.command("run")
 @click.argument("skill_name")
 @click.option("--arg", "-a", multiple=True, help="Arguments as key=value pairs.")
@@ -138,7 +128,6 @@ def run(skill_name: str, arg: tuple):
         if result.step_results:
             console.print(result.step_results[-1].content)
 
-
 def _parse_source_query(query: str) -> tuple[str, str]:
     """Parse a ``<source>:<name>`` query into (source, name).
 
@@ -155,7 +144,6 @@ def _parse_source_query(query: str) -> tuple[str, str]:
             f"Both source and name are required: got source={source!r}, name={name!r}"
         )
     return source, name
-
 
 def _get_resolver(source: str, url: str = ""):
     """Return a resolver instance for the given source name."""
@@ -179,7 +167,6 @@ def _get_resolver(source: str, url: str = ""):
         ).expanduser()
         return GitHubResolver(cache_root=cache, repo_url=url)
     raise click.BadParameter(f"Unknown source: {source!r}")
-
 
 @skill.command("install")
 @click.argument("query")
@@ -254,7 +241,6 @@ def install(query: str, with_scripts: bool, force: bool, url: str):
             + "[/red]"
         )
         raise SystemExit(1)
-
 
 @skill.command("sync")
 @click.argument("source", required=False)
@@ -349,7 +335,6 @@ def sync(
 
     console.print(f"[green]Total installed: {total_installed}[/green]")
 
-
 @skill.command("sources")
 def sources():
     """List configured skill sources."""
@@ -378,7 +363,6 @@ def sources():
             "yes" if s.auto_update else "no",
         )
     console.print(table)
-
 
 @skill.command("remove")
 @click.argument("skill_name")
@@ -418,7 +402,6 @@ def remove(skill_name: str, yes: bool):
         raise SystemExit(1)
     for p in removed:
         console.print(f"[green]Removed:[/green] {p}")
-
 
 @skill.command("search")
 @click.argument("query")
@@ -496,7 +479,6 @@ def search(query: str, source: str):
         f"Install with: jarvis skill install <source>:<name>[/dim]"
     )
 
-
 @skill.command("update")
 def update():
     """Pull latest commits for all installed skill sources."""
@@ -515,7 +497,6 @@ def update():
             console.print("  [green]OK[/green]")
         except Exception as exc:
             console.print(f"  [red]Failed: {exc}[/red]")
-
 
 @skill.command("discover")
 @click.option(
@@ -595,7 +576,6 @@ def discover(min_frequency: int, min_outcome: float, dry_run: bool) -> None:
     if dry_run:
         console.print("[yellow]--dry-run: no files were written.[/yellow]")
 
-
 @skill.command("show-overlay")
 @click.argument("skill_name")
 def show_overlay(skill_name: str) -> None:
@@ -621,6 +601,5 @@ def show_overlay(skill_name: str) -> None:
             out = (ex.get("output", "") or "")[:100]
             console.print(f"  {i}. input={inp!r}")
             console.print(f"     output={out!r}")
-
 
 __all__ = ["skill"]

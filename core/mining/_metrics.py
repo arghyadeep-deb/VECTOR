@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 # src/vector/mining/_metrics.py
 """Pearl/vLLM Prometheus -> MiningStats adapter.
 
@@ -30,7 +29,6 @@ PROM_LAST_SHARE_TS = "pearl_gateway_last_share_timestamp"
 PROM_ERRORS_TOTAL = "pearl_gateway_errors_total"
 PROM_PROCESS_START = "process_start_time_seconds"
 
-
 def _parse_simple_metric(text: str, name: str) -> float | None:
     """Find the first occurrence of a simple, label-less metric.
 
@@ -50,7 +48,6 @@ def _parse_simple_metric(text: str, name: str) -> float | None:
             except ValueError:
                 return None
     return None
-
 
 def parse_gateway_metrics(text: str, *, provider_id: str) -> MiningStats:
     """Convert a Prometheus exposition payload into a ``MiningStats``."""
@@ -81,7 +78,6 @@ def parse_gateway_metrics(text: str, *, provider_id: str) -> MiningStats:
         last_share_at=last_share_ts,
         last_error=last_error,
     )
-
 
 def parse_vllm_metrics(text: str, *, provider_id: str) -> MiningStats:
     """Convert vLLM Prometheus metrics into best-effort mining runtime stats.

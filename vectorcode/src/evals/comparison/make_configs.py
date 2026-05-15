@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/comparison/make_configs.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -106,7 +105,6 @@ BENCHMARKS: Dict[str, Dict[str, object]] = {
 
 DEFAULT_JUDGE_MODEL = "gpt-5-mini-2025-08-07"
 
-
 def _template_path() -> Path:
     return (
         Path(__file__).resolve().parents[1]
@@ -115,10 +113,8 @@ def _template_path() -> Path:
         / "_template.toml"
     )
 
-
 def _default_output_dir() -> Path:
     return _template_path().parent
-
 
 def materialize_config(
     framework: str,
@@ -166,7 +162,6 @@ def materialize_config(
     out_path.write_text(rendered)
     return out_path
 
-
 @click.command()
 @click.option("--framework", type=click.Choice(list(FRAMEWORKS)))
 @click.option("--model", type=click.Choice(list(MODELS)))
@@ -207,7 +202,6 @@ def main(
         )
     p = materialize_config(framework, model, benchmark, output_dir)
     click.echo(f"wrote {p}")
-
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/cartesia_tts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -17,11 +16,10 @@ from typing import List
 
 import httpx
 
-from vectorcode.src.oj_core.registry import TTSRegistry
+from vectorcode.src.vc_core.registry import TTSRegistry
 from vectorcode.src.speech.tts import TTSBackend, TTSResult
 
 _CARTESIA_API_BASE = "https://api.cartesia.ai"
-
 
 def _cartesia_synthesize(
     api_key: str,
@@ -54,7 +52,6 @@ def _cartesia_synthesize(
     )
     resp.raise_for_status()
     return resp.content
-
 
 @TTSRegistry.register("cartesia")
 class CartesiaTTSBackend(TTSBackend):

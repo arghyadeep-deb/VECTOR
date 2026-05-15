@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/supergpqa.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,14 +16,12 @@ from typing import Iterable, List, MutableMapping, Optional, Sequence
 from vectorcode.src.evals.core.dataset import DatasetProvider
 from vectorcode.src.evals.core.types import EvalRecord
 
-
 def _format_options(options: Iterable[str]) -> str:
     rendered = []
     for idx, option in enumerate(options):
         letter = chr(ord("A") + idx)
         rendered.append(f"{letter}. {option}")
     return "\n".join(rendered)
-
 
 class SuperGPQADataset(DatasetProvider):
     """SuperGPQA multiple-choice benchmark dataset."""
@@ -129,6 +126,5 @@ class SuperGPQADataset(DatasetProvider):
             subject=subject,
             metadata=metadata,
         )
-
 
 __all__ = ["SuperGPQADataset"]

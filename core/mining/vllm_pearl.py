@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 # src/vector/mining/vllm_pearl.py
 """The v1 vllm-pearl mining provider.
 
@@ -34,7 +33,6 @@ from core.mining._stubs import (
     Sidecar,
     SoloTarget,
 )
-
 
 class VllmPearlProvider(MiningProvider):
     """vLLM + Pearl Docker container, solo-mining only in v1."""
@@ -143,7 +141,6 @@ class VllmPearlProvider(MiningProvider):
             provider_id=self.provider_id,
             last_error="no gateway or vLLM metrics URL in sidecar",
         )
-
 
 def ensure_registered() -> None:
     """Idempotent registration. Required because tests/conftest.py clears

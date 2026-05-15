@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/reward.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -17,7 +16,6 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 from vectorcode.src.learning.intelligence.orchestrator.types import Episode
-
 
 @dataclass
 class RewardWeights:
@@ -49,7 +47,6 @@ class RewardWeights:
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"Weights should sum to 1.0, got {total}")
 
-
 @dataclass
 class Normalizers:
     """Normalization constants for reward scaling.
@@ -62,7 +59,6 @@ class Normalizers:
     cost_scale: float = 0.10
     latency_scale: float = 30.0
     power_scale: float = 200.0
-
 
 class MultiObjectiveReward:
     """Multi-objective reward combining accuracy, cost, energy, latency, power.
@@ -148,7 +144,6 @@ class MultiObjectiveReward:
         """Compute rewards for a batch of episodes."""
         return [self.compute(ep) for ep in episodes]
 
-
 class AdaptiveRewardWeights:
     """Adaptive reward weights that shift during training.
 
@@ -213,7 +208,6 @@ class AdaptiveRewardWeights:
             gamma_latency=gamma_latency / total,
             gamma_power=gamma_power / total,
         )
-
 
 __all__ = [
     "AdaptiveRewardWeights",

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/routing/learned_router.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,13 +15,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_core.registry import RouterPolicyRegistry
-from vectorcode.src.oj_core.types import RoutingContext
+from vectorcode.src.vc_core.registry import RouterPolicyRegistry
+from vectorcode.src.vc_core.types import RoutingContext
 from vectorcode.src.learning._stubs import RouterPolicy
 from vectorcode.src.learning.routing._utils import classify_query
 
 logger = logging.getLogger(__name__)
-
 
 class LearnedRouterPolicy(RouterPolicy):
     """Trace-driven router that learns query_class -> model mappings.
@@ -205,7 +203,6 @@ class LearnedRouterPolicy(RouterPolicy):
             "policy_map": dict(self._policy_map),
         }
 
-
 class _ModelScore:
     """Accumulator for per-model scoring during policy update."""
 
@@ -230,12 +227,10 @@ class _ModelScore:
         fb = self.feedback_sum / self.feedback_count if self.feedback_count else 0.5
         return 0.6 * sr + 0.4 * fb
 
-
 def ensure_registered() -> None:
     """Register LearnedRouterPolicy if not already present."""
     if not RouterPolicyRegistry.contains("learned"):
         RouterPolicyRegistry.register_value("learned", LearnedRouterPolicy)
-
 
 ensure_registered()
 

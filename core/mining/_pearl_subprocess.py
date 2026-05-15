@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Subprocess launcher for Pearl providers.
 
 Manages two coordinated subprocesses:
@@ -31,12 +30,10 @@ logger = logging.getLogger(__name__)
 _GATEWAY_TERMINATE_GRACE_SECONDS = 5.0
 _MINER_LOOP_TERMINATE_GRACE_SECONDS = 2.0
 
-
 @dataclass(slots=True)
 class _ProcessHandles:
     gateway: subprocess.Popen
     miner_loop: subprocess.Popen
-
 
 class PearlSubprocessLauncher:
     """Spawn and tear down the gateway + miner-loop pair as a unit."""

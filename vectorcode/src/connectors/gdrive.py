@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/gdrive.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -28,9 +27,9 @@ from vectorcode.src.connectors.oauth import (
     run_oauth_flow,
     save_tokens,
 )
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -50,7 +49,6 @@ _EXPORT_MIME_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _gdrive_api_list_files(
     token: str,
@@ -90,7 +88,6 @@ def _gdrive_api_list_files(
     resp.raise_for_status()
     return resp.json()
 
-
 def _gdrive_api_export(token: str, file_id: str, mime_type: str) -> str:
     """Export a Google Workspace file as plain text or CSV.
 
@@ -117,11 +114,9 @@ def _gdrive_api_export(token: str, file_id: str, mime_type: str) -> str:
     resp.raise_for_status()
     return resp.text
 
-
 # ---------------------------------------------------------------------------
 # GDriveConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("gdrive")
 class GDriveConnector(BaseConnector):

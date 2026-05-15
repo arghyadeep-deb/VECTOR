@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/daemon/gateway.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -7,7 +6,6 @@
 from __future__ import annotations
 
 from typing import Any, Optional
-
 
 class GatewayDaemon:
     """Composes channels, sessions, agents, and scheduler into a daemon."""

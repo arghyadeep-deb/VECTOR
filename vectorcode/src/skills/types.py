@@ -1,11 +1,9 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Skill type definitions."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
-
 
 @dataclass(slots=True)
 class SkillStep:
@@ -15,7 +13,6 @@ class SkillStep:
     skill_name: str = ""  # invoke another skill instead of a tool
     arguments_template: str = "{}"  # Jinja2-style template
     output_key: str = ""  # Key to store result in context
-
 
 @dataclass(slots=True)
 class SkillManifest:
@@ -59,11 +56,9 @@ class SkillManifest:
         }
         return json.dumps(data, sort_keys=True).encode()
 
-
 __all__ = ["SkillManifest", "SkillStep"]
 
-
-# SkillType enum added for OpenJarvis compatibility
+# SkillType enum added for VECTOR compatibility
 from enum import Enum
 
 class SkillType(str, Enum):

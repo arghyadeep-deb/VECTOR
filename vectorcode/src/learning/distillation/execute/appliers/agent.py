@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/appliers/agent.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -26,10 +25,8 @@ from vectorcode.src.learning.distillation.plan.prompt_diff import apply_unified_
 
 logger = logging.getLogger(__name__)
 
-
 def _agent_prompt_path(ctx: ApplyContext, agent_name: str) -> Path:
     return ctx.agents_dir / agent_name / "system_prompt.md"
-
 
 def _extract_agent_name(edit: Edit) -> str:
     """Extract agent name from edit target or payload."""
@@ -40,7 +37,6 @@ def _extract_agent_name(edit: Edit) -> str:
     if len(parts) >= 2:
         return parts[1]
     return "default"
-
 
 class ReplaceSystemPromptApplier(EditApplier):
     """Overwrite an agent's entire system prompt."""
@@ -66,7 +62,6 @@ class ReplaceSystemPromptApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
-
 
 class PatchSystemPromptApplier(EditApplier):
     """Apply a unified diff to an agent's system prompt."""
@@ -102,7 +97,6 @@ class PatchSystemPromptApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
-
 
 class SetAgentClassApplier(EditApplier):
     """Change which agent class is used."""
@@ -152,7 +146,6 @@ class SetAgentClassApplier(EditApplier):
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
 
-
 class SetAgentParamApplier(EditApplier):
     """Update an agent parameter."""
 
@@ -201,7 +194,6 @@ class SetAgentParamApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass
-
 
 class EditFewShotExemplarsApplier(EditApplier):
     """Write few-shot exemplars to an agent's directory."""

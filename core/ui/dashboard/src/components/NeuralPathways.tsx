@@ -48,13 +48,13 @@ export default function NeuralPathways() {
             {/* Main pathway */}
             <line
               x1={cx} y1={cy} x2={endX} y2={endY}
-              stroke="var(--theme-accent, #00d4ff)"
+              stroke="var(--theme-accent, #4FC3F7)"
               strokeWidth="0.6"
               opacity={isActive ? 0.3 : 0.12}
               style={{ transition: 'opacity 0.8s ease, stroke 0.8s ease' }}
             />
             {isActive && (
-              <circle cx={endX} cy={endY} r="2" fill="var(--theme-accent, #00d4ff)" opacity="0.5">
+              <circle cx={endX} cy={endY} r="2" fill="var(--theme-accent, #4FC3F7)" opacity="0.5">
                 <animate attributeName="r" values="1;3;1" dur={`${1.5 + i * 0.3}s`} repeatCount="indefinite" />
                 <animate attributeName="opacity" values="0.3;0.8;0.3" dur={`${1.5 + i * 0.3}s`} repeatCount="indefinite" />
               </circle>
@@ -64,7 +64,7 @@ export default function NeuralPathways() {
               <line
                 key={bi}
                 x1={endX} y1={endY} x2={b.x} y2={b.y}
-                stroke="var(--theme-accent, #00d4ff)"
+                stroke="var(--theme-accent, #4FC3F7)"
                 strokeWidth="0.4"
                 opacity={isActive ? 0.2 : 0.06}
                 style={{ transition: 'opacity 0.8s ease, stroke 0.8s ease' }}

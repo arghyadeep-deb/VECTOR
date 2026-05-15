@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillManager -- coordinates skill discovery, catalog, tool wrapping, and execution."""
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from vectorcode.src.skills.loader import discover_skills
 from vectorcode.src.skills.tool_adapter import SkillTool
 from vectorcode.src.skills.types import SkillManifest
 from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
-
 
 class SkillManager:
     """Coordinate skill discovery, resolution, catalog generation, and execution.
@@ -420,11 +418,9 @@ class SkillManager:
         self._skills.pop(name, None)
         return paths
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
 
 class _NullToolExecutor(ToolExecutor):
     """A no-op ToolExecutor used when no real executor is available.
@@ -436,6 +432,5 @@ class _NullToolExecutor(ToolExecutor):
 
     def __init__(self) -> None:
         super().__init__(tools=[], bus=None)
-
 
 __all__ = ["SkillManager"]

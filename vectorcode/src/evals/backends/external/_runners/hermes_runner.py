@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/backends/external/_runners/hermes_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -26,7 +25,6 @@ import os
 import sys
 import traceback
 from pathlib import Path
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -200,7 +198,6 @@ def main() -> int:
 
     args.output_json.write_text(json.dumps(output))
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

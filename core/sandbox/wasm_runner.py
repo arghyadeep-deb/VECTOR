@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/sandbox/wasm_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-
 @dataclass(slots=True)
 class WasmResult:
     """Result from a WASM execution."""
@@ -22,7 +20,6 @@ class WasmResult:
     duration_seconds: float = 0.0
     fuel_consumed: int = 0
     memory_used_bytes: int = 0
-
 
 class WasmRunner:
     """Execute WASM modules with resource limits.
@@ -138,7 +135,6 @@ class WasmRunner:
         except Exception:
             return False
 
-
 def create_sandbox_runner(config: Any = None) -> Any:
     """Factory: select Docker or WASM runner based on config/availability."""
     if config and getattr(config, "runtime", "") == "wasm":
@@ -152,7 +148,7 @@ def create_sandbox_runner(config: Any = None) -> Any:
 
     # Fall back to Docker ContainerRunner
     try:
-        from vector.sandbox.runner import ContainerRunner
+        from core.sandbox.runner import ContainerRunner
 
         return ContainerRunner(
             image=getattr(config, "image", "vector-sandbox:latest"),
@@ -160,6 +156,5 @@ def create_sandbox_runner(config: Any = None) -> Any:
         )
     except ImportError:
         return None
-
 
 __all__ = ["WasmResult", "WasmRunner", "create_sandbox_runner"]

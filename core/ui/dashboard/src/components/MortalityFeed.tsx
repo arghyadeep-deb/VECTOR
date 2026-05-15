@@ -52,10 +52,10 @@ export default function MortalityFeed({ onClose, zoneStyle }: MortalityFeedProps
       }}
     >
       <div style={{ padding: '4px 0' }}>
-        {council.length > 0 && (<><div style={sHeader}>COUNCIL</div>{council.map((e) => <Card key={e.name} {...e} borderColor="#BF5FFF" hpColor="#BF5FFF" fadeIn />)}</>)}
+        {council.length > 0 && (<><div style={sHeader}>COUNCIL</div>{council.map((e) => <Card key={e.name} {...e} borderColor="#64B5F6" hpColor="#64B5F6" fadeIn />)}</>)}
         {deceased.length > 0 && (<><div style={sHeader}>DECEASED</div>{deceased.map((e) => <Card key={e.name} {...e} borderColor="#4a0000" hpColor="#FF3D3D" />)}</>)}
-        {dying.length > 0 && (<><div style={sHeader}>AT RISK</div>{dying.map((e) => <Card key={e.name} {...e} borderColor="#FFB300" hpColor="#FFB300" flash />)}</>)}
-        {reborn.length > 0 && (<><div style={sHeader}>REBORN</div>{reborn.map((e) => <Card key={e.name} {...e} borderColor="#00FF88" hpColor="#00FF88" fadeIn />)}</>)}
+        {dying.length > 0 && (<><div style={sHeader}>AT RISK</div>{dying.map((e) => <Card key={e.name} {...e} borderColor="#42A5F5" hpColor="#42A5F5" flash />)}</>)}
+        {reborn.length > 0 && (<><div style={sHeader}>REBORN</div>{reborn.map((e) => <Card key={e.name} {...e} borderColor="#4FC3F7" hpColor="#4FC3F7" fadeIn />)}</>)}
         {deceased.length === 0 && dying.length === 0 && council.length === 0 && (
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, color: '#1a4466', textAlign: 'center', padding: '20px 0', letterSpacing: '0.15em' }}>
             ALL AGENTS STABLE

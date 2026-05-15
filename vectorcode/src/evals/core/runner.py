@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -45,19 +44,18 @@ from vectorcode.src.evals.core.types import (
 )
 
 try:
-    from vector.telemetry.efficiency import compute_efficiency
+    from core.telemetry.efficiency import compute_efficiency
 except ImportError:  # pragma: no cover
     compute_efficiency = None  # type: ignore[assignment]
 
 try:
-    from vector.telemetry.efficiency import estimate_model_flops_per_token
+    from core.telemetry.efficiency import estimate_model_flops_per_token
 except ImportError:  # pragma: no cover
     estimate_model_flops_per_token = None  # type: ignore[assignment]
 
 LOGGER = logging.getLogger(__name__)
 
 _THINK_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
-
 
 def _extract_continuous_score(scoring_meta, is_correct):
     """Pull continuous score (0.0-1.0) from scoring_meta, falling back to binary.
@@ -79,11 +77,9 @@ def _extract_continuous_score(scoring_meta, is_correct):
         return None
     return 1.0 if is_correct else 0.0
 
-
 def _strip_think_tags(text: str) -> str:
     """Remove <think>...</think> blocks from model output."""
     return _THINK_TAG_RE.sub("", text).strip()
-
 
 class EvalRunner:
     """Runs an evaluation benchmark with parallel sample execution."""
@@ -133,7 +129,7 @@ class EvalRunner:
         # LifelongAgentBench).  The base DatasetProvider always defines a
         # default iter_episodes() that wraps each record in its own episode,
         # so hasattr() is always True — we must check for a real override.
-        from vector.evals.core.dataset import DatasetProvider as _DP
+        from vectorcode.src.evals.core.dataset import DatasetProvider as _DP
 
         try:
             _overrides_episodes = (
@@ -549,7 +545,7 @@ class EvalRunner:
         # overrides create_task_env.  The DatasetProvider base class provides a
         # default implementation that returns None, so hasattr() is always True —
         # we must check for a real override to avoid calling env.reset() on None.
-        from vector.evals.core.dataset import DatasetProvider
+        from vectorcode.src.evals.core.dataset import DatasetProvider
 
         has_task_env = (
             type(self._dataset).create_task_env is not DatasetProvider.create_task_env
@@ -1096,7 +1092,6 @@ class EvalRunner:
             ),
         )
 
-
 def _compute_normalized_stats(
     results: List[EvalResult],
     accuracy: float,
@@ -1157,7 +1152,6 @@ def _compute_normalized_stats(
 
     return norm_stats, norm_eff
 
-
 def _eval_percentile(data: list[float], p: float) -> float:
     """Compute the p-th percentile using linear interpolation."""
     sorted_data = sorted(data)
@@ -1167,7 +1161,6 @@ def _eval_percentile(data: list[float], p: float) -> float:
     if c >= len(sorted_data):
         return sorted_data[-1]
     return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
-
 
 def _metric_stats(values: List[float]) -> Optional[MetricStats]:
     """Compute MetricStats from a list of float values."""
@@ -1184,7 +1177,6 @@ def _metric_stats(values: List[float]) -> Optional[MetricStats]:
         p99=_eval_percentile(values, 0.99),
     )
 
-
 def _metric_stats_to_dict(ms: Optional[MetricStats]) -> Optional[Dict[str, float]]:
     """Convert MetricStats to a JSON-serializable dict."""
     if ms is None:
@@ -1199,7 +1191,6 @@ def _metric_stats_to_dict(ms: Optional[MetricStats]) -> Optional[Dict[str, float
         "p95": ms.p95,
         "p99": ms.p99,
     }
-
 
 def _summary_to_dict(
     s: RunSummary,
@@ -1345,7 +1336,6 @@ def _summary_to_dict(
 
     return d
 
-
 def _result_to_trace_dict(result: EvalResult) -> Dict[str, Any]:
     """Convert an EvalResult to a full trace dict for per-sample export."""
     d = {
@@ -1381,6 +1371,5 @@ def _result_to_trace_dict(result: EvalResult) -> Dict[str, Any]:
     if result.trace_data is not None:
         d["trace_data"] = result.trace_data
     return d
-
 
 __all__ = ["EvalRunner"]

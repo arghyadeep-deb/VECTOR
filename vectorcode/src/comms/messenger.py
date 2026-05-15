@@ -1,5 +1,5 @@
 """
-MessagingHub — absorbed from reference MessagingAdapter.
+MessagingHub — VECTOR multi-platform messaging hub.
 Standalone multi-platform messaging. no external HTTP dependency.
 Supports: telegram, discord (webhook), email, webhook, pushover.
 Offline queue persisted to ~/.vector/messages/pending.json.
@@ -23,7 +23,6 @@ except ImportError:
 _MSG_DIR = Path.home() / ".vector" / "messages"
 _PENDING_FILE = _MSG_DIR / "pending.json"
 _HISTORY_FILE = _MSG_DIR / "history.json"
-
 
 class MessagingHub:
     """
@@ -315,7 +314,7 @@ class MessagingHub:
                 "job_id": job_id, "schedule": schedule, "message": message,
                 "platform": platform, "status": "scheduled",
             })
-            logger.info(f"[VECTOR][comms] cron scheduled: {schedule} → {platform} (id={job_id})")
+            logger.info(f"[VECTOR][comms] cron scheduled: {schedule} -> {platform} (id={job_id})")
             return {"status": "scheduled", "job_id": job_id}
         except Exception as e:
             logger.error(f"[VECTOR][comms] cron schedule failed: {e}")
@@ -407,7 +406,6 @@ class MessagingHub:
         logger.info(f"[VECTOR][comms] away status: {status} — {message}")
         return True
 
-
 if __name__ == "__main__":
     import asyncio
 
@@ -418,7 +416,7 @@ if __name__ == "__main__":
         status = hub.get_comms_status()
         assert "urgent" in status and "unread" in status and "pending" in status
 
-        # Notification to unconfigured platforms → queued
+        # Notification to unconfigured platforms -> queued
         result = await hub.send_notification("test smoke", "normal")
         assert result.get("status") in ("sent", "queued")
 
@@ -438,11 +436,4 @@ if __name__ == "__main__":
         print(f"comms/messenger.py OK — status={status}, skills={hub.list_skills()}")
 
     asyncio.run(_smoke())
-
-
-
-
-
-
-
 

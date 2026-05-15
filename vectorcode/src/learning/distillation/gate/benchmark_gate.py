@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/gate/benchmark_gate.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 # seed and returns a BenchmarkSnapshot.
 ScorerFn = Callable[..., BenchmarkSnapshot]
 
-
 @dataclass
 class GateResult:
     """Result of a benchmark gate evaluation."""
@@ -36,7 +34,6 @@ class GateResult:
     snapshot: BenchmarkSnapshot
     delta: float
     reason: str = ""
-
 
 class BenchmarkGate:
     """Runs the personal benchmark and decides accept/reject.

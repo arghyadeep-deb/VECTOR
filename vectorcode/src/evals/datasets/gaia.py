@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/gaia.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -35,7 +34,6 @@ _DEFAULT_INPUT_PROMPT = """Please answer the question below. You should:
 Here is the question:
 
 {question}"""
-
 
 class GAIADataset(DatasetProvider):
     """GAIA agentic benchmark dataset."""
@@ -178,6 +176,5 @@ class GAIADataset(DatasetProvider):
             subject=subject,
             metadata=metadata,
         )
-
 
 __all__ = ["GAIADataset"]

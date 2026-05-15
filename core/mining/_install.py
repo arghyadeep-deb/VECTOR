@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Detection and install hints for the upstream Pearl Python packages.
 
 The cpu-pearl provider depends on three upstream packages from the Pearl
@@ -20,7 +19,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 
-
 def _module_importable(name: str) -> bool:
     """True if ``import name`` would succeed in the current environment.
 
@@ -38,7 +36,6 @@ def _module_importable(name: str) -> bool:
     except ValueError:
         return False
 
-
 def pearl_packages_available() -> bool:
     """All three Pearl Python packages importable.
 
@@ -48,7 +45,6 @@ def pearl_packages_available() -> bool:
     return all(
         _module_importable(m) for m in ("pearl_mining", "pearl_gateway", "miner_base")
     )
-
 
 def install_hint() -> str:
     """Human-readable instruction for installing the Pearl packages.

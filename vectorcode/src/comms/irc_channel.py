@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """IRCChannel — IRC adapter using stdlib socket."""
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
-
 
 @ChannelRegistry.register("irc")
 class IRCChannel(BaseChannel):
@@ -141,6 +139,5 @@ class IRCChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["IRCChannel"]

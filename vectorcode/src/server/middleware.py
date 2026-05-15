@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Security middleware -- HTTP security headers and request guards."""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = ["SECURITY_HEADERS", "create_security_middleware"]
-
 
 def create_security_middleware() -> Any:
     """Create a FastAPI middleware that adds security headers.
@@ -55,7 +53,6 @@ def create_security_middleware() -> Any:
             return response
 
     return SecurityHeadersMiddleware
-
 
 # Also export the header values as constants for testing
 SECURITY_HEADERS = {

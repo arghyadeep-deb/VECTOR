@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/energy_amd.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -27,7 +26,6 @@ try:
     _AMDSMI_AVAILABLE = True
 except ImportError:
     _AMDSMI_AVAILABLE = False
-
 
 class AmdEnergyMonitor(EnergyMonitor):
     """AMD GPU energy monitor using amdsmi hardware counters.
@@ -138,6 +136,5 @@ class AmdEnergyMonitor(EnergyMonitor):
             except Exception as exc:
                 logger.debug("Failed to shut down AMD energy monitor: %s", exc)
             self._initialized = False
-
 
 __all__ = ["AmdEnergyMonitor"]

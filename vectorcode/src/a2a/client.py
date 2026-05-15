@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/a2a/client.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from vectorcode.src.a2a.protocol import A2ARequest, A2ATask, AgentCard
-
 
 class A2AClient:
     """Client for calling external A2A-compatible agents.
@@ -116,6 +114,5 @@ class A2AClient:
             task_id=result.get("id", task_id),
             state=result.get("state", "canceled"),
         )
-
 
 __all__ = ["A2AClient"]

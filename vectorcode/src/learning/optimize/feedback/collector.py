@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/feedback/collector.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,9 +10,8 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_core.types import Trace
+from vectorcode.src.vc_core.types import Trace
 from vectorcode.src.learning.optimize.feedback.judge import TraceJudge
-
 
 class FeedbackCollector:
     """Collects feedback signals: explicit user scores + LLM judge evaluations.
@@ -121,6 +119,5 @@ class FeedbackCollector:
             "mean_score": mean_score,
             "distribution": {"low": low, "medium": medium, "high": high},
         }
-
 
 __all__ = ["FeedbackCollector"]

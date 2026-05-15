@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/feedback/judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,7 @@ import logging
 import re
 from typing import List, Tuple
 
-from vectorcode.src.oj_core.types import Trace
+from vectorcode.src.vc_core.types import Trace
 from vectorcode.src.evals.core.backend import InferenceBackend
 
 LOGGER = logging.getLogger(__name__)
@@ -32,7 +31,6 @@ _SCORE_RE = re.compile(
     re.IGNORECASE,
 )
 
-
 def _format_trace(trace: Trace) -> str:
     """Render a Trace into a textual prompt for the judge."""
     lines: List[str] = []
@@ -49,7 +47,6 @@ def _format_trace(trace: Trace) -> str:
             )
     lines.append(f"\n## Final Result\n{trace.result}")
     return "\n".join(lines)
-
 
 def _parse_score(text: str) -> float:
     """Extract a 0-1 score from the judge response.
@@ -76,7 +73,6 @@ def _parse_score(text: str) -> float:
         return min(numerator / 10.0, 1.0)
 
     return min(max(numerator, 0.0), 1.0)
-
 
 class TraceJudge:
     """LLM-as-judge for scoring traces when no ground truth exists.
@@ -120,6 +116,5 @@ class TraceJudge:
         for trace in traces:
             results.append(self.score_trace(trace))
         return results
-
 
 __all__ = ["TraceJudge"]

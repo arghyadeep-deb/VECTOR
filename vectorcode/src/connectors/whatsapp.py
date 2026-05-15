@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/whatsapp.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -30,8 +29,8 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,6 @@ _DATE_FORMATS = [
     "%d/%m/%Y, %I:%M %p",  # 15/1/2024, 10:30 AM
 ]
 
-
 def _parse_timestamp(ts_str: str) -> Optional[datetime]:
     """Try to parse a WhatsApp timestamp string into a UTC-aware datetime."""
     # Normalise whitespace in AM/PM (the regex allows optional space)
@@ -68,11 +66,9 @@ def _parse_timestamp(ts_str: str) -> Optional[datetime]:
     logger.debug("Could not parse WhatsApp timestamp: %r", ts_str)
     return None
 
-
 # ---------------------------------------------------------------------------
 # WhatsAppConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("whatsapp")
 class WhatsAppConnector(BaseConnector):
@@ -299,6 +295,5 @@ class WhatsAppConnector(BaseConnector):
                 "message_count": len(lines),
             },
         )
-
 
 __all__ = ["WhatsAppConnector"]

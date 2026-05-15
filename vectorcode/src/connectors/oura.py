@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/oura.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,12 +19,11 @@ from typing import Any, Dict, Iterator, Optional
 import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _OURA_API_BASE = "https://api.ouraring.com/v2/usercollection"
 _DEFAULT_TOKEN_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "oura.json")
-
 
 def _oura_api_get(
     token: str, endpoint: str, params: Optional[Dict[str, str]] = None
@@ -39,7 +37,6 @@ def _oura_api_get(
     )
     resp.raise_for_status()
     return resp.json()
-
 
 @ConnectorRegistry.register("oura")
 class OuraConnector(BaseConnector):

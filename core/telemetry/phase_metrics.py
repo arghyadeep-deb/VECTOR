@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/phase_metrics.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,8 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from vector.telemetry.session import TelemetrySession
-
+    from core.telemetry.session import TelemetrySession
 
 def compute_phase_metrics(
     session: TelemetrySession,
@@ -34,7 +32,6 @@ def compute_phase_metrics(
         "energy_per_token_j": energy_per_token,
         "tokens": tokens,
     }
-
 
 def split_at_ttft(
     session: TelemetrySession,

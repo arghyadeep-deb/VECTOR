@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/flops.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -36,7 +35,6 @@ MODEL_PARAMS_B: dict[str, float] = {
     "mixtral-8x7b": 47.0,
 }
 
-
 def _get_params_b(model: str) -> float:
     """Look up model parameter count (billions)."""
     params_b = MODEL_PARAMS_B.get(model, 0.0)
@@ -46,7 +44,6 @@ def _get_params_b(model: str) -> float:
                 params_b = val
                 break
     return params_b
-
 
 def estimate_flops(
     model: str, input_tokens: int, output_tokens: int
@@ -67,7 +64,6 @@ def estimate_flops(
     flops_per_token = 2.0 * params if total_tokens > 0 else 0.0
     return (total_flops, flops_per_token)
 
-
 def estimate_flops_no_kv_cache(
     model: str, input_tokens: int, output_tokens: int
 ) -> tuple[float, float]:
@@ -85,7 +81,6 @@ def estimate_flops_no_kv_cache(
     total_flops = params * total_tokens * (total_tokens + 1)
     flops_per_token = total_flops / total_tokens
     return (total_flops, flops_per_token)
-
 
 def compute_mfu(
     flops: float, duration_s: float, gpu_name: str, num_gpus: int = 1

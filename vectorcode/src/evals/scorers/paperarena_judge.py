@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/paperarena_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -28,7 +27,6 @@ _JUDGE_PROMPT = """You are evaluating a scientific question answer.
 Is the agent's answer correct? Consider semantic equivalence, not exact wording.
 For numerical answers, accept reasonable rounding.
 Respond with exactly: CORRECT or INCORRECT"""
-
 
 class PaperArenaScorer(LLMJudgeScorer):
     """Score PaperArena: MC via letter extraction, CA/OA via LLM judge."""
@@ -163,6 +161,5 @@ class PaperArenaScorer(LLMJudgeScorer):
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["PaperArenaScorer"]

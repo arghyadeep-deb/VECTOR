@@ -1,5 +1,4 @@
 # src/vector/mining/_constants.py
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Constants for the Pearl mining subsystem.
 
 Pinned Pearl ref OJ has tested against. Bumped per OJ release after

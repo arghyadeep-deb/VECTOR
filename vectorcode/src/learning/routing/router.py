@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/routing/router.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,12 +10,11 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from vectorcode.src.oj_core.registry import ModelRegistry
-from vectorcode.src.oj_core.types import RoutingContext
+from vectorcode.src.vc_core.registry import ModelRegistry
+from vectorcode.src.vc_core.types import RoutingContext
 from vectorcode.src.learning._stubs import QueryAnalyzer, RouterPolicy
 
 logger = logging.getLogger(__name__)
-
 
 def build_routing_context(
     query: str, *, urgency: float = 0.5, model: str | None = None
@@ -26,7 +24,7 @@ def build_routing_context(
     When *model* is provided, the suggested token budget is adjusted
     for thinking models that need extra headroom.
     """
-    from vector.learning.routing.complexity import (
+    from vectorcode.src.learning.routing.complexity import (
         adjust_tokens_for_model,
         score_complexity,
     )
@@ -46,7 +44,6 @@ def build_routing_context(
         metadata={"complexity_tier": result.tier, "signals": result.signals},
     )
 
-
 def _model_size(key: str) -> float:
     """Return parameter count for a registered model, or 0 if not found."""
     try:
@@ -56,7 +53,6 @@ def _model_size(key: str) -> float:
         logger.debug("Failed to compute model score: %s", exc)
         return 0.0
 
-
 def _find_model_by_tag(available: List[str], tag: str) -> Optional[str]:
     """Find the first available model whose key contains *tag* (case-insensitive)."""
     tag_lower = tag.lower()
@@ -64,7 +60,6 @@ def _find_model_by_tag(available: List[str], tag: str) -> Optional[str]:
         if tag_lower in key.lower():
             return key
     return None
-
 
 def _largest_model(available: List[str]) -> Optional[str]:
     """Return the model with the largest parameter count from the available list."""
@@ -79,7 +74,6 @@ def _largest_model(available: List[str]) -> Optional[str]:
             best_size = size
     return best
 
-
 def _smallest_model(available: List[str]) -> Optional[str]:
     """Return the smallest-parameter model from *available*."""
     if not available:
@@ -92,7 +86,6 @@ def _smallest_model(available: List[str]) -> Optional[str]:
             best = key
             best_size = size
     return best
-
 
 class HeuristicRouter(RouterPolicy):
     """Rule-based model router.
@@ -159,7 +152,6 @@ class HeuristicRouter(RouterPolicy):
             return self._fallback
         return available[0]
 
-
 class DefaultQueryAnalyzer(QueryAnalyzer):
     """Default query analyzer wrapping the heuristic build_routing_context function."""
 
@@ -171,7 +163,6 @@ class DefaultQueryAnalyzer(QueryAnalyzer):
         if not isinstance(model, str):
             model = None
         return build_routing_context(query, urgency=urgency, model=model)
-
 
 __all__ = [
     "DefaultQueryAnalyzer",

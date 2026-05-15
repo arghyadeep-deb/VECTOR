@@ -118,14 +118,14 @@ export default function CommandInput() {
           {streaming && (
             <svg width="32" height="14" viewBox="0 0 32 14">
               {Array.from({ length: 16 }, (_, i) => (
-                <rect key={i} x={i * 2} y={0} width="1.5" height="14" fill="#00FFD4" opacity="0.6" rx="0.5">
+                <rect key={i} x={i * 2} y={0} width="1.5" height="14" fill="#81D4FA" opacity="0.6" rx="0.5">
                   <animate attributeName="height" values="2;12;2" dur={`${0.3 + i * 0.04}s`} repeatCount="indefinite" />
                   <animate attributeName="y" values="6;1;6" dur={`${0.3 + i * 0.04}s`} repeatCount="indefinite" />
                 </rect>
               ))}
             </svg>
           )}
-          <span style={{ color: streaming ? '#00FFD4' : '#1a6688' }}>
+          <span style={{ color: streaming ? '#81D4FA' : '#1a6688' }}>
             {streaming ? 'PROCESSING' : 'STANDBY'}
           </span>
         </div>
@@ -135,7 +135,7 @@ export default function CommandInput() {
       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 8 }}>
         <span style={{
           fontFamily: "'JetBrains Mono', monospace", fontSize: 13,
-          color: streaming ? '#00FFD4' : hasActions ? '#00FF88' : '#00d4ff',
+          color: streaming ? '#81D4FA' : hasActions ? '#4FC3F7' : '#4FC3F7',
           filter: `drop-shadow(0 0 ${streaming ? 12 : 5}px currentColor)`,
           transition: 'all 0.4s ease', minWidth: 14,
         }}>
@@ -167,7 +167,7 @@ export default function CommandInput() {
           style={{
             background: 'transparent',
             border: '1px solid rgba(191,95,255,0.25)',
-            color: '#BF5FFF', fontFamily: "'Orbitron', sans-serif", fontSize: 9,
+            color: '#64B5F6', fontFamily: "'Orbitron', sans-serif", fontSize: 9,
             padding: '7px 10px', cursor: 'pointer', letterSpacing: '0.1em',
             transition: 'all 0.3s', opacity: sending ? 0.4 : 1,
           }}
@@ -182,7 +182,7 @@ export default function CommandInput() {
           style={{
             background: 'transparent',
             border: `1px solid ${streaming ? 'rgba(0,255,212,0.35)' : 'rgba(0,212,255,0.25)'}`,
-            color: streaming ? '#00FFD4' : '#00d4ff',
+            color: streaming ? '#81D4FA' : '#4FC3F7',
             fontFamily: "'Orbitron', sans-serif", fontSize: 10,
             padding: '7px 18px', cursor: 'pointer', letterSpacing: '0.12em',
             transition: 'all 0.3s', opacity: sending ? 0.5 : 1,
@@ -200,8 +200,8 @@ export default function CommandInput() {
           <div style={{ height: 2, background: 'rgba(0,212,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
             <div style={{
               width: `${progress}%`, height: '100%',
-              background: 'linear-gradient(90deg, #00FFD4, #00d4ff)',
-              boxShadow: '0 0 8px #00FFD4', transition: 'width 0.5s ease',
+              background: 'linear-gradient(90deg, #81D4FA, #4FC3F7)',
+              boxShadow: '0 0 8px #81D4FA', transition: 'width 0.5s ease',
             }} />
           </div>
         </div>
@@ -216,14 +216,14 @@ export default function CommandInput() {
           maxHeight: 280, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
           lineHeight: 1.6,
         }}>
-          <span style={{ color: '#00d4ff', marginRight: 8, fontFamily: "'Orbitron', sans-serif", fontSize: 8 }}>
+          <span style={{ color: '#4FC3F7', marginRight: 8, fontFamily: "'Orbitron', sans-serif", fontSize: 8 }}>
             VECTOR:
           </span>
           {resp}
           {streaming && (
             <span style={{
               display: 'inline-block', width: 7, height: 13,
-              background: '#00FFD4', marginLeft: 3, verticalAlign: 'text-bottom',
+              background: '#81D4FA', marginLeft: 3, verticalAlign: 'text-bottom',
               animation: 'v-pulse 0.5s infinite',
             }} />
           )}
@@ -247,7 +247,7 @@ export default function CommandInput() {
               style={{
                 background: 'transparent',
                 border: '1px solid rgba(0,212,255,0.15)',
-                color: r >= 4 ? '#00FF88' : r === 3 ? '#ffaa00' : '#ff6644',
+                color: r >= 4 ? '#4FC3F7' : r === 3 ? '#42A5F5' : '#ff6644',
                 fontFamily: "'Orbitron', sans-serif", fontSize: 8,
                 padding: '3px 7px', cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -262,7 +262,7 @@ export default function CommandInput() {
         </div>
       )}
       {feedbackSent && (
-        <div style={{ padding: '4px 14px 6px', fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#00FF88', letterSpacing: '0.1em' }}>
+        <div style={{ padding: '4px 14px 6px', fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#4FC3F7', letterSpacing: '0.1em' }}>
           ✓ FEEDBACK RECORDED
         </div>
       )}

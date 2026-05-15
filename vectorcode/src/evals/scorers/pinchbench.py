@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/pinchbench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -37,11 +36,9 @@ _TOOL_NAME_MAP: Dict[str, str] = {
     # web_search, calculator, shell_exec, etc. use the same names
 }
 
-
 # ---------------------------------------------------------------------------
 # Transcript translation
 # ---------------------------------------------------------------------------
-
 
 def events_to_transcript(events: List[Any]) -> List[Dict[str, Any]]:
     """Build PinchBench-format transcript from raw EventRecorder events.
@@ -87,7 +84,6 @@ def events_to_transcript(events: List[Any]) -> List[Dict[str, Any]]:
             )
 
     return transcript
-
 
 def _trace_to_transcript(trace: Any) -> List[Dict[str, Any]]:
     """Convert QueryTrace to PinchBench transcript (for EvalRunner path)."""
@@ -136,11 +132,10 @@ def _trace_to_transcript(trace: Any) -> List[Dict[str, Any]]:
         )
     return transcript
 
-
 def _tool_results_to_transcript(
     tool_results: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Build transcript from JarvisAgentBackend tool_results list."""
+    """Build transcript from VectorAgentBackend tool_results list."""
     transcript: List[Dict[str, Any]] = []
     for tr in tool_results:
         tool_name = tr.get("tool_name", "unknown")
@@ -171,11 +166,9 @@ def _tool_results_to_transcript(
         )
     return transcript
 
-
 # ---------------------------------------------------------------------------
 # Transcript summarization (replicates PinchBench _summarize_transcript)
 # ---------------------------------------------------------------------------
-
 
 def _summarize_transcript(transcript: List[Dict[str, Any]]) -> str:
     """Summarize transcript for LLM judge prompt.
@@ -210,11 +203,9 @@ def _summarize_transcript(transcript: List[Dict[str, Any]]) -> str:
                 parts.append(f"User: {content[0]}")
     return "\n".join(parts)
 
-
 # ---------------------------------------------------------------------------
 # Judge prompt and response parsing (replicates PinchBench exactly)
 # ---------------------------------------------------------------------------
-
 
 def _build_judge_prompt(
     *,
@@ -251,7 +242,6 @@ Return your evaluation as JSON with this exact structure:
 ```
 Be a strict evaluator. Deduct points for unnecessary steps, verbose output,
 or inefficient tool usage."""
-
 
 def _parse_judge_response(raw: str) -> Dict[str, Any]:
     """Parse LLM judge response with fallback chain.
@@ -328,7 +318,6 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
     LOGGER.warning("Failed to parse judge response")
     return {"scores": {}, "total": 0.0, "notes": "Failed to parse judge response"}
 
-
 def _normalize_judge_response(parsed: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize various judge response formats to standard structure.
 
@@ -376,11 +365,9 @@ def _normalize_judge_response(parsed: Dict[str, Any]) -> Dict[str, Any]:
 
     return result
 
-
 # ---------------------------------------------------------------------------
 # Grading functions
 # ---------------------------------------------------------------------------
-
 
 def _grade_automated(
     record: EvalRecord,
@@ -423,7 +410,6 @@ def _grade_automated(
     mean_score = sum(scores.values()) / len(scores)
     return {"score": mean_score, "breakdown": scores, "notes": ""}
 
-
 def _grade_llm_judge(
     record: EvalRecord,
     transcript: List[Dict[str, Any]],
@@ -462,7 +448,6 @@ def _grade_llm_judge(
         "notes": parsed.get("notes", ""),
     }
 
-
 def _grade_hybrid(
     record: EvalRecord,
     transcript: List[Dict[str, Any]],
@@ -496,7 +481,6 @@ def _grade_hybrid(
     notes = " | ".join(filter(None, [auto.get("notes", ""), llm.get("notes", "")]))
     return {"score": combined, "breakdown": breakdown, "notes": notes}
 
-
 def grade_pinchbench_task(
     *,
     record: EvalRecord,
@@ -528,11 +512,9 @@ def grade_pinchbench_task(
             "notes": f"Unknown grading type: {grading_type}",
         }
 
-
 # ---------------------------------------------------------------------------
 # Standalone scorer (for EvalRunner non-agentic path)
 # ---------------------------------------------------------------------------
-
 
 class PinchBenchScorer(LLMJudgeScorer):
     """PinchBench scorer for the non-agentic EvalRunner path."""
@@ -574,7 +556,6 @@ class PinchBenchScorer(LLMJudgeScorer):
         )
         is_correct = result["score"] >= 0.5
         return is_correct, {**result}
-
 
 __all__ = [
     "PinchBenchScorer",

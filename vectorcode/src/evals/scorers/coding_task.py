@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/coding_task.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -20,7 +19,6 @@ from vectorcode.src.evals.core.scorer import Scorer
 from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
-
 
 def _extract_code(answer: str) -> str:
     """Extract Python code from model answer, handling markdown fences."""
@@ -49,7 +47,6 @@ def _extract_code(answer: str) -> str:
 
     # Last resort: return the whole answer
     return answer.strip()
-
 
 def _run_tests(code: str, test_cases: str) -> Tuple[int, int, str]:
     """Execute code + tests in a restricted namespace. Returns (passed, total, error)."""
@@ -98,7 +95,6 @@ def _run_tests(code: str, test_cases: str) -> Tuple[int, int, str]:
         total = sum(1 for line in test_lines if "assert " in line)
         return 0, max(total, 1), f"Test execution error: {exc}"
 
-
 class CodingTaskScorer(Scorer):
     """Score coding tasks by running test cases against model output."""
 
@@ -143,6 +139,5 @@ class CodingTaskScorer(Scorer):
             meta["error"] = error
 
         return is_correct, meta
-
 
 __all__ = ["CodingTaskScorer"]

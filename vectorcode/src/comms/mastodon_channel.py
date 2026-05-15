@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """MastodonChannel — Mastodon adapter via Mastodon.py."""
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
-
 
 @ChannelRegistry.register("mastodon")
 class MastodonChannel(BaseChannel):
@@ -153,6 +151,5 @@ class MastodonChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["MastodonChannel"]

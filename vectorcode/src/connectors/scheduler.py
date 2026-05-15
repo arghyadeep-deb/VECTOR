@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/scheduler.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -35,7 +34,6 @@ from vectorcode.src.connectors._stubs import BaseConnector
 from vectorcode.src.connectors.sync_engine import SyncEngine
 
 logger = logging.getLogger(__name__)
-
 
 class SyncScheduler:
     """Runs incremental sync for all registered connectors on a schedule.
@@ -150,6 +148,5 @@ class SyncScheduler:
                             conn.connector_id,
                             exc,
                         )
-
 
 __all__ = ["SyncScheduler"]

@@ -1,5 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
-Branding: vector->vector, Jarvis->VECTOR. Auto-rewritten by absorb_openjarvis_gaps.py
 """
 """Twilio SMS channel for sending and receiving text messages."""
 
@@ -20,14 +18,12 @@ from vectorcode.src.vc_core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
 
-
 def _create_twilio_client(  # noqa: ANN201
     account_sid: str, auth_token: str
 ):
     from twilio.rest import Client
 
     return Client(account_sid, auth_token)
-
 
 @ChannelRegistry.register("twilio")
 class TwilioSMSChannel(BaseChannel):

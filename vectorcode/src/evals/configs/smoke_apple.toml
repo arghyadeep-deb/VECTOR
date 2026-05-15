@@ -2,7 +2,7 @@
 # Target hardware: Apple Silicon Mac (M1/M2/M3/M4) with 16+ GB unified memory
 # Purpose: verify full-stack metrics collection with minimal samples (3 per benchmark)
 # Engines: MLX (primary), Ollama (GGUF)
-# Run: uv run python -m openjarvis.evals run -c src/openjarvis/evals/configs/smoke_apple.toml
+# Run: uv run python -m vector.evals run -c src/vector/evals/configs/smoke_apple.toml
 
 [meta]
 name = "smoke-apple"

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/config.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,7 +16,6 @@ try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
-
 
 def load_optimize_config(path: Union[str, Path]) -> Dict[str, Any]:
     """Load an optimization config TOML file.
@@ -38,7 +36,6 @@ def load_optimize_config(path: Union[str, Path]) -> Dict[str, Any]:
 
     return data
 
-
 def load_objectives(data: Dict[str, Any]) -> List[ObjectiveSpec]:
     """Extract objectives from a loaded optimization config.
 
@@ -46,7 +43,7 @@ def load_objectives(data: Dict[str, Any]) -> List[ObjectiveSpec]:
     a list of :class:`ObjectiveSpec`.  Falls back to
     :data:`DEFAULT_OBJECTIVES` if the key is absent.
     """
-    from vector.learning.optimize.types import DEFAULT_OBJECTIVES
+    from vectorcode.src.learning.optimize.types import DEFAULT_OBJECTIVES
 
     optimize = data.get("optimize", {})
     raw_objectives = optimize.get("objectives")
@@ -64,7 +61,6 @@ def load_objectives(data: Dict[str, Any]) -> List[ObjectiveSpec]:
         )
     return result
 
-
 def load_benchmark_specs(data: Dict[str, Any]) -> List[Any]:
     """Extract benchmark specs from a loaded optimization config.
 
@@ -76,7 +72,7 @@ def load_benchmark_specs(data: Dict[str, Any]) -> List[Any]:
     Returns an empty list if no benchmarks are configured (caller
     should fall back to CLI --benchmark).
     """
-    from vector.learning.optimize.trial_runner import BenchmarkSpec
+    from vectorcode.src.learning.optimize.trial_runner import BenchmarkSpec
 
     optimize = data.get("optimize", {})
 
@@ -103,6 +99,5 @@ def load_benchmark_specs(data: Dict[str, Any]) -> List[Any]:
         return [BenchmarkSpec(benchmark=single, max_samples=max_samples)]
 
     return []
-
 
 __all__ = ["load_benchmark_specs", "load_objectives", "load_optimize_config"]

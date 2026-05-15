@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/splits.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,7 +13,6 @@ from typing import List, Literal, TypeVar
 SplitName = Literal["train", "test", "all"]
 
 T = TypeVar("T")
-
 
 def apply_split(
     items: List[T],
@@ -41,6 +39,5 @@ def apply_split(
     if split == "train":
         return shuffled[:cut]
     return shuffled[cut:]
-
 
 __all__ = ["apply_split", "SplitName"]

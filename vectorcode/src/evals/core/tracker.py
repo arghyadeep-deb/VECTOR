@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/tracker.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from vectorcode.src.evals.core.types import EvalResult, RunConfig, RunSummary
-
 
 class ResultTracker(ABC):
     """Abstract base class for experiment result trackers.
@@ -35,6 +33,5 @@ class ResultTracker(ABC):
     @abstractmethod
     def on_run_end(self) -> None:
         """Called at the very end of a run for cleanup."""
-
 
 __all__ = ["ResultTracker"]

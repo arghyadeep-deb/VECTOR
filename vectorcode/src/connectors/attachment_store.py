@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/attachment_store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -43,7 +42,6 @@ CREATE TABLE IF NOT EXISTS attachments (
 # AttachmentStore
 # ---------------------------------------------------------------------------
 
-
 class AttachmentStore:
     """Content-addressed blob store with SQLite metadata index.
 
@@ -55,12 +53,12 @@ class AttachmentStore:
 
     def __init__(self, base_dir: str = "") -> None:
         if not base_dir:
-            from vector.core.config import DEFAULT_CONFIG_DIR
+            from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 
             base_dir = str(DEFAULT_CONFIG_DIR / "blobs")
 
         self._base_dir = Path(base_dir)
-        from vector.security.file_utils import secure_mkdir
+        from vectorcode.src.vc_security.file_utils import secure_mkdir
 
         secure_mkdir(self._base_dir)
 
@@ -181,6 +179,5 @@ class AttachmentStore:
             self._conn.close()
         except Exception:
             pass
-
 
 __all__ = ["AttachmentStore"]

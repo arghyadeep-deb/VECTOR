@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/apple_notes.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -37,8 +36,8 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -59,7 +58,6 @@ _APPLE_EPOCH = datetime(2001, 1, 1, tzinfo=timezone.utc)
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _apple_ts_to_datetime(apple_seconds: float) -> datetime:
     """Convert an Apple seconds timestamp to a UTC :class:`datetime`.
 
@@ -74,7 +72,6 @@ def _apple_ts_to_datetime(apple_seconds: float) -> datetime:
         UTC-aware datetime.
     """
     return _APPLE_EPOCH + timedelta(seconds=apple_seconds)
-
 
 def _extract_text_from_zdata(zdata: bytes) -> str:
     """Decompress gzip bytes and extract plain text from the protobuf payload.
@@ -107,11 +104,9 @@ def _extract_text_from_zdata(zdata: bytes) -> str:
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
-
 # ---------------------------------------------------------------------------
 # AppleNotesConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("apple_notes")
 class AppleNotesConnector(BaseConnector):

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/environment.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -17,14 +16,13 @@ from __future__ import annotations
 import time
 from typing import List, Tuple
 
-from vectorcode.src.oj_core.types import ToolCall
+from vectorcode.src.vc_core.types import ToolCall
 from vectorcode.src.learning.intelligence.orchestrator.types import (
     EpisodeState,
     OrchestratorAction,
     OrchestratorObservation,
 )
-from vectorcode.src.oj_tools._stubs import BaseTool, ToolExecutor
-
+from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
 
 class OrchestratorEnvironment:
     """RL environment that executes tools via VectorCode ``ToolExecutor``.
@@ -113,6 +111,5 @@ class OrchestratorEnvironment:
     def get_available_tools(self) -> List[str]:
         """Return names of all available tools."""
         return [t.spec.name for t in self._tools]
-
 
 __all__ = ["OrchestratorEnvironment"]

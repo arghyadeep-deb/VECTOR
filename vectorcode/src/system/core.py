@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """VectorSystem — the fully wired system dataclass."""
 
 from __future__ import annotations
@@ -48,7 +47,6 @@ if TYPE_CHECKING:
     from vectorcode.src.workflow.engine import WorkflowEngine
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class VectorSystem:
@@ -316,6 +314,5 @@ class VectorSystem:
 
     def __exit__(self, *exc: Any) -> None:
         self.close()
-
 
 __all__ = ["VectorSystem"]

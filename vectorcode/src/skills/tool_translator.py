@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """ToolTranslator -- translate external tool names to VECTOR equivalents.
 
 External skill libraries (Hermes Agent, OpenClaw) reference tools by Claude
@@ -31,7 +30,6 @@ TOOL_TRANSLATION: Dict[str, str] = {
     "Task": "delegate_agent",
     "NotebookEdit": "notebook_edit",
 }
-
 
 class ToolTranslator:
     """Rewrite tool references in markdown bodies and allowed-tools fields.
@@ -110,6 +108,5 @@ class ToolTranslator:
                     untranslated.append(head)
 
         return " ".join(out_tokens), untranslated
-
 
 __all__ = ["TOOL_TRANSLATION", "ToolTranslator"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/webchorearena.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -41,7 +40,6 @@ _SITE_DIRS = {
     "gitlab": "test_gitlab.json",
     "cross": "test_cross.raw.json",
 }
-
 
 class WebChoreArenaDataset(DatasetProvider):
     """WebChoreArena benchmark — interactive browser-based web tasks.
@@ -159,7 +157,7 @@ class WebChoreArenaDataset(DatasetProvider):
     def create_task_env(self, record: EvalRecord):
         """Return a WebChoreArenaTaskEnv for the given record."""
         try:
-            from vector.evals.execution.webchorearena_env import (
+            from vectorcode.src.evals.execution.webchorearena_env import (
                 WebChoreArenaTaskEnv,
             )
 
@@ -267,6 +265,5 @@ class WebChoreArenaDataset(DatasetProvider):
                 "headless": self._headless,
             },
         )
-
 
 __all__ = ["WebChoreArenaDataset"]

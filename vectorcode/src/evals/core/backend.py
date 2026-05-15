@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/backend.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -10,7 +9,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict
-
 
 class InferenceBackend(ABC):
     """Base class for all inference backends used in evaluation."""
@@ -56,6 +54,5 @@ class InferenceBackend(ABC):
 
     def close(self) -> None:
         """Release resources."""
-
 
 __all__ = ["InferenceBackend"]

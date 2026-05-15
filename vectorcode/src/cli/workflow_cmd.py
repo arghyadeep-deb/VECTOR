@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis workflow`` -- workflow management commands."""
 
 from __future__ import annotations
@@ -7,11 +6,9 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-
 @click.group()
 def workflow() -> None:
     """Manage workflows -- list, run, status."""
-
 
 @workflow.command("list")
 def list_workflows() -> None:
@@ -34,7 +31,6 @@ def list_workflows() -> None:
         console.print("[dim]No workflows found. Define workflows in TOML files.[/dim]")
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 @workflow.command()
 @click.argument("workflow_name")
@@ -60,12 +56,10 @@ def run(workflow_name: str, input_text: str | None) -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @workflow.command()
 def status() -> None:
     """Show status of running workflows."""
     console = Console(stderr=True)
     console.print("[dim]No workflows currently running.[/dim]")
-
 
 __all__ = ["workflow"]

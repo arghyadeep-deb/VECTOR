@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/dropbox.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,9 +19,9 @@ import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -58,7 +57,6 @@ _TEXT_EXTENSIONS = {
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _dropbox_api_list_folder(
     token: str,
@@ -107,7 +105,6 @@ def _dropbox_api_list_folder(
     resp.raise_for_status()
     return resp.json()
 
-
 def _dropbox_api_download(token: str, path: str) -> str:
     """Download a file from Dropbox and return its content as a string.
 
@@ -136,11 +133,9 @@ def _dropbox_api_download(token: str, path: str) -> str:
     resp.raise_for_status()
     return resp.text
 
-
 # ---------------------------------------------------------------------------
 # DropboxConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("dropbox")
 class DropboxConnector(BaseConnector):

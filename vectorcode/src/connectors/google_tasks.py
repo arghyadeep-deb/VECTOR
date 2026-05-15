@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/google_tasks.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -19,12 +18,11 @@ import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import load_tokens, resolve_google_credentials
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _TASKS_API_BASE = "https://tasks.googleapis.com/tasks/v1"
 _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "google_tasks.json")
-
 
 def _tasks_api_get(
     token: str, endpoint: str, params: Optional[Dict[str, str]] = None
@@ -38,7 +36,6 @@ def _tasks_api_get(
     )
     resp.raise_for_status()
     return resp.json()
-
 
 @ConnectorRegistry.register("google_tasks")
 class GoogleTasksConnector(BaseConnector):

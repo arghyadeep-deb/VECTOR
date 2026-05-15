@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Savings calculation — compare local inference cost against cloud providers.
 
 FLOPs and energy use a no-KV-cache model: P * N * (N+1) where P = params,
@@ -52,7 +51,6 @@ CLOUD_PRICING: Dict[str, Dict[str, float]] = {
     },
 }
 
-
 @dataclass(slots=True)
 class ProviderSavings:
     """Savings compared to a single cloud provider."""
@@ -65,7 +63,6 @@ class ProviderSavings:
     energy_wh: float = 0.0
     energy_joules: float = 0.0
     flops: float = 0.0
-
 
 @dataclass(slots=True)
 class SavingsSummary:
@@ -83,7 +80,6 @@ class SavingsSummary:
     avg_cost_per_query: Dict[str, float] = field(default_factory=dict)
     cloud_agent_equivalent: Dict[str, int] = field(default_factory=dict)
     token_counting_version: int = TOKEN_COUNTING_VERSION
-
 
 def compute_savings(
     prompt_tokens: int,
@@ -184,11 +180,9 @@ def compute_savings(
         },
     )
 
-
 def savings_to_dict(summary: SavingsSummary) -> Dict[str, Any]:
     """Convert SavingsSummary to a JSON-serializable dict."""
     return asdict(summary)
-
 
 __all__ = [
     "CLOUD_PRICING",

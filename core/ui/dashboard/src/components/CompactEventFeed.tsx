@@ -4,10 +4,10 @@ import { api, formatTs } from '../lib/api'
 import { usePoll } from '../lib/poller'
 
 const badgeStyles: Record<string, { bg: string; color: string; label: string }> = {
-  CHAT: { bg: '#003d6b', color: '#00CFFF', label: 'CHAT' },
-  DEC: { bg: '#003300', color: '#00FF88', label: 'DEC' },
+  CHAT: { bg: '#003d6b', color: '#4FC3F7', label: 'CHAT' },
+  DEC: { bg: '#003300', color: '#4FC3F7', label: 'DEC' },
   OBS: { bg: '#1a1a1a', color: '#666666', label: 'OBS' },
-  GOVE: { bg: '#1a0040', color: '#BF5FFF', label: 'GOVE' },
+  GOVE: { bg: '#1a0040', color: '#64B5F6', label: 'GOVE' },
 }
 
 function getBadge(type: string) {
@@ -22,7 +22,7 @@ function getBadge(type: string) {
   if (t.includes('observe') || t.includes('observation') || t.includes('memory') || t.includes('learn')) return badgeStyles.OBS
   if (t.includes('gov') || t.includes('council') || t.includes('goal')) return badgeStyles.GOVE
   if (t.includes('error') || t.includes('warn')) return { bg: '#3d0000', color: '#FF3D3D', label: 'ERR' }
-  if (t.includes('action') || t.includes('exec')) return { bg: '#002a3d', color: '#00ff88', label: 'ACT' }
+  if (t.includes('action') || t.includes('exec')) return { bg: '#002a3d', color: '#4FC3F7', label: 'ACT' }
   return badgeStyles.OBS
 }
 
@@ -72,7 +72,7 @@ export default function CompactEventFeed() {
       ).join('  ›  ')
       : 'AWAITING TELEMETRY...'
     return (
-      <div style={{ position: 'fixed', top: 45, left: 239, width: 224, height: 200, zIndex: 50, background: 'rgba(2, 12, 26, 0.85)', borderTop: '1px solid #0d3a5c', borderBottom: '1px solid #0d3a5c' }}>
+      <div style={{ position: 'fixed', top: 52, left: 237, width: 380, height: 220, zIndex: 50, background: 'rgba(4,12,24,0.92)', border: '1px solid rgba(79,195,247,0.08)', boxShadow: '0 0 30px rgba(79,195,247,0.03)' }}>
         <div style={{ height: 14, display: 'flex', alignItems: 'center', padding: '0 6px' }}>
           <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#1a6b8a', flex: 1 }}>
             <span style={{ animation: 'compactMarquee 40s linear infinite', display: 'inline-block', whiteSpace: 'nowrap' }}>{marqueeText}</span>
@@ -85,11 +85,11 @@ export default function CompactEventFeed() {
   }
 
   return (
-    <div style={{ position: 'fixed', top: 45, left: 239, width: 224, height: 200, zIndex: 50, background: 'rgba(2, 12, 26, 0.85)', borderTop: '1px solid #0d3a5c', borderBottom: '1px solid #0d3a5c' }}>
+    <div style={{ position: 'fixed', top: 52, left: 237, width: 380, height: 220, zIndex: 50, background: 'rgba(4,12,24,0.92)', border: '1px solid rgba(79,195,247,0.08)', boxShadow: '0 0 30px rgba(79,195,247,0.03)' }}>
       <div style={{ height: 18, display: 'flex', alignItems: 'center', padding: '0 6px', borderBottom: '1px solid rgba(0,207,255,0.06)' }}>
-        <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 9, color: '#00CFFF', letterSpacing: '0.15em', fontWeight: 500 }}>EVENT FEED</span>
+        <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 9, color: '#4FC3F7', letterSpacing: '0.15em', fontWeight: 500 }}>EVENT FEED</span>
         <button onClick={toggleTicker} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(0,207,255,0.12)', color: '#1a6688', cursor: 'pointer', padding: '0 4px', fontFamily: "'Orbitron', sans-serif", fontSize: 7, lineHeight: '14px', borderRadius: 2, transition: 'all 0.15s' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#00d4ff'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#4FC3F7'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = '#1a6688'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.12)' }}
         >=</button>
       </div>
@@ -97,7 +97,7 @@ export default function CompactEventFeed() {
         ref={scrollRef}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
-        style={{ height: 207, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin', scrollbarColor: '#00CFFF22 transparent' }}
+        style={{ height: 200, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin', scrollbarColor: '#4FC3F722 transparent' }}
       >
         {loading ? (
           <div style={{ height: 18, display: 'flex', alignItems: 'center', padding: '0 6px', fontFamily: "'Orbitron', sans-serif", fontSize: 8, color: '#1a4466', letterSpacing: '0.1em' }}>CONNECTING...</div>

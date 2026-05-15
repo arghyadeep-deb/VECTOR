@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """OpenClawResolver -- resolves skills from the OpenClaw skill index.
 
 Layout:
@@ -21,7 +20,6 @@ from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
 LOGGER = logging.getLogger(__name__)
 
 OPENCLAW_REPO_URL = "https://github.com/openclaw/skills.git"
-
 
 class OpenClawResolver(SourceResolver):
     """Resolves skills from the OpenClaw skill index."""
@@ -125,6 +123,5 @@ class OpenClawResolver(SourceResolver):
             return result.stdout.strip()
         except subprocess.CalledProcessError:
             return ""
-
 
 __all__ = ["OpenClawResolver", "OPENCLAW_REPO_URL"]

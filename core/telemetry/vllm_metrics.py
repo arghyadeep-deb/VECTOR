@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/vllm_metrics.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,7 +16,6 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class VLLMMetrics:
     """Parsed vLLM performance metrics."""
@@ -29,7 +27,6 @@ class VLLMMetrics:
     e2e_latency_p50: float = 0.0
     e2e_latency_p95: float = 0.0
     queue_depth: float = 0.0
-
 
 def _parse_histogram_buckets(
     lines: List[str], metric_prefix: str
@@ -76,7 +73,6 @@ def _parse_histogram_buckets(
     buckets.sort(key=lambda x: x[0])
     return buckets, sum_value, count_value
 
-
 def _percentile_from_buckets(
     buckets: List[Tuple[float, float]], percentile: float
 ) -> float:
@@ -113,7 +109,6 @@ def _percentile_from_buckets(
             return bound
     return 0.0
 
-
 def _parse_gauge(lines: List[str], metric_name: str) -> float:
     """Parse a Prometheus gauge value."""
     for line in lines:
@@ -126,7 +121,6 @@ def _parse_gauge(lines: List[str], metric_name: str) -> float:
             except (ValueError, IndexError) as exc:
                 logger.debug("Failed to parse vLLM metric line: %s", exc)
     return 0.0
-
 
 class VLLMMetricsScraper:
     """Scrapes vLLM's Prometheus /metrics endpoint."""
@@ -183,6 +177,5 @@ class VLLMMetricsScraper:
             e2e_latency_p95=e2e_p95,
             queue_depth=queue_depth,
         )
-
 
 __all__ = ["VLLMMetrics", "VLLMMetricsScraper"]

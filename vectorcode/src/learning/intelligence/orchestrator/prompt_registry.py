@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/orchestrator/prompt_registry.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -16,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from vector.tools._stubs import BaseTool
+    from vectorcode.src.vc_tools._stubs import BaseTool
 
 PROMPT_VERSION = "1.0"
 
@@ -211,7 +210,6 @@ TOOL_DESCRIPTIONS: Dict[str, dict] = {
     },
 }
 
-
 # Category labels for tool selection guide auto-generation
 _CAT_LABELS: Dict[str, str] = {
     "math": "MATH PROBLEMS",
@@ -219,7 +217,6 @@ _CAT_LABELS: Dict[str, str] = {
     "memory": "GENERAL Q&A / FACTUAL",
     "llm": "REASONING/LOGIC",
 }
-
 
 def build_system_prompt(
     tool_names: Optional[List[str]] = None,
@@ -243,7 +240,7 @@ def build_system_prompt(
     """
     # When BaseTool instances are provided, generate descriptions from spec
     if tools is not None:
-        from vector.tools._stubs import build_tool_descriptions
+        from vectorcode.src.vc_tools._stubs import build_tool_descriptions
 
         desc_text = build_tool_descriptions(tools, include_cost=True)
 
@@ -343,7 +340,6 @@ def build_system_prompt(
         tools_description="\n".join(desc_lines),
         tool_selection_guide="\n".join(guide),
     )
-
 
 __all__ = [
     "TOOL_DESCRIPTIONS",

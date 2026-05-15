@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,7 +13,6 @@ from typing import Any, Dict, List, Optional
 from vectorcode.src.evals.core.types import RunSummary
 from vectorcode.src.recipes.loader import Recipe
 
-
 @dataclass(slots=True)
 class SearchDimension:
     """One tunable dimension in the config space."""
@@ -27,7 +25,6 @@ class SearchDimension:
     high: Optional[float] = None  # continuous/integer upper bound
     description: str = ""  # human-readable explanation for the LLM optimizer
     primitive: str = ""  # intelligence | engine | agent | tools | learning
-
 
 @dataclass(slots=True)
 class SearchSpace:
@@ -77,7 +74,6 @@ class SearchSpace:
 
         return "\n".join(lines)
 
-
 # Mapping from dotted param names to Recipe constructor fields.
 _PARAM_TO_RECIPE: Dict[str, str] = {
     "intelligence.model": "model",
@@ -94,7 +90,6 @@ _PARAM_TO_RECIPE: Dict[str, str] = {
     "learning.agent_policy": "agent_policy",
 }
 
-
 @dataclass(slots=True)
 class BenchmarkScore:
     """Per-benchmark metrics from a multi-benchmark evaluation trial."""
@@ -110,7 +105,6 @@ class BenchmarkScore:
     weight: float = 1.0
     summary: Optional[Any] = None  # RunSummary
     sample_scores: List["SampleScore"] = field(default_factory=list)
-
 
 @dataclass(slots=True)
 class SampleScore:
@@ -137,7 +131,6 @@ class SampleScore:
     throughput_per_watt: float = 0.0
     mean_itl_ms: float = 0.0
 
-
 @dataclass(slots=True)
 class TrialFeedback:
     """Structured feedback from trial analysis."""
@@ -148,7 +141,6 @@ class TrialFeedback:
     suggested_changes: List[str] = field(default_factory=list)
     target_primitive: str = ""
 
-
 @dataclass(slots=True)
 class ObjectiveSpec:
     """A single optimization objective."""
@@ -156,7 +148,6 @@ class ObjectiveSpec:
     metric: str
     direction: str  # "maximize" or "minimize"
     weight: float = 1.0
-
 
 DEFAULT_OBJECTIVES = [
     ObjectiveSpec("accuracy", "maximize"),
@@ -181,7 +172,6 @@ ALL_OBJECTIVES = [
     ObjectiveSpec("mean_itl_ms", "minimize"),
 ]
 
-
 @dataclass(slots=True)
 class TrialConfig:
     """A single candidate configuration proposed by the optimizer."""
@@ -203,7 +193,6 @@ class TrialConfig:
             **kwargs,
         )
 
-
 @dataclass(slots=True)
 class TrialResult:
     """Result of evaluating a trial, with both scalar and textual feedback."""
@@ -224,7 +213,6 @@ class TrialResult:
     structured_feedback: Optional[TrialFeedback] = None
     per_benchmark: List[BenchmarkScore] = field(default_factory=list)
 
-
 @dataclass(slots=True)
 class OptimizationRun:
     """Complete optimization session."""
@@ -242,7 +230,6 @@ class OptimizationRun:
     objectives: List[ObjectiveSpec] = field(
         default_factory=lambda: list(DEFAULT_OBJECTIVES),
     )
-
 
 __all__ = [
     "ALL_OBJECTIVES",

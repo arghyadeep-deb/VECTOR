@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SQLite-backed session store for channel conversations."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 _MAX_HISTORY_TURNS = 20
-
 
 class SessionStore:
     """Manages per-sender, per-channel conversation sessions.

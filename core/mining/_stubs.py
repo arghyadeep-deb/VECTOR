@@ -1,5 +1,4 @@
 # src/vector/mining/_stubs.py
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """ABCs and dataclasses for the mining subsystem.
 
 See spec ``docs/design/2026-05-05-vllm-pearl-mining-integration-design.md``
@@ -22,7 +21,6 @@ from vectorcode.src.vc_core.config import HardwareInfo
 # Capability descriptor
 # ---------------------------------------------------------------------------
 
-
 @dataclass(slots=True)
 class MiningCapabilities:
     """Result of a provider's ``detect()`` call.
@@ -35,18 +33,15 @@ class MiningCapabilities:
     reason: Optional[str] = None
     estimated_hashrate: Optional[float] = None  # shares/sec, best-effort
 
-
 # ---------------------------------------------------------------------------
 # Submit-target tagged union (v2 seam -- see spec §8.5)
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class SoloTarget:
     """Mine directly to a pearld node. v1 default."""
 
     pearld_rpc_url: str
-
 
 @dataclass(slots=True)
 class PoolTarget:
@@ -55,14 +50,11 @@ class PoolTarget:
     url: str
     worker_id: Optional[str] = None
 
-
 SubmitTarget = Union[SoloTarget, PoolTarget]
-
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class MiningConfig:
@@ -78,11 +70,9 @@ class MiningConfig:
     fee_payout_address: Optional[str] = None  # v1: ignored; v2: OJ's address
     extra: dict[str, Any] = field(default_factory=dict)
 
-
 # ---------------------------------------------------------------------------
 # Live stats (returned by ``MiningProvider.stats()``)
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class MiningStats:
@@ -97,11 +87,9 @@ class MiningStats:
     payout_target: str = "solo"  # v1: always "solo"; v2: "pool:<url>"
     fees_owed: int = 0  # v2 accounting hook; 0 in v1
 
-
 # ---------------------------------------------------------------------------
 # The ABC
 # ---------------------------------------------------------------------------
-
 
 class MiningProvider(ABC):
     """A mining provider -- orchestrates a Pearl mining session.
@@ -135,11 +123,9 @@ class MiningProvider(ABC):
     @abstractmethod
     def stats(self) -> MiningStats: ...
 
-
 # ---------------------------------------------------------------------------
 # Sidecar IO (see spec §5.3)
 # ---------------------------------------------------------------------------
-
 
 class Sidecar:
     """Read/write helpers for ``~/.vector/runtime/mining.json``."""

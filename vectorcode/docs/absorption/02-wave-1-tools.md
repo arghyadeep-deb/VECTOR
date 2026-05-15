@@ -1,6 +1,6 @@
 # Wave 1 — Tool Subsystem Port
 
-**Goal:** Port all 82 Hermes tools (~2.14 MB, ~42k lines) to VectorCode.
+**Goal:** Port all 82 VectorCode tools (~2.14 MB, ~42k lines) to VectorCode.
 
 **Dependencies:** Wave 0 complete (engine + registry working).
 
@@ -13,7 +13,7 @@
 1. `vectorcode/docs/absorption/00-MASTER-PLAN.md`
 2. `vectorcode/docs/absorption/01-wave-0-runtime.md` (how tools are dispatched)
 3. `vectorcode/python/vectorcode/tools/registry.py`
-4. `GitHub/NousResearch_hermes-agent/repo/tools/__init__.py`
+4. `GitHub/VectorCode_vectorcode/repo/tools/__init__.py`
 
 ---
 
@@ -170,9 +170,9 @@
 ## Rules per batch
 
 1. **Always port full file.** Don't skip functions. Mark any skipped with `# TODO absorption:wave1-skip`.
-2. **Preserve signatures.** External callers in Hermes use these; matching helps cross-reference.
+2. **Preserve signatures.** External callers in VectorCode use these; matching helps cross-reference.
 3. **Register every tool in `tools/registry.py`** with schema + risk_level.
-4. **Swap `hermes_*` imports → `vectorcode.*`.** Add alias shim `hermes_constants = vector_constants` in a compat layer if needed.
+4. **Swap `vectorcode_*` imports → `vectorcode.*`.** Add alias shim `vector_constants = vector_constants` in a compat layer if needed.
 5. **Every tool gets a smoke test** in `tests/tools/test_<tool>.py`: init, one happy-path call, one error-path call.
 
 ---

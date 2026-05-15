@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -19,7 +18,6 @@ from vectorcode.src.evals.core.runner import (
 )
 from vectorcode.src.evals.core.types import EvalRecord, MetricStats, RunConfig
 from vectorcode.src.evals.tests.conftest import MockBackend, MockDataset, MockScorer
-
 
 class TestEvalRunner:
     def _make_records(self, n=5):
@@ -382,7 +380,6 @@ class TestEvalRunner:
         assert "ipj_stats" in data
         assert "total_energy_joules" in data
 
-
 class TestRunnerTokenStats:
     def test_summary_has_total_input_output_tokens(self, tmp_path):
         """RunSummary should include total token counts."""
@@ -431,7 +428,6 @@ class TestRunnerTokenStats:
         runner = EvalRunner(config, dataset, backend, scorer)
         summary = runner.run()
         assert summary.avg_power_watts == 250.0
-
 
 class TestMetricStatsHelpers:
     def test_metric_stats_empty(self):

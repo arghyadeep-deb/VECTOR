@@ -1,5 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
-Branding: vector->vector, Jarvis->VECTOR. Auto-rewritten by absorb_openjarvis_gaps.py
 """
 """SendBlue channel — iMessage/SMS API adapter.
 
@@ -27,7 +25,6 @@ from vectorcode.src.vc_core.registry import ChannelRegistry
 logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.sendblue.co"
-
 
 @ChannelRegistry.register("sendblue")
 class SendBlueChannel(BaseChannel):
@@ -226,6 +223,5 @@ class SendBlueChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["SendBlueChannel"]

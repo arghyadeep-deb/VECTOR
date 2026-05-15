@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """HermesResolver -- resolves skills from NousResearch/hermes-agent.
 
 Layout:
@@ -20,7 +19,6 @@ from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
 LOGGER = logging.getLogger(__name__)
 
 HERMES_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
-
 
 class HermesResolver(SourceResolver):
     """Resolves skills from the Hermes Agent repository."""
@@ -126,6 +124,5 @@ class HermesResolver(SourceResolver):
             return result.stdout.strip()
         except subprocess.CalledProcessError:
             return ""
-
 
 __all__ = ["HermesResolver", "HERMES_REPO_URL"]

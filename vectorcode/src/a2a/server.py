@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/a2a/server.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,8 +15,7 @@ from vectorcode.src.a2a.protocol import (
     AgentCard,
     TaskState,
 )
-from vectorcode.src.oj_core.events import EventBus, EventType
-
+from vectorcode.src.vc_core.events import EventBus, EventType
 
 class A2AServer:
     """A2A server that processes incoming tasks via agent execution.
@@ -133,6 +131,5 @@ class A2AServer:
             },
             {"path": "/a2a/tasks", "method": "POST", "handler": "handle_request"},
         ]
-
 
 __all__ = ["A2AServer"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/pipeline.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -26,8 +25,7 @@ from vectorcode.src.connectors.chunker import SemanticChunker
 from vectorcode.src.connectors.store import KnowledgeStore
 
 if TYPE_CHECKING:
-    from vector.connectors.attachment_store import AttachmentStore
-
+    from vectorcode.src.connectors.attachment_store import AttachmentStore
 
 class IngestionPipeline:
     """Deduplicate, chunk, and index documents into a KnowledgeStore.
@@ -205,6 +203,5 @@ class IngestionPipeline:
             self._seen_doc_ids.add(doc.doc_id)
 
         return chunks_stored
-
 
 __all__ = ["IngestionPipeline"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-
 @dataclass(slots=True)
 class EvalRecord:
     """A single evaluation sample."""
@@ -23,7 +21,6 @@ class EvalRecord:
     category: str  # "chat" | "reasoning" | "rag" | "agentic"
     subject: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass(slots=True)
 class EvalResult:
@@ -61,7 +58,6 @@ class EvalResult:
     tool_calls: int = 0
     turn_count: int = 0
 
-
 @dataclass(slots=True)
 class RunConfig:
     """Configuration for an evaluation run."""
@@ -96,7 +92,7 @@ class RunConfig:
     episode_mode: bool = False
     dataset_subset: Optional[str] = None
     # Override the agent harness's max_turns budget. Default None means use
-    # the JarvisConfig.agent.max_turns value (typically 10). Set higher when
+    # the VectorConfig.agent.max_turns value (typically 10). Set higher when
     # running thinking/reasoning models that consume turns on intermediate
     # reasoning before producing tool calls.
     max_turns: Optional[int] = None
@@ -108,7 +104,6 @@ class RunConfig:
     # specific records (e.g. recovering silent-fake records without
     # re-running the entire benchmark).
     record_ids: Optional[List[str]] = None
-
 
 @dataclass(slots=True)
 class MetricStats:
@@ -122,7 +117,6 @@ class MetricStats:
     p90: float = 0.0
     p95: float = 0.0
     p99: float = 0.0
-
 
 @dataclass(slots=True)
 class RunSummary:
@@ -183,11 +177,9 @@ class RunSummary:
     _output_path: Optional[Path] = None
     _traces_dir: Optional[Path] = None
 
-
 # ---------------------------------------------------------------------------
 # Eval suite config dataclasses (TOML config system)
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class MetaConfig:
@@ -196,14 +188,12 @@ class MetaConfig:
     name: str = ""
     description: str = ""
 
-
 @dataclass(slots=True)
 class DefaultsConfig:
     """Default generation parameters applied to all runs."""
 
     temperature: float = 0.0
     max_tokens: int = 2048
-
 
 @dataclass(slots=True)
 class JudgeConfig:
@@ -214,7 +204,6 @@ class JudgeConfig:
     provider: Optional[str] = None
     temperature: float = 0.0
     max_tokens: int = 1024
-
 
 @dataclass(slots=True)
 class ExecutionConfig:
@@ -235,10 +224,9 @@ class ExecutionConfig:
     sheets_worksheet: str = "Results"
     sheets_credentials_path: str = ""
     # Override the agent harness's per-run max_turns budget. None falls back
-    # to JarvisConfig.agent.max_turns (default 10). Bump to 30-50 for
+    # to VectorConfig.agent.max_turns (default 10). Bump to 30-50 for
     # thinking/reasoning models on agentic benchmarks (GAIA, LiveResearch).
     max_turns: Optional[int] = None
-
 
 @dataclass(slots=True)
 class ModelConfig:
@@ -254,7 +242,6 @@ class ModelConfig:
     gpu_peak_tflops: float = 0.0
     gpu_peak_bandwidth_gb_s: float = 0.0
     num_gpus: int = 1
-
 
 @dataclass(slots=True)
 class BenchmarkConfig:
@@ -272,7 +259,6 @@ class BenchmarkConfig:
     subset: Optional[str] = None
     record_ids: Optional[List[str]] = None
 
-
 @dataclass(slots=True)
 class EvalSuiteConfig:
     """Top-level configuration for an eval suite (models x benchmarks)."""
@@ -287,7 +273,6 @@ class EvalSuiteConfig:
     # backends. Holds the OpenAI-compatible endpoint config.
     backend_external_base_url: Optional[str] = None
     backend_external_api_key: Optional[str] = None
-
 
 __all__ = [
     "EvalRecord",

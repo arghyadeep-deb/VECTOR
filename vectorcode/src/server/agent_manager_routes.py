@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """FastAPI routes for the Agent Manager."""
 
 from __future__ import annotations
@@ -18,23 +17,19 @@ except ImportError:
 
 logger = logging.getLogger("vector.server.agent_manager")
 
-
 class CreateAgentRequest(BaseModel):
     name: str
     agent_type: str = "monitor_operative"
     config: Optional[Dict[str, Any]] = None
     template_id: Optional[str] = None
 
-
 class UpdateAgentRequest(BaseModel):
     name: Optional[str] = None
     agent_type: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
 
-
 class CreateTaskRequest(BaseModel):
     description: str
-
 
 class UpdateTaskRequest(BaseModel):
     description: Optional[str] = None
@@ -42,23 +37,19 @@ class UpdateTaskRequest(BaseModel):
     progress: Optional[Dict[str, Any]] = None
     findings: Optional[List[Any]] = None
 
-
 class BindChannelRequest(BaseModel):
     channel_type: str
     config: Optional[Dict[str, Any]] = None
     routing_mode: str = "dedicated"
-
 
 class SendMessageRequest(BaseModel):
     content: str
     mode: str = "queued"
     stream: bool = False  # SSE streaming mode
 
-
 class FeedbackRequest(BaseModel):
     score: float
     reason: Optional[str] = None
-
 
 _BROWSER_SUB_TOOLS = {
     "browser_navigate",
@@ -69,7 +60,6 @@ _BROWSER_SUB_TOOLS = {
     "browser_axtree",
 }
 
-
 class _LightweightSystem:
     """Minimal system facade for the executor — avoids rebuilding the
     full VectorSystem (which picks a random model from Ollama)."""
@@ -79,7 +69,6 @@ class _LightweightSystem:
         self.model = model
         self.config = config
         self.memory_backend = None
-
 
 def _make_lightweight_system(
     engine: Any,
@@ -123,7 +112,6 @@ def _make_lightweight_system(
         pass
     return _LightweightSystem(engine, model, config)
 
-
 def _parse_param_count(model_name: str) -> float:
     """Extract parameter count in billions from model name.
 
@@ -132,9 +120,7 @@ def _parse_param_count(model_name: str) -> float:
     m = _re.search(r":(\d+(?:\.\d+)?)b", model_name.lower())
     return float(m.group(1)) if m else 0.0
 
-
 _CLOUD_PREFIXES = ("gpt-", "claude-", "gemini-", "o1-", "o3-", "o4-")
-
 
 def _pick_recommended_model(
     model_ids: list[str],
@@ -155,7 +141,6 @@ def _pick_recommended_model(
         "model": pick,
         "reason": f"Second-largest local model ({params}B parameters)",
     }
-
 
 def _ensure_registries_populated() -> None:
     """Ensure ToolRegistry and ChannelRegistry are populated.
@@ -222,7 +207,6 @@ def _ensure_registries_populated() -> None:
                     importlib.reload(mod)
                 except Exception:
                     pass
-
 
 def build_tools_list() -> List[Dict[str, Any]]:
     """Build unified tools list from ToolRegistry + ChannelRegistry."""
@@ -308,7 +292,6 @@ def build_tools_list() -> List[Dict[str, Any]]:
         pass
 
     return items
-
 
 def _resolve_tool_specs(
     tool_config: Any,
@@ -398,7 +381,6 @@ def _resolve_tool_specs(
 
     return resolved
 
-
 def _build_deep_research_tools(
     engine: Any,
     model: str,
@@ -434,7 +416,6 @@ def _build_deep_research_tools(
         ThinkTool(),
     ]
 
-
 def _merge_tool_call_fragments(
     accumulated: Dict[int, Dict[str, Any]],
     fragments: List[Dict[str, Any]],
@@ -461,7 +442,6 @@ def _merge_tool_call_fragments(
             entry["function"]["name"] += fn["name"]
         if fn.get("arguments"):
             entry["function"]["arguments"] += fn["arguments"]
-
 
 def _get_mcp_tools(app_state: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Return (openai_tools_list, mcp_adapters_by_name).
@@ -570,7 +550,6 @@ def _get_mcp_tools(app_state: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]
         app_state._mcp_tools_cache = (openai_tools, adapters_by_name)
     return openai_tools, adapters_by_name
 
-
 def _sse_chunk(chunk_id: str, model: str, content: str) -> str:
     """Build a single SSE content chunk."""
     import json as _json
@@ -588,7 +567,6 @@ def _sse_chunk(chunk_id: str, model: str, content: str) -> str:
         ],
     }
     return f"data: {_json.dumps(data)}\n\n"
-
 
 def _tool_progress_label(tool_name: str, args: str) -> str:
     """Human-readable label for a tool call in progress."""
@@ -611,7 +589,6 @@ def _tool_progress_label(tool_name: str, args: str) -> str:
         except Exception:
             pass
     return label
-
 
 async def _stream_managed_agent(
     *,
@@ -1300,7 +1277,6 @@ async def _stream_managed_agent(
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         background=BackgroundTask(_persist_final),
     )
-
 
 def create_agent_manager_router(
     manager: AgentManager,

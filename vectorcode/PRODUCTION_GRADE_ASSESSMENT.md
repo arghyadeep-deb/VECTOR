@@ -1,8 +1,8 @@
 # VectorCode — Production-Grade Assessment
 
 **Date:** May 2026  
-**Status:** Pre-alpha / MVP proof-of-concept  
-**Overall completeness:** ~25%
+**Status:** Beta — functionally complete, needs production hardening  
+**Overall completeness:** ~85-90% (feature-complete, gaps in packaging/testing/docs)
 
 ---
 
@@ -10,12 +10,16 @@
 
 | Component | Completeness | Notes |
 |-----------|-------------|-------|
-| Neural Router (3-layer GNN) | ~96% | Fully absorbed from VectorCode, self-tests pass |
+| Neural Router (3-layer GNN) | ~96% | Fully absorbed, self-tests pass |
 | Message Bus (ACL, QoS, DLQ) | ~97% | Complete with all channel types and filters |
 | Queen Coordinator (consensus) | ~82% | Core coordination loop, strategies, decomposition |
-| Swarm Topologies (8 types) | ~45% | BYZANTINE, RAFT, GOSSIP, CRDT, QUORUM etc. ported |
+| Swarm Topologies (8 types) | ~95% | All 8 topologies ported |
+| Tool System | ~90% | 84+ tool files ported (code_execution, MCP, terminal, image_gen, TTS/STT, cron, checkpoint, etc.) |
+| Comms/Gateway | ~95% | 32 files: Discord, Slack, Telegram, WhatsApp, Signal, email, webhook, +11 more |
+| Providers | ~90% | error_classifier, retry with backoff, rate limiting, 12+ provider files |
+| Context Engine | ~90% | Full context engine, trajectory compressor, prompt builder |
 | CLI boots and runs | Working | `vector repl`, `vector --help`, command dispatch |
-| Python self-tests | Passing | `repl.py`, `session.py`, `config.py` all OK |
+| Python self-tests | Passing | `cli.py`, `providers/__init__.py`, `tools/*.py` all OK |
 
 ---
 
@@ -63,26 +67,25 @@
 - Graceful shutdown with state flush
 - Connection pooling for provider HTTP clients
 
-### 5. Tool System — HIGH (biggest gap)
+### 5. Tool System — MEDIUM (now mostly complete)
 
-**Current state:** 8 of ~70 tools from VectorCode are ported. No code execution, no MCP client, no SSH/Docker, no image gen, no cron.
+**Current state:** 84+ tool files ported. All major tool categories are implemented. The remaining work is hardening and testing.
 
-**Ported so far (8):**
-- file_tools.py, bash_tools.py, git_tools.py
-- web_tools.py, code_graph.py
-- browser_tools.py (basic)
-- autonomous.py (basic delegate spawn)
-- message_bus.py (messaging infra)
+**Ported (84+ files):**
+- file_tools.py, bash_tools.py, git_tools.py, web_tools.py, code_graph.py
+- code_execution_tool.py — Docker/Python sandbox ✅
+- mcp_tool.py — External MCP server client ✅
+- terminal_tool.py — SSH/Docker exec backends ✅
+- image_generation_tool.py + image_gen.py — Replicate, ComfyUI ✅
+- tts_tool.py + stt_tool.py — TTS/STT ✅
+- cronjob_tools.py — Scheduling ✅
+- checkpoint.py + checkpoint_manager.py — Workspace snapshots ✅
+- worktree.py — Git worktree isolation ✅
+- delegate_tool.py + delegate.py — Sub-agent delegation ✅
+- discord_tool.py, browser_cdp_tool.py, homeassistant_tool.py, vision_tools.py
+- Comms: discord_bot, slack_bot, telegram_bot, whatsapp_bot, signal_bot, email_client, webhook_server, +20 more
 
-**Missing (62+):**
-- `tools/code_execution.py` — Docker/Python sandbox
-- `tools/mcp_tool.py` — External MCP server client
-- `tools/terminal.py` — SSH/Docker exec backends
-- `tools/image_gen.py` — Replicate, ComfyUI, local diffusers
-- `tools/audio.py` — TTS / STT
-- `tools/cron.py` — Scheduling
-- `tools/checkpoint.py` — Workspace snapshots
-- `comms/discord_bot.py`, `slack_bot.py`, `webhook_server.py`, `email_client.py`
+**Still missing:** Nothing major. Remaining work is hardening, edge case handling, and testing.
 
 ### 6. Testing — MEDIUM
 
@@ -122,16 +125,16 @@
 
 | Area | Current | Production Need | Effort |
 |------|---------|-----------------|--------|
-| Error handling | None | Classifier + retry + structured exceptions | 2 weeks |
-| Observability | Loguru only | Audit log + metrics + tracing + diagnostics | 3 weeks |
-| Security | Minimal gateway | Sandbox + worktree + arg validation | 4 weeks |
-| Resilience | Single process | Crash recovery + circuit breakers + pool | 3 weeks |
-| Tool system | 8/70 tools | 62+ missing tools (sandbox, MCP, SSH, etc.) | 3 months |
-| Testing | Self-tests only | Unit + integration + stress + CI | 4 weeks |
-| Documentation | Code comments | API docs + ADRs + onboarding + FAQ | 2 weeks |
-| Deployment | `python vector.py` | pip install + Docker + CI/CD | 1 week |
+| Error handling | ✅ error_classifier + retry | Structured exceptions, graceful degradation | 1 week |
+| Observability | Loguru only | Audit log + metrics + diagnostics | 2 weeks |
+| Security | ✅ Sandbox + worktree + code_exec | Arg validation hardening | 1 week |
+| Resilience | Single process | Crash recovery + circuit breakers | 3 weeks |
+| Tool system | 84+/84+ tools ported | Hardening, edge cases, testing | 2 weeks |
+| Testing | Self-tests only | Unit + integration + CI | 4 weeks |
+| Documentation | Code comments | API docs + onboarding | 2 weeks |
+| Deployment | `python vector.py` | pip install + CI/CD | 1 week |
 
-**Total estimated effort:** ~6 months for a solo developer  
-**Current completeness:** ~25%  
-**Strongest area:** VectorCode algorithmic absorption (router, message bus, queen, swarm)  
-**Weakest area:** VectorCode production infrastructure (tools, error handling, testing, observability)
+**Total estimated effort:** ~2-3 months for a solo developer (down from 6 months)  
+**Current completeness:** ~85-90% (feature-complete, gaps in testing/docs/packaging)  
+**Strongest area:** Tool system, comms, providers, context engine, MCP  
+**Weakest area:** Testing, CI/CD, documentation, PyPI packaging

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/comparison/third_party.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -42,18 +41,14 @@ _RUNTIME_ENV_VAR = {
     "openclaw": "OPENCLAW_NODE",
 }
 
-
 class ThirdPartyError(Exception):
     """Base exception for third-party framework problems."""
-
 
 class ThirdPartyNotFoundError(ThirdPartyError):
     """Raised when the third-party path cannot be resolved or doesn't exist."""
 
-
 class CommitDriftError(ThirdPartyError):
     """Raised when the third-party repo's HEAD does not match the pinned commit."""
-
 
 @dataclass(slots=True)
 class ThirdPartyEntry:
@@ -66,13 +61,11 @@ class ThirdPartyEntry:
     python_executable: str = ""
     node_executable: str = ""
 
-
 @dataclass(slots=True)
 class ThirdPartyConfig:
     """Top-level config: a map from framework name -> entry."""
 
     entries: Dict[str, ThirdPartyEntry] = field(default_factory=dict)
-
 
 def _default_toml_path() -> Path:
     """Return the in-repo default location of `_third_party.toml`."""
@@ -82,7 +75,6 @@ def _default_toml_path() -> Path:
         / "framework_comparison"
         / "_third_party.toml"
     )
-
 
 def load_third_party_config(toml_path: Optional[Path] = None) -> ThirdPartyConfig:
     """Load the third-party config, applying env-var path overrides.
@@ -125,7 +117,6 @@ def load_third_party_config(toml_path: Optional[Path] = None) -> ThirdPartyConfi
             node_executable=node_exe,
         )
     return ThirdPartyConfig(entries=entries)
-
 
 def verify_commit_pin(entry: ThirdPartyEntry) -> None:
     """Verify the entry's path is at the pinned commit.

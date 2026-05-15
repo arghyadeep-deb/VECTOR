@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/agents/skill_discovery.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 
-
 @dataclass(slots=True)
 class DiscoveredSkill:
     """A skill discovered from trace analysis."""
@@ -23,7 +21,6 @@ class DiscoveredSkill:
     frequency: int  # how often this sequence appeared
     avg_outcome: float  # average outcome score
     example_inputs: List[str] = field(default_factory=list)
-
 
 class SkillDiscovery:
     """Mine recurring tool sequences from trace data to auto-generate skills.
@@ -205,6 +202,5 @@ class SkillDiscovery:
                 }
             )
         return manifests
-
 
 __all__ = ["DiscoveredSkill", "SkillDiscovery"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/backends/external/_subprocess_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -29,14 +28,12 @@ LOGGER = logging.getLogger(__name__)
 
 _GRACE_PERIOD_SECONDS = 30.0
 
-
 @dataclass(slots=True)
 class EnergySample:
     """One sample from the energy sampler thread."""
 
     timestamp: float  # seconds since sampler start
     watts: float
-
 
 @dataclass(slots=True)
 class SubprocessResult:
@@ -54,7 +51,6 @@ class SubprocessResult:
     # "subprocess_crash" | "timeout" | "malformed_runner_output" | ...
     error: Optional[str] = None
 
-
 class _RunnerOutput(BaseModel):
     """Schema the foreign-framework runner scripts must emit."""
 
@@ -64,7 +60,6 @@ class _RunnerOutput(BaseModel):
     tool_calls: int = 0
     turn_count: int = 0
     error: Optional[str] = None
-
 
 def run_one_shot(
     cmd: List[str],
@@ -153,10 +148,8 @@ def run_one_shot(
         error=error,
     )
 
-
 _SAMPLE_HZ = 10.0
 _SAMPLE_INTERVAL = 1.0 / _SAMPLE_HZ
-
 
 class _Sampler:
     """Base class for energy samplers running on a background thread."""
@@ -194,7 +187,6 @@ class _Sampler:
             self._thread.join(timeout=2.0)
         return list(self._samples)
 
-
 class _NullSampler(_Sampler):
     method = "unavailable"
 
@@ -203,7 +195,6 @@ class _NullSampler(_Sampler):
 
     def stop(self) -> List[EnergySample]:
         return []
-
 
 def _try_start_nvml() -> Optional[_Sampler]:
     try:
@@ -225,7 +216,6 @@ def _try_start_nvml() -> Optional[_Sampler]:
         LOGGER.debug("nvml_unavailable: %s", e)
         return None
 
-
 def _try_start_powermetrics() -> Optional[_Sampler]:
     """macOS only - requires sudo or appropriate plist permissions."""
     if shutil.which("powermetrics") is None:
@@ -233,7 +223,6 @@ def _try_start_powermetrics() -> Optional[_Sampler]:
     # NOTE: real powermetrics integration is non-trivial (parse XML over stdout).
     # Apple-hardware support is a follow-up; documented in CHANGELOG.
     return None
-
 
 def _try_start_rocm_smi() -> Optional[_Sampler]:
     if shutil.which("rocm-smi") is None:
@@ -261,7 +250,6 @@ def _try_start_rocm_smi() -> Optional[_Sampler]:
     s.start()
     return s
 
-
 def _try_start_rapl() -> Optional[_Sampler]:
     rapl_path = Path("/sys/class/powercap/intel-rapl:0/energy_uj")
     if not rapl_path.exists():
@@ -288,7 +276,6 @@ def _try_start_rapl() -> Optional[_Sampler]:
     s.start()
     return s
 
-
 def _start_sampler() -> _Sampler:
     """Return a started sampler from the fallback chain, or the null sampler."""
     for try_fn in (
@@ -301,7 +288,6 @@ def _start_sampler() -> _Sampler:
         if s is not None:
             return s
     return _NullSampler()
-
 
 def _integrate_energy(
     samples: List[EnergySample], elapsed: float

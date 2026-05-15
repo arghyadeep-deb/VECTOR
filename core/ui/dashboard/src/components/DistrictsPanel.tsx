@@ -7,9 +7,9 @@ const DISTRICT_ORDER = [
 ]
 
 function hpColor(hp: number): string {
-  if (hp >= 700) return '#BF5FFF'
-  if (hp >= 400) return '#00CFFF'
-  if (hp >= 100) return '#FFB300'
+  if (hp >= 700) return '#64B5F6'
+  if (hp >= 400) return '#4FC3F7'
+  if (hp >= 100) return '#42A5F5'
   return '#FF3D3D'
 }
 
@@ -54,7 +54,7 @@ export default function DistrictsPanel() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '10px 14px', borderBottom: '1px solid rgba(0,207,255,0.08)',
-        fontFamily: "'Orbitron', sans-serif", fontSize: 11, color: '#00CFFF',
+        fontFamily: "'Orbitron', sans-serif", fontSize: 11, color: '#4FC3F7',
         letterSpacing: '0.18em',
       }}>
         <span>DISTRICTS</span>
@@ -80,8 +80,8 @@ export default function DistrictsPanel() {
           >
             <span style={{
               width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
-              background: isLive ? '#00CFFF' : '#2a2a2a',
-              boxShadow: isLive ? '0 0 8px #00CFFF' : 'none',
+              background: isLive ? '#4FC3F7' : '#2a2a2a',
+              boxShadow: isLive ? '0 0 8px #4FC3F7' : 'none',
               animation: isLive ? 'v-pulse 3s ease-in-out infinite' : 'none',
             }} />
             <span style={{
@@ -109,7 +109,7 @@ export default function DistrictsPanel() {
         letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between',
       }}>
         <span>AGENTS ONLINE</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#00FF88' }}>{totalAlive}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#4FC3F7' }}>{totalAlive}</span>
       </div>
     </div>
   )

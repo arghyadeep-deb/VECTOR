@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_types.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -22,7 +21,6 @@ from vectorcode.src.evals.core.types import (
     RunConfig,
     RunSummary,
 )
-
 
 class TestEvalRecord:
     def test_creation(self):
@@ -50,7 +48,6 @@ class TestEvalRecord:
         )
         assert r.subject == "greet"
         assert r.metadata == {"key": "val"}
-
 
 class TestEvalResult:
     def test_defaults(self):
@@ -111,7 +108,6 @@ class TestEvalResult:
         assert r.ipw == 0.004
         assert r.ipj == 0.0001
 
-
 class TestRunConfig:
     def test_defaults(self):
         c = RunConfig(benchmark="supergpqa", backend="vector-direct", model="qwen3:8b")
@@ -157,7 +153,6 @@ class TestRunConfig:
         c1.metadata["key"] = "val"
         assert c2.metadata == {}
 
-
 class TestMetricStats:
     def test_defaults(self):
         ms = MetricStats()
@@ -174,7 +169,6 @@ class TestMetricStats:
         assert ms.min == 0.1
         assert ms.max == 0.9
         assert ms.std == 0.2
-
 
 class TestRunSummary:
     def test_creation(self):
@@ -247,11 +241,9 @@ class TestRunSummary:
         assert s.ipw_stats is None
         assert s.total_energy_joules == 0.0
 
-
 # ---------------------------------------------------------------------------
 # Eval suite config dataclasses
 # ---------------------------------------------------------------------------
-
 
 class TestEvalResultTraceFields:
     def test_trace_fields_exist(self):
@@ -268,7 +260,6 @@ class TestEvalResultTraceFields:
         )
         assert r.trace_steps == 5
         assert r.trace_energy_joules == 100.0
-
 
 class TestRunSummaryTraceFields:
     def test_trace_aggregate_fields(self):
@@ -290,7 +281,6 @@ class TestRunSummaryTraceFields:
         assert s.total_input_tokens == 0
         assert s.total_output_tokens == 0
 
-
 class TestMetaConfig:
     def test_defaults(self):
         m = MetaConfig()
@@ -302,7 +292,6 @@ class TestMetaConfig:
         assert m.name == "suite-1"
         assert m.description == "First suite"
 
-
 class TestDefaultsConfig:
     def test_defaults(self):
         d = DefaultsConfig()
@@ -313,7 +302,6 @@ class TestDefaultsConfig:
         d = DefaultsConfig(temperature=0.7, max_tokens=4096)
         assert d.temperature == 0.7
         assert d.max_tokens == 4096
-
 
 class TestJudgeConfig:
     def test_defaults(self):
@@ -329,7 +317,6 @@ class TestJudgeConfig:
         assert j.provider == "anthropic"
         assert j.temperature == 0.1
 
-
 class TestExecutionConfig:
     def test_defaults(self):
         e = ExecutionConfig()
@@ -342,7 +329,6 @@ class TestExecutionConfig:
         assert e.max_workers == 16
         assert e.output_dir == "out/"
         assert e.seed == 99
-
 
 class TestModelConfig:
     def test_required_name(self):
@@ -387,7 +373,6 @@ class TestModelConfig:
         assert m.gpu_peak_bandwidth_gb_s == 2039.0
         assert m.num_gpus == 4
 
-
 class TestBenchmarkConfig:
     def test_defaults(self):
         b = BenchmarkConfig(name="supergpqa")
@@ -427,7 +412,6 @@ class TestBenchmarkConfig:
         b2 = BenchmarkConfig(name="b")
         b1.tools.append("calc")
         assert b2.tools == []
-
 
 class TestEvalSuiteConfig:
     def test_defaults(self):

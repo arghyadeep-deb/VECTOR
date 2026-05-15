@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/retriever.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -25,17 +24,16 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
 from vectorcode.src.connectors.store import KnowledgeStore
-from vectorcode.src.oj_tools.storage._stubs import RetrievalResult
+from vectorcode.src.vc_tools.storage._stubs import RetrievalResult
 
 if TYPE_CHECKING:
-    from vector.connectors.embedding_store import EmbeddingStore
+    from vectorcode.src.connectors.embedding_store import EmbeddingStore
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Abstract Reranker
 # ---------------------------------------------------------------------------
-
 
 class Reranker(ABC):
     """Abstract base class for second-stage semantic rerankers."""
@@ -65,11 +63,9 @@ class Reranker(ABC):
             Reranked results, truncated to *top_k*.
         """
 
-
 # ---------------------------------------------------------------------------
 # ColBERT reranker
 # ---------------------------------------------------------------------------
-
 
 class ColBERTReranker(Reranker):
     """Semantic reranker backed by ColBERT MaxSim scoring.
@@ -202,11 +198,9 @@ class ColBERTReranker(Reranker):
             logger.warning("ColBERTReranker.rerank failed (%s); using BM25 order.", exc)
             return candidates[:top_k]
 
-
 # ---------------------------------------------------------------------------
 # TwoStageRetriever
 # ---------------------------------------------------------------------------
-
 
 class TwoStageRetriever:
     """BM25 recall + optional semantic reranking for Deep Research.
@@ -302,6 +296,5 @@ class TwoStageRetriever:
             return self._reranker.rerank(query, candidates, top_k=top_k)
 
         return candidates[:top_k]
-
 
 __all__ = ["ColBERTReranker", "Reranker", "TwoStageRetriever"]

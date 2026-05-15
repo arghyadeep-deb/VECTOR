@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Bridge sync agent.run() + EventBus events to an async SSE generator.
 
 Subscribes to EventBus callbacks that push events into an asyncio.Queue,
@@ -37,7 +36,6 @@ _EVENT_MAP = {
 # Sentinel signalling that the agent thread has finished
 _DONE = object()
 
-
 def _estimate_prompt_tokens(messages: list) -> int:
     """Estimate prompt tokens from request messages (incl. system, user, context).
 
@@ -55,7 +53,6 @@ def _estimate_prompt_tokens(messages: list) -> int:
                 args = fn.get("arguments", "") if isinstance(fn, dict) else ""
                 total += max(1, len(str(args)) // 4)
     return total
-
 
 class AgentStreamBridge:
     """Bridge between a synchronous agent and an async SSE stream.
@@ -350,7 +347,6 @@ class AgentStreamBridge:
         finally:
             self._unsubscribe_all()
 
-
 async def create_agent_stream(
     agent: BaseAgent,
     bus: EventBus,
@@ -364,6 +360,5 @@ async def create_agent_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
-
 
 __all__ = ["AgentStreamBridge", "create_agent_stream"]

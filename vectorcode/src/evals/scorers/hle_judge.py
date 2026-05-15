@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/hle_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -37,7 +36,6 @@ Your response MUST use exactly this format:
 extracted_final_answer: <the final answer extracted from the predicted answer>
 reasoning: <brief explanation>
 correct: <yes or no>"""
-
 
 class HLEScorer(LLMJudgeScorer):
     """LLM-as-judge evaluation for HLE benchmark.
@@ -103,6 +101,5 @@ class HLEScorer(LLMJudgeScorer):
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["HLEScorer"]

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillParser -- strict spec validation + tolerant field mapping.
 
 The parser is the single chokepoint for converting raw frontmatter dicts
@@ -41,7 +40,7 @@ SPEC_FIELDS = frozenset(
 
 # Each entry maps a non-spec top-level field name to (target_kind, attr).
 # When target_kind is "field" the value is set directly on the SkillManifest
-# dataclass attribute.  When target_kind is "openjarvis_meta" the value is
+# dataclass attribute.  When target_kind is "vector_meta" the value is
 # stored under manifest.metadata["vector"][attr].
 FIELD_MAPPING: Dict[str, tuple[str, str]] = {
     "version": ("field", "version"),
@@ -51,17 +50,15 @@ FIELD_MAPPING: Dict[str, tuple[str, str]] = {
     "required_capabilities": ("field", "required_capabilities"),
     "user_invocable": ("field", "user_invocable"),
     "disable_model_invocation": ("field", "disable_model_invocation"),
-    "platforms": ("openjarvis_meta", "platforms"),
-    "prerequisites": ("openjarvis_meta", "prerequisites"),
+    "platforms": ("vector_meta", "platforms"),
+    "prerequisites": ("vector_meta", "prerequisites"),
 }
 
 # Naming pattern: lowercase alnum + hyphens, no leading/trailing/consecutive hyphens
 _NAME_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9]|-(?!-))*[a-z0-9]$|^[a-z0-9]$")
 
-
 class SkillParseError(ValueError):
     """Raised when a skill frontmatter cannot be parsed."""
-
 
 class SkillParser:
     """Parse SKILL.md frontmatter into a SkillManifest.
@@ -189,7 +186,7 @@ class SkillParser:
                 target, attr = FIELD_MAPPING[key]
                 if target == "field":
                     setattr(manifest, attr, value)
-                else:  # "openjarvis_meta"
+                else:  # "vector_meta"
                     oj_meta[attr] = value
             else:
                 unmapped[key] = value
@@ -227,6 +224,5 @@ class SkillParser:
             manifest.metadata = raw_metadata
 
         return manifest
-
 
 __all__ = ["SkillParseError", "SkillParser", "SPEC_FIELDS", "FIELD_MAPPING"]

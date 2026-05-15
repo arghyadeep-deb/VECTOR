@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/personal/dataset.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,7 +12,6 @@ from typing import Iterable, List, Optional
 from vectorcode.src.evals.core.dataset import DatasetProvider
 from vectorcode.src.evals.core.types import EvalRecord
 from vectorcode.src.learning.optimize.personal.synthesizer import PersonalBenchmark
-
 
 class PersonalBenchmarkDataset(DatasetProvider):
     """Wraps a PersonalBenchmark as a DatasetProvider for EvalRunner."""
@@ -55,6 +53,5 @@ class PersonalBenchmarkDataset(DatasetProvider):
     def size(self) -> int:
         """Return the number of loaded records."""
         return len(self._records)
-
 
 __all__ = ["PersonalBenchmarkDataset"]

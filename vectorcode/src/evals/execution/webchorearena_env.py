@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/execution/webchorearena_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -54,7 +53,6 @@ Element IDs appear in brackets like [123] in the accessibility tree.
 """
 
 _STOP_RE = re.compile(r"stop\s*\[(.+)\]", re.IGNORECASE | re.DOTALL)
-
 
 class WebChoreArenaTaskEnv:
     """Per-task browser environment for WebChoreArena.
@@ -538,7 +536,7 @@ class WebChoreArenaTaskEnv:
     def _call_judge(self, prompt: str) -> Optional[str]:
         """Call an LLM judge for fuzzy/ua matching."""
         try:
-            from vector.evals.core.backend import InferenceBackend
+            from vectorcode.src.evals.core.backend import InferenceBackend
 
             backend = InferenceBackend.create_default()
             return backend.generate(
@@ -682,11 +680,9 @@ class WebChoreArenaTaskEnv:
             return state
         return None
 
-
 # ----------------------------------------------------------------------
 # Utility functions matching original WebArena helpers
 # ----------------------------------------------------------------------
-
 
 def _clean_answer(answer: str) -> str:
     answer = answer.strip()
@@ -695,7 +691,6 @@ def _clean_answer(answer: str) -> str:
     elif answer.startswith('"') and answer.endswith('"'):
         answer = answer[1:-1]
     return answer.lower()
-
 
 def _must_include(ref: str, pred: str, tokenize: bool = False) -> float:
     """Check if pred includes ref — mirrors original must_include with |OR| support."""
@@ -733,7 +728,6 @@ def _must_include(ref: str, pred: str, tokenize: bool = False) -> float:
 
     return float(clean_ref in clean_pred)
 
-
 def _parse_url(url: str) -> Tuple[str, Dict[str, List[str]]]:
     """Parse a URL into base path and query params."""
     parsed = urllib.parse.urlparse(url)
@@ -741,12 +735,10 @@ def _parse_url(url: str) -> Tuple[str, Dict[str, List[str]]]:
     query = urllib.parse.parse_qs(parsed.query)
     return base_path, query
 
-
 def _extract_bracket_arg(text: str) -> Optional[str]:
     """Extract first [arg] from text."""
     m = re.search(r"\[(\d+)\]", text)
     return m.group(1) if m else None
-
 
 def _flatten_axtree(node: Any, depth: int = 0) -> str:
     """Recursively flatten an accessibility tree node into text."""
@@ -778,6 +770,5 @@ def _flatten_axtree(node: Any, depth: int = 0) -> str:
                 lines.append(child_text)
 
     return "\n".join(lines)
-
 
 __all__ = ["WebChoreArenaTaskEnv"]

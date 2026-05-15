@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """WebSocket bridge: EventBus -> connected WebSocket clients."""
 
 from __future__ import annotations
@@ -30,7 +29,6 @@ _AGENT_EVENTS = {
     EventType.INFERENCE_START,
     EventType.INFERENCE_END,
 }
-
 
 def create_ws_router(event_bus: EventBus) -> Any:
     """Create a FastAPI router with a WebSocket endpoint for agent events."""
@@ -78,6 +76,5 @@ def create_ws_router(event_bus: EventBus) -> Any:
             clients.pop(websocket, None)
 
     return router
-
 
 __all__ = ["create_ws_router"]

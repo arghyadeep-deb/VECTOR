@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/agents/agent_evolver.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -18,10 +17,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from vectorcode.src.oj_core.types import StepType, Trace
+from vectorcode.src.vc_core.types import StepType, Trace
 from vectorcode.src.learning.routing._utils import classify_query
-from vectorcode.src.oj_traces.store import TraceStore
-
+from vectorcode.src.vc_traces.store import TraceStore
 
 def _format_toml_value(value: Any) -> str:
     """Format a Python value as a TOML literal."""
@@ -40,7 +38,6 @@ def _format_toml_value(value: Any) -> str:
         return f"[{items}]"
     return repr(value)
 
-
 def _write_toml(path: Path, data: Dict[str, Any]) -> None:
     """Write a dict as TOML to *path* using manual formatting."""
     lines: List[str] = []
@@ -53,7 +50,6 @@ def _write_toml(path: Path, data: Dict[str, Any]) -> None:
         else:
             lines.append(f"{section_name} = {_format_toml_value(section_data)}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
 
 class AgentConfigEvolver:
     """Analyze traces to evolve agent TOML configs with versioning.
@@ -325,7 +321,6 @@ class AgentConfigEvolver:
         shutil.copy2(str(config_path), str(dest))
         return dest
 
-
 class _ToolScore:
     """Accumulator for per-tool scoring."""
 
@@ -348,7 +343,6 @@ class _ToolScore:
         freq_bonus = math.log1p(self.count) / 10.0
         return 0.4 * sr + 0.4 * fb + 0.2 * min(freq_bonus, 1.0)
 
-
 class _AgentScore:
     """Accumulator for per-agent scoring."""
 
@@ -366,6 +360,5 @@ class _AgentScore:
         sr = self.successes / self.count
         fb = self.feedback_sum / self.count
         return 0.6 * sr + 0.4 * fb
-
 
 __all__ = ["AgentConfigEvolver"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/terminalbench_native.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -25,7 +24,6 @@ try:
     _HAS_TERMINALBENCH = True
 except ImportError:
     _HAS_TERMINALBENCH = False
-
 
 def _load_task_yaml(task_dir: Path) -> Dict[str, Any]:
     """Load task.yaml from a task directory."""
@@ -62,7 +60,6 @@ def _load_task_yaml(task_dir: Path) -> Dict[str, Any]:
                 val = text[idx + len(field) + 1 :].split("\n")[0].strip()
                 result[field] = val
         return result
-
 
 class TerminalBenchNativeDataset(DatasetProvider):
     """TerminalBench using the native terminal-bench pip package (v2 API)."""
@@ -170,7 +167,7 @@ class TerminalBenchNativeDataset(DatasetProvider):
     def create_task_env(self, record):
         """Return a TerminalBenchTaskEnv for the given record."""
         try:
-            from vector.evals.execution.terminalbench_env import (
+            from vectorcode.src.evals.execution.terminalbench_env import (
                 TerminalBenchTaskEnv,
             )
 
@@ -188,6 +185,5 @@ class TerminalBenchNativeDataset(DatasetProvider):
         if not shutil.which("docker"):
             issues.append("docker not found in PATH")
         return issues
-
 
 __all__ = ["TerminalBenchNativeDataset"]

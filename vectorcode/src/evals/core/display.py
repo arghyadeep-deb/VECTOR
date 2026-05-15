@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/display.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -18,9 +17,9 @@ from rich.table import Table
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from vector.evals.core.types import MetricStats, RunSummary
+    from vectorcode.src.evals.core.types import MetricStats, RunSummary
 
-OPENJARVIS_BANNER = r"""
+VECTOR_BANNER = r"""
   ___                       _                  _
  / _ \ _ __   ___ _ __     | | __ _ _ ____   _(_)___
 | | | | '_ \ / _ \ '_ \ _  | |/ _` | '__\ \ / / / __|
@@ -31,22 +30,19 @@ OPENJARVIS_BANNER = r"""
 
 VERSION = "v1.8"
 
-
 def print_banner(console: Console) -> None:
     """Print the VectorCode ASCII banner inside a styled panel."""
     panel = Panel(
-        OPENJARVIS_BANNER.rstrip(),
+        VECTOR_BANNER.rstrip(),
         border_style="cyan",
         title=f"[bold white]{VERSION}[/bold white]",
         expand=False,
     )
     console.print(panel)
 
-
 def print_section(console: Console, title: str) -> None:
     """Print a horizontal rule section separator."""
     console.print(Rule(title, style="bright_blue"))
-
 
 def print_run_header(
     console: Console,
@@ -76,11 +72,9 @@ def print_run_header(
     )
     console.print(panel)
 
-
 def _fmt(val: float, decimals: int = 4) -> str:
     """Format a float to a fixed number of decimal places."""
     return f"{val:.{decimals}f}"
-
 
 def _add_metric_row(
     table: Table,
@@ -101,7 +95,6 @@ def _add_metric_row(
         _fmt(stats.p95, decimals),
         _fmt(stats.p99, decimals),
     )
-
 
 def print_metrics_table(console: Console, summary: RunSummary) -> None:
     """Print the unified metrics table with all available stats."""
@@ -166,7 +159,6 @@ def print_metrics_table(console: Console, summary: RunSummary) -> None:
             f"  max={summary.mbu_stats.max:.2f}%"
         )
 
-
 def _stats_table(
     title: str,
     rows: list[tuple[str, Optional[MetricStats], int]],
@@ -197,7 +189,6 @@ def _stats_table(
             )
     return table
 
-
 def print_accuracy_panel(console: Console, summary: RunSummary) -> None:
     """Print accuracy panel with per-subject breakdown."""
     lines = [
@@ -218,7 +209,6 @@ def print_accuracy_panel(console: Console, summary: RunSummary) -> None:
     )
     console.print(panel)
 
-
 def print_latency_table(console: Console, summary: RunSummary) -> None:
     """Print latency, throughput, and token stats table."""
     table = _stats_table(
@@ -233,7 +223,6 @@ def print_latency_table(console: Console, summary: RunSummary) -> None:
     )
     if table.row_count > 0:
         console.print(table)
-
 
 def print_energy_table(console: Console, summary: RunSummary) -> None:
     """Print energy, efficiency, and IPJ/IPW table."""
@@ -265,7 +254,6 @@ def print_energy_table(console: Console, summary: RunSummary) -> None:
         parts.append(f"[bold]Avg Power:[/bold] {summary.avg_power_watts:.1f} W")
     if parts:
         console.print("  ".join(parts))
-
 
 def print_trace_summary(console: Console, summary: RunSummary) -> None:
     """Print agentic trace step-type breakdown."""
@@ -311,11 +299,9 @@ def print_trace_summary(console: Console, summary: RunSummary) -> None:
         )
     console.print(table)
 
-
 def print_compact_table(console: Console, summary: RunSummary) -> None:
     """Print a single dense metrics table (legacy behavior, enhanced)."""
     print_metrics_table(console, summary)
-
 
 def print_full_results(
     console: Console,
@@ -332,7 +318,6 @@ def print_full_results(
     print_latency_table(console, summary)
     print_energy_table(console, summary)
     print_trace_summary(console, summary)
-
 
 def print_subject_table(
     console: Console,
@@ -360,7 +345,6 @@ def print_subject_table(
         )
 
     console.print(table)
-
 
 def print_suite_summary(
     console: Console,
@@ -395,7 +379,6 @@ def print_suite_summary(
         )
 
     console.print(table)
-
 
 def print_completion(
     console: Console,
@@ -440,9 +423,8 @@ def print_completion(
     panel = Panel(body, border_style="green", expand=False)
     console.print(panel)
 
-
 __all__ = [
-    "OPENJARVIS_BANNER",
+    "VECTOR_BANNER",
     "print_accuracy_panel",
     "print_banner",
     "print_compact_table",

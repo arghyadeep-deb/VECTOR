@@ -94,7 +94,7 @@ class ContextEngine:
     def _get_comms_hub(self):
         if self._comms_hub is None:
             try:
-                from agents.districts.communications.hermes_adapter import HermesAdapter as _VCCommsHub
+                from agents.districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
                 self._comms_hub = _VCCommsHub()
             except Exception:
                 pass

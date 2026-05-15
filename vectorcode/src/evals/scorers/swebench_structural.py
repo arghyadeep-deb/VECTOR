@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/swebench_structural.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -27,7 +26,6 @@ _DIFF_MARKERS = [
     r"^diff\s+--git\s",
 ]
 _DIFF_RE = re.compile("|".join(_DIFF_MARKERS), re.MULTILINE)
-
 
 class SWEBenchScorer(Scorer):
     """Structural validation scorer for SWE-bench patches.
@@ -72,6 +70,5 @@ class SWEBenchScorer(Scorer):
             "reason": "requires_test_execution",
             "has_diff_markers": False,
         }
-
 
 __all__ = ["SWEBenchScorer"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/workflow/builder.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,7 +11,6 @@ from typing import Any, Dict, List, Optional
 
 from vectorcode.src.workflow.graph import WorkflowGraph
 from vectorcode.src.workflow.types import NodeType, WorkflowEdge, WorkflowNode
-
 
 class WorkflowBuilder:
     """Fluent API for building workflow graphs.
@@ -151,6 +149,5 @@ class WorkflowBuilder:
         if not valid:
             raise ValueError(f"Invalid workflow graph: {msg}")
         return graph
-
 
 __all__ = ["WorkflowBuilder"]

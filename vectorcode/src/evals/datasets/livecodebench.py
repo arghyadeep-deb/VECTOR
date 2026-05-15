@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/livecodebench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -54,14 +53,12 @@ _PROMPT_TEMPLATE = """Solve the following competitive programming problem. Write
 
 Write ONLY the Python code solution. Do not include any explanations."""
 
-
 def _format_examples(example_inputs: list, example_outputs: list) -> str:
     """Format input/output examples for the prompt."""
     parts = []
     for i, (inp, out) in enumerate(zip(example_inputs, example_outputs), 1):
         parts.append(f"Input {i}:\n{inp}\n\nOutput {i}:\n{out}")
     return "\n\n".join(parts) if parts else "No examples provided."
-
 
 def _parse_json_field(value: Any) -> Any:
     """Parse a field that might be a JSON string or already parsed."""
@@ -71,7 +68,6 @@ def _parse_json_field(value: Any) -> Any:
         except (json.JSONDecodeError, TypeError):
             return value
     return value
-
 
 class LiveCodeBenchDataset(DatasetProvider):
     """LiveCodeBench competitive programming benchmark.
@@ -287,6 +283,5 @@ class LiveCodeBenchDataset(DatasetProvider):
             subject=subject,
             metadata=metadata,
         )
-
 
 __all__ = ["LiveCodeBenchDataset"]

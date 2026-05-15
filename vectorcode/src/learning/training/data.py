@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/training/data.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,9 +20,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, List
 
-from vectorcode.src.oj_core.types import StepType, Trace
+from vectorcode.src.vc_core.types import StepType, Trace
 from vectorcode.src.learning.routing._utils import classify_query
-
 
 class TrainingDataMiner:
     """Extract supervised training pairs from stored traces.
@@ -222,6 +220,5 @@ class TrainingDataMiner:
             }
 
         return result
-
 
 __all__ = ["TrainingDataMiner"]

@@ -21,17 +21,17 @@ export default function TopBar() {
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id) }, [])
 
   const statusText = !status && initial ? 'CONNECTING' : !status ? 'OFFLINE' : status?.loop_running ? 'ONLINE' : 'DEGRADED'
-  const statusColor = !status && initial ? '#FFB300' : !status ? '#2a2a2a' : status?.loop_running ? '#00FF88' : '#FF3D3D'
+  const statusColor = !status && initial ? '#42A5F5' : !status ? '#2a2a2a' : status?.loop_running ? '#4FC3F7' : '#FF3D3D'
   const ts = time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
   return (
     <div role="banner" style={bar}>
       {/* Logo */}
-      <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#00d4ff', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#4FC3F7', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: 8 }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <polygon points="12,2 22,20 2,20" fill="none" stroke="#00d4ff" strokeWidth="1.5" strokeLinejoin="round" />
-          <circle cx="12" cy="14" r="3.5" fill="none" stroke="#00d4ff" strokeWidth="1" />
-          <line x1="12" y1="2" x2="12" y2="8" stroke="#00d4ff" strokeWidth="1" opacity="0.5" />
+          <polygon points="12,2 22,20 2,20" fill="none" stroke="#4FC3F7" strokeWidth="1.5" strokeLinejoin="round" />
+          <circle cx="12" cy="14" r="3.5" fill="none" stroke="#4FC3F7" strokeWidth="1" />
+          <line x1="12" y1="2" x2="12" y2="8" stroke="#4FC3F7" strokeWidth="1" opacity="0.5" />
         </svg>
         VECTOR
       </div>
@@ -64,7 +64,7 @@ export default function TopBar() {
       <div style={{ flex: 1 }} />
 
       {/* Clock */}
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#00d4ff', letterSpacing: '0.1em', textShadow: '0 0 12px rgba(0,212,255,0.3)' }}>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#4FC3F7', letterSpacing: '0.1em', textShadow: '0 0 12px rgba(0,212,255,0.3)' }}>
         {ts}
       </div>
     </div>

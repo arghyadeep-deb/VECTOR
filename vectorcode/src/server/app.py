@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """FastAPI application factory for the VECTOR API server."""
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ from vectorcode.src.server.routes import router
 from vectorcode.src.server.upload_router import router as upload_router
 
 logger = logging.getLogger(__name__)
-
 
 def _restore_sendblue_bindings(app: FastAPI) -> None:
     """Restore SendBlue channel bindings from the database on startup.
@@ -111,14 +109,12 @@ def _restore_sendblue_bindings(app: FastAPI) -> None:
     except Exception as exc:
         logger.debug("SendBlue binding restore skipped: %s", exc)
 
-
 # No-cache headers applied to static file responses
 _NO_CACHE_HEADERS = {
     "Cache-Control": "no-cache, no-store, must-revalidate",
     "Pragma": "no-cache",
     "Expires": "0",
 }
-
 
 class _NoCacheStaticFiles(StaticFiles):
     """StaticFiles subclass that adds no-cache headers to every response."""
@@ -137,7 +133,6 @@ class _NoCacheStaticFiles(StaticFiles):
             await send(message)
 
         await super().__call__(scope, receive, _send_with_headers)
-
 
 def create_app(
     engine,
@@ -313,6 +308,5 @@ def create_app(
             )
 
     return app
-
 
 __all__ = ["create_app"]

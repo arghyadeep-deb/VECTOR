@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/math500.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,7 +20,6 @@ _PROMPT_TEMPLATE = (
     "Solve the following math problem step by step. "
     "Provide your final answer clearly.\n\n{problem}"
 )
-
 
 class MATH500Dataset(DatasetProvider):
     """MATH-500 reasoning benchmark dataset."""
@@ -111,6 +109,5 @@ class MATH500Dataset(DatasetProvider):
             subject=subject,
             metadata=metadata,
         )
-
 
 __all__ = ["MATH500Dataset"]

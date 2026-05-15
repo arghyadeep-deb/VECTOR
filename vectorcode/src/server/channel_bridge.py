@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """ChannelBridge — unified orchestrator for multi-channel messaging."""
 
 from __future__ import annotations
@@ -36,7 +35,6 @@ _NOTIFICATION_EVENTS = [
     EventType.AGENT_BUDGET_EXCEEDED,
     EventType.SCHEDULER_TASK_END,
 ]
-
 
 class ChannelBridge:
     """Orchestrates incoming messages across multiple channel adapters.

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """DigestStore -- SQLite-backed storage for pre-computed digest artifacts."""
 
 from __future__ import annotations
@@ -9,7 +8,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-
 
 @dataclass
 class DigestArtifact:
@@ -24,7 +22,6 @@ class DigestArtifact:
     voice_used: str
     quality_score: float = 0.0
     evaluator_feedback: str = ""
-
 
 class DigestStore:
     """SQLite store for digest artifacts."""

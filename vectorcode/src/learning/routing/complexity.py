@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/routing/complexity.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -18,7 +17,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from vectorcode.src.oj_core.types import RoutingContext
+from vectorcode.src.vc_core.types import RoutingContext
 from vectorcode.src.learning._stubs import QueryAnalyzer
 
 # ---------------------------------------------------------------------------
@@ -74,11 +73,9 @@ _TOKEN_TIERS = {
 # Thinking models need extra headroom for internal chain-of-thought.
 _THINKING_TOKEN_MULTIPLIER = 2
 
-
 # ---------------------------------------------------------------------------
 # Complexity scoring
 # ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class ComplexityResult:
@@ -89,18 +86,15 @@ class ComplexityResult:
     suggested_max_tokens: int
     signals: dict
 
-
 def _count_questions(query: str) -> int:
     """Count the number of question marks in the query."""
     return query.count("?")
-
 
 def _count_sub_tasks(query: str) -> int:
     """Estimate the number of sub-tasks or enumerated items."""
     numbered = len(re.findall(r"^\s*\d+[.)]\s", query, re.MULTILINE))
     bulleted = len(re.findall(r"^\s*[-*]\s", query, re.MULTILINE))
     return numbered + bulleted
-
 
 def score_complexity(query: str) -> ComplexityResult:
     """Score a query's complexity from 0.0 (trivial) to 1.0 (very complex).
@@ -204,11 +198,9 @@ def score_complexity(query: str) -> ComplexityResult:
         signals=signals,
     )
 
-
 def is_thinking_model(model_name: str) -> bool:
     """Return True if the model is known to use internal chain-of-thought."""
     return bool(_THINKING_MODEL_PATTERNS.search(model_name))
-
 
 def adjust_tokens_for_model(suggested: int, model_name: Optional[str] = None) -> int:
     """Multiply the token budget when the target is a thinking model."""
@@ -216,11 +208,9 @@ def adjust_tokens_for_model(suggested: int, model_name: Optional[str] = None) ->
         return suggested * _THINKING_TOKEN_MULTIPLIER
     return suggested
 
-
 # ---------------------------------------------------------------------------
 # QueryAnalyzer implementation
 # ---------------------------------------------------------------------------
-
 
 class ComplexityQueryAnalyzer(QueryAnalyzer):
     """Query analyzer that produces a complexity-aware RoutingContext.
@@ -252,7 +242,6 @@ class ComplexityQueryAnalyzer(QueryAnalyzer):
             suggested_max_tokens=tokens,
             metadata={"complexity_tier": result.tier, "signals": result.signals},
         )
-
 
 __all__ = [
     "ComplexityQueryAnalyzer",

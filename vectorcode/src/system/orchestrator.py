@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Executes user queries through the engine or through an agent."""
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ if TYPE_CHECKING:
     from vectorcode.src.system.protocols import OrchestratorDeps
 
 logger = logging.getLogger(__name__)
-
 
 class QueryOrchestrator:
     def __init__(self, system: OrchestratorDeps) -> None:

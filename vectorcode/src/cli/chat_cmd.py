@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis chat`` -- interactive multi-turn chat REPL."""
 
 from __future__ import annotations
@@ -14,14 +13,12 @@ from vectorcode.src.cli._tool_names import resolve_tool_names
 from vectorcode.src.vc_core.config import load_config
 from vectorcode.src.vc_core.types import Message, Role
 
-
 def _read_input(prompt: str = "You> ") -> Optional[str]:
     """Read user input with graceful EOF handling."""
     try:
         return input(prompt)
     except (EOFError, KeyboardInterrupt):
         return None
-
 
 @click.command()
 @click.option("-e", "--engine", "engine_key", default=None, help="Engine backend.")
@@ -228,6 +225,5 @@ def chat(
             console.print("\n[dim]Generation interrupted.[/dim]")
         except Exception as exc:
             console.print(f"\n[red]Error: {exc}[/red]\n")
-
 
 __all__ = ["chat"]

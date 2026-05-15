@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/workarena.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -47,9 +46,7 @@ except ImportError as _e:
     def get_all_tasks_agents(**kwargs):  # type: ignore[misc]
         return []
 
-
 _VALID_LEVELS = ("l1", "l2", "l3")
-
 
 class WorkArenaDataset(DatasetProvider):
     """WorkArena++ benchmark using the native browsergym-workarena package.
@@ -219,7 +216,7 @@ class WorkArenaDataset(DatasetProvider):
     def create_task_env(self, record: EvalRecord):
         """Return a WorkArenaTaskEnv for the given record."""
         try:
-            from vector.evals.execution.workarena_env import (
+            from vectorcode.src.evals.execution.workarena_env import (
                 WorkArenaTaskEnv,
             )
 
@@ -258,6 +255,5 @@ class WorkArenaDataset(DatasetProvider):
             )
 
         return issues
-
 
 __all__ = ["WorkArenaDataset"]

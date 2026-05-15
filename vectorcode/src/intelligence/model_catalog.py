@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/intelligence/model_catalog.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -10,8 +9,8 @@ from __future__ import annotations
 
 from typing import List
 
-from vectorcode.src.oj_core.registry import ModelRegistry
-from vectorcode.src.oj_core.types import ModelSpec, Quantization
+from vectorcode.src.vc_core.registry import ModelRegistry
+from vectorcode.src.vc_core.types import ModelSpec, Quantization
 
 BUILTIN_MODELS: List[ModelSpec] = [
     # -----------------------------------------------------------------------
@@ -1005,13 +1004,11 @@ BUILTIN_MODELS: List[ModelSpec] = [
     ),
 ]
 
-
 def register_builtin_models() -> None:
     """Populate ``ModelRegistry`` with well-known models."""
     for spec in BUILTIN_MODELS:
         if not ModelRegistry.contains(spec.model_id):
             ModelRegistry.register_value(spec.model_id, spec)
-
 
 def merge_discovered_models(engine_key: str, model_ids: List[str]) -> None:
     """Create minimal ``ModelSpec`` entries for models not already in the registry."""
@@ -1025,6 +1022,5 @@ def merge_discovered_models(engine_key: str, model_ids: List[str]) -> None:
                 supported_engines=(engine_key,),
             )
             ModelRegistry.register_value(model_id, spec)
-
 
 __all__ = ["BUILTIN_MODELS", "merge_discovered_models", "register_builtin_models"]

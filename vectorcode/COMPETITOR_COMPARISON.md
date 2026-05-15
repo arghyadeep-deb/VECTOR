@@ -15,24 +15,24 @@
 | **Project Config File** | ✅ VECTOR.md | ✅ CLAUDE.md | ✅ AGENTS.md | ❌ | ❌ |
 | **Session Persistence** | ✅ JSON + save/restore | ✅ Built-in | ❌ | ❌ | ✅ |
 | **Multi-Agent Orchestration** | ✅ Swarm + Queen + 8 topologies | ✅ Sub-agents | ❌ | ❌ | ❌ |
-| **MCP Support** | ⚠️ Stubs only | ✅ Full | ✅ Full | ❌ | ✅ |
-| **Code Editing (Map-Reduce)** | ❌ Not implemented | ✅ | ❌ | ✅ Best-in-class | ✅ |
+| **MCP Support** | ✅ Full (client + server) | ✅ Full | ✅ Full | ❌ | ✅ |
+| **Code Editing (Map-Reduce)** | ❌ Basic string replacement | ✅ | ❌ | ✅ Best-in-class | ✅ |
 | **Git Integration** | ✅ Basic (status/diff/commit) | ✅ Full | ❌ | ✅ Auto-commit | ✅ |
 | **Web Search** | ✅ DuckDuckGo | ✅ | ✅ | ❌ | ❌ |
 | **Code Graph / LSP** | ⚠️ Partial | ✅ | ✅ | ✅ | ✅ Native |
 | **Plugin System** | ⚠️ Hooks only | ✅ | ❌ | ❌ | ✅ Extensions |
-| **Sandboxed Execution** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Sandboxed Execution** | ✅ code_execution_tool.py | ❌ | ❌ | ❌ | ❌ |
 | **Bare `pip install`** | ❌ | ❌ | ✅ | ✅ | ❌ |
 | **Open Source** | ✅ | ❌ | ✅ | ✅ | ❌ |
 | **Free to Use** | ✅ (with own keys) | ❌ ($10-20/mo) | ✅ | ✅ | ✅ (limited) |
-| **Multi-Platform Comms** | ⚠️ Telegram only | ❌ | ❌ | ❌ | ❌ |
+| **Multi-Platform Comms** | ✅ Discord, Slack, Telegram, WhatsApp, Signal, email, webhook, +11 more | ❌ | ❌ | ❌ | ❌ |
 | **Swarm Topologies** (8 types) | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
 | **GNN Router** (3-layer ML) | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
 | **Message Bus** (QoS+ACL+DLQ) | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
-| **Tool Count** | ~8 of 70 ported | 40+ | ~20 | ~15 | ~30 |
-| **Error Handling** | ❌ Bare | ✅ Robust | ⚠️ Basic | ⚠️ Basic | ✅ Robust |
+| **Tool Count** | ~84 tools ported | 40+ | ~20 | ~15 | ~30 |
+| **Error Handling** | ✅ error_classifier + retry | ✅ Robust | ⚠️ Basic | ⚠️ Basic | ✅ Robust |
 | **Testing** | ⚠️ Self-tests | ✅ CI/CD | ✅ CI/CD | ✅ CI/CD | ✅ CI/CD |
-| **Documentation** | ⚠️ Comments | ✅ Full docs | ✅ Full docs | ✅ Full docs | ✅ Full docs |
+| **Documentation** | ⚠️ Code comments only | ✅ Full docs | ✅ Full docs | ✅ Full docs | ✅ Full docs |
 
 ---
 
@@ -141,7 +141,7 @@ Verdict:             Different use cases. Cursor for IDE users. VectorCode for t
                        testing, docs)
 ```
 
-**VectorCode is the most architecturally ambitious coding agent** — it's the only one with multi-agent swarm orchestration, GNN-based routing, and enterprise messaging. But it's also the least production-ready. The VectorCode absorption gives it unique capabilities (~48% complete), but the VectorCode infrastructure (tools, errors, testing) is only ~18% done.
+**VectorCode is the most architecturally ambitious coding agent** — it's the only one with multi-agent swarm orchestration, GNN-based routing, and enterprise messaging. The VectorCode absorption is ~85-90% complete with 84+ tools ported, full MCP support, and 20+ communications platform integrations. The remaining gaps are in production infrastructure (packaging, CI/CD, documentation, and testing).
 
 ### The Opportunity
 

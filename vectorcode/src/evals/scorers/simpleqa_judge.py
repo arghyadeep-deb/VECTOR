@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/simpleqa_judge.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -22,11 +21,9 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Normalization helpers (shared with GAIA scorer)
 # ---------------------------------------------------------------------------
-
 
 def _normalize_number_str(number_str: str) -> float:
     for char in ["$", "%", ","]:
@@ -36,7 +33,6 @@ def _normalize_number_str(number_str: str) -> float:
     except ValueError:
         return float("inf")
 
-
 def _normalize_str(input_str: str, remove_punct: bool = True) -> str:
     no_spaces = re.sub(r"\s", "", input_str)
     if remove_punct:
@@ -44,14 +40,12 @@ def _normalize_str(input_str: str, remove_punct: bool = True) -> str:
         return no_spaces.lower().translate(translator)
     return no_spaces.lower()
 
-
 def _is_float(element: object) -> bool:
     try:
         float(element)  # type: ignore[arg-type]
         return True
     except (ValueError, TypeError):
         return False
-
 
 def exact_match(model_answer: str, ground_truth: str) -> bool:
     """Exact-match scorer with normalization for numbers and strings."""
@@ -63,7 +57,6 @@ def exact_match(model_answer: str, ground_truth: str) -> bool:
         return normalized == float(ground_truth)
 
     return _normalize_str(model_answer) == _normalize_str(ground_truth)
-
 
 # ---------------------------------------------------------------------------
 # LLM fallback prompt
@@ -81,7 +74,6 @@ Your response MUST use exactly this format:
 extracted_final_answer: <extracted answer from prediction>
 reasoning: <brief explanation>
 correct: <yes or no>"""
-
 
 class SimpleQAScorer(LLMJudgeScorer):
     """SimpleQA evaluation: exact match with normalization + LLM fallback."""
@@ -143,6 +135,5 @@ class SimpleQAScorer(LLMJudgeScorer):
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["SimpleQAScorer", "exact_match"]

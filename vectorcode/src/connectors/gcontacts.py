@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/gcontacts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -28,9 +27,9 @@ from vectorcode.src.connectors.oauth import (
     run_oauth_flow,
     save_tokens,
 )
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -43,7 +42,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "gcontacts.j
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _gcontacts_api_list(
     token: str,
@@ -81,11 +79,9 @@ def _gcontacts_api_list(
     resp.raise_for_status()
     return resp.json()
 
-
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
-
 
 def _format_contact(person: Dict[str, Any]) -> str:
     """Return a human-readable text representation of a contact.
@@ -134,11 +130,9 @@ def _format_contact(person: Dict[str, Any]) -> str:
 
     return "\n".join(lines)
 
-
 # ---------------------------------------------------------------------------
 # GContactsConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("gcontacts")
 class GContactsConnector(BaseConnector):

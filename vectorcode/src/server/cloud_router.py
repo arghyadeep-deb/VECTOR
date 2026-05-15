@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Direct cloud API router — bypasses the engine system entirely.
 
 Reads API keys from ~/.vector/cloud-keys.env at request time so
@@ -37,7 +36,6 @@ _LOCAL_HF_ORGS = (
     "lmstudio-community/",
 )
 
-
 def _load_keys() -> dict[str, str]:
     """Read cloud-keys.env from disk every call so live updates are picked up."""
     keys: dict[str, str] = {}
@@ -62,7 +60,6 @@ def _load_keys() -> dict[str, str]:
             keys[name] = val
     return keys
 
-
 def get_provider(model: str) -> str | None:
     """Return the provider for a model name, or None if it's a local model."""
     if any(model.startswith(p) for p in _OPENAI_PREFIXES):
@@ -79,16 +76,13 @@ def get_provider(model: str) -> str | None:
         return "openrouter"
     return None
 
-
 def is_cloud_model(model: str) -> bool:
     """Return True if the model is served by a cloud provider."""
     return get_provider(model) is not None
 
-
 # ---------------------------------------------------------------------------
 # Message conversion
 # ---------------------------------------------------------------------------
-
 
 def _to_openai_msgs(messages: Sequence[Message]) -> list[dict[str, Any]]:
     out = []
@@ -96,7 +90,6 @@ def _to_openai_msgs(messages: Sequence[Message]) -> list[dict[str, Any]]:
         role = m.role.value if hasattr(m.role, "value") else str(m.role)
         out.append({"role": role, "content": m.content or ""})
     return out
-
 
 def _to_anthropic_msgs(
     messages: Sequence[Message],
@@ -114,7 +107,6 @@ def _to_anthropic_msgs(
             chat.append({"role": ar, "content": m.content or ""})
     return system_text, chat
 
-
 def _to_google_contents(messages: Sequence[Message]) -> list[dict[str, Any]]:
     """Convert to Google Gemini content format."""
     contents = []
@@ -131,11 +123,9 @@ def _to_google_contents(messages: Sequence[Message]) -> list[dict[str, Any]]:
             contents.append({"role": "user", "parts": [{"text": m.content or ""}]})
     return contents
 
-
 # ---------------------------------------------------------------------------
 # Streaming generators
 # ---------------------------------------------------------------------------
-
 
 async def _stream_openai(
     model: str,
@@ -182,7 +172,6 @@ async def _stream_openai(
                         yield delta
                 except Exception:
                     pass
-
 
 async def _stream_anthropic(
     model: str,
@@ -231,7 +220,6 @@ async def _stream_anthropic(
                 except Exception:
                     pass
 
-
 async def _stream_google(
     model: str,
     messages: Sequence[Message],
@@ -278,15 +266,12 @@ async def _stream_google(
                 except Exception:
                     pass
 
-
 # ---------------------------------------------------------------------------
 # Local (Ollama) direct streaming -- bypasses engine routing entirely
 # ---------------------------------------------------------------------------
 
-
 def _ollama_host() -> str:
     return os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-
 
 async def stream_local(
     model: str,
@@ -324,7 +309,6 @@ async def stream_local(
                 except Exception:
                     pass
 
-
 async def list_local_models() -> list[str]:
     """Return Ollama model names directly from the Ollama API."""
     host = _ollama_host()
@@ -337,11 +321,9 @@ async def list_local_models() -> list[str]:
     except Exception:
         return []
 
-
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
-
 
 async def stream_cloud(
     model: str,

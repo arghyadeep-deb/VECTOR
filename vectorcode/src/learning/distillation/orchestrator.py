@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/orchestrator.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -38,7 +37,6 @@ from vectorcode.src.learning.distillation.plan.planner import LearningPlanner
 
 logger = logging.getLogger(__name__)
 
-
 class DistillationOrchestrator:
     """Top-level driver for a distillation learning session.
 
@@ -56,7 +54,7 @@ class DistillationOrchestrator:
         judge: Any,
         session_store: Any,
         checkpoint_store: Any,
-        openjarvis_home: Path,
+        vector_home: Path,
         autonomy_mode: AutonomyMode = AutonomyMode.TIERED,
         scorer: Callable[..., BenchmarkSnapshot] | None = None,
         benchmark_version: str = "personal_v1",
@@ -75,7 +73,7 @@ class DistillationOrchestrator:
         self._judge = judge
         self._session_store = session_store
         self._checkpoint_store = checkpoint_store
-        self._home = Path(openjarvis_home)
+        self._home = Path(vector_home)
         self._autonomy = autonomy_mode
         self._scorer = scorer
         self._bench_version = benchmark_version
@@ -156,7 +154,7 @@ class DistillationOrchestrator:
                 session_id=session_id,
                 config={
                     "config_path": self._home / "config.toml",
-                    "openjarvis_home": self._home,
+                    "vector_home": self._home,
                 },
                 max_turns=self._max_tool_calls,
                 max_cost_usd=self._max_cost,
@@ -198,7 +196,7 @@ class DistillationOrchestrator:
             self._session_store.save_session(session)
 
             ctx = ApplyContext(
-                openjarvis_home=self._home,
+                vector_home=self._home,
                 session_id=session_id,
             )
             registry = _build_registry()

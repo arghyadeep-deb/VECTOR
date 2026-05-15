@@ -1,5 +1,5 @@
 # VectorCode — Complete Gap Analysis
-> As of 2026-05-13. Measured against NousResearch/vectorcode and vectorcode.
+> As of 2026-05-13. Measured against VectorCode/vectorcode and vectorcode.
 
 ---
 

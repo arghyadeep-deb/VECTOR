@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/doc_qa.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -31,7 +30,6 @@ _CITATION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-
 def _fact_match_score(
     model_answer: str,
     required_facts: List[Dict[str, Any]],
@@ -61,7 +59,6 @@ def _fact_match_score(
     score = found_count / total if total > 0 else 1.0
 
     return score, details
-
 
 def _citation_check_score(
     model_answer: str,
@@ -100,7 +97,6 @@ def _citation_check_score(
     score = correct / total if total > 0 else 0.0
 
     return score, details
-
 
 class DocQAScorer(Scorer):
     """Score document QA output by fact coverage, citations, and quality."""
@@ -187,6 +183,5 @@ class DocQAScorer(Scorer):
             "citation_details": citation_details,
             "checklist_details": checklist_details,
         }
-
 
 __all__ = ["DocQAScorer"]

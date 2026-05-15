@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillOverlay -- sidecar storage for optimization output (Plan 2A).
 
 Optimization results from DSPy/GEPA are written to
@@ -36,7 +35,6 @@ except ModuleNotFoundError:
 
 LOGGER = logging.getLogger(__name__)
 
-
 @dataclass(slots=True)
 class SkillOverlay:
     """A single optimization overlay for one skill."""
@@ -47,7 +45,6 @@ class SkillOverlay:
     trace_count: int
     description: str
     few_shot: List[Dict[str, str]] = field(default_factory=list)
-
 
 class SkillOverlayLoader:
     """Read overlay files from a sidecar directory tree.
@@ -108,7 +105,6 @@ class SkillOverlayLoader:
             few_shot=few_shot,
         )
 
-
 def write_overlay(overlay: SkillOverlay, root: Path) -> Path:
     """Write *overlay* to ``<root>/<skill-name>/optimized.toml``.
 
@@ -136,7 +132,6 @@ def write_overlay(overlay: SkillOverlay, root: Path) -> Path:
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
-
 def _escape(text: str) -> str:
     """Minimal TOML string escaping for the basic-string format."""
     return (
@@ -147,6 +142,5 @@ def _escape(text: str) -> str:
         .replace("\r", "\\r")
         .replace("\t", "\\t")
     )
-
 
 __all__ = ["SkillOverlay", "SkillOverlayLoader", "write_overlay"]

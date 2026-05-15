@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/deepplanning_scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -42,7 +41,6 @@ For shopping tasks, check:
 
 Respond with exactly: CORRECT or INCORRECT
 Then provide a brief explanation."""
-
 
 class DeepPlanningScorer(LLMJudgeScorer):
     """Score DeepPlanning responses via LLM judge on constraint satisfaction."""
@@ -90,6 +88,5 @@ class DeepPlanningScorer(LLMJudgeScorer):
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["DeepPlanningScorer"]

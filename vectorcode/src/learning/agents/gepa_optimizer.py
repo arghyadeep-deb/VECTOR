@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/agents/gepa_optimizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,8 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from vectorcode.src.oj_core.config import GEPAOptimizerConfig
-from vectorcode.src.oj_core.registry import LearningRegistry
+from vectorcode.src.vc_core.config import GEPAOptimizerConfig
+from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._stubs import AgentLearningPolicy
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,7 @@ except ImportError:
     HAS_GEPA = False
     gepa = None  # type: ignore[assignment]
 
-
-class OpenJarvisGEPAAdapter:
+class VectorCodeGEPAAdapter:
     """Implements GEPA's adapter protocol for VectorCode agents.
 
     Bridges trace data into GEPA's optimization framework via
@@ -150,7 +148,6 @@ class OpenJarvisGEPAAdapter:
 
         return dataset
 
-
 class GEPAAgentOptimizer:
     """Optimize agent configs using GEPA evolutionary optimization.
 
@@ -194,7 +191,7 @@ class GEPAAgentOptimizer:
             }
 
         agent_name = self.config.agent_filter or "default"
-        adapter = OpenJarvisGEPAAdapter(trace_store, agent_name, self.config)
+        adapter = VectorCodeGEPAAdapter(trace_store, agent_name, self.config)
         adapter.load_traces()
 
         try:
@@ -216,7 +213,7 @@ class GEPAAgentOptimizer:
 
     def _run_gepa(
         self,
-        adapter: OpenJarvisGEPAAdapter,
+        adapter: VectorCodeGEPAAdapter,
         traces: List[Any],
     ) -> Dict[str, Any]:
         """Run the GEPA evolutionary optimization loop."""
@@ -299,7 +296,7 @@ class GEPAAgentOptimizer:
         """Write updated configs via AgentConfigEvolver."""
         import pathlib
 
-        from vector.learning.agents.agent_evolver import AgentConfigEvolver
+        from vectorcode.src.learning.agents.agent_evolver import AgentConfigEvolver
 
         evolver = AgentConfigEvolver.__new__(AgentConfigEvolver)
         evolver._config_dir = pathlib.Path(self.config.config_dir)
@@ -315,7 +312,6 @@ class GEPAAgentOptimizer:
             system_prompt=config_updates.get("system_prompt", ""),
         )
 
-
 @LearningRegistry.register("gepa")
 class _GEPALearningPolicy(AgentLearningPolicy):
     """Wrapper to register GEPAAgentOptimizer in the LearningRegistry."""
@@ -328,5 +324,4 @@ class _GEPALearningPolicy(AgentLearningPolicy):
         optimizer = GEPAAgentOptimizer(config)
         return optimizer.optimize(trace_store)
 
-
-__all__ = ["GEPAAgentOptimizer", "OpenJarvisGEPAAdapter"]
+__all__ = ["GEPAAgentOptimizer", "VectorCodeGEPAAdapter"]

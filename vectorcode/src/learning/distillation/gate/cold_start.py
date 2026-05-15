@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/gate/cold_start.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -21,7 +20,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ReadinessResult:
     """Result of a readiness check."""
@@ -30,7 +28,6 @@ class ReadinessResult:
     message: str
     trace_count: int = 0
     high_feedback_count: int = 0
-
 
 def check_readiness(
     trace_store: Any,
@@ -66,7 +63,6 @@ def check_readiness(
         message=f"Ready: {count} traces available.",
         trace_count=count,
     )
-
 
 def check_benchmark_ready(
     trace_store: Any,

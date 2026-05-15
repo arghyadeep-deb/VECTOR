@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/pinchbench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -32,7 +31,6 @@ LOGGER = logging.getLogger(__name__)
 
 PINCHBENCH_REPO = "https://github.com/pinchbench/skill.git"
 CACHE_DIR = Path.home() / ".cache" / "pinchbench"
-
 
 def _parse_task_markdown(content: str, filename: str = "") -> Dict[str, Any]:
     """Parse a PinchBench task markdown file into a dict.
@@ -89,7 +87,6 @@ def _parse_task_markdown(content: str, filename: str = "") -> Dict[str, Any]:
         "automated_checks": automated_checks,
         "llm_judge_rubric": sections.get("LLM Judge Rubric"),
     }
-
 
 class PinchBenchDataset(DatasetProvider):
     """PinchBench real-world agent benchmark.
@@ -213,13 +210,12 @@ class PinchBenchDataset(DatasetProvider):
         self._judge_model = judge_model
 
     def create_task_env(self, record: EvalRecord):
-        from vector.evals.execution.pinchbench_env import PinchBenchTaskEnv
+        from vectorcode.src.evals.execution.pinchbench_env import PinchBenchTaskEnv
 
         return PinchBenchTaskEnv(
             record,
             judge_backend=getattr(self, "_judge_backend", None),
             judge_model=getattr(self, "_judge_model", "anthropic/claude-opus-4-5"),
         )
-
 
 __all__ = ["PinchBenchDataset"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/imessage.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -29,8 +28,8 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -41,11 +40,9 @@ _DEFAULT_DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 # Apple epoch: 2001-01-01 00:00:00 UTC
 _APPLE_EPOCH = datetime(2001, 1, 1, tzinfo=timezone.utc)
 
-
 # ---------------------------------------------------------------------------
 # Timestamp helper
 # ---------------------------------------------------------------------------
-
 
 def _apple_ts_to_datetime(apple_ns: int) -> datetime:
     """Convert an Apple nanosecond timestamp to a UTC :class:`datetime`.
@@ -63,11 +60,9 @@ def _apple_ts_to_datetime(apple_ns: int) -> datetime:
     seconds = apple_ns / 1_000_000_000
     return _APPLE_EPOCH + timedelta(seconds=seconds)
 
-
 # ---------------------------------------------------------------------------
 # IMessageConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("imessage")
 class IMessageConnector(BaseConnector):

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/sync_engine.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -29,7 +28,7 @@ from typing import Any, Dict, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector
 from vectorcode.src.connectors.pipeline import IngestionPipeline
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 
 # ---------------------------------------------------------------------------
 # DDL
@@ -46,7 +45,6 @@ CREATE TABLE IF NOT EXISTS sync_state (
 """
 
 _BATCH_SIZE = 100
-
 
 class SyncEngine:
     """Orchestrate connector syncs with checkpoint/resume tracking.
@@ -193,6 +191,5 @@ class SyncEngine:
             (connector_id, items_synced, cursor, now, error),
         )
         self._conn.commit()
-
 
 __all__ = ["SyncEngine"]

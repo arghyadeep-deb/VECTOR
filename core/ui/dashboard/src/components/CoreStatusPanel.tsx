@@ -61,7 +61,7 @@ export default function CoreStatusPanel() {
         background: 'rgba(2, 18, 32, 0.92)',
         border: '1px solid rgba(0,207,255,0.2)',
         clipPath: 'polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px)',
-        boxShadow: '0 0 20px #00CFFF22, inset 0 0 30px #00CFFF08',
+        boxShadow: '0 0 20px #4FC3F722, inset 0 0 30px #4FC3F708',
       }}
     >
       {/* Header (draggable) */}
@@ -102,7 +102,7 @@ export default function CoreStatusPanel() {
             <circle cx={30} cy={30} r={10} fill="none" stroke="rgba(0,207,255,0.2)" strokeWidth={1}>
               <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="3s" repeatCount="indefinite" />
             </circle>
-            <circle cx={30} cy={30} r={3} fill="#00CFFF" opacity={0.6}>
+            <circle cx={30} cy={30} r={3} fill="#4FC3F7" opacity={0.6}>
               <animate attributeName="r" values="2;4;2" dur="1.5s" repeatCount="indefinite" />
             </circle>
           </svg>
@@ -125,7 +125,7 @@ function Row({ label, value }: { label: string; value: string }) {
       <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a4466', letterSpacing: '0.12em' }}>
         {label}
       </span>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#00CFFF' }}>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#4FC3F7' }}>
         {value}
       </span>
     </div>

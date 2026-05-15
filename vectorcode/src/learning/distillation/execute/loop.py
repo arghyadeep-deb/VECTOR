@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/loop.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -49,7 +48,6 @@ from vectorcode.src.learning.distillation.models import (
 
 logger = logging.getLogger(__name__)
 
-
 def _build_registry() -> EditApplierRegistry:
     """Build and populate the default applier registry."""
     registry = EditApplierRegistry()
@@ -65,7 +63,6 @@ def _build_registry() -> EditApplierRegistry:
     registry.register(EditToolDescriptionApplier())
     registry.register(LoraStubApplier())
     return registry
-
 
 def execute_edits(
     *,

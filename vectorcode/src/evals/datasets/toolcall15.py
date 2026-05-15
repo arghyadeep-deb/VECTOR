@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/toolcall15.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -632,7 +631,6 @@ SCENARIOS: List[Dict[str, Any]] = [
     },
 ]
 
-
 class ToolCall15Dataset(DatasetProvider):
     """ToolCall-15 tool calling benchmark.
 
@@ -724,6 +722,5 @@ class ToolCall15Dataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["ToolCall15Dataset"]

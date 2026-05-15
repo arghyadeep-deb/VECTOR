@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/spotify.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -19,13 +18,12 @@ from typing import Any, Dict, Iterator, Optional
 import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 _SPOTIFY_API_BASE = "https://api.spotify.com/v1"
 _SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 _DEFAULT_TOKEN_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "spotify.json")
-
 
 def _spotify_api_get(
     token: str, endpoint: str, params: Optional[Dict[str, Any]] = None
@@ -39,7 +37,6 @@ def _spotify_api_get(
     )
     resp.raise_for_status()
     return resp.json()
-
 
 @ConnectorRegistry.register("spotify")
 class SpotifyConnector(BaseConnector):
@@ -70,7 +67,7 @@ class SpotifyConnector(BaseConnector):
         """Return Spotify OAuth authorization URL."""
         from urllib.parse import urlencode
 
-        from vector.connectors.oauth import (
+        from vectorcode.src.connectors.oauth import (
             get_client_credentials,
             get_provider_for_connector,
         )
@@ -93,7 +90,7 @@ class SpotifyConnector(BaseConnector):
 
     def handle_callback(self, code: str) -> None:
         """Exchange authorization code for tokens and save."""
-        from vector.connectors.oauth import (
+        from vectorcode.src.connectors.oauth import (
             _CONNECTORS_DIR,
             _exchange_token,
             get_client_credentials,

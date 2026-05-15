@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/granola.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -23,9 +22,9 @@ import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -37,7 +36,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "granola.jso
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _granola_api_list_notes(
     api_key: str,
@@ -78,7 +76,6 @@ def _granola_api_list_notes(
     resp.raise_for_status()
     return resp.json()
 
-
 def _granola_api_get_note(api_key: str, note_id: str) -> Dict[str, Any]:
     """Fetch a single Granola note by ID (includes transcript).
 
@@ -104,11 +101,9 @@ def _granola_api_get_note(api_key: str, note_id: str) -> Dict[str, Any]:
     resp.raise_for_status()
     return resp.json()
 
-
 # ---------------------------------------------------------------------------
 # Content formatting helper
 # ---------------------------------------------------------------------------
-
 
 def _format_note_content(note: Dict[str, Any]) -> str:
     """Build a markdown string combining the note summary and transcript.
@@ -148,11 +143,9 @@ def _format_note_content(note: Dict[str, Any]) -> str:
 
     return "\n".join(parts)
 
-
 # ---------------------------------------------------------------------------
 # ISO datetime parser
 # ---------------------------------------------------------------------------
-
 
 def _parse_iso_datetime(dt_str: str) -> datetime:
     """Parse an ISO 8601 datetime string into a :class:`~datetime.datetime`.
@@ -166,11 +159,9 @@ def _parse_iso_datetime(dt_str: str) -> datetime:
     except (ValueError, AttributeError):
         return datetime.now(tz=timezone.utc)
 
-
 # ---------------------------------------------------------------------------
 # GranolaConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("granola")
 class GranolaConnector(BaseConnector):

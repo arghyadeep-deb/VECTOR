@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/livecodebench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -30,7 +29,6 @@ LOGGER = logging.getLogger(__name__)
 # Execution limits
 _TIMEOUT_SECONDS = 30
 _MAX_OUTPUT_BYTES = 1024 * 1024  # 1 MB
-
 
 def _extract_code(answer: str) -> str:
     """Extract Python code from model answer, handling markdown fences."""
@@ -73,7 +71,6 @@ def _extract_code(answer: str) -> str:
 
     # Last resort: return the whole answer (it might be pure code)
     return answer.strip()
-
 
 def _run_single_test(
     code: str,
@@ -142,7 +139,6 @@ def _run_single_test(
         except OSError:
             pass
 
-
 def _numeric_match(actual: str, expected: str, rel_tol: float = 1e-6) -> bool:
     """Check if outputs match numerically (for floating point problems)."""
     actual_parts = actual.split()
@@ -162,7 +158,6 @@ def _numeric_match(actual: str, expected: str, rel_tol: float = 1e-6) -> bool:
             if a != e:
                 return False
     return True
-
 
 class LiveCodeBenchScorer(Scorer):
     """Score LiveCodeBench problems by running code against test cases.
@@ -256,6 +251,5 @@ class LiveCodeBenchScorer(Scorer):
             meta["test_details_truncated"] = True
 
         return is_correct, meta
-
 
 __all__ = ["LiveCodeBenchScorer"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/intelligence/sft_trainer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,12 +15,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from vectorcode.src.oj_core.config import SFTConfig
-from vectorcode.src.oj_core.registry import LearningRegistry
+from vectorcode.src.vc_core.config import SFTConfig
+from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._stubs import IntelligenceLearningPolicy
 
 logger = logging.getLogger(__name__)
-
 
 class SFTTrainer:
     """General-purpose supervised fine-tuning trainer.
@@ -83,7 +81,7 @@ class SFTTrainer:
 
     def _mine_pairs(self, trace_store: Any) -> List[Dict[str, Any]]:
         """Extract SFT pairs from the trace store using TrainingDataMiner."""
-        from vector.learning.training.data import TrainingDataMiner
+        from vectorcode.src.learning.training.data import TrainingDataMiner
 
         miner = TrainingDataMiner(trace_store, min_quality=0.7)
         agent_filter = self.config.agent_filter or None
@@ -92,7 +90,7 @@ class SFTTrainer:
     def _train_lora(self, pairs: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Train using LoRA via the existing LoRATrainer."""
         try:
-            from vector.learning.training.lora import (
+            from vectorcode.src.learning.training.lora import (
                 HAS_TORCH,
                 LoRATrainer,
                 LoRATrainingConfig,
@@ -134,7 +132,6 @@ class SFTTrainer:
             "reason": "full fine-tuning not yet implemented; set use_lora=true",
         }
 
-
 @LearningRegistry.register("sft")
 class _SFTLearningPolicy(IntelligenceLearningPolicy):
     """Wrapper to register SFTTrainer in the LearningRegistry."""
@@ -143,11 +140,10 @@ class _SFTLearningPolicy(IntelligenceLearningPolicy):
         pass
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
-        from vector.core.config import SFTConfig
+        from vectorcode.src.vc_core.config import SFTConfig
 
         config = SFTConfig()
         trainer = SFTTrainer(config)
         return trainer.train(trace_store)
-
 
 __all__ = ["SFTTrainer"]

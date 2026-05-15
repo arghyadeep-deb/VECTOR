@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/liveresearchbench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -28,7 +27,6 @@ LOGGER = logging.getLogger(__name__)
 
 # Tasks with coverage >= PASS_THRESHOLD are marked as correct
 PASS_THRESHOLD = 0.5
-
 
 def _build_judge_prompt(
     *,
@@ -68,7 +66,6 @@ Return your evaluation as JSON with this exact structure:
 
 Return one judgment per checklist item, indexed in the same order as above.
 Be rigorous: `covered: true` only if the report genuinely satisfies the item."""
-
 
 def _parse_judge_response(raw: str, num_items: int) -> List[Dict[str, Any]]:
     """Extract per-item judgments from the judge's raw response.
@@ -157,7 +154,6 @@ def _parse_judge_response(raw: str, num_items: int) -> List[Dict[str, Any]]:
         for i in range(num_items)
     ]
 
-
 class LiveResearchBenchScorer(LLMJudgeScorer):
     """Checklist-based LLM-as-judge scorer for LiveResearchBench.
 
@@ -229,6 +225,5 @@ class LiveResearchBenchScorer(LLMJudgeScorer):
             "raw_judge_output": raw,
         }
         return is_correct, metadata
-
 
 __all__ = ["LiveResearchBenchScorer"]

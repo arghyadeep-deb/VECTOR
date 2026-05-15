@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """API key authentication middleware for the VECTOR server."""
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """Validates ``Authorization: Bearer <key>`` on ``/v1/*`` and ``/api/*`` routes.
@@ -46,12 +44,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """Only protect API routes, not the frontend UI or static assets."""
         return path.startswith("/v1/") or path.startswith("/api/")
 
-
-
 def generate_api_key() -> str:
     """Generate a new API key with ``oj_sk_`` prefix."""
     return f"oj_sk_{secrets.token_urlsafe(32)}"
-
 
 def check_bind_safety(host: str, *, api_key: str) -> None:
     """Refuse to bind non-loopback without an API key.

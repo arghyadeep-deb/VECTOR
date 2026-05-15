@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis digest`` -- display and play the morning digest."""
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ from rich.markdown import Markdown
 
 from vectorcode.src.agents.digest_store import DigestStore
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_PATH, load_config
-
 
 def _play_audio(audio_path: str) -> None:
     """Play audio file in background using available system player."""
@@ -30,7 +28,6 @@ def _play_audio(audio_path: str) -> None:
             return
         except (FileNotFoundError, subprocess.CalledProcessError):
             continue
-
 
 def _save_digest_schedule(enabled: bool, cron: str) -> None:
     """Persist digest schedule to config.toml."""
@@ -81,7 +78,6 @@ def _save_digest_schedule(enabled: bool, cron: str) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text("\n".join(new_lines))
 
-
 def _create_scheduler_task(cron: str) -> Optional[str]:
     """Create a digest task in the TaskScheduler. Returns task ID or None."""
     try:
@@ -108,7 +104,6 @@ def _create_scheduler_task(cron: str) -> Optional[str]:
     except Exception:
         return None
 
-
 def _cancel_scheduler_tasks() -> int:
     """Cancel all active digest tasks. Returns count cancelled."""
     try:
@@ -127,7 +122,6 @@ def _cancel_scheduler_tasks() -> int:
         return count
     except Exception:
         return 0
-
 
 @click.command("digest", help="Display and play the morning digest.")
 @click.option("--text-only", is_flag=True, help="Print text without audio playback.")
@@ -228,7 +222,6 @@ def digest(
 
     console.print(Markdown(text))
     store.close()
-
 
 def _handle_schedule(console: Console, schedule: str) -> None:
     """Handle the --schedule option logic."""

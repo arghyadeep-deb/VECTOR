@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/knowledge_base.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -29,7 +28,7 @@ Provide a concise, accurate answer based solely on the documents above."""
 
 _RECORDS = [
     {
-        "documents": "VectorCode Architecture Guide (v2.9):\nOpenJarvis is organized around five composable primitives: Intelligence, Engine, Agents, Tools, and Learning. The Intelligence primitive handles model definition and catalog management via ModelRegistry. The Engine primitive provides inference through backends including Ollama, vLLM, SGLang, llama.cpp, MLX, and LM Studio. All engines implement the InferenceEngine ABC with generate(), stream(), list_models(), and health() methods.",
+        "documents": "VectorCode Architecture Guide (v2.9):\nVectorCode is organized around five composable primitives: Intelligence, Engine, Agents, Tools, and Learning. The Intelligence primitive handles model definition and catalog management via ModelRegistry. The Engine primitive provides inference through backends including Ollama, vLLM, SGLang, llama.cpp, MLX, and LM Studio. All engines implement the InferenceEngine ABC with generate(), stream(), list_models(), and health() methods.",
         "question": "What are the five primitives of VectorCode and what does the Engine primitive provide?",
         "answer": "The five primitives are Intelligence, Engine, Agents, Tools, and Learning. The Engine primitive provides inference through backends including Ollama, vLLM, SGLang, llama.cpp, MLX, and LM Studio.",
     },
@@ -39,12 +38,12 @@ _RECORDS = [
         "answer": "SQLite/FTS5 is the default memory backend. The Hybrid backend uses Reciprocal Rank Fusion (RRF) to combine results from multiple backends.",
     },
     {
-        "documents": "Security Architecture Document:\nOpenJarvis implements a multi-layer security approach. SecretScanner and PIIScanner implement the BaseScanner ABC. GuardrailsEngine wraps inference engines with input/output scanning supporting WARN, REDACT, and BLOCK modes. The AuditLogger uses a Merkle hash chain with SHA-256 for tamper evidence. CapabilityPolicy provides RBAC with 10 capabilities and glob matching, enforced in ToolExecutor.",
+        "documents": "Security Architecture Document:\nVectorCode implements a multi-layer security approach. SecretScanner and PIIScanner implement the BaseScanner ABC. GuardrailsEngine wraps inference engines with input/output scanning supporting WARN, REDACT, and BLOCK modes. The AuditLogger uses a Merkle hash chain with SHA-256 for tamper evidence. CapabilityPolicy provides RBAC with 10 capabilities and glob matching, enforced in ToolExecutor.",
         "question": "How does the AuditLogger ensure tamper evidence?",
         "answer": "The AuditLogger uses a Merkle hash chain with SHA-256 for tamper evidence.",
     },
     {
-        "documents": "Agent System Documentation:\nOpenJarvis agents follow a hierarchy: BaseAgent ABC provides helpers for turn management and message building. ToolUsingAgent extends BaseAgent with tool dispatch via ToolExecutor. SimpleAgent handles single-turn queries. OrchestratorAgent manages multi-turn tool loops. NativeReActAgent implements Thought-Action-Observation patterns. The LoopGuard system prevents infinite loops via SHA-256 hash tracking and ping-pong detection.",
+        "documents": "Agent System Documentation:\nVectorCode agents follow a hierarchy: BaseAgent ABC provides helpers for turn management and message building. ToolUsingAgent extends BaseAgent with tool dispatch via ToolExecutor. SimpleAgent handles single-turn queries. OrchestratorAgent manages multi-turn tool loops. NativeReActAgent implements Thought-Action-Observation patterns. The LoopGuard system prevents infinite loops via SHA-256 hash tracking and ping-pong detection.",
         "question": "What is the agent hierarchy and how are infinite loops prevented?",
         "answer": "The hierarchy is BaseAgent -> ToolUsingAgent -> specific agents (SimpleAgent, OrchestratorAgent, NativeReActAgent, etc.). Infinite loops are prevented by the LoopGuard system which uses SHA-256 hash tracking and ping-pong detection.",
     },
@@ -54,7 +53,7 @@ _RECORDS = [
         "answer": "The available energy monitoring backends are NvidiaEnergyMonitor (hardware counters/polling), AmdEnergyMonitor (amdsmi), AppleEnergyMonitor (zeus-ml), and RaplEnergyMonitor (sysfs). The Apple backend uses the zeus-ml library.",
     },
     {
-        "documents": "Configuration Reference:\nOpenJarvis uses TOML configuration with primitive-aligned sections. The config file is located at ~/.vector/config.toml. Key sections include [engine] with nested per-backend configs (e.g., [engine.ollama], [engine.vllm]), [intelligence] for model defaults, [agent] for agent configuration, [tools.storage] for memory backend settings, [learning] with nested routing/intelligence/agent/metrics sub-policies, and [security] with capabilities and rate limiting.",
+        "documents": "Configuration Reference:\nVectorCode uses TOML configuration with primitive-aligned sections. The config file is located at ~/.vector/config.toml. Key sections include [engine] with nested per-backend configs (e.g., [engine.ollama], [engine.vllm]), [intelligence] for model defaults, [agent] for agent configuration, [tools.storage] for memory backend settings, [learning] with nested routing/intelligence/agent/metrics sub-policies, and [security] with capabilities and rate limiting.",
         "question": "Where is the config file located and what format does it use?",
         "answer": "The config file is located at ~/.vector/config.toml and uses TOML format.",
     },
@@ -69,22 +68,22 @@ _RECORDS = [
         "answer": "MCPToolAdapter wraps external MCP tools as native BaseTool instances, and MCPToolProvider discovers tools from MCP servers.",
     },
     {
-        "documents": "Workflow Engine Documentation:\nThe workflow engine uses DAG-based WorkflowGraph with cycle detection and topological sort. Parallel stages execute via ThreadPoolExecutor. WorkflowBuilder provides a fluent API for graph construction. WorkflowEngine executes workflows against a JarvisSystem instance. Workflows can be defined in TOML files. Supported node types: agent, tool, condition, parallel, loop, and transform.",
+        "documents": "Workflow Engine Documentation:\nThe workflow engine uses DAG-based WorkflowGraph with cycle detection and topological sort. Parallel stages execute via ThreadPoolExecutor. WorkflowBuilder provides a fluent API for graph construction. WorkflowEngine executes workflows against a VectorSystem instance. Workflows can be defined in TOML files. Supported node types: agent, tool, condition, parallel, loop, and transform.",
         "question": "What node types does the workflow engine support and how are parallel stages executed?",
         "answer": "The workflow engine supports agent, tool, condition, parallel, loop, and transform node types. Parallel stages are executed via ThreadPoolExecutor.",
     },
     {
-        "documents": "Speech Subsystem Technical Reference:\nOpenJarvis supports speech-to-text with pluggable backends. SpeechBackend ABC defines transcribe(), health(), and supported_formats() methods. Three backends are available: FasterWhisperBackend (local, CTranslate2, key 'faster-whisper'), OpenAIWhisperBackend (cloud, whisper-1, key 'openai'), and DeepgramSpeechBackend (cloud, nova-2, key 'deepgram'). Auto-discovery prioritizes local backends.",
+        "documents": "Speech Subsystem Technical Reference:\nVectorCode supports speech-to-text with pluggable backends. SpeechBackend ABC defines transcribe(), health(), and supported_formats() methods. Three backends are available: FasterWhisperBackend (local, CTranslate2, key 'faster-whisper'), OpenAIWhisperBackend (cloud, whisper-1, key 'openai'), and DeepgramSpeechBackend (cloud, nova-2, key 'deepgram'). Auto-discovery prioritizes local backends.",
         "question": "What speech backends are available and which models do the cloud backends use?",
         "answer": "Three backends are available: FasterWhisperBackend (local), OpenAIWhisperBackend (cloud, using whisper-1), and DeepgramSpeechBackend (cloud, using nova-2). Auto-discovery prioritizes local backends.",
     },
     {
-        "documents": "Sandbox System Guide:\nOpenJarvis provides two sandbox options. ContainerRunner manages Docker/Podman container lifecycle with mount validation. WasmRunner uses wasmtime-py with fuel and memory limits. SandboxedAgent is a transparent wrapper that routes agent execution through either sandbox. MountAllowlist prevents path traversal attacks. The create_sandbox_runner() factory selects the appropriate runner.",
+        "documents": "Sandbox System Guide:\nVectorCode provides two sandbox options. ContainerRunner manages Docker/Podman container lifecycle with mount validation. WasmRunner uses wasmtime-py with fuel and memory limits. SandboxedAgent is a transparent wrapper that routes agent execution through either sandbox. MountAllowlist prevents path traversal attacks. The create_sandbox_runner() factory selects the appropriate runner.",
         "question": "What are the two sandbox options and what prevents path traversal attacks?",
         "answer": "The two sandbox options are ContainerRunner (Docker/Podman) and WasmRunner (wasmtime-py). MountAllowlist prevents path traversal attacks.",
     },
     {
-        "documents": "Channel System Architecture:\nOpenJarvis supports multi-platform messaging via the BaseChannel ABC. Available channels include WhatsAppBaileysChannel, LINEChannel, ViberChannel, MessengerChannel, RedditChannel, MastodonChannel, XMPPChannel, RocketChatChannel, ZulipChannel, TwitchChannel, and NostrChannel. All channels use @ChannelRegistry.register() for discovery and integrate with the EventBus.",
+        "documents": "Channel System Architecture:\nVectorCode supports multi-platform messaging via the BaseChannel ABC. Available channels include WhatsAppBaileysChannel, LINEChannel, ViberChannel, MessengerChannel, RedditChannel, MastodonChannel, XMPPChannel, RocketChatChannel, ZulipChannel, TwitchChannel, and NostrChannel. All channels use @ChannelRegistry.register() for discovery and integrate with the EventBus.",
         "question": "How many messaging channels does VectorCode support and how are they discovered?",
         "answer": "VectorCode supports 11 messaging channels. They are discovered via the @ChannelRegistry.register() decorator.",
     },
@@ -129,12 +128,12 @@ _RECORDS = [
         "answer": "Built-in recipes are coding_assistant, research_assistant, and general_assistant. Operator recipe cycle times: researcher (4h), correspondent (5min), sentinel (2h).",
     },
     {
-        "documents": "A2A Protocol Implementation:\nOpenJarvis implements the Google Agent-to-Agent spec using JSON-RPC 2.0. A2AServer supports tasks/send, tasks/get, and tasks/cancel operations. Agent discovery is available at /.well-known/agent.json. A2AClient enables calling external A2A agents. A2AAgentTool adapts A2A agents as tool-callable resources.",
+        "documents": "A2A Protocol Implementation:\nVectorCode implements the Google Agent-to-Agent spec using JSON-RPC 2.0. A2AServer supports tasks/send, tasks/get, and tasks/cancel operations. Agent discovery is available at /.well-known/agent.json. A2AClient enables calling external A2A agents. A2AAgentTool adapts A2A agents as tool-callable resources.",
         "question": "What protocol does A2A use and how are agents discovered?",
         "answer": "A2A uses JSON-RPC 2.0. Agents are discovered via /.well-known/agent.json.",
     },
     {
-        "documents": "Deployment Guide:\nOpenJarvis provides three Docker variants: Dockerfile (Python 3.12-slim for CPU), Dockerfile.gpu (NVIDIA CUDA 12.4), and Dockerfile.gpu.rocm (AMD ROCm 7.2). The docker-compose.yml runs two services: vector on port 8000 and ollama on port 11434. SystemD and launchd service files are also provided for system-level deployment.",
+        "documents": "Deployment Guide:\nVectorCode provides three Docker variants: Dockerfile (Python 3.12-slim for CPU), Dockerfile.gpu (NVIDIA CUDA 12.4), and Dockerfile.gpu.rocm (AMD ROCm 7.2). The docker-compose.yml runs two services: vector on port 8000 and ollama on port 11434. SystemD and launchd service files are also provided for system-level deployment.",
         "question": "What Docker variants are available and what ports do the services use?",
         "answer": "Three Docker variants: CPU (Python 3.12-slim), NVIDIA (CUDA 12.4), and AMD (ROCm 7.2). VECTOR runs on port 8000 and Ollama on port 11434.",
     },
@@ -149,7 +148,7 @@ _RECORDS = [
         "answer": "Cloud spending was $8,120/month. After migration to local inference: $0/month in API fees plus approximately $15/month in electricity for a consumer GPU.",
     },
     {
-        "documents": "Hardware Detection System:\nOpenJarvis auto-detects GPU vendor, model, and VRAM using platform-specific tools: nvidia-smi for NVIDIA GPUs, rocm-smi for AMD GPUs, system_profiler for Apple Silicon, and /proc/cpuinfo for CPU features. Based on detection, it recommends the appropriate inference engine (vLLM for NVIDIA, MLX for Apple, llama.cpp for CPU-only).",
+        "documents": "Hardware Detection System:\nVectorCode auto-detects GPU vendor, model, and VRAM using platform-specific tools: nvidia-smi for NVIDIA GPUs, rocm-smi for AMD GPUs, system_profiler for Apple Silicon, and /proc/cpuinfo for CPU features. Based on detection, it recommends the appropriate inference engine (vLLM for NVIDIA, MLX for Apple, llama.cpp for CPU-only).",
         "question": "How does VectorCode detect hardware and what engine is recommended for Apple Silicon?",
         "answer": "VectorCode detects hardware using nvidia-smi, rocm-smi, system_profiler, and /proc/cpuinfo. MLX is recommended for Apple Silicon.",
     },
@@ -174,12 +173,11 @@ _RECORDS = [
         "answer": "8 MCP server templates are available. Configuration is saved to ~/.vector/mcp/.",
     },
     {
-        "documents": "Composition Layer Documentation:\nSystemBuilder provides a fluent builder pattern that produces JarvisSystem instances. The builder wires together engine, model, agent, tools, telemetry, traces, workflow, sessions, and capability policy. JarvisSystem exposes ask() for queries and close() for resource cleanup. The SDK (VECTOR class) wraps SystemBuilder with a simplified sync API.",
-        "question": "What is the relationship between SystemBuilder, JarvisSystem, and the VECTOR SDK class?",
-        "answer": "SystemBuilder is a fluent builder that produces JarvisSystem instances. The VECTOR SDK class wraps SystemBuilder with a simplified synchronous API.",
+        "documents": "Composition Layer Documentation:\nSystemBuilder provides a fluent builder pattern that produces VectorSystem instances. The builder wires together engine, model, agent, tools, telemetry, traces, workflow, sessions, and capability policy. VectorSystem exposes ask() for queries and close() for resource cleanup. The SDK (VECTOR class) wraps SystemBuilder with a simplified sync API.",
+        "question": "What is the relationship between SystemBuilder, VectorSystem, and the VECTOR SDK class?",
+        "answer": "SystemBuilder is a fluent builder that produces VectorSystem instances. The VECTOR SDK class wraps SystemBuilder with a simplified synchronous API.",
     },
 ]
-
 
 class KnowledgeBaseDataset(DatasetProvider):
     """Knowledge base benchmark: document-grounded retrieval and QA."""
@@ -228,6 +226,5 @@ class KnowledgeBaseDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["KnowledgeBaseDataset"]

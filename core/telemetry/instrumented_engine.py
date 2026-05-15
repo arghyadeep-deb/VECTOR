@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/instrumented_engine.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,15 +12,14 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any, Dict, List, Optional, Sequence
 
-from vectorcode.src.oj_core.events import EventBus, EventType
-from vectorcode.src.oj_core.types import Message, TelemetryRecord
-from vectorcode.src.oj_engine._stubs import InferenceEngine, StreamChunk
+from vectorcode.src.vc_core.events import EventBus, EventType
+from vectorcode.src.vc_core.types import Message, TelemetryRecord
+from vectorcode.src.vc_engine._stubs import InferenceEngine, StreamChunk
 from core.telemetry.gpu_monitor import GpuSample
 
 # ---------------------------------------------------------------------------
 # ITL helpers
 # ---------------------------------------------------------------------------
-
 
 def _percentile(data: list[float], p: float) -> float:
     """Compute the p-th percentile using linear interpolation."""
@@ -32,7 +30,6 @@ def _percentile(data: list[float], p: float) -> float:
     if c >= len(sorted_data):
         return sorted_data[-1]
     return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
-
 
 def _compute_itl_stats(itl_values_ms: list[float]) -> dict:
     """Compute ITL summary statistics from a list of inter-token latencies in ms."""
@@ -53,7 +50,6 @@ def _compute_itl_stats(itl_values_ms: list[float]) -> dict:
         "p99": _percentile(itl_values_ms, 0.99),
         "std": statistics.stdev(itl_values_ms) if len(itl_values_ms) > 1 else 0.0,
     }
-
 
 class InstrumentedEngine(InferenceEngine):
     """Transparent wrapper that records telemetry around engine calls.
@@ -506,6 +502,5 @@ class InstrumentedEngine(InferenceEngine):
 
     def close(self) -> None:
         self._inner.close()
-
 
 __all__ = ["InstrumentedEngine", "_compute_itl_stats", "_percentile"]

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Comparison page -- static cost comparison of local vs cloud inference."""
 
 from __future__ import annotations
@@ -282,7 +281,7 @@ COMPARISON_HTML = """\
     <div class="cta-sub">Install VECTOR and run AI locally
       with zero API costs.</div>
     <div class="code-block">
-      <code>git clone https://github.com/open-jarvis/VECTOR.git
+      <code>git clone https://github.com/vector/VECTOR.git
 && cd VECTOR && uv sync</code>
       <button class="copy-btn" id="copy-btn">Copy</button>
     </div>
@@ -425,7 +424,7 @@ tpcSlider.addEventListener('input', updateCalc);
 
 // -- Copy button --
 document.getElementById('copy-btn').addEventListener('click', () => {
-  const cmd = 'git clone https://github.com/open-jarvis/'
+  const cmd = 'git clone https://github.com/vector/'
     + 'VECTOR.git && cd VECTOR && uv sync';
   navigator.clipboard.writeText(cmd).then(() => {
     const btn = document.getElementById('copy-btn');
@@ -442,11 +441,9 @@ updateCalc();
 </html>
 """
 
-
 @comparison_router.get("/comparison", response_class=HTMLResponse)
 async def comparison():
     """Serve the cost comparison page."""
     return HTMLResponse(content=COMPARISON_HTML)
-
 
 __all__ = ["comparison_router"]

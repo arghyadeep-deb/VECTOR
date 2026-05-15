@@ -9,6 +9,19 @@ const RINGS = [
   { rx: 150, ry: 50, tilt: -5, speed: -0.35, opacity: 0.15 },
 ]
 
+const CX = 400, CY = 200
+
+// Orbiting agent particles: 3 rings, 3/4/5 dots each
+const PARTICLE_RINGS = [
+  { rx: 345, ry: 115, count: 3, dur: 18, tilt: 8 },
+  { rx: 275, ry: 85,  count: 4, dur: 14, tilt: -12 },
+  { rx: 195, ry: 58,  count: 5, dur: 10, tilt: 20 },
+]
+
+function ellipsePath(cx: number, cy: number, rx: number, ry: number): string {
+  return `M ${cx - rx},${cy} A ${rx},${ry} 0 1,1 ${cx + rx},${cy} A ${rx},${ry} 0 1,1 ${cx - rx},${cy}`
+}
+
 export default function CentralHologram() {
   const svgRef = useRef<SVGSVGElement>(null)
   const anglesRef = useRef(RINGS.map(() => 0))
@@ -48,29 +61,45 @@ export default function CentralHologram() {
     >
       {RINGS.map((ring, i) => (
         <ellipse
-          key={i}
-          cx="400" cy="200"
+          key={`ring-${i}`}
+          cx={CX} cy={CY}
           rx={ring.rx} ry={ring.ry}
           fill="none"
-          stroke="var(--theme-accent, #00d4ff)"
+          stroke="var(--theme-accent, #4FC3F7)"
           strokeWidth="0.8"
           strokeDasharray="4 8"
           opacity={ring.opacity}
           style={{
             transform: `rotateX(${ring.tilt}deg)`,
-            transformOrigin: '400px 200px',
-            filter: `drop-shadow(0 0 4px var(--theme-accent, #00d4ff))`,
+            transformOrigin: `${CX}px ${CY}px`,
+            filter: `drop-shadow(0 0 4px var(--theme-accent, #4FC3F7))`,
             transition: 'stroke 0.8s ease',
           }}
         />
       ))}
       {/* Outer glow ring */}
       <ellipse
-        cx="400" cy="200" rx="360" ry="120"
-        fill="none" stroke="var(--theme-accent, #00d4ff)"
+        cx={CX} cy={CY} rx="360" ry="120"
+        fill="none" stroke="var(--theme-accent, #4FC3F7)"
         strokeWidth="0.3" opacity="0.06"
-        style={{ transform: 'rotateX(5deg)', transformOrigin: '400px 200px' }}
+        style={{ transform: 'rotateX(5deg)', transformOrigin: `${CX}px ${CY}px` }}
       />
+
+      {/* Orbiting agent particles — 12 dots on 3 rings */}
+      {PARTICLE_RINGS.map((pr) => (
+        <g key={`pr-${pr.rx}`} style={{ transform: `rotateX(${pr.tilt}deg)`, transformOrigin: `${CX}px ${CY}px` }}>
+          {Array.from({ length: pr.count }).map((_, j) => (
+            <circle key={`p-${pr.rx}-${j}`} r="2" fill="#4FC3F7" opacity="0.6">
+              <animateMotion
+                dur={`${pr.dur}s`}
+                repeatCount="indefinite"
+                path={ellipsePath(CX, CY, pr.rx, pr.ry)}
+                begin={`-${(j / pr.count) * pr.dur}s`}
+              />
+            </circle>
+          ))}
+        </g>
+      ))}
     </svg>
   )
 }

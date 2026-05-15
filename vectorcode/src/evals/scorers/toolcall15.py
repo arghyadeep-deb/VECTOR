@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/toolcall15.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -25,7 +24,6 @@ from vectorcode.src.evals.core.scorer import LLMJudgeScorer
 from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
-
 
 def _extract_tool_calls(
     record: EvalRecord,
@@ -56,7 +54,7 @@ def _extract_tool_calls(
         if tool_calls:
             return tool_calls
 
-    # Try tool_results list (from JarvisAgentBackend)
+    # Try tool_results list (from VectorAgentBackend)
     tool_results = record.metadata.get("tool_results", [])
     for tr in tool_results:
         tool_calls.append(
@@ -110,16 +108,13 @@ def _extract_tool_calls(
 
     return tool_calls
 
-
 def _tools_called(tool_calls: List[Dict[str, Any]], name: str) -> List[Dict[str, Any]]:
     """Filter tool calls by tool name (case-insensitive)."""
     return [tc for tc in tool_calls if tc["name"].lower() == name.lower()]
 
-
 def _has_tool(tool_calls: List[Dict[str, Any]], name: str) -> bool:
     """Check if a specific tool was called."""
     return len(_tools_called(tool_calls, name)) > 0
-
 
 def _arg_contains(tc: Dict[str, Any], key: str, substring: str) -> bool:
     """Check if a tool call argument contains a substring (case-insensitive)."""
@@ -128,7 +123,6 @@ def _arg_contains(tc: Dict[str, Any], key: str, substring: str) -> bool:
         return substring.lower() in val.lower()
     return str(val).lower().find(substring.lower()) >= 0
 
-
 def _arg_equals(tc: Dict[str, Any], key: str, value: str) -> bool:
     """Check if a tool call argument equals a value (case-insensitive)."""
     val = tc.get("arguments", {}).get(key, "")
@@ -136,11 +130,9 @@ def _arg_equals(tc: Dict[str, Any], key: str, value: str) -> bool:
         return val.lower() == value.lower()
     return str(val).lower() == value.lower()
 
-
 # ---------------------------------------------------------------------------
 # Per-scenario scoring functions
 # ---------------------------------------------------------------------------
-
 
 def _score_tc01(
     tool_calls: List[Dict[str, Any]],
@@ -160,7 +152,6 @@ def _score_tc01(
         return 1, "PARTIAL: get_weather called but with extra tool calls"
     return 0, "FAIL: did not call get_weather correctly"
 
-
 def _score_tc02(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -178,7 +169,6 @@ def _score_tc02(
     if stock:
         return 1, "PARTIAL: get_stock_price called but extra tools used"
     return 0, "FAIL: did not isolate to get_stock_price"
-
 
 def _score_tc03(
     tool_calls: List[Dict[str, Any]],
@@ -206,7 +196,6 @@ def _score_tc03(
             return 1, "PARTIAL: asked for clarification instead of acting"
     return 0, "FAIL: did not complete contact lookup to email chain"
 
-
 def _score_tc04(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -228,7 +217,6 @@ def _score_tc04(
                 return 1, "PARTIAL: correct tool but manual conversion"
             return 0, "FAIL: ignored fahrenheit instruction"
     return 0, "FAIL: did not call get_weather"
-
 
 def _score_tc05(
     tool_calls: List[Dict[str, Any]],
@@ -265,7 +253,6 @@ def _score_tc05(
         return 1, "PARTIAL: correct date/time but missing duration or attendees"
     return 0, "FAIL: date or time parsing incorrect"
 
-
 def _score_tc06(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -291,7 +278,6 @@ def _score_tc06(
     if has_spanish or has_japanese:
         return 1, "PARTIAL: some translation calls correct but incomplete"
     return 0, "FAIL: translate_text calls missing correct languages"
-
 
 def _score_tc07(
     tool_calls: List[Dict[str, Any]],
@@ -328,7 +314,6 @@ def _score_tc07(
         return 1, f"PARTIAL: {steps_done}/4 steps completed"
     return 0, f"FAIL: only {steps_done}/4 steps completed"
 
-
 def _score_tc08(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -355,7 +340,6 @@ def _score_tc08(
         return 1, "PARTIAL: weather checked but no reminder set"
     return 0, "FAIL: did not follow conditional flow"
 
-
 def _score_tc09(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -377,7 +361,6 @@ def _score_tc09(
         return 1, "PARTIAL: only one of two requests handled"
     return 0, "FAIL: did not handle both requests"
 
-
 def _score_tc10(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -388,7 +371,6 @@ def _score_tc10(
     if not tool_calls:
         return 0, "FAIL: no tool calls but answer missing 1945"
     return 0, "FAIL: unnecessary tool call for trivial knowledge"
-
 
 def _score_tc11(
     tool_calls: List[Dict[str, Any]],
@@ -408,7 +390,6 @@ def _score_tc11(
     if not tool_calls:
         return 0, "FAIL: no tools but answer missing 30"
     return 0, "FAIL: unnecessary tool usage"
-
 
 def _score_tc12(
     tool_calls: List[Dict[str, Any]],
@@ -439,7 +420,6 @@ def _score_tc12(
         return 0, "FAIL: called tools for impossible request"
     return 0, "FAIL: did not refuse clearly"
 
-
 def _score_tc13(
     tool_calls: List[Dict[str, Any]],
     answer: str,
@@ -465,7 +445,6 @@ def _score_tc13(
         if any(phrase in lower for phrase in clarification_phrases):
             return 2, "PASS: single search with clarification request"
     return 0, "FAIL: did not adapt after empty result"
-
 
 def _score_tc14(
     tool_calls: List[Dict[str, Any]],
@@ -496,7 +475,6 @@ def _score_tc14(
     if stock:
         return 1, "PARTIAL: called get_stock_price but unclear error handling"
     return 0, "FAIL: did not handle error with integrity"
-
 
 def _score_tc15(
     tool_calls: List[Dict[str, Any]],
@@ -533,7 +511,6 @@ def _score_tc15(
 
     return 0, "FAIL: did not chain web_search to calculator"
 
-
 # Dispatch table
 _SCORERS = {
     "TC-01": _score_tc01,
@@ -552,7 +529,6 @@ _SCORERS = {
     "TC-14": _score_tc14,
     "TC-15": _score_tc15,
 }
-
 
 class ToolCall15Scorer(LLMJudgeScorer):
     """Deterministic scorer for ToolCall-15 benchmark.
@@ -607,6 +583,5 @@ class ToolCall15Scorer(LLMJudgeScorer):
                 for tc in tool_calls
             ],
         }
-
 
 __all__ = ["ToolCall15Scorer"]

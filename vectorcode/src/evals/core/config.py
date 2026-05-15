@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/config.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -81,10 +80,8 @@ KNOWN_BENCHMARKS = {
     "toolcall15",
 }
 
-
 class EvalConfigError(Exception):
     """Raised for structural issues in eval config files."""
-
 
 def load_eval_config(path: str | Path) -> EvalSuiteConfig:
     """Load and validate an eval suite config from a TOML file.
@@ -243,7 +240,6 @@ def load_eval_config(path: str | Path) -> EvalSuiteConfig:
         backend_external_api_key=backend_external_api_key,
     )
 
-
 def expand_suite(suite: EvalSuiteConfig) -> List[RunConfig]:
     """Expand an EvalSuiteConfig into a list of RunConfigs (models x benchmarks).
 
@@ -337,6 +333,5 @@ def expand_suite(suite: EvalSuiteConfig) -> List[RunConfig]:
             )
 
     return configs
-
 
 __all__ = ["EvalConfigError", "load_eval_config", "expand_suite"]

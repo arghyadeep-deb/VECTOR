@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis registry`` -- registry inspection commands."""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 import click
 from rich.console import Console
 from rich.table import Table
-
 
 def _load_registry_map() -> tuple[dict[str, object], dict[str, object]]:
     """Import all registries and return (by_name, aliases) lookup dicts."""
@@ -62,11 +60,9 @@ def _load_registry_map() -> tuple[dict[str, object], dict[str, object]]:
 
     return by_name, aliases
 
-
 @click.group()
 def registry() -> None:
     """Inspect registered components -- list registries, show entries."""
-
 
 @registry.command("list")
 def list_registries() -> None:
@@ -93,7 +89,6 @@ def list_registries() -> None:
             table.add_row(reg_name, module_path, f"[red]Error: {exc}[/red]")
 
     console.print(table)
-
 
 @registry.command()
 @click.argument("registry_name")
@@ -142,6 +137,5 @@ def show(registry_name: str, verbose: bool) -> None:
 
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 __all__ = ["registry"]

@@ -86,7 +86,7 @@ export default function DailyInfoPanel() {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a6688', letterSpacing: '0.1em' }}>LOCAL TIME</div>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#00d4ff', textShadow: '0 0 10px rgba(0,212,255,0.4)' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#4FC3F7', textShadow: '0 0 10px rgba(0,212,255,0.4)' }}>
                 {ts}
               </div>
             </div>
@@ -116,7 +116,7 @@ export default function DailyInfoPanel() {
                 <div>
                   <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a6688', letterSpacing: '0.1em' }}>WEATHER</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 22, color: '#00d4ff', lineHeight: 1, textShadow: '0 0 15px rgba(0,212,255,0.4)' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 22, color: '#4FC3F7', lineHeight: 1, textShadow: '0 0 15px rgba(0,212,255,0.4)' }}>
                       {Math.round(w.temp_c)}
                     </span>
                     <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 9, color: '#3388aa' }}>°C</span>
@@ -150,7 +150,7 @@ export default function DailyInfoPanel() {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a6688', letterSpacing: '0.08em' }}>🌅 RISE</div>
-                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#FFB300' }}>{data?.sunrise ?? '—'}</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#42A5F5' }}>{data?.sunrise ?? '—'}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 7, color: '#1a6688', letterSpacing: '0.08em' }}>🌇 SET</div>

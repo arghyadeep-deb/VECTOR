@@ -1,6 +1,6 @@
 # Wave 4 — Extensibility Port
 
-**Goal:** Port Hermes plugin system, cron scheduler, ACP protocol adapter, optional skills, and TUI/voice extras. After this, VectorCode supports user-installable plugins, scheduled tasks, ACP interop, and full voice/curses interface.
+**Goal:** Port VectorCode plugin system, cron scheduler, ACP protocol adapter, optional skills, and TUI/voice extras. After this, VectorCode supports user-installable plugins, scheduled tasks, ACP interop, and full voice/curses interface.
 
 **Dependencies:** Wave 0, 2, 3.
 
@@ -13,8 +13,8 @@
 1. `00-MASTER-PLAN.md`
 2. `vectorcode/python/vectorcode/plugins/plugin.py` (existing base)
 3. `vectorcode/python/vectorcode/cli/plugins.py` (Wave 3 ported)
-4. `GitHub/NousResearch_hermes-agent/repo/plugins/__init__.py`
-5. `GitHub/NousResearch_hermes-agent/repo/acp_adapter/server.py`
+4. `GitHub/VectorCode_vectorcode/repo/plugins/__init__.py`
+5. `GitHub/VectorCode_vectorcode/repo/acp_adapter/server.py`
 
 ---
 
@@ -22,15 +22,15 @@
 
 ### Batch 4A — Plugin discovery + isolation (3 files, ~3500 lines)
 
-`hermes_cli/plugins.py` and `plugins_cmd.py` already ported in Wave 3 (CLI surface). This batch adds the runtime loader.
+`vectorcode_cli/plugins.py` and `plugins_cmd.py` already ported in Wave 3 (CLI surface). This batch adds the runtime loader.
 
 | Source | Target | Lines |
 |--------|--------|------:|
 | `plugins/__init__.py` | `plugins/__init__.py` (rewrite) | 30 |
-| `plugins/loader.py` (Hermes) | `plugins/loader.py` (NEW) | ~600 |
-| `plugins/manifest.py` (Hermes) | `plugins/manifest.py` (NEW) | ~400 |
+| `plugins/loader.py` (VectorCode) | `plugins/loader.py` (NEW) | ~600 |
+| `plugins/manifest.py` (VectorCode) | `plugins/manifest.py` (NEW) | ~400 |
 
-Extract `loader.py` and `manifest.py` from `hermes_cli/plugins.py` (1035 lines) by splitting the runtime parts away from the CLI parts.
+Extract `loader.py` and `manifest.py` from `vectorcode_cli/plugins.py` (1035 lines) by splitting the runtime parts away from the CLI parts.
 
 Plugin manifest format (`plugin.toml`):
 
@@ -63,9 +63,9 @@ secrets = ["SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET"]
 
 Sandbox isolates plugins via `importlib` with restricted globals (no `os.system`, no `subprocess.run` unless declared in `permissions.system`).
 
-### Batch 4C — Plugin hub (Hermes plugins/ subdir, 40 files, ~690 KB)
+### Batch 4C — Plugin hub (VectorCode plugins/ subdir, 40 files, ~690 KB)
 
-Copy the entire Hermes `plugins/` tree to `vectorcode/python/vectorcode/plugins/builtin/` as reference plugins:
+Copy the entire VectorCode `plugins/` tree to `vectorcode/python/vectorcode/plugins/builtin/` as reference plugins:
 
 | Source | Target |
 |--------|--------|
@@ -80,8 +80,8 @@ Each becomes a proper plugin package with `plugin.toml` manifest, `__init__.py`,
 | Source | Target | Lines |
 |--------|--------|------:|
 | `cron/__init__.py` | `cron/__init__.py` | 30 |
-| `cron/scheduler.py` (Hermes) | `cron/scheduler.py` | ~1500 |
-| `cron/storage.py` (Hermes) | `cron/storage.py` | ~970 |
+| `cron/scheduler.py` (VectorCode) | `cron/scheduler.py` | ~1500 |
+| `cron/storage.py` (VectorCode) | `cron/storage.py` | ~970 |
 
 Cron jobs stored in SQLite (`~/.vectorcode/cron.db`); scheduler runs in a daemon thread; jobs invoke `vector run` with stored prompt + context.
 
@@ -101,7 +101,7 @@ CLI: `vector cron add "<schedule>" "<prompt>"`, `vector cron list`, `vector cron
 | `acp_adapter/tools.py` | `acp/tools.py` (NEW) | 380 |
 | `acp_adapter/entry.py` | `acp/entry.py` (NEW) | ~150 |
 
-Plus `acp_registry/` (Hermes) → `acp/registry.py` for advertising VectorCode as an ACP-capable agent.
+Plus `acp_registry/` (VectorCode) → `acp/registry.py` for advertising VectorCode as an ACP-capable agent.
 
 ### Batch 4F — Optional skills (18 files, ~324 KB)
 
@@ -117,11 +117,11 @@ These are skills not enabled by default; user enables via `vector skills enable 
 |--------|--------|
 | `skills/` | `skills/builtin/` (copy tree) |
 
-Hermes ships with 27 built-in skills (memory, web search, codebase navigation, etc.). Already partially in `vectorcode/skills/` — merge.
+VectorCode ships with 27 built-in skills (memory, web search, codebase navigation, etc.). Already partially in `vectorcode/skills/` — merge.
 
 ### Batch 4H — Voice mode (already in Wave 3, polish here)
 
-`hermes_cli/voice.py` already ported in Wave 3 Batch 3B13. This batch adds:
+`vectorcode_cli/voice.py` already ported in Wave 3 Batch 3B13. This batch adds:
 
 | Source | Target | Lines |
 |--------|--------|------:|
@@ -183,4 +183,4 @@ After Batch 4E, `vector acp serve --port 8765` exposes the ACP endpoint.
 ## Handoff to Wave 5
 
 - Tag: `git tag absorption-wave-4-complete`
-- Hermes is now 100% absorbed. Wave 5 covers Ruflo TS→Python.
+- VectorCode is now 100% absorbed. Wave 5 covers VectorCode TS→Python.

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/_stubs.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -13,8 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional
 
-from vectorcode.src.oj_tools._stubs import ToolSpec
-
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 @dataclass(slots=True)
 class Attachment:
@@ -25,7 +23,6 @@ class Attachment:
     size_bytes: int
     sha256: str = ""
     content: bytes = field(default=b"", repr=False)
-
 
 @dataclass(slots=True)
 class Document:
@@ -47,7 +44,6 @@ class Document:
     attachments: List[Attachment] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(slots=True)
 class SyncStatus:
     """Progress of a connector's sync operation."""
@@ -58,7 +54,6 @@ class SyncStatus:
     last_sync: Optional[datetime] = None
     cursor: Optional[str] = None
     error: Optional[str] = None
-
 
 class BaseConnector(ABC):
     """Abstract base for data source connectors.

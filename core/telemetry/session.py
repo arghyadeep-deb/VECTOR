@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/session.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -19,10 +18,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Deque, List, Optional
 
 if TYPE_CHECKING:
-    from vector.telemetry.energy_monitor import EnergyMonitor
+    from core.telemetry.energy_monitor import EnergyMonitor
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class TelemetrySample:
@@ -36,7 +34,6 @@ class TelemetrySample:
     gpu_util_pct: float = 0.0
     gpu_temp_c: float = 0.0
     gpu_mem_gb: float = 0.0
-
 
 class _PythonRingBuffer:
     """Pure-Python fallback ring buffer."""
@@ -76,7 +73,6 @@ class _PythonRingBuffer:
 
     def __len__(self) -> int:
         return len(self._data)
-
 
 class TelemetrySession:
     """Background-sampling telemetry session.

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_display.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,7 +20,6 @@ from vectorcode.src.evals.core.display import (
     print_trace_summary,
 )
 from vectorcode.src.evals.core.types import MetricStats, RunSummary
-
 
 def _make_summary(**overrides) -> RunSummary:
     defaults = dict(
@@ -45,7 +43,6 @@ def _make_summary(**overrides) -> RunSummary:
     defaults.update(overrides)
     return RunSummary(**defaults)
 
-
 def _make_stats(mean=10.0) -> MetricStats:
     return MetricStats(
         mean=mean,
@@ -57,7 +54,6 @@ def _make_stats(mean=10.0) -> MetricStats:
         p95=mean * 2.0,
         p99=mean * 2.5,
     )
-
 
 class TestAccuracyPanel:
     def test_renders_without_error(self):
@@ -74,7 +70,6 @@ class TestAccuracyPanel:
         output = console.file.getvalue()
         assert "level_1" in output
 
-
 class TestLatencyTable:
     def test_renders_with_stats(self):
         console = Console(file=StringIO(), force_terminal=True)
@@ -89,7 +84,6 @@ class TestLatencyTable:
         assert "Latency" in output
         assert "Avg" in output
 
-
 class TestEnergyTable:
     def test_renders_ipj_ipw(self):
         console = Console(file=StringIO(), force_terminal=True)
@@ -103,7 +97,6 @@ class TestEnergyTable:
         output = console.file.getvalue()
         assert "IPW" in output
         assert "IPJ" in output
-
 
 class TestTraceSummary:
     def test_renders_step_type_breakdown(self):
@@ -131,7 +124,6 @@ class TestTraceSummary:
         assert "generate" in output
         assert "tool_call" in output
 
-
 class TestCompactTable:
     def test_renders_all_metrics(self):
         console = Console(file=StringIO(), force_terminal=True)
@@ -143,7 +135,6 @@ class TestCompactTable:
         output = console.file.getvalue()
         assert "Latency" in output
         assert "Energy" in output
-
 
 class TestFullResults:
     def test_renders_all_sections(self):

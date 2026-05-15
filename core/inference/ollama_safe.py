@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import time
 from pathlib import Path
 
 from loguru import logger
@@ -37,19 +38,29 @@ _AIRLLM_MODELS = {
 
 # ── Warm pool: models always kept hot in VRAM ───────────────────────────────
 # These are pre-loaded at startup and stay resident via keep_alive.
-# Pick small, high-frequency models so 4 of them fit comfortably.
-# Total VRAM ≈ 1 GB (ambient) + 3 GB (fast) + 5 GB (coder) + 0.3 GB (embed) = ~9.3 GB.
-# Adjust to taste based on your GPU; matches OLLAMA_MAX_LOADED_MODELS=4.
+# Tuned for 12 GB VRAM (RTX 5070 mobile): vector-coder is the high-frequency
+# workhorse for district 4 (coding, reviews, GitBot); nomic-embed-text is hit
+# constantly by the memory layer. Total ~9.6 GB, leaving headroom for the
+# 4th-slot rotating model (council, chairman, fast, etc.) to swap in cleanly.
+#
+# When you upgrade to >24 GB VRAM, expand to:
+#   [ambient, fast, coder, embed, reasoning]
 WARM_POOL: list[str] = [
-    CONFIG["models"]["ambient"],   # vector-ambient — wake-word + ambient classify
-    CONFIG["models"]["fast"],      # vector-fast    — low-latency fallback
-    CONFIG["models"]["coder"],     # vector-coder   — district 4 baseline
+    CONFIG["models"]["coder"],     # vector-coder    — district 4 baseline
     CONFIG["models"]["embed"],     # nomic-embed-text — RAG embeddings
 ]
 
 # Default keep_alive sent on every chat call — keeps models resident even
 # after a long idle window. Set to 30m to match the Ollama daemon env var.
 DEFAULT_KEEP_ALIVE = "30m"
+
+# Absorbed OJ model catalog (supplementary — logs available models)
+try:
+    from vectorcode.src.intelligence import BUILTIN_MODELS, register_builtin_models
+    register_builtin_models()
+    logger.info(f"[VECTOR][ollama_safe] model catalog loaded ({len(BUILTIN_MODELS)} built-in)")
+except Exception:
+    pass
 
 # Internal state
 _warmed: set[str] = set()
@@ -85,17 +96,31 @@ def chat(
 
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
 
+    # Energy-aware path — captures wall time + GPU energy if telemetry is wired.
+    _energy_monitor = _get_energy_monitor()
+    _start = time.time()
     try:
         import ollama
         client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
-        response = client.chat(
-            model=model,
-            messages=messages,
-            keep_alive=keep_alive,
-        )
+        if _energy_monitor is not None:
+            with _energy_monitor.sample() as _energy:
+                response = client.chat(
+                    model=model, messages=messages, keep_alive=keep_alive,
+                )
+            _record_telemetry(model, time.time() - _start, response, _energy)
+        else:
+            response = client.chat(
+                model=model, messages=messages, keep_alive=keep_alive,
+            )
+            _record_telemetry(model, time.time() - _start, response, None)
         return response.get("message", {}).get("content", "")
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} unavailable: {e}")
+        # Multi-backend fallback — try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
+        # if ollama can't serve. This makes VECTOR resilient to a stopped daemon.
+        fallback = _multi_backend_fallback(model, messages, timeout)
+        if fallback:
+            return fallback
         return ""
 
 
@@ -188,6 +213,19 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
     if results:
         ok = sum(1 for v in results.values() if v)
         logger.info(f"[VECTOR][ollama_safe] warm pool: {ok}/{len(results)} ready ({list(results.keys())})")
+
+    # Also surface BUILTIN_MODELS that are locally available but not in WARM_POOL
+    try:
+        if "BUILTIN_MODELS" in dir() and isinstance(BUILTIN_MODELS, dict):
+            available = set()
+            for model_id in BUILTIN_MODELS:
+                if isinstance(model_id, str) and model_id not in targets:
+                    available.add(model_id)
+            if available:
+                logger.info(f"[VECTOR][ollama_safe] catalog models available: {list(available)[:5]}")
+    except Exception:
+        pass
+
     return results
 
 
@@ -202,3 +240,163 @@ if __name__ == "__main__":
     logger.info(f"WARM_POOL: {WARM_POOL}")
     logger.info(f"AirLLM models: {_AIRLLM_MODELS}")
     logger.info(f"Default keep_alive: {DEFAULT_KEEP_ALIVE}")
+
+
+
+# ── Energy + telemetry helpers ───────────────────────────────────────────────
+
+_energy_monitor_singleton: object | None = None
+_energy_monitor_init = False
+_telemetry_store_singleton: object | None = None
+_telemetry_init = False
+
+
+def _get_energy_monitor():
+    """Lazy singleton — returns the EnergyMonitor or None if telemetry isn't wired.
+
+    Detection runs once. If the telemetry module isn't installed or the GPU
+    can't be probed, returns None and silently skips energy capture.
+    """
+    global _energy_monitor_singleton, _energy_monitor_init
+    if _energy_monitor_init:
+        return _energy_monitor_singleton
+    _energy_monitor_init = True
+    try:
+        from core.telemetry import create_energy_monitor  # type: ignore[attr-defined]
+        _energy_monitor_singleton = create_energy_monitor()
+        if _energy_monitor_singleton is not None:
+            logger.info(
+                f"[VECTOR][ollama_safe] energy monitor active: "
+                f"{_energy_monitor_singleton.vendor()}"
+            )
+    except Exception as exc:
+        logger.debug(f"[VECTOR][ollama_safe] energy monitor unavailable: {exc}")
+        _energy_monitor_singleton = None
+    return _energy_monitor_singleton
+
+
+def _get_telemetry_store():
+    """Lazy singleton TelemetryStore for persistent inference records.
+
+    Stores under <vector_root>/data/telemetry.db so it doesn't conflict with
+    the main vector_memory.db. Schema is auto-migrated by TelemetryStore.
+    """
+    global _telemetry_store_singleton, _telemetry_init
+    if _telemetry_init:
+        return _telemetry_store_singleton
+    _telemetry_init = True
+    try:
+        from core.telemetry import TelemetryStore  # type: ignore[attr-defined]
+        # Build a sane default db path next to the project root
+        db_path = Path(__file__).resolve().parent.parent.parent / "data" / "telemetry.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _telemetry_store_singleton = TelemetryStore(db_path)
+        logger.info(f"[VECTOR][ollama_safe] telemetry store ready at {db_path}")
+    except Exception as exc:
+        logger.debug(f"[VECTOR][ollama_safe] telemetry store unavailable: {exc}")
+        _telemetry_store_singleton = None
+    return _telemetry_store_singleton
+
+
+def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> None:
+    """Best-effort telemetry recording — never raises into the caller.
+
+    Builds a TelemetryRecord dataclass and persists it via TelemetryStore.record().
+    Captures: timestamp, model, latency, tokens, energy_joules, power_watts,
+    gpu_utilization, energy_method, energy_vendor.
+    """
+    try:
+        store = _get_telemetry_store()
+        if store is None:
+            return
+        from vectorcode.src.vc_core.types import TelemetryRecord  # lazy import
+
+        completion_tokens = int((response or {}).get("eval_count", 0) or 0)
+        prompt_tokens = int((response or {}).get("prompt_eval_count", 0) or 0)
+        total_tokens = prompt_tokens + completion_tokens
+
+        # Energy fields default to 0 if monitor not active
+        energy_joules = float(getattr(energy, "energy_joules", 0.0) or 0.0)
+        power_watts = float(getattr(energy, "mean_power_watts", 0.0) or 0.0)
+        gpu_util = float(getattr(energy, "mean_utilization_pct", 0.0) or 0.0)
+        gpu_mem = float(getattr(energy, "mean_memory_used_gb", 0.0) or 0.0)
+        gpu_temp = float(getattr(energy, "mean_temperature_c", 0.0) or 0.0)
+        method = str(getattr(energy, "energy_method", "") or "")
+        vendor = str(getattr(energy, "vendor", "") or "")
+
+        # Derived: tokens per joule (efficiency), energy per output token
+        tok_per_j = (total_tokens / energy_joules) if energy_joules > 0 else 0.0
+        e_per_out = (energy_joules / completion_tokens) if completion_tokens > 0 else 0.0
+        throughput = (completion_tokens / latency_s) if latency_s > 0 else 0.0
+
+        rec = TelemetryRecord(
+            timestamp=time.time(),
+            model_id=model,
+            engine="ollama",
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_seconds=latency_s,
+            energy_joules=energy_joules,
+            power_watts=power_watts,
+            gpu_utilization_pct=gpu_util,
+            gpu_memory_used_gb=gpu_mem,
+            gpu_temperature_c=gpu_temp,
+            throughput_tok_per_sec=throughput,
+            energy_per_output_token_joules=e_per_out,
+            tokens_per_joule=tok_per_j,
+            energy_method=method,
+            energy_vendor=vendor,
+        )
+        store.record(rec)
+    except Exception as exc:
+        logger.debug(f"[VECTOR][telemetry] record failed: {exc}")
+
+
+# ── Multi-backend fallback (LiteLLM / Apple FM / Gemma C++) ──────────────────
+
+
+def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) -> str:
+    """When the local Ollama daemon is unavailable, try alternative engines
+    in order of preference: LiteLLM (OpenAI-compatible) → Apple Foundation
+    Models (macOS Sonoma+) → Gemma C++ binary.
+
+    Returns empty string if no fallback succeeds.
+    """
+    # Try LiteLLM
+    try:
+        from vectorcode.src.vc_engine.litellm import LiteLLMEngine  # type: ignore
+        engine = LiteLLMEngine()
+        result = engine.generate(messages, model=model, max_tokens=2048)
+        text = (result or {}).get("content") or (result or {}).get("text", "")
+        if text:
+            logger.info(f"[VECTOR][ollama_safe] fallback: litellm -> {model}")
+            return text
+    except Exception as exc:
+        logger.debug(f"[VECTOR][ollama_safe] litellm fallback unavailable: {exc}")
+
+    # Try Apple Foundation Models (macOS Sonoma+ only)
+    try:
+        from vectorcode.src.vc_engine.apple_fm_shim import AppleFMEngine  # type: ignore
+        engine = AppleFMEngine()
+        result = engine.generate(messages, model=model, max_tokens=2048)
+        text = (result or {}).get("content") or (result or {}).get("text", "")
+        if text:
+            logger.info(f"[VECTOR][ollama_safe] fallback: apple_fm -> {model}")
+            return text
+    except Exception as exc:
+        logger.debug(f"[VECTOR][ollama_safe] apple_fm fallback unavailable: {exc}")
+
+    # Try Gemma C++ (very small footprint)
+    try:
+        from vectorcode.src.vc_engine.gemma_cpp import GemmaCppEngine  # type: ignore
+        engine = GemmaCppEngine()
+        result = engine.generate(messages, model=model, max_tokens=2048)
+        text = (result or {}).get("content") or (result or {}).get("text", "")
+        if text:
+            logger.info(f"[VECTOR][ollama_safe] fallback: gemma_cpp -> {model}")
+            return text
+    except Exception as exc:
+        logger.debug(f"[VECTOR][ollama_safe] gemma_cpp fallback unavailable: {exc}")
+
+    return ""

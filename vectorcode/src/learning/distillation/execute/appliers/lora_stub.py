@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/appliers/lora_stub.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -22,7 +21,6 @@ from vectorcode.src.learning.distillation.execute.base import (
     ValidationResult,
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
-
 
 class LoraStubApplier(EditApplier):
     """Refuses LORA_FINETUNE with a clear v2 message."""

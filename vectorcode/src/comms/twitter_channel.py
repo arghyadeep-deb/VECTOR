@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """TwitterChannel — Twitter/X API v2 adapter using OAuth 1.0a."""
 
 from __future__ import annotations
@@ -27,11 +26,9 @@ logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.twitter.com/2"
 
-
 # ---------------------------------------------------------------------------
 # OAuth 1.0a signing (stdlib only -- no authlib dependency)
 # ---------------------------------------------------------------------------
-
 
 class _OAuth1Auth:
     """Minimal OAuth 1.0a request signer for httpx.
@@ -93,16 +90,13 @@ class _OAuth1Auth:
         request.headers["Authorization"] = auth_header
         return request
 
-
 def _pct(value: str) -> str:
     """Percent-encode per RFC 5849."""
     return urllib.parse.quote(str(value), safe="")
 
-
 # ---------------------------------------------------------------------------
 # Channel implementation
 # ---------------------------------------------------------------------------
-
 
 @ChannelRegistry.register("twitter")
 class TwitterChannel(BaseChannel):
@@ -331,6 +325,5 @@ class TwitterChannel(BaseChannel):
                     "conversation_id": conversation_id,
                 },
             )
-
 
 __all__ = ["TwitterChannel"]

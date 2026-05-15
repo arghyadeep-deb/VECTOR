@@ -1,12 +1,11 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/checkpoint/store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
 
 """Git-backed checkpoint store for distillation config rollback.
 
-A thin wrapper over a local git repository at ``<openjarvis_home>/.git``.
+A thin wrapper over a local git repository at ``<vector_home>/.git``.
 The repo tracks ``config.toml``, ``agents/``, and ``tools/`` so that the
 diff between two commits captures the harness state at any point in time.
 The repo does NOT track ``learning/`` (sessions are append-only artifacts,
@@ -32,17 +31,14 @@ from vectorcode.src.learning.distillation.storage.paths import (
 
 logger = logging.getLogger(__name__)
 
-
 # Files and directories the checkpoint repo tracks.
 _TRACKED_PATHS = ("config.toml", "agents", "tools")
 
 # Marker line in baseline commits so we can detect them on re-init.
 _BASELINE_COMMIT_MESSAGE = "learning: checkpoint baseline"
 
-
 class DirtyWorkingTreeError(RuntimeError):
     """Raised when begin_stage is called on a working tree with uncommitted changes."""
-
 
 @dataclass(frozen=True)
 class StageHandle:
@@ -50,7 +46,6 @@ class StageHandle:
 
     edit_id: str
     pre_stage_sha: str
-
 
 class CheckpointStore:
     """Thin git wrapper for the distillation checkpoint repo.
@@ -60,7 +55,7 @@ class CheckpointStore:
     root :
         The directory that *contains* the checkpoint repo (the repo's
         ``.git`` lives at ``root / ".git"``). For production use this is
-        ``~/.vector/`` (or ``$OPENJARVIS_HOME``); for tests it's a
+        ``~/.vector/`` (or ``$VECTOR_HOME``); for tests it's a
         ``tmp_path`` subdirectory.
     """
 

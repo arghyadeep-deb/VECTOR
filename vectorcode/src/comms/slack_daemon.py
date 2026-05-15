@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Slack Socket Mode daemon — listens for DMs and responds with DeepResearch.
 
 Run as a standalone process or import start_slack_daemon() to spawn
@@ -19,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 _PID_FILE = str(Path.home() / ".vector" / "slack-daemon.pid")
 
-
 def _to_slack_fmt(text: str) -> str:
     """Convert markdown to Slack mrkdwn format."""
     # Headers -> bold
@@ -36,7 +34,6 @@ def _to_slack_fmt(text: str) -> str:
     # Clean whitespace
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
-
 
 def run_slack_daemon(
     bot_token: str,
@@ -133,7 +130,6 @@ def run_slack_daemon(
     logger.info("Slack daemon started, listening for DMs...")
     handler.start()  # Blocks until close()
 
-
 def start_slack_daemon(
     bot_token: str,
     app_token: str,
@@ -163,7 +159,6 @@ def start_slack_daemon(
     )
     return proc.pid
 
-
 def is_running() -> bool:
     """Check if the Slack daemon is running."""
     pid_path = Path(_PID_FILE)
@@ -176,7 +171,6 @@ def is_running() -> bool:
     except (ValueError, ProcessLookupError, PermissionError):
         pid_path.unlink(missing_ok=True)
         return False
-
 
 def stop_daemon() -> bool:
     """Stop the running Slack daemon."""
@@ -191,7 +185,6 @@ def stop_daemon() -> bool:
     except (ValueError, ProcessLookupError, PermissionError):
         pid_path.unlink(missing_ok=True)
         return False
-
 
 if __name__ == "__main__":
     import argparse

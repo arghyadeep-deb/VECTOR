@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/gate/regression.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -19,7 +18,6 @@ from dataclasses import dataclass, field
 
 from vectorcode.src.learning.distillation.models import BenchmarkSnapshot
 
-
 @dataclass
 class RegressionResult:
     """Result of a regression check."""
@@ -27,7 +25,6 @@ class RegressionResult:
     has_regression: bool
     regressed_clusters: dict[str, float] = field(default_factory=dict)
     """Cluster id → negative delta for clusters that regressed beyond threshold."""
-
 
 def regression_check(
     before: BenchmarkSnapshot,

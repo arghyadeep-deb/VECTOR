@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -78,7 +77,6 @@ INSERT OR REPLACE INTO trial_results (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
-
 _MIGRATE_TRIALS = [
     "ALTER TABLE trial_results ADD COLUMN sample_scores TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE trial_results ADD COLUMN "
@@ -91,7 +89,6 @@ _MIGRATE_RUNS = [
     "pareto_frontier_ids TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE optimization_runs ADD COLUMN benchmarks TEXT NOT NULL DEFAULT '[]'",
 ]
-
 
 class OptimizationStore:
     """SQLite-backed storage for optimization runs and trials."""
@@ -322,7 +319,7 @@ class OptimizationStore:
     @staticmethod
     def _json_to_search_space(raw: str) -> SearchSpace:
         """Deserialize a SearchSpace from JSON."""
-        from vector.learning.optimize.types import SearchDimension
+        from vectorcode.src.learning.optimize.types import SearchDimension
 
         data = json.loads(raw)
         dims = []
@@ -509,6 +506,5 @@ class OptimizationStore:
             structured_feedback=structured_feedback,
             per_benchmark=per_benchmark,
         )
-
 
 __all__ = ["OptimizationStore"]

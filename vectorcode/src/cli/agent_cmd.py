@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis agents`` -- persistent agent lifecycle management."""
 
 from __future__ import annotations
@@ -9,7 +8,6 @@ from typing import Optional
 import click
 from rich.console import Console
 from rich.table import Table
-
 
 def _get_manager():
     """Get or create the AgentManager singleton."""
@@ -23,7 +21,6 @@ def _get_manager():
         Path("~/.vector/agents.db").expanduser()
     )
     return AgentManager(db_path=db_path)
-
 
 def _resolve_agent_id(manager, agent_id_or_name: str) -> str:
     """Resolve an agent name or ID to the actual agent ID.
@@ -44,11 +41,9 @@ def _resolve_agent_id(manager, agent_id_or_name: str) -> str:
     click.echo(f"Agent not found: {agent_id_or_name}", err=True)
     raise SystemExit(1)
 
-
 @click.group("agents")
 def agent() -> None:
     """Manage persistent agents -- create, inspect, chat, bind channels."""
-
 
 @agent.command("list")
 def list_agents() -> None:
@@ -91,7 +86,6 @@ def list_agents() -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("create")
 @click.option("--name", "-n", required=True, help="Agent name")
 @click.option("--template", "-t", default=None, help="Template ID to use")
@@ -110,7 +104,6 @@ def create_agent(name: str, template: Optional[str], agent_type: str) -> None:
         )
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 @agent.command("info")
 @click.argument("agent_id")
@@ -141,7 +134,6 @@ def info(agent_id: str) -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("tasks")
 @click.argument("agent_id")
 def tasks(agent_id: str) -> None:
@@ -163,7 +155,6 @@ def tasks(agent_id: str) -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("pause")
 @click.argument("agent_id")
 def pause(agent_id: str) -> None:
@@ -175,7 +166,6 @@ def pause(agent_id: str) -> None:
         console.print(f"[yellow]Paused agent {agent_id}[/yellow]")
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 @agent.command("resume")
 @click.argument("agent_id")
@@ -189,7 +179,6 @@ def resume(agent_id: str) -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("delete")
 @click.argument("agent_id")
 def delete(agent_id: str) -> None:
@@ -201,7 +190,6 @@ def delete(agent_id: str) -> None:
         console.print(f"[dim]Archived agent {agent_id}[/dim]")
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 @agent.command("bind")
 @click.argument("agent_id")
@@ -233,7 +221,6 @@ def bind(
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("channels")
 @click.argument("agent_id")
 def channels(agent_id: str) -> None:
@@ -257,7 +244,6 @@ def channels(agent_id: str) -> None:
         console.print(table)
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
-
 
 @agent.command("search")
 @click.argument("agent_id")
@@ -291,7 +277,6 @@ def search(agent_id: str, query: str, limit: int) -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 @agent.command("templates")
 def templates() -> None:
     """List available agent templates."""
@@ -319,7 +304,6 @@ def templates() -> None:
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/red]")
 
-
 def _get_system():
     """Build a VectorSystem for CLI commands that need scheduler/executor."""
     from vectorcode.src.system import SystemBuilder
@@ -330,13 +314,11 @@ def _get_system():
         click.echo(f"Error: {exc}", err=True)
         raise SystemExit(1)
 
-
 def _get_scheduler_and_executor(system=None):
     """Get scheduler + executor from a VectorSystem instance."""
     if system is None:
         system = _get_system()
     return system.agent_scheduler, system.agent_executor, system
-
 
 @agent.command()
 def launch():
@@ -388,7 +370,6 @@ def launch():
         )
     click.echo(f'\nAgent "{agent_data["name"]}" created (ID: {agent_data["id"]})')
 
-
 @agent.command("start")
 @click.argument("agent_id")
 def start_agent(agent_id):
@@ -405,7 +386,6 @@ def start_agent(agent_id):
     scheduler.register_agent(agent_id)
     click.echo(f'Agent "{agent_data["name"]}" registered with scheduler')
 
-
 @agent.command("stop")
 @click.argument("agent_id")
 def stop_agent(agent_id):
@@ -421,7 +401,6 @@ def stop_agent(agent_id):
         raise SystemExit(1)
     scheduler.deregister_agent(agent_id)
     click.echo(f'Agent "{agent_data["name"]}" deregistered from scheduler')
-
 
 @agent.command("run")
 @click.argument("agent_id")
@@ -448,7 +427,6 @@ def run_agent(agent_id):
     updated = manager.get_agent(agent_id)
     runs = updated.get("total_runs", 0)
     click.echo(f"Tick complete. Status: {updated['status']}, runs: {runs}")
-
 
 @agent.command("status")
 def status():
@@ -498,7 +476,6 @@ def status():
             f"{runs:<5} {budget:<14} {last_seen:<12}"
         )
 
-
 @agent.command("learning")
 @click.argument("agent_id")
 @click.option("--run", "trigger_run", is_flag=True, help="Trigger manual learning run")
@@ -533,7 +510,6 @@ def learning(agent_id, trigger_run):
         click.echo(
             f"  {ts}  [{entry['event_type']}] {entry.get('description', '')[:60]}"
         )
-
 
 @agent.command("trace")
 @click.argument("agent_id")
@@ -591,7 +567,6 @@ def trace(agent_id, run_number, limit):
                 f"{len(t.steps)} steps"
             )
 
-
 @agent.command("logs")
 @click.argument("agent_id")
 @click.option("--limit", "-n", default=10, help="Number of recent traces to show")
@@ -614,7 +589,6 @@ def logs(agent_id, limit):
             "%Y-%m-%d %H:%M"
         )
         click.echo(f"  {cp['tick_id']}  {ts}")
-
 
 @agent.command("daemon")
 def daemon():
@@ -642,7 +616,6 @@ def daemon():
     scheduler.stop()
     system.close()
     click.echo("Daemon stopped.")
-
 
 @agent.command("watch")
 @click.argument("agent_id", required=False)
@@ -674,7 +647,6 @@ def watch(agent_id):
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     stop.wait()
 
-
 @agent.command("recover")
 @click.argument("agent_id")
 def recover(agent_id):
@@ -685,7 +657,6 @@ def recover(agent_id):
         click.echo(f"Recovered from checkpoint {checkpoint['tick_id']}")
     else:
         click.echo("No checkpoint found for this agent", err=True)
-
 
 @agent.command("errors")
 def errors():
@@ -698,7 +669,6 @@ def errors():
         return
     for a in error_agents:
         click.echo(f"  {a['name']} ({a['id'][:8]}): {a['status']}")
-
 
 @agent.command("ask")
 @click.argument("agent_id")
@@ -721,7 +691,6 @@ def ask(agent_id, message):
     else:
         click.echo("\n(No response from agent)")
 
-
 @agent.command("instruct")
 @click.argument("agent_id")
 @click.argument("message")
@@ -731,7 +700,6 @@ def instruct(agent_id, message):
     agent_id = _resolve_agent_id(manager, agent_id)
     msg = manager.send_message(agent_id, message, mode="queued")
     click.echo(f"Instruction queued (ID: {msg['id'][:8]})")
-
 
 @agent.command("messages")
 @click.argument("agent_id")
@@ -746,6 +714,5 @@ def messages(agent_id):
         direction = "You" if m["direction"] == "user_to_agent" else "Agent"
         mode_badge = f" [{m['mode']}]" if m["direction"] == "user_to_agent" else ""
         click.echo(f"  {direction}{mode_badge}: {m['content'][:100]}")
-
 
 __all__ = ["agent"]

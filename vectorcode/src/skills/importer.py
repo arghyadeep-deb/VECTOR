@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillImporter -- install ResolvedSkill instances into ~/.vector/skills/.
 
 Steps performed by ``import_skill``:
@@ -31,7 +30,6 @@ from vectorcode.src.skills.tool_translator import ToolTranslator
 # Subdirectories of a skill that are always copied (never gated by --with-scripts)
 COPIED_SUBDIRS = ("references", "assets", "templates")
 
-
 @dataclass(slots=True)
 class ImportResult:
     """Result of importing a single skill."""
@@ -43,7 +41,6 @@ class ImportResult:
     untranslated_tools: List[str] = field(default_factory=list)
     scripts_imported: bool = False
     warnings: List[str] = field(default_factory=list)
-
 
 class SkillImporter:
     """Install resolved skills into the user skills directory."""
@@ -191,6 +188,5 @@ class SkillImporter:
             f"scripts_imported = {scripts_lower}\n"
         )
         (target_dir / ".source").write_text(content, encoding="utf-8")
-
 
 __all__ = ["ImportResult", "SkillImporter"]

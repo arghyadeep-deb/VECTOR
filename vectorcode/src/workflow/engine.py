@@ -1,10 +1,9 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/workflow/engine.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
 
-"""WorkflowEngine — executes a WorkflowGraph against a JarvisSystem."""
+"""WorkflowEngine — executes a WorkflowGraph against a VectorSystem."""
 
 from __future__ import annotations
 
@@ -12,7 +11,7 @@ import concurrent.futures
 import time
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_core.events import EventBus, EventType
+from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.workflow.graph import WorkflowGraph
 from vectorcode.src.workflow.types import (
     NodeType,
@@ -20,7 +19,6 @@ from vectorcode.src.workflow.types import (
     WorkflowResult,
     WorkflowStepResult,
 )
-
 
 class WorkflowEngine:
     """Execute DAG-based workflows.
@@ -45,7 +43,7 @@ class WorkflowEngine:
     def run(
         self,
         graph: WorkflowGraph,
-        system: Any = None,  # JarvisSystem
+        system: Any = None,  # VectorSystem
         *,
         initial_input: str = "",
         context: Optional[Dict[str, Any]] = None,
@@ -252,7 +250,7 @@ class WorkflowEngine:
         tool_name = node.config.get("tool_name", "")
         tool_args = node.config.get("tool_args", "{}")
         if system and system.tool_executor:
-            from vector.core.types import ToolCall
+            from vectorcode.src.vc_core.types import ToolCall
 
             tc = ToolCall(id=f"wf_{node.id}", name=tool_name, arguments=tool_args)
             tr = system.tool_executor.execute(tc)
@@ -339,6 +337,5 @@ class WorkflowEngine:
             output=last_output,
             metadata={"iterations": i + 1},
         )
-
 
 __all__ = ["WorkflowEngine"]

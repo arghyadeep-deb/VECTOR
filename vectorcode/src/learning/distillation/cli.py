@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/cli.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,17 +15,15 @@ from rich.console import Console
 
 console = Console()
 
-
 @click.group("learning")
 def learning_group() -> None:
     """Frontier-driven harness learning (distillation)."""
 
-
 @learning_group.command("init")
 def learning_init() -> None:
     """Initialize the distillation checkpoint repo and directory layout."""
-    from vector.learning.distillation.checkpoint.store import CheckpointStore
-    from vector.learning.distillation.storage.paths import (
+    from vectorcode.src.learning.distillation.checkpoint.store import CheckpointStore
+    from vectorcode.src.learning.distillation.storage.paths import (
         ensure_distillation_dirs,
         resolve_distillation_root,
     )
@@ -37,7 +34,6 @@ def learning_init() -> None:
     store = CheckpointStore(home)
     store.init()
     console.print(f"[green]Initialized distillation at {root}[/green]")
-
 
 @learning_group.command("run")
 @click.option(
@@ -53,13 +49,11 @@ def learning_run(autonomy: str) -> None:
     # Full wiring deferred to integration — this registers the CLI surface.
     console.print("[dim]Full orchestration requires configured teacher engine.[/dim]")
 
-
 @learning_group.command("history")
 @click.option("--limit", type=int, default=10, help="Max sessions to show.")
 def learning_history(limit: int) -> None:
     """List past learning sessions."""
     console.print(f"[dim]Showing last {limit} sessions (requires learning.db).[/dim]")
-
 
 @learning_group.command("show")
 @click.argument("session_id")
@@ -67,12 +61,10 @@ def learning_show(session_id: str) -> None:
     """Show details of a learning session."""
     console.print(f"[dim]Session: {session_id}[/dim]")
 
-
 @learning_group.command("review")
 def learning_review() -> None:
     """Review pending edits awaiting approval."""
     console.print("[dim]Pending review queue.[/dim]")
-
 
 @learning_group.command("approve")
 @click.argument("edit_id")
@@ -80,14 +72,12 @@ def learning_approve(edit_id: str) -> None:
     """Approve a pending edit."""
     console.print(f"[dim]Approving edit: {edit_id}[/dim]")
 
-
 @learning_group.command("reject")
 @click.argument("edit_id")
 @click.option("--reason", type=str, default="", help="Rejection reason.")
 def learning_reject(edit_id: str, reason: str) -> None:
     """Reject a pending edit."""
     console.print(f"[dim]Rejecting edit: {edit_id}[/dim]")
-
 
 @learning_group.command("rollback")
 @click.argument("session_id", required=False)
@@ -97,40 +87,33 @@ def learning_rollback(session_id: str | None, last: bool) -> None:
     target = session_id or ("last session" if last else "none")
     console.print(f"[dim]Rolling back: {target}[/dim]")
 
-
 @learning_group.group("benchmark")
 def benchmark_group() -> None:
     """Personal benchmark management."""
-
 
 @benchmark_group.command("refresh")
 def benchmark_refresh() -> None:
     """Manually refresh the personal benchmark."""
     console.print("[dim]Refreshing personal benchmark.[/dim]")
 
-
 @benchmark_group.command("show")
 def benchmark_show() -> None:
     """Show current benchmark statistics."""
     console.print("[dim]Benchmark stats.[/dim]")
 
-
 @learning_group.group("daemon")
 def daemon_group() -> None:
     """Background learning daemon."""
-
 
 @daemon_group.command("start")
 def daemon_start() -> None:
     """Start the learning daemon."""
     console.print("[dim]Starting daemon.[/dim]")
 
-
 @daemon_group.command("stop")
 def daemon_stop() -> None:
     """Stop the learning daemon."""
     console.print("[dim]Stopping daemon.[/dim]")
-
 
 @daemon_group.command("status")
 def daemon_status() -> None:

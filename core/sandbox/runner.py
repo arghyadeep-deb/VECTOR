@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/sandbox/runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -20,17 +19,16 @@ import subprocess
 import uuid
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_agents._stubs import AgentContext, AgentResult, BaseAgent
-from vectorcode.src.oj_core.events import EventBus
-from vectorcode.src.oj_core.types import ToolResult
-from vectorcode.src.oj_engine._stubs import InferenceEngine
+from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, BaseAgent
+from vectorcode.src.vc_core.events import EventBus
+from vectorcode.src.vc_core.types import ToolResult
+from vectorcode.src.vc_engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
 # Sentinel markers (same as ClaudeCodeAgent)
-_OUTPUT_START = "---OPENJARVIS_OUTPUT_START---"
-_OUTPUT_END = "---OPENJARVIS_OUTPUT_END---"
-
+_OUTPUT_START = "---VECTOR_OUTPUT_START---"
+_OUTPUT_END = "---VECTOR_OUTPUT_END---"
 
 class ContainerRunner:
     """Manages Docker container lifecycle for sandboxed execution.
@@ -71,12 +69,12 @@ class ContainerRunner:
     def _load_allowlist(self):
         """Load mount allowlist if configured."""
         if not self._mount_allowlist_path:
-            from vector.sandbox.mount_security import (
+            from core.sandbox.mount_security import (
                 MountAllowlist,
             )
 
             return MountAllowlist()
-        from vector.sandbox.mount_security import (
+        from core.sandbox.mount_security import (
             load_mount_allowlist,
         )
 
@@ -102,7 +100,7 @@ class ContainerRunner:
         """Validate mounts against the allowlist."""
         if not mounts:
             return []
-        from vector.sandbox.mount_security import (
+        from core.sandbox.mount_security import (
             validate_mounts,
         )
 
@@ -282,7 +280,6 @@ class ContainerRunner:
                 exc_info=True,
             )
 
-
 class SandboxedAgent(BaseAgent):
     """Transparent wrapper that runs any BaseAgent in a container.
 
@@ -363,5 +360,10 @@ class SandboxedAgent(BaseAgent):
             metadata=result.get("metadata", {}),
         )
 
+# Absorbed GPU Docker container launcher (optional — for sandboxed GPU agents)
+try:
+    from core.mining.docker import PearlDockerLauncher  # noqa: F401
+except Exception:
+    pass
 
 __all__ = ["ContainerRunner", "SandboxedAgent"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/base.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -21,26 +20,24 @@ from typing import ClassVar
 
 from vectorcode.src.learning.distillation.models import Edit, EditOp
 
-
 @dataclass
 class ApplyContext:
     """Shared context passed to all appliers."""
 
-    openjarvis_home: Path
+    vector_home: Path
     session_id: str
 
     @property
     def config_path(self) -> Path:
-        return self.openjarvis_home / "config.toml"
+        return self.vector_home / "config.toml"
 
     @property
     def agents_dir(self) -> Path:
-        return self.openjarvis_home / "agents"
+        return self.vector_home / "agents"
 
     @property
     def tools_dir(self) -> Path:
-        return self.openjarvis_home / "tools"
-
+        return self.vector_home / "tools"
 
 @dataclass
 class ValidationResult:
@@ -49,13 +46,11 @@ class ValidationResult:
     ok: bool
     reason: str = ""
 
-
 @dataclass
 class ApplyResult:
     """Result of EditApplier.apply()."""
 
     changed_files: list[str] = field(default_factory=list)
-
 
 class EditApplier(ABC):
     """Abstract base for edit appliers.
@@ -80,7 +75,6 @@ class EditApplier(ABC):
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         """Restore pre-edit state. Most appliers delegate to git checkout."""
         ...
-
 
 class EditApplierRegistry:
     """Registry of EditApplier instances keyed by EditOp."""

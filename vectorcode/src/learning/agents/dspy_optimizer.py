@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/agents/dspy_optimizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -16,8 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from vectorcode.src.oj_core.config import DSPyOptimizerConfig
-from vectorcode.src.oj_core.registry import LearningRegistry
+from vectorcode.src.vc_core.config import DSPyOptimizerConfig
+from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._stubs import AgentLearningPolicy
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ try:
 except ImportError:
     HAS_DSPY = False
     dspy = None  # type: ignore[assignment]
-
 
 class DSPyAgentOptimizer:
     """Optimize agent configs using DSPy teleprompters.
@@ -180,7 +178,7 @@ class DSPyAgentOptimizer:
         """Write updated configs via AgentConfigEvolver."""
         import pathlib
 
-        from vector.learning.agents.agent_evolver import (
+        from vectorcode.src.learning.agents.agent_evolver import (
             AgentConfigEvolver,
         )
 
@@ -197,7 +195,6 @@ class DSPyAgentOptimizer:
             system_prompt=config_updates.get("system_prompt", ""),
         )
 
-
 @LearningRegistry.register("dspy")
 class _DSPyLearningPolicy(AgentLearningPolicy):
     """Wrapper to register DSPyAgentOptimizer in the LearningRegistry."""
@@ -209,6 +206,5 @@ class _DSPyLearningPolicy(AgentLearningPolicy):
         config = DSPyOptimizerConfig()
         optimizer = DSPyAgentOptimizer(config)
         return optimizer.optimize(trace_store)
-
 
 __all__ = ["DSPyAgentOptimizer"]

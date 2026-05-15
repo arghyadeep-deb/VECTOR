@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/diagnose/tools.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -24,7 +23,6 @@ from typing import Any
 
 from vectorcode.src.learning.distillation.diagnose.types import DiagnosticTool
 
-
 def build_diagnostic_tools(
     *,
     trace_store: Any,
@@ -43,7 +41,7 @@ def build_diagnostic_tools(
     trace_store :
         A ``TraceStore`` instance for trace queries.
     config :
-        Dict with ``config_path`` (Path) and ``openjarvis_home`` (Path).
+        Dict with ``config_path`` (Path) and ``vector_home`` (Path).
     benchmark_samples :
         List of ``PersonalBenchmarkSample`` objects.
     student_runner :
@@ -57,7 +55,7 @@ def build_diagnostic_tools(
     session_id :
         Current session id for tagging traces.
     """
-    openjarvis_home = config["openjarvis_home"]
+    vector_home = config["vector_home"]
 
     # ------------------------------------------------------------------
     # list_traces
@@ -184,7 +182,7 @@ def build_diagnostic_tools(
     # get_agent_prompt
     # ------------------------------------------------------------------
     def _get_agent_prompt(agent_name: str) -> str:
-        prompt_path = openjarvis_home / "agents" / agent_name / "system_prompt.md"
+        prompt_path = vector_home / "agents" / agent_name / "system_prompt.md"
         try:
             return prompt_path.read_text(encoding="utf-8")
         except FileNotFoundError:
@@ -194,7 +192,7 @@ def build_diagnostic_tools(
     # get_tool_description
     # ------------------------------------------------------------------
     def _get_tool_description(tool_name: str) -> str:
-        desc_path = openjarvis_home / "tools" / "descriptions.toml"
+        desc_path = vector_home / "tools" / "descriptions.toml"
         try:
             content = desc_path.read_text(encoding="utf-8")
             # Simple TOML parsing for the description field
@@ -216,7 +214,7 @@ def build_diagnostic_tools(
     # ------------------------------------------------------------------
     def _list_available_tools() -> str:
         # Read from the on-disk descriptions.toml
-        desc_path = openjarvis_home / "tools" / "descriptions.toml"
+        desc_path = vector_home / "tools" / "descriptions.toml"
         tools_list = []
         try:
             content = desc_path.read_text(encoding="utf-8")

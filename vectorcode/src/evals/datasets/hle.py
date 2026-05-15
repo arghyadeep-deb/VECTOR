@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/hle.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,7 +20,6 @@ from vectorcode.src.evals.core.types import EvalRecord
 _MULTIMODAL_FIELDS = frozenset(
     {"image", "image_path", "images", "audio", "audio_path", "audios"}
 )
-
 
 class HLEDataset(DatasetProvider):
     """HLE (Humanity's Last Exam) benchmark dataset."""
@@ -136,6 +134,5 @@ class HLEDataset(DatasetProvider):
             subject=category_value,
             metadata=metadata,
         )
-
 
 __all__ = ["HLEDataset"]

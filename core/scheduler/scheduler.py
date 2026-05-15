@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/scheduler/scheduler.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 # Event type strings (avoids editing core EventType enum)
 SCHEDULER_TASK_START = "scheduler_task_start"
 SCHEDULER_TASK_END = "scheduler_task_end"
-
 
 @dataclass(slots=True)
 class ScheduledTask:
@@ -73,11 +71,9 @@ class ScheduledTask:
             metadata=d.get("metadata", {}),
         )
 
-
 def _now_iso() -> str:
     """Return current UTC time as ISO 8601 string."""
     return datetime.now(timezone.utc).isoformat()
-
 
 class TaskScheduler:
     """Scheduler that polls for due tasks and executes them.
@@ -87,7 +83,7 @@ class TaskScheduler:
     store:
         The persistence backend.
     system:
-        Optional ``JarvisSystem`` instance for executing prompts.
+        Optional ``VectorSystem`` instance for executing prompts.
     poll_interval:
         Seconds between poll cycles (default 60).
     bus:
@@ -348,7 +344,6 @@ class TaskScheduler:
         if candidate <= now:
             candidate += timedelta(days=1)
         return candidate.isoformat()
-
 
 __all__ = [
     "SCHEDULER_TASK_END",

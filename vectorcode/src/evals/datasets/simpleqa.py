@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/simpleqa.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,7 +22,6 @@ Your answer should be a word, phrase, name, number, or date.
 Do not include explanations or additional context.
 
 Question: {question}"""
-
 
 class SimpleQADataset(DatasetProvider):
     """SimpleQA short-answer factual QA benchmark."""
@@ -112,7 +110,6 @@ class SimpleQADataset(DatasetProvider):
             metadata=metadata,
         )
 
-
 def _parse_metadata(meta_raw: object) -> Dict[str, Any]:
     """Parse metadata which may be a dict, a JSON-like string, or None."""
     if meta_raw is None:
@@ -130,6 +127,5 @@ def _parse_metadata(meta_raw: object) -> Dict[str, Any]:
         except (ValueError, SyntaxError):
             pass
     return {}
-
 
 __all__ = ["SimpleQADataset"]

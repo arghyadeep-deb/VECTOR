@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Route handlers for the OpenAI-compatible API server."""
 
 from __future__ import annotations
@@ -27,7 +26,6 @@ from vectorcode.src.server.models import (
 
 router = APIRouter()
 
-
 def _to_messages(chat_messages) -> list[Message]:
     """Convert Pydantic ChatMessage objects to core Message objects."""
     messages = []
@@ -42,7 +40,6 @@ def _to_messages(chat_messages) -> list[Message]:
             )
         )
     return messages
-
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request_body: ChatCompletionRequest, request: Request):
@@ -161,7 +158,6 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         complexity_info=complexity_info,
     )
 
-
 def _handle_direct(
     engine,
     model: str,
@@ -229,7 +225,6 @@ def _handle_direct(
         complexity=complexity_info,
     )
 
-
 def _handle_agent(
     agent,
     model: str,
@@ -291,13 +286,11 @@ def _handle_agent(
         complexity=complexity_info,
     )
 
-
 async def _handle_agent_stream(agent, bus, model, req):
     """Stream agent response with EventBus events via SSE."""
     from vectorcode.src.server.stream_bridge import create_agent_stream
 
     return await create_agent_stream(agent, bus, model, req)
-
 
 async def _handle_stream(
     engine,
@@ -441,7 +434,6 @@ async def _handle_stream(
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
 
-
 @router.get("/v1/models")
 async def list_models(request: Request) -> ModelListResponse:
     """List locally installed models (Ollama).
@@ -463,7 +455,6 @@ async def list_models(request: Request) -> ModelListResponse:
     return ModelListResponse(
         data=[ModelObject(id=mid) for mid in model_ids],
     )
-
 
 @router.post("/v1/models/pull")
 async def pull_model(request: Request):
@@ -504,7 +495,6 @@ async def pull_model(request: Request):
 
     return {"status": "ok", "model": model_name}
 
-
 @router.delete("/v1/models/{model_name:path}")
 async def delete_model(model_name: str, request: Request):
     """Delete a model from Ollama."""
@@ -535,7 +525,6 @@ async def delete_model(model_name: str, request: Request):
         client.close()
 
     return {"status": "deleted", "model": model_name}
-
 
 @router.post("/v1/cloud/reload")
 async def reload_cloud_engine(request: Request):
@@ -593,7 +582,6 @@ async def reload_cloud_engine(request: Request):
 
     return {"status": "ok", "message": "Cloud engine reloaded"}
 
-
 @router.get("/v1/savings")
 async def savings(request: Request):
     """Return savings summary compared to cloud providers.
@@ -644,7 +632,6 @@ async def savings(request: Request):
     finally:
         agg.close()
 
-
 @router.post("/v1/telemetry/reset")
 async def reset_telemetry():
     """Clear all stored telemetry records.
@@ -668,7 +655,6 @@ async def reset_telemetry():
         agg.close()
     return {"status": "ok", "records_cleared": count}
 
-
 @router.get("/v1/info")
 async def server_info(request: Request):
     """Return server configuration: model, agent, engine."""
@@ -683,7 +669,6 @@ async def server_info(request: Request):
         "engine": getattr(request.app.state, "engine_name", ""),
     }
 
-
 @router.get("/health")
 async def health(request: Request):
     """Health check endpoint."""
@@ -693,11 +678,9 @@ async def health(request: Request):
         raise HTTPException(status_code=503, detail="Engine unhealthy")
     return {"status": "ok"}
 
-
 # ---------------------------------------------------------------------------
 # Channel endpoints
 # ---------------------------------------------------------------------------
-
 
 @router.get("/v1/channels")
 async def list_channels(request: Request):
@@ -707,7 +690,6 @@ async def list_channels(request: Request):
         return {"channels": [], "message": "Channel bridge not configured"}
     channels = bridge.list_channels()
     return {"channels": channels, "status": bridge.status().value}
-
 
 @router.post("/v1/channels/send")
 async def channel_send(request: Request):
@@ -732,7 +714,6 @@ async def channel_send(request: Request):
         raise HTTPException(status_code=502, detail="Failed to send message")
     return {"status": "sent", "channel": channel_name}
 
-
 @router.get("/v1/channels/status")
 async def channel_status(request: Request):
     """Return channel bridge connection status."""
@@ -741,11 +722,9 @@ async def channel_status(request: Request):
         return {"status": "not_configured"}
     return {"status": bridge.status().value}
 
-
 # ---------------------------------------------------------------------------
 # Security scan endpoint
 # ---------------------------------------------------------------------------
-
 
 @router.get("/v1/security/scan")
 async def security_scan():
@@ -767,6 +746,5 @@ async def security_scan():
             for r in results
         ],
     }
-
 
 __all__ = ["router"]

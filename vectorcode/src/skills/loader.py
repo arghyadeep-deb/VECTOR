@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Skill loading and preprocessing -- ported from reference skill_utils.py + skill_preprocessing.py.
 
 Discovers SKILL.md files from three directories (in order):
@@ -34,7 +33,6 @@ from loguru import logger
 
 _yaml_load_fn = None
 
-
 def _yaml_load(content: str) -> Any:
     """Parse YAML with lazy import; prefers CSafeLoader for speed."""
     global _yaml_load_fn
@@ -54,7 +52,6 @@ def _yaml_load(content: str) -> Any:
         return _yaml_load_fn(content)
     return None  # fallback triggers simple parser below
 
-
 # ── Platform mapping ──────────────────────────────────────────────────────────
 
 _PLATFORM_MAP = {
@@ -71,9 +68,7 @@ _SKILL_TEMPLATE_RE = re.compile(r"\$\{(VECTOR_SKILL_DIR|VECTOR_SESSION_ID)\}")
 _INLINE_SHELL_RE = re.compile(r"!`([^`\n]+)`")
 _INLINE_SHELL_MAX_OUTPUT = 4000
 
-
 # ── Frontmatter parsing ───────────────────────────────────────────────────────
-
 
 def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
     """Parse YAML frontmatter between --- delimiters. Returns (metadata, body).
@@ -111,9 +106,7 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
 
     return frontmatter, body
 
-
 # ── Platform matching ─────────────────────────────────────────────────────────
-
 
 def skill_matches_platform(frontmatter: Dict[str, Any]) -> bool:
     """Return True when the skill is compatible with the current OS.
@@ -137,9 +130,7 @@ def skill_matches_platform(frontmatter: Dict[str, Any]) -> bool:
             return True
     return False
 
-
 # ── Skill directory discovery ─────────────────────────────────────────────────
-
 
 def get_all_skills_dirs() -> List[Path]:
     """Return all skill directories to search, in priority order.
@@ -173,7 +164,6 @@ def get_all_skills_dirs() -> List[Path]:
 
     return dirs
 
-
 def _iter_skill_index_files(skills_dir: Path, filename: str = "SKILL.md"):
     """Walk skills_dir yielding sorted paths matching filename."""
     matches: List[Path] = []
@@ -183,7 +173,6 @@ def _iter_skill_index_files(skills_dir: Path, filename: str = "SKILL.md"):
             matches.append(Path(root) / filename)
     for path in sorted(matches, key=lambda p: str(p.relative_to(skills_dir))):
         yield path
-
 
 def list_all_skills() -> Dict[str, Path]:
     """Return {slug: SKILL.md path} for every discoverable skill.
@@ -201,9 +190,7 @@ def list_all_skills() -> Dict[str, Path]:
                 result[slug] = skill_file
     return result
 
-
 # ── Template substitution ─────────────────────────────────────────────────────
-
 
 def substitute_template_vars(
     content: str,
@@ -228,9 +215,7 @@ def substitute_template_vars(
 
     return _SKILL_TEMPLATE_RE.sub(_replace, content)
 
-
 # ── Inline shell expansion ────────────────────────────────────────────────────
-
 
 def _run_inline_shell(command: str, cwd: Optional[Path], timeout: int) -> str:
     """Execute a shell snippet and return its stdout (trimmed)."""
@@ -268,7 +253,6 @@ def _run_inline_shell(command: str, cwd: Optional[Path], timeout: int) -> str:
         output = output[:_INLINE_SHELL_MAX_OUTPUT] + "...[truncated]"
     return output
 
-
 def expand_inline_shell(
     content: str,
     skill_dir: Optional[Path],
@@ -286,9 +270,7 @@ def expand_inline_shell(
 
     return _INLINE_SHELL_RE.sub(_replace, content)
 
-
 # ── Skill loading ─────────────────────────────────────────────────────────────
-
 
 def load_skill(name_or_path: str, session_id: str = "") -> Dict[str, Any]:
     """Load a skill by name or file path.
@@ -360,9 +342,7 @@ def load_skill(name_or_path: str, session_id: str = "") -> Dict[str, Any]:
         "capabilities": capabilities,
     }
 
-
 # ── Formatting ────────────────────────────────────────────────────────────────
-
 
 def format_skill_for_injection(skill: Dict[str, Any], user_instruction: str = "") -> str:
     """Format a loaded skill dict for injection as a system/user message.
@@ -385,9 +365,7 @@ def format_skill_for_injection(skill: Dict[str, Any], user_instruction: str = ""
         lines.append(f"Task: {user_instruction}")
     return "\n".join(lines)
 
-
 # ── SkillRegistry ─────────────────────────────────────────────────────────────
-
 
 class SkillRegistry:
     """Thread-safe registry of all discoverable skills."""
@@ -458,7 +436,6 @@ class SkillRegistry:
                 if any(kw in haystack for kw in keywords):
                     results.append({k: v for k, v in skill.items() if k != "frontmatter"})
         return results
-
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
@@ -547,8 +524,6 @@ if __name__ == "__main__":
     assert "Task:" not in formatted
 
     print("skills/loader.py OK")
-
-
 
 def discover_skills(search_path=None, *, include_optional: bool = False):
     """Discover available skills in search_path or default skill directories."""

@@ -1,13 +1,13 @@
 """
-Absorption test — VectorCode vs Hermes + Ruflo.
+Absorption test — VectorCode unified codebase verification.
 
 This test suite validates that VectorCode has absorbed all critical features
-from both Hermes and Ruflo and is functionally superior (or equivalent) before
+that VectorCode absorbed all functionality and is functionally complete before
 the dependency removal is performed.
 
 Coverage:
-  [Hermes] PersonModel, StyleModel, MessagingHub (comms)
-  [Ruflo]  NeuralRouter, QueenCoordinator (loop + consensus), MessageBus
+  [VectorCode] PersonModel, StyleModel, MessagingHub (comms)
+  [VectorCode] NeuralRouter, QueenCoordinator (loop + consensus), MessageBus
            BackgroundWorkers (OPTIMIZE, MAP, BENCHMARK, etc.)
 
 All tests run without Ollama — LLM-dependent paths are tested for graceful fallback.
@@ -21,11 +21,11 @@ import pytest
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 1 — HERMES ABSORPTION: PersonModel
+# SECTION 1 — VECTORCODE: PersonModel
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestPersonModelAbsorption:
-    """Validates VectorCode's PersonModel covers all Hermes PersonModel features."""
+    """Validates VectorCode's PersonModel covers all PersonModel features from absorbed codebase."""
 
     def test_persona_module_importable(self):
         from agents.districts.coding.vectorcode.persona import PersonModel
@@ -40,7 +40,7 @@ class TestPersonModelAbsorption:
             {"content": "Thanks for helping out, appreciate it!"},
             {"content": "No worries, happy to help anytime"},
         ]
-        result = pm.learn_from_messages("HermesTestPerson", msgs)
+        result = pm.learn_from_messages("VectorTestPerson", msgs)
         assert result["status"] == "success"
         assert result["messages_analyzed"] == 3
         assert "style_summary" in result
@@ -48,10 +48,10 @@ class TestPersonModelAbsorption:
     def test_get_style(self):
         from agents.districts.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
-        pm.learn_from_messages("HermesStyleTest", [
+        pm.learn_from_messages("VectorStyleTest", [
             {"content": "Please kindly review this document. Regards."},
         ])
-        style = pm.get_style("HermesstyleTest")
+        style = pm.get_style("VectorstyleTest")
         # Profile was saved, check it returns a dict (even if empty for different case)
         assert isinstance(pm.list_profiles(), list)
 
@@ -91,11 +91,11 @@ class TestPersonModelAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 2 — HERMES ABSORPTION: StyleModel
+# SECTION 2 — VECTORCODE: StyleModel
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestStyleModelAbsorption:
-    """Validates VectorCode's StyleModel covers all Hermes StyleModel features."""
+    """Validates VectorCode's StyleModel covers all StyleModel features from absorbed codebase."""
 
     def test_analyze_conversation(self):
         from agents.districts.coding.vectorcode.persona import StyleModel
@@ -179,11 +179,11 @@ class TestStyleModelAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 3 — HERMES ABSORPTION: MessagingHub
+# SECTION 3 — VECTORCODE: MessagingHub
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestMessagingHubAbsorption:
-    """Validates VectorCode's MessagingHub is a complete Hermes replacement."""
+    """Validates VectorCode's MessagingHub is the canonical comms implementation."""
 
     def test_hub_importable(self):
         from agents.districts.coding.vectorcode.comms import MessagingHub

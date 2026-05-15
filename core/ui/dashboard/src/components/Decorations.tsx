@@ -3,7 +3,7 @@ import BackgroundGrid from './BackgroundGrid'
 import { Z } from '../lib/zIndex'
 
 const RING_COUNT = 6
-const COLORS = ['#00CFFF', '#00AACC', '#006688', '#004466', '#002244', '#001133']
+const COLORS = ['#4FC3F7', '#00AACC', '#006688', '#004466', '#002244', '#001133']
 
 function ConcentricRings() {
   const canvasRef = useRef<HTMLCanvasElement>(null)

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/kokoro_tts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -15,9 +14,8 @@ from __future__ import annotations
 import io
 from typing import List
 
-from vectorcode.src.oj_core.registry import TTSRegistry
+from vectorcode.src.vc_core.registry import TTSRegistry
 from vectorcode.src.speech.tts import TTSBackend, TTSResult
-
 
 @TTSRegistry.register("kokoro")
 class KokoroTTSBackend(TTSBackend):

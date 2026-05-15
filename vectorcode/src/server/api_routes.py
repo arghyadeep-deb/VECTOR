@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Extended API routes for agents, workflows, memory, traces, etc."""
 
 from __future__ import annotations
@@ -15,41 +14,33 @@ logger = logging.getLogger(__name__)
 
 # ---- Request/Response models ----
 
-
 class AgentCreateRequest(BaseModel):
     agent_type: str
     tools: Optional[List[str]] = None
     agent_id: Optional[str] = None
 
-
 class AgentMessageRequest(BaseModel):
     message: str
-
 
 class MemoryStoreRequest(BaseModel):
     content: str
     metadata: Optional[Dict[str, Any]] = None
 
-
 class MemorySearchRequest(BaseModel):
     query: str
     top_k: int = 5
 
-
 class MemoryIndexRequest(BaseModel):
     path: str
-
 
 class BudgetLimitsRequest(BaseModel):
     max_tokens_per_day: Optional[int] = None
     max_requests_per_hour: Optional[int] = None
 
-
 class FeedbackScoreRequest(BaseModel):
     trace_id: str
     score: float
     source: str = "api"
-
 
 class OptimizeRunRequest(BaseModel):
     benchmark: str
@@ -57,11 +48,9 @@ class OptimizeRunRequest(BaseModel):
     optimizer_model: str = "claude-sonnet-4-6"
     max_samples: int = 50
 
-
 # ---- Agent routes ----
 
 agents_router = APIRouter(prefix="/v1/agents", tags=["agents"])
-
 
 @agents_router.get("")
 async def list_agents(request: Request):
@@ -93,7 +82,6 @@ async def list_agents(request: Request):
 
     return {"registered": registered, "running": running}
 
-
 @agents_router.post("")
 async def create_agent(req: AgentCreateRequest, request: Request):
     """Spawn a new agent."""
@@ -117,7 +105,6 @@ async def create_agent(req: AgentCreateRequest, request: Request):
     except ImportError:
         raise HTTPException(status_code=501, detail="Agent tools not available")
 
-
 @agents_router.delete("/{agent_id}")
 async def kill_agent(agent_id: str, request: Request):
     """Kill a running agent."""
@@ -131,7 +118,6 @@ async def kill_agent(agent_id: str, request: Request):
         return {"status": "stopped", "agent_id": agent_id}
     except ImportError:
         raise HTTPException(status_code=501, detail="Agent tools not available")
-
 
 @agents_router.post("/{agent_id}/message")
 async def message_agent(agent_id: str, req: AgentMessageRequest, request: Request):
@@ -147,11 +133,9 @@ async def message_agent(agent_id: str, req: AgentMessageRequest, request: Reques
     except ImportError:
         raise HTTPException(status_code=501, detail="Agent tools not available")
 
-
 # ---- Memory routes ----
 
 memory_router = APIRouter(prefix="/v1/memory", tags=["memory"])
-
 
 def _get_memory_backend(request: Request):
     """Return the app-level memory backend, falling back to a fresh SQLiteMemory."""
@@ -165,7 +149,6 @@ def _get_memory_backend(request: Request):
             return None
     return backend
 
-
 @memory_router.post("/store")
 async def memory_store(req: MemoryStoreRequest, request: Request):
     """Store content in memory."""
@@ -177,7 +160,6 @@ async def memory_store(req: MemoryStoreRequest, request: Request):
         return {"status": "stored"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
 
 @memory_router.post("/search")
 async def memory_search(req: MemorySearchRequest, request: Request):
@@ -199,7 +181,6 @@ async def memory_search(req: MemorySearchRequest, request: Request):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-
 @memory_router.get("/stats")
 async def memory_stats(request: Request):
     """Get memory backend statistics."""
@@ -213,7 +194,6 @@ async def memory_stats(request: Request):
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
 
 @memory_router.get("/config")
 async def memory_config(request: Request):
@@ -238,7 +218,6 @@ async def memory_config(request: Request):
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
 
 @memory_router.post("/index")
 async def memory_index(req: MemoryIndexRequest, request: Request):
@@ -271,11 +250,9 @@ async def memory_index(req: MemoryIndexRequest, request: Request):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-
 # ---- Traces routes ----
 
 traces_router = APIRouter(prefix="/v1/traces", tags=["traces"])
-
 
 def _serialise_trace(trace) -> dict:
     """Convert a Trace dataclass to a frontend-friendly dict."""
@@ -298,7 +275,6 @@ def _serialise_trace(trace) -> dict:
             step["step_type"] = st.value
     return d
 
-
 @traces_router.get("")
 async def list_traces(request: Request, limit: int = 20):
     """List recent traces."""
@@ -311,7 +287,6 @@ async def list_traces(request: Request, limit: int = 20):
         return {"traces": items}
     except Exception as exc:
         return {"traces": [], "error": str(exc)}
-
 
 @traces_router.get("/{trace_id}")
 async def get_trace(trace_id: str, request: Request):
@@ -329,11 +304,9 @@ async def get_trace(trace_id: str, request: Request):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-
 # ---- Telemetry routes ----
 
 telemetry_router = APIRouter(prefix="/v1/telemetry", tags=["telemetry"])
-
 
 @telemetry_router.get("/stats")
 async def telemetry_stats(request: Request):
@@ -361,7 +334,6 @@ async def telemetry_stats(request: Request):
             agg.close()
     except Exception as exc:
         return {"error": str(exc)}
-
 
 @telemetry_router.get("/energy")
 async def telemetry_energy(request: Request):
@@ -403,11 +375,9 @@ async def telemetry_energy(request: Request):
     except Exception as exc:
         return {"error": str(exc)}
 
-
 # ---- Skills routes ----
 
 skills_router = APIRouter(prefix="/v1/skills", tags=["skills"])
-
 
 @skills_router.get("")
 async def list_skills(request: Request):
@@ -423,7 +393,6 @@ async def list_skills(request: Request):
         logger.warning("Failed to list skills: %s", exc)
         return {"skills": []}
 
-
 @skills_router.post("")
 async def install_skill(request: Request):
     """Install a skill (placeholder)."""
@@ -431,7 +400,6 @@ async def install_skill(request: Request):
         "status": "not_implemented",
         "message": "Use TOML files in ~/.vector/skills/",
     }
-
 
 @skills_router.delete("/{skill_name}")
 async def remove_skill(skill_name: str, request: Request):
@@ -441,11 +409,9 @@ async def remove_skill(skill_name: str, request: Request):
         "message": "Skill removal not yet supported via API",
     }
 
-
 # ---- Sessions routes ----
 
 sessions_router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
-
 
 @sessions_router.get("")
 async def list_sessions(request: Request, limit: int = 20):
@@ -459,7 +425,6 @@ async def list_sessions(request: Request, limit: int = 20):
         return {"sessions": items}
     except Exception as exc:
         return {"sessions": [], "error": str(exc)}
-
 
 @sessions_router.get("/{session_id}")
 async def get_session(session_id: str, request: Request):
@@ -477,7 +442,6 @@ async def get_session(session_id: str, request: Request):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-
 # ---- Budget routes ----
 
 budget_router = APIRouter(prefix="/v1/budget", tags=["budget"])
@@ -491,12 +455,10 @@ _budget_usage: Dict[str, int] = {
     "requests_this_hour": 0,
 }
 
-
 @budget_router.get("")
 async def get_budget(request: Request):
     """Get current budget usage and limits."""
     return {"limits": _budget_limits, "usage": _budget_usage}
-
 
 @budget_router.put("/limits")
 async def set_budget_limits(req: BudgetLimitsRequest, request: Request):
@@ -507,11 +469,9 @@ async def set_budget_limits(req: BudgetLimitsRequest, request: Request):
         _budget_limits["max_requests_per_hour"] = req.max_requests_per_hour
     return {"status": "updated", "limits": _budget_limits}
 
-
 # ---- Prometheus metrics ----
 
 metrics_router = APIRouter(tags=["metrics"])
-
 
 @metrics_router.get("/metrics")
 async def prometheus_metrics(request: Request):
@@ -530,15 +490,15 @@ async def prometheus_metrics(request: Request):
         stats = agg.summary()
 
         lines = [
-            "# HELP openjarvis_requests_total Total requests processed",
-            "# TYPE openjarvis_requests_total counter",
-            f"openjarvis_requests_total {stats.get('total_requests', 0)}",
-            "# HELP openjarvis_tokens_total Total tokens generated",
-            "# TYPE openjarvis_tokens_total counter",
-            f"openjarvis_tokens_total {stats.get('total_tokens', 0)}",
-            "# HELP openjarvis_latency_avg_ms Average latency in milliseconds",
-            "# TYPE openjarvis_latency_avg_ms gauge",
-            f"openjarvis_latency_avg_ms {stats.get('avg_latency_ms', 0)}",
+            "# HELP vector_requests_total Total requests processed",
+            "# TYPE vector_requests_total counter",
+            f"vector_requests_total {stats.get('total_requests', 0)}",
+            "# HELP vector_tokens_total Total tokens generated",
+            "# TYPE vector_tokens_total counter",
+            f"vector_tokens_total {stats.get('total_tokens', 0)}",
+            "# HELP vector_latency_avg_ms Average latency in milliseconds",
+            "# TYPE vector_latency_avg_ms gauge",
+            f"vector_latency_avg_ms {stats.get('avg_latency_ms', 0)}",
         ]
         from starlette.responses import PlainTextResponse
 
@@ -549,11 +509,9 @@ async def prometheus_metrics(request: Request):
 
         return PlainTextResponse("# No metrics available\n", media_type="text/plain")
 
-
 # ---- WebSocket streaming routes ----
 
 websocket_router = APIRouter(tags=["websocket"])
-
 
 @websocket_router.websocket("/v1/chat/stream")
 async def websocket_chat_stream(websocket: WebSocket):
@@ -671,11 +629,9 @@ async def websocket_chat_stream(websocket: WebSocket):
     except WebSocketDisconnect:
         pass  # Client disconnected — nothing to clean up
 
-
 # ---- Learning routes ----
 
 learning_router = APIRouter(prefix="/v1/learning", tags=["learning"])
-
 
 @learning_router.get("/stats")
 async def learning_stats(request: Request):
@@ -696,7 +652,6 @@ async def learning_stats(request: Request):
         result["skill_discovery"] = {"available": False}
 
     return result
-
 
 @learning_router.get("/policy")
 async def learning_policy(request: Request):
@@ -738,11 +693,9 @@ async def learning_policy(request: Request):
 
     return result
 
-
 # ---- Speech routes ----
 
 speech_router = APIRouter(prefix="/v1/speech", tags=["speech"])
-
 
 @speech_router.post("/transcribe")
 async def transcribe_speech(request: Request):
@@ -771,7 +724,6 @@ async def transcribe_speech(request: Request):
         "duration_seconds": result.duration_seconds,
     }
 
-
 @speech_router.get("/health")
 async def speech_health(request: Request):
     """Check if a speech backend is available."""
@@ -783,11 +735,9 @@ async def speech_health(request: Request):
         "backend": backend.backend_id,
     }
 
-
 # ---- Feedback routes ----
 
 feedback_router = APIRouter(prefix="/v1/feedback", tags=["feedback"])
-
 
 @feedback_router.post("")
 async def submit_feedback(req: FeedbackScoreRequest, request: Request):
@@ -814,17 +764,14 @@ async def submit_feedback(req: FeedbackScoreRequest, request: Request):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-
 @feedback_router.get("/stats")
 async def feedback_stats(request: Request):
     """Get feedback statistics."""
     return {"total": 0, "mean_score": 0.0}
 
-
 # ---- Optimize routes ----
 
 optimize_router = APIRouter(prefix="/v1/optimize", tags=["optimize"])
-
 
 @optimize_router.get("/runs")
 async def list_optimize_runs(request: Request):
@@ -844,7 +791,6 @@ async def list_optimize_runs(request: Request):
     except Exception as exc:
         logger.warning("Failed to list optimization runs: %s", exc)
         return {"runs": []}
-
 
 @optimize_router.get("/runs/{run_id}")
 async def get_optimize_run(run_id: str, request: Request):
@@ -875,12 +821,10 @@ async def get_optimize_run(run_id: str, request: Request):
         logger.warning("Failed to get optimization run %s: %s", run_id, exc)
         return {"run_id": run_id, "status": "not_found"}
 
-
 @optimize_router.post("/runs")
 async def start_optimize_run(req: OptimizeRunRequest, request: Request):
     """Start a new optimization run."""
     return {"status": "started", "run_id": "placeholder"}
-
 
 def include_all_routes(app) -> None:
     """Include all extended API routers in a FastAPI app."""
@@ -929,7 +873,6 @@ def include_all_routes(app) -> None:
         app.include_router(ws_router)
     except Exception:
         logger.debug("WebSocket bridge not available", exc_info=True)
-
 
 __all__ = [
     "include_all_routes",

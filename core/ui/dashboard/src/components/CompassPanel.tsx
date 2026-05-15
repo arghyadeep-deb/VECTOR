@@ -35,7 +35,7 @@ export default function CompassPanel() {
       width: '100%',
       zIndex: 35, background: 'rgba(2, 18, 32, 0.92)',
       border: '1px solid rgba(0,207,255,0.2)',
-      boxShadow: '0 0 20px #00CFFF22, inset 0 0 30px #00CFFF08',
+      boxShadow: '0 0 20px #4FC3F722, inset 0 0 30px #4FC3F708',
       padding: '8px',
     }}>
       <div style={{
@@ -44,7 +44,7 @@ export default function CompassPanel() {
       }}>
         HEADING
       </div>
-      <svg width={120} height={120} viewBox="0 0 120 120" style={{ display: 'block', margin: '0 auto', filter: 'drop-shadow(0 0 6px #00d4ff33)' }}>
+      <svg width={120} height={120} viewBox="0 0 120 120" style={{ display: 'block', margin: '0 auto', filter: 'drop-shadow(0 0 6px #4FC3F733)' }}>
         {/* Outer rotating ring */}
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,207,255,0.12)" strokeWidth={1}>
           <animateTransform attributeName="transform" type="rotate" from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="12s" repeatCount="indefinite" />
@@ -87,8 +87,8 @@ export default function CompassPanel() {
 
         {/* Heading needle */}
         <line x1={cx} y1={cy} x2={nx} y2={ny}
-          stroke="#00d4ff" strokeWidth={2} strokeLinecap="round" opacity={0.9}
-          style={{ filter: 'drop-shadow(0 0 6px #00d4ff)' }}>
+          stroke="#4FC3F7" strokeWidth={2} strokeLinecap="round" opacity={0.9}
+          style={{ filter: 'drop-shadow(0 0 6px #4FC3F7)' }}>
           <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
         </line>
 
@@ -97,7 +97,7 @@ export default function CompassPanel() {
           stroke="rgba(0,207,255,0.2)" strokeWidth={0.8} strokeLinecap="round" />
 
         {/* Center dot */}
-        <circle cx={cx} cy={cy} r={3} fill="#00d4ff" opacity={0.9}>
+        <circle cx={cx} cy={cy} r={3} fill="#4FC3F7" opacity={0.9}>
           <animate attributeName="r" values="2.5;3.5;2.5" dur="1.5s" repeatCount="indefinite" />
           <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
         </circle>
@@ -106,7 +106,7 @@ export default function CompassPanel() {
       <div style={{
         textAlign: 'center', marginTop: 4,
         fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
-        color: '#00d4ff', letterSpacing: '0.05em',
+        color: '#4FC3F7', letterSpacing: '0.05em',
       }}>
         {Math.round(heading)}° <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 8, color: '#3388aa' }}>{headingStr(heading)}</span>
       </div>

@@ -105,11 +105,96 @@ class NewsAggregator(AgentBase):
             logger.warning(f"[VECTOR][news_aggregator] RSS {source_name} failed: {e}")
             return []
 
+    async def fetch_via_connectors(self, max_per_source: int = 5) -> list[dict]:
+        """Pull news via absorbed VectorCode connectors (HackerNews, GitHub releases,
+        news_rss aggregator). Each source is guarded — missing connectors are skipped.
+        Returns a flat list of {title, source, url, description, published}.
+        """
+        out: list[dict] = []
+
+        # HackerNews top stories
+        try:
+            from vectorcode.src.connectors.hackernews import HackerNewsConnector  # type: ignore
+            hn = HackerNewsConnector()
+            for name in ("get_top_stories", "top_stories", "fetch_top", "today"):
+                fn = getattr(hn, name, None)
+                if callable(fn):
+                    raw = fn(max_per_source)
+                    if asyncio.iscoroutine(raw):
+                        raw = await raw
+                    if isinstance(raw, list):
+                        for item in raw[:max_per_source]:
+                            if isinstance(item, dict):
+                                out.append({
+                                    "title": item.get("title", "") or "",
+                                    "source": "hackernews",
+                                    "url": item.get("url") or item.get("link", "") or "",
+                                    "description": (item.get("text") or item.get("description", ""))[:200],
+                                    "published": str(item.get("time") or item.get("created_at", ""))[:16],
+                                })
+                    break
+        except Exception as e:
+            logger.debug(f"[VECTOR][news_aggregator] hackernews connector unavailable: {e}")
+
+        # GitHub notifications (trending releases / starred-author updates)
+        try:
+            from vectorcode.src.connectors.github_notifications import (  # type: ignore
+                GitHubNotificationsConnector,
+            )
+            gh = GitHubNotificationsConnector()
+            for name in ("get_recent", "recent", "fetch_recent", "today"):
+                fn = getattr(gh, name, None)
+                if callable(fn):
+                    raw = fn(max_per_source)
+                    if asyncio.iscoroutine(raw):
+                        raw = await raw
+                    if isinstance(raw, list):
+                        for item in raw[:max_per_source]:
+                            if isinstance(item, dict):
+                                out.append({
+                                    "title": item.get("title") or item.get("subject", "") or "",
+                                    "source": "github",
+                                    "url": item.get("url") or item.get("html_url", "") or "",
+                                    "description": (item.get("body") or item.get("repo", ""))[:200],
+                                    "published": str(item.get("updated_at") or item.get("created_at", ""))[:16],
+                                })
+                    break
+        except Exception as e:
+            logger.debug(f"[VECTOR][news_aggregator] github connector unavailable: {e}")
+
+        # News RSS aggregator (richer than our raw httpx version)
+        try:
+            from vectorcode.src.connectors.news_rss import NewsRSSConnector  # type: ignore
+            rss = NewsRSSConnector()
+            for name in ("get_recent", "fetch_today", "today", "snapshot"):
+                fn = getattr(rss, name, None)
+                if callable(fn):
+                    raw = fn(max_per_source * 5)
+                    if asyncio.iscoroutine(raw):
+                        raw = await raw
+                    if isinstance(raw, list):
+                        for item in raw[: max_per_source * 5]:
+                            if isinstance(item, dict):
+                                out.append({
+                                    "title": item.get("title", "") or "",
+                                    "source": item.get("feed_name") or "rss",
+                                    "url": item.get("url") or item.get("link", "") or "",
+                                    "description": (item.get("summary") or item.get("description", ""))[:200],
+                                    "published": str(item.get("published", ""))[:16],
+                                })
+                    break
+        except Exception as e:
+            logger.debug(f"[VECTOR][news_aggregator] news_rss connector unavailable: {e}")
+
+        return out
+
     async def gather_news(self, max_per_source: int = 5) -> list[dict]:
-        """Gather from NewsAPI + RSS feeds. Returns deduplicated list."""
-        tasks = [self.fetch_newsapi(max=max_per_source)]
+        """Gather from NewsAPI + RSS feeds + absorbed connectors. Returns deduplicated list."""
+        tasks: list = [self.fetch_newsapi(max=max_per_source)]
         for name, url in _RSS_FEEDS:
             tasks.append(self.fetch_rss(url, name, max=max_per_source))
+        # Connector-backed sources in parallel with the legacy ones
+        tasks.append(self.fetch_via_connectors(max_per_source=max_per_source))
 
         all_results = await asyncio.gather(*tasks, return_exceptions=True)
 

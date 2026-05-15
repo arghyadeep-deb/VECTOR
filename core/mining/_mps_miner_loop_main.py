@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Experimental Apple-MPS Pearl miner-loop subprocess.
 
 This is the first Apple-GPU path for Pearl mining. It is intentionally
@@ -37,7 +36,6 @@ from ._miner_loop_main import (
 )
 
 logger = logging.getLogger("vector.mining.mps_miner_loop")
-
 
 class MpsNoisyGemmAdapter:
     """Device-safe wrapper around upstream ``miner_base.NoisyGemm``.
@@ -139,7 +137,6 @@ class MpsNoisyGemmAdapter:
         _MpsNoisyGemm.Transcript = Transcript
         return _MpsNoisyGemm(**kwargs)
 
-
 def _mining_config_for_shape(pearl_mining_module: Any, *, k: int, rank: int) -> Any:
     return pearl_mining_module.MiningConfiguration(
         common_dim=k,
@@ -149,7 +146,6 @@ def _mining_config_for_shape(pearl_mining_module: Any, *, k: int, rank: int) -> 
         cols_pattern=pearl_mining_module.PeriodicPattern.from_list(list(range(16))),
         reserved=pearl_mining_module.MiningConfiguration.RESERVED,
     )
-
 
 async def _mine_one_round(
     reader: asyncio.StreamReader,
@@ -245,7 +241,6 @@ async def _mine_one_round(
         return False
     return True
 
-
 async def _main_loop(args: argparse.Namespace) -> None:
     reader, writer = await _open_gateway_connection(
         args.gateway_host,
@@ -279,7 +274,6 @@ async def _main_loop(args: argparse.Namespace) -> None:
         writer.close()
         await writer.wait_closed()
 
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="vector.mining._mps_miner_loop_main")
     p.add_argument("--gateway-host", default="127.0.0.1")
@@ -299,7 +293,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=_CONNECT_RETRY_SECONDS,
     )
     return p.parse_args(argv)
-
 
 if __name__ == "__main__":
     logging.basicConfig(

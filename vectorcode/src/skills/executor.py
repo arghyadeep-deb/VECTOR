@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """SkillExecutor -- runs skill steps sequentially through ToolExecutor."""
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ from vectorcode.src.vc_core.types import ToolCall, ToolResult
 from vectorcode.src.skills.types import SkillManifest
 from vectorcode.src.vc_tools._stubs import ToolExecutor
 
-
 @dataclass(slots=True)
 class SkillResult:
     skill_name: str = ""
@@ -21,10 +19,8 @@ class SkillResult:
     step_results: List[ToolResult] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
 
-
 # Resolver callback: given a skill name and the current context, returns a SkillResult.
 SkillResolver = Callable[[str, Dict[str, Any]], SkillResult]
-
 
 class SkillExecutor:
     """Execute a skill manifest step-by-step.
@@ -176,6 +172,5 @@ class SkillExecutor:
             return json.dumps(val)
 
         return re.sub(r"\{(\w+)\}", _replace, template)
-
 
 __all__ = ["SkillExecutor", "SkillResolver", "SkillResult"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/execution/workarena_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -82,7 +81,6 @@ _ACTION_PREFIX_RE = re.compile(
     r"(" + "|".join(_ACTION_NAMES) + r")\s*\(",
 )
 
-
 def _extract_action_call(text: str, match: re.Match) -> str:
     """Extract a balanced action call starting from a regex match on ``name(``."""
     start = match.start()
@@ -107,7 +105,6 @@ def _extract_action_call(text: str, match: re.Match) -> str:
                 depth -= 1
         i += 1
     return text[start:i]
-
 
 class WorkArenaTaskEnv:
     """Per-task BrowserGym environment for WorkArena.
@@ -487,7 +484,6 @@ class WorkArenaTaskEnv:
 
         return "\n".join(lines)
 
-
 def _safe_serialize(obj: Any) -> Any:
     """Convert non-serializable objects to strings."""
     if isinstance(obj, dict):
@@ -497,6 +493,5 @@ def _safe_serialize(obj: Any) -> Any:
     if isinstance(obj, (str, int, float, bool, type(None))):
         return obj
     return str(obj)
-
 
 __all__ = ["WorkArenaTaskEnv"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/tts.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,7 +11,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
-
 
 @dataclass
 class TTSResult:
@@ -29,7 +27,6 @@ class TTSResult:
         """Write audio bytes to a file and return the path."""
         path.write_bytes(self.audio)
         return path
-
 
 class TTSBackend(ABC):
     """Abstract base class for text-to-speech backends."""
@@ -54,6 +51,5 @@ class TTSBackend(ABC):
     @abstractmethod
     def health(self) -> bool:
         """Check if the backend is ready."""
-
 
 __all__ = ["TTSBackend", "TTSResult"]

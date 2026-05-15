@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/capabilities/2",
+  "identifier": "default",
+  "description": "Default capabilities for the VECTOR desktop window.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "shell:allow-open",
+    "dialog:default",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-read-dir",
+    "http:default",
+    "http:allow-fetch",
+    "notification:default",
+    "notification:allow-notify",
+    "os:default",
+    "os:allow-platform",
+    "os:allow-version",
+    "os:allow-arch",
+    "os:allow-hostname",
+    "process:default"
+  ]
+}

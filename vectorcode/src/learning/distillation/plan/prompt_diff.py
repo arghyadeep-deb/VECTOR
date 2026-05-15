@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/plan/prompt_diff.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 # Threshold: if more than this fraction of lines change, downgrade to REPLACE
 _DOWNGRADE_THRESHOLD = 0.5
 
-
 def changed_line_ratio(original: str, modified: str) -> float:
     """Compute the fraction of lines that differ between two strings.
 
@@ -51,7 +49,6 @@ def changed_line_ratio(original: str, modified: str) -> float:
             changed += 1
 
     return changed / max_len
-
 
 def apply_unified_diff(original: str, diff: str) -> Optional[str]:
     """Apply a unified diff to the original string.
@@ -116,7 +113,6 @@ def apply_unified_diff(original: str, diff: str) -> Optional[str]:
     except Exception:
         logger.warning("Failed to apply unified diff")
         return None
-
 
 def maybe_downgrade_to_replace(
     edit: Edit,

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/personal/synthesizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -13,8 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from vectorcode.src.oj_traces.store import TraceStore
-
+from vectorcode.src.vc_traces.store import TraceStore
 
 @dataclass(slots=True)
 class PersonalBenchmarkSample:
@@ -28,7 +26,6 @@ class PersonalBenchmarkSample:
     feedback_score: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(slots=True)
 class PersonalBenchmark:
     """A synthesized benchmark from user interaction traces."""
@@ -37,12 +34,10 @@ class PersonalBenchmark:
     samples: List[PersonalBenchmarkSample] = field(default_factory=list)
     created_at: float = 0.0
 
-
 def _query_class_key(agent: str, query: str) -> str:
     """Compute a grouping key from agent name and query prefix."""
     prefix = query[:50].strip().lower()
     return f"{agent}::{prefix}"
-
 
 def _infer_category(agent: str) -> str:
     """Heuristic to map an agent name to an eval category."""
@@ -54,7 +49,6 @@ def _infer_category(agent: str) -> str:
     if any(tok in agent_lower for tok in ("reason", "math", "code")):
         return "reasoning"
     return "chat"
-
 
 class PersonalBenchmarkSynthesizer:
     """Mines interaction traces into a reusable personal benchmark."""
@@ -116,7 +110,6 @@ class PersonalBenchmarkSynthesizer:
             samples=samples,
             created_at=time.time(),
         )
-
 
 __all__ = [
     "PersonalBenchmark",

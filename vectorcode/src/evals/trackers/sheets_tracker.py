@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/trackers/sheets_tracker.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -57,13 +56,11 @@ SHEET_COLUMNS: List[str] = [
     "gpu_utilization_mean",
 ]
 
-
 def _stat_val(ms: Optional[MetricStats], attr: str) -> Any:
     """Safely extract a stat value from a MetricStats, returning '' if None."""
     if ms is None:
         return ""
     return getattr(ms, attr, "")
-
 
 class SheetsTracker(ResultTracker):
     """Appends a summary row to a Google Sheet after each eval run."""
@@ -165,6 +162,5 @@ class SheetsTracker(ResultTracker):
             _stat_val(s.ttft_stats, "p90"),
             _stat_val(s.gpu_utilization_stats, "mean"),
         ]
-
 
 __all__ = ["SheetsTracker", "SHEET_COLUMNS"]

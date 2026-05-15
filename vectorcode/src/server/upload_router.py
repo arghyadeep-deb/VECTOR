@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Upload / Paste router for ingesting documents into the knowledge store."""
 
 from __future__ import annotations
@@ -23,7 +22,6 @@ router = APIRouter(prefix="/v1/connectors/upload", tags=["upload"])
 # ---------------------------------------------------------------------------
 
 _ALLOWED_EXTENSIONS = {".txt", ".md", ".csv", ".pdf", ".docx"}
-
 
 def _chunk_text(text: str, max_chars: int = 1000) -> List[str]:
     """Split *text* into ~max_chars pieces at paragraph boundaries."""
@@ -55,7 +53,6 @@ def _chunk_text(text: str, max_chars: int = 1000) -> List[str]:
             final.append(chunk)
     return final
 
-
 def _extract_text_from_pdf(data: bytes) -> str:
     """Extract text from a PDF using pdfplumber or PyPDF2."""
     # Try pdfplumber first
@@ -84,7 +81,6 @@ def _extract_text_from_pdf(data: bytes) -> str:
             ),
         )
 
-
 def _extract_text_from_docx(data: bytes) -> str:
     """Extract text from a .docx file using python-docx."""
     try:
@@ -101,32 +97,26 @@ def _extract_text_from_docx(data: bytes) -> str:
             ),
         )
 
-
 def _get_store() -> KnowledgeStore:
     """Return a KnowledgeStore pointing at the default knowledge DB."""
     db_path = DEFAULT_CONFIG_DIR / "knowledge.db"
     return KnowledgeStore(db_path=db_path)
 
-
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
-
 
 class PasteRequest(BaseModel):
     title: str = ""
     content: str
 
-
 class IngestResponse(BaseModel):
     chunks_added: int
     source: str = "upload"
 
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
 
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_paste(body: PasteRequest) -> IngestResponse:
@@ -151,7 +141,6 @@ async def ingest_paste(body: PasteRequest) -> IngestResponse:
 
     logger.info("Ingested %d chunks from pasted text (doc_id=%s)", len(chunks), doc_id)
     return IngestResponse(chunks_added=len(chunks))
-
 
 @router.post("/ingest/files", response_model=IngestResponse)
 async def ingest_files(

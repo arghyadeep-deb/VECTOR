@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/research_mining.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -49,7 +48,6 @@ structure: <1-5>
 relevance: <1-5>
 reasoning: <brief explanation>
 overall_correct: <yes or no>"""
-
 
 class ResearchMiningScorer(LLMJudgeScorer):
     """Score research mining responses on quality dimensions."""
@@ -110,6 +108,5 @@ class ResearchMiningScorer(LLMJudgeScorer):
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
-
 
 __all__ = ["ResearchMiningScorer"]

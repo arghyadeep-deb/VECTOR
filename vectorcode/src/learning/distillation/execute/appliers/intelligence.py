@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/execute/appliers/intelligence.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -18,7 +17,6 @@ from vectorcode.src.learning.distillation.execute.base import (
     ValidationResult,
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
-
 
 class SetModelForQueryClassApplier(EditApplier):
     """Update the routing policy map for a query class."""
@@ -67,7 +65,6 @@ class SetModelForQueryClassApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         pass  # Delegated to CheckpointStore.discard_stage() in the execution loop
-
 
 class SetModelParamApplier(EditApplier):
     """Update a model parameter in config."""

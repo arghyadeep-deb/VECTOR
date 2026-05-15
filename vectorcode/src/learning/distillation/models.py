@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/models.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -29,7 +28,6 @@ from pydantic import BaseModel, Field
 # Enums
 # ---------------------------------------------------------------------------
 
-
 class EditPillar(str, Enum):
     """Which VectorCode pillar an edit targets."""
 
@@ -38,14 +36,12 @@ class EditPillar(str, Enum):
     TOOLS = "tools"
     ENGINE = "engine"  # designed-for; no v1 appliers ship
 
-
 class EditRiskTier(str, Enum):
     """How an edit gets applied: auto, review queue, or manual-only."""
 
     AUTO = "auto"
     REVIEW = "review"
     MANUAL = "manual"
-
 
 class EditOp(str, Enum):
     """The set of typed operations a teacher can propose.
@@ -74,7 +70,6 @@ class EditOp(str, Enum):
     # v2 placeholder — planner can emit, executor refuses with NotImplementedError
     LORA_FINETUNE = "lora_finetune"
 
-
 class TriggerKind(str, Enum):
     """What kicked off a learning session."""
 
@@ -83,14 +78,12 @@ class TriggerKind(str, Enum):
     USER_FLAG = "user_flag"
     ON_DEMAND = "on_demand"
 
-
 class AutonomyMode(str, Enum):
     """How aggressively the orchestrator applies edits without review."""
 
     AUTO = "auto"  # all tiers auto-apply, ignore review tier
     TIERED = "tiered"  # default: respect per-edit risk tier
     MANUAL = "manual"  # everything goes to review queue (dry-run mode)
-
 
 class SessionStatus(str, Enum):
     """Lifecycle states for a LearningSession.
@@ -107,11 +100,9 @@ class SessionStatus(str, Enum):
     FAILED = "failed"
     ROLLED_BACK = "rolled_back"
 
-
 # ---------------------------------------------------------------------------
 # Edit — atomic unit of change
 # ---------------------------------------------------------------------------
-
 
 class Edit(BaseModel):
     """One atomic edit to the VectorCode harness.
@@ -155,11 +146,9 @@ class Edit(BaseModel):
         description="Trace ids or benchmark task ids that justify this edit.",
     )
 
-
 # ---------------------------------------------------------------------------
 # FailureCluster — a group of related failures with a shared root cause
 # ---------------------------------------------------------------------------
-
 
 class FailureCluster(BaseModel):
     """A group of failing traces that share a hypothesised root cause.
@@ -199,11 +188,9 @@ class FailureCluster(BaseModel):
         description="Ids of edits in the LearningPlan that target this cluster.",
     )
 
-
 # ---------------------------------------------------------------------------
 # LearningPlan — frozen output of the planning phase
 # ---------------------------------------------------------------------------
-
 
 class LearningPlan(BaseModel):
     """The teacher's frozen plan of edits for a learning session.
@@ -241,11 +228,9 @@ class LearningPlan(BaseModel):
         description="When the plan was finalized.",
     )
 
-
 # ---------------------------------------------------------------------------
 # BenchmarkSnapshot — one personal-benchmark run result
 # ---------------------------------------------------------------------------
-
 
 class BenchmarkSnapshot(BaseModel):
     """A point-in-time score from running the personal benchmark.
@@ -282,11 +267,9 @@ class BenchmarkSnapshot(BaseModel):
         description="Wall-clock time of the benchmark run.",
     )
 
-
 # ---------------------------------------------------------------------------
 # EditOutcome — what happened when one edit was processed
 # ---------------------------------------------------------------------------
-
 
 EditOutcomeStatus = Literal[
     "applied",
@@ -296,7 +279,6 @@ EditOutcomeStatus = Literal[
     "rolled_back",
     "skipped",
 ]
-
 
 class EditOutcome(BaseModel):
     """Result of attempting to apply one Edit.
@@ -327,11 +309,9 @@ class EditOutcome(BaseModel):
         description="When the edit was committed to the checkpoint repo.",
     )
 
-
 # ---------------------------------------------------------------------------
 # LearningSession — durable record of one full diagnose→record loop
 # ---------------------------------------------------------------------------
-
 
 class LearningSession(BaseModel):
     """The durable record of one distillation session.

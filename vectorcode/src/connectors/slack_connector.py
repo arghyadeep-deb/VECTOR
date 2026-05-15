@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/slack_connector.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -21,9 +20,9 @@ import httpx
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from vectorcode.src.oj_core.config import DEFAULT_CONFIG_DIR
-from vectorcode.src.oj_core.registry import ConnectorRegistry
-from vectorcode.src.oj_tools._stubs import ToolSpec
+from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
+from vectorcode.src.vc_core.registry import ConnectorRegistry
+from vectorcode.src.vc_tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -40,7 +39,6 @@ _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "slack.json"
 # ---------------------------------------------------------------------------
 # Module-level API functions (easy to patch in tests)
 # ---------------------------------------------------------------------------
-
 
 def _slack_api_conversations_list(
     token: str,
@@ -70,7 +68,6 @@ def _slack_api_conversations_list(
 
     return _slack_api_with_retry("conversations.list", token, params)
 
-
 def _slack_api_conversations_history(
     token: str,
     channel_id: str,
@@ -99,7 +96,6 @@ def _slack_api_conversations_history(
 
     return _slack_api_with_retry("conversations.history", token, params)
 
-
 def _slack_api_users_list(token: str) -> Dict[str, Any]:
     """Call the Slack ``users.list`` endpoint.
 
@@ -114,7 +110,6 @@ def _slack_api_users_list(token: str) -> Dict[str, Any]:
         Raw API response containing ``members`` list.
     """
     return _slack_api_with_retry("users.list", token)
-
 
 def _slack_api_with_retry(
     method: str,
@@ -155,11 +150,9 @@ def _slack_api_with_retry(
         return data
     return {}
 
-
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
-
 
 def _build_user_map(members: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
     """Build a user_id → {name, email} map from a ``users.list`` members list."""
@@ -175,7 +168,6 @@ def _build_user_map(members: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
         }
     return user_map
 
-
 def _ts_to_datetime(ts: str) -> datetime:
     """Convert a Slack timestamp string (e.g. '1710500000.000100') to datetime."""
     if not ts:
@@ -185,17 +177,14 @@ def _ts_to_datetime(ts: str) -> datetime:
     except (ValueError, OSError):
         return datetime.now()
 
-
 def _slack_archive_url(team_id: str, channel_id: str, ts: str) -> str:
     """Build a Slack message archive URL from team, channel, and timestamp."""
     ts_clean = ts.replace(".", "")
     return f"https://slack.com/archives/{channel_id}/p{ts_clean}"
 
-
 # ---------------------------------------------------------------------------
 # SlackConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("slack")
 class SlackConnector(BaseConnector):

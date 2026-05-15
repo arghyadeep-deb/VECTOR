@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """CPU mining-loop subprocess entry point.
 
 Run with::
@@ -36,20 +35,17 @@ _FAILURE_BACKOFF_SECONDS = 1.0
 _CONNECT_RETRY_SECONDS = 0.25
 _CONNECT_TIMEOUT_SECONDS = 30.0
 
-
 def _make_request(
     method: str, params: dict[str, Any], request_id: int
 ) -> dict[str, Any]:
     """Build a JSON-RPC 2.0 request envelope matching gateway's schema."""
     return {"jsonrpc": "2.0", "method": method, "params": params, "id": request_id}
 
-
 def _decode_mining_info(result: dict[str, Any]) -> tuple[bytes, int]:
     """Decode a getMiningInfo result into ``(incomplete_header_bytes, target)``."""
     header_b64 = result["incomplete_header_bytes"]
     target = int(result["target"])
     return base64.b64decode(header_b64), target
-
 
 def _encode_plain_proof(plain_proof: Any) -> str:
     """Return the proof as a base64 string for ``submitPlainProof``.
@@ -59,7 +55,6 @@ def _encode_plain_proof(plain_proof: Any) -> str:
     """
     return plain_proof.to_base64()
 
-
 async def _read_response(reader: asyncio.StreamReader) -> dict[str, Any]:
     """Read one line of JSON-RPC response from the gateway socket."""
     line = await reader.readline()
@@ -67,12 +62,10 @@ async def _read_response(reader: asyncio.StreamReader) -> dict[str, Any]:
         raise ConnectionError("gateway closed the connection")
     return json.loads(line)
 
-
 async def _send_request(writer: asyncio.StreamWriter, request: dict[str, Any]) -> None:
     """Write one JSON-RPC request followed by newline."""
     writer.write(json.dumps(request).encode() + b"\n")
     await writer.drain()
-
 
 async def _open_gateway_connection(
     host: str,
@@ -101,7 +94,6 @@ async def _open_gateway_connection(
             )
             await asyncio.sleep(retry_seconds)
 
-
 def _build_mining_config(pearl_mining_module: Any, *, k: int, rank: int) -> Any:
     """Build the upstream MiningConfiguration with default patterns."""
     from ._constants import (
@@ -121,7 +113,6 @@ def _build_mining_config(pearl_mining_module: Any, *, k: int, rank: int) -> Any:
         ),
         reserved=pearl_mining_module.MiningConfiguration.RESERVED,
     )
-
 
 async def _mine_one_round(
     pearl_mining_module: Any,
@@ -170,7 +161,6 @@ async def _mine_one_round(
         return False
     return True
 
-
 async def _main_loop(args: argparse.Namespace) -> None:
     import pearl_mining  # imported lazily so this module is itself import-safe
 
@@ -207,7 +197,6 @@ async def _main_loop(args: argparse.Namespace) -> None:
         writer.close()
         await writer.wait_closed()
 
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="vector.mining._miner_loop_main")
     p.add_argument("--gateway-host", default="127.0.0.1")
@@ -219,7 +208,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--connect-timeout-seconds", type=float, default=30.0)
     p.add_argument("--connect-retry-seconds", type=float, default=0.25)
     return p.parse_args(argv)
-
 
 if __name__ == "__main__":
     logging.basicConfig(

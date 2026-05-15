@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/email_triage.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -43,7 +42,6 @@ draft_quality: <good, acceptable, or poor>
 reasoning: <brief explanation>
 overall_correct: <yes or no>"""
 
-
 def _extract_field(text: str, field: str) -> str:
     """Extract a field value from structured model output."""
     match = re.search(
@@ -52,7 +50,6 @@ def _extract_field(text: str, field: str) -> str:
         re.MULTILINE | re.IGNORECASE,
     )
     return match.group(1).strip().lower() if match else ""
-
 
 class EmailTriageScorer(LLMJudgeScorer):
     """Score email triage: classification accuracy + draft quality."""
@@ -137,6 +134,5 @@ class EmailTriageScorer(LLMJudgeScorer):
                 "category_correct": category_match,
                 "error": str(exc),
             }
-
 
 __all__ = ["EmailTriageScorer"]

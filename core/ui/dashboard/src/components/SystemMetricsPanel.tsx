@@ -16,7 +16,7 @@ function Bar({ value, max = 100, color }: { value: number; max?: number; color: 
   )
 }
 
-function Row({ label, value, unit, bar, barColor = '#00d4ff', warn }: {
+function Row({ label, value, unit, bar, barColor = '#4FC3F7', warn }: {
   label: string; value: string | number; unit?: string
   bar?: number; barColor?: string; warn?: boolean
 }) {
@@ -28,14 +28,14 @@ function Row({ label, value, unit, bar, barColor = '#00d4ff', warn }: {
         </span>
         <span style={{
           fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
-          color: warn ? '#FFB300' : barColor,
-          textShadow: warn ? '0 0 8px #FFB30066' : undefined,
+          color: warn ? '#42A5F5' : barColor,
+          textShadow: warn ? '0 0 8px #42A5F566' : undefined,
         }}>
           {value}{unit && <span style={{ fontSize: 11, color: '#3388aa', marginLeft: 2 }}>{unit}</span>}
         </span>
       </div>
       {bar !== undefined && (
-        <Bar value={bar} color={warn ? '#FFB300' : barColor} />
+        <Bar value={bar} color={warn ? '#42A5F5' : barColor} />
       )}
     </div>
   )
@@ -49,7 +49,7 @@ function TempGauge({ temp }: { temp: number | null }) {
   )
 
   const pct = Math.min(100, ((temp - 30) / 70) * 100) // 30°C = 0%, 100°C = 100%
-  const color = temp > 85 ? '#FF3D3D' : temp > 70 ? '#FFB300' : '#00FF88'
+  const color = temp > 85 ? '#FF3D3D' : temp > 70 ? '#42A5F5' : '#4FC3F7'
   const warn = temp > 70
 
   // Arc SVG gauge
@@ -88,7 +88,7 @@ function TempGauge({ temp }: { temp: number | null }) {
         </text>
         {warn && (
           <text x={cx} y={cy + 20} textAnchor="middle"
-            fill="#FFB300" fontFamily="'Orbitron', sans-serif" fontSize={5}>
+            fill="#42A5F5" fontFamily="'Orbitron', sans-serif" fontSize={5}>
             HOT
           </text>
         )}
@@ -160,11 +160,11 @@ export default function SystemMetricsPanel() {
 
           {/* CPU */}
           <Row label="CPU" value={`${Math.round(cpu)}%`} bar={cpu}
-            barColor={cpuWarn ? '#FFB300' : '#00d4ff'} warn={cpuWarn} />
+            barColor={cpuWarn ? '#42A5F5' : '#4FC3F7'} warn={cpuWarn} />
 
           {/* RAM */}
           <Row label="RAM" value={`${memUsed.toFixed(1)}/${memTotal.toFixed(0)}G`}
-            bar={memPct} barColor={memWarn ? '#FFB300' : '#00FF88'} warn={memWarn} />
+            bar={memPct} barColor={memWarn ? '#42A5F5' : '#4FC3F7'} warn={memWarn} />
 
           {/* Disk */}
           <Row label="DISK" value={`${diskUsed.toFixed(0)}/${diskTotal.toFixed(0)}G`}
@@ -176,7 +176,7 @@ export default function SystemMetricsPanel() {
           {/* GPU */}
           {gpuPct !== null ? (
             <Row label="GPU" value={`${Math.round(gpuPct)}%`} bar={gpuPct}
-              barColor={gpuWarn ? '#FF3D3D' : '#BF5FFF'} warn={gpuWarn} />
+              barColor={gpuWarn ? '#FF3D3D' : '#64B5F6'} warn={gpuWarn} />
           ) : (
             <Row label="GPU" value="N/A" barColor="#3388aa" />
           )}
@@ -184,13 +184,13 @@ export default function SystemMetricsPanel() {
           {/* GPU MEM */}
           {gpuMem !== null && (
             <Row label="VRAM" value={`${Math.round(gpuMem)}%`} bar={gpuMem}
-              barColor={(gpuMem > 90) ? '#FF3D3D' : '#BF5FFF'} warn={gpuMem > 90} />
+              barColor={(gpuMem > 90) ? '#FF3D3D' : '#64B5F6'} warn={gpuMem > 90} />
           )}
 
           {/* GPU Temp as simple row */}
           {gpuTemp !== null && (
             <Row label="GPU TEMP" value={`${Math.round(gpuTemp)}°C`}
-              barColor={gpuTemp > 85 ? '#FF3D3D' : gpuTemp > 70 ? '#FFB300' : '#00FF88'}
+              barColor={gpuTemp > 85 ? '#FF3D3D' : gpuTemp > 70 ? '#42A5F5' : '#4FC3F7'}
               warn={gpuTemp > 70} />
           )}
 
@@ -201,13 +201,13 @@ export default function SystemMetricsPanel() {
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
             <div>
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 12, color: '#1a6688', letterSpacing: '0.08em' }}>↑ TX</div>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#00FFD4' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#81D4FA' }}>
                 {netSent.toFixed(1)} <span style={{ fontSize: 12, color: '#3388aa' }}>MB/s</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 12, color: '#1a6688', letterSpacing: '0.08em' }}>↓ RX</div>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#00FFD4' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#81D4FA' }}>
                 {netRecv.toFixed(1)} <span style={{ fontSize: 12, color: '#3388aa' }}>MB/s</span>
               </div>
             </div>

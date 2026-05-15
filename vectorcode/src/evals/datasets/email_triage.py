@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/email_triage.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -279,7 +278,6 @@ _EMAILS = [
     },
 ]
 
-
 class EmailTriageDataset(DatasetProvider):
     """Email triage benchmark: urgency classification + category + draft reply."""
 
@@ -335,6 +333,5 @@ class EmailTriageDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["EmailTriageDataset"]

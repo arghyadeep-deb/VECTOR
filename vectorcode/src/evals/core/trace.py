@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/trace.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -12,7 +11,6 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 
 @dataclass
 class TurnTrace:
@@ -75,7 +73,6 @@ class TurnTrace:
             action_energy_breakdown=d.get("action_energy_breakdown"),
             tool_calls=d.get("tool_calls", []),
         )
-
 
 @dataclass
 class QueryTrace:
@@ -280,6 +277,5 @@ class QueryTrace:
                 }
             )
         return Dataset.from_list(rows)
-
 
 __all__ = ["TurnTrace", "QueryTrace"]

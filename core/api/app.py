@@ -58,6 +58,13 @@ async def lifespan(app: FastAPI):
         logger.warning(f"[VECTOR][api] agent_registry failed: {e}")
 
     try:
+        from vectorcode.src.vc_sessions.session import SessionStore
+        app.state.session_store = SessionStore()
+        logger.info("[VECTOR][api] session_store ready")
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] session_store failed: {e}")
+
+    try:
         from core.memory.episodic import EpisodicMemory
         app.state.episodic_memory = EpisodicMemory()
     except Exception as e:
@@ -143,7 +150,8 @@ def create_app() -> FastAPI:
         return {"csrf_token": generate_csrf_token()}
 
     # Include routers
-    from core.api.routers import commands, council, agents, status, voice, memory, security, websocket, tasks, vectorcode
+    from core.api.routers import a2a, commands, council, agents, status, voice, memory, security, websocket, tasks, vectorcode
+    app.include_router(a2a.router)
     app.include_router(commands.router)
     app.include_router(council.router)
     app.include_router(agents.router)

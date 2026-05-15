@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/scheduler/store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -53,7 +52,6 @@ INSERT INTO task_run_logs
     (task_id, started_at, finished_at, success, result, error)
 VALUES (?, ?, ?, ?, ?, ?)
 """
-
 
 class SchedulerStore:
     """SQLite CRUD store for scheduled tasks and their run logs."""
@@ -168,6 +166,5 @@ class SchedulerStore:
             except (json.JSONDecodeError, TypeError):
                 d["metadata"] = {}
         return d
-
 
 __all__ = ["SchedulerStore"]

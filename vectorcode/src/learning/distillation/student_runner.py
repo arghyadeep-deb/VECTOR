@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/student_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -20,7 +19,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass(slots=True)
 class StudentResult:
     """Result from running the student model on a task."""
@@ -30,7 +28,6 @@ class StudentResult:
     trace_id: str = ""
     latency_seconds: float = 0.0
     tokens_used: int = 0
-
 
 class VLLMStudentRunner:
     """Invoke the student model via a vLLM OpenAI-compatible endpoint.
@@ -105,7 +102,6 @@ class VLLMStudentRunner:
             trace_id=f"distill_{session_id}_{hash(query) % 10000}",
         )
 
-
 def build_benchmark_samples_from_traces(
     trace_store: Any,
     *,
@@ -117,7 +113,7 @@ def build_benchmark_samples_from_traces(
     Pulls recent traces (optionally filtered by feedback score) and
     converts them into benchmark samples the teacher can reference.
     """
-    from vector.learning.optimize.personal.synthesizer import (
+    from vectorcode.src.learning.optimize.personal.synthesizer import (
         PersonalBenchmarkSample,
     )
 

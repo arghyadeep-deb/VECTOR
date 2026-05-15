@@ -47,10 +47,10 @@ const empty: React.CSSProperties = {
 
 function badgeColor(type: string): string {
   const t = type.toLowerCase()
-  if (t.includes('chat') || t.includes('message')) return '#00CFFF'
+  if (t.includes('chat') || t.includes('message')) return '#4FC3F7'
   if (t.includes('error') || t.includes('fail') || t.includes('warn')) return '#ff3355'
-  if (t.includes('goal') || t.includes('council') || t.includes('gov')) return '#ffaa00'
-  if (t.includes('action') || t.includes('exec') || t.includes('decision')) return '#00ff88'
+  if (t.includes('goal') || t.includes('council') || t.includes('gov')) return '#42A5F5'
+  if (t.includes('action') || t.includes('exec') || t.includes('decision')) return '#4FC3F7'
   if (t.includes('memory') || t.includes('learn') || t.includes('observe')) return '#aa66ff'
   if (t.includes('system') || t.includes('context') || t.includes('permission')) return '#3388aa'
   return '#3388aa'
@@ -148,20 +148,20 @@ export default function EventFeed() {
   return (
     <div className="corner-bracket" style={{ ...panelStyle(), display: 'flex', flexDirection: 'column', minHeight: 0, flex: '0 0 auto', height: collapsed ? 30 : 340, background: 'rgba(5,13,26,0.88)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(0,212,255,0.1)' }}>
       {connectionError && (
-        <div style={{ background: '#ff880033', borderBottom: '1px solid #ff880066', padding: '3px 12px', fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#ffaa00', textAlign: 'center', letterSpacing: '0.1em' }}>
+        <div style={{ background: '#ff880033', borderBottom: '1px solid #ff880066', padding: '3px 12px', fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#42A5F5', textAlign: 'center', letterSpacing: '0.1em' }}>
           CONNECTION LOST — RETRYING...
         </div>
       )}
       <div style={{ ...panelHeader(), height: 30, minHeight: 30 }}>
-        <span style={{ color: '#00d4ff' }}>Event Feed</span>
+        <span style={{ color: '#4FC3F7' }}>Event Feed</span>
         <span style={headerId}>FEED</span>
         <div style={headerExtras}>
           <button style={iconBtn} onClick={toggleTicker}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#00d4ff'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#4FC3F7'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#1a6688'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.12)' }}
-          >TICKER <span style={{ display: 'inline-block', width: 3, height: 3, borderRadius: '50%', background: ticker ? '#00d4ff' : '#1a6688', verticalAlign: 'middle', marginLeft: 2 }} /></button>
+          >TICKER <span style={{ display: 'inline-block', width: 3, height: 3, borderRadius: '50%', background: ticker ? '#4FC3F7' : '#1a6688', verticalAlign: 'middle', marginLeft: 2 }} /></button>
           <button style={iconBtn} onClick={toggleCollapse}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#00d4ff'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#4FC3F7'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#1a6688'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.12)' }}
           >{collapsed ? '▼' : '▲'}</button>
         </div>

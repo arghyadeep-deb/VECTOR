@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_supergpqa.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -10,7 +9,6 @@ from __future__ import annotations
 
 from vectorcode.src.evals.core.types import EvalRecord
 from vectorcode.src.evals.tests.conftest import MockBackend
-
 
 class TestSuperGPQAScorer:
     def _make_record(self, answer="B", options=None):
@@ -31,7 +29,7 @@ class TestSuperGPQAScorer:
         )
 
     def test_correct_extraction(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend(responses={})
         backend._default_response = "B"
@@ -45,7 +43,7 @@ class TestSuperGPQAScorer:
         assert meta["candidate_letter"] == "B"
 
     def test_incorrect_extraction(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend()
         backend._default_response = "A"
@@ -58,7 +56,7 @@ class TestSuperGPQAScorer:
         assert meta["candidate_letter"] == "A"
 
     def test_missing_reference(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend()
         scorer = SuperGPQAScorer(backend, "gpt-4o")
@@ -70,7 +68,7 @@ class TestSuperGPQAScorer:
         assert meta["reason"] == "missing_reference_letter"
 
     def test_no_extraction(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend()
         backend._default_response = "NONE"
@@ -83,7 +81,7 @@ class TestSuperGPQAScorer:
         assert meta["reason"] == "no_choice_letter_extracted"
 
     def test_valid_letters_from_options(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend()
         scorer = SuperGPQAScorer(backend, "gpt-4o")
@@ -98,7 +96,7 @@ class TestSuperGPQAScorer:
         assert letters == "ABCD"
 
     def test_extraction_with_verbose_response(self):
-        from vector.evals.scorers.supergpqa_mcq import SuperGPQAScorer
+        from vectorcode.src.evals.scorers.supergpqa_mcq import SuperGPQAScorer
 
         backend = MockBackend()
         backend._default_response = "THE ANSWER IS: C"

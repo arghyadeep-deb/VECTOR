@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/diagnose/teacher_agent.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -29,14 +28,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from vectorcode.src.oj_core.types import Message, Role, ToolCall
+from vectorcode.src.vc_core.types import Message, Role, ToolCall
 from vectorcode.src.learning.distillation.diagnose.types import (
     DiagnosticTool,
     ToolCallRecord,
 )
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class TeacherAgentResult:
@@ -47,7 +45,6 @@ class TeacherAgentResult:
     total_cost_usd: float
     total_tokens: int
     tool_call_records: list[ToolCallRecord] = field(default_factory=list)
-
 
 class TeacherAgent:
     """Frontier model tool-calling loop for the diagnose phase.

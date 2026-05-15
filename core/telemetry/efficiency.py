@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/efficiency.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,7 +13,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass
 class EfficiencyMetrics:
     """Results of an MFU/MBU efficiency calculation."""
@@ -26,7 +24,6 @@ class EfficiencyMetrics:
     actual_bandwidth_gb_s: float = 0.0  # Actual memory bandwidth (GB/s)
     peak_bandwidth_gb_s: float = 0.0  # Peak memory bandwidth (GB/s)
     ipj: float = 0.0  # Intelligence Per Joule
-
 
 def estimate_model_flops_per_token(
     param_count_b: float,
@@ -48,7 +45,6 @@ def estimate_model_flops_per_token(
     active = active_params_b if active_params_b is not None else param_count_b
     return 2.0 * active * 1e9
 
-
 def estimate_model_bytes_per_token(
     param_count_b: float,
     bytes_per_param: float = 2.0,
@@ -63,7 +59,6 @@ def estimate_model_bytes_per_token(
         Bytes loaded per token.
     """
     return param_count_b * 1e9 * bytes_per_param
-
 
 def compute_efficiency(
     param_count_b: float,
@@ -125,7 +120,6 @@ def compute_efficiency(
         peak_bandwidth_gb_s=peak_bandwidth_gb_s,
         ipj=ipj,
     )
-
 
 __all__ = [
     "EfficiencyMetrics",

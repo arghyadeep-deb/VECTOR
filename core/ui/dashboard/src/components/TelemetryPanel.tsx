@@ -6,8 +6,8 @@ function Capability({ label, active }: { label: string; active: boolean }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
       <span style={{
         width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
-        background: active ? '#00FF88' : '#2a2a2a',
-        boxShadow: active ? '0 0 6px #00FF88' : 'none',
+        background: active ? '#4FC3F7' : '#2a2a2a',
+        boxShadow: active ? '0 0 6px #4FC3F7' : 'none',
         animation: active ? 'v-pulse 3s ease-in-out infinite' : 'none',
       }} />
       <span style={{
@@ -21,9 +21,9 @@ function Capability({ label, active }: { label: string; active: boolean }) {
 }
 
 function hpColor(hp: number): string {
-  if (hp >= 700) return '#BF5FFF'
-  if (hp >= 400) return '#00CFFF'
-  if (hp >= 100) return '#FFB300'
+  if (hp >= 700) return '#64B5F6'
+  if (hp >= 400) return '#4FC3F7'
+  if (hp >= 100) return '#42A5F5'
   return '#FF3D3D'
 }
 
@@ -60,7 +60,7 @@ export default function TelemetryPanel() {
   const models = status?.models ? Object.values(status.models) : []
   const modelList = [...new Set(models)].join(', ')
 
-  const memBarColor = memPct > 70 ? '#FFB300' : memPct > 40 ? '#00d4ff' : '#00FF88'
+  const memBarColor = memPct > 70 ? '#42A5F5' : memPct > 40 ? '#4FC3F7' : '#4FC3F7'
 
   return (
     <div style={{
@@ -117,7 +117,7 @@ export default function TelemetryPanel() {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, color: '#1a6688', letterSpacing: '0.08em' }}>AGENTS</div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#00d4ff' }}>C {total}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4FC3F7' }}>C {total}</div>
         </div>
       </div>
 
@@ -128,7 +128,7 @@ export default function TelemetryPanel() {
       }}>
         <div>
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, color: '#1a6688', letterSpacing: '0.08em' }}>AGENTS ALIVE</div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: alive === total ? '#00FF88' : '#FFB300' }}>{alive}/{total}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: alive === total ? '#4FC3F7' : '#42A5F5' }}>{alive}/{total}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, color: '#1a6688', letterSpacing: '0.08em' }}>MEMORY</div>

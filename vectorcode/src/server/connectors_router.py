@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """FastAPI router for /v1/connectors — connector management endpoints."""
 
 from __future__ import annotations
@@ -10,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 # Module-level cache of connector instances (keyed by connector_id).
 _instances: Dict[str, Any] = {}
-
 
 def _ensure_connectors_registered() -> None:
     """Ensure ConnectorRegistry is populated.
@@ -49,7 +47,6 @@ def _ensure_connectors_registered() -> None:
                 except Exception:
                     pass
 
-
 # ---------------------------------------------------------------------------
 # Pydantic request model -- defined at module level so FastAPI can resolve
 # the type annotation correctly when injecting request bodies.
@@ -69,7 +66,6 @@ try:
 
 except ImportError:
     ConnectRequest = None  # type: ignore[assignment,misc]
-
 
 def create_connectors_router():
     """Return an APIRouter with /connectors endpoints.
@@ -551,6 +547,5 @@ def create_connectors_router():
         }
 
     return router
-
 
 __all__ = ["ConnectRequest", "create_connectors_router"]

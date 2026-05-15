@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/trial_runner.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,7 +22,6 @@ from vectorcode.src.learning.optimize.types import (
 
 LOGGER = logging.getLogger(__name__)
 
-
 @dataclass(slots=True)
 class BenchmarkSpec:
     """Specification for one benchmark in a multi-benchmark optimization."""
@@ -31,7 +29,6 @@ class BenchmarkSpec:
     benchmark: str
     max_samples: int = 200
     weight: float = 1.0
-
 
 class TrialRunner:
     """Evaluates a proposed config against a benchmark.
@@ -72,13 +69,13 @@ class TrialRunner:
         run_config = self._build_run_config(trial, recipe)
 
         # Lazy imports so the optimize package stays lightweight
-        from vector.evals.cli import (
+        from vectorcode.src.evals.cli import (
             _build_backend,
             _build_dataset,
             _build_judge_backend,
             _build_scorer,
         )
-        from vector.evals.core.runner import EvalRunner
+        from vectorcode.src.evals.core.runner import EvalRunner
 
         dataset = _build_dataset(self.benchmark)
         backend = _build_backend(
@@ -197,7 +194,6 @@ class TrialRunner:
             sample_scores=sample_scores,
         )
 
-
 class MultiBenchTrialRunner:
     """Evaluates a proposed config across multiple benchmarks.
 
@@ -281,7 +277,7 @@ class MultiBenchTrialRunner:
             "dataset_version": "0.1.1",
             "model_name": litellm_model,
             "agent_import_path": (
-                "vector.evals.backends.tb_agent:OpenJarvisTerminalBenchAgent"
+                "vector.evals.backends.tb_agent:VectorCodeTerminalBenchAgent"
             ),
             "agent_kwargs": {
                 "model_name": litellm_model,
@@ -404,6 +400,5 @@ class MultiBenchTrialRunner:
             sample_scores=all_scores,
             per_benchmark=per_benchmark,
         )
-
 
 __all__ = ["BenchmarkSpec", "MultiBenchTrialRunner", "TrialRunner"]

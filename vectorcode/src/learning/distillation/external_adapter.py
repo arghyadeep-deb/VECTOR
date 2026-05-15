@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/external_adapter.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,10 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from vectorcode.src.oj_core.types import Trace
+from vectorcode.src.vc_core.types import Trace
 from vectorcode.src.evals.core.types import EvalRecord
-from vectorcode.src.oj_traces.store import TraceStore
-
+from vectorcode.src.vc_traces.store import TraceStore
 
 def write_external_records_as_traces(
     store: TraceStore,
@@ -71,6 +69,5 @@ def write_external_records_as_traces(
         store.save(trace)
         written += 1
     return written
-
 
 __all__ = ["write_external_records_as_traces"]

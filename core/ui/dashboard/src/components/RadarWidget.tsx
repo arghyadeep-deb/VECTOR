@@ -64,7 +64,7 @@ export default function RadarWidget() {
       const by = cy + Math.sin(blipAngle) * blipR
       ctx.beginPath()
       ctx.arc(bx, by, 2, 0, Math.PI * 2)
-      ctx.fillStyle = '#00CFFF'
+      ctx.fillStyle = '#4FC3F7'
       ctx.fill()
 
       angle = (angle + 1.5) % 360

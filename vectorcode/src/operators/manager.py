@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/operators/manager.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -20,14 +19,13 @@ logger = logging.getLogger(__name__)
 # Default tick prompt sent to the operative agent
 _TICK_PROMPT = "[OPERATOR TICK] Execute your operational protocol."
 
-
 class OperatorManager:
     """Manages operator manifests and their lifecycle via the TaskScheduler.
 
     Parameters
     ----------
     system:
-        A ``JarvisSystem`` instance (used to access scheduler, session_store,
+        A ``VectorSystem`` instance (used to access scheduler, session_store,
         memory_backend, and to run operators via ``system.ask()``).
     """
 
@@ -214,6 +212,5 @@ class OperatorManager:
     def manifests(self) -> Dict[str, OperatorManifest]:
         """All registered manifests."""
         return dict(self._manifests)
-
 
 __all__ = ["OperatorManager"]

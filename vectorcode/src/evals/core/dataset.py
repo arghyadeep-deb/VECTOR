@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/core/dataset.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -13,7 +12,6 @@ from contextlib import AbstractContextManager
 from typing import Iterable, List, Optional
 
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class DatasetProvider(ABC):
     """Base class for all evaluation dataset providers."""
@@ -59,6 +57,5 @@ class DatasetProvider(ABC):
         """
         for record in self.iter_records():
             yield [record]
-
 
 __all__ = ["DatasetProvider"]

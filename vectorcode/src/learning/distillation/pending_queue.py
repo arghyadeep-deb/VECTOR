@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/pending_queue.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -23,7 +22,6 @@ from typing import Any
 from vectorcode.src.learning.distillation.models import Edit
 
 logger = logging.getLogger(__name__)
-
 
 class PendingQueue:
     """File-based queue for pending review edits.

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/toolorchestra.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -46,7 +45,6 @@ from vectorcode.src.evals.core.types import EvalRecord
 HF_DATASET_ID = "nvidia/ToolScale"
 HF_SPLIT = "train"
 
-
 def _parse_field(raw: object) -> Any:
     """Parse a field that may be a dict, a string repr of a dict, or None."""
     if raw is None or (isinstance(raw, str) and raw.strip().lower() in ("none", "")):
@@ -59,7 +57,6 @@ def _parse_field(raw: object) -> Any:
         except (ValueError, SyntaxError):
             pass
     return raw
-
 
 def _extract_problem_reference(
     row: MutableMapping[str, object],
@@ -95,7 +92,6 @@ def _extract_problem_reference(
         reference = str(eval_criteria)[:2000]
 
     return problem, reference
-
 
 class ToolOrchestraDataset(DatasetProvider):
     """ToolScale (nvidia/ToolScale) external corpus for LLM-guided spec search.
@@ -172,6 +168,5 @@ class ToolOrchestraDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["ToolOrchestraDataset"]

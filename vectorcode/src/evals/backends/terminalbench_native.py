@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/backends/terminalbench_native.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -25,7 +24,6 @@ try:
     _HAS_TB = True
 except ImportError:
     _HAS_TB = False
-
 
 class TerminalBenchNativeBackend(InferenceBackend):
     """Runs terminal-bench tasks natively via Harness with Docker execution.
@@ -125,6 +123,5 @@ class TerminalBenchNativeBackend(InferenceBackend):
 
     def close(self) -> None:
         pass
-
 
 __all__ = ["TerminalBenchNativeBackend"]

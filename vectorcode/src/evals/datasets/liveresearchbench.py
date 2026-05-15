@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/liveresearchbench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -36,7 +35,6 @@ HF_DATASET_ID = "Salesforce/LiveResearchBench"
 DEFAULT_HF_CONFIG = "question_with_checklist"
 DEFAULT_HF_SPLIT = "test"
 
-
 def _parse_checklist(checklist: Any) -> List[str]:
     """Parse the checklist field — may be a JSON string, list, or newline text."""
     if isinstance(checklist, list):
@@ -53,7 +51,6 @@ def _parse_checklist(checklist: Any) -> List[str]:
         pass
     # Fall back: treat as newline-separated items
     return [line.strip() for line in checklist.splitlines() if line.strip()]
-
 
 class LiveResearchBenchDataset(DatasetProvider):
     """LiveResearchBench — Salesforce's expert-curated deep research benchmark.
@@ -191,6 +188,5 @@ class LiveResearchBenchDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["LiveResearchBenchDataset"]

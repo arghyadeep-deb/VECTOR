@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/browser_assistant.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -386,7 +385,6 @@ _HARD_TASKS: List[Dict[str, Any]] = [
     },
 ]
 
-
 class BrowserAssistantDataset(DatasetProvider):
     """30 web research tasks with verifiable facts."""
 
@@ -446,6 +444,5 @@ class BrowserAssistantDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["BrowserAssistantDataset"]

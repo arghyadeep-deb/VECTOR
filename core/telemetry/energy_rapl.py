@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/energy_rapl.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -24,7 +23,6 @@ from core.telemetry.energy_monitor import (
 logger = logging.getLogger(__name__)
 
 _RAPL_BASE = Path("/sys/class/powercap/intel-rapl")
-
 
 class RaplDomain:
     """A single RAPL power domain (e.g., intel-rapl:0, intel-rapl:0:0)."""
@@ -59,7 +57,6 @@ class RaplDomain:
             logger.debug("Failed to read RAPL energy: %s", exc)
             return 0
 
-
 def _discover_domains(base: Path = _RAPL_BASE) -> List[RaplDomain]:
     """Discover all RAPL domains under the sysfs powercap tree."""
     domains: List[RaplDomain] = []
@@ -81,7 +78,6 @@ def _discover_domains(base: Path = _RAPL_BASE) -> List[RaplDomain]:
                         domains.append(RaplDomain(sub))
 
     return domains
-
 
 class RaplEnergyMonitor(EnergyMonitor):
     """CPU energy monitor reading Intel RAPL counters from sysfs.
@@ -198,6 +194,5 @@ class RaplEnergyMonitor(EnergyMonitor):
     def close(self) -> None:
         self._domains = []
         self._initialized = False
-
 
 __all__ = ["RaplEnergyMonitor"]

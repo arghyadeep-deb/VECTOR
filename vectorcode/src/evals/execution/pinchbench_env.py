@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/execution/pinchbench_env.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -19,7 +18,6 @@ from typing import Any, Optional, Type
 from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
-
 
 class PinchBenchTaskEnv:
     """Per-task workspace environment for PinchBench.
@@ -101,7 +99,7 @@ class PinchBenchTaskEnv:
         Called by AgenticRunner after agent execution, before QueryTrace
         is constructed. Builds transcript from raw EventRecorder events.
         """
-        from vector.evals.scorers.pinchbench import (
+        from vectorcode.src.evals.scorers.pinchbench import (
             events_to_transcript,
             grade_pinchbench_task,
         )
@@ -162,6 +160,5 @@ class PinchBenchTaskEnv:
                 shutil.rmtree(self._workspace, ignore_errors=True)
         self._workspace = None
         self._event_recorder = None
-
 
 __all__ = ["PinchBenchTaskEnv"]

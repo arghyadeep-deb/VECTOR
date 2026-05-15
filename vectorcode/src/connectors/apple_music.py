@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/apple_music.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -24,7 +23,7 @@ from datetime import datetime
 from typing import Iterator, Optional
 
 from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
-from vectorcode.src.oj_core.registry import ConnectorRegistry
+from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,6 @@ tell application "Music"
 end tell
 """
 
-
 def _run_osascript(script: str, *, timeout: int = 120) -> Optional[str]:
     """Execute an AppleScript via ``osascript`` and return stdout.
 
@@ -90,13 +88,11 @@ def _run_osascript(script: str, *, timeout: int = 120) -> Optional[str]:
         logger.debug("osascript error: %s", exc)
         return None
 
-
 def _track_doc_id(name: str, artist: str) -> str:
     """Deterministic doc_id from track name + artist."""
     key = f"{name}:{artist}"
     h = hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
     return f"apple_music-{h}"
-
 
 def _parse_played_date(raw: str) -> Optional[datetime]:
     """Try to parse an AppleScript date string; return None if unparseable."""
@@ -119,11 +115,9 @@ def _parse_played_date(raw: str) -> Optional[datetime]:
     logger.debug("Could not parse played_date: %r", raw)
     return None
 
-
 # ---------------------------------------------------------------------------
 # AppleMusicConnector
 # ---------------------------------------------------------------------------
-
 
 @ConnectorRegistry.register("apple_music")
 class AppleMusicConnector(BaseConnector):

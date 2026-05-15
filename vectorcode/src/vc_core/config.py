@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE
 # VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
@@ -23,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    # Only used by type-checkers (mypy/pyright) for the ``JarvisConfig.mining``
+    # Only used by type-checkers (mypy/pyright) for the ``VectorConfig.mining``
     # field annotation. The runtime import is deferred inside
     # ``_parse_mining_section()`` to break the import cycle:
     # ``mining/_stubs.py`` imports ``HardwareInfo`` from this module at its
@@ -45,13 +44,11 @@ except ModuleNotFoundError:
 DEFAULT_CONFIG_DIR = Path.home() / ".vector"
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.toml"
 
-
 def _ensure_config_dir() -> Path:
     """Ensure the config directory exists with restrictive permissions."""
     from vectorcode.src.vc_security.file_utils import secure_mkdir
 
     return secure_mkdir(DEFAULT_CONFIG_DIR)
-
 
 @dataclass(slots=True)
 class GpuInfo:
@@ -63,7 +60,6 @@ class GpuInfo:
     compute_capability: str = ""
     count: int = 0
 
-
 @dataclass(slots=True)
 class HardwareInfo:
     """Detected system hardware."""
@@ -74,11 +70,9 @@ class HardwareInfo:
     ram_gb: float = 0.0
     gpu: Optional[GpuInfo] = None
 
-
 # ---------------------------------------------------------------------------
 # Hardware detection helpers
 # ---------------------------------------------------------------------------
-
 
 def _run_cmd(cmd: list[str]) -> str:
     """Run a command and return stripped stdout, or empty string on failure."""
@@ -92,7 +86,6 @@ def _run_cmd(cmd: list[str]) -> str:
         return result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return ""
-
 
 def _detect_nvidia_gpu() -> Optional[GpuInfo]:
     if not shutil.which("nvidia-smi"):
@@ -122,7 +115,6 @@ def _detect_nvidia_gpu() -> Optional[GpuInfo]:
         )
     except (IndexError, ValueError):
         return None
-
 
 def _detect_amd_gpu() -> Optional[GpuInfo]:
     if not shutil.which("rocm-smi"):
@@ -158,7 +150,6 @@ def _detect_amd_gpu() -> Optional[GpuInfo]:
 
     return GpuInfo(vendor="amd", name=name, vram_gb=vram_gb, count=count)
 
-
 def _detect_apple_gpu() -> Optional[GpuInfo]:
     if platform.system() != "Darwin":
         return None
@@ -173,7 +164,6 @@ def _detect_apple_gpu() -> Optional[GpuInfo]:
             name = line.split(":")[-1].strip()
             return GpuInfo(vendor="apple", name=name, vram_gb=ram_gb, count=1)
     return GpuInfo(vendor="apple", name="Apple Silicon", vram_gb=ram_gb, count=1)
-
 
 def _detect_cpu_brand() -> str:
     """Best-effort CPU brand string."""
@@ -191,7 +181,6 @@ def _detect_cpu_brand() -> str:
             pass
     return platform.processor() or "unknown"
 
-
 def _total_ram_gb() -> float:
     try:
         if platform.system() == "Darwin":
@@ -207,7 +196,6 @@ def _total_ram_gb() -> float:
         pass
     return 0.0
 
-
 def detect_hardware() -> HardwareInfo:
     """Auto-detect hardware capabilities with graceful fallbacks."""
     gpu = _detect_nvidia_gpu() or _detect_amd_gpu() or _detect_apple_gpu()
@@ -219,11 +207,9 @@ def detect_hardware() -> HardwareInfo:
         gpu=gpu,
     )
 
-
 # ---------------------------------------------------------------------------
 # Engine recommendation
 # ---------------------------------------------------------------------------
-
 
 def recommend_engine(hw: HardwareInfo) -> str:
     """Suggest the best inference engine for the detected hardware."""
@@ -246,7 +232,6 @@ def recommend_engine(hw: HardwareInfo) -> str:
         return "lemonade"
     return "llamacpp"
 
-
 def _available_memory_gb(hw: HardwareInfo) -> float:
     """Return usable memory in GB for model loading."""
     gpu = hw.gpu
@@ -255,7 +240,6 @@ def _available_memory_gb(hw: HardwareInfo) -> float:
     if hw.ram_gb > 0:
         return (hw.ram_gb - 4) * 0.8
     return 0.0
-
 
 # Explicit tier table: (max_ram_gb, model_id).
 # Walked in order — first tier where available_gb <= max_ram is chosen.
@@ -268,7 +252,6 @@ _MODEL_TIERS = [
     (64, "qwen3.5:27b"),
 ]
 _MODEL_TIER_FALLBACK = "qwen3.5:27b"
-
 
 def recommend_model(hw: HardwareInfo, engine: str) -> str:
     """Suggest the best Qwen3.5 model that fits the detected hardware.
@@ -313,16 +296,13 @@ def recommend_model(hw: HardwareInfo, engine: str) -> str:
 
     return ""
 
-
 def estimated_download_gb(parameter_count_b: float) -> float:
     """Estimate download size in GB for Q4_K_M quantized model."""
     return parameter_count_b * 0.5 * 1.1
 
-
 # ---------------------------------------------------------------------------
 # Configuration hierarchy
 # ---------------------------------------------------------------------------
-
 
 @dataclass(slots=True)
 class OllamaEngineConfig:
@@ -330,20 +310,17 @@ class OllamaEngineConfig:
 
     host: str = ""
 
-
 @dataclass(slots=True)
 class VLLMEngineConfig:
     """Per-engine config for vLLM."""
 
     host: str = "http://localhost:8000"
 
-
 @dataclass(slots=True)
 class SGLangEngineConfig:
     """Per-engine config for SGLang."""
 
     host: str = "http://localhost:30000"
-
 
 @dataclass(slots=True)
 class LlamaCppEngineConfig:
@@ -352,13 +329,11 @@ class LlamaCppEngineConfig:
     host: str = "http://localhost:8080"
     binary_path: str = ""
 
-
 @dataclass(slots=True)
 class MLXEngineConfig:
     """Per-engine config for MLX."""
 
     host: str = "http://localhost:8080"
-
 
 @dataclass(slots=True)
 class LMStudioEngineConfig:
@@ -366,13 +341,11 @@ class LMStudioEngineConfig:
 
     host: str = "http://localhost:1234"
 
-
 @dataclass(slots=True)
 class ExoEngineConfig:
     """Per-engine config for Exo."""
 
     host: str = "http://localhost:52415"
-
 
 @dataclass(slots=True)
 class NexaEngineConfig:
@@ -381,20 +354,17 @@ class NexaEngineConfig:
     host: str = "http://localhost:18181"
     device: str = ""
 
-
 @dataclass(slots=True)
 class UzuEngineConfig:
     """Per-engine config for Uzu."""
 
     host: str = "http://localhost:8000"
 
-
 @dataclass(slots=True)
 class AppleFmEngineConfig:
     """Per-engine config for Apple Foundation Models."""
 
     host: str = "http://localhost:8079"
-
 
 @dataclass(slots=True)
 class GemmaCppEngineConfig:
@@ -405,13 +375,11 @@ class GemmaCppEngineConfig:
     model_type: str = ""
     num_threads: int = 0
 
-
 @dataclass(slots=True)
 class LemonadeEngineConfig:
     """Per-engine config for Lemonade."""
 
     host: str = "http://localhost:8000"
-
 
 @dataclass
 class EngineConfig:
@@ -540,7 +508,6 @@ class EngineConfig:
     def lemonade_host(self, value: str) -> None:
         self.lemonade.host = value
 
-
 @dataclass(slots=True)
 class IntelligenceConfig:
     """The model — identity, paths, quantization, and generation defaults."""
@@ -560,14 +527,12 @@ class IntelligenceConfig:
     repetition_penalty: float = 1.0
     stop_sequences: str = ""  # Comma-separated stop strings
 
-
 @dataclass(slots=True)
 class RoutingLearningConfig:
     """Routing sub-policy config within Learning."""
 
     policy: str = "heuristic"  # heuristic | learned
     min_samples: int = 5  # Min traces before trusting learned routing
-
 
 @dataclass(slots=True)
 class SFTConfig:
@@ -592,7 +557,6 @@ class SFTConfig:
     min_pairs: int = 10
     agent_filter: str = ""
 
-
 @dataclass(slots=True)
 class GRPOConfig:
     """General-purpose GRPO training config. Maps to [learning.intelligence.grpo]."""
@@ -616,7 +580,6 @@ class GRPOConfig:
     min_prompts: int = 10
     agent_filter: str = ""
 
-
 @dataclass(slots=True)
 class DSPyOptimizerConfig:
     """DSPy agent optimizer config. Maps to [learning.agent.dspy]."""
@@ -636,7 +599,6 @@ class DSPyOptimizerConfig:
     agent_filter: str = ""
     config_dir: str = ""
 
-
 @dataclass(slots=True)
 class GEPAOptimizerConfig:
     """GEPA agent optimizer config. Maps to [learning.agent.gepa]."""
@@ -653,7 +615,6 @@ class GEPAOptimizerConfig:
     agent_filter: str = ""
     config_dir: str = ""
 
-
 @dataclass(slots=True)
 class IntelligenceLearningConfig:
     """Intelligence sub-policy config within Learning."""
@@ -662,7 +623,6 @@ class IntelligenceLearningConfig:
     sft: SFTConfig = field(default_factory=SFTConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
 
-
 @dataclass(slots=True)
 class AgentLearningConfig:
     """Agent sub-policy config within Learning."""
@@ -670,7 +630,6 @@ class AgentLearningConfig:
     policy: str = "none"  # none | dspy | gepa
     dspy: DSPyOptimizerConfig = field(default_factory=DSPyOptimizerConfig)
     gepa: GEPAOptimizerConfig = field(default_factory=GEPAOptimizerConfig)
-
 
 @dataclass(slots=True)
 class SkillsLearningConfig:
@@ -682,7 +641,6 @@ class SkillsLearningConfig:
     optimization_interval_seconds: int = 86400
     overlay_dir: str = "~/.vector/learning/skills/"
 
-
 @dataclass(slots=True)
 class MetricsConfig:
     """Reward / optimization metric weights."""
@@ -691,7 +649,6 @@ class MetricsConfig:
     latency_weight: float = 0.2
     cost_weight: float = 0.1
     efficiency_weight: float = 0.1
-
 
 @dataclass
 class LearningConfig:
@@ -775,7 +732,6 @@ class LearningConfig:
             elif key == "efficiency":
                 self.metrics.efficiency_weight = fval
 
-
 @dataclass(slots=True)
 class StorageConfig:
     """Storage (memory) backend settings."""
@@ -788,10 +744,8 @@ class StorageConfig:
     chunk_size: int = 512
     chunk_overlap: int = 64
 
-
 # Backward-compatibility alias
 MemoryConfig = StorageConfig
-
 
 @dataclass(slots=True)
 class MCPConfig:
@@ -799,7 +753,6 @@ class MCPConfig:
 
     enabled: bool = True
     servers: str = ""  # JSON list of MCP server configs
-
 
 @dataclass(slots=True)
 class BrowserConfig:
@@ -810,7 +763,6 @@ class BrowserConfig:
     viewport_width: int = 1280
     viewport_height: int = 720
 
-
 @dataclass(slots=True)
 class ToolsConfig:
     """Tools primitive settings — wraps storage and MCP configuration."""
@@ -819,7 +771,6 @@ class ToolsConfig:
     mcp: MCPConfig = field(default_factory=MCPConfig)
     browser: BrowserConfig = field(default_factory=BrowserConfig)
     enabled: str = ""  # comma-separated default tools
-
 
 @dataclass
 class AgentConfig:
@@ -848,7 +799,6 @@ class AgentConfig:
     def default_tools(self, value: str) -> None:
         self.tools = value
 
-
 @dataclass(slots=True)
 class ServerConfig:
     """API server settings."""
@@ -875,7 +825,6 @@ class ServerConfig:
         ]
     )
 
-
 @dataclass(slots=True)
 class TelemetryConfig:
     """Telemetry persistence settings."""
@@ -889,14 +838,12 @@ class TelemetryConfig:
     steady_state_window: int = 5
     steady_state_threshold: float = 0.05
 
-
 @dataclass(slots=True)
 class TracesConfig:
     """Trace system settings."""
 
     enabled: bool = True
     db_path: str = str(DEFAULT_CONFIG_DIR / "traces.db")
-
 
 @dataclass(slots=True)
 class TelegramChannelConfig:
@@ -906,13 +853,11 @@ class TelegramChannelConfig:
     allowed_chat_ids: str = ""
     parse_mode: str = "Markdown"
 
-
 @dataclass(slots=True)
 class DiscordChannelConfig:
     """Per-channel config for Discord."""
 
     bot_token: str = ""
-
 
 @dataclass(slots=True)
 class SlackChannelConfig:
@@ -921,7 +866,6 @@ class SlackChannelConfig:
     bot_token: str = ""
     app_token: str = ""
 
-
 @dataclass(slots=True)
 class WebhookChannelConfig:
     """Per-channel config for generic webhooks."""
@@ -929,7 +873,6 @@ class WebhookChannelConfig:
     url: str = ""
     secret: str = ""
     method: str = "POST"
-
 
 @dataclass(slots=True)
 class EmailChannelConfig:
@@ -943,14 +886,12 @@ class EmailChannelConfig:
     password: str = ""
     use_tls: bool = True
 
-
 @dataclass(slots=True)
 class WhatsAppChannelConfig:
     """Per-channel config for WhatsApp Cloud API."""
 
     access_token: str = ""
     phone_number_id: str = ""
-
 
 @dataclass(slots=True)
 class SignalChannelConfig:
@@ -959,13 +900,11 @@ class SignalChannelConfig:
     api_url: str = ""
     phone_number: str = ""
 
-
 @dataclass(slots=True)
 class GoogleChatChannelConfig:
     """Per-channel config for Google Chat webhooks."""
 
     webhook_url: str = ""
-
 
 @dataclass(slots=True)
 class IRCChannelConfig:
@@ -977,13 +916,11 @@ class IRCChannelConfig:
     password: str = ""
     use_tls: bool = False
 
-
 @dataclass(slots=True)
 class WebChatChannelConfig:
     """Per-channel config for in-memory webchat."""
 
     pass
-
 
 @dataclass(slots=True)
 class TeamsChannelConfig:
@@ -993,14 +930,12 @@ class TeamsChannelConfig:
     app_password: str = ""
     service_url: str = ""
 
-
 @dataclass(slots=True)
 class MatrixChannelConfig:
     """Per-channel config for Matrix."""
 
     homeserver: str = ""
     access_token: str = ""
-
 
 @dataclass(slots=True)
 class MattermostChannelConfig:
@@ -1009,14 +944,12 @@ class MattermostChannelConfig:
     url: str = ""
     token: str = ""
 
-
 @dataclass(slots=True)
 class FeishuChannelConfig:
     """Per-channel config for Feishu (Lark)."""
 
     app_id: str = ""
     app_secret: str = ""
-
 
 @dataclass(slots=True)
 class BlueBubblesChannelConfig:
@@ -1025,7 +958,6 @@ class BlueBubblesChannelConfig:
     url: str = ""
     password: str = ""
 
-
 @dataclass(slots=True)
 class WhatsAppBaileysChannelConfig:
     """Per-channel config for WhatsApp via Baileys protocol."""
@@ -1033,7 +965,6 @@ class WhatsAppBaileysChannelConfig:
     auth_dir: str = ""  # Defaults to ~/.vector/whatsapp_auth
     assistant_name: str = "VECTOR"
     assistant_has_own_number: bool = False
-
 
 @dataclass
 class ChannelConfig:
@@ -1065,14 +996,12 @@ class ChannelConfig:
         default_factory=WhatsAppBaileysChannelConfig,
     )
 
-
 @dataclass(slots=True)
 class CapabilitiesConfig:
     """RBAC capability system settings."""
 
     enabled: bool = False
     policy_path: str = ""
-
 
 @dataclass(slots=True)
 class SecurityConfig:
@@ -1097,7 +1026,6 @@ class SecurityConfig:
     profile: str = ""
     vault_key_path: str = str(DEFAULT_CONFIG_DIR / ".vault_key")
     capabilities: CapabilitiesConfig = field(default_factory=CapabilitiesConfig)
-
 
 # ---------------------------------------------------------------------------
 # Security profile presets
@@ -1141,7 +1069,6 @@ _SECURITY_PROFILES: Dict[str, Dict[str, Dict[str, Any]]] = {
     },
 }
 
-
 def apply_security_profile(
     security_cfg: "SecurityConfig",
     server_cfg: "ServerConfig | None",
@@ -1175,7 +1102,6 @@ def apply_security_profile(
             if key not in _overrides and hasattr(server_cfg, key):
                 setattr(server_cfg, key, value)
 
-
 @dataclass(slots=True)
 class SandboxConfig:
     """Container sandbox settings."""
@@ -1190,7 +1116,6 @@ class SandboxConfig:
     wasm_fuel_limit: int = 1_000_000
     wasm_memory_limit_mb: int = 256
 
-
 @dataclass(slots=True)
 class SchedulerConfig:
     """Task scheduler settings."""
@@ -1199,7 +1124,6 @@ class SchedulerConfig:
     poll_interval: int = 60
     db_path: str = ""  # Defaults to ~/.vector/scheduler.db
 
-
 @dataclass(slots=True)
 class WorkflowConfig:
     """Workflow engine settings."""
@@ -1207,7 +1131,6 @@ class WorkflowConfig:
     enabled: bool = False
     max_parallel: int = 4
     default_node_timeout: int = 300
-
 
 @dataclass(slots=True)
 class SessionConfig:
@@ -1218,13 +1141,11 @@ class SessionConfig:
     consolidation_threshold: int = 100
     db_path: str = str(DEFAULT_CONFIG_DIR / "sessions.db")
 
-
 @dataclass(slots=True)
 class A2AConfig:
     """Agent-to-Agent protocol settings."""
 
     enabled: bool = False
-
 
 @dataclass(slots=True)
 class OperatorsConfig:
@@ -1233,7 +1154,6 @@ class OperatorsConfig:
     enabled: bool = False
     manifests_dir: str = "~/.vector/operators"
     auto_activate: str = ""  # Comma-separated operator IDs
-
 
 @dataclass(slots=True)
 class SpeechConfig:
@@ -1244,7 +1164,6 @@ class SpeechConfig:
     language: str = ""  # Empty = auto-detect
     device: str = "auto"  # "auto", "cpu", "cuda"
     compute_type: str = "float16"  # "float16", "int8", "float32"
-
 
 @dataclass(slots=True)
 class OptimizeConfig:
@@ -1259,14 +1178,12 @@ class OptimizeConfig:
     judge_model: str = "gpt-5-mini-2025-08-07"
     db_path: str = str(DEFAULT_CONFIG_DIR / "optimize.db")
 
-
 @dataclass(slots=True)
 class AgentManagerConfig:
     """Persistent agent manager settings."""
 
     enabled: bool = True
     db_path: str = str(DEFAULT_CONFIG_DIR / "agents.db")
-
 
 @dataclass(slots=True)
 class MemoryFilesConfig:
@@ -1276,7 +1193,6 @@ class MemoryFilesConfig:
     memory_path: str = "~/.vector/MEMORY.md"
     user_path: str = "~/.vector/USER.md"
     nudge_interval: int = 10
-
 
 @dataclass(slots=True)
 class SystemPromptConfig:
@@ -1288,7 +1204,6 @@ class SystemPromptConfig:
     skill_desc_max_chars: int = 60
     truncation_strategy: str = "head_tail"
 
-
 @dataclass(slots=True)
 class CompressionConfig:
     """Configuration for context compression."""
@@ -1296,7 +1211,6 @@ class CompressionConfig:
     enabled: bool = True
     threshold: float = 0.50
     strategy: str = "session_consolidation"
-
 
 @dataclass(slots=True)
 class SkillSourceConfig:
@@ -1306,7 +1220,6 @@ class SkillSourceConfig:
     url: str = ""  # required when source = "github"
     filter: Dict[str, Any] = field(default_factory=dict)
     auto_update: bool = False
-
 
 @dataclass(slots=True)
 class SkillsConfig:
@@ -1324,7 +1237,6 @@ class SkillsConfig:
     sandbox_dangerous: bool = True
     sources: List[SkillSourceConfig] = field(default_factory=list)
 
-
 @dataclass
 class DigestSectionConfig:
     """Configuration for a single digest section."""
@@ -1332,7 +1244,6 @@ class DigestSectionConfig:
     sources: List[str] = field(default_factory=list)
     max_items: int = 10
     priority_contacts: List[str] = field(default_factory=list)
-
 
 @dataclass
 class DigestConfig:
@@ -1367,9 +1278,8 @@ class DigestConfig:
         default_factory=lambda: DigestSectionConfig(sources=[])
     )
 
-
 @dataclass
-class JarvisConfig:
+class VectorConfig:
     """Top-level configuration for VectorCode."""
 
     installed_at: str = ""
@@ -1411,24 +1321,22 @@ class JarvisConfig:
         """Backward-compatible setter."""
         self.tools.storage = value
 
-
 # ---------------------------------------------------------------------------
 # Config key validation
 # ---------------------------------------------------------------------------
 
 # Sections that users may set via ``vector config set``.
 # ``hardware`` is auto-detected and not user-settable.
-_SETTABLE_SECTIONS = frozenset(JarvisConfig.__dataclass_fields__.keys()) - {
+_SETTABLE_SECTIONS = frozenset(VectorConfig.__dataclass_fields__.keys()) - {
     "hardware",
     "mining",
 }
-
 
 def validate_config_key(dotted_key: str) -> type:
     """Validate a dotted config key and return the leaf field's Python type.
 
     Raises :class:`ValueError` when the key does not map to a known field.
-    The function walks the ``JarvisConfig`` dataclass hierarchy using
+    The function walks the ``VectorConfig`` dataclass hierarchy using
     ``dataclasses.fields()``.
 
     Examples::
@@ -1452,7 +1360,7 @@ def validate_config_key(dotted_key: str) -> type:
         )
 
     # Walk the dataclass tree
-    current_cls = JarvisConfig
+    current_cls = VectorConfig
     for i, part in enumerate(parts):
         field_map = {f.name: f for f in dc_fields(current_cls)}
         if part not in field_map:
@@ -1488,11 +1396,9 @@ def validate_config_key(dotted_key: str) -> type:
     # Should not reach here, but satisfy type checker
     raise ValueError(f"Unknown config key: {dotted_key!r}")
 
-
 # ---------------------------------------------------------------------------
 # TOML loading
 # ---------------------------------------------------------------------------
-
 
 def _apply_toml_section(target: Any, section: Dict[str, Any]) -> None:
     """Overlay TOML key/value pairs onto a dataclass instance.
@@ -1527,8 +1433,7 @@ def _apply_toml_section(target: Any, section: Dict[str, Any]) -> None:
                         value = ",".join(str(v) for v in value)
                 setattr(target, key, value)
 
-
-def _migrate_toml_data(data: Dict[str, Any], cfg: "JarvisConfig") -> None:
+def _migrate_toml_data(data: Dict[str, Any], cfg: "VectorConfig") -> None:
     """Migrate old-format TOML keys to new structure in-place.
 
     Handles cross-section moves that can't be solved by backward-compat
@@ -1560,7 +1465,6 @@ def _migrate_toml_data(data: Dict[str, Any], cfg: "JarvisConfig") -> None:
                     "context_from_memory",
                     storage_sub.pop("context_injection"),
                 )
-
 
 def _parse_mining_section(data: dict) -> Optional["MiningConfig"]:
     """Parse the ``[mining]`` TOML section into a ``MiningConfig``.
@@ -1605,9 +1509,8 @@ def _parse_mining_section(data: dict) -> Optional["MiningConfig"]:
         extra={k: v for k, v in extra.items()},
     )
 
-
 @functools.lru_cache(maxsize=1)
-def load_config(path: Optional[Path] = None) -> JarvisConfig:
+def load_config(path: Optional[Path] = None) -> VectorConfig:
     """Detect hardware, build defaults, overlay TOML overrides.
 
     Parameters
@@ -1618,7 +1521,7 @@ def load_config(path: Optional[Path] = None) -> JarvisConfig:
     """
     _ensure_config_dir()
     hw = detect_hardware()
-    cfg = JarvisConfig(hardware=hw)
+    cfg = VectorConfig(hardware=hw)
     cfg.engine.default = recommend_engine(hw)
 
     if path is not None:
@@ -1687,11 +1590,9 @@ def load_config(path: Optional[Path] = None) -> JarvisConfig:
 
     return cfg
 
-
 # ---------------------------------------------------------------------------
 # Default TOML generation (for ``vector init``)
 # ---------------------------------------------------------------------------
-
 
 def generate_minimal_toml(
     hw: HardwareInfo, engine: str | None = None, *, host: str | None = None
@@ -1728,7 +1629,6 @@ default_agent = "simple"
 [tools]
 enabled = ["code_interpreter", "web_search", "file_read", "shell_exec"]
 """
-
 
 def generate_default_toml(
     hw: HardwareInfo, engine: str | None = None, *, host: str | None = None
@@ -1947,7 +1847,6 @@ ssrf_protection = true
         result = _re.sub(pattern, replacement, result)
     return result
 
-
 __all__ = [
     "A2AConfig",
     "AgentConfig",
@@ -1970,7 +1869,7 @@ __all__ = [
     "IRCChannelConfig",
     "IntelligenceConfig",
     "IntelligenceLearningConfig",
-    "JarvisConfig",
+    "VectorConfig",
     "LearningConfig",
     "LMStudioEngineConfig",
     "LlamaCppEngineConfig",
@@ -2014,4 +1913,4 @@ __all__ = [
 ]
 
 # VECTOR alias
-VectorConfig = JarvisConfig
+VectorConfig = VectorConfig

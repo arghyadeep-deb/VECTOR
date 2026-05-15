@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/paperarena.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -31,7 +30,6 @@ _SYSTEM_PROMPT = (
     "and answer the question. For multiple-choice questions, respond with just "
     "the letter (A, B, C, or D). For other questions, provide a precise answer."
 )
-
 
 class PaperArenaDataset(DatasetProvider):
     """PaperArena scientific literature reasoning benchmark.
@@ -170,6 +168,5 @@ class PaperArenaDataset(DatasetProvider):
                 "minimal_tool_chain": tool_chain,
             },
         )
-
 
 __all__ = ["PaperArenaDataset"]

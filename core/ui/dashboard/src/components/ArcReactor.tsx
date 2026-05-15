@@ -2,24 +2,15 @@ import { useRef, useEffect, useState } from 'react'
 import { useVectorStore } from '../store/vectorStore'
 import { Z } from '../lib/zIndex'
 
-const RINGS = [
-  { r: 220, sw: 0.6, dash: '6 12', speed: 0.15, tilt: 0, opacity: 0.12 },
-  { r: 190, sw: 0.4, dash: '3 8', speed: -0.25, tilt: 5, opacity: 0.1 },
-  { r: 160, sw: 0.8, dash: '10 20', speed: 0.2, tilt: -3, opacity: 0.15 },
-  { r: 130, sw: 0.3, dash: '2 6', speed: -0.3, tilt: 8, opacity: 0.08 },
-  { r: 100, sw: 0.6, dash: '4 12', speed: 0.35, tilt: -5, opacity: 0.12 },
-  { r: 70, sw: 0.4, dash: '2 5', speed: -0.4, tilt: 0, opacity: 0.1 },
-  { r: 45, sw: 0.5, dash: '3 7', speed: 0.5, tilt: 0, opacity: 0.15 },
-]
-
-const BEAMS = 12
-const TRIANGLE_POINTS = 6
+const CROSSHAIR_COUNT = 4
+const PARTICLE_COUNT = 8
+const PARTICLE_RADIUS = 140
 
 export default function ArcReactor() {
   const svgRef = useRef<SVGSVGElement>(null)
-  const anglesRef = useRef(RINGS.map(() => 0))
   const goalsLen = useVectorStore((s) => s.goals?.immediate_actions?.length ?? 0)
   const events = useVectorStore((s) => s.events)
+  const [pulse, setPulse] = useState(0)
 
   const mood = (() => {
     if (!events[0]) return 'idle'
@@ -31,27 +22,28 @@ export default function ArcReactor() {
 
   const isActive = mood === 'think'
   const isAlert = mood === 'alert'
-  const orbColor = isAlert ? '#FF3D3D' : isActive ? '#00FFD4' : '#00d4ff'
-  const speedMult = isActive ? 2.5 : isAlert ? 3 : 1
+  const orbColor = isAlert ? '#FF3D3D' : isActive ? '#81D4FA' : '#4FC3F7'
+  const pulseDuration = isAlert ? 1.5 : isActive ? 2 : 3
 
+  // Breathing pulse animation via JS
   useEffect(() => {
-    if (!svgRef.current) return
-    const rings = svgRef.current.querySelectorAll('.arc-ring')
-    let raf = 0
-
+    let raf: number
+    const start = Date.now()
     const animate = () => {
-      anglesRef.current = anglesRef.current.map((a, i) => {
-        const next = a + RINGS[i].speed * speedMult
-        if (rings[i]) {
-          (rings[i] as SVGCircleElement).setAttribute('stroke-dashoffset', String((next * 10) % (RINGS[i].r * 6)))
-        }
-        return next
-      })
+      const elapsed = (Date.now() - start) / 1000
+      const t = (elapsed % pulseDuration) / pulseDuration
+      // ease-in-out: smooth step
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      setPulse(eased)
       raf = requestAnimationFrame(animate)
     }
     raf = requestAnimationFrame(animate)
     return () => cancelAnimationFrame(raf)
-  }, [speedMult])
+  }, [pulseDuration])
+
+  // Pulse maps: 0 → min, 1 → max
+  const glowRadius = 180 + pulse * 40 // 180–220px
+  const crosshairExtend = pulse * 15 // 0–15px extension
 
   const cx = 400, cy = 200
 
@@ -69,13 +61,13 @@ export default function ArcReactor() {
         transition: 'all 0.8s ease',
       }} />
 
-      {/* Mid aura */}
+      {/* Breathing glow — radius oscillates 180–220px */}
       <div style={{
-        position: 'absolute', width: 380, height: 380, borderRadius: '50%',
-        background: `radial-gradient(circle, ${orbColor}12 0%, ${orbColor}06 50%, transparent 70%)`,
-        filter: 'blur(25px)',
-        animation: `breathe ${isAlert ? 1.5 : isActive ? 2 : 3}s ease-in-out infinite`,
-        transition: 'all 0.8s ease',
+        position: 'absolute', width: glowRadius * 2, height: glowRadius * 2,
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${orbColor}15 0%, ${orbColor}08 50%, transparent 70%)`,
+        filter: 'blur(20px)',
+        transition: 'all 0.05s linear',
       }} />
 
       {/* SVG arc reactor layer */}
@@ -100,33 +92,47 @@ export default function ArcReactor() {
             <feGaussianBlur stdDeviation="2" result="blur" />
             <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+          {/* Hex grid pattern */}
+          <pattern id="hexGrid" width="12" height="20.784" patternUnits="userSpaceOnUse">
+            <path d="M6,0 L12,3.464 L12,10.392 L6,13.856 L0,10.392 L0,3.464 Z"
+              fill="none" stroke={orbColor} strokeWidth="0.3" opacity="0.08"
+              style={{ transition: 'stroke 0.8s ease' }} />
+            <path d="M6,20.784 L12,17.32 L12,10.392"
+              fill="none" stroke={orbColor} strokeWidth="0.3" opacity="0.08"
+              style={{ transition: 'stroke 0.8s ease' }} />
+          </pattern>
         </defs>
 
         {/* Outer glow circle */}
         <circle cx={cx} cy={cy} r={260} fill="url(#coreGlow)" opacity="0.3" />
 
-        {/* Concentric rotating rings */}
-        {RINGS.map((ring, i) => (
-          <circle
-            key={i}
-            className="arc-ring"
-            cx={cx} cy={cy} r={ring.r}
-            fill="none"
-            stroke={orbColor}
-            strokeWidth={ring.sw}
-            strokeDasharray={ring.dash}
-            opacity={ring.opacity}
-            style={{
-              transform: `rotateX(${ring.tilt}deg)`,
-              transformOrigin: `${cx}px ${cy}px`,
-              transition: 'stroke 0.8s ease',
-            }}
-          />
-        ))}
+        {/* Hex grid inside core */}
+        <circle cx={cx} cy={cy} r={180} fill="url(#hexGrid)" opacity="0.8" />
+
+        {/* Crosshair lines — extend/retract with pulse */}
+        {Array.from({ length: CROSSHAIR_COUNT }, (_, i) => {
+          const angle = (i * 360) / CROSSHAIR_COUNT
+          const rad = (angle * Math.PI) / 180
+          const baseLen = 160
+          const len = baseLen + crosshairExtend
+          return (
+            <line
+              key={`ch-${i}`}
+              x1={cx + Math.cos(rad) * 30}
+              y1={cy + Math.sin(rad) * 30}
+              x2={cx + Math.cos(rad) * len}
+              y2={cy + Math.sin(rad) * len}
+              stroke={orbColor}
+              strokeWidth="0.5"
+              opacity="0.2"
+              style={{ transition: 'stroke 0.8s ease' }}
+            />
+          )
+        })}
 
         {/* Triangular/spoke structural frame */}
-        {Array.from({ length: TRIANGLE_POINTS }, (_, i) => {
-          const angle = (i * 360) / TRIANGLE_POINTS
+        {Array.from({ length: 6 }, (_, i) => {
+          const angle = (i * 360) / 6
           const rad = (angle * Math.PI) / 180
           const r1 = 30, r2 = 200
           const x1 = cx + Math.cos(rad) * r1
@@ -136,55 +142,57 @@ export default function ArcReactor() {
           const x3 = cx + Math.cos(rad + 0.15) * r2 * 0.85
           const y3 = cy + Math.sin(rad + 0.15) * r2 * 0.85
           return (
-            <polygon
-              key={i}
+            <polygon key={i}
               points={`${x1},${y1} ${x2},${y2} ${x3},${y3}`}
-              fill="none"
-              stroke={orbColor}
-              strokeWidth="0.4"
-              opacity="0.15"
+              fill="none" stroke={orbColor} strokeWidth="0.4" opacity="0.15"
               style={{ transition: 'stroke 0.8s ease' }}
             />
           )
         })}
 
-        {/* Inner spoke ring (connecting triangles) */}
-        {Array.from({ length: TRIANGLE_POINTS }, (_, i) => {
-          const angle = (i * 360) / TRIANGLE_POINTS
+        {/* Inner spoke ring */}
+        {Array.from({ length: 6 }, (_, i) => {
+          const angle = (i * 360) / 6
           const rad = (angle * Math.PI) / 180
-          const x1 = cx + Math.cos(rad) * 30
-          const y1 = cy + Math.sin(rad) * 30
-          const x2 = cx + Math.cos(rad + Math.PI / TRIANGLE_POINTS) * 55
-          const y2 = cy + Math.sin(rad + Math.PI / TRIANGLE_POINTS) * 55
           return (
-            <line
-              key={i}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={orbColor}
-              strokeWidth="0.6"
-              opacity="0.2"
+            <line key={i}
+              x1={cx + Math.cos(rad) * 30} y1={cy + Math.sin(rad) * 30}
+              x2={cx + Math.cos(rad + Math.PI / 6) * 55} y2={cy + Math.sin(rad + Math.PI / 6) * 55}
+              stroke={orbColor} strokeWidth="0.6" opacity="0.2"
               style={{ transition: 'stroke 0.8s ease' }}
             />
+          )
+        })}
+
+        {/* Orbiting agent particles — 8 dots at radius 140px, staggered fade */}
+        {Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+          const angle = (i * 360) / PARTICLE_COUNT
+          const rad = (angle * Math.PI) / 180
+          const x = cx + Math.cos(rad) * PARTICLE_RADIUS
+          const y = cy + Math.sin(rad) * PARTICLE_RADIUS
+          return (
+            <circle key={`p-${i}`} cx={x} cy={y} r="2" fill={orbColor} opacity="0.6"
+              style={{ transition: 'fill 0.8s ease' }}>
+              <animate attributeName="opacity"
+                values="0.05;0.5;0.05"
+                dur={`${2 + i * 0.5}s`}
+                begin={`-${i * 0.7}s`}
+                repeatCount="indefinite" />
+            </circle>
           )
         })}
 
         {/* Radiating beam lines */}
-        {isActive && Array.from({ length: BEAMS }, (_, i) => {
-          const angle = (i * 360) / BEAMS
+        {isActive && Array.from({ length: 12 }, (_, i) => {
+          const angle = (i * 360) / 12
           const rad = (angle * Math.PI) / 180
-          const len = 220 + Math.sin(Date.now() * 0.002 + i) * 40
           return (
-            <line
-              key={i}
-              x1={cx + Math.cos(rad) * 35}
-              y1={cy + Math.sin(rad) * 35}
-              x2={cx + Math.cos(rad) * len}
-              y2={cy + Math.sin(rad) * len}
-              stroke={orbColor}
-              strokeWidth="0.3"
-              opacity="0.15"
-              style={{ transition: 'stroke 0.8s ease' }}
-            >
+            <line key={i}
+              x1={cx + Math.cos(rad) * 35} y1={cy + Math.sin(rad) * 35}
+              x2={cx + Math.cos(rad) * (220 + Math.sin(Date.now() * 0.002 + i) * 40)}
+              y2={cy + Math.sin(rad) * (220 + Math.sin(Date.now() * 0.002 + i) * 40)}
+              stroke={orbColor} strokeWidth="0.3" opacity="0.15"
+              style={{ transition: 'stroke 0.8s ease' }}>
               <animate attributeName="opacity" values="0.05;0.2;0.05" dur={`${1 + i * 0.2}s`} repeatCount="indefinite" />
             </line>
           )
@@ -207,7 +215,6 @@ export default function ArcReactor() {
         position: 'absolute', width: 80, height: 80, borderRadius: '50%',
         background: `radial-gradient(circle, rgba(255,255,255,0.95) 0%, ${orbColor}88 40%, transparent 70%)`,
         boxShadow: `0 0 60px ${orbColor}66, 0 0 150px ${orbColor}33, 0 0 300px ${orbColor}11`,
-        animation: `breathe ${isAlert ? 1.5 : isActive ? 2 : 3}s ease-in-out infinite`,
         transition: 'all 0.8s ease',
       }} />
 

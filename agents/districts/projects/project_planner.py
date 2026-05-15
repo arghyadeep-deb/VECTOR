@@ -50,12 +50,11 @@ class ProjectPlanner(AgentBase):
             "Be specific, realistic, and concise."
         )
         try:
-            import ollama
-            r = ollama.chat(
-                model=_REASONING,
-                messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
-            )
-            return r["message"]["content"]
+            from core.inference.ollama_safe import chat
+            text = chat(model=_REASONING, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            if not text:
+                raise ValueError("empty response")
+            return text
         except Exception as e:
             logger.warning(f"[VECTOR][project_planner] LLM unavailable: {e}")
             return f"## Objective\n{goal}\n\n## Deadline\n{deadline}\n\n*Plan generation unavailable.*"

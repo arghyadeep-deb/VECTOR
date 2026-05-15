@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """Dependency graph: cycle detection, topological sort, capability union."""
 
 from __future__ import annotations
@@ -9,14 +8,11 @@ from typing import TYPE_CHECKING, Dict, List, Set
 if TYPE_CHECKING:
     from vectorcode.src.skills.types import SkillManifest
 
-
 class DependencyCycleError(Exception):
     """Raised when a cycle is detected in the skill dependency graph."""
 
-
 class DepthExceededError(Exception):
     """Raised when the dependency depth exceeds the configured maximum."""
-
 
 def build_dependency_graph(skills: Dict[str, "SkillManifest"]) -> Dict[str, Set[str]]:
     """Build a directed graph of skill dependencies.
@@ -47,7 +43,6 @@ def build_dependency_graph(skills: Dict[str, "SkillManifest"]) -> Dict[str, Set[
                 graph[name].add(step.skill_name)
 
     return graph
-
 
 def validate_dependencies(
     skills: Dict[str, "SkillManifest"],
@@ -133,7 +128,6 @@ def validate_dependencies(
 
     return order
 
-
 def compute_capability_union(
     skill_name: str,
     skills: Dict[str, "SkillManifest"],
@@ -176,7 +170,6 @@ def compute_capability_union(
 
     _dfs(skill_name)
     return caps_ordered
-
 
 __all__ = [
     "DependencyCycleError",

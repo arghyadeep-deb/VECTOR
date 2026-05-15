@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """ABC for channel implementations and shared types."""
 
 from __future__ import annotations
@@ -8,7 +7,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-
 class ChannelStatus(str, Enum):
     """Channel connection status."""
 
@@ -16,7 +14,6 @@ class ChannelStatus(str, Enum):
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     ERROR = "error"
-
 
 @dataclass(slots=True)
 class ChannelMessage:
@@ -30,10 +27,8 @@ class ChannelMessage:
     session_id: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-
 # Type for message handler callbacks
 ChannelHandler = Callable[[ChannelMessage], Optional[str]]
-
 
 class BaseChannel(ABC):
     """Base class for all channel implementations.
@@ -74,6 +69,5 @@ class BaseChannel(ABC):
     @abstractmethod
     def on_message(self, handler: ChannelHandler) -> None:
         """Register a callback for incoming messages."""
-
 
 __all__ = ["BaseChannel", "ChannelHandler", "ChannelMessage", "ChannelStatus"]

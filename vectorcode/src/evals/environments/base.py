@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/environments/base.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,11 +16,9 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 _THINK_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
-
 def _strip_think_tags(text: str) -> str:
     """Remove <think>...</think> blocks from model output."""
     return _THINK_TAG_RE.sub("", text).strip()
-
 
 def _format_messages(messages: List[Dict[str, str]]) -> str:
     """Format a message list as a single prompt string with role labels."""
@@ -37,7 +34,6 @@ def _format_messages(messages: List[Dict[str, str]]) -> str:
             parts.append(f"[Assistant]\n{content}")
     parts.append("[Assistant]")
     return "\n\n".join(parts)
-
 
 class TaskEnvironment(ABC):
     """Environment for multi-turn interactive evaluation.
@@ -155,6 +151,5 @@ class TaskEnvironment(ABC):
             msg for msg in messages if msg.get("role") != "system"
         ]
         return last_response
-
 
 __all__ = ["TaskEnvironment"]

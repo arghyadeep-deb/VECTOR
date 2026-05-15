@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -23,9 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from vectorcode.src.oj_core.events import EventType, get_event_bus
-from vectorcode.src.oj_core.registry import MemoryRegistry
-from vectorcode.src.oj_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_core.events import EventType, get_event_bus
+from vectorcode.src.vc_core.registry import MemoryRegistry
+from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
 
 # ---------------------------------------------------------------------------
 # DDL
@@ -94,7 +93,6 @@ CREATE INDEX IF NOT EXISTS idx_kc_doc_id     ON knowledge_chunks(doc_id);
 # Helper
 # ---------------------------------------------------------------------------
 
-
 def _to_iso(ts: Optional[Union[datetime, str]]) -> str:
     """Normalise a timestamp to ISO 8601 string (UTC)."""
     if ts is None:
@@ -105,11 +103,9 @@ def _to_iso(ts: Optional[Union[datetime, str]]) -> str:
         ts = ts.replace(tzinfo=timezone.utc)
     return ts.isoformat()
 
-
 # ---------------------------------------------------------------------------
 # KnowledgeStore
 # ---------------------------------------------------------------------------
-
 
 @MemoryRegistry.register("knowledge")
 class KnowledgeStore(MemoryBackend):
@@ -123,14 +119,14 @@ class KnowledgeStore(MemoryBackend):
 
     def __init__(self, db_path: Union[str, Path] = "") -> None:
         if not db_path:
-            from vector.core.config import DEFAULT_CONFIG_DIR
+            from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 
             db_path = DEFAULT_CONFIG_DIR / "knowledge.db"
 
         self._db_path = str(db_path)
         # Ensure the parent directory exists (skip for :memory:)
         if self._db_path != ":memory:":
-            from vector.security.file_utils import secure_create
+            from vectorcode.src.vc_security.file_utils import secure_create
 
             secure_create(Path(self._db_path))
 
@@ -383,6 +379,5 @@ class KnowledgeStore(MemoryBackend):
             self._conn.close()
         except Exception:
             pass
-
 
 __all__ = ["KnowledgeStore"]

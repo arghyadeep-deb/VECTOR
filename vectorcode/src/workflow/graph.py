@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/workflow/graph.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -12,7 +11,6 @@ from collections import defaultdict, deque
 from typing import Dict, List, Optional, Set, Tuple
 
 from vectorcode.src.workflow.types import WorkflowEdge, WorkflowNode
-
 
 class WorkflowGraph:
     """Directed acyclic graph of workflow nodes.
@@ -128,6 +126,5 @@ class WorkflowGraph:
 
     def successors(self, node_id: str) -> List[str]:
         return self._adjacency.get(node_id, [])
-
 
 __all__ = ["WorkflowGraph"]

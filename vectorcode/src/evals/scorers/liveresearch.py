@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/liveresearch.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -64,7 +63,6 @@ _GENERIC_RUBRIC = """Evaluate the research report across these four dimensions o
    - 7-8: Well-structured with clear writing and good flow
    - 9-10: Exceptionally clear, professional structure and presentation"""
 
-
 def _format_criteria_rubric(criterions: Dict[str, List[Dict[str, Any]]]) -> str:
     """Format task-specific criteria into a rubric string for the judge prompt."""
     parts: List[str] = []
@@ -82,7 +80,6 @@ def _format_criteria_rubric(criterions: Dict[str, List[Dict[str, Any]]]) -> str:
                 + (f"\n     {explanation}" if explanation else "")
             )
     return "\n".join(parts)
-
 
 def _build_judge_prompt(
     *,
@@ -125,14 +122,11 @@ Return your evaluation as JSON with this exact structure:
 Be a rigorous evaluator. Reserve scores of 9-10 for genuinely excellent work.
 A score of 5 represents adequate but unremarkable quality."""
 
-
-
 # Optional permissive JSON parser (json5 if available; fallback otherwise).
 try:
     import json5 as _json5  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover - json5 is optional
     _json5 = None
-
 
 def _escape_newlines_inside_strings(text: str) -> str:
     """Escape literal CR/LF/TAB inside double-quoted JSON string spans.
@@ -173,7 +167,6 @@ def _escape_newlines_inside_strings(text: str) -> str:
             out.append(ch)
     return "".join(out)
 
-
 def _safe_json_loads(text: str) -> Any:
     """Permissive JSON: strict json -> json5 (if installed) -> tolerant fallback."""
     try:
@@ -186,7 +179,6 @@ def _safe_json_loads(text: str) -> Any:
         except Exception:  # noqa: BLE001
             pass
     return json.loads(_escape_newlines_inside_strings(text))
-
 
 def _parse_judge_response(raw: str) -> Dict[str, Any]:
     """Parse LLM judge response, extracting dimension scores.
@@ -287,7 +279,6 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
         "notes": "Failed to parse judge response",
     }
 
-
 def _normalize_response(parsed: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize judge response to standard structure."""
     result: Dict[str, Any] = {"scores": {}, "weighted_total": 0.0, "notes": ""}
@@ -318,7 +309,6 @@ def _normalize_response(parsed: Dict[str, Any]) -> Dict[str, Any]:
             break
 
     return result
-
 
 def rescore_from_metadata(scoring_metadata, dimension_weights=None):
     """Re-derive (is_correct, updated_metadata) from a stored ``raw_judge_output``.
@@ -360,7 +350,6 @@ def rescore_from_metadata(scoring_metadata, dimension_weights=None):
     new_meta["weighted_total_0_10"] = weighted_total
     new_meta["notes"] = parsed.get("notes", new_meta.get("notes", ""))
     return is_correct, new_meta
-
 
 class LiveResearchBenchScorer(LLMJudgeScorer):
     """LLM-as-judge scorer for DeepResearchBench deep research tasks.
@@ -434,6 +423,5 @@ class LiveResearchBenchScorer(LLMJudgeScorer):
         }
 
         return is_correct, metadata
-
 
 __all__ = ["LiveResearchBenchScorer", "rescore_from_metadata"]

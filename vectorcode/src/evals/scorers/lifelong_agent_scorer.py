@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/lifelong_agent_scorer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -80,7 +79,6 @@ _TYPE_MAP: Dict[str, str] = {
     "BOOLEAN": "INTEGER",
     "BOOL": "INTEGER",
 }
-
 
 class LifelongAgentScorer(Scorer):
     """Scorer for LifelongAgentBench.
@@ -417,11 +415,9 @@ class LifelongAgentScorer(Scorer):
             meta["docker_eval_completed"] = False
             return None, meta
 
-
 # ====================================================================
 # DB helpers
 # ====================================================================
-
 
 def build_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
     """Build an in-memory SQLite DB from table_info.
@@ -470,7 +466,6 @@ def build_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
     conn.commit()
     return conn
 
-
 def _get_table_rows(
     conn: sqlite3.Connection,
     table_name: str,
@@ -480,7 +475,6 @@ def _get_table_rows(
     )
     return [list(row) for row in cursor.fetchall()]
 
-
 def _hash_table_state(rows: List[List[Any]]) -> str:
     row_hashes = []
     for row in rows:
@@ -488,7 +482,6 @@ def _hash_table_state(rows: List[List[Any]]) -> str:
         row_hashes.append(hashlib.md5(concat.encode()).hexdigest())
     row_hashes.sort()
     return hashlib.md5("".join(row_hashes).encode()).hexdigest()
-
 
 def _compare_table_states(
     expected: List[List[Any]],
@@ -512,11 +505,9 @@ def _compare_table_states(
                 )
     return True, "all_match"
 
-
 # ====================================================================
 # SQL extraction (matches original's Action: Operation format)
 # ====================================================================
-
 
 def extract_sql(text: str) -> str:
     text = text.strip()
@@ -571,12 +562,10 @@ def extract_sql(text: str) -> str:
 
     return ""
 
-
 def _looks_like_sql(text: str) -> bool:
     kws = ("SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP")
     upper = text.strip().upper()
     return any(upper.startswith(kw) for kw in kws)
-
 
 def _normalize_sql(sql: str) -> str:
     """Normalize SQL for comparison when execution-based comparison fails.
@@ -590,11 +579,9 @@ def _normalize_sql(sql: str) -> str:
     s = s.rstrip(";").strip()
     return s
 
-
 # ====================================================================
 # Text answer parsing (matches DirectTypeAnswerValidator)
 # ====================================================================
-
 
 def _parse_text_answer(text: str) -> Optional[List[List[Any]]]:
     m = re.search(
@@ -628,13 +615,11 @@ def _parse_text_answer(text: str) -> Optional[List[List[Any]]]:
 
     return None
 
-
 def _safe_literal_eval(s: str) -> Any:
     s = re.sub(r"Decimal\('([^']*)'\)", r"\1", s)
     import ast
 
     return ast.literal_eval(s)
-
 
 def _try_numeric(s: str) -> Any:
     try:
@@ -647,11 +632,9 @@ def _try_numeric(s: str) -> Any:
         pass
     return s if s else None
 
-
 # ====================================================================
 # KG helpers (matches original's answer extraction + F1)
 # ====================================================================
-
 
 def extract_kg_answers(text: str) -> List[str]:
     text = text.strip()
@@ -692,18 +675,15 @@ def extract_kg_answers(text: str) -> List[str]:
 
     return [text.strip()] if text.strip() else []
 
-
 def _normalize_entity(entity: Any) -> str:
     s = str(entity).strip()
     if len(s) >= 2 and s[0] == s[-1] and s[0] in ('"', "'"):
         s = s[1:-1]
     return s
 
-
 # ====================================================================
 # OS helpers (matches original's Docker evaluation)
 # ====================================================================
-
 
 def _docker_available() -> bool:
     if not shutil.which("docker"):
@@ -717,7 +697,6 @@ def _docker_available() -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
-
 
 def _extract_bash_commands(text: str) -> List[str]:
     commands: List[str] = []
@@ -762,7 +741,6 @@ def _extract_bash_commands(text: str) -> List[str]:
             commands.append(cmd)
 
     return commands
-
 
 def _evaluate_os_in_docker(
     init_command: Dict[str, Any],
@@ -870,11 +848,9 @@ def _evaluate_os_in_docker(
             timeout=30,
         )
 
-
 # ====================================================================
 # Value comparison (matches original's DirectTypeAnswerValidator)
 # ====================================================================
-
 
 def compare_tuple_lists(
     expected: List[List[Any]],
@@ -897,7 +873,6 @@ def compare_tuple_lists(
                     f"expected {exp_val!r}, got {act_val!r}"
                 )
     return True, "all_match"
-
 
 def values_match(expected: Any, actual: Any) -> bool:
     if expected is None and actual is None:
@@ -930,6 +905,5 @@ def values_match(expected: Any, actual: Any) -> bool:
         pass
 
     return str(expected).strip() == str(actual).strip()
-
 
 __all__ = ["LifelongAgentScorer"]

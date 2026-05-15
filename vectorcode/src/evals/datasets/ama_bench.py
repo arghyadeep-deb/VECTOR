@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/ama_bench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -51,7 +50,6 @@ _QUESTION_TYPE_TO_SUBJECT = {
     "C": "state_updating",
     "D": "state_abstraction",
 }
-
 
 class AMABenchDataset(DatasetProvider):
     """AMA-Bench agent memory assessment benchmark."""
@@ -273,6 +271,5 @@ class AMABenchDataset(DatasetProvider):
         return (
             trajectory_text[:budget_each] + separator + trajectory_text[-budget_each:]
         )
-
 
 __all__ = ["AMABenchDataset"]

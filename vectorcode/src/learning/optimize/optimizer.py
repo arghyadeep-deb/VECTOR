@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/optimizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -48,7 +47,6 @@ _SUMMARY_STAT_MAP: Dict[str, str] = {
     "mean_itl_ms": "itl_stats",
 }
 
-
 def _get_objective_value(trial: TrialResult, obj: ObjectiveSpec) -> float:
     """Read the metric value from a TrialResult for a given objective."""
     # Direct attributes on TrialResult
@@ -73,7 +71,6 @@ def _get_objective_value(trial: TrialResult, obj: ObjectiveSpec) -> float:
             return stats.mean
 
     return 0.0
-
 
 def compute_pareto_frontier(
     trials: List[TrialResult],
@@ -119,7 +116,6 @@ def compute_pareto_frontier(
             frontier.append(trial)
 
     return frontier
-
 
 class OptimizationEngine:
     """Orchestrates the optimize loop: propose -> evaluate -> analyze -> repeat."""
@@ -171,7 +167,7 @@ class OptimizationEngine:
         """
         run_id = uuid.uuid4().hex[:16]
         # Detect benchmark name(s) from the trial runner
-        from vector.learning.optimize.trial_runner import MultiBenchTrialRunner
+        from vectorcode.src.learning.optimize.trial_runner import MultiBenchTrialRunner
 
         benchmark_name = getattr(self.trial_runner, "benchmark", "")
         benchmark_names: List[str] = []
@@ -219,7 +215,7 @@ class OptimizationEngine:
             elif result.per_benchmark:
                 # Multi-benchmark composite: build a synthetic summary
                 # for analysis from per_benchmark data
-                from vector.evals.core.types import RunSummary as _RS
+                from vectorcode.src.evals.core.types import RunSummary as _RS
 
                 synth = _RS(
                     benchmark="multi",
@@ -438,6 +434,5 @@ class OptimizationEngine:
                     lines.append(f'{key} = "{val}"')
             lines.append("")
         path.write_text("\n".join(lines), encoding="utf-8")
-
 
 __all__ = ["OptimizationEngine", "compute_pareto_frontier"]

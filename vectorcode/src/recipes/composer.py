@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/recipes/composer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -16,10 +15,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from vector.evals.core.types import EvalSuiteConfig
-    from vector.operators.types import OperatorManifest
-    from vector.recipes.loader import Recipe
-
+    from vectorcode.src.evals.core.types import EvalSuiteConfig
+    from vectorcode.src.operators.types import OperatorManifest
+    from vectorcode.src.recipes.loader import Recipe
 
 def recipe_to_eval_suite(
     recipe: Recipe,
@@ -43,7 +41,7 @@ def recipe_to_eval_suite(
     Raises:
         ValueError: If no model or benchmarks can be resolved.
     """
-    from vector.evals.core.types import (
+    from vectorcode.src.evals.core.types import (
         BenchmarkConfig,
         DefaultsConfig,
         EvalSuiteConfig,
@@ -109,7 +107,6 @@ def recipe_to_eval_suite(
         benchmarks=bench_cfgs,
     )
 
-
 def recipe_to_operator(recipe: Recipe) -> OperatorManifest:
     """Build an ``OperatorManifest`` from a recipe.
 
@@ -119,7 +116,7 @@ def recipe_to_operator(recipe: Recipe) -> OperatorManifest:
     Raises:
         ValueError: If schedule information is missing.
     """
-    from vector.operators.types import OperatorManifest
+    from vectorcode.src.operators.types import OperatorManifest
 
     if not recipe.schedule_type:
         raise ValueError(
@@ -144,6 +141,5 @@ def recipe_to_operator(recipe: Recipe) -> OperatorManifest:
         schedule_value=recipe.schedule_value or "300",
         required_capabilities=list(recipe.required_capabilities),
     )
-
 
 __all__ = ["recipe_to_eval_suite", "recipe_to_operator"]

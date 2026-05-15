@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/datasets/adp.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -62,7 +61,6 @@ _CONFIGS = [
     "synatra",
 ]
 
-
 def _parse_content(raw: object) -> List[MutableMapping[str, object]]:
     """Parse the ``content`` field, which may be a list or a string repr of one."""
     if isinstance(raw, list):
@@ -75,7 +73,6 @@ def _parse_content(raw: object) -> List[MutableMapping[str, object]]:
         except (ValueError, SyntaxError):
             pass
     return []
-
 
 def _extract_problem_reference(
     turns: List[MutableMapping[str, object]],
@@ -112,7 +109,6 @@ def _extract_problem_reference(
                     break
 
     return problem, reference
-
 
 class ADPDataset(DatasetProvider):
     """Agent Data Collection (neulab) external corpus for LLM-guided spec search."""
@@ -208,6 +204,5 @@ class ADPDataset(DatasetProvider):
 
     def size(self) -> int:
         return len(self._records)
-
 
 __all__ = ["ADPDataset"]

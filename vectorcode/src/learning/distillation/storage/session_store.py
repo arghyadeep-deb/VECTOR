@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/distillation/storage/session_store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -37,7 +36,6 @@ from vectorcode.src.learning.distillation.models import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 _CREATE_SESSIONS = """\
 CREATE TABLE IF NOT EXISTS learning_sessions (
@@ -107,14 +105,11 @@ INSERT INTO edit_outcomes (
 # Future ALTER TABLE statements go here, swallowing OperationalError.
 _MIGRATE: list[str] = []
 
-
 def _dt_to_iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt is not None else None
 
-
 def _iso_to_dt(s: str | None) -> datetime | None:
     return datetime.fromisoformat(s) if s else None
-
 
 class SessionStore:
     """SQLite-backed storage for LearningSession and EditOutcome records.

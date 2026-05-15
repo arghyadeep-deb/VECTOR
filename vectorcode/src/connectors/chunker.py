@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/connectors/chunker.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:36+00:00
@@ -39,7 +38,6 @@ _SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z"])')
 _SECTION_RE = re.compile(r"(?m)^##\s+(.+)$")
 _REPLY_BOUNDARY_RE = re.compile(r"(?m)^On .+wrote:\s*$")
 
-
 @dataclass(slots=True)
 class ChunkResult:
     """A single chunk produced by ``SemanticChunker.chunk()``."""
@@ -48,16 +46,13 @@ class ChunkResult:
     index: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-
 def _count_tokens(text: str) -> int:
     """Approximate token count via whitespace splitting."""
     return len(text.split())
-
 
 def _split_sentences(text: str) -> List[str]:
     """Split *text* into sentences using the canonical regex.
@@ -67,7 +62,6 @@ def _split_sentences(text: str) -> List[str]:
     """
     parts = _SENTENCE_SPLIT_RE.split(text)
     return [p.strip() for p in parts if p.strip()]
-
 
 def _accumulate(
     segments: List[str],
@@ -99,7 +93,6 @@ def _accumulate(
 
     return chunks
 
-
 def _sentence_chunks(text: str, *, max_tokens: int) -> List[str]:
     """Split *text* by sentences and accumulate into max_tokens chunks."""
     sentences = _split_sentences(text)
@@ -107,7 +100,6 @@ def _sentence_chunks(text: str, *, max_tokens: int) -> List[str]:
         stripped = text.strip()
         return [stripped] if stripped else []
     return _accumulate(sentences, max_tokens=max_tokens, sep=" ")
-
 
 def _paragraph_chunks(text: str, *, max_tokens: int) -> List[str]:
     """Split *text* on paragraph breaks (``\\n\\n``), then by sentences if needed."""
@@ -120,11 +112,9 @@ def _paragraph_chunks(text: str, *, max_tokens: int) -> List[str]:
             result.extend(_sentence_chunks(para, max_tokens=max_tokens))
     return result
 
-
 # ---------------------------------------------------------------------------
 # SemanticChunker
 # ---------------------------------------------------------------------------
-
 
 class SemanticChunker:
     """Split text based on document type without breaking mid-sentence.
@@ -285,6 +275,5 @@ class SemanticChunker:
                     result.append((c, dict(section_meta)))
 
         return result if result else [(text.strip(), {})]
-
 
 __all__ = ["ChunkResult", "SemanticChunker"]

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/search_space.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from vectorcode.src.learning.optimize.types import SearchDimension, SearchSpace
-
 
 def build_search_space(config: Dict[str, Any]) -> SearchSpace:
     """Build a SearchSpace from a TOML-style config dict.
@@ -71,7 +69,6 @@ def build_search_space(config: Dict[str, Any]) -> SearchSpace:
         fixed=fixed,
         constraints=constraints,
     )
-
 
 # ---------------------------------------------------------------------------
 # Default search space covering all 5 primitives
@@ -198,7 +195,6 @@ DEFAULT_SEARCH_SPACE = SearchSpace(
         "should not both be at extreme values",
     ],
 )
-
 
 __all__ = [
     "build_search_space",

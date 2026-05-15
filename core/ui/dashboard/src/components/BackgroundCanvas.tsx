@@ -9,9 +9,9 @@ interface Star {
 export default function BackgroundCanvas() {
   const ref = useRef<HTMLCanvasElement>(null)
   const starsRef = useRef<Star[]>([])
-  const moodRef = useRef('#00d4ff')
+  const moodRef = useRef('#4FC3F7')
   useVectorStore((s) => {
-    moodRef.current = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#00d4ff'
+    moodRef.current = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#4FC3F7'
   })
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function BackgroundCanvas() {
         const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.001 * s.speed + s.x)
         ctx.beginPath()
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2)
-        ctx.fillStyle = accent || '#00d4ff'
+        ctx.fillStyle = accent || '#4FC3F7'
         ctx.globalAlpha = s.alpha * pulse
         ctx.fill()
       }

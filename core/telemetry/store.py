@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/telemetry/store.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -15,8 +14,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from vectorcode.src.oj_core.events import Event, EventBus, EventType
-from vectorcode.src.oj_core.types import TelemetryRecord
+from vectorcode.src.vc_core.events import Event, EventBus, EventType
+from vectorcode.src.vc_core.types import TelemetryRecord
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +135,6 @@ _MIGRATE_COLUMNS = [
     ("prompt_tokens_evaluated", "INTEGER NOT NULL DEFAULT 0"),
     ("mining_session_id", "TEXT"),
 ]
-
 
 class TelemetryStore:
     """Append-only SQLite store for inference telemetry records."""
@@ -277,6 +275,5 @@ INSERT INTO mining_stats (
         cur = self._conn.execute(sql, params)
         columns = [desc[0] for desc in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
-
 
 __all__ = ["TelemetryStore"]

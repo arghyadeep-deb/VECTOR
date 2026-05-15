@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/__init__.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -31,16 +30,15 @@ from vectorcode.src.learning.routing.router import (
 from vectorcode.src.learning.training.data import TrainingDataMiner
 from vectorcode.src.learning.training.lora import HAS_TORCH, LoRATrainer, LoRATrainingConfig
 
-
 def ensure_registered() -> None:
     """Ensure all learning policies are registered in RouterPolicyRegistry."""
-    from vector.learning.routing.heuristic_policy import (
+    from vectorcode.src.learning.routing.heuristic_policy import (
         ensure_registered as _reg_heuristic,
     )
 
     _reg_heuristic()
 
-    from vector.learning.routing.learned_router import (
+    from vectorcode.src.learning.routing.learned_router import (
         ensure_registered as _reg_learned,
     )
 
@@ -48,26 +46,25 @@ def ensure_registered() -> None:
 
     # Intelligence training (optional deps)
     try:
-        import vector.learning.intelligence  # noqa: F401
+        import vectorcode.src.learning.intelligence  # noqa: F401
     except ImportError:
         pass
 
     # Orchestrator-specific training (optional deps)
     try:
-        import vector.learning.intelligence.orchestrator  # noqa: F401
+        import vectorcode.src.learning.intelligence.orchestrator  # noqa: F401
     except ImportError:
         pass
 
     # Agent optimizers (optional deps)
     try:
-        import vector.learning.agents.dspy_optimizer  # noqa: F401
+        import vectorcode.src.learning.agents.dspy_optimizer  # noqa: F401
     except ImportError:
         pass
     try:
-        import vector.learning.agents.gepa_optimizer  # noqa: F401
+        import vectorcode.src.learning.agents.gepa_optimizer  # noqa: F401
     except ImportError:
         pass
-
 
 __all__ = [
     "AgentConfigEvolver",

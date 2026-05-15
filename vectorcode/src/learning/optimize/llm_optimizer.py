@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/learning/optimize/llm_optimizer.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -19,7 +18,7 @@ import re
 import uuid
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.oj_core.types import Trace
+from vectorcode.src.vc_core.types import Trace
 from vectorcode.src.evals.core.backend import InferenceBackend
 from vectorcode.src.evals.core.types import RunSummary
 from vectorcode.src.learning.optimize.types import (
@@ -32,7 +31,6 @@ from vectorcode.src.learning.optimize.types import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class LLMOptimizer:
     """Uses a cloud LLM to propose optimal VectorCode configs.
@@ -662,6 +660,5 @@ class LLMOptimizer:
             params=params,
             reasoning=reasoning,
         )
-
 
 __all__ = ["LLMOptimizer"]

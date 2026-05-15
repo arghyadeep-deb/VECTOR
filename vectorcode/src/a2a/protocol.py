@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/a2a/protocol.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -14,7 +13,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
 class TaskState(str, Enum):
     SUBMITTED = "submitted"
     WORKING = "working"
@@ -22,7 +20,6 @@ class TaskState(str, Enum):
     COMPLETED = "completed"
     CANCELED = "canceled"
     FAILED = "failed"
-
 
 @dataclass(slots=True)
 class AgentCard:
@@ -47,7 +44,6 @@ class AgentCard:
             "authentication": self.authentication,
         }
 
-
 @dataclass
 class A2ATask:
     """An A2A task with state machine."""
@@ -69,7 +65,6 @@ class A2ATask:
             "metadata": self.metadata,
         }
 
-
 @dataclass(slots=True)
 class A2ARequest:
     """JSON-RPC 2.0 request for A2A."""
@@ -88,7 +83,6 @@ class A2ARequest:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
-
 
 @dataclass(slots=True)
 class A2AResponse:
@@ -117,6 +111,5 @@ class A2AResponse:
             error=parsed.get("error"),
             request_id=parsed.get("id", ""),
         )
-
 
 __all__ = ["A2ARequest", "A2AResponse", "A2ATask", "AgentCard", "TaskState"]

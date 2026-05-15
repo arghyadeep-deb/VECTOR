@@ -23,8 +23,8 @@ from vector_cli.model_switch import (
 @pytest.mark.parametrize(
     "model_name",
     [
-        "NousResearch/VectorCode-3-Llama-3.1-70B",
-        "NousResearch/VectorCode-3-Llama-3.1-405B",
+        "VectorCode/VectorCode-3-Llama-3.1-70B",
+        "VectorCode/VectorCode-3-Llama-3.1-405B",
         "vector-3",
         "VectorCode-3",
         "vector-4",
@@ -32,7 +32,7 @@ from vector_cli.model_switch import (
         "vector_4_70b",
         "openrouter/vector3:70b",
         "openrouter/nousresearch/vector-4-405b",
-        "NousResearch/VectorCode3",
+        "VectorCode/VectorCode3",
         "vector-3.1",
     ],
 )

@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_wildchat.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,7 +10,6 @@ from __future__ import annotations
 from vectorcode.src.evals.core.types import EvalRecord
 from vectorcode.src.evals.scorers.wildchat_judge import WildChatScorer
 from vectorcode.src.evals.tests.conftest import MockBackend
-
 
 class TestVerdictParsing:
     def test_verdict_to_bool_generated_is_a(self):
@@ -34,7 +32,6 @@ class TestVerdictParsing:
 
     def test_unknown_verdict(self):
         assert WildChatScorer._verdict_to_bool("X>Y", generated_is_a=True) is None
-
 
 class TestWildChatScorer:
     def _make_record(self, reference="I'm fine, thanks!"):

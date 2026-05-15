@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/scorers/taubench.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -17,7 +16,6 @@ from typing import Any, Dict, Optional, Tuple
 
 from vectorcode.src.evals.core.scorer import Scorer
 from vectorcode.src.evals.core.types import EvalRecord
-
 
 class TauBenchScorer(Scorer):
     """TauBench scorer — reads pre-computed rewards from tau2-bench.
@@ -49,6 +47,5 @@ class TauBenchScorer(Scorer):
             "breakdown": info,
             "notes": f"reward={reward:.2f}, messages={n_messages}",
         }
-
 
 __all__ = ["TauBenchScorer"]

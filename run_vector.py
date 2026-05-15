@@ -467,6 +467,26 @@ def bootstrap_agents() -> int:
     except Exception as e:
         logger.warning(f"[bootstrap] MasteryTracker: {e}")
 
+    # ── Absorbed modules: templates, recipes, vc_system ──────────────────────
+    try:
+        from vectorcode.src.vc_templates import discover_templates
+        templates = discover_templates()
+        logger.info(f"[bootstrap] {len(templates) if templates else 0} agent templates available")
+    except Exception as e:
+        logger.debug(f"[bootstrap] vc_templates unavailable: {e}")
+    try:
+        from vectorcode.src.recipes import discover_recipes
+        recipes = discover_recipes()
+        if recipes:
+            logger.info(f"[bootstrap] {len(recipes)} recipes discovered")
+    except Exception as e:
+        logger.debug(f"[bootstrap] recipes unavailable: {e}")
+    try:
+        from vectorcode.src.vc_system import VectorSystem, SystemBuilder
+        logger.info("[bootstrap] vc_system (VectorSystem/SystemBuilder) available")
+    except Exception as e:
+        logger.debug(f"[bootstrap] vc_system unavailable: {e}")
+
     logger.info(f"[VECTOR][bootstrap] {created} agents registered across all districts")
     return created
 

@@ -1,4 +1,3 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 """``jarvis scheduler`` -- task scheduling commands."""
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-
 def _get_store() -> "SchedulerStore":  # noqa: F821
     """Build a SchedulerStore from user config."""
     from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR, load_config
@@ -23,18 +21,15 @@ def _get_store() -> "SchedulerStore":  # noqa: F821
     )
     return SchedulerStore(db_path)
 
-
 def _get_scheduler(store: "SchedulerStore") -> "TaskScheduler":  # noqa: F821
     """Build a TaskScheduler from a store."""
     from vectorcode.src.scheduler.scheduler import TaskScheduler
 
     return TaskScheduler(store)
 
-
 @click.group()
 def scheduler() -> None:
     """Manage scheduled tasks."""
-
 
 @scheduler.command("create")
 @click.argument("prompt")
@@ -81,7 +76,6 @@ def scheduler_create(
             console.print(f"  Tools: {task.tools}")
     finally:
         store.close()
-
 
 @scheduler.command("list")
 @click.option(
@@ -130,7 +124,6 @@ def scheduler_list(status: Optional[str]) -> None:
     finally:
         store.close()
 
-
 @scheduler.command("pause")
 @click.argument("task_id")
 def scheduler_pause(task_id: str) -> None:
@@ -145,7 +138,6 @@ def scheduler_pause(task_id: str) -> None:
         console.print(f"[red]Task not found: {task_id}[/red]")
     finally:
         store.close()
-
 
 @scheduler.command("resume")
 @click.argument("task_id")
@@ -162,7 +154,6 @@ def scheduler_resume(task_id: str) -> None:
     finally:
         store.close()
 
-
 @scheduler.command("cancel")
 @click.argument("task_id")
 def scheduler_cancel(task_id: str) -> None:
@@ -177,7 +168,6 @@ def scheduler_cancel(task_id: str) -> None:
         console.print(f"[red]Task not found: {task_id}[/red]")
     finally:
         store.close()
-
 
 @scheduler.command("logs")
 @click.argument("task_id")
@@ -217,7 +207,6 @@ def scheduler_logs(task_id: str, limit: int) -> None:
         console.print(table)
     finally:
         store.close()
-
 
 @scheduler.command("start")
 @click.option(

@@ -560,7 +560,7 @@ New Glenn targets the "heavy GEO" market with a fully recoverable vehicle. As fl
 - [BE-4 Engine Details](./references/be4-engine.md)
 - [Blue Moon Lunar Lander](./references/blue-moon.md)
 - [Orbital Reef Space Station](./references/orbital-reef.md)
-- [Project Jarvis Reusability](./references/project-jarvis.md)
+- [Project Jarvis Reusability](./references/project-vector.md)
 - [National Team Partnerships](./references/national-team.md)
 
 ---

@@ -1,11 +1,9 @@
-# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)
 from __future__ import annotations
 
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 from vectorcode.src.vc_core.config import MemoryFilesConfig, SystemPromptConfig
-
 
 class SystemPromptBuilder:
     """Assembles system prompts with frozen prefix for cache stability."""

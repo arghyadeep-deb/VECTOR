@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/trackers/wandb_tracker.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -21,7 +20,6 @@ except ImportError:
 
 LOGGER = logging.getLogger(__name__)
 
-
 def _flatten_metric_stats(prefix: str, ms: Optional[MetricStats]) -> Dict[str, float]:
     """Flatten a MetricStats into a dict with prefixed keys."""
     if ms is None:
@@ -36,7 +34,6 @@ def _flatten_metric_stats(prefix: str, ms: Optional[MetricStats]) -> Dict[str, f
         f"{prefix}_p95": ms.p95,
         f"{prefix}_p99": ms.p99,
     }
-
 
 class WandbTracker(ResultTracker):
     """Streams per-sample metrics to Weights & Biases."""
@@ -158,6 +155,5 @@ class WandbTracker(ResultTracker):
         if self._run is not None:
             self._run.finish()
             self._run = None
-
 
 __all__ = ["WandbTracker"]

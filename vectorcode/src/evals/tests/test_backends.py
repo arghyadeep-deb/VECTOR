@@ -1,5 +1,4 @@
-# VECTOR-INGESTED MODULE
-# Source: github/open-jarvis/OpenJarvis/src/openjarvis/evals/tests/test_backends.py
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -10,8 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
-class TestJarvisDirectBackend:
+class TestVectorDirectBackend:
     @patch("vector.system.SystemBuilder")
     def test_construction_default(self, mock_builder_cls):
         mock_builder = MagicMock()
@@ -22,9 +20,9 @@ class TestJarvisDirectBackend:
         mock_builder.build.return_value = mock_system
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-        backend = JarvisDirectBackend()
+        backend = VectorDirectBackend()
         assert backend.backend_id == "vector-direct"
         mock_builder.telemetry.assert_called_with(False)
         mock_builder.traces.assert_called_with(False)
@@ -39,9 +37,9 @@ class TestJarvisDirectBackend:
         mock_builder.build.return_value = MagicMock()
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-        JarvisDirectBackend(engine_key="cloud")
+        VectorDirectBackend(engine_key="cloud")
         mock_builder.engine.assert_called_with("cloud")
 
     @patch("vector.system.SystemBuilder")
@@ -60,9 +58,9 @@ class TestJarvisDirectBackend:
         mock_builder.build.return_value = mock_system
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-        backend = JarvisDirectBackend()
+        backend = VectorDirectBackend()
         result = backend.generate_full("What is 2+2?", model="test-model")
 
         assert result["content"] == "42"
@@ -83,14 +81,13 @@ class TestJarvisDirectBackend:
         mock_builder.build.return_value = mock_system
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_direct import JarvisDirectBackend
+        from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-        backend = JarvisDirectBackend()
+        backend = VectorDirectBackend()
         text = backend.generate("Capital of France?", model="m")
         assert text == "Paris"
 
-
-class TestJarvisAgentBackend:
+class TestVectorAgentBackend:
     @patch("vector.system.SystemBuilder")
     def test_construction(self, mock_builder_cls):
         mock_builder = MagicMock()
@@ -102,9 +99,9 @@ class TestJarvisAgentBackend:
         mock_builder.build.return_value = MagicMock()
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_agent import JarvisAgentBackend
+        from vectorcode.src.evals.backends.vector_agent import VectorAgentBackend
 
-        backend = JarvisAgentBackend(
+        backend = VectorAgentBackend(
             engine_key="cloud",
             agent_name="orchestrator",
             tools=["calculator", "think"],
@@ -135,9 +132,9 @@ class TestJarvisAgentBackend:
         mock_builder.build.return_value = mock_system
         mock_builder_cls.return_value = mock_builder
 
-        from vector.evals.backends.jarvis_agent import JarvisAgentBackend
+        from vectorcode.src.evals.backends.vector_agent import VectorAgentBackend
 
-        backend = JarvisAgentBackend(agent_name="orchestrator")
+        backend = VectorAgentBackend(agent_name="orchestrator")
         result = backend.generate_full("What is 2+2?", model="gpt-4o")
 
         assert result["content"] == "The answer is 4."

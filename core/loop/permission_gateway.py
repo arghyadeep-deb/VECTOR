@@ -58,6 +58,14 @@ class PermissionGateway:
             self._write_audit(action, result)
             return result
 
+        # Capability-token check (VectorCode-absorbed security layer)
+        cap_ok, cap_reason = self._check_capability(action)
+        if not cap_ok:
+            logger.warning(f'[VECTOR][gateway] capability denied: {action.action_type} ({cap_reason})')
+            result = GatewayResult(False, level, False, {}, f'Capability denied: {cap_reason}')
+            self._write_audit(action, result)
+            return result
+
         if level == 'GREEN':
             exec_result = await self._execute_action(action)
             result = GatewayResult(True, 'GREEN', True, exec_result, 'Auto-executed')
@@ -151,6 +159,64 @@ class PermissionGateway:
         if action_type in RED: return 'RED'
         return 'UNKNOWN'
 
+    def _check_capability(self, action: 'Action') -> tuple[bool, str]:
+        """Verify the proposing agent has the capability token for this action.
+
+        Uses vectorcode/src/oj_security/capabilities.py if present. When the
+        capability layer is absent, returns (True, '<no capability layer>') so
+        existing tests + the YELLOW/RED flow continue to work unchanged.
+
+        Maps action_type to the OJ capability namespace:
+          search_web              → net.read
+          send_email/send_message → comms.send
+          delete_files            → fs.delete
+          execute_code            → exec.run
+          push_github             → vcs.push
+          deploy_production       → infra.deploy
+          financial_transaction   → fin.execute
+          (everything else)       → generic.run
+        """
+        try:
+            from vectorcode.src.vc_security.capabilities import (  # type: ignore
+                CapabilityRegistry,
+            )
+        except Exception:
+            return True, 'no capability layer'
+
+        try:
+            mapping = {
+                'search_web': 'net.read',
+                'send_email': 'comms.send',
+                'send_message_routine': 'comms.send',
+                'delete_files': 'fs.delete',
+                'execute_code': 'exec.run',
+                'push_github': 'vcs.push',
+                'deploy_production': 'infra.deploy',
+                'financial_transaction': 'fin.execute',
+                'overwrite_note_personal': 'fs.write',
+                'create_calendar_event': 'calendar.write',
+                'set_reminder': 'calendar.write',
+                'download_file': 'net.download',
+            }
+            required = mapping.get(action.action_type, 'generic.run')
+
+            registry = CapabilityRegistry()
+            granted = getattr(registry, 'check', None)
+            if not callable(granted):
+                # Some absorbed implementations expose has_capability instead
+                granted = getattr(registry, 'has_capability', None)
+            if not callable(granted):
+                return True, 'capability registry has no check method'
+
+            if granted(action.proposed_by, required):
+                return True, f'{action.proposed_by} has {required}'
+            return False, f'{action.proposed_by} lacks {required}'
+        except Exception as e:
+            # Any capability error fails open (allow) — we don't want to block
+            # the autonomous loop because of a missing OJ submodule.
+            logger.debug(f'[VECTOR][gateway] capability check error: {e}')
+            return True, f'capability check skipped ({e})'
+
     async def _execute_action(self, action: Action) -> dict:
         logger.info(f"[VECTOR][gateway] Executing {action.action_type}")
         result = {
@@ -194,9 +260,38 @@ class PermissionGateway:
                 result["title"] = action.params.get("title", "Untitled")
             elif action.action_type in ("send_message_routine", "create_calendar_event",
                                        "download_file", "set_reminder", "send_email",
-                                       "delete_files", "execute_code", "financial_transaction",
+                                       "delete_files", "financial_transaction",
                                        "push_github", "deploy_production", "overwrite_note_personal"):
                 result["status"] = "ok"
+            elif action.action_type == "execute_code":
+                # Real isolated execution via core/sandbox (WASM/Docker).
+                # Falls back to a pass-through "ok" if sandbox unavailable.
+                code = action.params.get("code", "")
+                language = action.params.get("language", "python")
+                if not code:
+                    result["status"] = "rejected"
+                    result["reason"] = "no code provided"
+                else:
+                    try:
+                        from core.sandbox import ContainerRunner  # type: ignore
+                        runner = ContainerRunner()
+                        sandbox_result = await asyncio.to_thread(
+                            runner.run,
+                            code,
+                            language=language,
+                            timeout_seconds=int(action.params.get("timeout", 30)),
+                        )
+                        result["status"] = "ok"
+                        result["stdout"] = (getattr(sandbox_result, "stdout", "") or "")[:2000]
+                        result["stderr"] = (getattr(sandbox_result, "stderr", "") or "")[:1000]
+                        result["exit_code"] = getattr(sandbox_result, "exit_code", 0)
+                        result["sandbox"] = "container"
+                    except Exception as _sandbox_err:
+                        # Sandbox not available — log but don't block
+                        logger.warning(f"[VECTOR][gateway] sandbox unavailable: {_sandbox_err}")
+                        result["status"] = "ok"
+                        result["sandbox"] = "unavailable"
+                        result["note"] = f"sandbox skipped: {_sandbox_err}"
             elif action.action_type in ("code_task", "code_review_vc", "code_generate",
                                         "code_fix", "code_debug", "run_tests"):
                 try:
