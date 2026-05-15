@@ -191,13 +191,17 @@ class DecisionEngine:
             except Exception:
                 pass  # epistemic tracker never blocks a decision
 
+        # Neural A2C refinement: 5% blend with RL-derived action-value estimate
+        neural_score = self._neural_score(candidate)
+
         total = (
-            self.W_GOAL * goal_score
+            self.W_GOAL   * goal_score
             + self.W_CONF * candidate.confidence
             + self.W_POLICY * policy_score
             + self.W_URGENCY * candidate.urgency
             + self.W_TIMING * candidate.timing_score
             - self.W_COST * cost_penalty
+            + 0.05 * neural_score  # A2C Q-value nudge (small weight — RL still learning)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
 
