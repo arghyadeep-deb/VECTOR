@@ -21,6 +21,9 @@ import FloatingPanelManager from './components/FloatingPanelManager'
 import SystemMetricsPanel from './components/SystemMetricsPanel'
 import VectorCodePanel from './components/VectorCodePanel'
 import DailyInfoPanel from './components/DailyInfoPanel'
+import ClaimsBoard from './components/ClaimsBoard'
+import ModelSwitcher from './components/ModelSwitcher'
+import CoherenceMonitor from './components/CoherenceMonitor'
 import { Z } from './lib/zIndex'
 
 export default function App() {
