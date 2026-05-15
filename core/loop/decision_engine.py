@@ -125,6 +125,24 @@ class DecisionEngine:
 
         cost_penalty = min(1.0, candidate.estimated_cost_inr / 10.0)
 
+        # EpistemicTracker: blend raw confidence with epistemic belief (70/30 split)
+        raw_conf = candidate.confidence
+        epistemic = self._get_epistemic()
+        if epistemic is not None:
+            try:
+                belief = epistemic.get_belief(candidate.action_type)
+                if belief is not None:
+                    epistemic_conf = belief.get("confidence", raw_conf)
+                    blended_conf = (raw_conf * 0.7) + (epistemic_conf * 0.3)
+                    if abs(blended_conf - raw_conf) > 0.05:
+                        logger.debug(
+                            f"[VECTOR][decision_engine] Epistemic blend {candidate.action_type}: "
+                            f"{raw_conf:.2f} → {blended_conf:.2f}"
+                        )
+                    candidate.confidence = round(blended_conf, 4)
+            except Exception:
+                pass  # epistemic tracker never blocks a decision
+
         total = (
             self.W_GOAL * goal_score
             + self.W_CONF * candidate.confidence
