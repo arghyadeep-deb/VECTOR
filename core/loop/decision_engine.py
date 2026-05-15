@@ -93,6 +93,54 @@ class DecisionEngine:
                 logger.debug(f"[VECTOR][decision_engine] EpistemicTracker unavailable: {e}")
         return self._epistemic
 
+    def _get_neural_trainer(self):
+        """VECTORTrainer: RL-based action-value refinement layer (A2C, 64-dim state)."""
+        if getattr(self, "_neural_trainer", None) is None:
+            try:
+                from vectorcode.src.neural_training import VECTORTrainer
+                self._neural_trainer = VECTORTrainer(algorithm="a2c", state_dim=64, action_dim=20, use_curiosity=False)
+                ckpt = Path.home() / ".vector" / "neural_trainer.json"
+                if ckpt.exists():
+                    self._neural_trainer.load_checkpoint(ckpt)
+                logger.info("[VECTOR][decision_engine] VECTORTrainer online (A2C)")
+            except Exception as e:
+                logger.debug(f"[VECTOR][decision_engine] VECTORTrainer unavailable: {e}")
+                self._neural_trainer = None
+        return self._neural_trainer
+
+    def _neural_score(self, candidate: Candidate) -> float:
+        """Get A2C Q-value estimate for this action type. Returns 0.5 if unavailable."""
+        trainer = self._get_neural_trainer()
+        if trainer is None:
+            return 0.5
+        try:
+            import numpy as np
+            # Encode candidate into a 64-dim state vector
+            state = np.zeros(64, dtype=np.float32)
+            state[0] = candidate.confidence
+            state[1] = candidate.urgency
+            state[2] = candidate.timing_score
+            state[3] = candidate.goal_alignment if hasattr(candidate, "goal_alignment") else 0.5
+            state[4] = min(1.0, candidate.estimated_cost_inr / 10.0)
+            # Map action_type to index for the policy
+            _ACTION_TYPES = ["answer_question", "set_reminder", "search_web", "commit_code",
+                              "send_message_routine", "create_calendar_event", "download_file",
+                              "send_email", "delete_files", "execute_code", "push_github",
+                              "deploy_production", "send_message_important", "financial_transaction",
+                              "read_calendar", "play_music", "take_screenshot", "check_weather",
+                              "review_code", "write_note"]
+            try:
+                action_idx = _ACTION_TYPES.index(candidate.action_type)
+                state[5] = action_idx / len(_ACTION_TYPES)
+            except ValueError:
+                state[5] = 0.5
+            action = trainer.select_action(state)
+            # Interpret: correct action prediction = higher score
+            predicted_correct = (action == (state[5] * len(_ACTION_TYPES)))
+            return 0.6 if predicted_correct else 0.45
+        except Exception:
+            return 0.5
+
     def _score_goal_alignment(self, candidate: Candidate) -> float:
         """How well does this action serve active goals? 0.0-1.0"""
         if not candidate.goal_ids:
