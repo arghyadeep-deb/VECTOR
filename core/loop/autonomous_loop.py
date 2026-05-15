@@ -87,6 +87,47 @@ class AutonomousLoop:
                 logger.debug(f"[VECTOR][hypothesis] HypothesisEngine unavailable: {e}")
         return self._hypothesis_engine
 
+    def _get_guidance(self):
+        """Lazy-loads the VECTOR guidance system (threat detection + coherence + authority)."""
+        if getattr(self, "_guidance", None) is None:
+            try:
+                from vectorcode.src.guidance import create_guidance_system
+                self._guidance = create_guidance_system()
+                logger.info("[VECTOR][guidance] guidance system online")
+            except Exception as e:
+                logger.debug(f"[VECTOR][guidance] unavailable: {e}")
+                self._guidance = None
+        return self._guidance
+
+    def _get_continue_gate(self):
+        """ContinueGate: step-level budget + coherence enforcer for the autonomous loop."""
+        if getattr(self, "_continue_gate", None) is None:
+            try:
+                from vectorcode.src.guidance import ContinueGate
+                self._continue_gate = ContinueGate()
+            except Exception as e:
+                logger.debug(f"[VECTOR][guidance] ContinueGate unavailable: {e}")
+                self._continue_gate = None
+        return self._continue_gate
+
+    def _scan_threats(self, text: str, context: str = "act") -> bool:
+        """Run ThreatDetector over action description. Returns True if critical threat found."""
+        gsys = self._get_guidance()
+        if gsys is None:
+            return False
+        try:
+            signals = gsys["threat_detector"].analyze_input(text, f"autonomous_loop:{context}")
+            critical = [s for s in signals if s.severity >= 0.85]
+            if critical:
+                logger.warning(
+                    f"[VECTOR][guidance] THREAT detected in {context}: "
+                    + ", ".join(f"{s.category}({s.severity:.2f})" for s in critical)
+                )
+                return True
+        except Exception as e:
+            logger.debug(f"[VECTOR][guidance] threat scan error: {e}")
+        return False
+
     # ─── Scheduler + Workflow integrations (VectorCode-absorbed) ─────────────
 
     def _get_scheduler(self):
