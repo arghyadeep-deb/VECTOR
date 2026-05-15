@@ -10,6 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
+from core.memory.policy import PolicyMemory
 from loguru import logger
 
 _CHAIRMAN = CONFIG["models"]["chairman"]
