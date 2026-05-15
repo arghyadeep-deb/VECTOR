@@ -83,9 +83,20 @@ def absorb_file(src: Path, dest: Path) -> bool:
     # Only rewrite Python files
     if src.suffix == ".py":
         text = rewrite(text)
-        # Prepend VECTOR header if not already present
+        # Prepend VECTOR header — must come AFTER shebang and from __future__ imports
         if "VECTOR-INGESTED" not in text[:200] and not text.strip().startswith("#!"):
-            text = HEADER + text
+            lines = text.splitlines(keepends=True)
+            insert_at = 0
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped.startswith("from __future__") or stripped.startswith("#"):
+                    insert_at = i + 1
+                else:
+                    break
+            # Insert header as comment after any __future__ imports
+            header_comment = '# VECTOR-INGESTED MODULE (absorbed from open-jarvis/OpenJarvis, Apache 2.0)\n'
+            lines.insert(insert_at, header_comment)
+            text = "".join(lines)
     dest.write_text(text, encoding="utf-8")
     return True
 
