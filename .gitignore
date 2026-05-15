@@ -1,5 +1,6 @@
 # Secrets — never commit
 .env
+.csrf_tokens.json
 *.db
 *.db-shm
 *.db-wal
@@ -48,3 +49,4 @@ data/training/conversations/
 
 # Brain vault junction — local only, do not commit
 brain/
+.gstack/

@@ -3,6 +3,7 @@ import os
 import datetime
 import hashlib
 import time
+import threading
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -10,6 +11,9 @@ from core.config import CONFIG
 from loguru import logger
 
 _LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "agents/districts/memory_curator"
+
+# FIX #15: File-level locking to prevent race conditions between agents writing to vault
+_vault_write_lock = threading.Lock()
 
 
 class PermissionDeniedError(PermissionError):
@@ -95,8 +99,9 @@ class ObsidianSync:
         target_dir.mkdir(parents=True, exist_ok=True)
         body = self._build_note(title, content, tags)
         tmp = target.with_suffix(".tmp")
-        tmp.write_text(body, encoding="utf-8")
-        os.replace(tmp, target)
+        with _vault_write_lock:  # FIX #15: prevent race conditions between agents
+            tmp.write_text(body, encoding="utf-8")
+            os.replace(tmp, target)
 
         logger.info(f"[VECTOR][obsidian] wrote {folder}/{title}.md")
         self._store_event("vault_write", f"{folder}/{title}.md")
@@ -119,8 +124,9 @@ class ObsidianSync:
 
         ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         block = f"\n\n---\n*{ts}*\n\n{content}"
-        with open(target, "a", encoding="utf-8") as f:
-            f.write(block)
+        with _vault_write_lock:  # FIX #15: prevent race conditions
+            with open(target, "a", encoding="utf-8") as f:
+                f.write(block)
         logger.info(f"[VECTOR][obsidian] appended to {folder}/{title}.md")
         self._store_event("vault_append", f"{folder}/{title}.md")
         return True

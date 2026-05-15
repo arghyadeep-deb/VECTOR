@@ -81,11 +81,26 @@ class AutonomousLoop:
             await asyncio.sleep(interval)
 
     async def _observe_tick(self):
-        """Single observation tick. Delegates to AmbientListener (T3 voice pipeline)."""
+        """Single observation tick. Validates ambient output before pipeline propagation."""
         if self._ambient is None:
             from core.voice.ambient_listener import AmbientListener
             self._ambient = AmbientListener()
-        await self._ambient.listen_tick()
+        result = await self._ambient.listen_tick()
+        # FIX #8: Validate ambient listener output before it enters think→act pipeline
+        if result is not None:
+            if not isinstance(result, dict):
+                logger.warning(f"[VECTOR][observe] Ambient returned non-dict: {type(result)} — discarding")
+                return
+            # Sanitize: ensure required fields exist and are correct types
+            if "actionable" in result and not isinstance(result.get("actionable"), bool):
+                result["actionable"] = False
+            if "intent" in result and not isinstance(result.get("intent"), str):
+                result["intent"] = ""
+            if "confidence" in result:
+                try:
+                    result["confidence"] = max(0.0, min(1.0, float(result["confidence"])))
+                except (TypeError, ValueError):
+                    result["confidence"] = 0.0
 
     # ─── Think ────────────────────────────────────────────────────────────────
 

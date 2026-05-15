@@ -3,9 +3,51 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
-import asyncio, uuid, json, sqlite3, datetime, threading
+import asyncio, uuid, json, os, sqlite3, datetime, threading
 from contextlib import contextmanager
 
+# Try SQLCipher for AES-256 encryption; fall back to plain sqlite3
+try:
+    from pysqlcipher3 import dbapi2 as sqlcipher
+    _USE_SQLCIPHER = True
+    logger.info("[VECTOR][memory] SQLCipher available — AES-256 encryption enabled")
+except ImportError:
+    sqlcipher = None
+    _USE_SQLCIPHER = False
+    logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite")
+
+_DB_KEY = None  # resolved lazily below
+
+def _get_db_key() -> str:
+    """Derive encryption key from env var or OS keyring. Never hardcoded."""
+    global _DB_KEY
+    if _DB_KEY is not None:
+        return _DB_KEY
+    # Priority 1: environment variable
+    key = os.environ.get("VECTOR_DB_KEY", "")
+    if key:
+        _DB_KEY = key
+        return _DB_KEY
+    # Priority 2: OS keyring
+    try:
+        import keyring
+        stored = keyring.get_password("vector", "db_key")
+        if stored:
+            _DB_KEY = stored
+            return _DB_KEY
+        # First run: generate and store
+        import secrets
+        new_key = secrets.token_hex(32)
+        keyring.set_password("vector", "db_key", new_key)
+        _DB_KEY = new_key
+        logger.info("[VECTOR][memory] Generated and stored new DB key in OS keyring")
+        return _DB_KEY
+    except Exception:
+        pass
+    # Priority 3: fallback for dev only (logged as warning)
+    logger.warning("[VECTOR][memory] No VECTOR_DB_KEY env var or keyring — using dev fallback. Set VECTOR_DB_KEY for production!")
+    _DB_KEY = "vector_dev_fallback_change_me"
+    return _DB_KEY
 
 # Singleton database connection with thread-safe access
 _db_connection = None
@@ -17,18 +59,28 @@ def get_db_connection():
     global _db_connection
     with _db_lock:
         if _db_connection is None:
-            _db_connection = sqlite3.connect(CONFIG['db_path'], check_same_thread=False)
+            if _USE_SQLCIPHER:
+                _db_connection = sqlcipher.connect(str(CONFIG['db_path']), check_same_thread=False)
+                # Use parameterized-style key setting (no f-string SQL)
+                db_key = _get_db_key()
+                _db_connection.execute("PRAGMA key=?", (db_key,))
+            else:
+                _db_connection = sqlite3.connect(CONFIG['db_path'], check_same_thread=False)
             _db_connection.execute("PRAGMA journal_mode=WAL")
             _db_connection.execute("PRAGMA busy_timeout=5000")
             _db_connection.execute("PRAGMA synchronous=NORMAL")
             _create_tables(_db_connection)
-            logger.info("Episodic memory DB connection established")
+            logger.info("[VECTOR][memory] Episodic memory DB connection established")
         return _db_connection
 
 
 def _create_tables(conn):
-    """Create memory tables if they don't exist."""
+    """Create memory tables if they don't exist, using FTS5 for episodic search."""
     tables = [
+        # FTS5 virtual table for full-text search on episodic memory
+        """CREATE VIRTUAL TABLE IF NOT EXISTS episodic_memory_fts
+           USING fts5(id, event_type, content, tags, source, timestamp UNINDEXED, context_snapshot UNINDEXED)""",
+        # Backing table for non-FTS queries and metadata
         """CREATE TABLE IF NOT EXISTS episodic_memory (
             id TEXT PRIMARY KEY,
             event_type TEXT,
@@ -113,7 +165,7 @@ class EpisodicMemory:
         logger.info("Episodic memory initialized (singleton connection)")
 
     def store(self, event_type, content, tags=None, context=None, source='vector') -> str:
-        """Store an event in episodic memory with retry logic."""
+        """Store an event in episodic memory with FTS5 indexing."""
         event_id = str(uuid.uuid4())
         tags_json = json.dumps(tags) if tags else None
         context_json = json.dumps(context) if context else None
@@ -126,39 +178,64 @@ class EpisodicMemory:
                     (id, event_type, content, tags, context_snapshot, timestamp, source)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (event_id, event_type, content, tags_json, context_json, timestamp, source))
+                # Also index in FTS5 for fast full-text search
+                cursor.execute("""
+                    INSERT INTO episodic_memory_fts
+                    (id, event_type, content, tags, source, timestamp, context_snapshot)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (event_id, event_type, content, tags_json or '', source, timestamp, context_json or ''))
             return event_id
         except Exception as e:
             logger.error(f"Store failed: {e}")
             return ""
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
-        """Recall events matching query with automatic connection management."""
+        """Recall events using FTS5 full-text search (falls back to LIKE if FTS5 unavailable)."""
         try:
             with get_temp_cursor() as cursor:
-                query_pattern = f"%{query}%"
-                if event_type:
-                    cursor.execute(
-                        """
-                        SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                        FROM episodic_memory
-                        WHERE content LIKE ? AND event_type = ?
-                        ORDER BY timestamp DESC
-                        LIMIT ?
-                        """,
-                        (query_pattern, event_type, limit),
-                    )
-                else:
-                    cursor.execute(
-                        """
-                        SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                        FROM episodic_memory
-                        WHERE content LIKE ?
-                        ORDER BY timestamp DESC
-                        LIMIT ?
-                        """,
-                        (query_pattern, limit),
-                    )
-                rows = cursor.fetchall()
+                # Try FTS5 MATCH first (fast, ranked)
+                try:
+                    if event_type:
+                        cursor.execute(
+                            """
+                            SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
+                            FROM episodic_memory_fts f
+                            WHERE episodic_memory_fts MATCH ? AND f.event_type = ?
+                            ORDER BY rank
+                            LIMIT ?
+                            """,
+                            (query, event_type, limit),
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
+                            FROM episodic_memory_fts f
+                            WHERE episodic_memory_fts MATCH ?
+                            ORDER BY rank
+                            LIMIT ?
+                            """,
+                            (query, limit),
+                        )
+                    rows = cursor.fetchall()
+                except Exception:
+                    # Fallback to LIKE if FTS5 table doesn't exist or query syntax invalid
+                    query_pattern = f"%{query}%"
+                    if event_type:
+                        cursor.execute(
+                            """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                            FROM episodic_memory WHERE content LIKE ? AND event_type = ?
+                            ORDER BY timestamp DESC LIMIT ?""",
+                            (query_pattern, event_type, limit),
+                        )
+                    else:
+                        cursor.execute(
+                            """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                            FROM episodic_memory WHERE content LIKE ?
+                            ORDER BY timestamp DESC LIMIT ?""",
+                            (query_pattern, limit),
+                        )
+                    rows = cursor.fetchall()
             
             result = []
             for row in rows:

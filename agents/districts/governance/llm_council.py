@@ -211,7 +211,9 @@ class LLMCouncil(AgentBase):
         date_str = datetime.date.today().isoformat()
         session_id = str(uuid.uuid4())[:8]
 
-        # HP gate
+        # HP gate — NOTE (#14): At startup all agents have 500 HP (below 700 gate).
+        # The Governor (VECTOR itself) always has effective HP=1000 and can always convene council.
+        # Individual agents earn council access through performance.
         hp_gate = CONFIG["council"]["hp_gate"]
         if requester_hp < hp_gate:
             logger.warning(

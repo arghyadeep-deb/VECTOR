@@ -1,6 +1,7 @@
 import sys
 import json
 import datetime
+import threading
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -191,13 +192,16 @@ class AgentRegistry:
 
 
 _registry_singleton: "AgentRegistry | None" = None
+_registry_lock = threading.Lock()
 
 
 def get_registry() -> AgentRegistry:
-    """Global singleton — one registry for all of VECTOR City."""
+    """Global singleton — one registry for all of VECTOR City. Thread-safe."""
     global _registry_singleton
     if _registry_singleton is None:
-        _registry_singleton = AgentRegistry()
+        with _registry_lock:
+            if _registry_singleton is None:
+                _registry_singleton = AgentRegistry()
     return _registry_singleton
 
 

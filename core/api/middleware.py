@@ -28,6 +28,9 @@ import threading
 _API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
 _API_KEY_ENABLED: bool = bool(_API_KEY)
 
+# FIX #7: When no API key is set, enforce localhost-only access instead of open access
+_REQUIRE_LOCALHOST_WHEN_NO_KEY: bool = True
+
 _RATE_LIMIT_WINDOW: int = 60  # seconds
 _RATE_LIMIT_MAX: dict[str, int] = {
     "default": 100,
@@ -41,6 +44,8 @@ _RATE_LIMIT_WINDOW_SEC: int = 60
 _RATE_LIMIT_MAX_DEFAULT: int = 100
 
 # Thread-safe rate limiting storage
+# NOTE (#6): This is per-process. For multi-worker deployments, use Redis-backed
+# rate limiting (e.g. slowapi with Redis backend). Acceptable for single-user local system.
 _rate_limit_lock = threading.Lock()
 _rate_limit_data: dict[str, list[float]] = defaultdict(list)
 
@@ -56,10 +61,36 @@ _ALLOWED_ORIGINS = {
     "http://127.0.0.1:8000",
 }
 
-# CSRF token store (in-memory, per-session)
+# FIX #5: CSRF tokens persisted to a file so they survive restarts
+_CSRF_TOKEN_FILE = Path(__file__).parent.parent.parent / ".csrf_tokens.json"
 _csrf_tokens: dict[str, float] = {}
 _csrf_lock = threading.Lock()
 _CSRF_TOKEN_TTL = 3600  # 1 hour
+
+def _load_csrf_tokens():
+    """Load CSRF tokens from disk on startup."""
+    global _csrf_tokens
+    try:
+        if _CSRF_TOKEN_FILE.exists():
+            import json
+            data = json.loads(_CSRF_TOKEN_FILE.read_text())
+            now = time.time()
+            # Only load non-expired tokens
+            _csrf_tokens = {k: v for k, v in data.items() if now - v < _CSRF_TOKEN_TTL}
+    except Exception:
+        _csrf_tokens = {}
+
+def _save_csrf_tokens():
+    """Persist CSRF tokens to disk."""
+    try:
+        import json
+        with _csrf_lock:
+            _CSRF_TOKEN_FILE.write_text(json.dumps(_csrf_tokens))
+    except Exception:
+        pass  # Non-critical — tokens regenerate on next request
+
+# Load on module import
+_load_csrf_tokens()
 
 # Security headers
 _SECURITY_HEADERS = {
@@ -133,7 +164,9 @@ async def rate_limiting_middleware(request: Request, call_next):
 
 
 async def auth_middleware(request: Request, call_next):
-    """Require Bearer token for all non-public endpoints."""
+    """Require Bearer token for all non-public endpoints.
+    FIX #7: When no API key is set, only allow localhost connections (not any process).
+    """
     # Skip auth for public paths
     if request.url.path in _PUBLIC_PATHS:
         return await call_next(request)
@@ -142,8 +175,15 @@ async def auth_middleware(request: Request, call_next):
     if request.url.path.startswith("/_next") or request.url.path == "/health":
         return await call_next(request)
     
-    # Skip auth if API key not configured (for local dev)
+    # When API key not configured: enforce localhost-only access
     if not _API_KEY_ENABLED:
+        if _REQUIRE_LOCALHOST_WHEN_NO_KEY:
+            client_ip = request.client.host if request.client else ""
+            if client_ip not in ("127.0.0.1", "::1", "localhost"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Remote access requires VECTOR_API_KEY to be configured."},
+                )
         return await call_next(request)
     
     auth = request.headers.get("Authorization", "")
@@ -204,13 +244,17 @@ async def timing_middleware(request: Request, call_next):
 
 
 async def error_handling_middleware(request: Request, call_next):
-    """Catch and format unhandled exceptions."""
+    """Catch and format unhandled exceptions. Only expose details to localhost."""
     try:
         return await call_next(request)
     except HTTPException:
         raise  # Re-raise FastAPI HTTP exceptions
     except Exception as e:
         logger.error(f"[VECTOR][api] Unhandled exception: {e}")
+        # FIX #16: Only expose error details to localhost clients, never remote
+        client_ip = request.client.host if request.client else ""
+        is_local = client_ip in ("127.0.0.1", "::1", "localhost")
+        show_detail = is_local and os.environ.get("VECTOR_DEBUG")
         return JSONResponse(
             status_code=500,
             headers={
@@ -219,7 +263,7 @@ async def error_handling_middleware(request: Request, call_next):
             },
             content={
                 "error": "Internal server error",
-                "detail": str(e) if os.environ.get("VECTOR_DEBUG") else "An error occurred",
+                "detail": str(e) if show_detail else "An error occurred",
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             },
         )
@@ -253,7 +297,7 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 def generate_csrf_token() -> str:
-    """Generate a new CSRF token and store it."""
+    """Generate a new CSRF token, store it, and persist to disk."""
     token = uuid.uuid4().hex + uuid.uuid4().hex  # 64-char hex
     with _csrf_lock:
         # Clean expired tokens
@@ -262,6 +306,7 @@ def generate_csrf_token() -> str:
         for k in expired:
             del _csrf_tokens[k]
         _csrf_tokens[token] = now
+    _save_csrf_tokens()  # FIX #5: persist so tokens survive restart
     return token
 
 

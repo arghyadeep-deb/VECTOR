@@ -100,7 +100,7 @@ class CostConfig(BaseModel):
 
 
 class VoiceConfig(BaseModel):
-    whisper_model: str = "base"
+    whisper_model: str = "large-v3"
     kokoro_model_dir: str = "./models/kokoro"
     kokoro_speed: float = Field(0.85, ge=0.1, le=3.0)
     wake_threshold: float = Field(0.5, ge=0.0, le=1.0)

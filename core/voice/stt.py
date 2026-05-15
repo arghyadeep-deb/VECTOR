@@ -10,7 +10,7 @@ from core.config import CONFIG
 class WhisperSTT:
     def __init__(self):
         self._model = None
-        self._model_name = CONFIG.get("voice", {}).get("whisper_model", "base")
+        self._model_name = CONFIG.get("voice", {}).get("whisper_model", "large-v3")
 
     def _load(self):
         if self._model is None:

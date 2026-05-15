@@ -90,11 +90,29 @@ class PermissionGateway:
             self._write_audit(action, result)
             return result
 
-        # UNKNOWN — default to RED, never silently allow
+        # UNKNOWN — default to RED, never silently allow. Log for future classification.
         logger.critical(f"[VECTOR][gateway] UNKNOWN action type: '{action.action_type}' — blocked. Add to GREEN/YELLOW/RED in config.")
+        # Store unknown action types so they can be reviewed and classified later
+        self._record_unknown_action(action.action_type)
         result = GatewayResult(False, 'UNKNOWN', False, {}, f'Unknown action type: {action.action_type}')
         self._write_audit(action, result)
         return result
+
+    def _record_unknown_action(self, action_type: str):
+        """Track unknown action types for periodic review and classification."""
+        if not hasattr(self, '_unknown_actions'):
+            self._unknown_actions: dict[str, int] = {}
+        self._unknown_actions[action_type] = self._unknown_actions.get(action_type, 0) + 1
+        # If an action type is blocked 3+ times, it's likely a new capability — surface it
+        if self._unknown_actions[action_type] >= 3:
+            logger.warning(
+                f"[VECTOR][gateway] Action '{action_type}' blocked {self._unknown_actions[action_type]} times. "
+                f"Consider adding to GREEN/YELLOW/RED in config.py"
+            )
+
+    def get_unknown_actions(self) -> dict[str, int]:
+        """Return all unknown action types and their block counts for review."""
+        return getattr(self, '_unknown_actions', {})
 
     async def _request_humanlayer_approval(self, action: "Action") -> bool:
         """Use HumanLayer to get owner approval for RED-tier actions via configured channels."""
@@ -144,9 +162,13 @@ class PermissionGateway:
         try:
             if action.action_type == "search_web":
                 import httpx
-                query = action.params.get("query", "")
+                from urllib.parse import quote_plus
+                query = action.params.get("query", "")[:500]  # truncate to prevent abuse
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    r = await client.get(f"https://duckduckgo.com/?q={query}&format=json")
+                    r = await client.get(
+                        "https://duckduckgo.com/",
+                        params={"q": query, "format": "json"},
+                    )
                     result["response"] = r.text[:500]
             elif action.action_type == "play_music":
                 result["status"] = "ok"
