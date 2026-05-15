@@ -225,6 +225,18 @@ class DecisionEngine:
         )
         logger.info(f"[VECTOR][decision_engine] {reasoning}")
 
+        # Update epistemic tracker with outcome of this decision
+        epistemic = self._get_epistemic()
+        if epistemic is not None:
+            try:
+                epistemic.update_belief(
+                    topic=winner.action_type,
+                    confidence=winner.total_score,
+                    evidence=f"decision_winner: score={winner.total_score}",
+                )
+            except Exception:
+                pass
+
         return Decision(
             winner=winner,
             all_candidates=ranked,
