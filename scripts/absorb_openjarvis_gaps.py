@@ -104,7 +104,7 @@ def absorb_dir(src_dir: Path, dest_dir: Path, skip: set[str] | None = None) -> t
         dest_file = dest_dir / rel
         if absorb_file(src_file, dest_file):
             written += 1
-            print(f"  ✓ {rel}")
+            print(f"  [OK]{rel}")
         else:
             skipped += 1
     return written, skipped
@@ -180,7 +180,7 @@ def absorb_individual_files(src_dir: Path, dest_dir: Path, filenames: list[str])
         dest_file = dest_dir / name
         if absorb_file(src_file, dest_file):
             written += 1
-            print(f"  ✓ {name}")
+            print(f"  [OK]{name}")
         else:
             skipped += 1
     return written, skipped
@@ -271,7 +271,7 @@ def main() -> None:
     if ctx.exists():
         dest_storage.mkdir(parents=True, exist_ok=True)
         if absorb_file(ctx, dest_storage / "context.py"):
-            print("  ✓ context.py")
+            print("  [OK]context.py")
             total_written += 1
         else:
             print("  → already current")
