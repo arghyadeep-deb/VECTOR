@@ -35,6 +35,7 @@ class DailyReviewer(AgentBase):
         self._memory = EpisodicMemory()
         self._obsidian = ObsidianSync()
         self._context = ContextEngine()
+        self._policy = PolicyMemory()
         logger.info(f"[VECTOR][daily_reviewer] ready gen={generation} hp={self.health_points}")
 
     def _fetch_today(self) -> list[dict]:
