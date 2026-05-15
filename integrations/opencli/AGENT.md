@@ -1,1 +1,0 @@
-# integrations\opencli\AGENT.md

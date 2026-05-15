@@ -50,3 +50,7 @@ data/training/conversations/
 # Brain vault junction — local only, do not commit
 brain/
 .gstack/
+
+
+# Reference-only clones (kept out of the main repo)
+github/
