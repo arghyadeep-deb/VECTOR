@@ -289,6 +289,18 @@ class DecisionEngine:
             except Exception:
                 pass
 
+        # Persist neural trainer checkpoint every 50 decisions so learning survives restart
+        trainer = self._get_neural_trainer()
+        if trainer is not None:
+            try:
+                self._neural_decision_count = getattr(self, "_neural_decision_count", 0) + 1
+                if self._neural_decision_count % 50 == 0:
+                    ckpt = Path.home() / ".vector" / "neural_trainer.json"
+                    trainer.save_checkpoint(ckpt)
+                    logger.debug(f"[VECTOR][decision_engine] Neural trainer checkpoint saved (n={self._neural_decision_count})")
+            except Exception:
+                pass
+
         return Decision(
             winner=winner,
             all_candidates=ranked,
