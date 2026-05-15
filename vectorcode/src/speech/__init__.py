@@ -1,0 +1,23 @@
+# VECTOR-INGESTED MODULE
+# Source: github/open-jarvis/OpenJarvis/src/openjarvis/speech/__init__.py
+# Personalized for VECTOR runtime.
+# Owner: Arghyadeep Deb
+# Ingested: 2026-05-15T02:57:36+00:00
+
+"""Speech subsystem — speech-to-text and text-to-speech backends."""
+
+import importlib
+
+# Optional STT backends — each registers itself via @SpeechRegistry.register()
+for _mod in ("faster_whisper", "openai_whisper", "deepgram"):
+    try:
+        importlib.import_module(f".{_mod}", __name__)
+    except ImportError:
+        pass
+
+# Optional TTS backends — each registers itself via @TTSRegistry.register()
+for _mod in ("cartesia_tts", "kokoro_tts", "openai_tts"):
+    try:
+        importlib.import_module(f".{_mod}", __name__)
+    except ImportError:
+        pass
