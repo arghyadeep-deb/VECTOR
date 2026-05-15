@@ -12,6 +12,8 @@ export interface VectorState {
   goals: GoalsResponse | null
   // Taskbar panel visibility
   openTaskbarPanel: 'core' | 'events' | 'metrics' | 'daily' | null
+  showGlobe: boolean
+  setShowGlobe: (v: boolean) => void
   setConnected: (v: boolean) => void; setStatus: (s: StatusResponse | null) => void; setAgents: (a: AgentData[]) => void
   addEvent: (e: MemoryEvent) => void; setEvents: (e: MemoryEvent[]) => void; setError: (e: string | null) => void
   openPanel: (entry: PanelEntry) => void; closePanel: (id: string) => void
@@ -35,7 +37,9 @@ export const useVectorStore = create<VectorState>()((set) => ({
   systemMetrics: null,
   goals: null,
   openTaskbarPanel: null,
+  showGlobe: false,
 
+  setShowGlobe: (v) => set({ showGlobe: v }),
   setConnected: (v) => set({ connected: v }),
   setStatus: (s) => set({ status: s, lastUpdated: Date.now() }),
   setAgents: (a) => set({ agents: a, lastUpdated: Date.now() }),

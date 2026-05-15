@@ -1,7 +1,24 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVectorStore } from '../store/vectorStore'
 import { api } from '../lib/api'
 import { sendMessage, onTokenReceived, onDoneReceived, onErrorReceived } from '../lib/websocket'
+import VoiceInput from './VoiceInput'
+
+interface HistoryEntry { cmd: string; resp: string; ts: number }
+
+const HISTORY_KEY = 'vector_cmd_history'
+const MAX_HISTORY = 50
+
+function loadHistory(): HistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveHistory(entries: HistoryEntry[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY))) } catch { /* quota exceeded */ }
+}
 
 export default function CommandInput() {
   const [text, setText] = useState('')
@@ -11,11 +28,21 @@ export default function CommandInput() {
   const [progress, setProgress] = useState(0)
   const [lastAction, setLastAction] = useState<string | null>(null)
   const [feedbackSent, setFeedbackSent] = useState(false)
+  const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory())
+  const [showHistory, setShowHistory] = useState(false)
   const respRef = useRef('')
   const inputRef = useRef<HTMLInputElement>(null)
   const quickResult = useVectorStore((s) => s.quickResult)
   const setQuickResult = useVectorStore((s) => s.setQuickResult)
   const goalsLen = useVectorStore((s) => s.goals?.immediate_actions?.length ?? 0)
+
+  const pushHistory = useCallback((cmd: string, resp: string) => {
+    setHistory((prev) => {
+      const next = [{ cmd, resp, ts: Date.now() }, ...prev].slice(0, MAX_HISTORY)
+      saveHistory(next)
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     const unsubToken = onTokenReceived((token) => {
@@ -28,6 +55,7 @@ export default function CommandInput() {
       setStreaming(false)
       setSending(false)
       setProgress(0)
+      if (lastCmdRef.current) pushHistory(lastCmdRef.current, full)
     })
     const unsubError = onErrorReceived((err) => {
       setResp(`ERROR: ${err}`)
@@ -44,9 +72,11 @@ export default function CommandInput() {
     return () => clearInterval(id)
   }, [sending, streaming])
 
-  const send = async () => {
-    if (!text.trim() || sending) return
-    const cmd = text.trim()
+  const lastCmdRef = useRef('')
+
+  const executeCommand = useCallback(async (cmd: string) => {
+    if (!cmd.trim() || sending) return
+    lastCmdRef.current = cmd
     setSending(true)
     setResp('')
     setProgress(5)
@@ -67,12 +97,17 @@ export default function CommandInput() {
       if (d.action_taken) setLastAction(d.action_taken)
       setProgress(100)
       setText('')
+      pushHistory(cmd, d.response || 'No response')
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
     }
     setSending(false)
     setProgress(0)
-  }
+  }, [sending, pushHistory])
+
+  const send = useCallback(() => {
+    executeCommand(text)
+  }, [text, executeCommand])
 
   const sendFeedback = async (rating: 1 | 2 | 3 | 4 | 5) => {
     if (!lastAction || feedbackSent) return
@@ -91,6 +126,7 @@ export default function CommandInput() {
       const d = await api.council(text.trim(), 'high')
       setResp(d.verdict || 'No verdict')
       setLastAction('council')
+      pushHistory(text.trim(), d.verdict || 'No verdict')
       setText('')
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
@@ -98,6 +134,16 @@ export default function CommandInput() {
     setSending(false)
     setProgress(0)
   }
+
+  const handleVoiceResult = useCallback((transcript: string, response: string) => {
+    if (transcript) {
+      setText(transcript)
+      executeCommand(transcript)
+    }
+    if (response && !transcript) {
+      setResp(response)
+    }
+  }, [executeCommand])
 
   const hasActions = goalsLen > 0
 
@@ -128,6 +174,19 @@ export default function CommandInput() {
           <span style={{ color: streaming ? '#81D4FA' : '#1a6688' }}>
             {streaming ? 'PROCESSING' : 'STANDBY'}
           </span>
+          <button
+            aria-label="Command history"
+            title="Command history"
+            onClick={() => setShowHistory((p) => !p)}
+            style={{
+              background: 'transparent', border: 'none',
+              color: showHistory ? '#4FC3F7' : '#1a4466',
+              cursor: 'pointer', fontFamily: "'Orbitron', sans-serif", fontSize: 9,
+              padding: '2px 6px', transition: 'all 0.3s',
+            }}
+          >
+            ⌚
+          </button>
         </div>
       </div>
 
@@ -176,6 +235,9 @@ export default function CommandInput() {
         >
           ⚖
         </button>
+        {/* Voice input button */}
+        <VoiceInput onResult={handleVoiceResult} />
+
         {/* Execute button */}
         <button
           aria-label="Send command"
@@ -204,6 +266,47 @@ export default function CommandInput() {
               boxShadow: '0 0 8px #81D4FA', transition: 'width 0.5s ease',
             }} />
           </div>
+        </div>
+      )}
+
+      {/* History dropdown */}
+      {showHistory && history.length > 0 && (
+        <div style={{
+          maxHeight: 200, overflowY: 'auto',
+          borderTop: '1px solid rgba(0,212,255,0.06)',
+          background: 'rgba(4,12,24,0.95)',
+        }}>
+          {history.slice(0, 20).map((h, i) => (
+            <div
+              key={h.ts}
+              onClick={() => { setText(h.cmd); setShowHistory(false); inputRef.current?.focus() }}
+              style={{
+                padding: '5px 12px', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center',
+                borderBottom: i < Math.min(history.length, 20) - 1 ? '1px solid rgba(0,212,255,0.03)' : 'none',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,212,255,0.04)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{
+                fontFamily: "'Orbitron', sans-serif", fontSize: 6, color: '#1a4466',
+                minWidth: 40,
+              }}>
+                {new Date(h.ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                color: '#6a9abf', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+              }}>
+                {h.cmd}
+              </span>
+              <span style={{
+                fontFamily: "'Orbitron', sans-serif", fontSize: 6, color: '#1a4466', opacity: 0.5,
+              }}>
+                ↲
+              </span>
+            </div>
+          ))}
         </div>
       )}
 

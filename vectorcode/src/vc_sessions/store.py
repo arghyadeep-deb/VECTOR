@@ -19,7 +19,7 @@ class SessionStore:
         p = self._dir / f"{session_id}.json"
         if not p.exists(): return None
         try: return json.loads(p.read_text(encoding="utf-8"))
-        except: return None
+        except Exception: return None
 
     def delete(self, session_id: str) -> None:
         p = self._dir / f"{session_id}.json"

@@ -25,6 +25,8 @@ export default function QuickActions() {
   const openPanel = useVectorStore((s) => s.openPanel)
   const activePanels = useVectorStore((s) => s.activePanels)
   const showMortality = activePanels.some((p) => p.type === 'mortality')
+  const showGlobe = useVectorStore((s) => s.showGlobe)
+  const setShowGlobe = useVectorStore((s) => s.setShowGlobe)
 
   const actions = [
     ['AI NEWS', async () => { window.open('/ui/search?q=AI+news+today', '_blank') }],
@@ -46,6 +48,7 @@ export default function QuickActions() {
       useVectorStore.getState().setQuickResult({ title: 'ACTIVE GOALS', lines })
     }],
     ['MORTALITY', () => openPanel({ id: 'mortality', type: 'mortality' })],
+    ['GLOBE', () => setShowGlobe(!showGlobe)],
   ]
 
   const btnStyle = (active = false): React.CSSProperties => ({
@@ -60,7 +63,7 @@ export default function QuickActions() {
       {actions.map(([label, onClick]) => (
         <button
           key={label as string}
-          style={btnStyle(label === 'MORTALITY' && showMortality)}
+          style={btnStyle((label === 'MORTALITY' && showMortality) || (label === 'GLOBE' && showGlobe))}
           onClick={onClick as () => void}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = '#4FC3F7'
@@ -68,7 +71,8 @@ export default function QuickActions() {
             e.currentTarget.style.boxShadow = '0 0 20px rgba(0,212,255,0.2), 0 0 40px rgba(0,212,255,0.1)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = label === 'MORTALITY' && showMortality ? '#4FC3F7' : '#1a6688'
+            const isActive = (label === 'MORTALITY' && showMortality) || (label === 'GLOBE' && showGlobe)
+            e.currentTarget.style.color = isActive ? '#4FC3F7' : '#1a6688'
             e.currentTarget.style.borderColor = 'rgba(0,212,255,0.12)'
             e.currentTarget.style.boxShadow = 'none'
           }}

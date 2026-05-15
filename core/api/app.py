@@ -150,7 +150,7 @@ def create_app() -> FastAPI:
         return {"csrf_token": generate_csrf_token()}
 
     # Include routers
-    from core.api.routers import a2a, commands, council, agents, status, voice, memory, security, websocket, tasks, vectorcode
+    from core.api.routers import a2a, commands, council, agents, status, voice, memory, security, websocket, tasks, vectorcode, claims
     app.include_router(a2a.router)
     app.include_router(commands.router)
     app.include_router(council.router)
@@ -163,6 +163,7 @@ def create_app() -> FastAPI:
     app.include_router(websocket.router)
     app.include_router(tasks.router)
     app.include_router(vectorcode.router)
+    app.include_router(claims.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:

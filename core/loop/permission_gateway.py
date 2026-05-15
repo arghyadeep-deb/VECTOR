@@ -162,11 +162,11 @@ class PermissionGateway:
     def _check_capability(self, action: 'Action') -> tuple[bool, str]:
         """Verify the proposing agent has the capability token for this action.
 
-        Uses vectorcode/src/oj_security/capabilities.py if present. When the
+        Uses vectorcode/src/vc_security/capabilities.py if present. When the
         capability layer is absent, returns (True, '<no capability layer>') so
         existing tests + the YELLOW/RED flow continue to work unchanged.
 
-        Maps action_type to the OJ capability namespace:
+        Maps action_type to the capability namespace:
           search_web              → net.read
           send_email/send_message → comms.send
           delete_files            → fs.delete

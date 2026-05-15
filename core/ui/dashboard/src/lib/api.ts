@@ -164,6 +164,15 @@ export const api = {
     sunrise: string | null; sunset: string | null
   }>('/daily'),
 
+  // Voice: send audio blob to Whisper STT pipeline — backend handles everything
+  voice: async (blob: Blob): Promise<{ transcript: string; response: string; language_detected: string }> => {
+    const form = new FormData()
+    form.append('audio', blob, 'voice.webm')
+    const r = await fetch(`${BASE}/voice`, { method: 'POST', body: form, cache: 'no-store' })
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+    return r.json()
+  },
+
   // Award/deduct HP — backend validates and applies
   agentAward: (agent_id: string, points: number, reason: string) =>
     post<{ new_hp: number; status: string }>('/agent/award', { agent_id, points, reason }),

@@ -41,7 +41,7 @@ export default function ClaimsBoard() {
   useEffect(() => {
     const fetch_claims = async () => {
       try {
-        const r = await fetch('/api/claims', { cache: 'no-store' })
+        const r = await fetch('/claims', { cache: 'no-store' })
         if (!r.ok) throw new Error()
         const d = await r.json()
         setClaims(d.claims ?? MOCK_CLAIMS)

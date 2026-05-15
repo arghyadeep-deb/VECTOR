@@ -133,9 +133,16 @@ def _install_dependencies(provider_name: str) -> None:
         install_cmd = dep.get("install", "")
         if check_cmd:
             try:
-                subprocess.run(
-                    check_cmd, shell=True, capture_output=True, timeout=5
-                )
+                import shutil as _sh, shlex as _sl2
+                # Use shutil.which first (safe, no shell), fall back to split args
+                _cmd_name = check_cmd.split()[0] if check_cmd.strip() else ""
+                if _cmd_name and _sh.which(_cmd_name):
+                    pass  # command exists, skip shell check
+                else:
+                    _args2 = _sl2.split(check_cmd) if check_cmd.strip() else [check_cmd]
+                    subprocess.run(
+                        _args2, shell=False, capture_output=True, timeout=5
+                    )
             except Exception:
                 if install_cmd:
                     print(f"\n  ⚠ '{dep_name}' not found. Install with:")

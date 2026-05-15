@@ -137,7 +137,7 @@ def eval_list() -> None:
         ["jarvis-direct", "jarvis-agent", "hermes", "openclaw", "terminalbench-native"]
     ),
     help=(
-        "Inference backend. For hermes/openclaw, also pass --base-url and "
+        "Inference backend. For vector/openclaw, also pass --base-url and "
         "--api-key (or set VECTOR_BACKEND_BASE_URL/VECTOR_BACKEND_API_KEY)."
     ),
 )
@@ -146,7 +146,7 @@ def eval_list() -> None:
     "base_url",
     default=None,
     help=(
-        "OpenAI-compat endpoint URL for hermes/openclaw backends "
+        "OpenAI-compat endpoint URL for vector/openclaw backends "
         "(env: VECTOR_BACKEND_BASE_URL)."
     ),
 )
@@ -154,7 +154,7 @@ def eval_list() -> None:
     "--api-key",
     "api_key",
     default=None,
-    help=("API key for the hermes/openclaw endpoint (env: VECTOR_BACKEND_API_KEY)."),
+    help=("API key for the vector/openclaw endpoint (env: VECTOR_BACKEND_API_KEY)."),
 )
 @click.option(
     "--agent",
@@ -399,7 +399,7 @@ def eval_run(
         sheets_spreadsheet_id=sheets_spreadsheet_id,
         sheets_worksheet=sheets_worksheet,
         sheets_credentials_path=sheets_credentials_path,
-        # Spec §6.2 — for hermes/openclaw external backends. Falls back to env vars
+        # Spec §6.2 — for vector/openclaw external backends. Falls back to env vars
         # so users can also set VECTOR_BACKEND_BASE_URL/VECTOR_BACKEND_API_KEY.
         base_url=base_url or os.environ.get("VECTOR_BACKEND_BASE_URL"),
         api_key=api_key or os.environ.get("VECTOR_BACKEND_API_KEY"),

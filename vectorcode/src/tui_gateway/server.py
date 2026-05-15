@@ -3550,9 +3550,12 @@ def _(rid, params: dict) -> dict:
     if name in qcmds:
         qc = qcmds[name]
         if qc.get("type") == "exec":
+            import shlex as _sl
+            _raw_cmd = qc.get("command", "")
+            _args = _sl.split(_raw_cmd) if isinstance(_raw_cmd, str) else list(_raw_cmd)
             r = subprocess.run(
-                qc.get("command", ""),
-                shell=True,
+                _args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -5026,7 +5029,7 @@ def _(rid, params: dict) -> dict:
         pass
     try:
         r = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=30, cwd=os.getcwd()
+            __import__("shlex").split(cmd) if isinstance(cmd, str) else list(cmd), shell=False, capture_output=True, text=True, timeout=30, cwd=os.getcwd()
         )
         return _ok(
             rid,

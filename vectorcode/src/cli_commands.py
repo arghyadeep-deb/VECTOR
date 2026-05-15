@@ -38,13 +38,13 @@ def cmd_doctor(args):
     checks = []
     checks.append(("Python 3.11+", sys.version_info >= (3, 11)))
     try: import ollama; checks.append(("Ollama SDK", True))
-    except: checks.append(("Ollama SDK", False))
+    except Exception: checks.append(("Ollama SDK", False))
     try: import httpx; checks.append(("httpx", True))
-    except: checks.append(("httpx", False))
+    except Exception: checks.append(("httpx", False))
     try: import aiohttp; checks.append(("aiohttp", True))
-    except: checks.append(("aiohttp", False))
+    except Exception: checks.append(("aiohttp", False))
     try: import loguru; checks.append(("loguru", True))
-    except: checks.append(("loguru", False))
+    except Exception: checks.append(("loguru", False))
     for name, ok in checks:
         print(f"  {'✓' if ok else '✗'} {name}")
 

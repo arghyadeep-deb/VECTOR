@@ -16,6 +16,45 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 router_singular = APIRouter(prefix="/agent", tags=["agents"])
 
 
+@router.get("/coherence")
+async def agent_coherence():
+    """Get coherence scores and privilege levels for all agents."""
+    try:
+        from vectorcode.src.guidance import CoherenceScheduler
+        from core.city.agent_registry import get_registry
+        reg = get_registry()
+        agents = reg.list_all()
+        scheduler = CoherenceScheduler()
+        result = []
+        for a in agents:
+            aid = a.get("agent_id", a.get("id", ""))
+            name = a.get("name", aid)
+            hp = a.get("health_points", 500)
+            is_alive = a.get("is_alive", hp > 0)
+            try:
+                score = scheduler.compute_score(aid)
+                privilege = scheduler.get_privilege_level(aid)
+                coherence = round(score.overall * 100, 1)
+            except Exception:
+                coherence = 85.0
+                privilege = "full" if is_alive else "suspended"
+            result.append({
+                "id": aid,
+                "name": name,
+                "coherence": coherence,
+                "hp": hp,
+                "privilege": privilege,
+                "active": is_alive,
+            })
+        return {"agents": result}
+    except ImportError as e:
+        logger.warning(f"[VECTOR][api][coherence] guidance system unavailable: {e}")
+        return {"agents": []}
+    except Exception as e:
+        logger.error(f"[VECTOR][api][coherence] failed: {e}")
+        return {"agents": [], "error": str(e)}
+
+
 @router.get("", response_model=AgentListResponse)
 async def list_agents():
     """List all registered agents with their HP and status."""

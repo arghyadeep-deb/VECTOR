@@ -1,4 +1,5 @@
 import AmbientTheme from './components/AmbientTheme'
+import VectorScene from './three/VectorScene'
 import BackgroundCanvas from './components/BackgroundCanvas'
 import DataPoller from './components/DataPoller'
 import TopBar from './components/TopBar'
@@ -21,14 +22,13 @@ import FloatingPanelManager from './components/FloatingPanelManager'
 import SystemMetricsPanel from './components/SystemMetricsPanel'
 import VectorCodePanel from './components/VectorCodePanel'
 import DailyInfoPanel from './components/DailyInfoPanel'
-import ClaimsBoard from './components/ClaimsBoard'
 import ModelSwitcher from './components/ModelSwitcher'
-import CoherenceMonitor from './components/CoherenceMonitor'
 import { Z } from './lib/zIndex'
 
 export default function App() {
   return (
     <>
+      <VectorScene />
       <BackgroundCanvas />
       <ArcReactor />
       <CentralHologram />
@@ -54,23 +54,15 @@ export default function App() {
       {/* DAILY BRIEF: self-positions at bottom-left */}
       <DailyInfoPanel />
 
-      {/* RIGHT OF CENTER: Compass (top) + CoreStatus (bottom), 5px left of Districts */}
-      <div style={{ position: 'fixed', right: 201, top: 52, width: 160, zIndex: 30 }}>
-        <CompassPanel />
-      </div>
-      <div style={{ position: 'fixed', right: 201, bottom: 12, width: 160, zIndex: 30 }}>
-        <CoreStatusPanel />
+      {/* RIGHT OF CENTER: Compass → panels → CoreStatus, 5px left of Districts */}
+      <div style={{ position: 'fixed', right: 201, top: 52, bottom: 12, width: 160, zIndex: 30, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ flex: '0 0 auto' }}><CompassPanel /></div>
+        <div style={{ flex: '0 0 auto' }}><ModelSwitcher /></div>
+        <div style={{ flex: '0 0 auto', marginTop: 'auto' }}><CoreStatusPanel /></div>
       </div>
 
       {/* RIGHT: Districts (full height) */}
       <DistrictsPanel />
-
-      {/* FAR RIGHT: Claims + Coherence + ModelSwitcher stacked */}
-      <div style={{ position: 'fixed', right: 12, top: 52, width: 210, zIndex: Z.SIDEBARS, display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <div style={{ flex: '0 0 auto' }}><CoherenceMonitor /></div>
-        <div style={{ flex: '0 0 auto' }}><ClaimsBoard /></div>
-        <div style={{ flex: '0 0 auto' }}><ModelSwitcher /></div>
-      </div>
 
       {/* BOTTOM CENTER: Command terminal */}
       <div style={{

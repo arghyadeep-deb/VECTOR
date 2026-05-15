@@ -67,7 +67,7 @@ export default function CoherenceMonitor() {
   useEffect(() => {
     const load = async () => {
       try {
-        const r = await fetch('/api/agents/coherence', { cache: 'no-store' })
+        const r = await fetch('/agents/coherence', { cache: 'no-store' })
         if (!r.ok) throw new Error()
         const d = await r.json()
         setAgents(d.agents ?? MOCK_AGENTS)

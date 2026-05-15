@@ -16,7 +16,7 @@ from typing import Any, Mapping
 def safe_json_loads(s):
     import json
     try: return json.loads(s) if s else None
-    except: return None
+    except Exception: return None
 from vectorcode.src.agent.tool_result_classification import file_mutation_result_landed
 
 
