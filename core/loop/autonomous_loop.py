@@ -28,6 +28,9 @@ class AutonomousLoop:
         self._memory = None
         self._ambient = None
         self._policy = None
+        self._red_team = None
+        self._hypothesis_engine = None
+        self._cron_last_run: dict[str, datetime.datetime] = {}
         logger.info("[VECTOR][autonomous_loop] initialized")
 
     def _get_context(self):
@@ -65,6 +68,141 @@ class AutonomousLoop:
             from core.memory.episodic import EpisodicMemory
             self._memory = EpisodicMemory()
         return self._memory
+
+    # ─── Scheduler + Workflow integrations (VectorCode-absorbed) ─────────────
+
+    def _get_scheduler(self):
+        """Durable task scheduler — persistent state + retry semantics.
+
+        Wraps core/scheduler/. Used by scheduler_loop() to fire scheduled
+        tasks that must survive process restarts (vs the in-process timer
+        loops which are lost on crash).
+        """
+        if getattr(self, "_scheduler", None) is None:
+            try:
+                from core.scheduler import TaskScheduler  # type: ignore
+                self._scheduler = TaskScheduler()
+                logger.info("[VECTOR][autonomous_loop] durable scheduler ready")
+            except Exception as e:
+                logger.warning(f"[VECTOR][autonomous_loop] scheduler unavailable: {e}")
+                self._scheduler = None
+        return self._scheduler
+
+    def _get_workflow_runner(self):
+        """DAG workflow runner. Districts can trigger multi-step workflows
+        via runner.run(workflow_dict) — returns WorkflowResult.
+        """
+        if getattr(self, "_workflow_runner", None) is None:
+            try:
+                from core.loop.workflow_runner import WorkflowRunner  # type: ignore
+                self._workflow_runner = WorkflowRunner()
+                logger.info("[VECTOR][autonomous_loop] workflow runner ready")
+            except Exception as e:
+                logger.warning(f"[VECTOR][autonomous_loop] workflow runner unavailable: {e}")
+                self._workflow_runner = None
+        return self._workflow_runner
+
+    async def scheduler_loop(self):
+        """Fire durable scheduled tasks every 30s. Never crashes."""
+        logger.info("[VECTOR][scheduler_loop] started — 30s tick")
+        # Operator manager wire (absorbed OJ — alternative task scheduler)
+        if getattr(self, "_operator_mgr", None) is not None:
+            logger.info("[VECTOR][scheduler_loop] OperatorManager available")
+        scheduler = self._get_scheduler()
+        if scheduler is None:
+            logger.info("[VECTOR][scheduler_loop] scheduler unavailable — loop disabled")
+            return
+        # Register default daily/weekly jobs on first init
+        try:
+            from core.loop.cron_jobs import register_default_jobs
+            n = register_default_jobs(scheduler)
+            logger.info(f"[VECTOR][scheduler_loop] {n} default jobs registered")
+        except Exception as exc:
+            logger.warning(f"[VECTOR][scheduler_loop] cron registration failed: {exc}")
+
+        while self._running:
+            try:
+                # Fire any tasks whose scheduled time has arrived
+                fire_method = getattr(scheduler, "fire_due", None) or \
+                              getattr(scheduler, "tick", None) or \
+                              getattr(scheduler, "run_due", None)
+                if callable(fire_method):
+                    result = fire_method()
+                    if asyncio.iscoroutine(result):
+                        await result
+            except Exception as e:
+                logger.error(f"[VECTOR][scheduler_loop] tick error: {e}")
+            # Also fire VECTOR-native cron jobs directly (TaskScheduler is
+            # prompt-based; function-based jobs fire via this mechanism)
+            try:
+                await self._fire_vnative_cron_jobs()
+            except Exception as e:
+                logger.error(f"[VECTOR][scheduler_loop] native cron error: {e}")
+            await asyncio.sleep(30.0)
+
+    def _parse_cron_daily(self, expr: str) -> tuple[int, int] | None:
+        """Parse ``M H * * *`` → (minute, hour). Returns None if not daily."""
+        parts = expr.strip().split()
+        if len(parts) == 5 and parts[2] == "*" and parts[3] == "*" \
+                and parts[4] == "*":
+            try:
+                return int(parts[1]), int(parts[0])  # (hour, minute)
+            except ValueError:
+                return None
+        return None
+
+    async def _fire_vnative_cron_jobs(self) -> None:
+        """Check and fire VECTOR-native cron job entries at their scheduled times."""
+        from core.loop.cron_jobs import job_trigger_workflow, job_benchmark_suite, job_recipe_sync
+        entries: list[tuple[str, str, Callable]] = [
+            ("daily-workflow-trigger", "0 8 * * *", job_trigger_workflow),
+            ("weekly-benchmark-suite", "0 1 * * 0", job_benchmark_suite),
+            ("weekly-recipe-sync",     "30 1 * * 0", job_recipe_sync),
+        ]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for job_id, cron_expr, fn in entries:
+            parsed = self._parse_cron_daily(cron_expr)
+            if parsed is None:
+                continue
+            hour, minute = parsed
+            if now.hour == hour and now.minute == minute:
+                last = self._cron_last_run.get(job_id)
+                window_start = now.replace(second=0, microsecond=0)
+                if last is None or last < window_start:
+                    self._cron_last_run[job_id] = now
+                    logger.info(f"[VECTOR][cron] firing {job_id}")
+                    try:
+                        result = fn()
+                        if asyncio.iscoroutine(result):
+                            result = await result
+                        logger.info(f"[VECTOR][cron] {job_id} → {result.get('status', '?')}")
+                    except Exception as e:
+                        logger.error(f"[VECTOR][cron] {job_id} failed: {e}")
+
+    async def trigger_workflow(self, workflow: dict | str) -> dict:
+        """Public entrypoint for districts to fire a DAG workflow.
+
+        Accepts either a dict definition or a path to a YAML/JSON file.
+        Returns a dict summary of the workflow result.
+        """
+        runner = self._get_workflow_runner()
+        if runner is None:
+            return {"status": "unavailable", "reason": "workflow runner not ready"}
+        try:
+            if isinstance(workflow, str):
+                from core.loop.workflow_runner import load_workflow_file
+                workflow = load_workflow_file(workflow)
+            result = await runner.run(workflow)
+            return {
+                "status": result.overall_status,
+                "name": result.name,
+                "duration_seconds": result.duration_seconds,
+                "tasks": {tid: {"status": r.status, "duration_seconds": r.duration_seconds}
+                          for tid, r in result.task_results.items()},
+            }
+        except Exception as e:
+            logger.error(f"[VECTOR][autonomous_loop] workflow failed: {e}")
+            return {"status": "failed", "reason": str(e)}
 
     # ─── Observe ──────────────────────────────────────────────────────────────
 
@@ -182,6 +320,14 @@ class AutonomousLoop:
 
     # ─── Act ──────────────────────────────────────────────────────────────────
 
+    def _capture_trace(self, event: str, data: dict) -> None:
+        """Feed trace data to the absorbed TraceCollector if available."""
+        if getattr(self, "_trace_collector", None) is not None:
+            try:
+                self._trace_collector.capture(event=event, **data)
+            except Exception:
+                pass
+
     async def _act_on(self, winner: "DecisionEngine.Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
@@ -253,6 +399,12 @@ class AutonomousLoop:
                     reward=reward,
                 )
 
+            self._capture_trace("act", {
+                "action": winner.action_type,
+                "result": result.get("status"),
+                "reward": reward,
+                "goal_ids": winner.goal_ids,
+            })
             logger.info(
                 f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
                 + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
@@ -445,6 +597,23 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][autonomous_loop] task_queue init failed: {e}")
 
+        # Wire absorbed modules: traces, operators, daemon
+        try:
+            from vectorcode.src.vc_traces.collector import TraceCollector
+            self._trace_collector = TraceCollector()
+        except Exception:
+            self._trace_collector = None
+        try:
+            from vectorcode.src.operators.manager import OperatorManager
+            self._operator_mgr = OperatorManager()
+        except Exception:
+            self._operator_mgr = None
+        try:
+            from vectorcode.src.daemon.service import ServiceManager
+            self._daemon_mgr = ServiceManager()
+        except Exception:
+            self._daemon_mgr = None
+
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
@@ -453,6 +622,7 @@ class AutonomousLoop:
             self.obsidian_loop(),
             self.phone_loop(),
             self.vectorcode_loop(),
+            self.scheduler_loop(),
             return_exceptions=True,
         )
 
