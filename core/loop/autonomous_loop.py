@@ -678,6 +678,7 @@ class AutonomousLoop:
             self.phone_loop(),
             self.vectorcode_loop(),
             self.scheduler_loop(),
+            self.hypothesis_loop(),      # JARVIS Gap 5 — proactive insights every 4h
             return_exceptions=True,
         )
 
