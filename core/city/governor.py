@@ -125,15 +125,25 @@ class Governor:
         try:
             from core.inference.ollama_safe import chat
             from core.config import CONFIG
+            # RULE 1: session_hydration_prompt() before every LLM call
+            try:
+                from core.loop.context_engine import ContextEngine
+                hydration = ContextEngine().session_hydration_prompt()
+            except Exception:
+                hydration = ""
             districts = list(set(DISTRICT_TASK_MAP.values()))
             prompt = (
                 f"Classify this task into exactly one district name from this list: {districts}\n"
                 f"Task: {task_type}\n"
                 "Reply with only the district name, nothing else."
             )
+            messages = []
+            if hydration:
+                messages.append({"role": "system", "content": hydration})
+            messages.append({"role": "user", "content": prompt})
             result = chat(
                 model=CONFIG["models"]["ambient"],
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 timeout=5.0,
             ).strip().lower()
             # Validate the response is a known district
