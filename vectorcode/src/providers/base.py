@@ -1,116 +1,184 @@
-"""Base provider interface and shared types for VectorCode."""
+"""Provider profile base class.
 
-from abc import ABC, abstractmethod
+A ProviderProfile declares everything about an inference provider in one place:
+auth, endpoints, client quirks, request-time quirks. The transport reads this
+instead of receiving 20+ boolean flags.
+
+Provider profiles are DECLARATIVE — they describe the provider's behavior.
+They do NOT own client construction, credential rotation, or streaming.
+Those stay on AIAgent.
+"""
+
+from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Sentinel for "omit temperature entirely" (Kimi: server manages it)
+OMIT_TEMPERATURE = object()
+
+
+def _profile_user_agent() -> str:
+    """Return a ``hermes-cli/<version>`` UA string, with a stable fallback.
+
+    Used by ``ProviderProfile.fetch_models`` so the catalog probe is not
+    served the default ``Python-urllib/<ver>`` UA — some providers
+    (OpenCode Zen, etc.) sit behind a WAF that returns 403 for that.
+    """
+    try:
+        from hermes_cli import __version__ as _ver  # lazy: avoid layer cycle at import time
+        return f"hermes-cli/{_ver}"
+    except Exception:
+        return "hermes-cli"
 
 
 @dataclass
-class TokenUsage:
-    prompt_tokens:     int = 0
-    completion_tokens: int = 0
-    total_tokens:      int = 0
-    cache_read_tokens: int = 0
+class ProviderProfile:
+    """Base provider profile — subclass or instantiate with overrides."""
 
+    # ── Identity ─────────────────────────────────────────────
+    name: str
+    api_mode: str = "chat_completions"
+    aliases: tuple = ()
 
-@dataclass
-class ToolCall:
-    id:        str
-    name:      str
-    arguments: dict
+    # ── Human-readable metadata ───────────────────────────────
+    display_name: str = ""       # e.g. "GMI Cloud" — shown in picker/labels
+    description: str = ""        # e.g. "GMI Cloud (multi-model direct API)" — picker subtitle
+    signup_url: str = ""         # e.g. "https://www.gmicloud.ai/" — shown during setup
 
+    # ── Auth & endpoints ─────────────────────────────────────
+    env_vars: tuple = ()
+    base_url: str = ""
+    models_url: str = ""  # explicit models endpoint; falls back to {base_url}/models
+    auth_type: str = "api_key"   # api_key|oauth_device_code|oauth_external|copilot|aws_sdk
+    supports_health_check: bool = True  # False → doctor skips /models probe for this provider
 
-@dataclass
-class Message:
-    role:         str
-    content:      str = ""
-    tool_calls:   list = field(default_factory=list)  # list[ToolCall]
-    tool_call_id: str | None = None
+    # ── Model catalog ─────────────────────────────────────────
+    # fallback_models: curated list shown in /model picker when live fetch fails.
+    # Only agentic models that support tool calling should appear here.
+    fallback_models: tuple = ()
 
+    # hostname: base hostname for URL→provider reverse-mapping in model_metadata.py
+    # e.g. "api.gmi-serving.com". Derived from base_url when empty.
+    hostname: str = ""
 
-@dataclass
-class ModelCapabilities:
-    context_window:     int  = 4096
-    tool_use:           bool = False
-    vision:             bool = False
-    structured_output:  bool = False
-    supports_streaming: bool = True
+    # ── Client-level quirks (set once at client construction) ─
+    default_headers: dict[str, str] = field(default_factory=dict)
 
+    # ── Request-level quirks ─────────────────────────────────
+    # Temperature: None = use caller's default, OMIT_TEMPERATURE = don't send
+    fixed_temperature: Any = None
+    default_max_tokens: int | None = None
+    default_aux_model: str = (
+        ""  # cheap model for auxiliary tasks (compression, vision, etc.)
+    )
+    # empty = use main model
 
-@dataclass
-class CompletionResult:
-    message:  Message
-    usage:    TokenUsage
-    model:    str
-    cost_usd: float = 0.0
+    # ── Hooks (override in subclass for complex providers) ───
 
+    def get_hostname(self) -> str:
+        """Return the provider's base hostname for URL-based detection.
 
-# ── Pricing table: (input $/1M tokens, output $/1M tokens) ───────────────────
+        Uses self.hostname if set explicitly, otherwise derives it from base_url.
+        e.g. 'https://api.gmi-serving.com/v1' → 'api.gmi-serving.com'
+        """
+        if self.hostname:
+            return self.hostname
+        if self.base_url:
+            from urllib.parse import urlparse
+            return urlparse(self.base_url).hostname or ""
+        return ""
 
-PRICING: dict[str, tuple[float, float]] = {
-    "claude-opus-4":       (15.0,  75.0),
-    "claude-sonnet-4-6":   (3.0,   15.0),
-    "claude-haiku-4-5":    (0.25,   1.25),
-    "gpt-5":               (10.0,  30.0),
-    "gpt-4o":              (2.5,   10.0),
-    "gpt-4o-mini":         (0.15,   0.60),
-    "o3":                  (10.0,  40.0),
-    "gemini-2.5-pro":      (1.25,   5.0),
-    "gemini-2.5-flash":    (0.075,  0.30),
-    "llama-4-scout":       (0.11,   0.34),
-    "llama-3.3-70b":       (0.59,   0.79),
-    "mistral-large":       (2.0,    6.0),
-    "codestral":           (1.0,    3.0),
-    "deepseek-coder-v3":   (0.14,   0.28),
-    "command-r-plus":      (2.5,   10.0),
-    "grok-3":              (3.0,   15.0),
-}
+    def prepare_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Provider-specific message preprocessing.
 
+        Called AFTER codex field sanitization, BEFORE developer role swap.
+        Default: pass-through.
+        """
+        return messages
 
-def estimate_cost(model: str, usage: TokenUsage) -> float:
-    """Return estimated cost in USD for a completion. Returns 0.0 for local models."""
-    for key, (inp_rate, out_rate) in PRICING.items():
-        if key in model:
-            return (usage.prompt_tokens * inp_rate + usage.completion_tokens * out_rate) / 1_000_000
-    return 0.0  # local models are free
+    def build_extra_body(
+        self, *, session_id: str | None = None, **context: Any
+    ) -> dict[str, Any]:
+        """Provider-specific extra_body fields.
 
+        Merged into the API kwargs extra_body. Default: empty dict.
+        """
+        return {}
 
-class BaseProvider(ABC):
-    """All VectorCode provider adapters must implement this interface."""
-
-    provider_name: str = "base"
-
-    @abstractmethod
-    def complete(
+    def build_api_kwargs_extras(
         self,
-        model: str,
-        messages: list[dict],
-        tools: list[dict] | None = None,
-        stream: bool = True,
-        max_tokens: int = 8192,
-    ) -> CompletionResult:
-        """Run a completion. messages is a list of {role, content} dicts."""
+        *,
+        reasoning_config: dict | None = None,
+        **context: Any,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Provider-specific kwargs split between extra_body and top-level api_kwargs.
 
-    @abstractmethod
-    def probe_capabilities(self, model: str) -> ModelCapabilities:
-        """Probe a model to detect its capabilities."""
+        Returns (extra_body_additions, top_level_kwargs).
+        The transport merges extra_body_additions into extra_body, and
+        top_level_kwargs directly into api_kwargs.
 
-    def _make_result(
+        This split exists because some providers put reasoning config in
+        extra_body (OpenRouter: extra_body.reasoning) while others put it
+        as top-level api_kwargs (Kimi: api_kwargs.reasoning_effort).
+
+        Default: ({}, {}).
+        """
+        return {}, {}
+
+    def fetch_models(
         self,
-        content: str,
-        model: str,
-        usage: TokenUsage,
-        tool_calls: list | None = None,
-    ) -> CompletionResult:
-        msg = Message(
-            role="assistant",
-            content=content,
-            tool_calls=tool_calls or [],
-        )
-        return CompletionResult(
-            message=msg,
-            usage=usage,
-            model=model,
-            cost_usd=estimate_cost(model, usage),
-        )
+        *,
+        api_key: str | None = None,
+        timeout: float = 8.0,
+    ) -> list[str] | None:
+        """Fetch the live model list from the provider's models endpoint.
 
+        Returns a list of model ID strings, or None if the fetch failed or
+        the provider does not support live model listing.
 
+        Resolution order for the endpoint URL:
+          1. self.models_url  (explicit override — use when the models
+             endpoint differs from the inference base URL, e.g. OpenRouter
+             exposes a public catalog at /api/v1/models while inference is
+             at /api/v1)
+          2. self.base_url + "/models"  (standard OpenAI-compat fallback)
+
+        The default implementation sends Bearer auth when api_key is given
+        and forwards self.default_headers. Override to customise auth, path,
+        response shape, or to return None for providers with no REST catalog.
+
+        Callers must always fall back to the static _PROVIDER_MODELS list
+        when this returns None.
+        """
+        url = (self.models_url or "").strip()
+        if not url:
+            if not self.base_url:
+                return None
+            url = self.base_url.rstrip("/") + "/models"
+
+        import json
+        import urllib.request
+
+        req = urllib.request.Request(url)
+        if api_key:
+            req.add_header("Authorization", f"Bearer {api_key}")
+        req.add_header("Accept", "application/json")
+        # Some providers (e.g. OpenCode Zen) sit behind a WAF that blocks
+        # the default ``Python-urllib/<ver>`` User-Agent.  Set a generic
+        # hermes-cli UA so the catalog endpoint is reachable.
+        req.add_header("User-Agent", _profile_user_agent())
+        for k, v in self.default_headers.items():
+            req.add_header(k, v)
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode())
+            items = data if isinstance(data, list) else data.get("data", [])
+            return [m["id"] for m in items if isinstance(m, dict) and "id" in m]
+        except Exception as exc:
+            logger.debug("fetch_models(%s): %s", self.name, exc)
+            return None

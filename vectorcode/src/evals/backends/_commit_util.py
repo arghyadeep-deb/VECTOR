@@ -1,9 +1,4 @@
-# VECTOR module — ported from VectorCode
-# Personalized for VECTOR runtime.
-# Owner: Arghyadeep Deb
-# Ingested: 2026-05-15T02:57:35+00:00
-
-"""Shared helper for resolving the vector repo's HEAD commit."""
+"""Shared helper for resolving the vectorcode.src repo's HEAD commit."""
 
 from __future__ import annotations
 
@@ -12,15 +7,15 @@ import subprocess
 from pathlib import Path
 
 @functools.lru_cache(maxsize=1)
-def vector_commit() -> str:
-    """Return the vector repo's HEAD commit (cached, lru-1).
+def vectorcode.src_commit() -> str:
+    """Return the vectorcode.src repo's HEAD commit (cached, lru-1).
 
     Returns ``"unknown"`` if git is unavailable or the path isn't a repo.
-    Used by VectorAgentBackend and VectorDirectBackend to populate the
+    Used by JarvisAgentBackend and JarvisDirectBackend to populate the
     ``framework_commit`` field in their extended return dicts.
     """
     try:
-        # Walk up to repo root: backends/ -> evals/ -> vector/ -> src/ -> repo
+        # Walk up to repo root: backends/ -> evals/ -> vectorcode.src/ -> src/ -> repo
         result = subprocess.run(
             [
                 "git",

@@ -1,218 +1,191 @@
-"""VectorCode Model Router — resolves "provider/model" strings to provider adapters.
+"""Provider module registry.
 
-Usage:
-    from providers import ModelRouter
-    router = ModelRouter()
-    result = router.complete("anthropic/claude-sonnet-4-6", messages)
-    result = router.complete("ollama/vector-focus", messages)
-    result = router.complete("groq/llama-4-scout", messages)
+Provider profiles can live in two places:
+
+1. Bundled plugins: ``plugins/model-providers/<name>/`` (shipped with vector-agent)
+2. User plugins: ``$VECTOR_HOME/plugins/model-providers/<name>/``
+
+Each plugin directory contains:
+  - ``__init__.py`` — calls ``register_provider(profile)`` at import
+  - ``plugin.yaml`` — manifest (name, kind: model-provider, version, description)
+
+Discovery is lazy: the first call to ``get_provider_profile()`` or
+``list_providers()`` scans both locations and imports every plugin. User
+plugins override bundled plugins on name collision (last-writer-wins), so
+third parties can monkey-patch or replace any built-in profile without
+editing the repo.
+
+For backward compatibility, ``providers/*.py`` files (other than ``base.py``
+and ``__init__.py``) are still discovered via ``pkgutil.iter_modules``.
+This lets out-of-tree users drop a single-file profile into an editable
+install without the plugin dir structure. New profiles should prefer the
+plugin layout.
+
+Usage::
+
+    from providers import get_provider_profile
+    profile = get_provider_profile("nvidia")   # ProviderProfile or None
+    profile = get_provider_profile("kimi")     # checks name + aliases
 """
 
+from __future__ import annotations
+
+import importlib
+import importlib.util
+import logging
 import sys
-import os
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
-from loguru import logger
-from providers.base import (
-    BaseProvider, CompletionResult, ModelCapabilities, TokenUsage
+from providers.base import OMIT_TEMPERATURE, ProviderProfile  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+_REGISTRY: dict[str, ProviderProfile] = {}
+_ALIASES: dict[str, str] = {}
+_discovered = False
+
+# Repo-root ``plugins/model-providers/`` — populated at discovery time.
+_BUNDLED_PLUGINS_DIR = (
+    Path(__file__).resolve().parent.parent / "plugins" / "model-providers"
 )
-from providers.ollama import OllamaProvider
-from providers.openai_compat import (
-    OpenAICompatProvider, OpenAIProvider, AnthropicProvider, GoogleProvider,
-    GroqProvider, MistralProvider, DeepSeekProvider, OpenRouterProvider,
-    LMStudioProvider,
-)
-from providers.capability_probe import CapabilityProbe
-
-try:
-    from config import VectorConfig as _VectorConfig
-    class _ConfigShim:
-        def __init__(self, project_dir=None):
-            self._cfg = {}
-        def provider_config(self, name):
-            return {}
-        def get(self, key, default=None):
-            return default
-    VectorConfig = _VectorConfig
-except (ImportError, Exception):
-    class VectorConfig:  # type: ignore
-        def __init__(self, project_dir=None):
-            self._cfg = {}
-        def provider_config(self, name):
-            import os
-            return {"api_key": os.getenv(f"{name.upper()}_API_KEY", "")}
-        def get(self, key, default=None):
-            return default
 
 
-_BUILTIN_PROVIDERS: dict[str, type] = {
-    "ollama":     OllamaProvider,
-    "anthropic":  AnthropicProvider,
-    "openai":     OpenAIProvider,
-    "google":     GoogleProvider,
-    "groq":       GroqProvider,
-    "mistral":    MistralProvider,
-    "deepseek":   DeepSeekProvider,
-    "openrouter": OpenRouterProvider,
-    "lmstudio":   LMStudioProvider,
-}
+def register_provider(profile: ProviderProfile) -> None:
+    """Register a provider profile by name and aliases.
 
-
-class ModelRouter:
+    Later registrations with the same name replace earlier ones — so user
+    plugins under ``$VECTOR_HOME/plugins/model-providers/`` can override
+    bundled profiles without editing repo code.
     """
-    Routes "provider/model" identifiers to the correct provider adapter.
+    _REGISTRY[profile.name] = profile
+    for alias in profile.aliases:
+        _ALIASES[alias] = profile.name
 
-    Supports:
-    - "anthropic/claude-sonnet-4-6"
-    - "openai/gpt-4o"
-    - "groq/llama-4-scout"
-    - "ollama/vector-focus"
-    - "ollama/qwen2.5-coder:32b"
-    - bare names like "vector-focus" (treated as ollama/)
+
+def get_provider_profile(name: str) -> ProviderProfile | None:
+    """Look up a provider profile by name or alias.
+
+    Returns None if the provider has no profile (falls back to generic).
     """
+    if not _discovered:
+        _discover_providers()
+    canonical = _ALIASES.get(name, name)
+    return _REGISTRY.get(canonical)
 
-    def __init__(self, project_dir: Path | None = None) -> None:
-        self._cfg = VectorConfig(project_dir=project_dir)
-        self._instances: dict[str, BaseProvider] = {}
-        self._prober = CapabilityProbe()
 
-    def _get_provider(self, provider_name: str) -> BaseProvider:
-        if provider_name in self._instances:
-            return self._instances[provider_name]
+def list_providers() -> list[ProviderProfile]:
+    """Return all registered provider profiles (one per canonical name)."""
+    if not _discovered:
+        _discover_providers()
+    # Deduplicate: _REGISTRY has canonical names; _ALIASES points to same objects
+    seen: set[int] = set()
+    result: list[ProviderProfile] = []
+    for profile in _REGISTRY.values():
+        pid = id(profile)
+        if pid not in seen:
+            seen.add(pid)
+            result.append(profile)
+    return result
 
-        prov_cfg = self._cfg.provider_config(provider_name)
-        cls = _BUILTIN_PROVIDERS.get(provider_name)
 
-        if cls is None:
-            # Unknown provider — try OpenAI-compat with configured base_url
-            base_url = prov_cfg.get("base_url", "")
-            api_key  = prov_cfg.get("api_key", "")
-            api_key_env = prov_cfg.get("api_key_env", "")
-            if api_key_env:
-                api_key = os.environ.get(api_key_env, api_key)
-            instance: BaseProvider = OpenAICompatProvider(base_url=base_url, api_key=api_key)
-        elif provider_name == "ollama":
-            base_url = prov_cfg.get("base_url", "http://localhost:11434")
-            instance = OllamaProvider(base_url=base_url)
-        else:
-            # Cloud provider — extract api_key from config or env
-            api_key  = prov_cfg.get("api_key", "")
-            api_key_env = prov_cfg.get("api_key_env", "")
-            instance = cls(api_key=api_key, api_key_env=api_key_env)  # type: ignore
+def _user_plugins_dir() -> Path | None:
+    """Return ``$VECTOR_HOME/plugins/model-providers/`` if it exists."""
+    try:
+        from hermes_constants import get_vector_home
 
-        self._instances[provider_name] = instance
-        return instance
+        d = get_vector_home() / "plugins" / "model-providers"
+        return d if d.is_dir() else None
+    except Exception:
+        return None
 
-    def parse(self, model_id: str) -> tuple[str, str]:
-        """Parse "provider/model" → ("provider", "model"). Bare names → ollama."""
-        if "/" in model_id:
-            provider, model = model_id.split("/", 1)
-            return provider.lower(), model
-        return "ollama", model_id
 
-    def complete(
-        self,
-        model_id: str,
-        messages: list[dict],
-        tools: list[dict] | None = None,
-        stream: bool = True,
-        max_tokens: int = 8192,
-    ) -> CompletionResult:
-        provider_name, model = self.parse(model_id)
-        provider = self._get_provider(provider_name)
-        logger.debug(f"[VECTOR][router] routing {model_id} → {provider_name} / {model}")
-        return provider.complete(model, messages, tools=tools, stream=stream, max_tokens=max_tokens)
+def _import_plugin_dir(plugin_dir: Path, source: str) -> None:
+    """Import a single plugin directory so it self-registers.
 
-    def get_capabilities(self, model_id: str) -> ModelCapabilities:
-        provider_name, model = self.parse(model_id)
-        provider = self._get_provider(provider_name)
-        return self._prober.get_or_probe(model_id, provider)
+    ``source`` is "bundled" or "user", used only for log messages.
+    """
+    init_file = plugin_dir / "__init__.py"
+    if not init_file.exists():
+        return
 
-    def list_configured_models(self) -> list[str]:
-        """Return list of provider names that have config entries."""
-        providers_cfg = self._cfg.get("providers", default={})
-        return [f"{pname}/*" for pname in (providers_cfg or {}).keys()]
+    # Give bundled plugins a stable import path (``plugins.model_providers.<name>``)
+    # so relative imports within the plugin work. User plugins load via
+    # ``importlib.util.spec_from_file_location`` with a unique module name so
+    # multiple VECTOR_HOME profiles don't alias each other.
+    safe_name = plugin_dir.name.replace("-", "_")
+    if source == "bundled":
+        module_name = f"plugins.model_providers.{safe_name}"
+    else:
+        module_name = f"_hermes_user_provider_{safe_name}"
 
-    def test_connection(self, model_id: str) -> dict:
-        """Test if a model is reachable. Returns {ok, latency_ms, error}."""
-        import time
-        t0 = time.perf_counter()
-        try:
-            result = self.complete(
-                model_id,
-                [{"role": "user", "content": "reply with the single word: ok"}],
-                stream=False,
-                max_tokens=10,
-            )
-            latency = int((time.perf_counter() - t0) * 1000)
-            ok = "error" not in result.message.content.lower()[:20]
-            return {"ok": ok, "latency_ms": latency, "response": result.message.content[:50]}
-        except Exception as e:
-            return {"ok": False, "latency_ms": -1, "error": str(e)}
+    if module_name in sys.modules:
+        return  # already imported
 
-    async def chat(
-        self,
-        model: str,
-        messages: list,
-        tools: list | None = None,
-        **kwargs,
-    ) -> dict:
-        """Async chat interface used by engine/conversation.py.
-
-        Wraps the sync complete() in a thread to avoid blocking the event loop.
-        Returns a normalized dict with 'message.content' and 'message.tool_calls'.
-        """
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: self.complete(model, messages, tools=tools, stream=False),
+    try:
+        spec = importlib.util.spec_from_file_location(
+            module_name, init_file, submodule_search_locations=[str(plugin_dir)]
         )
-        # Normalize to dict format expected by engine
-        content = getattr(getattr(result, "message", None), "content", "") or ""
-        tool_calls = getattr(getattr(result, "message", None), "tool_calls", []) or []
-        return {
-            "message": {
-                "content": content,
-                "tool_calls": [
-                    {
-                        "id": getattr(tc, "id", ""),
-                        "name": getattr(tc, "name", "") or getattr(getattr(tc, "function", None), "name", ""),
-                        "arguments": getattr(tc, "arguments", "") or getattr(getattr(tc, "function", None), "arguments", "{}"),
-                    }
-                    for tc in (tool_calls or [])
-                ],
-            }
-        }
+        if spec is None or spec.loader is None:
+            return
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        logger.warning(
+            "Failed to load %s provider plugin %s: %s", source, plugin_dir.name, exc
+        )
+        sys.modules.pop(module_name, None)
 
 
-# ── Module-level singleton ────────────────────────────────────────────────────
+def _discover_providers() -> None:
+    """Populate the registry by importing every provider plugin.
 
-_router: ModelRouter | None = None
+    Order:
+      1. Bundled plugins at ``<repo>/plugins/model-providers/<name>/``
+      2. User plugins at ``$VECTOR_HOME/plugins/model-providers/<name>/``
+      3. Legacy per-file modules at ``providers/<name>.py`` (back-compat)
 
+    Each step imports its plugins, which call ``register_provider()`` at
+    module-level. Later steps win on name collision.
+    """
+    global _discovered
+    if _discovered:
+        return
+    _discovered = True
 
-def get_model_router() -> ModelRouter:
-    """Return the global ModelRouter singleton."""
-    global _router
-    if _router is None:
-        _router = ModelRouter()
-    return _router
+    # 1. Bundled plugins — shipped with vector-agent.
+    if _BUNDLED_PLUGINS_DIR.is_dir():
+        for child in sorted(_BUNDLED_PLUGINS_DIR.iterdir()):
+            if not child.is_dir() or child.name.startswith(("_", ".")):
+                continue
+            _import_plugin_dir(child, "bundled")
 
+    # 2. User plugins — under $VECTOR_HOME/plugins/model-providers/<name>/.
+    #    These can override any bundled profile of the same name (last-writer-wins
+    #    in register_provider()).
+    user_dir = _user_plugins_dir()
+    if user_dir is not None:
+        for child in sorted(user_dir.iterdir()):
+            if not child.is_dir() or child.name.startswith(("_", ".")):
+                continue
+            _import_plugin_dir(child, "user")
 
-if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
-    router = ModelRouter()
-    pname, model = router.parse("anthropic/claude-sonnet-4-6")
-    assert pname == "anthropic" and model == "claude-sonnet-4-6"
-    pname2, model2 = router.parse("vector-focus")
-    assert pname2 == "ollama" and model2 == "vector-focus"
-    caps = router.get_capabilities("openai/gpt-4o")
-    assert caps.context_window == 128_000
-    print("providers/__init__.py OK")
+    # 3. Legacy single-file profiles at providers/<name>.py. Kept for
+    #    back-compat — if someone drops a ``providers/foo.py`` into an
+    #    editable install, it still works without the plugin layout.
+    try:
+        import pkgutil
 
+        import providers as _pkg
 
-
-
-
+        for _importer, modname, _ispkg in pkgutil.iter_modules(_pkg.__path__):
+            if modname.startswith("_") or modname == "base":
+                continue
+            try:
+                importlib.import_module(f"providers.{modname}")
+            except ImportError as exc:
+                logger.warning(
+                    "Failed to import legacy provider module %s: %s", modname, exc
+                )
+    except Exception:
+        pass
