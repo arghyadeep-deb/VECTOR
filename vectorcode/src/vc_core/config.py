@@ -1216,7 +1216,7 @@ class CompressionConfig:
 class SkillSourceConfig:
     """Configuration for a single skill source (Hermes, OpenClaw, GitHub)."""
 
-    source: str = ""  # "hermes", "openclaw", or "github"
+    source: str = ""  # "vector", "openclaw", or "github"
     url: str = ""  # required when source = "github"
     filter: Dict[str, Any] = field(default_factory=dict)
     auto_update: bool = False

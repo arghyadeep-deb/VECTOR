@@ -41,7 +41,7 @@ VALID_BACKENDS = {
     "vector-direct",
     "vector-agent",
     "terminalbench-native",
-    "hermes",
+    "vector",
     "openclaw",
 }
 
@@ -217,7 +217,7 @@ def load_eval_config(path: str | Path) -> EvalSuiteConfig:
             )
         )
 
-    # Parse optional [backend.external] section (for hermes/openclaw backends).
+    # Parse optional [backend.external] section (for vector/openclaw backends).
     # Env vars override TOML values; either source may be empty.
     external_raw = raw.get("backend", {}).get("external", {})
     backend_external_base_url = (

@@ -7995,7 +7995,7 @@ For more help on a command:
             "Manage the fallback provider chain.  Fallback providers are tried "
             "in order when the primary model fails with rate-limit, overload, or "
             "connection errors.  See: "
-            "https://vectorcode.nousresearch.com/docs/user-guide/features/fallback-providers"
+            "https://vector.local/docs/user-guide/features/fallback-providers"
         ),
     )
     fallback_subparsers = fallback_parser.add_subparsers(dest="fallback_command")

@@ -1,22 +1,22 @@
 """
-Timezone-aware clock for VectorCode.
+Timezone-aware clock for Hermes.
 
 Provides a single ``now()`` helper that returns a timezone-aware datetime
 based on the user's configured IANA timezone (e.g. ``Asia/Kolkata``).
 
 Resolution order:
   1. ``VECTOR_TIMEZONE`` environment variable
-  2. ``timezone`` key in ``~/.vectorcode/config.yaml``
+  2. ``timezone`` key in ``~/.vector/config.yaml``
   3. Falls back to the server's local time (``datetime.now().astimezone()``)
 
-Invalid timezone values log a warning and fall back safely — VectorCode never
+Invalid timezone values log a warning and fall back safely — Hermes never
 crashes due to a bad timezone string.
 """
 
 import logging
 import os
 from datetime import datetime
-from vector_constants import get_config_path
+from vectorcode.src.vector_constants import get_config_path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
-    # Python 3.8 fallback (shouldn't be needed — VectorCode requires 3.9+)
+    # Python 3.8 fallback (shouldn't be needed — Hermes requires 3.9+)
     from backports.zoneinfo import ZoneInfo  # type: ignore[no-redef]
 
 # Cached state — resolved once, reused on every call.
@@ -50,7 +50,7 @@ def _resolve_timezone_name() -> str:
         import yaml
         config_path = get_config_path()
         if config_path.exists():
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
             tz_cfg = cfg.get("timezone", "")
             if isinstance(tz_cfg, str) and tz_cfg.strip():

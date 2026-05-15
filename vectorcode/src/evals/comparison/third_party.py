@@ -27,17 +27,17 @@ LOGGER = logging.getLogger(__name__)
 # Map framework name -> env var that overrides its `path` field.
 # Must be kept in sync with the section keys in _third_party.toml.
 _PATH_ENV_VAR = {
-    "hermes": "HERMES_AGENT_PATH",
+    "vector": "HERMES_AGENT_PATH",
     "openclaw": "OPENCLAW_PATH",
 }
 
 # Map framework name -> env var that overrides its language-runtime executable.
-# For hermes this overrides `python_executable` (point at the Hermes venv's
+# For vector this overrides `python_executable` (point at the Hermes venv's
 # python so its deps don't need to be installed in VectorCode's venv); for
 # openclaw it overrides `node_executable` (point at a Node ≥14.8 binary if
 # the system default is too old).
 _RUNTIME_ENV_VAR = {
-    "hermes": "HERMES_AGENT_PYTHON",
+    "vector": "HERMES_AGENT_PYTHON",
     "openclaw": "OPENCLAW_NODE",
 }
 
@@ -104,7 +104,7 @@ def load_third_party_config(toml_path: Optional[Path] = None) -> ThirdPartyConfi
         python_exe = body.get("python_executable", "")
         node_exe = body.get("node_executable", "")
         if runtime_override:
-            if name == "hermes":
+            if name == "vector":
                 python_exe = runtime_override
             elif name == "openclaw":
                 node_exe = runtime_override

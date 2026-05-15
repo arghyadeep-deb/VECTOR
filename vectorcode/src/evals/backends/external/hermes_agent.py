@@ -5,7 +5,7 @@
 
 """HermesBackend - runs real Hermes Agent as a subprocess per task.
 
-Implements the InferenceBackend ABC by spawning hermes_runner.py with the
+Implements the InferenceBackend ABC by spawning vector_runner.py with the
 foreign Hermes installation on sys.path. Foreign code never imports into
 this process; we cross the boundary only via stdin/stdout JSON.
 """
@@ -29,8 +29,8 @@ from vectorcode.src.evals.core.backend import InferenceBackend
 class HermesBackend(InferenceBackend):
     """Spawn real Hermes Agent (pinned commit) as a subprocess per task."""
 
-    backend_id = "hermes"
-    framework_name = "hermes"
+    backend_id = "vector"
+    framework_name = "vector"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class HermesBackend(InferenceBackend):
         self._timeout = timeout_seconds
 
         cfg = load_third_party_config()
-        self._entry: ThirdPartyEntry = cfg.entries["hermes"]
+        self._entry: ThirdPartyEntry = cfg.entries["vector"]
         verify_commit_pin(self._entry)
 
     @property
@@ -131,7 +131,7 @@ class HermesBackend(InferenceBackend):
             "peak_power_w": result.peak_power_w,
             "tool_calls": result.parsed_json.get("tool_calls", 0),
             "turn_count": result.parsed_json.get("turn_count", 0),
-            "framework": "hermes",
+            "framework": "vector",
             "framework_commit": self._entry.pinned_commit,
             "cost_usd": 0.0,
             "error": result.error or result.parsed_json.get("error"),

@@ -7,7 +7,7 @@
 
 Usage:
     python -m vector.evals.comparison.make_configs \\
-        --framework hermes --model qwen-9b --benchmark gaia
+        --framework vector --model qwen-9b --benchmark gaia
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import click
 FRAMEWORKS: Dict[str, Dict[str, str]] = {
     "vector": {"backend_id": "vector-agent"},
     "vector-distilled": {"backend_id": "vector-agent"},
-    "hermes": {"backend_id": "hermes"},
+    "vector": {"backend_id": "vector"},
     "openclaw": {"backend_id": "openclaw"},
 }
 

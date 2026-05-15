@@ -1,8 +1,8 @@
-"""Centralized logging setup for VectorCode.
+"""Centralized logging setup for Hermes Agent.
 
 Provides a single ``setup_logging()`` entry point that both the CLI and
 gateway call early in their startup path.  All log files live under
-``~/.vectorcode/logs/`` (profile-aware via ``get_vector_home()``).
+``~/.vector/logs/`` (profile-aware via ``get_vector_home()``).
 
 Log files produced:
     agent.log   — INFO+, all agent/tool/session activity (the main log)
@@ -30,7 +30,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional, Sequence
 
-from vector_constants import get_config_path, get_vector_home
+from vectorcode.src.vector_constants import get_config_path, get_vector_home
 
 # Sentinel to track whether setup_logging() has already run.  The function
 # is idempotent — calling it twice is safe but the second call is a no-op
@@ -162,7 +162,7 @@ def setup_logging(
     mode: Optional[str] = None,
     force: bool = False,
 ) -> Path:
-    """Configure the VectorCode logging subsystem.
+    """Configure the Hermes logging subsystem.
 
     Safe to call multiple times — the second call is a no-op unless
     *force* is ``True``.
@@ -170,7 +170,7 @@ def setup_logging(
     Parameters
     ----------
     vector_home
-        Override for the VectorCode home directory.  Falls back to
+        Override for the Hermes home directory.  Falls back to
         ``get_vector_home()`` (profile-aware).
     log_level
         Minimum level for the ``agent.log`` file handler.  Accepts any
@@ -306,7 +306,7 @@ class _ManagedRotatingFileHandler(RotatingFileHandler):
     """
 
     def __init__(self, *args, **kwargs):
-        from vector_cli.config import is_managed
+        from vectorcode.src.vector_cli.config import is_managed
         self._managed = is_managed()
         super().__init__(*args, **kwargs)
 

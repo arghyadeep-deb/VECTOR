@@ -1,4 +1,4 @@
-"""HermesResolver -- resolves skills from NousResearch/hermes-agent.
+"""VectorSkillResolver -- resolves skills from VECTOR/vector-agent.
 
 Layout:
     skills/<category>/<skill-name>/SKILL.md
@@ -18,16 +18,16 @@ from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
 
 LOGGER = logging.getLogger(__name__)
 
-HERMES_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
+HERMES_REPO_URL = "https://github.com/VECTOR/vector-agent.git"
 
-class HermesResolver(SourceResolver):
+class VectorSkillResolver(SourceResolver):
     """Resolves skills from the Hermes Agent repository."""
 
-    name = "hermes"
+    name = "vector"
 
     def __init__(self, cache_root: Path | None = None) -> None:
         if cache_root is None:
-            cache_root = Path("~/.vector/skill-cache/hermes/").expanduser()
+            cache_root = Path("~/.vector/skill-cache/vector/").expanduser()
         self._cache_root = Path(cache_root)
 
     def cache_dir(self) -> Path:
@@ -125,4 +125,4 @@ class HermesResolver(SourceResolver):
         except subprocess.CalledProcessError:
             return ""
 
-__all__ = ["HermesResolver", "HERMES_REPO_URL"]
+__all__ = ["VectorSkillResolver", "HERMES_REPO_URL"]

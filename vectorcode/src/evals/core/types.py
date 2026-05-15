@@ -96,7 +96,7 @@ class RunConfig:
     # running thinking/reasoning models that consume turns on intermediate
     # reasoning before producing tool calls.
     max_turns: Optional[int] = None
-    # Spec §6.2: backend-external endpoint config (for hermes/openclaw)
+    # Spec §6.2: backend-external endpoint config (for vector/openclaw)
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     # Filter dataset records by id. When set, only records whose record_id
@@ -269,7 +269,7 @@ class EvalSuiteConfig:
     run: ExecutionConfig = field(default_factory=ExecutionConfig)
     models: List[ModelConfig] = field(default_factory=list)
     benchmarks: List[BenchmarkConfig] = field(default_factory=list)
-    # Spec §6.2: optional [backend.external] section for hermes/openclaw
+    # Spec §6.2: optional [backend.external] section for vector/openclaw
     # backends. Holds the OpenAI-compatible endpoint config.
     backend_external_base_url: Optional[str] = None
     backend_external_api_key: Optional[str] = None

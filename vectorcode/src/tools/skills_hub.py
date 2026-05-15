@@ -2873,7 +2873,7 @@ def check_for_skill_updates(
 # VectorCode centralized index source
 # ---------------------------------------------------------------------------
 
-VECTOR_INDEX_URL = "https://vectorcode.nousresearch.com/docs/api/skills-index.json"
+VECTOR_INDEX_URL = "https://vector.local/api/skills-index.json"
 VECTOR_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "vector-index.json"
 VECTOR_INDEX_TTL = 6 * 3600  # 6 hours
 

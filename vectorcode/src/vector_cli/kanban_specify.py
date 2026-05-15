@@ -1,6 +1,6 @@
 """Kanban triage specifier — flesh out a one-liner into a real spec.
 
-Used by ``hermes kanban specify [task_id | --all]``. Takes a task that
+Used by ``vector kanban specify [task_id | --all]``. Takes a task that
 lives in the Triage column (a rough idea, typically only a title), calls
 the auxiliary LLM to produce:
 
@@ -15,7 +15,7 @@ and then flips the task ``triage -> todo`` via
 Design notes
 ------------
 
-* This module intentionally mirrors ``hermes_cli/goals.py`` — same aux
+* This module intentionally mirrors ``vector_cli/goals.py`` — same aux
   client pattern, same "empty config => skip, don't crash" tolerance.
   Keeps the surface area tiny and the failure modes predictable.
 
@@ -123,7 +123,7 @@ def _extract_json_blob(raw: str) -> Optional[dict]:
 
 
 def _profile_author() -> str:
-    """Mirror of ``hermes_cli.kanban._profile_author``. Kept local to
+    """Mirror of ``vector_cli.kanban._profile_author``. Kept local to
     avoid a circular import when kanban.py imports this module."""
     return (
         os.environ.get("VECTOR_PROFILE")

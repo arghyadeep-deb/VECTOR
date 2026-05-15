@@ -179,7 +179,7 @@ _PROVIDER_VISION_MODELS: Dict[str, str] = {
 
 # OpenRouter app attribution headers
 _OR_HEADERS = {
-    "HTTP-Referer": "https://vectorcode.nousresearch.com",
+    "HTTP-Referer": "https://vector.local",
     "X-OpenRouter-Title": "VectorCode",
     "X-OpenRouter-Categories": "productivity,cli-agent",
 }
@@ -189,7 +189,7 @@ _OR_HEADERS = {
 from vector_cli import __version__ as _VECTOR_VERSION
 
 _AI_GATEWAY_HEADERS = {
-    "HTTP-Referer": "https://vectorcode.nousresearch.com",
+    "HTTP-Referer": "https://vector.local",
     "X-Title": "VectorCode",
     "User-Agent": f"VectorCode/{_VECTOR_VERSION}",
 }
@@ -205,7 +205,7 @@ auxiliary_is_nous: bool = False
 # Default auxiliary models per provider
 _OPENROUTER_MODEL = "google/gemini-3-flash-preview"
 _NOUS_MODEL = "google/gemini-3-flash-preview"
-_NOUS_DEFAULT_BASE_URL = "https://inference-api.nousresearch.com/v1"
+_NOUS_DEFAULT_BASE_URL = "https://inference-api.vector.com/v1"
 _ANTHROPIC_DEFAULT_BASE_URL = "https://api.anthropic.com"
 _AUTH_JSON_PATH = get_vector_home() / "auth.json"
 
@@ -3108,7 +3108,7 @@ def call_llm(
         # ── Nous auth refresh parity with main agent ──────────────────
         client_is_nous = (
             resolved_provider == "nous"
-            or base_url_host_matches(_base_info, "inference-api.nousresearch.com")
+            or base_url_host_matches(_base_info, "inference-api.vector.com")
         )
         if _is_auth_error(first_err) and client_is_nous:
             refreshed_client, refreshed_model = _refresh_nous_auxiliary_client(
@@ -3400,7 +3400,7 @@ async def async_call_llm(
         # ── Nous auth refresh parity with main agent ──────────────────
         client_is_nous = (
             resolved_provider == "nous"
-            or base_url_host_matches(_client_base, "inference-api.nousresearch.com")
+            or base_url_host_matches(_client_base, "inference-api.vector.com")
         )
         if _is_auth_error(first_err) and client_is_nous:
             refreshed_client, refreshed_model = _refresh_nous_auxiliary_client(

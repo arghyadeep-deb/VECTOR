@@ -6,7 +6,7 @@
 """Subprocess bridge: runs one task through real Hermes Agent and emits JSON.
 
 Invoked as:
-    python hermes_runner.py \\
+    python vector_runner.py \\
         --task <prompt> --model <m> --base-url <url> --api-key <k> \\
         --api-mode <mode> --output-json <path> [--workspace <path>] \\
         [--max-iterations 90] [--system-prompt <s>]
@@ -48,20 +48,20 @@ def main() -> int:
         "error": None,
     }
 
-    hermes_path = os.environ.get("HERMES_AGENT_PATH")
-    if not hermes_path:
+    vector_path = os.environ.get("HERMES_AGENT_PATH")
+    if not vector_path:
         output["error"] = "HERMES_AGENT_PATH not set"
         args.output_json.write_text(json.dumps(output))
         return 2
 
-    sys.path.insert(0, hermes_path)
+    sys.path.insert(0, vector_path)
     if args.workspace:
         os.chdir(args.workspace)
 
     try:
         from run_agent import AIAgent  # type: ignore[import-not-found]
     except ImportError as e:
-        output["error"] = f"hermes_import_failed: {e}"
+        output["error"] = f"vector_import_failed: {e}"
         args.output_json.write_text(json.dumps(output))
         return 3
 
@@ -85,7 +85,7 @@ def main() -> int:
         # what we actually got so debugging isn't a guessing game.
         if not isinstance(result, dict):
             output["error"] = (
-                f"hermes_returned_non_dict: type={type(result).__name__}, "
+                f"vector_returned_non_dict: type={type(result).__name__}, "
                 f"value={str(result)[:200]}"
             )
             args.output_json.write_text(json.dumps(output))
@@ -93,7 +93,7 @@ def main() -> int:
         expected_keys = {"final_response", "messages"}
         if not (expected_keys & set(result.keys())):
             output["error"] = (
-                f"hermes_returned_unexpected_shape: keys={list(result.keys())}"
+                f"vector_returned_unexpected_shape: keys={list(result.keys())}"
             )
             args.output_json.write_text(json.dumps(output))
             return 0
@@ -193,7 +193,7 @@ def main() -> int:
             }
         )
     except Exception as e:
-        output["error"] = f"hermes_runtime_error: {e}"
+        output["error"] = f"vector_runtime_error: {e}"
         output["trajectory"] = [{"traceback": traceback.format_exc()}]
 
     args.output_json.write_text(json.dumps(output))

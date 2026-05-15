@@ -144,7 +144,7 @@ DEFAULT_AGENT_IDENTITY = (
 VECTOR_AGENT_HELP_GUIDANCE = (
     "If the user asks about configuring, setting up, or using VectorCode "
     "itself, load the `vectorcode` skill with skill_view(name='vectorcode') "
-    "before answering. Docs: https://vectorcode.nousresearch.com/docs"
+    "before answering. Docs: https://vector.local/docs"
 )
 
 MEMORY_GUIDANCE = (

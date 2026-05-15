@@ -159,7 +159,7 @@ BENCHMARKS = {
 BACKENDS = {
     "vector-direct": "Engine-level inference (local or cloud)",
     "vector-agent": "Agent-level inference with tool calling",
-    "hermes": "Real Hermes Agent (Nous Research) via subprocess",
+    "vector": "Real Hermes Agent (Nous Research) via subprocess",
     "openclaw": "Real OpenClaw via Node subprocess",
 }
 
@@ -185,7 +185,7 @@ def _build_backend(
 ):
     """Construct the appropriate backend.
 
-    For "hermes" and "openclaw" backends, ``base_url`` and ``api_key`` are
+    For "vector" and "openclaw" backends, ``base_url`` and ``api_key`` are
     REQUIRED — these foreign frameworks need an OpenAI-compatible endpoint
     to send model calls to. Pass them via the eval config's
     ``[backend.external]`` section or env vars.
@@ -210,12 +210,12 @@ def _build_backend(
             telemetry=telemetry,
             gpu_metrics=gpu_metrics,
         )
-    elif backend_name == "hermes":
+    elif backend_name == "vector":
         from vectorcode.src.evals.backends.external import HermesBackend
 
         if not base_url or not api_key:
             raise click.UsageError(
-                "hermes backend requires --base-url and --api-key (or "
+                "vector backend requires --base-url and --api-key (or "
                 "the equivalent env vars / config entries) — Hermes needs "
                 "an OpenAI-compatible endpoint to call the model."
             )
@@ -1089,12 +1089,12 @@ def main():
 @click.option(
     "--base-url",
     default=None,
-    help="OpenAI-compat endpoint for hermes/openclaw",
+    help="OpenAI-compat endpoint for vector/openclaw",
 )
 @click.option(
     "--api-key",
     default=None,
-    help="API key for hermes/openclaw endpoint",
+    help="API key for vector/openclaw endpoint",
 )
 @click.option("-m", "--model", default=None, help="Model identifier")
 @click.option(

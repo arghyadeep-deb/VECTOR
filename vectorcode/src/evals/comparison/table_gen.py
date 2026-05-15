@@ -177,7 +177,7 @@ def _render_booktabs(
 
 T1_FRAMEWORKS_ORDER = [
     "openclaw",
-    "hermes",
+    "vector",
     "vector",
     "vector-distilled",
 ]

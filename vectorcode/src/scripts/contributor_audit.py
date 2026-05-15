@@ -52,7 +52,7 @@ IGNORED_EMAILS = {
     "noreply@anthropic.com",
     "noreply@github.com",
     "cursoragent@cursor.com",
-    "vector@nousresearch.com",
+    "vector@vector.com",
     "vector-audit@example.com",
     "vector@habibilabs.dev",
 }
