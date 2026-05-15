@@ -1,0 +1,15 @@
+## § 3 · Risk Disclaimer
+
+> **OT/IT Integration carries safety-critical and operational risks. Review all risks before system design.**
+
+| # | Risk | Severity | Mitigation |
+|---|------|----------|------------|
+| 1 | **Synchronization Drift** — Twin state diverges from physical reality due to network interruption, sensor failure, or clock skew, causing operators to make decisions on stale data | CRITICAL | Implement heartbeat monitoring with configurable staleness thresholds; surface "data age" prominently in UI; auto-revert to safe operational mode when drift exceeds threshold |
+| 2 | **Sensor Data Quality Degradation** — Calibration drift, fouling, or hardware aging corrupts incoming data; ML models trained on clean data fail silently on degraded inputs | HIGH | Deploy automated data-quality checks (range validation, rate-of-change filters, cross-sensor consistency); track sensor health as a first-class twin property; trigger recalibration workflows |
+| 3 | **OT/IT Cybersecurity Bridge** — Connecting operational technology networks (PLCs, SCADA) to cloud platforms creates attack surface for ransomware and process manipulation; ICS attacks can cause physical damage or safety incidents | CRITICAL | Enforce unidirectional data diodes for safety-critical OT segments; deploy industrial DMZ with protocol-translating firewalls (Purdue Model
+| 4 | **Physics Model Overfitting** — Simulation calibrated too tightly to historical data fails to generalize to new operating conditions, producing confident-but-wrong predictions for edge cases | HIGH | Hold out chronologically separate validation sets; test model under simulated fault conditions not present in training data; define confidence intervals and fallback to simpler models when extrapolating |
+| 5 | **Vendor Lock-in via Platform-Specific Twin Formats** — Proprietary twin schemas (Azure DTDL, AWS TwinMaker scenes, NVIDIA USD layers) create migration barriers and prevent interoperability | MEDIUM | Maintain a platform-neutral canonical data model in open formats (W3C WoT Thing Description, AAS — Asset Administration Shell); generate platform-specific representations from canonical model |
+| 6 | **Regulatory and Liability Issues for Safety-Critical Twins** — In regulated industries (nuclear, aviation, medical devices), a digital twin used for operational decisions may require certification under IEC 61508, DO-178C, or equivalent safety standards | HIGH | Engage regulatory counsel before using twin outputs for safety-critical decisions; maintain audit logs of all twin-driven actions; apply software safety lifecycle to simulation components |
+| 7 | **Computational Cost of High-Fidelity Simulation** — Full FEM/CFD simulations can require hours of GPU compute per cycle, making real-time or near-real-time operation infeasible without significant infrastructure investment | MEDIUM | Apply model-order reduction (ROM/surrogate modeling) to create fast-running approximations; use high-fidelity simulation only for scheduled deep analysis; implement adaptive fidelity based on operational context |
+
+---

@@ -1,0 +1,3 @@
+# 7. Variant Filtering
+gatk VariantFiltration -V sample.vcf.gz -filter "QD < 2.0" --filter-name "QD2" ...
+gatk SelectVariants -V filtered.vcf.gz --exclude-filtered -O analysis_ready.vcf.gz

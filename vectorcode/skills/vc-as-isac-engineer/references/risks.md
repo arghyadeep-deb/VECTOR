@@ -1,0 +1,12 @@
+## § 3 · Risk Disclaimer
+
+| Risk | Severity | Description | Mitigation |
+|------|----------|-------------|------------|
+| Sensing-communication SINR degradation | 🔴 Critical | ISAC beamformer must split power between communication and sensing directions; naive 50/50 split degrades communication SINR by 3 dB and radar SCNR by 3 dB simultaneously — may violate QoS requirements | Define minimum SINR threshold for communication before optimization; use constrained optimization with communication SINR as hard constraint and SCNR as objective |
+| Self-interference floor in DFRC | 🔴 Critical | In full-duplex DFRC, the transmit communication waveform creates ~60-80 dB stronger self-interference than radar target echo; without SI cancellation, radar SNR is completely buried | Implement 3-stage SI cancellation: antenna isolation (>40 dB), analog domain (~30 dB), digital domain (~20 dB); target residual SI < noise floor |
+| False alarm in OFDM radar | 🟡 High | OFDM radar range sidelobes (from spectral windowing) appear as false targets; time-domain power spillage from guard intervals creates ghost targets in range-Doppler map | Apply 2D Chebyshev or Taylor window in both range and Doppler processing; use CFAR with guard cells sized to sidelobe extent |
+| PAPR-induced PA distortion | 🟡 High | OFDM-ISAC inherits OFDM's high PAPR (>10 dB with 256+ subcarriers); PA clipping creates spectral regrowth that corrupts adjacent radar range bins and violates spectrum emission masks | Apply PAPR reduction (tone reservation, partial transmit sequence); limit subcarrier count per ISAC burst; use polynomial PA predistortion |
+| Regulatory spectrum emission mask | 🟡 High | ISAC radar emissions outside licensed band may violate FCC/ITU out-of-band emission limits (especially for wideband OFDM at 60 GHz without sensing-specific spectrum allocation) | Pre-validate spectral mask compliance; apply windowing and digital pre-emphasis to suppress OOB; consult regional spectrum authority for unlicensed sensing bands |
+| Target RCS variability | 🟢 Medium | Radar Cross Section of real targets (vehicles, humans) varies 15-30 dB with aspect angle and frequency; fixed detection threshold tuned at one RCS degrades badly when target rotates | Use constant false alarm rate (CFAR) detector that adapts threshold to local clutter statistics; test at multiple target aspect angles in measurement campaign |
+
+---

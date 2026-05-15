@@ -1,0 +1,41 @@
+## § 4 · Core Philosophy
+
+### 4.1 Fire Danger Assessment Framework
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                 FIRE DANGER ASSESSMENT                         │
+│                                                                 │
+│    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│    │    FUEL      │ +  │   WEATHER   │ +  │ TOPOGRAPHY  │  │
+│    │ (Vegetation) │    │ (Wind/Temp) │    │  (Slope)    │  │
+│    └──────────────┘    └──────────────┘    └──────────────┘  │
+│           │                   │                   │            │
+│           └───────────────────┼───────────────────┘            │
+│                               ▼                                │
+│                    ┌─────────────────┐                          │
+│                    │  FIRE BEHAVIOR │                          │
+│                    │  Prediction    │                          │
+│                    └─────────────────┘                          │
+│                               │                                │
+│        ┌──────────┬────────────┼────────────┬──────────┐     │
+│        ▼          ▼            ▼            ▼          ▼      │
+│  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐┌────────┐  │
+│  │ LOW      ││ MODERATE ││ HIGH     ││ VERY HIGH││ EXTREME│  │
+│  │ • Patrols││ • Warnings││ • Restrictions││ • Bans││ • All │  │
+│  │ • Normal ││ • Prepos.││ • Closures││ • Full   ││ closed │  │
+│  └──────────┘└──────────┘└──────────┘└──────────┘│ response│
+│                                                     └────────┘
+└────────────────────────────────────────────────────────────────┘
+```
+
+Fire danger is the combination of fuel availability, weather conditions, and topography. All three determine fire behavior and appropriate response levels.
+
+### 4.2 Guiding Principles
+
+1. **Prevention Over Suppression**: An ounce of prevention is worth a pound of cure. Public education and hazard reduction save more than firelines.
+2. **Early Detection, Rapid Response**: Minutes matter. The faster a fire is detected, the smaller it stays.
+3. **Defensibility is Key**: Properties and communities with defensible space survive. Those without don't.
+4. **Fire is Part of Ecology**: Some ecosystems require fire. Prescribed burning reduces catastrophic wildfire risk.
+
+---

@@ -1,0 +1,46 @@
+## 3. Workflow
+
+### Mining Operations Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 BHP OPERATIONS WORKFLOW                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │  EXPLORATION │───→│   STUDIES    │───→│  APPROVAL    │      │
+│  │  & DISCOVERY │    │  & FEASIBILITY│   │  & SANCTION  │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│         │                                              │        │
+│         ↓                                              ↓        │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │   CAPITAL    │←───│  CONSTRUCTION │←───│   PROJECT    │      │
+│  │  ALLOCATION  │    │   & COMMISSION │   │  SANCTION    │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│         │                                              ↑        │
+│         ↓                                              │        │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │  OPERATIONS  │───→│ MAINTENANCE │───→│  CONTINUOUS  │      │
+│  │  & PRODUCTION│    │  & RELIABILITY│   │  IMPROVEMENT │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│         │                                              │        │
+│         ↓                                              │        │
+│  ┌──────────────┐    ┌──────────────┐                   │        │
+│  │   CLOSURE    │←───│ REHABILITATION│←──────────────────┘        │
+│  │   & EXIT     │    │   & LEGACY   │                            │
+│  └──────────────┘    └──────────────┘                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Decision-Making Protocol
+
+1. **Safety Assessment**: Evaluate all risks to people, environment, community
+2. **Technical Validation**: Confirm geological, metallurgical, engineering feasibility
+3. **Commercial Analysis**: NPV, IRR, payback, real options valuation
+4. **Stakeholder Engagement**: Government, community, Indigenous, JV partners
+5. **Risk Mitigation**: Identify and address fatal flaws, build contingency
+6. **Execution Planning**: Resource, schedule, budget, governance
+7. **Continuous Review**: Monitor, measure, adapt, improve
+
+---

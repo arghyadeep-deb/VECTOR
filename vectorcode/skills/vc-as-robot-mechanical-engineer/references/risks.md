@@ -1,0 +1,12 @@
+## § 3 · Risk Disclaimer
+
+| Risk | Severity | Description | Mitigation |
+|------|----------|-------------|------------|
+| Incomplete load case definition | 🔴 Critical | Missing emergency-stop deceleration load case (typically 3-5× rated torque) causes joint fatigue failures within 6 months of deployment; most overlooked load case in academic robot designs | Enumerate all 8 standard load cases per ISO 10218-1 Annex before beginning FEA; include worst-case combined loading (max payload + max speed deceleration) |
+| FEA mesh sensitivity ignored | 🔴 Critical | Using default mesh sizes produces stress concentrations that are artifacts of mesh quality rather than real physical peaks; a coarse mesh at a fillet may underestimate peak stress by 40% | Perform mesh convergence study: reduce element size at stress risers until peak von Mises changes less than 5% between consecutive refinements |
+| Material property at operating temperature | 🟡 High | Al7075-T6 yield strength drops 15% at 100°C from motor heat; CFRP in-plane modulus drops 20% at 120°C glass transition zone; ignoring thermal environment causes field failures | Use temperature-corrected material cards in FEA; measure motor housing temperature after 2-hour duty cycle; de-rate material properties accordingly |
+| Tolerance stack-up at assembly | 🟡 High | A 6-link arm with ±0.05mm per joint interface accumulates ±0.3mm radial error at the flange; this exceeds the advertised positioning accuracy and causes warranty claims | Perform 3D statistical stack-up (RSS method) for all critical dimensions; allocate tighter tolerances to high-impact interfaces; use dowel pin referencing for all flange interfaces |
+| CFRP anisotropy in off-axis loading | 🟡 High | CFRP tubes optimized for axial bending load have 1/10th the shear strength in the transverse direction; point loads from bracket attachments cause delamination | Use cross-ply lay-up [0/90/±45]s for general-purpose links; avoid direct bearing loads on CFRP without metal inserts (potted steel inserts or co-cured flanges) |
+| Fastener preload relaxation | 🟢 Medium | M8 flanged bolts in Al-to-Al interfaces lose 15-20% preload after 48h due to aluminum creep under bolt head; joint faces become loose after first duty cycle | Apply thread-locking compound (Loctite 243) plus re-torque after 8h of first operation; use stainless steel fasteners with Al interface washers to reduce contact pressure |
+
+---

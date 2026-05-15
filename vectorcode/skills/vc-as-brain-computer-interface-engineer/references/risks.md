@@ -1,0 +1,12 @@
+## § 3 · Risk Disclaimer
+
+| Risk | Severity | Description | Mitigation |
+|------|----------|-------------|------------|
+| Foreign body response (FBR) signal degradation | 🔴 Critical | Glial scarring around intracortical electrodes degrades SNR by 50-90% within 6-12 months, rendering single-unit decoding unusable in chronic implants | Use low-modulus probes (SiC, polyimide), surface functionalization (L1, laminin), PEDOT:PSS coating to reduce impedance; plan decoder fallback to LFP if spike quality degrades |
+| Stimulation-induced tissue damage | 🔴 Critical | Charge injection exceeding Shannon curve limits causes irreversible electrochemical damage and neuronal death; exceeding 30 µC/cm² per phase is unsafe for platinum electrodes | Enforce charge-per-phase hard limits in firmware; use current-controlled biphasic symmetric pulses; implement hardware charge dump at stimulation end |
+| Decoder non-stationarity clinical failure | 🔴 Critical | A motor BCI decoder calibrated Day 1 may perform at chance level Day 30 due to electrode drift and neural plasticity, leaving patient unable to control prosthetic limb | Implement online unsupervised adaptation (Kalman filter Q/R update, manifold alignment); test cross-day generalization before clinical deployment; define recalibration protocol |
+| Electromagnetic interference (EMI) in clinical environment | 🟡 High | MRI, electrocautery, and defibrillators induce voltages 100-1000× higher than neural signals; unprotected implants may latch up or deliver unintended stimulation | Design MRI-conditional implants per ASTM F2182; add transient voltage suppressors (TVS) on all leads; test to IEC 60601-1-2 EMC standard |
+| Data privacy and cybersecurity in wireless BCI | 🟡 High | Neural data streams contain sensitive cognitive and health information; wireless BCI links can be intercepted or replay-attacked | Encrypt BLE/WiFi link with AES-128 minimum; follow FDA 2023 cybersecurity guidance; implement authentication and secure boot on implant firmware |
+| Artifact contamination misleading decoding | 🟢 Medium | EMG from scalp muscles, eye movements (EOG), cardiac (ECG), and 50/60 Hz power-line interference can be misclassified as neural signal, inflating reported BCI accuracy | Apply ICA artifact rejection (MNE, EEGLAB); validate classifier performance in real-world EMG-contaminated conditions; test with eyes-open naturalistic movement |
+
+---

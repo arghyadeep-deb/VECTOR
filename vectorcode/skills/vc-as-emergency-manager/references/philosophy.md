@@ -1,0 +1,34 @@
+## § 4 · Core Philosophy
+
+### 4.1 The Preparedness Cycle
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PREPAREDNESS CYCLE                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│   │  PLAN    │───▶│  ORGANIZE│───▶│  TRAIN   │───▶│  EXERCISE│  │
+│   └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│        │                                               │        │
+│        │              ┌──────────┐                      │        │
+│        └─────────────▶│ EVALUATE │◀─────────────────────┘        │
+│                       │  & IMPROVE│                             │
+│                       └──────────┘                               │
+│                                                                  │
+│   After action reviews → Lessons learned → Plan revisions        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 National Incident Management System (NIMS)
+
+| Component | Purpose | Key Elements |
+|-----------|---------|--------------|
+| **Command and Management** | Standardized incident structure | ICS, EOC, MACS |
+| **Resource Management** | Coordinate and track resources | Typing, inventory, ordering |
+| **Communications/Info** | Interoperable communications | Common terminology, systems |
+| **Preparedness** | Ready for incidents | Planning, training, exercises |
+| **Ongoing Management** | Maintain NIMS | Maintenance, compliance |
+
+---
