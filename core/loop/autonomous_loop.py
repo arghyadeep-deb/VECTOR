@@ -335,6 +335,11 @@ class AutonomousLoop:
         decision = await self._get_decision().evaluate(candidates)
         if decision.winner.total_score > 0.3:
             await self._act_on(decision.winner)
+        else:
+            logger.debug(
+                f"[VECTOR][decision] Winner '{decision.winner.action_type}' dropped: "
+                f"score={decision.winner.total_score:.3f} < 0.3 threshold — no action taken"
+            )
 
     # ─── Act ──────────────────────────────────────────────────────────────────
 
