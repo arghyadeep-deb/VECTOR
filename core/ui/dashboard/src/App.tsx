@@ -65,6 +65,13 @@ export default function App() {
       {/* RIGHT: Districts (full height) */}
       <DistrictsPanel />
 
+      {/* FAR RIGHT: Claims + Coherence + ModelSwitcher stacked */}
+      <div style={{ position: 'fixed', right: 12, top: 52, width: 210, zIndex: Z.SIDEBARS, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ flex: '0 0 auto' }}><CoherenceMonitor /></div>
+        <div style={{ flex: '0 0 auto' }}><ClaimsBoard /></div>
+        <div style={{ flex: '0 0 auto' }}><ModelSwitcher /></div>
+      </div>
+
       {/* BOTTOM CENTER: Command terminal */}
       <div style={{
         position: 'fixed', left: '50%', transform: 'translateX(-50%)',
