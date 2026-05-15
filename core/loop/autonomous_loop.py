@@ -398,7 +398,8 @@ class AutonomousLoop:
         RULE 3 — LLM zero direct access. All through gateway.
         RULE 7 — update_from_outcome() AFTER every action.
         """
-        # VectorCode routing — coding actions bypass governor, go direct to bridge
+        # VectorCode routing — coding actions go through permission_gateway first, then bridge
+        # RULE 3: LLM has ZERO direct access — gateway always gates, even for VectorCode tasks
         _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
         if winner.action_type in _VC_ACTION_TYPES:
             try:
