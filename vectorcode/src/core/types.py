@@ -1,15 +1,23 @@
 """Core types shim — re-exports from vc_core.types."""
 from vectorcode.src.vc_core.types import (
     Message, Role, RoutingContext, ModelSpec, Conversation,
-    Quantization, FP4, FP8, INT4, INT8, GGUF, GGUF_Q4, GGUF_Q8, NONE,
-    SYSTEM, ASSISTANT, GENERATE, RESPOND, RETRIEVE, ROUTE,
+    Quantization, TelemetryRecord, ToolResult, ToolCall, Trace, TraceStep,
+    StepType,
 )
-# Extra shim types not in vc_core
-from typing import Any, Dict, List, Optional
-class TelemetryRecord:
-    """Telemetry record type stub."""
-    pass
 
-class ToolResult:
-    """Tool result type stub (use vectorcode.src.tools._stubs.ToolResult for full impl)."""
-    pass
+# Quantization enum members as module-level aliases (safe hasattr guards)
+FP4     = getattr(Quantization, "FP4",     None)
+FP8     = getattr(Quantization, "FP8",     None)
+INT4    = getattr(Quantization, "INT4",    None)
+INT8    = getattr(Quantization, "INT8",    None)
+GGUF    = getattr(Quantization, "GGUF",    None)
+GGUF_Q4 = getattr(Quantization, "GGUF_Q4", None)
+GGUF_Q8 = getattr(Quantization, "GGUF_Q8", None)
+NONE    = getattr(Quantization, "NONE",    None)
+
+SYSTEM    = getattr(Role,      "SYSTEM",    "system")
+ASSISTANT = getattr(Role,      "ASSISTANT", "assistant")
+GENERATE  = getattr(StepType,  "GENERATE",  "generate")
+RESPOND   = getattr(StepType,  "RESPOND",   "respond")
+RETRIEVE  = getattr(StepType,  "RETRIEVE",  "retrieve")
+ROUTE     = getattr(StepType,  "ROUTE",     "route")
