@@ -72,30 +72,63 @@ _AGENT_MAP = {
 
 
 class AgentState:
-    """Per-agent runtime state tracked by SwarmCoordinator."""
+    """Per-agent runtime state tracked by SwarmCoordinator.
+
+    Fast-path local state (busy/idle/stalled). Delegates to ClaimService
+    for persistent distributed ownership tracking (progress, handoffs, stealing).
+    """
     def __init__(self, agent):
-        self.agent          = agent
-        self.status         = "idle"      # idle / busy / stalled / dead
-        self.current_task   = ""
+        self.agent           = agent
+        self.status          = "idle"      # idle / busy / stalled / dead
+        self.current_task    = ""
+        self.current_issue_id = ""
         self.task_started_at: float = 0.0
         self.tasks_completed = 0
         self.tasks_failed    = 0
         self.hp_snapshot     = getattr(agent, "hp", 500)
 
-    def start_task(self, task: str) -> None:
+    def _claim_svc(self):
+        try:
+            from vectorcode.src.claims import ClaimService
+            return ClaimService()
+        except Exception:
+            return None
+
+    def start_task(self, task: str, issue_id: str = "") -> None:
         self.status          = "busy"
         self.current_task    = task
+        self.current_issue_id = issue_id or f"swarm-{id(task)}"
         self.task_started_at = time.time()
+        # Register claim in distributed claims system
+        svc = self._claim_svc()
+        if svc:
+            from vectorcode.src.claims import Claimant
+            agent_id = str(getattr(self.agent, "id", getattr(self.agent, "name", "unknown")))
+            agent_name = str(getattr(self.agent, "name", agent_id))
+            claimant = Claimant(id=agent_id, type="agent", name=agent_name)
+            svc.claim(self.current_issue_id, claimant, issue_title=task[:80])
 
     def complete_task(self) -> None:
+        # Update claim progress to 100% before marking idle
+        svc = self._claim_svc()
+        if svc and self.current_issue_id:
+            agent_id = str(getattr(self.agent, "id", getattr(self.agent, "name", "unknown")))
+            svc.update_progress(self.current_issue_id, agent_id, 100)
         self.status           = "idle"
         self.current_task     = ""
+        self.current_issue_id = ""
         self.tasks_completed += 1
 
     def fail_task(self) -> None:
-        self.status        = "idle"
-        self.current_task  = ""
-        self.tasks_failed += 1
+        # Release the claim so another agent can pick it up
+        svc = self._claim_svc()
+        if svc and self.current_issue_id:
+            agent_id = str(getattr(self.agent, "id", getattr(self.agent, "name", "unknown")))
+            svc.release(self.current_issue_id, agent_id)
+        self.status           = "idle"
+        self.current_task     = ""
+        self.current_issue_id = ""
+        self.tasks_failed    += 1
 
     def to_dict(self) -> dict:
         return {
