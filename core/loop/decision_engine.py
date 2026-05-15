@@ -63,6 +63,7 @@ class DecisionEngine:
         self._policy = None
         self._goals = None
         self._memory = None
+        self._epistemic = None
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_policy(self):
