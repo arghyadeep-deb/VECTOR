@@ -21,7 +21,7 @@ This skill provides a comprehensive verification and quality assurance system th
 
 ## Prerequisites
 
-- Claude Flow installed (`npx claude-flow@alpha`)
+- VECTOR Flow installed (`npx claude-flow@alpha`)
 - Git repository (for rollback features)
 - Node.js 18+ (for dashboard features)
 

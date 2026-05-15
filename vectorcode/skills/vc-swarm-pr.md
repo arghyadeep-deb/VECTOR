@@ -314,10 +314,10 @@ npx ruv-swarm github export-metrics \
 3. **Rate Limiting**: Implement rate limits for PR operations
 4. **Audit Trail**: Log all swarm operations for compliance
 
-## Integration with Claude Code
+## Integration with VECTOR Code
 
-When using with Claude Code:
-1. Claude Code reads PR diff and context
+When using with VECTOR Code:
+1. VECTOR Code reads PR diff and context
 2. Swarm coordinates approach based on PR type
 3. Agents work in parallel on different aspects
 4. Progress updates posted to PR automatically

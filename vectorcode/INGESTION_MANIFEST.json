@@ -1,0 +1,2172 @@
+{
+  "ingested_at": "2026-05-15T00:45:56+00:00",
+  "totals": {
+    "skills": 272,
+    "agents": 38,
+    "commands": 30,
+    "hooks": 8,
+    "rules": 12
+  },
+  "files": [
+    {
+      "src": ".claude/skills/autoresearch.md",
+      "dst": "vectorcode/skills/vc-autoresearch.md",
+      "kind": "skills",
+      "size_bytes": 2555
+    },
+    {
+      "src": ".claude/skills/humanlayer-gateway.md",
+      "dst": "vectorcode/skills/vc-humanlayer-gateway.md",
+      "kind": "skills",
+      "size_bytes": 2583
+    },
+    {
+      "src": ".claude/skills/karpathy-build-nanogpt.md",
+      "dst": "vectorcode/skills/vc-karpathy-build-nanogpt.md",
+      "kind": "skills",
+      "size_bytes": 2446
+    },
+    {
+      "src": ".claude/skills/karpathy-makemore.md",
+      "dst": "vectorcode/skills/vc-karpathy-makemore.md",
+      "kind": "skills",
+      "size_bytes": 2656
+    },
+    {
+      "src": ".claude/skills/karpathy-micrograd.md",
+      "dst": "vectorcode/skills/vc-karpathy-micrograd.md",
+      "kind": "skills",
+      "size_bytes": 2355
+    },
+    {
+      "src": ".claude/skills/karpathy-minbpe.md",
+      "dst": "vectorcode/skills/vc-karpathy-minbpe.md",
+      "kind": "skills",
+      "size_bytes": 3040
+    },
+    {
+      "src": ".claude/skills/karpathy-nanogpt.md",
+      "dst": "vectorcode/skills/vc-karpathy-nanogpt.md",
+      "kind": "skills",
+      "size_bytes": 2509
+    },
+    {
+      "src": ".claude/skills/lightrag-integration.md",
+      "dst": "vectorcode/skills/vc-lightrag-integration.md",
+      "kind": "skills",
+      "size_bytes": 2661
+    },
+    {
+      "src": ".claude/skills/llm-council.md",
+      "dst": "vectorcode/skills/vc-llm-council.md",
+      "kind": "skills",
+      "size_bytes": 2312
+    },
+    {
+      "src": ".claude/skills/vector-district-builder.md",
+      "dst": "vectorcode/skills/vector-district-builder.md",
+      "kind": "skills",
+      "size_bytes": 3350
+    },
+    {
+      "src": ".claude/skills/agent-eval/SKILL.md",
+      "dst": "vectorcode/skills/agent-eval/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4671
+    },
+    {
+      "src": ".claude/skills/agent-harness-construction/SKILL.md",
+      "dst": "vectorcode/skills/agent-harness-construction/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2073
+    },
+    {
+      "src": ".claude/skills/agent-introspection-debugging/SKILL.md",
+      "dst": "vectorcode/skills/agent-introspection-debugging/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5682
+    },
+    {
+      "src": ".claude/skills/agentic-engineering/SKILL.md",
+      "dst": "vectorcode/skills/agentic-engineering/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1794
+    },
+    {
+      "src": ".claude/skills/ai-agents-architect/SKILL.md",
+      "dst": "vectorcode/skills/ai-agents-architect/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2659
+    },
+    {
+      "src": ".claude/skills/ai-first-engineering/SKILL.md",
+      "dst": "vectorcode/skills/ai-first-engineering/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1387
+    },
+    {
+      "src": ".claude/skills/analyzing-api-gateway-access-logs/LICENSE",
+      "dst": "vectorcode/skills/analyzing-api-gateway-access-logs/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-api-gateway-access-logs/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-api-gateway-access-logs/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2244
+    },
+    {
+      "src": ".claude/skills/analyzing-apt-group-with-mitre-navigator/LICENSE",
+      "dst": "vectorcode/skills/analyzing-apt-group-with-mitre-navigator/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-apt-group-with-mitre-navigator/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-apt-group-with-mitre-navigator/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11504
+    },
+    {
+      "src": ".claude/skills/analyzing-cloud-storage-access-patterns/LICENSE",
+      "dst": "vectorcode/skills/analyzing-cloud-storage-access-patterns/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-cloud-storage-access-patterns/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-cloud-storage-access-patterns/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2306
+    },
+    {
+      "src": ".claude/skills/analyzing-cyber-kill-chain/LICENSE",
+      "dst": "vectorcode/skills/analyzing-cyber-kill-chain/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-cyber-kill-chain/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-cyber-kill-chain/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 7379
+    },
+    {
+      "src": ".claude/skills/analyzing-dns-logs-for-exfiltration/LICENSE",
+      "dst": "vectorcode/skills/analyzing-dns-logs-for-exfiltration/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-dns-logs-for-exfiltration/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-dns-logs-for-exfiltration/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11801
+    },
+    {
+      "src": ".claude/skills/analyzing-docker-container-forensics/LICENSE",
+      "dst": "vectorcode/skills/analyzing-docker-container-forensics/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-docker-container-forensics/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-docker-container-forensics/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 13192
+    },
+    {
+      "src": ".claude/skills/analyzing-email-headers-for-phishing-investigation/LICENSE",
+      "dst": "vectorcode/skills/analyzing-email-headers-for-phishing-investigation/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-email-headers-for-phishing-investigation/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-email-headers-for-phishing-investigation/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 12096
+    },
+    {
+      "src": ".claude/skills/analyzing-ethereum-smart-contract-vulnerabilities/LICENSE",
+      "dst": "vectorcode/skills/analyzing-ethereum-smart-contract-vulnerabilities/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-ethereum-smart-contract-vulnerabilities/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-ethereum-smart-contract-vulnerabilities/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2985
+    },
+    {
+      "src": ".claude/skills/analyzing-indicators-of-compromise/LICENSE",
+      "dst": "vectorcode/skills/analyzing-indicators-of-compromise/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-indicators-of-compromise/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-indicators-of-compromise/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 7365
+    },
+    {
+      "src": ".claude/skills/analyzing-kubernetes-audit-logs/LICENSE",
+      "dst": "vectorcode/skills/analyzing-kubernetes-audit-logs/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-kubernetes-audit-logs/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-kubernetes-audit-logs/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2237
+    },
+    {
+      "src": ".claude/skills/analyzing-linux-audit-logs-for-intrusion/LICENSE",
+      "dst": "vectorcode/skills/analyzing-linux-audit-logs-for-intrusion/vc-LICENSE",
+      "kind": "skills",
+      "size_bytes": 11456
+    },
+    {
+      "src": ".claude/skills/analyzing-linux-audit-logs-for-intrusion/SKILL.md",
+      "dst": "vectorcode/skills/analyzing-linux-audit-logs-for-intrusion/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9996
+    },
+    {
+      "src": ".claude/skills/api-and-interface-design/SKILL.md",
+      "dst": "vectorcode/skills/api-and-interface-design/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10601
+    },
+    {
+      "src": ".claude/skills/api-design/SKILL.md",
+      "dst": "vectorcode/skills/api-design/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 13633
+    },
+    {
+      "src": ".claude/skills/architecture-decision-records/SKILL.md",
+      "dst": "vectorcode/skills/architecture-decision-records/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 7298
+    },
+    {
+      "src": ".claude/skills/async-python-patterns/SKILL.md",
+      "dst": "vectorcode/skills/async-python-patterns/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2790
+    },
+    {
+      "src": ".claude/skills/autonomous-agent-harness/SKILL.md",
+      "dst": "vectorcode/skills/autonomous-agent-harness/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10514
+    },
+    {
+      "src": ".claude/skills/autonomous-loops/SKILL.md",
+      "dst": "vectorcode/skills/autonomous-loops/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 25336
+    },
+    {
+      "src": ".claude/skills/backend-patterns/SKILL.md",
+      "dst": "vectorcode/skills/backend-patterns/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 14435
+    },
+    {
+      "src": ".claude/skills/benchmark/SKILL.md",
+      "dst": "vectorcode/skills/benchmark/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2424
+    },
+    {
+      "src": ".claude/skills/brainstorming/SKILL.md",
+      "dst": "vectorcode/skills/brainstorming/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10634
+    },
+    {
+      "src": ".claude/skills/brainstorming/spec-document-reviewer-prompt.md",
+      "dst": "vectorcode/skills/brainstorming/vc-spec-document-reviewer-prompt.md",
+      "kind": "skills",
+      "size_bytes": 1748
+    },
+    {
+      "src": ".claude/skills/brainstorming/visual-companion.md",
+      "dst": "vectorcode/skills/brainstorming/vc-visual-companion.md",
+      "kind": "skills",
+      "size_bytes": 12047
+    },
+    {
+      "src": ".claude/skills/browser-testing-with-devtools/SKILL.md",
+      "dst": "vectorcode/skills/browser-testing-with-devtools/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 12803
+    },
+    {
+      "src": ".claude/skills/ci-cd-and-automation/SKILL.md",
+      "dst": "vectorcode/skills/ci-cd-and-automation/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11722
+    },
+    {
+      "src": ".claude/skills/claude-api/LICENSE.txt",
+      "dst": "vectorcode/skills/claude-api/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/claude-api/SKILL.md",
+      "dst": "vectorcode/skills/claude-api/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8881
+    },
+    {
+      "src": ".claude/skills/claude-devfleet/SKILL.md",
+      "dst": "vectorcode/skills/claude-devfleet/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5920
+    },
+    {
+      "src": ".claude/skills/code-review-and-quality/SKILL.md",
+      "dst": "vectorcode/skills/code-review-and-quality/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 14632
+    },
+    {
+      "src": ".claude/skills/code-simplification/SKILL.md",
+      "dst": "vectorcode/skills/code-simplification/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 13876
+    },
+    {
+      "src": ".claude/skills/code-tour/SKILL.md",
+      "dst": "vectorcode/skills/code-tour/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6952
+    },
+    {
+      "src": ".claude/skills/codebase-onboarding/SKILL.md",
+      "dst": "vectorcode/skills/codebase-onboarding/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8456
+    },
+    {
+      "src": ".claude/skills/coding-standards/SKILL.md",
+      "dst": "vectorcode/skills/coding-standards/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 13246
+    },
+    {
+      "src": ".claude/skills/context-budget/SKILL.md",
+      "dst": "vectorcode/skills/context-budget/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5830
+    },
+    {
+      "src": ".claude/skills/context-engineering/SKILL.md",
+      "dst": "vectorcode/skills/context-engineering/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11359
+    },
+    {
+      "src": ".claude/skills/context-restore/SKILL.md",
+      "dst": "vectorcode/skills/context-restore/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 35247
+    },
+    {
+      "src": ".claude/skills/context-restore/SKILL.md.tmpl",
+      "dst": "vectorcode/skills/context-restore/vc-SKILL.md.tmpl",
+      "kind": "skills",
+      "size_bytes": 5368
+    },
+    {
+      "src": ".claude/skills/context-save/SKILL.md",
+      "dst": "vectorcode/skills/context-save/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 39522
+    },
+    {
+      "src": ".claude/skills/context-save/SKILL.md.tmpl",
+      "dst": "vectorcode/skills/context-save/vc-SKILL.md.tmpl",
+      "kind": "skills",
+      "size_bytes": 9484
+    },
+    {
+      "src": ".claude/skills/continuous-agent-loop/SKILL.md",
+      "dst": "vectorcode/skills/continuous-agent-loop/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1128
+    },
+    {
+      "src": ".claude/skills/continuous-learning/config.json",
+      "dst": "vectorcode/skills/continuous-learning/vc-config.json",
+      "kind": "skills",
+      "size_bytes": 409
+    },
+    {
+      "src": ".claude/skills/continuous-learning/evaluate-session.sh",
+      "dst": "vectorcode/skills/continuous-learning/vc-evaluate-session.sh",
+      "kind": "skills",
+      "size_bytes": 2460
+    },
+    {
+      "src": ".claude/skills/continuous-learning/SKILL.md",
+      "dst": "vectorcode/skills/continuous-learning/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4011
+    },
+    {
+      "src": ".claude/skills/cost-aware-llm-pipeline/SKILL.md",
+      "dst": "vectorcode/skills/cost-aware-llm-pipeline/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5901
+    },
+    {
+      "src": ".claude/skills/council/SKILL.md",
+      "dst": "vectorcode/skills/council/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6549
+    },
+    {
+      "src": ".claude/skills/debugging-and-error-recovery/SKILL.md",
+      "dst": "vectorcode/skills/debugging-and-error-recovery/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10904
+    },
+    {
+      "src": ".claude/skills/deprecation-and-migration/SKILL.md",
+      "dst": "vectorcode/skills/deprecation-and-migration/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9206
+    },
+    {
+      "src": ".claude/skills/dispatching-parallel-agents/SKILL.md",
+      "dst": "vectorcode/skills/dispatching-parallel-agents/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6441
+    },
+    {
+      "src": ".claude/skills/documentation-and-adrs/SKILL.md",
+      "dst": "vectorcode/skills/documentation-and-adrs/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9012
+    },
+    {
+      "src": ".claude/skills/eval-harness/SKILL.md",
+      "dst": "vectorcode/skills/eval-harness/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6764
+    },
+    {
+      "src": ".claude/skills/executing-plans/SKILL.md",
+      "dst": "vectorcode/skills/executing-plans/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2459
+    },
+    {
+      "src": ".claude/skills/fastapi-pro/SKILL.md",
+      "dst": "vectorcode/skills/fastapi-pro/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2776
+    },
+    {
+      "src": ".claude/skills/finishing-a-development-branch/SKILL.md",
+      "dst": "vectorcode/skills/finishing-a-development-branch/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4250
+    },
+    {
+      "src": ".claude/skills/frontend-ui-engineering/SKILL.md",
+      "dst": "vectorcode/skills/frontend-ui-engineering/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10967
+    },
+    {
+      "src": ".claude/skills/git-workflow/SKILL.md",
+      "dst": "vectorcode/skills/git-workflow/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 15772
+    },
+    {
+      "src": ".claude/skills/git-workflow-and-versioning/SKILL.md",
+      "dst": "vectorcode/skills/git-workflow-and-versioning/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10830
+    },
+    {
+      "src": ".claude/skills/idea-refine/examples.md",
+      "dst": "vectorcode/skills/idea-refine/vc-examples.md",
+      "kind": "skills",
+      "size_bytes": 20522
+    },
+    {
+      "src": ".claude/skills/idea-refine/frameworks.md",
+      "dst": "vectorcode/skills/idea-refine/vc-frameworks.md",
+      "kind": "skills",
+      "size_bytes": 5503
+    },
+    {
+      "src": ".claude/skills/idea-refine/refinement-criteria.md",
+      "dst": "vectorcode/skills/idea-refine/vc-refinement-criteria.md",
+      "kind": "skills",
+      "size_bytes": 5851
+    },
+    {
+      "src": ".claude/skills/idea-refine/SKILL.md",
+      "dst": "vectorcode/skills/idea-refine/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8099
+    },
+    {
+      "src": ".claude/skills/incremental-implementation/SKILL.md",
+      "dst": "vectorcode/skills/incremental-implementation/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8710
+    },
+    {
+      "src": ".claude/skills/internal-comms/LICENSE.txt",
+      "dst": "vectorcode/skills/internal-comms/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/internal-comms/SKILL.md",
+      "dst": "vectorcode/skills/internal-comms/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1543
+    },
+    {
+      "src": ".claude/skills/iterative-retrieval/SKILL.md",
+      "dst": "vectorcode/skills/iterative-retrieval/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6892
+    },
+    {
+      "src": ".claude/skills/karpathy-guidelines/SKILL.md",
+      "dst": "vectorcode/skills/karpathy-guidelines/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2585
+    },
+    {
+      "src": ".claude/skills/langgraph/SKILL.md",
+      "dst": "vectorcode/skills/langgraph/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2857
+    },
+    {
+      "src": ".claude/skills/mcp-builder/LICENSE.txt",
+      "dst": "vectorcode/skills/mcp-builder/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/mcp-builder/SKILL.md",
+      "dst": "vectorcode/skills/mcp-builder/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9328
+    },
+    {
+      "src": ".claude/skills/obsidian-cli/SKILL.md",
+      "dst": "vectorcode/skills/obsidian-cli/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 3289
+    },
+    {
+      "src": ".claude/skills/obsidian-markdown/SKILL.md",
+      "dst": "vectorcode/skills/obsidian-markdown/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5563
+    },
+    {
+      "src": ".claude/skills/pdf/forms.md",
+      "dst": "vectorcode/skills/pdf/vc-forms.md",
+      "kind": "skills",
+      "size_bytes": 12148
+    },
+    {
+      "src": ".claude/skills/pdf/LICENSE.txt",
+      "dst": "vectorcode/skills/pdf/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 1497
+    },
+    {
+      "src": ".claude/skills/pdf/reference.md",
+      "dst": "vectorcode/skills/pdf/vc-reference.md",
+      "kind": "skills",
+      "size_bytes": 17303
+    },
+    {
+      "src": ".claude/skills/pdf/SKILL.md",
+      "dst": "vectorcode/skills/pdf/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8386
+    },
+    {
+      "src": ".claude/skills/performance-optimization/SKILL.md",
+      "dst": "vectorcode/skills/performance-optimization/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11943
+    },
+    {
+      "src": ".claude/skills/planning-and-task-breakdown/SKILL.md",
+      "dst": "vectorcode/skills/planning-and-task-breakdown/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 7234
+    },
+    {
+      "src": ".claude/skills/prompt-optimizer/SKILL.md",
+      "dst": "vectorcode/skills/prompt-optimizer/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 16625
+    },
+    {
+      "src": ".claude/skills/rag-engineer/SKILL.md",
+      "dst": "vectorcode/skills/rag-engineer/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2854
+    },
+    {
+      "src": ".claude/skills/receiving-code-review/SKILL.md",
+      "dst": "vectorcode/skills/receiving-code-review/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6314
+    },
+    {
+      "src": ".claude/skills/requesting-code-review/code-reviewer.md",
+      "dst": "vectorcode/skills/requesting-code-review/vc-code-reviewer.md",
+      "kind": "skills",
+      "size_bytes": 3385
+    },
+    {
+      "src": ".claude/skills/requesting-code-review/SKILL.md",
+      "dst": "vectorcode/skills/requesting-code-review/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2935
+    },
+    {
+      "src": ".claude/skills/security-and-hardening/SKILL.md",
+      "dst": "vectorcode/skills/security-and-hardening/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 11650
+    },
+    {
+      "src": ".claude/skills/security-review/cloud-infrastructure-security.md",
+      "dst": "vectorcode/skills/security-review/vc-cloud-infrastructure-security.md",
+      "kind": "skills",
+      "size_bytes": 10532
+    },
+    {
+      "src": ".claude/skills/security-review/SKILL.md",
+      "dst": "vectorcode/skills/security-review/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 12729
+    },
+    {
+      "src": ".claude/skills/security-scan/SKILL.md",
+      "dst": "vectorcode/skills/security-scan/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4634
+    },
+    {
+      "src": ".claude/skills/shipping-and-launch/SKILL.md",
+      "dst": "vectorcode/skills/shipping-and-launch/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 10221
+    },
+    {
+      "src": ".claude/skills/skill-creator/LICENSE.txt",
+      "dst": "vectorcode/skills/skill-creator/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/skill-creator/SKILL.md",
+      "dst": "vectorcode/skills/skill-creator/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 33653
+    },
+    {
+      "src": ".claude/skills/source-driven-development/SKILL.md",
+      "dst": "vectorcode/skills/source-driven-development/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8398
+    },
+    {
+      "src": ".claude/skills/spec-driven-development/SKILL.md",
+      "dst": "vectorcode/skills/spec-driven-development/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 7860
+    },
+    {
+      "src": ".claude/skills/subagent-driven-development/code-quality-reviewer-prompt.md",
+      "dst": "vectorcode/skills/subagent-driven-development/vc-code-quality-reviewer-prompt.md",
+      "kind": "skills",
+      "size_bytes": 1115
+    },
+    {
+      "src": ".claude/skills/subagent-driven-development/implementer-prompt.md",
+      "dst": "vectorcode/skills/subagent-driven-development/vc-implementer-prompt.md",
+      "kind": "skills",
+      "size_bytes": 4258
+    },
+    {
+      "src": ".claude/skills/subagent-driven-development/SKILL.md",
+      "dst": "vectorcode/skills/subagent-driven-development/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 12139
+    },
+    {
+      "src": ".claude/skills/subagent-driven-development/spec-reviewer-prompt.md",
+      "dst": "vectorcode/skills/subagent-driven-development/vc-spec-reviewer-prompt.md",
+      "kind": "skills",
+      "size_bytes": 1999
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/condition-based-waiting-example.ts",
+      "dst": "vectorcode/skills/systematic-debugging/vc-condition-based-waiting-example.ts",
+      "kind": "skills",
+      "size_bytes": 5054
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/condition-based-waiting.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-condition-based-waiting.md",
+      "kind": "skills",
+      "size_bytes": 3516
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/CREATION-LOG.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-CREATION-LOG.md",
+      "kind": "skills",
+      "size_bytes": 4268
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/defense-in-depth.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-defense-in-depth.md",
+      "kind": "skills",
+      "size_bytes": 3650
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/find-polluter.sh",
+      "dst": "vectorcode/skills/systematic-debugging/vc-find-polluter.sh",
+      "kind": "skills",
+      "size_bytes": 1528
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/root-cause-tracing.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-root-cause-tracing.md",
+      "kind": "skills",
+      "size_bytes": 5327
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/SKILL.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9884
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/test-academic.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-test-academic.md",
+      "kind": "skills",
+      "size_bytes": 653
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/test-pressure-1.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-test-pressure-1.md",
+      "kind": "skills",
+      "size_bytes": 1900
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/test-pressure-2.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-test-pressure-2.md",
+      "kind": "skills",
+      "size_bytes": 2283
+    },
+    {
+      "src": ".claude/skills/systematic-debugging/test-pressure-3.md",
+      "dst": "vectorcode/skills/systematic-debugging/vc-test-pressure-3.md",
+      "kind": "skills",
+      "size_bytes": 2692
+    },
+    {
+      "src": ".claude/skills/test-driven-development/SKILL.md",
+      "dst": "vectorcode/skills/test-driven-development/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 9867
+    },
+    {
+      "src": ".claude/skills/test-driven-development/testing-anti-patterns.md",
+      "dst": "vectorcode/skills/test-driven-development/vc-testing-anti-patterns.md",
+      "kind": "skills",
+      "size_bytes": 8251
+    },
+    {
+      "src": ".claude/skills/token-aware-workflow/SKILL.md",
+      "dst": "vectorcode/skills/token-aware-workflow/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2712
+    },
+    {
+      "src": ".claude/skills/using-agent-skills/SKILL.md",
+      "dst": "vectorcode/skills/using-agent-skills/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 8759
+    },
+    {
+      "src": ".claude/skills/using-git-worktrees/SKILL.md",
+      "dst": "vectorcode/skills/using-git-worktrees/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5635
+    },
+    {
+      "src": ".claude/skills/using-superpowers/SKILL.md",
+      "dst": "vectorcode/skills/using-superpowers/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 5421
+    },
+    {
+      "src": ".claude/skills/vector-antigravity/SKILL.md",
+      "dst": "vectorcode/skills/vector-antigravity/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2356
+    },
+    {
+      "src": ".claude/skills/vector-commit/SKILL.md",
+      "dst": "vectorcode/skills/vector-commit/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1445
+    },
+    {
+      "src": ".claude/skills/vector-district/SKILL.md",
+      "dst": "vectorcode/skills/vector-district/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2529
+    },
+    {
+      "src": ".claude/skills/vector-modelfile/SKILL.md",
+      "dst": "vectorcode/skills/vector-modelfile/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 2394
+    },
+    {
+      "src": ".claude/skills/vector-test/SKILL.md",
+      "dst": "vectorcode/skills/vector-test/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 1125
+    },
+    {
+      "src": ".claude/skills/verification-before-completion/SKILL.md",
+      "dst": "vectorcode/skills/verification-before-completion/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4201
+    },
+    {
+      "src": ".claude/skills/web-artifacts-builder/LICENSE.txt",
+      "dst": "vectorcode/skills/web-artifacts-builder/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/web-artifacts-builder/SKILL.md",
+      "dst": "vectorcode/skills/web-artifacts-builder/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 3160
+    },
+    {
+      "src": ".claude/skills/webapp-testing/LICENSE.txt",
+      "dst": "vectorcode/skills/webapp-testing/vc-LICENSE.txt",
+      "kind": "skills",
+      "size_bytes": 11546
+    },
+    {
+      "src": ".claude/skills/webapp-testing/SKILL.md",
+      "dst": "vectorcode/skills/webapp-testing/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 4008
+    },
+    {
+      "src": ".claude/skills/writing-plans/plan-document-reviewer-prompt.md",
+      "dst": "vectorcode/skills/writing-plans/vc-plan-document-reviewer-prompt.md",
+      "kind": "skills",
+      "size_bytes": 1714
+    },
+    {
+      "src": ".claude/skills/writing-plans/SKILL.md",
+      "dst": "vectorcode/skills/writing-plans/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 6046
+    },
+    {
+      "src": ".claude/skills/writing-skills/anthropic-best-practices.md",
+      "dst": "vectorcode/skills/writing-skills/vc-anthropic-best-practices.md",
+      "kind": "skills",
+      "size_bytes": 45820
+    },
+    {
+      "src": ".claude/skills/writing-skills/graphviz-conventions.dot",
+      "dst": "vectorcode/skills/writing-skills/vc-graphviz-conventions.dot",
+      "kind": "skills",
+      "size_bytes": 6141
+    },
+    {
+      "src": ".claude/skills/writing-skills/persuasion-principles.md",
+      "dst": "vectorcode/skills/writing-skills/vc-persuasion-principles.md",
+      "kind": "skills",
+      "size_bytes": 5908
+    },
+    {
+      "src": ".claude/skills/writing-skills/render-graphs.js",
+      "dst": "vectorcode/skills/writing-skills/vc-render-graphs.js",
+      "kind": "skills",
+      "size_bytes": 4857
+    },
+    {
+      "src": ".claude/skills/writing-skills/SKILL.md",
+      "dst": "vectorcode/skills/writing-skills/vc-SKILL.md",
+      "kind": "skills",
+      "size_bytes": 22624
+    },
+    {
+      "src": ".claude/skills/writing-skills/testing-skills-with-subagents.md",
+      "dst": "vectorcode/skills/writing-skills/vc-testing-skills-with-subagents.md",
+      "kind": "skills",
+      "size_bytes": 12558
+    },
+    {
+      "src": ".claude/skills/writing-skills/examples/CLAUDE_MD_TESTING.md",
+      "dst": "vectorcode/skills/writing-skills/examples/vc-CLAUDE_MD_TESTING.md",
+      "kind": "skills",
+      "size_bytes": 5423
+    },
+    {
+      "src": ".claude/skills/webapp-testing/examples/console_logging.py",
+      "dst": "vectorcode/skills/webapp-testing/examples/vc-console_logging.py",
+      "kind": "skills",
+      "size_bytes": 1061
+    },
+    {
+      "src": ".claude/skills/webapp-testing/examples/element_discovery.py",
+      "dst": "vectorcode/skills/webapp-testing/examples/vc-element_discovery.py",
+      "kind": "skills",
+      "size_bytes": 1502
+    },
+    {
+      "src": ".claude/skills/webapp-testing/examples/static_html_automation.py",
+      "dst": "vectorcode/skills/webapp-testing/examples/vc-static_html_automation.py",
+      "kind": "skills",
+      "size_bytes": 985
+    },
+    {
+      "src": ".claude/skills/webapp-testing/scripts/with_server.py",
+      "dst": "vectorcode/skills/webapp-testing/scripts/vc-with_server.py",
+      "kind": "skills",
+      "size_bytes": 3798
+    },
+    {
+      "src": ".claude/skills/web-artifacts-builder/scripts/bundle-artifact.sh",
+      "dst": "vectorcode/skills/web-artifacts-builder/scripts/vc-bundle-artifact.sh",
+      "kind": "skills",
+      "size_bytes": 1570
+    },
+    {
+      "src": ".claude/skills/web-artifacts-builder/scripts/init-artifact.sh",
+      "dst": "vectorcode/skills/web-artifacts-builder/scripts/vc-init-artifact.sh",
+      "kind": "skills",
+      "size_bytes": 10246
+    },
+    {
+      "src": ".claude/skills/web-artifacts-builder/scripts/shadcn-components.tar.gz",
+      "dst": "vectorcode/skills/web-artifacts-builder/scripts/vc-shadcn-components.tar.gz",
+      "kind": "skills",
+      "size_bytes": 19967
+    },
+    {
+      "src": ".claude/skills/using-superpowers/references/codex-tools.md",
+      "dst": "vectorcode/skills/using-superpowers/references/vc-codex-tools.md",
+      "kind": "skills",
+      "size_bytes": 4070
+    },
+    {
+      "src": ".claude/skills/using-superpowers/references/copilot-tools.md",
+      "dst": "vectorcode/skills/using-superpowers/references/vc-copilot-tools.md",
+      "kind": "skills",
+      "size_bytes": 2193
+    },
+    {
+      "src": ".claude/skills/using-superpowers/references/gemini-tools.md",
+      "dst": "vectorcode/skills/using-superpowers/references/vc-gemini-tools.md",
+      "kind": "skills",
+      "size_bytes": 1494
+    },
+    {
+      "src": ".claude/skills/skill-creator/agents/analyzer.md",
+      "dst": "vectorcode/skills/skill-creator/agents/vc-analyzer.md",
+      "kind": "skills",
+      "size_bytes": 10650
+    },
+    {
+      "src": ".claude/skills/skill-creator/agents/comparator.md",
+      "dst": "vectorcode/skills/skill-creator/agents/vc-comparator.md",
+      "kind": "skills",
+      "size_bytes": 7489
+    },
+    {
+      "src": ".claude/skills/skill-creator/agents/grader.md",
+      "dst": "vectorcode/skills/skill-creator/agents/vc-grader.md",
+      "kind": "skills",
+      "size_bytes": 9272
+    },
+    {
+      "src": ".claude/skills/skill-creator/assets/eval_review.html",
+      "dst": "vectorcode/skills/skill-creator/assets/vc-eval_review.html",
+      "kind": "skills",
+      "size_bytes": 7204
+    },
+    {
+      "src": ".claude/skills/skill-creator/eval-viewer/generate_review.py",
+      "dst": "vectorcode/skills/skill-creator/eval-viewer/vc-generate_review.py",
+      "kind": "skills",
+      "size_bytes": 16836
+    },
+    {
+      "src": ".claude/skills/skill-creator/eval-viewer/viewer.html",
+      "dst": "vectorcode/skills/skill-creator/eval-viewer/vc-viewer.html",
+      "kind": "skills",
+      "size_bytes": 46323
+    },
+    {
+      "src": ".claude/skills/skill-creator/references/schemas.md",
+      "dst": "vectorcode/skills/skill-creator/references/vc-schemas.md",
+      "kind": "skills",
+      "size_bytes": 12491
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/aggregate_benchmark.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-aggregate_benchmark.py",
+      "kind": "skills",
+      "size_bytes": 14787
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/generate_report.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-generate_report.py",
+      "kind": "skills",
+      "size_bytes": 13173
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/improve_description.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-improve_description.py",
+      "kind": "skills",
+      "size_bytes": 11363
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/package_skill.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-package_skill.py",
+      "kind": "skills",
+      "size_bytes": 4370
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/quick_validate.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-quick_validate.py",
+      "kind": "skills",
+      "size_bytes": 4074
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/run_eval.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-run_eval.py",
+      "kind": "skills",
+      "size_bytes": 11774
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/run_loop.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-run_loop.py",
+      "kind": "skills",
+      "size_bytes": 13933
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/utils.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-utils.py",
+      "kind": "skills",
+      "size_bytes": 1708
+    },
+    {
+      "src": ".claude/skills/skill-creator/scripts/__init__.py",
+      "dst": "vectorcode/skills/skill-creator/scripts/vc-__init__.py",
+      "kind": "skills",
+      "size_bytes": 0
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/check_bounding_boxes.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-check_bounding_boxes.py",
+      "kind": "skills",
+      "size_bytes": 2839
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/check_fillable_fields.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-check_fillable_fields.py",
+      "kind": "skills",
+      "size_bytes": 279
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/convert_pdf_to_images.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-convert_pdf_to_images.py",
+      "kind": "skills",
+      "size_bytes": 1041
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/create_validation_image.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-create_validation_image.py",
+      "kind": "skills",
+      "size_bytes": 1295
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/extract_form_field_info.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-extract_form_field_info.py",
+      "kind": "skills",
+      "size_bytes": 4422
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/extract_form_structure.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-extract_form_structure.py",
+      "kind": "skills",
+      "size_bytes": 4060
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/fill_fillable_fields.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-fill_fillable_fields.py",
+      "kind": "skills",
+      "size_bytes": 3917
+    },
+    {
+      "src": ".claude/skills/pdf/scripts/fill_pdf_form_with_annotations.py",
+      "dst": "vectorcode/skills/pdf/scripts/vc-fill_pdf_form_with_annotations.py",
+      "kind": "skills",
+      "size_bytes": 3342
+    },
+    {
+      "src": ".claude/skills/obsidian-markdown/references/CALLOUTS.md",
+      "dst": "vectorcode/skills/obsidian-markdown/references/vc-CALLOUTS.md",
+      "kind": "skills",
+      "size_bytes": 1296
+    },
+    {
+      "src": ".claude/skills/obsidian-markdown/references/EMBEDS.md",
+      "dst": "vectorcode/skills/obsidian-markdown/references/vc-EMBEDS.md",
+      "kind": "skills",
+      "size_bytes": 843
+    },
+    {
+      "src": ".claude/skills/obsidian-markdown/references/PROPERTIES.md",
+      "dst": "vectorcode/skills/obsidian-markdown/references/vc-PROPERTIES.md",
+      "kind": "skills",
+      "size_bytes": 1210
+    },
+    {
+      "src": ".claude/skills/mcp-builder/reference/evaluation.md",
+      "dst": "vectorcode/skills/mcp-builder/reference/vc-evaluation.md",
+      "kind": "skills",
+      "size_bytes": 22264
+    },
+    {
+      "src": ".claude/skills/mcp-builder/reference/mcp_best_practices.md",
+      "dst": "vectorcode/skills/mcp-builder/reference/vc-mcp_best_practices.md",
+      "kind": "skills",
+      "size_bytes": 7579
+    },
+    {
+      "src": ".claude/skills/mcp-builder/reference/node_mcp_server.md",
+      "dst": "vectorcode/skills/mcp-builder/reference/vc-node_mcp_server.md",
+      "kind": "skills",
+      "size_bytes": 29519
+    },
+    {
+      "src": ".claude/skills/mcp-builder/reference/python_mcp_server.md",
+      "dst": "vectorcode/skills/mcp-builder/reference/vc-python_mcp_server.md",
+      "kind": "skills",
+      "size_bytes": 25817
+    },
+    {
+      "src": ".claude/skills/mcp-builder/scripts/connections.py",
+      "dst": "vectorcode/skills/mcp-builder/scripts/vc-connections.py",
+      "kind": "skills",
+      "size_bytes": 5026
+    },
+    {
+      "src": ".claude/skills/mcp-builder/scripts/evaluation.py",
+      "dst": "vectorcode/skills/mcp-builder/scripts/vc-evaluation.py",
+      "kind": "skills",
+      "size_bytes": 12952
+    },
+    {
+      "src": ".claude/skills/mcp-builder/scripts/example_evaluation.xml",
+      "dst": "vectorcode/skills/mcp-builder/scripts/vc-example_evaluation.xml",
+      "kind": "skills",
+      "size_bytes": 1216
+    },
+    {
+      "src": ".claude/skills/mcp-builder/scripts/requirements.txt",
+      "dst": "vectorcode/skills/mcp-builder/scripts/vc-requirements.txt",
+      "kind": "skills",
+      "size_bytes": 31
+    },
+    {
+      "src": ".claude/skills/internal-comms/examples/3p-updates.md",
+      "dst": "vectorcode/skills/internal-comms/examples/vc-3p-updates.md",
+      "kind": "skills",
+      "size_bytes": 3320
+    },
+    {
+      "src": ".claude/skills/internal-comms/examples/company-newsletter.md",
+      "dst": "vectorcode/skills/internal-comms/examples/vc-company-newsletter.md",
+      "kind": "skills",
+      "size_bytes": 3360
+    },
+    {
+      "src": ".claude/skills/internal-comms/examples/faq-answers.md",
+      "dst": "vectorcode/skills/internal-comms/examples/vc-faq-answers.md",
+      "kind": "skills",
+      "size_bytes": 2395
+    },
+    {
+      "src": ".claude/skills/internal-comms/examples/general-comms.md",
+      "dst": "vectorcode/skills/internal-comms/examples/vc-general-comms.md",
+      "kind": "skills",
+      "size_bytes": 617
+    },
+    {
+      "src": ".claude/skills/idea-refine/scripts/idea-refine.sh",
+      "dst": "vectorcode/skills/idea-refine/scripts/vc-idea-refine.sh",
+      "kind": "skills",
+      "size_bytes": 357
+    },
+    {
+      "src": ".claude/skills/claude-api/csharp/claude-api.md",
+      "dst": "vectorcode/skills/claude-api/csharp/vc-claude-api.md",
+      "kind": "skills",
+      "size_bytes": 14792
+    },
+    {
+      "src": ".claude/skills/claude-api/curl/examples.md",
+      "dst": "vectorcode/skills/claude-api/curl/vc-examples.md",
+      "kind": "skills",
+      "size_bytes": 6681
+    },
+    {
+      "src": ".claude/skills/claude-api/curl/managed-agents.md",
+      "dst": "vectorcode/skills/claude-api/curl/vc-managed-agents.md",
+      "kind": "skills",
+      "size_bytes": 7739
+    },
+    {
+      "src": ".claude/skills/claude-api/go/claude-api.md",
+      "dst": "vectorcode/skills/claude-api/go/vc-claude-api.md",
+      "kind": "skills",
+      "size_bytes": 14294
+    },
+    {
+      "src": ".claude/skills/claude-api/java/claude-api.md",
+      "dst": "vectorcode/skills/claude-api/java/vc-claude-api.md",
+      "kind": "skills",
+      "size_bytes": 15527
+    },
+    {
+      "src": ".claude/skills/claude-api/php/claude-api.md",
+      "dst": "vectorcode/skills/claude-api/php/vc-claude-api.md",
+      "kind": "skills",
+      "size_bytes": 11536
+    },
+    {
+      "src": ".claude/skills/claude-api/ruby/claude-api.md",
+      "dst": "vectorcode/skills/claude-api/ruby/vc-claude-api.md",
+      "kind": "skills",
+      "size_bytes": 3048
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/agent-design.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-agent-design.md",
+      "kind": "skills",
+      "size_bytes": 8436
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/error-codes.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-error-codes.md",
+      "kind": "skills",
+      "size_bytes": 7916
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/live-sources.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-live-sources.md",
+      "kind": "skills",
+      "size_bytes": 16537
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-api-reference.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 21974
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-client-patterns.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-client-patterns.md",
+      "kind": "skills",
+      "size_bytes": 9639
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-core.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-core.md",
+      "kind": "skills",
+      "size_bytes": 13078
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-environments.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-environments.md",
+      "kind": "skills",
+      "size_bytes": 10932
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-events.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-events.md",
+      "kind": "skills",
+      "size_bytes": 8819
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-memory.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-memory.md",
+      "kind": "skills",
+      "size_bytes": 9780
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-onboarding.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-onboarding.md",
+      "kind": "skills",
+      "size_bytes": 8249
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-overview.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-overview.md",
+      "kind": "skills",
+      "size_bytes": 8696
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/managed-agents-tools.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-managed-agents-tools.md",
+      "kind": "skills",
+      "size_bytes": 13811
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/model-migration.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-model-migration.md",
+      "kind": "skills",
+      "size_bytes": 66356
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/models.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-models.md",
+      "kind": "skills",
+      "size_bytes": 7681
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/prompt-caching.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-prompt-caching.md",
+      "kind": "skills",
+      "size_bytes": 9954
+    },
+    {
+      "src": ".claude/skills/claude-api/shared/tool-use-concepts.md",
+      "dst": "vectorcode/skills/claude-api/shared/vc-tool-use-concepts.md",
+      "kind": "skills",
+      "size_bytes": 17070
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/claude-api/batches.md",
+      "dst": "vectorcode/skills/claude-api/typescript/claude-api/vc-batches.md",
+      "kind": "skills",
+      "size_bytes": 2702
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/claude-api/files-api.md",
+      "dst": "vectorcode/skills/claude-api/typescript/claude-api/vc-files-api.md",
+      "kind": "skills",
+      "size_bytes": 2359
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/claude-api/README.md",
+      "dst": "vectorcode/skills/claude-api/typescript/claude-api/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 10253
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/claude-api/streaming.md",
+      "dst": "vectorcode/skills/claude-api/typescript/claude-api/vc-streaming.md",
+      "kind": "skills",
+      "size_bytes": 5774
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/claude-api/tool-use.md",
+      "dst": "vectorcode/skills/claude-api/typescript/claude-api/vc-tool-use.md",
+      "kind": "skills",
+      "size_bytes": 15885
+    },
+    {
+      "src": ".claude/skills/claude-api/typescript/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/typescript/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 9764
+    },
+    {
+      "src": ".claude/skills/claude-api/ruby/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/ruby/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 10564
+    },
+    {
+      "src": ".claude/skills/claude-api/python/claude-api/batches.md",
+      "dst": "vectorcode/skills/claude-api/python/claude-api/vc-batches.md",
+      "kind": "skills",
+      "size_bytes": 5280
+    },
+    {
+      "src": ".claude/skills/claude-api/python/claude-api/files-api.md",
+      "dst": "vectorcode/skills/claude-api/python/claude-api/vc-files-api.md",
+      "kind": "skills",
+      "size_bytes": 4159
+    },
+    {
+      "src": ".claude/skills/claude-api/python/claude-api/README.md",
+      "dst": "vectorcode/skills/claude-api/python/claude-api/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 12583
+    },
+    {
+      "src": ".claude/skills/claude-api/python/claude-api/streaming.md",
+      "dst": "vectorcode/skills/claude-api/python/claude-api/vc-streaming.md",
+      "kind": "skills",
+      "size_bytes": 5395
+    },
+    {
+      "src": ".claude/skills/claude-api/python/claude-api/tool-use.md",
+      "dst": "vectorcode/skills/claude-api/python/claude-api/vc-tool-use.md",
+      "kind": "skills",
+      "size_bytes": 17523
+    },
+    {
+      "src": ".claude/skills/claude-api/python/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/python/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 10147
+    },
+    {
+      "src": ".claude/skills/claude-api/php/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/php/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 13619
+    },
+    {
+      "src": ".claude/skills/claude-api/java/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/java/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 17027
+    },
+    {
+      "src": ".claude/skills/claude-api/go/managed-agents/README.md",
+      "dst": "vectorcode/skills/claude-api/go/managed-agents/vc-README.md",
+      "kind": "skills",
+      "size_bytes": 19039
+    },
+    {
+      "src": ".claude/skills/brainstorming/scripts/frame-template.html",
+      "dst": "vectorcode/skills/brainstorming/scripts/vc-frame-template.html",
+      "kind": "skills",
+      "size_bytes": 7917
+    },
+    {
+      "src": ".claude/skills/brainstorming/scripts/helper.js",
+      "dst": "vectorcode/skills/brainstorming/scripts/vc-helper.js",
+      "kind": "skills",
+      "size_bytes": 2707
+    },
+    {
+      "src": ".claude/skills/brainstorming/scripts/server.cjs",
+      "dst": "vectorcode/skills/brainstorming/scripts/vc-server.cjs",
+      "kind": "skills",
+      "size_bytes": 11572
+    },
+    {
+      "src": ".claude/skills/brainstorming/scripts/start-server.sh",
+      "dst": "vectorcode/skills/brainstorming/scripts/vc-start-server.sh",
+      "kind": "skills",
+      "size_bytes": 4606
+    },
+    {
+      "src": ".claude/skills/brainstorming/scripts/stop-server.sh",
+      "dst": "vectorcode/skills/brainstorming/scripts/vc-stop-server.sh",
+      "kind": "skills",
+      "size_bytes": 1314
+    },
+    {
+      "src": ".claude/skills/analyzing-linux-audit-logs-for-intrusion/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-linux-audit-logs-for-intrusion/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2000
+    },
+    {
+      "src": ".claude/skills/analyzing-linux-audit-logs-for-intrusion/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-linux-audit-logs-for-intrusion/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 8324
+    },
+    {
+      "src": ".claude/skills/analyzing-kubernetes-audit-logs/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-kubernetes-audit-logs/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 1677
+    },
+    {
+      "src": ".claude/skills/analyzing-kubernetes-audit-logs/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-kubernetes-audit-logs/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 8113
+    },
+    {
+      "src": ".claude/skills/analyzing-indicators-of-compromise/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-indicators-of-compromise/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 3046
+    },
+    {
+      "src": ".claude/skills/analyzing-indicators-of-compromise/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-indicators-of-compromise/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 9236
+    },
+    {
+      "src": ".claude/skills/analyzing-ethereum-smart-contract-vulnerabilities/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-ethereum-smart-contract-vulnerabilities/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2746
+    },
+    {
+      "src": ".claude/skills/analyzing-ethereum-smart-contract-vulnerabilities/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-ethereum-smart-contract-vulnerabilities/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 7064
+    },
+    {
+      "src": ".claude/skills/analyzing-email-headers-for-phishing-investigation/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-email-headers-for-phishing-investigation/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2893
+    },
+    {
+      "src": ".claude/skills/analyzing-email-headers-for-phishing-investigation/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-email-headers-for-phishing-investigation/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 8805
+    },
+    {
+      "src": ".claude/skills/analyzing-docker-container-forensics/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-docker-container-forensics/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 3031
+    },
+    {
+      "src": ".claude/skills/analyzing-docker-container-forensics/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-docker-container-forensics/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 9082
+    },
+    {
+      "src": ".claude/skills/analyzing-dns-logs-for-exfiltration/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-dns-logs-for-exfiltration/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2820
+    },
+    {
+      "src": ".claude/skills/analyzing-dns-logs-for-exfiltration/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-dns-logs-for-exfiltration/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 8933
+    },
+    {
+      "src": ".claude/skills/analyzing-cyber-kill-chain/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-cyber-kill-chain/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2845
+    },
+    {
+      "src": ".claude/skills/analyzing-cyber-kill-chain/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-cyber-kill-chain/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 10681
+    },
+    {
+      "src": ".claude/skills/analyzing-cloud-storage-access-patterns/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-cloud-storage-access-patterns/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 1588
+    },
+    {
+      "src": ".claude/skills/analyzing-cloud-storage-access-patterns/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-cloud-storage-access-patterns/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 8258
+    },
+    {
+      "src": ".claude/skills/analyzing-apt-group-with-mitre-navigator/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-apt-group-with-mitre-navigator/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 2670
+    },
+    {
+      "src": ".claude/skills/analyzing-apt-group-with-mitre-navigator/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-apt-group-with-mitre-navigator/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 9343
+    },
+    {
+      "src": ".claude/skills/analyzing-api-gateway-access-logs/references/api-reference.md",
+      "dst": "vectorcode/skills/analyzing-api-gateway-access-logs/references/vc-api-reference.md",
+      "kind": "skills",
+      "size_bytes": 1509
+    },
+    {
+      "src": ".claude/skills/analyzing-api-gateway-access-logs/scripts/agent.py",
+      "dst": "vectorcode/skills/analyzing-api-gateway-access-logs/scripts/vc-agent.py",
+      "kind": "skills",
+      "size_bytes": 7093
+    },
+    {
+      "src": ".claude/agents/addy-code-reviewer.md",
+      "dst": "vectorcode/agents/vector-addy-code-reviewer.md",
+      "kind": "agents",
+      "size_bytes": 3892
+    },
+    {
+      "src": ".claude/agents/agents-orchestrator.md",
+      "dst": "vectorcode/agents/vector-agents-orchestrator.md",
+      "kind": "agents",
+      "size_bytes": 15725
+    },
+    {
+      "src": ".claude/agents/architect.md",
+      "dst": "vectorcode/agents/vector-architect.md",
+      "kind": "agents",
+      "size_bytes": 6502
+    },
+    {
+      "src": ".claude/agents/chief-of-staff.md",
+      "dst": "vectorcode/agents/vector-chief-of-staff.md",
+      "kind": "agents",
+      "size_bytes": 5770
+    },
+    {
+      "src": ".claude/agents/code-architect.md",
+      "dst": "vectorcode/agents/vector-code-architect.md",
+      "kind": "agents",
+      "size_bytes": 1605
+    },
+    {
+      "src": ".claude/agents/code-explorer.md",
+      "dst": "vectorcode/agents/vector-code-explorer.md",
+      "kind": "agents",
+      "size_bytes": 1669
+    },
+    {
+      "src": ".claude/agents/compliance-auditor.md",
+      "dst": "vectorcode/agents/vector-compliance-auditor.md",
+      "kind": "agents",
+      "size_bytes": 7213
+    },
+    {
+      "src": ".claude/agents/engineering-ai-engineer.md",
+      "dst": "vectorcode/agents/vector-engineering-ai-engineer.md",
+      "kind": "agents",
+      "size_bytes": 7383
+    },
+    {
+      "src": ".claude/agents/engineering-backend-architect.md",
+      "dst": "vectorcode/agents/vector-engineering-backend-architect.md",
+      "kind": "agents",
+      "size_bytes": 9542
+    },
+    {
+      "src": ".claude/agents/engineering-code-reviewer.md",
+      "dst": "vectorcode/agents/vector-engineering-code-reviewer.md",
+      "kind": "agents",
+      "size_bytes": 3076
+    },
+    {
+      "src": ".claude/agents/engineering-devops-automator.md",
+      "dst": "vectorcode/agents/vector-engineering-devops-automator.md",
+      "kind": "agents",
+      "size_bytes": 12879
+    },
+    {
+      "src": ".claude/agents/engineering-incident-response-commander.md",
+      "dst": "vectorcode/agents/vector-engineering-incident-response-commander.md",
+      "kind": "agents",
+      "size_bytes": 21121
+    },
+    {
+      "src": ".claude/agents/engineering-security-engineer.md",
+      "dst": "vectorcode/agents/vector-engineering-security-engineer.md",
+      "kind": "agents",
+      "size_bytes": 17731
+    },
+    {
+      "src": ".claude/agents/engineering-senior-developer.md",
+      "dst": "vectorcode/agents/vector-engineering-senior-developer.md",
+      "kind": "agents",
+      "size_bytes": 6252
+    },
+    {
+      "src": ".claude/agents/finance-financial-analyst.md",
+      "dst": "vectorcode/agents/vector-finance-financial-analyst.md",
+      "kind": "agents",
+      "size_bytes": 13448
+    },
+    {
+      "src": ".claude/agents/finance-investment-researcher.md",
+      "dst": "vectorcode/agents/vector-finance-investment-researcher.md",
+      "kind": "agents",
+      "size_bytes": 15678
+    },
+    {
+      "src": ".claude/agents/finance-tax-strategist.md",
+      "dst": "vectorcode/agents/vector-finance-tax-strategist.md",
+      "kind": "agents",
+      "size_bytes": 13731
+    },
+    {
+      "src": ".claude/agents/loop-operator.md",
+      "dst": "vectorcode/agents/vector-loop-operator.md",
+      "kind": "agents",
+      "size_bytes": 958
+    },
+    {
+      "src": ".claude/agents/marketing-content-creator.md",
+      "dst": "vectorcode/agents/vector-marketing-content-creator.md",
+      "kind": "agents",
+      "size_bytes": 3129
+    },
+    {
+      "src": ".claude/agents/marketing-growth-hacker.md",
+      "dst": "vectorcode/agents/vector-marketing-growth-hacker.md",
+      "kind": "agents",
+      "size_bytes": 3044
+    },
+    {
+      "src": ".claude/agents/marketing-seo-specialist.md",
+      "dst": "vectorcode/agents/vector-marketing-seo-specialist.md",
+      "kind": "agents",
+      "size_bytes": 17975
+    },
+    {
+      "src": ".claude/agents/marketing-social-media-strategist.md",
+      "dst": "vectorcode/agents/vector-marketing-social-media-strategist.md",
+      "kind": "agents",
+      "size_bytes": 7414
+    },
+    {
+      "src": ".claude/agents/obra-code-reviewer.md",
+      "dst": "vectorcode/agents/vector-obra-code-reviewer.md",
+      "kind": "agents",
+      "size_bytes": 3888
+    },
+    {
+      "src": ".claude/agents/performance-optimizer.md",
+      "dst": "vectorcode/agents/vector-performance-optimizer.md",
+      "kind": "agents",
+      "size_bytes": 12903
+    },
+    {
+      "src": ".claude/agents/planner.md",
+      "dst": "vectorcode/agents/vector-planner.md",
+      "kind": "agents",
+      "size_bytes": 7282
+    },
+    {
+      "src": ".claude/agents/project-manager-senior.md",
+      "dst": "vectorcode/agents/vector-project-manager-senior.md",
+      "kind": "agents",
+      "size_bytes": 5308
+    },
+    {
+      "src": ".claude/agents/refactor-cleaner.md",
+      "dst": "vectorcode/agents/vector-refactor-cleaner.md",
+      "kind": "agents",
+      "size_bytes": 2792
+    },
+    {
+      "src": ".claude/agents/security-auditor.md",
+      "dst": "vectorcode/agents/vector-security-auditor.md",
+      "kind": "agents",
+      "size_bytes": 4219
+    },
+    {
+      "src": ".claude/agents/silent-failure-hunter.md",
+      "dst": "vectorcode/agents/vector-silent-failure-hunter.md",
+      "kind": "agents",
+      "size_bytes": 1048
+    },
+    {
+      "src": ".claude/agents/specialized-chief-of-staff.md",
+      "dst": "vectorcode/agents/vector-specialized-chief-of-staff.md",
+      "kind": "agents",
+      "size_bytes": 18190
+    },
+    {
+      "src": ".claude/agents/specialized-developer-advocate.md",
+      "dst": "vectorcode/agents/vector-specialized-developer-advocate.md",
+      "kind": "agents",
+      "size_bytes": 14829
+    },
+    {
+      "src": ".claude/agents/specialized-workflow-architect.md",
+      "dst": "vectorcode/agents/vector-specialized-workflow-architect.md",
+      "kind": "agents",
+      "size_bytes": 26488
+    },
+    {
+      "src": ".claude/agents/test-engineer.md",
+      "dst": "vectorcode/agents/vector-test-engineer.md",
+      "kind": "agents",
+      "size_bytes": 3364
+    },
+    {
+      "src": ".claude/agents/vector-coder.md",
+      "dst": "vectorcode/agents/vector-coder.md",
+      "kind": "agents",
+      "size_bytes": 1887
+    },
+    {
+      "src": ".claude/agents/vector-comms.md",
+      "dst": "vectorcode/agents/vector-comms.md",
+      "kind": "agents",
+      "size_bytes": 2111
+    },
+    {
+      "src": ".claude/agents/vector-memory-curator.md",
+      "dst": "vectorcode/agents/vector-memory-curator.md",
+      "kind": "agents",
+      "size_bytes": 1783
+    },
+    {
+      "src": ".claude/agents/vector-researcher.md",
+      "dst": "vectorcode/agents/vector-researcher.md",
+      "kind": "agents",
+      "size_bytes": 1707
+    },
+    {
+      "src": ".claude/agents/vector-security.md",
+      "dst": "vectorcode/agents/vector-security.md",
+      "kind": "agents",
+      "size_bytes": 1704
+    },
+    {
+      "src": ".claude/commands/brainstorm.md",
+      "dst": "vectorcode/commands/brainstorm.md",
+      "kind": "commands",
+      "size_bytes": 262
+    },
+    {
+      "src": ".claude/commands/checkpoint.md",
+      "dst": "vectorcode/commands/checkpoint.md",
+      "kind": "commands",
+      "size_bytes": 1594
+    },
+    {
+      "src": ".claude/commands/code-review.md",
+      "dst": "vectorcode/commands/code-review.md",
+      "kind": "commands",
+      "size_bytes": 1991
+    },
+    {
+      "src": ".claude/commands/context-budget.md",
+      "dst": "vectorcode/commands/context-budget.md",
+      "kind": "commands",
+      "size_bytes": 726
+    },
+    {
+      "src": ".claude/commands/deploy.md",
+      "dst": "vectorcode/commands/deploy.md",
+      "kind": "commands",
+      "size_bytes": 1193
+    },
+    {
+      "src": ".claude/commands/district.md",
+      "dst": "vectorcode/commands/district.md",
+      "kind": "commands",
+      "size_bytes": 588
+    },
+    {
+      "src": ".claude/commands/docs.md",
+      "dst": "vectorcode/commands/docs.md",
+      "kind": "commands",
+      "size_bytes": 711
+    },
+    {
+      "src": ".claude/commands/evolve.md",
+      "dst": "vectorcode/commands/evolve.md",
+      "kind": "commands",
+      "size_bytes": 4699
+    },
+    {
+      "src": ".claude/commands/execute-plan.md",
+      "dst": "vectorcode/commands/execute-plan.md",
+      "kind": "commands",
+      "size_bytes": 266
+    },
+    {
+      "src": ".claude/commands/feature-dev.md",
+      "dst": "vectorcode/commands/feature-dev.md",
+      "kind": "commands",
+      "size_bytes": 2608
+    },
+    {
+      "src": ".claude/commands/fix-issue.md",
+      "dst": "vectorcode/commands/fix-issue.md",
+      "kind": "commands",
+      "size_bytes": 880
+    },
+    {
+      "src": ".claude/commands/karpathy.md",
+      "dst": "vectorcode/commands/karpathy.md",
+      "kind": "commands",
+      "size_bytes": 870
+    },
+    {
+      "src": ".claude/commands/loop-start.md",
+      "dst": "vectorcode/commands/loop-start.md",
+      "kind": "commands",
+      "size_bytes": 916
+    },
+    {
+      "src": ".claude/commands/loop-status.md",
+      "dst": "vectorcode/commands/loop-status.md",
+      "kind": "commands",
+      "size_bytes": 479
+    },
+    {
+      "src": ".claude/commands/multi-execute.md",
+      "dst": "vectorcode/commands/multi-execute.md",
+      "kind": "commands",
+      "size_bytes": 10888
+    },
+    {
+      "src": ".claude/commands/multi-plan.md",
+      "dst": "vectorcode/commands/multi-plan.md",
+      "kind": "commands",
+      "size_bytes": 9605
+    },
+    {
+      "src": ".claude/commands/orchestrate.md",
+      "dst": "vectorcode/commands/orchestrate.md",
+      "kind": "commands",
+      "size_bytes": 4178
+    },
+    {
+      "src": ".claude/commands/plan.md",
+      "dst": "vectorcode/commands/plan.md",
+      "kind": "commands",
+      "size_bytes": 3976
+    },
+    {
+      "src": ".claude/commands/pr-review.md",
+      "dst": "vectorcode/commands/pr-review.md",
+      "kind": "commands",
+      "size_bytes": 1253
+    },
+    {
+      "src": ".claude/commands/prompt-optimize.md",
+      "dst": "vectorcode/commands/prompt-optimize.md",
+      "kind": "commands",
+      "size_bytes": 762
+    },
+    {
+      "src": ".claude/commands/prune.md",
+      "dst": "vectorcode/commands/prune.md",
+      "kind": "commands",
+      "size_bytes": 782
+    },
+    {
+      "src": ".claude/commands/quality-gate.md",
+      "dst": "vectorcode/commands/quality-gate.md",
+      "kind": "commands",
+      "size_bytes": 646
+    },
+    {
+      "src": ".claude/commands/refactor-clean.md",
+      "dst": "vectorcode/commands/refactor-clean.md",
+      "kind": "commands",
+      "size_bytes": 2885
+    },
+    {
+      "src": ".claude/commands/research.md",
+      "dst": "vectorcode/commands/research.md",
+      "kind": "commands",
+      "size_bytes": 535
+    },
+    {
+      "src": ".claude/commands/resume-session.md",
+      "dst": "vectorcode/commands/resume-session.md",
+      "kind": "commands",
+      "size_bytes": 6417
+    },
+    {
+      "src": ".claude/commands/rules-distill.md",
+      "dst": "vectorcode/commands/rules-distill.md",
+      "kind": "commands",
+      "size_bytes": 568
+    },
+    {
+      "src": ".claude/commands/save-session.md",
+      "dst": "vectorcode/commands/save-session.md",
+      "kind": "commands",
+      "size_bytes": 9977
+    },
+    {
+      "src": ".claude/commands/skill-create.md",
+      "dst": "vectorcode/commands/skill-create.md",
+      "kind": "commands",
+      "size_bytes": 4703
+    },
+    {
+      "src": ".claude/commands/verify.md",
+      "dst": "vectorcode/commands/verify.md",
+      "kind": "commands",
+      "size_bytes": 770
+    },
+    {
+      "src": ".claude/commands/write-plan.md",
+      "dst": "vectorcode/commands/write-plan.md",
+      "kind": "commands",
+      "size_bytes": 262
+    },
+    {
+      "src": ".claude/hooks/auto_commit.py",
+      "dst": "vectorcode/hooks/auto_commit.py",
+      "kind": "hooks",
+      "size_bytes": 1465
+    },
+    {
+      "src": ".claude/hooks/auto_screenshot.py",
+      "dst": "vectorcode/hooks/auto_screenshot.py",
+      "kind": "hooks",
+      "size_bytes": 1356
+    },
+    {
+      "src": ".claude/hooks/auto_test.py",
+      "dst": "vectorcode/hooks/auto_test.py",
+      "kind": "hooks",
+      "size_bytes": 1067
+    },
+    {
+      "src": ".claude/hooks/file_protection.py",
+      "dst": "vectorcode/hooks/file_protection.py",
+      "kind": "hooks",
+      "size_bytes": 992
+    },
+    {
+      "src": ".claude/hooks/finish_notification.py",
+      "dst": "vectorcode/hooks/finish_notification.py",
+      "kind": "hooks",
+      "size_bytes": 1303
+    },
+    {
+      "src": ".claude/hooks/lint_on_save.py",
+      "dst": "vectorcode/hooks/lint_on_save.py",
+      "kind": "hooks",
+      "size_bytes": 1096
+    },
+    {
+      "src": ".claude/hooks/pre_commit_gate.py",
+      "dst": "vectorcode/hooks/pre_commit_gate.py",
+      "kind": "hooks",
+      "size_bytes": 1282
+    },
+    {
+      "src": ".claude/hooks/pre_write_check.py",
+      "dst": "vectorcode/hooks/pre_write_check.py",
+      "kind": "hooks",
+      "size_bytes": 1036
+    },
+    {
+      "src": ".claude/rules/architecture.md",
+      "dst": "vectorcode/rules/architecture.md",
+      "kind": "rules",
+      "size_bytes": 2302
+    },
+    {
+      "src": ".claude/rules/brain_index.md",
+      "dst": "vectorcode/rules/brain_index.md",
+      "kind": "rules",
+      "size_bytes": 4358
+    },
+    {
+      "src": ".claude/rules/code_style.md",
+      "dst": "vectorcode/rules/code_style.md",
+      "kind": "rules",
+      "size_bytes": 2375
+    },
+    {
+      "src": ".claude/rules/commands.md",
+      "dst": "vectorcode/rules/commands.md",
+      "kind": "rules",
+      "size_bytes": 3833
+    },
+    {
+      "src": ".claude/rules/critical_rules.md",
+      "dst": "vectorcode/rules/critical_rules.md",
+      "kind": "rules",
+      "size_bytes": 3919
+    },
+    {
+      "src": ".claude/rules/districts.md",
+      "dst": "vectorcode/rules/districts.md",
+      "kind": "rules",
+      "size_bytes": 2150
+    },
+    {
+      "src": ".claude/rules/libraries.md",
+      "dst": "vectorcode/rules/libraries.md",
+      "kind": "rules",
+      "size_bytes": 2523
+    },
+    {
+      "src": ".claude/rules/memory.md",
+      "dst": "vectorcode/rules/memory.md",
+      "kind": "rules",
+      "size_bytes": 1559
+    },
+    {
+      "src": ".claude/rules/models.md",
+      "dst": "vectorcode/rules/models.md",
+      "kind": "rules",
+      "size_bytes": 4114
+    },
+    {
+      "src": ".claude/rules/phase_status.md",
+      "dst": "vectorcode/rules/phase_status.md",
+      "kind": "rules",
+      "size_bytes": 7633
+    },
+    {
+      "src": ".claude/rules/testing.md",
+      "dst": "vectorcode/rules/testing.md",
+      "kind": "rules",
+      "size_bytes": 1178
+    },
+    {
+      "src": ".claude/rules/tools.md",
+      "dst": "vectorcode/rules/tools.md",
+      "kind": "rules",
+      "size_bytes": 3327
+    }
+  ]
+}

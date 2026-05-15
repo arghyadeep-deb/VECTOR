@@ -10,7 +10,7 @@ color: "indigo"
 type: "documentation"
 version: "1.0.0"
 created: "2025-07-25"
-author: "Claude Code"
+author: "VECTOR Code"
 metadata:
   specialization: "OpenAPI 3.0 specification, API documentation, interactive docs"
   complexity: "moderate"

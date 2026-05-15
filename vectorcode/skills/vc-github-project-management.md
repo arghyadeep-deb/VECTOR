@@ -4,7 +4,7 @@ title: GitHub Project Management
 version: 2.0.0
 category: github
 description: Comprehensive GitHub project management with swarm-coordinated issue tracking, project board automation, and sprint planning
-author: Claude Code
+author: VECTOR Code
 tags:
   - github
   - project-management
@@ -853,7 +853,7 @@ npx ruv-swarm github review-coordinate \
 Updates will be posted automatically by swarm agents during implementation.
 
 ---
-🤖 Generated with Claude Code
+🤖 Generated with VECTOR Code
 ```
 
 ### Bug Report Template
@@ -892,7 +892,7 @@ Updates will be posted automatically by swarm agents during implementation.
 - **Tester**: Validation and testing
 
 ---
-🤖 Generated with Claude Code
+🤖 Generated with VECTOR Code
 ```
 
 ### Feature Request Template
@@ -936,7 +936,7 @@ Updates will be posted automatically by swarm agents during implementation.
 - **Documenter**: Documentation
 
 ---
-🤖 Generated with Claude Code
+🤖 Generated with VECTOR Code
 ```
 
 ### Swarm Task Template
@@ -987,7 +987,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Process Issue
-        uses: ruvnet$swarm-action@v1
+        uses: vectorcode$swarm-action@v1
         with:
           command: |
             if [[ "${{ github.event.label.name }}" == "swarm-ready" ]]; then
@@ -1267,11 +1267,11 @@ npx ruv-swarm github board-kpis
 
 - [GitHub CLI Documentation](https:/$cli.github.com$manual/)
 - [GitHub Projects Documentation](https:/$docs.github.com$en$issues$planning-and-tracking-with-projects)
-- [Swarm Coordination Guide](https:/$github.com$ruvnet$ruv-swarm)
-- [Claude Flow Documentation](https:/$github.com$ruvnet$claude-flow)
+- [Swarm Coordination Guide](https:/$github.com$vectorcode$ruv-swarm)
+- [VECTOR Flow Documentation](https:/$github.com$vectorcode$claude-flow)
 
 ---
 
 **Last Updated**: 2025-10-19
 **Version**: 2.0.0
-**Maintainer**: Claude Code
+**Maintainer**: VECTOR Code

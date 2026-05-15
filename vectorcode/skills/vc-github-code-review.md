@@ -4,7 +4,7 @@ version: 1.0.0
 description: Comprehensive GitHub code review with AI-powered swarm coordination
 category: github
 tags: [code-review, github, swarm, pr-management, automation]
-author: Claude Code Flow
+author: VECTOR Code Flow
 requires:
   - github-cli
   - ruv-swarm
@@ -1012,11 +1012,11 @@ fi
 
 ---
 
-## 🔗 Integration with Claude Code
+## 🔗 Integration with VECTOR Code
 
 ### Workflow Pattern
 
-1. **Claude Code** reads PR diff and context
+1. **VECTOR Code** reads PR diff and context
 2. **Swarm** coordinates review approach based on PR type
 3. **Agents** work in parallel on different review aspects
 4. **Progress** updates posted to PR automatically
@@ -1119,8 +1119,8 @@ npx ruv-swarm github review-init --pr 123 --parallel --cache-results
 
 ### Documentation
 - [GitHub CLI Documentation](https:/$cli.github.com$manual/)
-- [RUV Swarm Guide](https:/$github.com$ruvnet$ruv-swarm)
-- [Claude Flow Integration](https:/$github.com$ruvnet$claude-flow)
+- [RUV Swarm Guide](https:/$github.com$vectorcode$ruv-swarm)
+- [VECTOR Flow Integration](https:/$github.com$vectorcode$claude-flow)
 
 ### Support
 - GitHub Issues: Report bugs and request features
@@ -1131,10 +1131,10 @@ npx ruv-swarm github review-init --pr 123 --parallel --cache-results
 
 ## 📄 License
 
-This skill is part of the Claude Code Flow project and is licensed under the MIT License.
+This skill is part of the VECTOR Code Flow project and is licensed under the MIT License.
 
 ---
 
 **Last Updated:** 2025-10-19
 **Version:** 1.0.0
-**Maintainer:** Claude Code Flow Team
+**Maintainer:** VECTOR Code Flow Team

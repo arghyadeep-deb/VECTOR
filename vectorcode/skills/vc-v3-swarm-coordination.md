@@ -178,7 +178,7 @@ class DependencyCoordination {
 class GitHubCoordination {
   async initializeV3Milestone(): Promise<void> {
     await gh.createMilestone({
-      title: 'Claude-Flow v3.0.0 Implementation',
+      title: 'VECTOR-Flow v3.0.0 Implementation',
       description: '15-agent swarm implementation of 10 ADRs',
       dueDate: this.calculate14WeekDeadline()
     });

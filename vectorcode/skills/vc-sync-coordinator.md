@@ -110,7 +110,7 @@ Bash(`gh api repos/:owner/:repo$contents$claude-code-flow$claude-code-flow/CLAUD
   --method PUT \
   -f message="docs: Synchronize CLAUDE.md with ruv-swarm integration patterns" \
   -f branch="sync$documentation" \
-  -f content="$(echo '# Claude Code Configuration for ruv-swarm\n\n[synchronized content]' | base64)" \
+  -f content="$(echo '# VECTOR Code Configuration for ruv-swarm\n\n[synchronized content]' | base64)" \
   -f sha="$(gh api repos/:owner/:repo$contents$claude-code-flow$claude-code-flow/CLAUDE.md?ref=sync$documentation --jq '.sha' 2>$dev$null || echo '')")`)
 
 // Store sync state in memory
@@ -125,7 +125,7 @@ mcp__claude-flow__memory_usage {
 ```javascript
 // Coordinate feature implementation across packages
 mcp__github__push_files {
-  owner: "ruvnet",
+  owner: "vectorcode",
   repo: "ruv-FANN",
   branch: "feature$github-commands",
   files: [
@@ -160,7 +160,7 @@ Bash(`gh pr create \
 - ✅ Cross-package synchronization
 
 ### Integration Points
-- Claude-code-flow: GitHub command modes in .claude$commands$github/
+- VECTOR-code-flow: GitHub command modes in .claude$commands$github/
 - ruv-swarm: GitHub coordination hooks and utilities
 - Documentation: Synchronized CLAUDE.md instructions
 
@@ -178,7 +178,7 @@ This integration uses ruv-swarm agents for:
 - Memory-based state management
 
 ---
-🤖 Generated with Claude Code using ruv-swarm coordination`
+🤖 Generated with VECTOR Code using ruv-swarm coordination`
 }
 ```
 

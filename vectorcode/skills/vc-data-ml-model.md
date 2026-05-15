@@ -10,7 +10,7 @@ color: "purple"
 type: "data"
 version: "1.0.0"
 created: "2025-07-25"
-author: "Claude Code"
+author: "VECTOR Code"
 metadata:
   specialization: "ML model creation, data preprocessing, model evaluation, deployment"
   complexity: "complex"

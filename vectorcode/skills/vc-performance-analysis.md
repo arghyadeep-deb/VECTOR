@@ -1,10 +1,10 @@
 ---
 name: performance-analysis
 version: 1.0.0
-description: Comprehensive performance analysis, bottleneck detection, and optimization recommendations for Claude Flow swarms
+description: Comprehensive performance analysis, bottleneck detection, and optimization recommendations for VECTOR Flow swarms
 category: monitoring
 tags: [performance, bottleneck, optimization, profiling, metrics, analysis]
-author: Claude Flow Team
+author: VECTOR Flow Team
 ---
 
 # Performance Analysis Skill
@@ -165,7 +165,7 @@ Automatic analysis during task execution:
 
 #### MCP Integration
 ```javascript
-// Check for bottlenecks in Claude Code
+// Check for bottlenecks in VECTOR Code
 mcp__claude-flow__bottleneck_detect({
   timeRange: "1h",
   threshold: 20,
@@ -560,4 +560,4 @@ npx claude-flow bottleneck detect --fix
 
 **Version**: 1.0.0
 **Last Updated**: 2025-10-19
-**Maintainer**: Claude Flow Team
+**Maintainer**: VECTOR Flow Team

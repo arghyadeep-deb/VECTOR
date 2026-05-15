@@ -72,7 +72,7 @@ LS("$workspaces$ruv-FANN$ruv-swarm$npm")
 
 // Search for related repositories
 mcp__github__search_repositories {
-  query: "user:ruvnet claude",
+  query: "user:vectorcode claude",
   sort: "updated",
   order: "desc"
 }
@@ -90,14 +90,14 @@ mcp__claude-flow__task_orchestrate {
 // Create standardized repository template
 mcp__github__create_repository {
   name: "claude-project-template",
-  description: "Standardized template for Claude Code projects with ruv-swarm integration",
+  description: "Standardized template for VECTOR Code projects with ruv-swarm integration",
   private: false,
   autoInit: true
 }
 
 // Push template structure
 mcp__github__push_files {
-  owner: "ruvnet",
+  owner: "vectorcode",
   repo: "claude-project-template",
   branch: "main",
   files: [
@@ -136,7 +136,7 @@ mcp__github__push_files {
       content: JSON.stringify({
         name: "claude-project-template",
         version: "1.0.0",
-        description: "Claude Code project with ruv-swarm integration",
+        description: "VECTOR Code project with ruv-swarm integration",
         engines: { node: ">=20.0.0" },
         dependencies: {
           "ruv-swarm": "^1.0.11"
@@ -145,7 +145,7 @@ mcp__github__push_files {
     },
     {
       path: "README.md",
-      content: `# Claude Project Template
+      content: `# VECTOR Project Template
 
 ## Quick Start
 \`\`\`bash
@@ -164,7 +164,7 @@ npx claude-flow start --ui
 See CLAUDE.md for complete integration instructions.`
     }
   ],
-  message: "feat: Create standardized Claude project template with ruv-swarm integration"
+  message: "feat: Create standardized VECTOR project template with ruv-swarm integration"
 }
 ```
 
@@ -180,7 +180,7 @@ const repositories = [
 // Update common files across repositories
 repositories.forEach(repo => {
   mcp__github__create_or_update_file({
-    owner: "ruvnet",
+    owner: "vectorcode",
     repo: "ruv-FANN",
     path: `${repo}/.github$workflows$integration.yml`,
     content: `name: Integration Tests

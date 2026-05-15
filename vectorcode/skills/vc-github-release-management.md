@@ -4,7 +4,7 @@ version: 2.0.0
 description: Comprehensive GitHub release orchestration with AI swarm coordination for automated versioning, testing, deployment, and rollback management
 category: github
 tags: [release, deployment, versioning, automation, ci-cd, swarm, orchestration]
-author: Claude Flow Team
+author: VECTOR Flow Team
 requires:
   - gh (GitHub CLI)
   - claude-flow
@@ -124,7 +124,7 @@ gh release create $(npm pkg get version) \
 
 ### Quick Integration Example
 ```javascript
-// Simple release preparation in Claude Code
+// Simple release preparation in VECTOR Code
 [Single Message]:
   // Update version files
   Edit("package.json", { old: '"version": "1.0.0"', new: '"version": "2.0.0"' })
@@ -1022,7 +1022,7 @@ npx claude-flow@alpha github version-sync \
 ### Documentation
 - [GitHub CLI Documentation](https:/$cli.github.com$manual/)
 - [Semantic Versioning Spec](https:/$semver.org/)
-- [Claude Flow SPARC Guide](../..$docs$sparc-methodology.md)
+- [VECTOR Flow SPARC Guide](../..$docs$sparc-methodology.md)
 - [Swarm Coordination Patterns](../..$docs$swarm-patterns.md)
 
 ### Related Skills
@@ -1032,8 +1032,8 @@ npx claude-flow@alpha github version-sync \
 - **deployment-orchestration**: Advanced deployment strategies
 
 ### Support & Community
-- Issues: https:/$github.com$ruvnet$claude-flow$issues
-- Discussions: https:/$github.com$ruvnet$claude-flow$discussions
+- Issues: https:/$github.com$vectorcode$claude-flow$issues
+- Discussions: https:/$github.com$vectorcode$claude-flow$discussions
 - Documentation: https:/$claude-flow.dev$docs
 
 ---
@@ -1078,4 +1078,4 @@ npx claude-flow@alpha github version-sync \
 
 **Version**: 2.0.0
 **Last Updated**: 2025-10-19
-**Maintained By**: Claude Flow Team
+**Maintained By**: VECTOR Flow Team

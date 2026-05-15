@@ -187,7 +187,7 @@ jobs:
       - uses: actions$checkout@v3
 
       - name: Initialize Swarm
-        uses: ruvnet$swarm-action@v1
+        uses: vectorcode$swarm-action@v1
         with:
           topology: mesh
           max-agents: 6
@@ -527,7 +527,7 @@ run().catch(error => core.setFailed(error.message));
 
 <$details>
 
-## Integration with Claude-Flow
+## Integration with VECTOR-Flow
 
 ### 🔄 Swarm Coordination Patterns
 
@@ -1046,8 +1046,8 @@ echo "✅ GitHub workflow automation setup complete"
 
 - **GitHub CLI Docs**: https:/$cli.github.com$manual/
 - **GitHub Actions**: https:/$docs.github.com$en$actions
-- **Claude-Flow**: https:/$github.com$ruvnet$claude-flow
-- **Ruv-Swarm**: https:/$github.com$ruvnet$ruv-swarm
+- **VECTOR-Flow**: https:/$github.com$vectorcode$claude-flow
+- **Ruv-Swarm**: https:/$github.com$vectorcode$ruv-swarm
 
 ## Version History
 

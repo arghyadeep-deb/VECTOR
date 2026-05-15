@@ -4,7 +4,7 @@ description: Advanced swarm orchestration patterns for research, development, te
 version: 2.0.0
 category: orchestration
 tags: [swarm, distributed, parallel, research, testing, development, coordination]
-author: Claude Flow Team
+author: VECTOR Flow Team
 ---
 
 # Advanced Swarm Orchestration
@@ -15,7 +15,7 @@ Master advanced swarm patterns for distributed research, development, and testin
 
 ### Prerequisites
 ```bash
-# Ensure Claude Flow is installed
+# Ensure VECTOR Flow is installed
 npm install -g claude-flow@alpha
 
 # Add MCP server (if using MCP tools)
@@ -960,10 +960,10 @@ mcp__claude-flow__swarm_init({ topology: "mesh", maxAgents: 4 })
 
 ## References
 
-- [Claude Flow Documentation](https:/$github.com$ruvnet$claude-flow)
-- [Swarm Orchestration Guide](https:/$github.com$ruvnet$claude-flow$wiki$swarm)
-- [MCP Tools Reference](https:/$github.com$ruvnet$claude-flow$wiki$mcp)
-- [Performance Optimization](https:/$github.com$ruvnet$claude-flow$wiki$performance)
+- [VECTOR Flow Documentation](https:/$github.com$vectorcode$claude-flow)
+- [Swarm Orchestration Guide](https:/$github.com$vectorcode$claude-flow$wiki$swarm)
+- [MCP Tools Reference](https:/$github.com$vectorcode$claude-flow$wiki$mcp)
+- [Performance Optimization](https:/$github.com$vectorcode$claude-flow$wiki$performance)
 
 ---
 

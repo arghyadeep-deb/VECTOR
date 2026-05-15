@@ -32,7 +32,7 @@ hooks:
 # GitHub Integration Modes
 
 ## Overview
-This document describes all GitHub integration modes available in Claude-Flow with ruv-swarm coordination. Each mode is optimized for specific GitHub workflows and includes batch tool integration for maximum efficiency.
+This document describes all GitHub integration modes available in VECTOR-Flow with ruv-swarm coordination. Each mode is optimized for specific GitHub workflows and includes batch tool integration for maximum efficiency.
 
 ## GitHub Workflow Modes
 

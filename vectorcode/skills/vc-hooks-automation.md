@@ -1,11 +1,11 @@
 ---
 name: Hooks Automation
-description: Automated coordination, formatting, and learning from Claude Code operations using intelligent hooks with MCP integration. Includes pre$post task hooks, session management, Git integration, memory coordination, and neural pattern training for enhanced development workflows.
+description: Automated coordination, formatting, and learning from VECTOR Code operations using intelligent hooks with MCP integration. Includes pre$post task hooks, session management, Git integration, memory coordination, and neural pattern training for enhanced development workflows.
 ---
 
 # Hooks Automation
 
-Intelligent automation system that coordinates, validates, and learns from Claude Code operations through hooks integrated with MCP tools and neural pattern training.
+Intelligent automation system that coordinates, validates, and learns from VECTOR Code operations through hooks integrated with MCP tools and neural pattern training.
 
 ## What This Skill Does
 
@@ -23,8 +23,8 @@ This skill provides a comprehensive hook system that automatically manages devel
 ## Prerequisites
 
 **Required:**
-- Claude Flow CLI installed (`npm install -g claude-flow@alpha`)
-- Claude Code with hooks enabled
+- VECTOR Flow CLI installed (`npm install -g claude-flow@alpha`)
+- VECTOR Code with hooks enabled
 - `.claude$settings.json` with hook configurations
 
 **Optional:**
@@ -855,7 +855,7 @@ npx claude-flow hook pre-edit \
   --auto-assign-agent \
   --validate-syntax
 
-# STEP 3: Edit file (via Claude Code Edit tool)
+# STEP 3: Edit file (via VECTOR Code Edit tool)
 # ... code changes ...
 
 # STEP 4: Post-edit processing

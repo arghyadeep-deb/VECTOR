@@ -4,7 +4,7 @@ description: Advanced Hive Mind collective intelligence system for queen-led mul
 version: 1.0.0
 category: coordination
 tags: [hive-mind, swarm, queen-worker, consensus, collective-intelligence, multi-agent, coordination]
-author: Claude Flow Team
+author: VECTOR Flow Team
 ---
 
 # Hive Mind Advanced Skill
@@ -13,7 +13,7 @@ Master the advanced Hive Mind collective intelligence system for sophisticated m
 
 ## Overview
 
-The Hive Mind system represents the pinnacle of multi-agent coordination in Claude Flow, implementing a queen-led hierarchical architecture where a strategic queen coordinator directs specialized worker agents through collective decision-making and shared memory.
+The Hive Mind system represents the pinnacle of multi-agent coordination in VECTOR Flow, implementing a queen-led hierarchical architecture where a strategic queen coordinator directs specialized worker agents through collective decision-making and shared memory.
 
 ## Core Concepts
 
@@ -82,7 +82,7 @@ npx claude-flow hive-mind spawn "Implement API" --queen-type tactical --max-work
 # Adaptive queen with consensus
 npx claude-flow hive-mind spawn "Optimize system" --queen-type adaptive --consensus byzantine
 
-# Generate Claude Code commands
+# Generate VECTOR Code commands
 npx claude-flow hive-mind spawn "Build full-stack app" --claude
 ```
 
@@ -221,9 +221,9 @@ const config = {
 
 ## Integration Patterns
 
-### With Claude Code
+### With VECTOR Code
 
-Generate Claude Code spawn commands directly:
+Generate VECTOR Code spawn commands directly:
 
 ```bash
 npx claude-flow hive-mind spawn "Build REST API" --claude
@@ -346,7 +346,7 @@ const insights = hiveMind.getPerformanceInsights();
 
 ## Hooks Integration
 
-Hive Mind integrates with Claude Flow hooks for automation:
+Hive Mind integrates with VECTOR Flow hooks for automation:
 
 **Pre-Task Hooks**
 - Auto-assign agents by file type
@@ -623,7 +623,7 @@ npx claude-flow hive-mind spawn "Build e-commerce platform" \
   --consensus weighted \
   --claude
 
-# Output generates Claude Code commands:
+# Output generates VECTOR Code commands:
 # - Queen coordinator
 # - Frontend developers (React)
 # - Backend developers (Node.js)
@@ -699,14 +699,14 @@ npx claude-flow hive-mind spawn "Review PR #456" \
 
 ## References
 
-- [Hive Mind Documentation](https:/$github.com$ruvnet$claude-flow$docs$hive-mind)
-- [Collective Intelligence Patterns](https:/$github.com$ruvnet$claude-flow$docs$patterns)
-- [Byzantine Consensus](https:/$github.com$ruvnet$claude-flow$docs$consensus)
-- [Memory Optimization](https:/$github.com$ruvnet$claude-flow$docs$memory)
+- [Hive Mind Documentation](https:/$github.com$vectorcode$claude-flow$docs$hive-mind)
+- [Collective Intelligence Patterns](https:/$github.com$vectorcode$claude-flow$docs$patterns)
+- [Byzantine Consensus](https:/$github.com$vectorcode$claude-flow$docs$consensus)
+- [Memory Optimization](https:/$github.com$vectorcode$claude-flow$docs$memory)
 
 ---
 
 **Skill Version**: 1.0.0
 **Last Updated**: 2025-10-19
-**Maintained By**: Claude Flow Team
+**Maintained By**: VECTOR Flow Team
 **License**: MIT

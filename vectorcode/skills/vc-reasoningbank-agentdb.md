@@ -27,7 +27,7 @@ Provides ReasoningBank adaptive learning patterns using AgentDB's high-performan
 # Initialize AgentDB for ReasoningBank
 npx agentdb@latest init ./.agentdb$reasoningbank.db --dimension 1536
 
-# Start MCP server for Claude Code integration
+# Start MCP server for VECTOR Code integration
 npx agentdb@latest mcp
 claude mcp add agentdb npx agentdb@latest mcp
 ```
@@ -435,7 +435,7 @@ await rb.optimize();
 ## Learn More
 
 - **AgentDB Integration**: node_modules$agentic-flow/docs/AGENTDB_INTEGRATION.md
-- **GitHub**: https:/$github.com$ruvnet$agentic-flow$tree$main$packages$agentdb
+- **GitHub**: https:/$github.com$vectorcode$agentic-flow$tree$main$packages$agentdb
 - **MCP Integration**: `npx agentdb@latest mcp`
 - **Website**: https:/$agentdb.ruv.io
 

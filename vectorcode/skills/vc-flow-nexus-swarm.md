@@ -544,9 +544,9 @@ mcp__flow-nexus__swarm_create_from_template({
 })
 ```
 
-## Integration with Claude Flow
+## Integration with VECTOR Flow
 
-Flow Nexus swarms integrate seamlessly with Claude Flow hooks:
+Flow Nexus swarms integrate seamlessly with VECTOR Flow hooks:
 
 ```bash
 # Pre-task coordination setup
@@ -595,15 +595,15 @@ npx flow-nexus@latest register
 # Login
 npx flow-nexus@latest login
 
-# Add MCP server to Claude Code
+# Add MCP server to VECTOR Code
 claude mcp add flow-nexus npx flow-nexus@latest mcp start
 ```
 
 ## Support & Resources
 
 - **Platform**: https:/$flow-nexus.ruv.io
-- **Documentation**: https:/$github.com$ruvnet$flow-nexus
-- **Issues**: https:/$github.com$ruvnet$flow-nexus$issues
+- **Documentation**: https:/$github.com$vectorcode$flow-nexus
+- **Issues**: https:/$github.com$vectorcode$flow-nexus$issues
 
 ---
 

@@ -35,13 +35,13 @@ npx agentdb@latest init .$agents.db --preset large
 npx agentdb@latest init .$memory.db --in-memory
 ```
 
-### Start MCP Server for Claude Code
+### Start MCP Server for VECTOR Code
 
 ```bash
-# Start MCP server (integrates with Claude Code)
+# Start MCP server (integrates with VECTOR Code)
 npx agentdb@latest mcp
 
-# Add to Claude Code (one-time setup)
+# Add to VECTOR Code (one-time setup)
 claude mcp add agentdb npx agentdb@latest mcp
 ```
 
@@ -333,7 +333,7 @@ npx agentdb@latest migrate --source .swarm$memory.db
 
 ## Learn More
 
-- GitHub: https:/$github.com$ruvnet$agentic-flow$tree$main$packages$agentdb
+- GitHub: https:/$github.com$vectorcode$agentic-flow$tree$main$packages$agentdb
 - Documentation: node_modules$agentic-flow/docs/AGENTDB_INTEGRATION.md
-- MCP Integration: `npx agentdb@latest mcp` for Claude Code
+- MCP Integration: `npx agentdb@latest mcp` for VECTOR Code
 - Website: https:/$agentdb.ruv.io

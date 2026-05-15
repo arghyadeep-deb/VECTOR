@@ -30,7 +30,7 @@ hooks:
     echo "🚀 Ready for systematic agent system rollout"
 ---
 
-# Claude Flow Commands to Agent System Migration Plan
+# VECTOR Flow Commands to Agent System Migration Plan
 
 ## Overview
 This document provides a comprehensive migration plan to convert existing .claude$commands to the new agent-based system. Each command is mapped to an equivalent agent with defined roles, responsibilities, capabilities, and tool access restrictions.

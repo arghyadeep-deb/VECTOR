@@ -64,7 +64,7 @@ mcp__claude-flow__agent_spawn { type: "coder", name: "Implementation Planner" }
 
 // Create comprehensive issue
 mcp__github__create_issue {
-  owner: "ruvnet",
+  owner: "vectorcode",
   repo: "ruv-FANN",
   title: "Integration Review: claude-code-flow and ruv-swarm complete integration",
   body: `## 🔄 Integration Review
@@ -81,7 +81,7 @@ mcp__github__create_issue {
   ### Swarm Coordination
   This issue will be managed by coordinated swarm agents for optimal progress tracking.`,
   labels: ["integration", "review", "enhancement"],
-  assignees: ["ruvnet"]
+  assignees: ["vectorcode"]
 }
 
 // Set up automated tracking
@@ -102,7 +102,7 @@ mcp__claude-flow__memory_usage {
 
 // Add coordinated progress comment
 mcp__github__add_issue_comment {
-  owner: "ruvnet",
+  owner: "vectorcode",
   repo: "ruv-FANN",
   issue_number: 54,
   body: `## 🚀 Progress Update
@@ -120,7 +120,7 @@ mcp__github__add_issue_comment {
   - Final validation and merge preparation
   
   ---
-  🤖 Generated with Claude Code using ruv-swarm coordination`
+  🤖 Generated with VECTOR Code using ruv-swarm coordination`
 }
 
 // Store progress in swarm memory
@@ -135,14 +135,14 @@ mcp__claude-flow__memory_usage {
 ```javascript
 // Search and coordinate related issues
 mcp__github__search_issues {
-  q: "repo:ruvnet$ruv-FANN label:integration state:open",
+  q: "repo:vectorcode$ruv-FANN label:integration state:open",
   sort: "created",
   order: "desc"
 }
 
 // Create coordinated issue updates
 mcp__github__update_issue {
-  owner: "ruvnet",
+  owner: "vectorcode",
   repo: "ruv-FANN",
   issue_number: 54,
   state: "open",
@@ -238,7 +238,7 @@ mcp__github__update_issue {
 Updates will be posted automatically by swarm agents during implementation.
 
 ---
-🤖 Generated with Claude Code
+🤖 Generated with VECTOR Code
 ```
 
 ### Bug Report Template:
@@ -276,7 +276,7 @@ Updates will be posted automatically by swarm agents during implementation.
 - **Tester**: Validation and testing
 
 ---
-🤖 Generated with Claude Code
+🤖 Generated with VECTOR Code
 ```
 
 ## Best Practices

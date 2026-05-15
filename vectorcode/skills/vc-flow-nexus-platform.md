@@ -150,7 +150,7 @@ mcp__flow-nexus__sandbox_configure({
   },
   install_packages: ["axios", "lodash"],
   run_commands: ["npm run migrate", "npm run seed"],
-  anthropic_key: "sk-ant-..." // For Claude Code integration
+  anthropic_key: "sk-ant-..." // For VECTOR Code integration
 })
 ```
 
@@ -231,7 +231,7 @@ mcp__flow-nexus__sandbox_delete({
 - **nextjs**: Next.js full-stack framework
 - **vanilla**: Basic HTML/CSS/JS
 - **base**: Minimal Linux environment
-- **claude-code**: Claude Code integrated environment
+- **claude-code**: VECTOR Code integrated environment
 
 ### Common Sandbox Patterns
 
@@ -1032,7 +1032,7 @@ mcp__flow-nexus__challenge_submit({
 - **API Reference**: https:/$api.flow-nexus.ruv.io$docs
 - **Status Page**: https:/$status.flow-nexus.ruv.io
 - **Community Forum**: https:/$community.flow-nexus.ruv.io
-- **GitHub Issues**: https:/$github.com$ruvnet$flow-nexus$issues
+- **GitHub Issues**: https:/$github.com$vectorcode$flow-nexus$issues
 - **Discord**: https:/$discord.gg$flow-nexus
 - **Email Support**: support@flow-nexus.ruv.io (Pro/Enterprise only)
 

@@ -4,7 +4,7 @@ version: 1.0.0
 description: Multi-repository coordination, synchronization, and architecture management with AI swarm orchestration
 category: github-integration
 tags: [multi-repo, synchronization, architecture, coordination, github]
-author: Claude Flow Team
+author: VECTOR Flow Team
 requires:
   - ruv-swarm@^1.0.11
   - gh-cli@^2.0.0
@@ -284,7 +284,7 @@ mcp__claude-flow__swarm_init({
   // Create template repository
   mcp__github__create_repository({
     name: "claude-project-template",
-    description: "Standardized template for Claude Code projects",
+    description: "Standardized template for VECTOR Code projects",
     private: false,
     autoInit: true
   })
@@ -863,12 +863,12 @@ npx claude-flow skill run github-multi-repo cross-team \
 
 ## Support and Resources
 
-- Documentation: https://github.com/ruvnet/claude-flow
-- Issues: https://github.com/ruvnet/claude-flow/issues
+- Documentation: https://github.com/vectorcode/claude-flow
+- Issues: https://github.com/vectorcode/claude-flow/issues
 - Examples: `.claude/examples/github-multi-repo/`
 
 ---
 
 **Version:** 1.0.0
 **Last Updated:** 2025-10-19
-**Maintainer:** Claude Flow Team
+**Maintainer:** VECTOR Flow Team

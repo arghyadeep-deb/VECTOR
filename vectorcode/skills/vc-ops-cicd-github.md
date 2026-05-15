@@ -10,7 +10,7 @@ type: "devops"
 color: "cyan"
 version: "1.0.0"
 created: "2025-07-25"
-author: "Claude Code"
+author: "VECTOR Code"
 metadata:
   specialization: "GitHub Actions, workflow automation, deployment pipelines"
   complexity: "moderate"

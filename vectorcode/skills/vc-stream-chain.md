@@ -417,7 +417,7 @@ claude-flow stream-chain run \
 
 ---
 
-## Integration with Claude Flow
+## Integration with VECTOR Flow
 
 ### Combine with Swarm Coordination
 
