@@ -109,6 +109,26 @@ class DailyReviewer(AgentBase):
                 category="behavioral_policy",
                 confidence=0.75,
             )
+            # RULE 7 — persist to policy_memory so decision_engine uses it (BOTH DIRECTIONS)
+            action_type = f"behavioral_rule_{i}"
+            situation_hash = f"daily_reflection:{date_str}:{rule[:60]}"
+            import hashlib as _hl
+            situation_hash = _hl.sha256(situation_hash.encode()).hexdigest()[:12]
+            self._policy.update_from_outcome(
+                action_type=action_type,
+                situation_hash=situation_hash,
+                reward=0.65,
+            )
+            logger.info(f"[VECTOR][reflection] Policy persisted: {action_type} reward=0.65")
+
+        # Store daily lesson digest in semantic_memory for longer retention
+        if rules:
+            self._memory.remember(
+                key=f"policy_lesson_{date_str}",
+                value=str(rules[:10])[:500],
+                category="policy_lesson",
+                confidence=0.8,
+            )
 
         for line in analysis.splitlines():
             if line.strip() and ("GROWTH_SCORE" in line or "/10" in line):
