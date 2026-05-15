@@ -681,6 +681,45 @@ class AutonomousLoop:
             return_exceptions=True,
         )
 
+    async def hypothesis_loop(self) -> None:
+        """
+        JARVIS Gap 5 — HypothesisEngine: proactive insight generation.
+        Runs every 4 hours. Only surfaces insights with confidence > 0.85.
+        RULE 2 — never dies: all exceptions caught, loop always restarts.
+        """
+        logger.info("[VECTOR][autonomous_loop] hypothesis_loop starting — fires every 4h")
+        while self._running:
+            try:
+                await asyncio.sleep(4 * 3600)
+                if not self._running:
+                    break
+                engine = self._get_hypothesis_engine()
+                if engine is None:
+                    continue
+                context = self._get_context().get_world_state()
+                hypotheses = engine.generate_hypotheses(context)
+                if not hypotheses:
+                    continue
+                for h in hypotheses if isinstance(hypotheses, list) else [hypotheses]:
+                    confidence = h.get("confidence", 0.0) if isinstance(h, dict) else 0.0
+                    if confidence >= 0.85:
+                        content = h.get("hypothesis", str(h)) if isinstance(h, dict) else str(h)
+                        logger.info(f"[VECTOR][hypothesis] High-confidence insight (conf={confidence:.2f}): {content[:120]}")
+                        self._get_memory().store(
+                            event_type="hypothesis",
+                            content=content,
+                            tags=["hypothesis", "proactive"],
+                            context={"confidence": confidence},
+                            source="hypothesis_engine",
+                        )
+                    else:
+                        logger.debug(f"[VECTOR][hypothesis] Low-confidence insight suppressed (conf={confidence:.2f})")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[VECTOR][hypothesis] loop error: {e}")
+                await asyncio.sleep(300)  # back off 5min on error, then retry
+
     def stop(self) -> None:
         """Graceful stop for tests only. Never call in production."""
         self._running = False
