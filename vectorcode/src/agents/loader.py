@@ -18,7 +18,6 @@ try:
 except ImportError:
     from registry import AgentDefinition  # type: ignore[no-reuse-declaration]
 
-
 def load_yaml_definition(path: Path) -> "AgentDefinition":
     """Load a single YAML file into an AgentDefinition.
 
@@ -53,7 +52,6 @@ def load_yaml_definition(path: Path) -> "AgentDefinition":
         capabilities=list(raw.get("capabilities", [])),
         config=dict(raw.get("config", {})),
     )
-
 
 def load_toml_definition(path: Path) -> "AgentDefinition":
     """Load a TOML file with an [agent] section into an AgentDefinition.
@@ -92,7 +90,6 @@ def load_toml_definition(path: Path) -> "AgentDefinition":
         config=dict(section.get("config", {})),
     )
 
-
 # ── Model → model name heuristic ─────────────────────────────────────────────
 
 _DOMAIN_MODELS: dict[str, str] = {
@@ -102,7 +99,6 @@ _DOMAIN_MODELS: dict[str, str] = {
     "research": "vector-deep",
     "support":  "vector-focus",
 }
-
 
 def definitions_from_agent_types() -> list["AgentDefinition"]:
     """Convert the hardcoded agent_types.py into a list of AgentDefinition objects.
@@ -146,7 +142,6 @@ def definitions_from_agent_types() -> list["AgentDefinition"]:
     logger.info(f"[VECTOR][loader] extracted {len(results)} definitions from agent_types.py")
     return results
 
-
 def _class_name_to_slug(class_name: str) -> str:
     """Convert 'CoderAgent' → 'coder', 'SecurityAuditorAgent' → 'security_auditor'."""
     name = class_name
@@ -157,18 +152,16 @@ def _class_name_to_slug(class_name: str) -> str:
     s = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s)
     return s.lower()
 
-
 # ── Markdown-frontmatter agent loader ────────────────────────────────────────
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-
 
 def _extract_frontmatter(text: str) -> dict | None:
     """Pull the YAML frontmatter from a markdown file (between leading ``---`` markers).
 
     Returns the parsed dict, or None if no frontmatter is present or YAML is missing.
     """
-    # Skip any HTML comment block (the VECTOR-INGESTED header)
+    # Skip any leading HTML comment block before frontmatter
     if text.lstrip().startswith("<!--"):
         end = text.find("-->")
         if end != -1:
@@ -187,12 +180,10 @@ def _extract_frontmatter(text: str) -> dict | None:
         logger.debug(f"[VECTOR][loader] frontmatter parse error: {e}")
         return None
 
-
 def _slug_to_class_name(slug: str) -> str:
     """Convert 'vector-coder' → 'VectorCoderAgent', 'planner' → 'PlannerAgent'."""
     parts = re.split(r"[-_]", slug)
     return "".join(p.capitalize() for p in parts if p) + "Agent"
-
 
 def _district_from_name(slug: str, description: str = "") -> str:
     """Infer a district from the agent slug or description.
@@ -221,7 +212,6 @@ def _district_from_name(slug: str, description: str = "") -> str:
             return district
     return "coding"  # safe default — most ingested agents are dev-flavored
 
-
 def _model_from_frontmatter(model_value: object) -> str:
     """Map Claude/Anthropic model names to VECTOR Ollama models, pass-through otherwise."""
     if not model_value:
@@ -242,7 +232,6 @@ def _model_from_frontmatter(model_value: object) -> str:
     if raw.startswith("vector-"):
         return raw
     return "vector-coder"  # default fallback
-
 
 def definitions_from_markdown_dir(dir: Path) -> list["AgentDefinition"]:
     """Walk *dir* and convert every ``*.md`` file with YAML frontmatter into
@@ -299,7 +288,6 @@ def definitions_from_markdown_dir(dir: Path) -> list["AgentDefinition"]:
 
     logger.info(f"[VECTOR][loader] loaded {len(results)} agents from markdown ({dir})")
     return results
-
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
