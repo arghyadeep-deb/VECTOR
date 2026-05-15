@@ -109,12 +109,17 @@ class ToolTemplate(BaseTool):
                 content="No command defined.",
                 success=False,
             )
-        # Substitute params into command
+        # Substitute params into command — sanitize values before substitution
+        import shlex as _shlex
         for key, val in params.items():
-            cmd = cmd.replace(f"{{{key}}}", str(val))
-        result = subprocess.run(  # noqa: S602, S603
-            cmd,
-            shell=True,
+            # Strip any shell metacharacters from substituted values
+            safe_val = str(val).replace(";", "").replace("&", "").replace("|", "").replace("`", "")
+            cmd = cmd.replace(f"{{{key}}}", safe_val)
+        # Split into args list to avoid shell injection
+        args = _shlex.split(cmd)
+        result = subprocess.run(
+            args,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=30,
