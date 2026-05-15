@@ -200,7 +200,7 @@ class AutonomousLoop:
             await asyncio.sleep(30.0)
 
     def _parse_cron_daily(self, expr: str) -> tuple[int, int] | None:
-        """Parse ``M H * * *`` → (minute, hour). Returns None if not daily."""
+        """Parse ``M H * * *`` → (hour, minute). Returns None if not daily."""
         parts = expr.strip().split()
         if len(parts) == 5 and parts[2] == "*" and parts[3] == "*" \
                 and parts[4] == "*":
