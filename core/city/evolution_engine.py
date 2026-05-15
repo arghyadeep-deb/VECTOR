@@ -356,10 +356,11 @@ class EvolutionEngine:
         practices = []
         for e in self._evolution_log:
             if e.get("name") == agent_name:
-                for d in e.get("decisions", []):
+                # Log stores decisions under "decisions_inherited" (check both for compat)
+                for d in e.get("decisions_inherited", e.get("decisions", [])):
                     if d.get("reward", 0) > 0.8:
                         practices.append(d.get("description", ""))
-        return list(set(practices))
+        return list(set(p for p in practices if p))
 
     # ── private helpers ───────────────────────────────────────────────────────
 
