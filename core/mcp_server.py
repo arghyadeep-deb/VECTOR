@@ -348,6 +348,8 @@ def _make_server():
             return f"Training failed: {e}"
 
     _add_expansion_tools(mcp)
+    _add_claims_tools(mcp)
+    _add_guidance_tools(mcp)
     return mcp
 
 
