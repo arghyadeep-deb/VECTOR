@@ -419,6 +419,12 @@ class AutonomousLoop:
             except Exception as _vc_err:
                 logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} — falling through to governor")
 
+        # ThreatDetector: scan action description before execution (guidance.py)
+        action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+        if self._scan_threats(action_desc, context="act"):
+            logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
+            return
+
         # RedTeamAgent adversarial review for RED-level actions (JARVIS Gap 2)
         _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
         if winner.action_type in _RED_ACTION_TYPES:
