@@ -329,7 +329,7 @@ class WorkflowRunner:
 
     def _lazy_registry(self) -> Any:
         try:
-            from vectorcode.src.agents.registry import get_registry  # type: ignore
+            from vectorcode.src.agents.districts.registry import get_registry  # type: ignore
             return get_registry()
         except Exception:
             return None
@@ -345,7 +345,7 @@ class WorkflowRunner:
         cls_name = getattr(defn, "class_name", None)
         if cls_name:
             try:
-                # Best-effort lookup in agents.* common locations
+                # Best-effort lookup in agents.districts.* common locations
                 import importlib
                 import inspect
                 # Walk known package roots

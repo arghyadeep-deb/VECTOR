@@ -115,7 +115,7 @@ def _make_server():
     def search_web(query: str, max_results: int = 5) -> str:
         """Search the web for information using VECTOR's WebScout agent."""
         try:
-            from agents.research.web_scout import WebScout
+            from agents.districts.research.web_scout import WebScout
             scout = WebScout()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(scout.search(query, max_results=max_results))
@@ -129,7 +129,7 @@ def _make_server():
     def mine_reddit(subreddit: str = "LocalLLaMA", limit: int = 10) -> str:
         """Get hot posts from a subreddit via VECTOR's RedditMiner (no OAuth needed)."""
         try:
-            from agents.research.reddit_miner import RedditMiner
+            from agents.districts.research.reddit_miner import RedditMiner
             miner = RedditMiner()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(miner.mine_subreddit(subreddit, limit=limit))
@@ -144,7 +144,7 @@ def _make_server():
     def read_paper(url: str) -> str:
         """Fetch and summarise an ArXiv paper or research URL using VECTOR's PaperReader."""
         try:
-            from agents.research.paper_reader import PaperReader
+            from agents.districts.research.paper_reader import PaperReader
             reader = PaperReader()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(reader.read(url))
@@ -163,7 +163,7 @@ def _make_server():
         stakes: 'high' or 'critical'. Requires 700+ HP gate. Max 10 sessions/week.
         """
         try:
-            from agents.governance.llm_council import LLMCouncil
+            from agents.districts.governance.llm_council import LLMCouncil
             council = LLMCouncil()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(
@@ -183,7 +183,7 @@ def _make_server():
     def review_code(file_path: str) -> str:
         """Run VECTOR's CodeReviewer on a Python file and return the review report."""
         try:
-            from agents.coding.code_reviewer import CodeReviewer
+            from agents.districts.coding.code_reviewer import CodeReviewer
             reviewer = CodeReviewer()
             path = Path(file_path)
             if not path.exists():
@@ -200,7 +200,7 @@ def _make_server():
     def git_status() -> str:
         """Get the current git status of the VECTOR codebase."""
         try:
-            from agents.coding.git_bot import GitBot
+            from agents.districts.coding.git_bot import GitBot
             bot = GitBot()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(bot.get_status())
@@ -219,7 +219,7 @@ def _make_server():
         topic: what you're typing today (e.g. 'bigram LM', 'attention forward pass').
         """
         try:
-            from agents.karpathy_lab.code_typer import CodeTyper
+            from agents.districts.karpathy_lab.code_typer import CodeTyper
             typer = CodeTyper()
             result = typer.start_session(topic=topic, file_path=file_path or None)
             return str(result)
@@ -231,7 +231,7 @@ def _make_server():
     def karpathy_streak() -> str:
         """Check current Karpathy daily coding streak (RULE 12: 30 min/day)."""
         try:
-            from agents.karpathy_lab.code_typer import CodeTyper
+            from agents.districts.karpathy_lab.code_typer import CodeTyper
             typer = CodeTyper()
             streak = typer.get_streak()
             today = typer.get_today_summary()
@@ -761,7 +761,7 @@ def _add_claims_tools(mcp) -> None:
 
         @mcp.tool
         async def release_task(issue_id: str, agent_id: str) -> str:
-            """Release a task claim — makes it available for other agents."""
+            """Release a task claim — makes it available for other agents.districts."""
             return _json.dumps(_release(issue_id, agent_id))
 
         @mcp.tool
@@ -781,7 +781,7 @@ def _add_claims_tools(mcp) -> None:
 
         @mcp.tool
         async def rebalance_agent_load(agent_ids: str) -> str:
-            """Rebalance task load across agents. Pass comma-separated agent IDs."""
+            """Rebalance task load across agents.districts. Pass comma-separated agent IDs."""
             ids = [a.strip() for a in agent_ids.split(",") if a.strip()]
             return _json.dumps(_rebalance(ids))
 

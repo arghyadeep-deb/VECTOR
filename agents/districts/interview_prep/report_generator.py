@@ -1,0 +1,354 @@
+import sys
+import uuid
+import json
+from pathlib import Path
+from typing import Optional
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+
+
+class ReportGenerator(AgentBase):
+    """
+    Generates interview reports in various formats
+    including markdown and PDF exports.
+    """
+
+    def __init__(self, ghost: dict = None):
+        super().__init__(str(uuid.uuid4()), "ReportGenerator", "interview_prep")
+        if ghost:
+            self.inherit_ghost(ghost)
+
+        self._report_templates = {}
+        self._generated_reports: list[dict] = []
+        self._reports_dir = Path(__file__).parent.parent.parent.parent / "data" / "interview_reports"
+        self._reports_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("[VECTOR][report_generator] ReportGenerator initialized")
+
+    def generate_session_report(self, interview_id: str) -> dict:
+        """
+        Generate a detailed report for a completed interview session.
+        """
+        prompt = """Generate a comprehensive interview session report.
+
+Create a well-structured markdown report that includes:
+1. Executive Summary
+2. Overall Performance Score
+3. Question-by-Question Analysis
+4. Strengths Demonstrated
+5. Areas for Improvement
+6. Specific Recommendations
+7. Practice Resources
+8. Next Steps
+
+Use placeholder data where specific information isn't available.
+Make the report professional and actionable.
+Format with proper markdown headers and bullet points.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            report_content = result.get("response", "").strip()
+
+            report = {
+                "id": str(uuid.uuid4()),
+                "interview_id": interview_id,
+                "title": f"Interview Session Report - {interview_id[:8]}",
+                "content": report_content,
+                "format": "markdown",
+                "created_at": self._get_timestamp(),
+                "metadata": {
+                    "sections": self._extract_sections(report_content),
+                    "word_count": len(report_content.split())
+                }
+            }
+
+            self._generated_reports.append(report)
+            self.award_points(15, f"session_report_generated")
+
+            return report
+
+        except Exception as e:
+            logger.error(f"[VECTOR][report_generator] Session report failed: {e}")
+            return {"interview_id": interview_id, "error": str(e)}
+
+    def generate_progress_report(self) -> dict:
+        """
+        Generate an overall progress report across all interview sessions.
+        """
+        prompt = """Generate an interview progress report based on available tracking data.
+
+Create a comprehensive progress report including:
+1. Overall Progress Summary
+2. Score Trends Over Time
+3. Category-wise Performance
+4. Strongest and Weakest Areas
+5. Improvement Recommendations
+6. Practice Plan for Next Week
+7. Resources to Focus On
+
+Use placeholder data structure where specific data isn't available.
+Make recommendations specific and actionable.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            report_content = result.get("response", "").strip()
+
+            report = {
+                "id": str(uuid.uuid4()),
+                "title": "Interview Progress Report",
+                "type": "progress",
+                "content": report_content,
+                "format": "markdown",
+                "created_at": self._get_timestamp(),
+                "metadata": {
+                    "sections": self._extract_sections(report_content),
+                    "word_count": len(report_content.split())
+                }
+            }
+
+            self._generated_reports.append(report)
+            self.award_points(20, "progress_report_generated")
+
+            return report
+
+        except Exception as e:
+            logger.error(f"[VECTOR][report_generator] Progress report failed: {e}")
+            return {"error": str(e)}
+
+    def _extract_sections(self, content: str) -> list[str]:
+        """Extract section headers from report content."""
+        sections = []
+        for line in content.split("\n"):
+            line = line.strip()
+            if line.startswith("#") and line[1:].strip():
+                sections.append(line.lstrip("#").strip())
+        return sections
+
+    def export_report(self, report: dict, format: str = "markdown",
+                     output_path: Optional[str] = None) -> dict:
+        """
+        Export report to specified format.
+        Formats: markdown, json, html
+        """
+        if output_path is None:
+            output_path = str(self._reports_dir / f"{report.get('title', 'report')[:30]}.{format}")
+
+        try:
+            if format == "json":
+                content = json.dumps(report, indent=2)
+            elif format == "html":
+                content = self._convert_to_html(report)
+            else:
+                content = self._format_markdown_report(report)
+
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            Path(output_path).write_text(content, encoding="utf-8")
+
+            self.award_points(5, f"report_exported_{format}")
+            logger.info(f"[VECTOR][report_generator] Exported report to {output_path}")
+
+            return {
+                "status": "success",
+                "output_path": output_path,
+                "format": format
+            }
+
+        except Exception as e:
+            logger.error(f"[VECTOR][report_generator] Export failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def _format_markdown_report(self, report: dict) -> str:
+        """Format report as markdown."""
+        lines = [
+            f"# {report.get('title', 'Interview Report')}",
+            "",
+            f"**Generated:** {report.get('created_at', 'N/A')}",
+            "",
+            "---",
+            "",
+        ]
+
+        content = report.get("content", "")
+        lines.append(content)
+
+        metadata = report.get("metadata", {})
+        if metadata:
+            lines.extend(["", "---", "", "**Metadata:**"])
+            for key, value in metadata.items():
+                if key != "word_count":
+                    lines.append(f"- {key}: {value}")
+
+        return "\n".join(lines)
+
+    def _convert_to_html(self, report: dict) -> str:
+        """Convert report to HTML."""
+        sections = report.get("metadata", {}).get("sections", [])
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{report.get('title', 'Interview Report')}</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               max-width: 800px; margin: 0 auto; padding: 20px; }}
+        h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+        h2 {{ color: #34495e; margin-top: 30px; }}
+        .meta {{ color: #7f8c8d; font-size: 0.9em; }}
+        pre {{ background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+    </style>
+</head>
+<body>
+    <h1>{report.get('title', 'Interview Report')}</h1>
+    <p class="meta">Generated: {report.get('created_at', 'N/A')}</p>
+"""
+
+        content = report.get("content", "")
+        content_html = content.replace("\n", "<br>\n")
+        html += f"    <div class='content'>{content_html}</div>\n"
+
+        if sections:
+            html += "    <h2>Sections</h2>\n    <ul>\n"
+            for section in sections:
+                html += f"        <li>{section}</li>\n"
+            html += "    </ul>\n"
+
+        html += """</body>
+</html>"""
+
+        return html
+
+    def generate_company_specific_report(self, company: str, role: str,
+                                       questions: list[dict]) -> dict:
+        """
+        Generate a company-specific interview preparation report.
+        """
+        prompt = f"""Create a comprehensive company-specific interview preparation report for:
+
+Company: {company}
+Role: {role}
+
+Generate a report including:
+1. Company Overview and Culture Fit
+2. Role-Specific Preparation
+3. Most Likely Interview Questions
+4. Strong Answers to Prepare
+5. Questions to Ask the Interviewer
+6. Red Flags to Avoid
+7. Day-of-Interview Checklist
+8. Follow-up Strategy
+
+Make it specific to {company} and the {role} role.
+"""
+
+        try:
+            import httpx
+
+            ollama_host = CONFIG["ollama_host"]
+            if not ollama_host.startswith("http"):
+                ollama_host = "http://" + ollama_host
+
+            model = CONFIG["models"]["focus"]
+
+            response = httpx.post(
+                f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=90.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            report_content = result.get("response", "").strip()
+
+            report = {
+                "id": str(uuid.uuid4()),
+                "title": f"{company} - {role} Interview Prep",
+                "type": "company_specific",
+                "company": company,
+                "role": role,
+                "content": report_content,
+                "format": "markdown",
+                "created_at": self._get_timestamp()
+            }
+
+            self._generated_reports.append(report)
+            self.award_points(25, f"company_report_{company}")
+
+            return report
+
+        except Exception as e:
+            logger.error(f"[VECTOR][report_generator] Company report failed: {e}")
+            return {"company": company, "role": role, "error": str(e)}
+
+    def get_report_templates(self) -> list[str]:
+        """Get available report templates."""
+        return [
+            "session_report",
+            "progress_report",
+            "company_specific",
+            "weekly_summary",
+            "mock_interview_feedback"
+        ]
+
+    def get_generated_reports(self, limit: int = 20) -> list[dict]:
+        """Get list of generated reports."""
+        return sorted(
+            self._generated_reports[-limit:],
+            key=lambda x: x.get("created_at", ""),
+            reverse=True
+        )
+
+    def _get_timestamp(self) -> str:
+        """Get current UTC timestamp."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).isoformat()
+
+
+    async def run(self, task: dict) -> dict:
+        result = self.generate_progress_report()
+        return {"status": "ok", **result}
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    generator = ReportGenerator()
+
+    templates = generator.get_report_templates()
+    print(f"Available templates: {len(templates)}")
+
+    report = generator.generate_progress_report()
+    print(f"Generated report: {report.get('title', 'N/A')}")
+
+    print("✅ report_generator.py OK")

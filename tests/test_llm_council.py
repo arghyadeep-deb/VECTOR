@@ -11,7 +11,7 @@ from unittest.mock import patch, MagicMock
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 def test_llm_council_init():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
     assert bot.health_points == 500
     assert bot.name == "LLMCouncil"
@@ -19,7 +19,7 @@ def test_llm_council_init():
 
 
 def test_llm_council_inherits_ghost():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     ghost = {"lessons_learned": ["be decisive"], "best_decisions": [], "personality_traits": {}, "generation": 1}
     bot = LLMCouncil(generation=2, ghost=ghost)
     assert "be decisive" in bot.lessons
@@ -28,14 +28,14 @@ def test_llm_council_inherits_ghost():
 # ── Parse ranking ─────────────────────────────────────────────────────────────
 
 def test_parse_ranking_extracts_final_section():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     text = "Response A is good. Response B is average.\nFINAL RANKING:\n1. Response A\n2. Response B"
     result = LLMCouncil._parse_ranking(text)
     assert result == ["Response A", "Response B"]
 
 
 def test_parse_ranking_fallback_when_no_header():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     text = "I think Response B is best, then Response A."
     result = LLMCouncil._parse_ranking(text)
     assert "Response B" in result
@@ -43,7 +43,7 @@ def test_parse_ranking_fallback_when_no_header():
 
 
 def test_parse_ranking_empty_text():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     result = LLMCouncil._parse_ranking("")
     assert result == []
 
@@ -51,7 +51,7 @@ def test_parse_ranking_empty_text():
 # ── Aggregate rankings ────────────────────────────────────────────────────────
 
 def test_calculate_aggregate_correct_order():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     stage2 = [
         {"parsed": ["Response A", "Response B", "Response C"]},
         {"parsed": ["Response A", "Response C", "Response B"]},
@@ -67,7 +67,7 @@ def test_calculate_aggregate_correct_order():
 
 
 def test_calculate_aggregate_empty_stage2():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     result = LLMCouncil._calculate_aggregate([], {})
     assert result == []
 
@@ -75,7 +75,7 @@ def test_calculate_aggregate_empty_stage2():
 # ── HP gate ────────────────────────────────────────────────────────────────────
 
 def test_convene_hp_gate_blocks_low_hp():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
     result = asyncio.run(bot.convene("test question", stakes="high", requester_hp=100))
     assert "HP gate" in result["verdict"]
@@ -83,7 +83,7 @@ def test_convene_hp_gate_blocks_low_hp():
 
 
 def test_convene_hp_gate_allows_high_hp():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     def fake_call(model, system, user):
@@ -104,7 +104,7 @@ def test_convene_hp_gate_allows_high_hp():
 # ── Weekly throttle ───────────────────────────────────────────────────────────
 
 def test_convene_throttle_blocks_when_maxed():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     with patch.object(bot, "_sessions_this_week", return_value=10):
@@ -116,7 +116,7 @@ def test_convene_throttle_blocks_when_maxed():
 # ── Full session ──────────────────────────────────────────────────────────────
 
 def test_convene_full_session_returns_verdict():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     call_count = [0]
@@ -147,7 +147,7 @@ def test_convene_full_session_returns_verdict():
 
 
 def test_convene_awards_hp_on_success():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
     initial_hp = bot.health_points
 
@@ -166,7 +166,7 @@ def test_convene_awards_hp_on_success():
 
 
 def test_convene_deducts_hp_on_all_models_fail():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
     initial_hp = bot.health_points
 
@@ -178,7 +178,7 @@ def test_convene_deducts_hp_on_all_models_fail():
 
 
 def test_convene_increments_weekly_count():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     week_key = bot._week_key()
@@ -202,7 +202,7 @@ def test_convene_increments_weekly_count():
 
 
 def test_convene_writes_obsidian_note():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     def fake_call(model, system, user):
@@ -221,7 +221,7 @@ def test_convene_writes_obsidian_note():
 
 
 def test_convene_stores_session_in_memory():
-    from agents.governance.llm_council import LLMCouncil
+    from agents.districts.governance.llm_council import LLMCouncil
     bot = LLMCouncil()
 
     def fake_call(model, system, user):

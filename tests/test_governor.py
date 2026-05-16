@@ -13,12 +13,12 @@ from core.city.agent_registry import get_registry
 @pytest.fixture(autouse=True)
 def clean_registry():
     reg = get_registry()
-    before = list(reg._agents.keys())
+    before = list(reg._agents.districts.keys())
     yield
     # Remove test agents added during test
-    for aid in list(reg._agents.keys()):
+    for aid in list(reg._agents.districts.keys()):
         if aid not in before:
-            reg._agents.pop(aid, None)
+            reg._agents.districts.pop(aid, None)
 
 
 def make_agent(district="coding"):

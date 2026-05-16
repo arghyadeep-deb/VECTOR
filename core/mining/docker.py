@@ -2,7 +2,7 @@
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 
-"""GPU Docker container orchestration -- reusable for sandboxed agents.
+"""GPU Docker container orchestration -- reusable for sandboxed agents.districts.
 
 Extracted from VectorCode's Pearl mining subsystem. The ``PearlDockerLauncher``
 manages the full lifecycle of a GPU-enabled Docker container: image acquisition

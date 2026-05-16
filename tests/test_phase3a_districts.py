@@ -64,9 +64,9 @@ class TestContactManager:
     def _make_agent(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "contacts.db"
-            with patch("agents.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
-                 patch("agents.relationships.contact_manager.ObsidianSync"):
-                from agents.relationships.contact_manager import ContactManager
+            with patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
+                 patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+                from agents.districts.relationships.contact_manager import ContactManager
                 agent = ContactManager()
                 # redirect DB to temp path so it's isolated
                 agent.db_path = db_path
@@ -75,9 +75,9 @@ class TestContactManager:
 
     def test_contact_manager_district_and_name(self):
         """Agent must identify itself as 'relationships' district."""
-        with patch("agents.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.relationships.contact_manager.ObsidianSync"):
-            from agents.relationships.contact_manager import ContactManager
+        with patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+            from agents.districts.relationships.contact_manager import ContactManager
             agent = ContactManager()
         assert agent.district == "relationships"
         assert agent.name == "ContactManager"
@@ -87,9 +87,9 @@ class TestContactManager:
         """add_contact must return a dict with name/phone/email/notes/added_at."""
         mock_mem = _make_mock_memory()
         with tempfile.TemporaryDirectory() as tmpdir, \
-             patch("agents.relationships.contact_manager.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.contact_manager.ObsidianSync"):
-            from agents.relationships.contact_manager import ContactManager
+             patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+            from agents.districts.relationships.contact_manager import ContactManager
             agent = ContactManager()
             agent.db_path = Path(tmpdir) / "contacts.db"
             agent._init_db()
@@ -105,9 +105,9 @@ class TestContactManager:
     def test_get_contact_not_found_returns_error(self):
         """get_contact on a non-existent name must return {'error': ...}."""
         with tempfile.TemporaryDirectory() as tmpdir, \
-             patch("agents.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.relationships.contact_manager.ObsidianSync"):
-            from agents.relationships.contact_manager import ContactManager
+             patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+            from agents.districts.relationships.contact_manager import ContactManager
             agent = ContactManager()
             agent.db_path = Path(tmpdir) / "contacts.db"
             agent._init_db()
@@ -118,9 +118,9 @@ class TestContactManager:
     def test_list_contacts_empty_db(self):
         """list_contacts on an empty DB must return total_contacts=0."""
         with tempfile.TemporaryDirectory() as tmpdir, \
-             patch("agents.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.relationships.contact_manager.ObsidianSync"):
-            from agents.relationships.contact_manager import ContactManager
+             patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+            from agents.districts.relationships.contact_manager import ContactManager
             agent = ContactManager()
             agent.db_path = Path(tmpdir) / "contacts.db"
             agent._init_db()
@@ -134,9 +134,9 @@ class TestContactManager:
         """track_interaction must record the type and return expected keys."""
         mock_mem = _make_mock_memory()
         with tempfile.TemporaryDirectory() as tmpdir, \
-             patch("agents.relationships.contact_manager.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.contact_manager.ObsidianSync"):
-            from agents.relationships.contact_manager import ContactManager
+             patch("agents.districts.relationships.contact_manager.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.contact_manager.ObsidianSync"):
+            from agents.districts.relationships.contact_manager import ContactManager
             agent = ContactManager()
             agent.db_path = Path(tmpdir) / "contacts.db"
             agent._init_db()
@@ -154,9 +154,9 @@ class TestCommunicationAnalyst:
     """5 tests for CommunicationAnalyst covering its 3 public methods."""
 
     def _make_agent(self):
-        with patch("agents.relationships.communication_analyst.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.relationships.communication_analyst.ObsidianSync"):
-            from agents.relationships.communication_analyst import CommunicationAnalyst
+        with patch("agents.districts.relationships.communication_analyst.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.relationships.communication_analyst.ObsidianSync"):
+            from agents.districts.relationships.communication_analyst import CommunicationAnalyst
             return CommunicationAnalyst()
 
     def test_communication_analyst_district(self):
@@ -168,11 +168,11 @@ class TestCommunicationAnalyst:
         """analyze_communication_style must return contact_name and style_data."""
         mock_mem = _make_mock_memory(recall_return=[])
         llm_response = '{"style": "casual", "formality_score": 0.3, "responsiveness": "fast", "tone": "friendly", "key_characteristics": [], "recommendations": []}'
-        with patch("agents.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.communication_analyst.ObsidianSync"), \
+        with patch("agents.districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.communication_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=llm_response):
-            from agents.relationships.communication_analyst import CommunicationAnalyst
+            from agents.districts.relationships.communication_analyst import CommunicationAnalyst
             agent = CommunicationAnalyst()
             result = agent.analyze_communication_style("Eve")
 
@@ -184,11 +184,11 @@ class TestCommunicationAnalyst:
     def test_suggest_reconnect_keys(self):
         """suggest_reconnect must return reconnection_suggestion and recommended_method."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.communication_analyst.ObsidianSync"), \
+        with patch("agents.districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.communication_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value="Send a message saying hello"):
-            from agents.relationships.communication_analyst import CommunicationAnalyst
+            from agents.districts.relationships.communication_analyst import CommunicationAnalyst
             agent = CommunicationAnalyst()
             result = agent.suggest_reconnect("Frank")
 
@@ -201,11 +201,11 @@ class TestCommunicationAnalyst:
         mock_mem = _make_mock_memory(recall_return=[
             {"event_type": "call", "content": "Discussed project plans", "timestamp": "2026-05-01T10:00:00Z"},
         ])
-        with patch("agents.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.communication_analyst.ObsidianSync"), \
+        with patch("agents.districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.communication_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value="Relationship is strong with score 8/10"):
-            from agents.relationships.communication_analyst import CommunicationAnalyst
+            from agents.districts.relationships.communication_analyst import CommunicationAnalyst
             agent = CommunicationAnalyst()
             result = agent.generate_relationship_insights("Grace")
 
@@ -216,11 +216,11 @@ class TestCommunicationAnalyst:
     def test_analyze_style_stores_in_memory(self):
         """After analyze_communication_style, EpisodicMemory.store should be called."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.relationships.communication_analyst.ObsidianSync"), \
+        with patch("agents.districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.relationships.communication_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value='{"style": "formal", "formality_score": 0.8}'):
-            from agents.relationships.communication_analyst import CommunicationAnalyst
+            from agents.districts.relationships.communication_analyst import CommunicationAnalyst
             agent = CommunicationAnalyst()
             agent.analyze_communication_style("Henry")
 
@@ -235,9 +235,9 @@ class TestDataFlowAuditor:
     """5 tests for DataFlowAuditor covering audit_data_flows, find_leaks, generate_audit_report."""
 
     def _make_agent(self):
-        with patch("agents.privacy.data_flow_auditor.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.privacy.data_flow_auditor.ObsidianSync"):
-            from agents.privacy.data_flow_auditor import DataFlowAuditor
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"):
+            from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             return DataFlowAuditor()
 
     def test_data_flow_auditor_district(self):
@@ -248,9 +248,9 @@ class TestDataFlowAuditor:
     def test_audit_data_flows_empty_memory(self):
         """audit_data_flows must return required keys even with empty episodic memory."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.data_flow_auditor.ObsidianSync"):
-            from agents.privacy.data_flow_auditor import DataFlowAuditor
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"):
+            from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             agent = DataFlowAuditor()
             result = agent.audit_data_flows()
 
@@ -261,9 +261,9 @@ class TestDataFlowAuditor:
     def test_find_leaks_risk_level_present(self):
         """find_leaks must always return a risk_level key with a valid value."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.data_flow_auditor.ObsidianSync"):
-            from agents.privacy.data_flow_auditor import DataFlowAuditor
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"):
+            from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             agent = DataFlowAuditor()
             result = agent.find_leaks()
 
@@ -283,13 +283,13 @@ class TestDataFlowAuditor:
         mock_mem = _make_mock_memory(recall_return=[evil_event] * 5)
         mock_mem_class = MagicMock(return_value=mock_mem)
         # Patch both the module-level import AND the local `from core.memory.episodic import` path
-        with patch("agents.privacy.data_flow_auditor.EpisodicMemory", mock_mem_class), \
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", mock_mem_class), \
              patch("core.memory.episodic.EpisodicMemory", mock_mem_class), \
-             patch("agents.privacy.data_flow_auditor.ObsidianSync"):
-            from agents.privacy.data_flow_auditor import DataFlowAuditor
+             patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"):
+            from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             agent = DataFlowAuditor()
             # Patch the local import inside find_leaks directly
-            import agents.privacy.data_flow_auditor as _dfa_mod
+            import agents.districts.privacy.data_flow_auditor as _dfa_mod
             original_ep = None
             try:
                 import core.memory.episodic as _ep_mod
@@ -307,11 +307,11 @@ class TestDataFlowAuditor:
         """generate_audit_report must call the LLM and return a 'report' key."""
         mock_mem = _make_mock_memory(recall_return=[])
         llm_response = "Executive summary: no critical leaks found. Data flows are compliant."
-        with patch("agents.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.data_flow_auditor.ObsidianSync"), \
+        with patch("agents.districts.privacy.data_flow_auditor.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.data_flow_auditor.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=llm_response):
-            from agents.privacy.data_flow_auditor import DataFlowAuditor
+            from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
             agent = DataFlowAuditor()
             result = agent.generate_audit_report()
 
@@ -324,9 +324,9 @@ class TestPrivacyEnforcer:
     """5 tests for PrivacyEnforcer covering scan_data_sharing, enforce_gdpr, redact_pii."""
 
     def _make_agent(self):
-        with patch("agents.privacy.privacy_enforcer.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.privacy.privacy_enforcer.ObsidianSync"):
-            from agents.privacy.privacy_enforcer import PrivacyEnforcer
+        with patch("agents.districts.privacy.privacy_enforcer.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.privacy.privacy_enforcer.ObsidianSync"):
+            from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
             return PrivacyEnforcer()
 
     def test_privacy_enforcer_district(self):
@@ -337,9 +337,9 @@ class TestPrivacyEnforcer:
     def test_scan_data_sharing_keys(self):
         """scan_data_sharing must return scanned_events, pii_violations and risk_level."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.privacy_enforcer.ObsidianSync"):
-            from agents.privacy.privacy_enforcer import PrivacyEnforcer
+        with patch("agents.districts.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.privacy_enforcer.ObsidianSync"):
+            from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
             agent = PrivacyEnforcer()
             result = agent.scan_data_sharing()
 
@@ -350,11 +350,11 @@ class TestPrivacyEnforcer:
     def test_redact_pii_removes_email(self):
         """redact_pii must strip a clearly formatted email address from text."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.privacy_enforcer.ObsidianSync"), \
+        with patch("agents.districts.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.privacy_enforcer.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value='{"additional_finds": []}'):
-            from agents.privacy.privacy_enforcer import PrivacyEnforcer
+            from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
             agent = PrivacyEnforcer()
             text = "Please contact john.doe@example.com for details."
             result = agent.redact_pii(text)
@@ -366,11 +366,11 @@ class TestPrivacyEnforcer:
     def test_redact_pii_removes_phone(self):
         """redact_pii must strip an Indian mobile number from text."""
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.privacy_enforcer.ObsidianSync"), \
+        with patch("agents.districts.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.privacy_enforcer.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value='{"additional_finds": []}'):
-            from agents.privacy.privacy_enforcer import PrivacyEnforcer
+            from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
             agent = PrivacyEnforcer()
             text = "Call me at 9876543210 anytime."
             result = agent.redact_pii(text)
@@ -382,11 +382,11 @@ class TestPrivacyEnforcer:
         """enforce_gdpr must return overall_score, compliance_level, and 7 requirement checks."""
         compliant_json = '{"compliant": true, "score": 85, "issues": [], "recommendations": ["Keep it up"]}'
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.privacy.privacy_enforcer.ObsidianSync"), \
+        with patch("agents.districts.privacy.privacy_enforcer.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.privacy.privacy_enforcer.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=compliant_json):
-            from agents.privacy.privacy_enforcer import PrivacyEnforcer
+            from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
             agent = PrivacyEnforcer()
             result = agent.enforce_gdpr({"data_type": "profile", "retention_days": 90})
 
@@ -421,9 +421,9 @@ class TestBehaviorAnalyst:
     """5 tests for BehaviorAnalyst covering analyze_behavior, predict_next_action, suggest_improvements."""
 
     def _make_agent(self):
-        with patch("agents.pattern_detective.behavior_analyst.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.pattern_detective.behavior_analyst.ObsidianSync"):
-            from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+        with patch("agents.districts.pattern_detective.behavior_analyst.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.pattern_detective.behavior_analyst.ObsidianSync"):
+            from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
             return BehaviorAnalyst()
 
     def test_behavior_analyst_district(self):
@@ -434,11 +434,11 @@ class TestBehaviorAnalyst:
     def test_analyze_behavior_profile_keys(self):
         """analyze_behavior must build a profile for each activity type present."""
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.behavior_analyst.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.behavior_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value="Coding is the dominant activity. Consistency score: 8/10."):
-            from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+            from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
             agent = BehaviorAnalyst()
             result = agent.analyze_behavior(_ACTIVITY_LOG)
 
@@ -455,11 +455,11 @@ class TestBehaviorAnalyst:
     def test_analyze_behavior_frequencies(self, activity_type, expected_freq):
         """Activity frequency counts must be accurate per type."""
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.behavior_analyst.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.behavior_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value="Analysis complete."):
-            from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+            from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
             agent = BehaviorAnalyst()
             result = agent.analyze_behavior(_ACTIVITY_LOG)
 
@@ -471,11 +471,11 @@ class TestBehaviorAnalyst:
         """predict_next_action must return prediction dict and predicted_at timestamp."""
         pred_json = '{"predicted_action": "coding", "confidence": 0.85, "reasoning": "Pattern shows morning coding", "alternative_actions": ["reading"]}'
         mock_mem = _make_mock_memory(recall_return=[])
-        with patch("agents.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.behavior_analyst.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.behavior_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=pred_json):
-            from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+            from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
             agent = BehaviorAnalyst()
             # Pre-populate profile so predict does not re-analyze
             agent.behavior_profiles["default"] = {"coding": {"frequency": 3, "avg_duration": 120, "time_distribution": {"morning": 2}, "total_duration": 360}}
@@ -489,11 +489,11 @@ class TestBehaviorAnalyst:
         """suggest_improvements must return an 'improvements' key in the result."""
         improvements_json = '{"improvements": [{"action": "Take more breaks", "priority": "high", "expected_impact": "reduce fatigue"}]}'
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.behavior_analyst.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.behavior_analyst.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.behavior_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=improvements_json):
-            from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+            from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
             agent = BehaviorAnalyst()
             sample_profile = {"coding": {"frequency": 3, "avg_duration": 120}}
             result = agent.suggest_improvements(sample_profile)
@@ -514,9 +514,9 @@ class TestHabitFinder:
     ]
 
     def _make_agent(self):
-        with patch("agents.pattern_detective.habit_finder.EpisodicMemory", return_value=_make_mock_memory()), \
-             patch("agents.pattern_detective.habit_finder.ObsidianSync"):
-            from agents.pattern_detective.habit_finder import HabitFinder
+        with patch("agents.districts.pattern_detective.habit_finder.EpisodicMemory", return_value=_make_mock_memory()), \
+             patch("agents.districts.pattern_detective.habit_finder.ObsidianSync"):
+            from agents.districts.pattern_detective.habit_finder import HabitFinder
             return HabitFinder()
 
     def test_habit_finder_district(self):
@@ -527,11 +527,11 @@ class TestHabitFinder:
     def test_analyze_screen_time_totals(self):
         """analyze_screen_time must compute correct average and list top apps."""
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.habit_finder.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.habit_finder.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value="Chrome dominates. Recommend reducing usage after 21:00."):
-            from agents.pattern_detective.habit_finder import HabitFinder
+            from agents.districts.pattern_detective.habit_finder import HabitFinder
             agent = HabitFinder()
             result = agent.analyze_screen_time(self._SCREEN_DATA)
 
@@ -545,9 +545,9 @@ class TestHabitFinder:
     def test_find_habits_recurring_patterns(self):
         """find_habits must detect recurring time-slot patterns when events repeat >= 3 times."""
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.habit_finder.ObsidianSync"):
-            from agents.pattern_detective.habit_finder import HabitFinder
+        with patch("agents.districts.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.habit_finder.ObsidianSync"):
+            from agents.districts.pattern_detective.habit_finder import HabitFinder
             agent = HabitFinder()
             result = agent.find_habits(_EPISODIC_EVENTS)
 
@@ -560,9 +560,9 @@ class TestHabitFinder:
     def test_find_habits_frequent_actions_ordering(self):
         """frequent_actions must be sorted descending by count."""
         mock_mem = _make_mock_memory()
-        with patch("agents.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.habit_finder.ObsidianSync"):
-            from agents.pattern_detective.habit_finder import HabitFinder
+        with patch("agents.districts.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.habit_finder.ObsidianSync"):
+            from agents.districts.pattern_detective.habit_finder import HabitFinder
             agent = HabitFinder()
             result = agent.find_habits(_EPISODIC_EVENTS)
 
@@ -575,11 +575,11 @@ class TestHabitFinder:
         """generate_habit_report must return habit_report text and patterns_analyzed count."""
         mock_mem = _make_mock_memory(recall_return=[])
         report_text = "Key habits: evening reading, morning exercise. Consistency: good."
-        with patch("agents.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
-             patch("agents.pattern_detective.habit_finder.ObsidianSync"), \
+        with patch("agents.districts.pattern_detective.habit_finder.EpisodicMemory", return_value=mock_mem), \
+             patch("agents.districts.pattern_detective.habit_finder.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
              patch(_CHAT, return_value=report_text):
-            from agents.pattern_detective.habit_finder import HabitFinder
+            from agents.districts.pattern_detective.habit_finder import HabitFinder
             agent = HabitFinder()
             # Pre-populate patterns to skip recall path
             agent.habit_patterns = {

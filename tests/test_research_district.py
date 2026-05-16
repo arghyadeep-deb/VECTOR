@@ -11,7 +11,7 @@ from unittest.mock import patch, AsyncMock
 # ── WebScout ──────────────────────────────────────────────────────────────────
 
 def test_web_scout_init():
-    from agents.research.web_scout import WebScout
+    from agents.districts.research.web_scout import WebScout
     bot = WebScout()
     assert bot.health_points == 500
     assert bot.name == "WebScout"
@@ -19,14 +19,14 @@ def test_web_scout_init():
 
 
 def test_web_scout_inherits_ghost():
-    from agents.research.web_scout import WebScout
+    from agents.districts.research.web_scout import WebScout
     ghost = {"lessons_learned": ["verify sources"], "best_decisions": [], "personality_traits": {}, "generation": 1}
     bot = WebScout(generation=2, ghost=ghost)
     assert "verify sources" in bot.lessons
 
 
 def test_web_scout_parse_ddg_html_extracts_results():
-    from agents.research.web_scout import WebScout
+    from agents.districts.research.web_scout import WebScout
     bot = WebScout()
     # Minimal HTML with DDG result structure
     html = '''
@@ -41,7 +41,7 @@ def test_web_scout_parse_ddg_html_extracts_results():
 
 
 def test_web_scout_research_returns_dict():
-    from agents.research.web_scout import WebScout
+    from agents.districts.research.web_scout import WebScout
     bot = WebScout()
 
     async def fake_search(q, max_results=5):
@@ -67,7 +67,7 @@ def test_web_scout_research_returns_dict():
 
 
 def test_web_scout_research_no_results_deducts_hp():
-    from agents.research.web_scout import WebScout
+    from agents.districts.research.web_scout import WebScout
     bot = WebScout()
     initial_hp = bot.health_points
 
@@ -88,7 +88,7 @@ def test_web_scout_research_no_results_deducts_hp():
 # ── PaperReader ───────────────────────────────────────────────────────────────
 
 def test_paper_reader_init():
-    from agents.research.paper_reader import PaperReader
+    from agents.districts.research.paper_reader import PaperReader
     bot = PaperReader()
     assert bot.health_points == 500
     assert bot.name == "PaperReader"
@@ -96,7 +96,7 @@ def test_paper_reader_init():
 
 
 def test_paper_reader_parse_arxiv_xml():
-    from agents.research.paper_reader import PaperReader
+    from agents.districts.research.paper_reader import PaperReader
     bot = PaperReader()
     sample_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -116,7 +116,7 @@ def test_paper_reader_parse_arxiv_xml():
 
 
 def test_paper_reader_daily_brief_with_mock():
-    from agents.research.paper_reader import PaperReader
+    from agents.districts.research.paper_reader import PaperReader
     bot = PaperReader()
 
     fake_papers = [
@@ -140,7 +140,7 @@ def test_paper_reader_daily_brief_with_mock():
 
 
 def test_paper_reader_search_papers_with_mock():
-    from agents.research.paper_reader import PaperReader
+    from agents.districts.research.paper_reader import PaperReader
     bot = PaperReader()
     fake_papers = [{"title": "Search Result", "authors": "X", "abstract": "Y", "url": "z", "id": "1"}]
 
@@ -161,7 +161,7 @@ def test_paper_reader_search_papers_with_mock():
 # ── NewsAggregator ────────────────────────────────────────────────────────────
 
 def test_news_aggregator_init():
-    from agents.research.news_aggregator import NewsAggregator
+    from agents.districts.research.news_aggregator import NewsAggregator
     bot = NewsAggregator()
     assert bot.health_points == 500
     assert bot.name == "NewsAggregator"
@@ -169,7 +169,7 @@ def test_news_aggregator_init():
 
 
 def test_news_aggregator_morning_brief_with_mock():
-    from agents.research.news_aggregator import NewsAggregator
+    from agents.districts.research.news_aggregator import NewsAggregator
     bot = NewsAggregator()
 
     fake_articles = [
@@ -193,7 +193,7 @@ def test_news_aggregator_morning_brief_with_mock():
 
 
 def test_news_aggregator_no_articles_deducts_hp():
-    from agents.research.news_aggregator import NewsAggregator
+    from agents.districts.research.news_aggregator import NewsAggregator
     bot = NewsAggregator()
     initial_hp = bot.health_points
 
@@ -213,7 +213,7 @@ def test_news_aggregator_no_articles_deducts_hp():
 # ── RedditMiner ───────────────────────────────────────────────────────────────
 
 def test_reddit_miner_init():
-    from agents.research.reddit_miner import RedditMiner
+    from agents.districts.research.reddit_miner import RedditMiner
     bot = RedditMiner()
     assert bot.health_points == 500
     assert bot.name == "RedditMiner"
@@ -221,7 +221,7 @@ def test_reddit_miner_init():
 
 
 def test_reddit_miner_intelligence_report_with_mock():
-    from agents.research.reddit_miner import RedditMiner
+    from agents.districts.research.reddit_miner import RedditMiner
     bot = RedditMiner()
 
     fake_posts = [
@@ -246,7 +246,7 @@ def test_reddit_miner_intelligence_report_with_mock():
 
 
 def test_reddit_miner_no_posts_deducts_hp():
-    from agents.research.reddit_miner import RedditMiner
+    from agents.districts.research.reddit_miner import RedditMiner
     bot = RedditMiner()
     initial_hp = bot.health_points
 
@@ -264,7 +264,7 @@ def test_reddit_miner_no_posts_deducts_hp():
 
 
 def test_reddit_miner_stores_opportunities():
-    from agents.research.reddit_miner import RedditMiner
+    from agents.districts.research.reddit_miner import RedditMiner
     bot = RedditMiner()
 
     fake_posts = [

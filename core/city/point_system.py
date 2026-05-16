@@ -11,7 +11,7 @@ from core.config import CONFIG
 
 class PointSystem:
     """
-    Centralized HP point management for all agents.
+    Centralized HP point management for all agents.districts.
     Tracks how agents earn/deduct points across sessions.
     """
 

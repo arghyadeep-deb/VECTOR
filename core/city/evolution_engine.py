@@ -274,7 +274,7 @@ class EvolutionEngine:
         Returns
         -------
         list[str]
-            IDs of culled agents.
+            IDs of culled agents.districts.
         """
         if self._registry is None:
             logger.warning("[VECTOR][evolution] cull_bottom: no registry attached")

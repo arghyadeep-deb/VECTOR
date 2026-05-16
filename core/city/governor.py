@@ -352,7 +352,7 @@ class Governor:
         MUST NOT block task execution on a None return.
         """
         try:
-            from agents.governance.llm_council import LLMCouncil
+            from agents.districts.governance.llm_council import LLMCouncil
             council = LLMCouncil()
             hp = agent.health_points if agent else 500
             result = await council.convene(

@@ -18,7 +18,7 @@ router_singular = APIRouter(prefix="/agent", tags=["agents"])
 
 @router.get("/coherence")
 async def agent_coherence():
-    """Get coherence scores and privilege levels for all agents."""
+    """Get coherence scores and privilege levels for all agents.districts."""
     try:
         from vectorcode.src.guidance import CoherenceScheduler
         from core.city.agent_registry import get_registry
@@ -108,7 +108,7 @@ async def award_agent_endpoint(body: AgentAwardRequest):
 
 @router_singular.post("/award", response_model=AgentAwardResponse, include_in_schema=False)
 async def award_agent_singular(body: AgentAwardRequest):
-    """Spec-path alias: POST /agent/award → /agents/award."""
+    """Spec-path alias: POST /agent/award → /agents/districts/award."""
     try:
         return await _do_award(body)
     except HTTPException:

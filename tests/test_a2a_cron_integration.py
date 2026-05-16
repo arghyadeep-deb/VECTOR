@@ -65,7 +65,7 @@ class TestA2ADiscovery:
 
 
 class TestA2AListAgents:
-    """A2A agent listing — GET /a2a/agents."""
+    """A2A agent listing — GET /a2a/agents.districts."""
 
     def test_list_agents_endpoint_returns_200(self):
         from fastapi.testclient import TestClient
@@ -82,32 +82,32 @@ class TestA2AListAgents:
         from fastapi.testclient import TestClient
         app = _a2a_app()
         client = TestClient(app)
-        resp = client.get("/a2a/agents/nonexistent_agent_xyz")
+        resp = client.get("/a2a/agents/districts/nonexistent_agent_xyz")
         assert resp.status_code == 404
 
 
 class TestA2AInvoke:
-    """A2A agent invocation — POST /a2a/agents/{name}/invoke."""
+    """A2A agent invocation — POST /a2a/agents/districts/{name}/invoke."""
 
     def test_invoke_unknown_agent_returns_404(self):
         from fastapi.testclient import TestClient
         app = _a2a_app()
         client = TestClient(app)
         resp = client.post(
-            "/a2a/agents/nonexistent_agent_xyz/invoke",
+            "/a2a/agents/districts/nonexistent_agent_xyz/invoke",
             json={"task": "hello", "params": {}},
         )
         assert resp.status_code == 404
 
 
 class TestA2ATaskStatus:
-    """A2A task status — GET /a2a/agents/{name}/tasks/{id}."""
+    """A2A task status — GET /a2a/agents/districts/{name}/tasks/{id}."""
 
     def test_unknown_task_404s(self):
         from fastapi.testclient import TestClient
         app = _a2a_app()
         client = TestClient(app)
-        resp = client.get("/a2a/agents/any/tasks/not-a-real-task-id")
+        resp = client.get("/a2a/agents/districts/any/tasks/not-a-real-task-id")
         assert resp.status_code == 404
 
     def test_known_task_returns_details(self):
@@ -118,7 +118,7 @@ class TestA2ATaskStatus:
         # Invoke will return 404 (no agent), but we can tickle the _TASKS store
         # by calling the underlying handler directly.  Simpler: verify the route
         # exists and returns structured JSON on 404.
-        resp = client.get("/a2a/agents/some-agent/tasks/__notfound__")
+        resp = client.get("/a2a/agents/districts/some-agent/tasks/__notfound__")
         assert resp.status_code == 404
         body = resp.json()
         assert "detail" in body
@@ -200,8 +200,8 @@ class TestA2AAppWiring:
         assert len(a2a_routes) >= 7, f"expected >=7 A2A routes, got {a2a_routes}"
         assert "/a2a/.well-known/agent.json" in a2a_routes
         assert "/a2a/agents" in a2a_routes
-        assert "/a2a/agents/{name}/invoke" in routes
-        assert "/a2a/agents/{name}/tasks/{task_id}" in routes
+        assert "/a2a/agents/districts/{name}/invoke" in routes
+        assert "/a2a/agents/districts/{name}/tasks/{task_id}" in routes
         assert "/a2a/sessions" in a2a_routes
         assert "/a2a/sessions/{session_id}/messages" in routes
         assert "/a2a/events" in a2a_routes

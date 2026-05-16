@@ -56,14 +56,14 @@ async def submit_task(req: SubmitRequest):
     # Route by district
     if req.district == "research":
         async def _work():
-            from agents.research.research_hub import ResearchHub
+            from agents.districts.research.research_hub import ResearchHub
             hub = ResearchHub()
             results = await hub.search_web(req.query, max_results=10)
             digest  = await hub.daily_digest() if req.query.lower() == "digest" else None
             return {"results": results[:10], "digest": digest}
     elif req.district == "council":
         async def _work():
-            from agents.governance.llm_council import LLMCouncil
+            from agents.districts.governance.llm_council import LLMCouncil
             return await LLMCouncil().convene(
                 question=req.query, stakes="high", requester_hp=700
             )

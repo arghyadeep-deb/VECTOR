@@ -114,355 +114,355 @@ def bootstrap_agents() -> int:
 
     # ── Coding ────────────────────────────────────────────────────────────────
     try:
-        from agents.coding.git_bot import GitBot
+        from agents.districts.coding.git_bot import GitBot
         created += _reg(GitBot())
     except Exception as e:
         logger.warning(f"[bootstrap] GitBot: {e}")
 
     # ── Research ──────────────────────────────────────────────────────────────
     try:
-        from agents.research.research_hub import ResearchHub
+        from agents.districts.research.research_hub import ResearchHub
         created += _reg(ResearchHub())
     except Exception as e:
         logger.warning(f"[bootstrap] ResearchHub: {e}")
     try:
-        from agents.research.reddit_miner import RedditMiner
+        from agents.districts.research.reddit_miner import RedditMiner
         created += _reg(RedditMiner())
     except Exception as e:
         logger.warning(f"[bootstrap] RedditMiner: {e}")
     try:
-        from agents.research.news_aggregator import NewsAggregator
+        from agents.districts.research.news_aggregator import NewsAggregator
         created += _reg(NewsAggregator())
     except Exception as e:
         logger.warning(f"[bootstrap] NewsAggregator: {e}")
     try:
-        from agents.research.paper_reader import PaperReader
+        from agents.districts.research.paper_reader import PaperReader
         created += _reg(PaperReader())
     except Exception as e:
         logger.warning(f"[bootstrap] PaperReader: {e}")
     try:
-        from agents.research.web_scout import WebScout
+        from agents.districts.research.web_scout import WebScout
         created += _reg(WebScout())
     except Exception as e:
         logger.warning(f"[bootstrap] WebScout: {e}")
 
     # ── Governance ────────────────────────────────────────────────────────────
     try:
-        from agents.governance.llm_council import LLMCouncil
+        from agents.districts.governance.llm_council import LLMCouncil
         created += _reg(LLMCouncil())
     except Exception as e:
         logger.warning(f"[bootstrap] LLMCouncil: {e}")
 
     # ── Reflection ────────────────────────────────────────────────────────────
     try:
-        from agents.reflection.daily_reviewer import DailyReviewer
+        from agents.districts.reflection.daily_reviewer import DailyReviewer
         created += _reg(DailyReviewer())
     except Exception as e:
         logger.warning(f"[bootstrap] DailyReviewer: {e}")
     try:
-        from agents.reflection.journal_writer import JournalWriter
+        from agents.districts.reflection.journal_writer import JournalWriter
         created += _reg(JournalWriter())
     except Exception as e:
         logger.warning(f"[bootstrap] JournalWriter: {e}")
     try:
-        from agents.reflection.growth_analyst import GrowthAnalyst
+        from agents.districts.reflection.growth_analyst import GrowthAnalyst
         created += _reg(GrowthAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] GrowthAnalyst: {e}")
 
     # ── Finance ───────────────────────────────────────────────────────────────
     try:
-        from agents.finance.expense_tracker import ExpenseTracker
+        from agents.districts.finance.expense_tracker import ExpenseTracker
         created += _reg(ExpenseTracker())
     except Exception as e:
         logger.warning(f"[bootstrap] ExpenseTracker: {e}")
     try:
-        from agents.finance.budget_analyst import BudgetAnalyst
+        from agents.districts.finance.budget_analyst import BudgetAnalyst
         created += _reg(BudgetAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] BudgetAnalyst: {e}")
     try:
-        from agents.finance.upi_parser import UPIParser
+        from agents.districts.finance.upi_parser import UPIParser
         created += _reg(UPIParser())
     except Exception as e:
         logger.warning(f"[bootstrap] UPIParser: {e}")
     try:
-        from agents.finance.tax_calendar import TaxCalendar
+        from agents.districts.finance.tax_calendar import TaxCalendar
         created += _reg(TaxCalendar())
     except Exception as e:
         logger.warning(f"[bootstrap] TaxCalendar: {e}")
 
     # ── Health ────────────────────────────────────────────────────────────────
     try:
-        from agents.health.fatigue_monitor import FatigueMonitor
+        from agents.districts.health.fatigue_monitor import FatigueMonitor
         created += _reg(FatigueMonitor())
     except Exception as e:
         logger.warning(f"[bootstrap] FatigueMonitor: {e}")
     try:
-        from agents.health.sleep_tracker import SleepTracker
+        from agents.districts.health.sleep_tracker import SleepTracker
         created += _reg(SleepTracker())
     except Exception as e:
         logger.warning(f"[bootstrap] SleepTracker: {e}")
     try:
-        from agents.health.exercise_logger import ExerciseLogger
+        from agents.districts.health.exercise_logger import ExerciseLogger
         created += _reg(ExerciseLogger())
     except Exception as e:
         logger.warning(f"[bootstrap] ExerciseLogger: {e}")
 
     # ── Memory Curator ────────────────────────────────────────────────────────
     try:
-        from agents.memory_curator.consolidation_bot import ConsolidationBot
+        from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
         created += _reg(ConsolidationBot())
     except Exception as e:
         logger.warning(f"[bootstrap] ConsolidationBot: {e}")
     try:
-        from agents.memory_curator.pattern_finder import PatternFinder
+        from agents.districts.memory_curator.pattern_finder import PatternFinder
         created += _reg(PatternFinder())
     except Exception as e:
         logger.warning(f"[bootstrap] PatternFinder: {e}")
 
     # ── Projects ──────────────────────────────────────────────────────────────
     try:
-        from agents.projects.deadline_watcher import DeadlineWatcher
+        from agents.districts.projects.deadline_watcher import DeadlineWatcher
         created += _reg(DeadlineWatcher())
     except Exception as e:
         logger.warning(f"[bootstrap] DeadlineWatcher: {e}")
     try:
-        from agents.projects.progress_tracker import ProgressTracker
+        from agents.districts.projects.progress_tracker import ProgressTracker
         created += _reg(ProgressTracker())
     except Exception as e:
         logger.warning(f"[bootstrap] ProgressTracker: {e}")
     try:
-        from agents.projects.doc_writer import DocWriter
+        from agents.districts.projects.doc_writer import DocWriter
         created += _reg(DocWriter())
     except Exception as e:
         logger.warning(f"[bootstrap] DocWriter: {e}")
     try:
-        from agents.projects.project_planner import ProjectPlanner
+        from agents.districts.projects.project_planner import ProjectPlanner
         created += _reg(ProjectPlanner())
     except Exception as e:
         logger.warning(f"[bootstrap] ProjectPlanner: {e}")
 
     # ── Security ──────────────────────────────────────────────────────────────
     try:
-        from agents.security.threat_scout import ThreatScout
+        from agents.districts.security.threat_scout import ThreatScout
         created += _reg(ThreatScout())
     except Exception as e:
         logger.warning(f"[bootstrap] ThreatScout: {e}")
     try:
-        from agents.security.node_guard import NodeGuard
+        from agents.districts.security.node_guard import NodeGuard
         created += _reg(NodeGuard())
     except Exception as e:
         logger.warning(f"[bootstrap] NodeGuard: {e}")
     try:
-        from agents.security.malware_hunter import MalwareHunter
+        from agents.districts.security.malware_hunter import MalwareHunter
         created += _reg(MalwareHunter())
     except Exception as e:
         logger.warning(f"[bootstrap] MalwareHunter: {e}")
 
     # ── Time/Calendar ─────────────────────────────────────────────────────────
     try:
-        from agents.time_calendar.kiit_scraper import KIITScraper
+        from agents.districts.time_calendar.kiit_scraper import KIITScraper
         created += _reg(KIITScraper())
     except Exception as e:
         logger.warning(f"[bootstrap] KIITScraper: {e}")
     try:
-        from agents.time_calendar.deadline_manager import DeadlineManager
+        from agents.districts.time_calendar.deadline_manager import DeadlineManager
         created += _reg(DeadlineManager())
     except Exception as e:
         logger.warning(f"[bootstrap] DeadlineManager: {e}")
     try:
-        from agents.time_calendar.time_blocker import TimeBlocker
+        from agents.districts.time_calendar.time_blocker import TimeBlocker
         created += _reg(TimeBlocker())
     except Exception as e:
         logger.warning(f"[bootstrap] TimeBlocker: {e}")
 
     # ── Coding sub-agents ─────────────────────────────────────────────────────
     try:
-        from agents.coding.code_reviewer import CodeReviewer
+        from agents.districts.coding.code_reviewer import CodeReviewer
         created += _reg(CodeReviewer())
     except Exception as e:
         logger.warning(f"[bootstrap] CodeReviewer: {e}")
     try:
-        from agents.coding.architect_bot import ArchitectBot
+        from agents.districts.coding.architect_bot import ArchitectBot
         created += _reg(ArchitectBot())
     except Exception as e:
         logger.warning(f"[bootstrap] ArchitectBot: {e}")
     try:
-        from agents.coding.bug_hunter import BugHunter
+        from agents.districts.coding.bug_hunter import BugHunter
         created += _reg(BugHunter())
     except Exception as e:
         logger.warning(f"[bootstrap] BugHunter: {e}")
     try:
-        from agents.coding.test_writer import TestWriter
+        from agents.districts.coding.test_writer import TestWriter
         created += _reg(TestWriter())
     except Exception as e:
         logger.warning(f"[bootstrap] TestWriter: {e}")
 
     # ── Relationships ─────────────────────────────────────────────────────────
     try:
-        from agents.relationships.contact_manager import ContactManager
+        from agents.districts.relationships.contact_manager import ContactManager
         created += _reg(ContactManager())
     except Exception as e:
         logger.warning(f"[bootstrap] ContactManager: {e}")
     try:
-        from agents.relationships.communication_analyst import CommunicationAnalyst
+        from agents.districts.relationships.communication_analyst import CommunicationAnalyst
         created += _reg(CommunicationAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] CommunicationAnalyst: {e}")
 
     # ── Privacy ───────────────────────────────────────────────────────────────
     try:
-        from agents.privacy.privacy_enforcer import PrivacyEnforcer
+        from agents.districts.privacy.privacy_enforcer import PrivacyEnforcer
         created += _reg(PrivacyEnforcer())
     except Exception as e:
         logger.warning(f"[bootstrap] PrivacyEnforcer: {e}")
     try:
-        from agents.privacy.data_flow_auditor import DataFlowAuditor
+        from agents.districts.privacy.data_flow_auditor import DataFlowAuditor
         created += _reg(DataFlowAuditor())
     except Exception as e:
         logger.warning(f"[bootstrap] DataFlowAuditor: {e}")
 
     # ── Pattern Detective ─────────────────────────────────────────────────────
     try:
-        from agents.pattern_detective.habit_finder import HabitFinder
+        from agents.districts.pattern_detective.habit_finder import HabitFinder
         created += _reg(HabitFinder())
     except Exception as e:
         logger.warning(f"[bootstrap] HabitFinder: {e}")
     try:
-        from agents.pattern_detective.behavior_analyst import BehaviorAnalyst
+        from agents.districts.pattern_detective.behavior_analyst import BehaviorAnalyst
         created += _reg(BehaviorAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] BehaviorAnalyst: {e}")
 
     # ── News & Trends ─────────────────────────────────────────────────────────
     try:
-        from agents.news_trends.ai_news_bot import AINewsBot
+        from agents.districts.news_trends.ai_news_bot import AINewsBot
         created += _reg(AINewsBot())
     except Exception as e:
         logger.warning(f"[bootstrap] AINewsBot: {e}")
     try:
-        from agents.news_trends.market_trends_bot import MarketTrendsBot
+        from agents.districts.news_trends.market_trends_bot import MarketTrendsBot
         created += _reg(MarketTrendsBot())
     except Exception as e:
         logger.warning(f"[bootstrap] MarketTrendsBot: {e}")
     try:
-        from agents.news_trends.opportunity_spotter import OpportunitySpotter
+        from agents.districts.news_trends.opportunity_spotter import OpportunitySpotter
         created += _reg(OpportunitySpotter())
     except Exception as e:
         logger.warning(f"[bootstrap] OpportunitySpotter: {e}")
 
     # ── Learning ──────────────────────────────────────────────────────────────
     try:
-        from agents.learning.course_tracker import CourseTracker
+        from agents.districts.learning.course_tracker import CourseTracker
         created += _reg(CourseTracker())
     except Exception as e:
         logger.warning(f"[bootstrap] CourseTracker: {e}")
     try:
-        from agents.learning.video_ingestor import VideoIngestor
+        from agents.districts.learning.video_ingestor import VideoIngestor
         created += _reg(VideoIngestor())
     except Exception as e:
         logger.warning(f"[bootstrap] VideoIngestor: {e}")
 
     # ── Startups ──────────────────────────────────────────────────────────────
     try:
-        from agents.startups.market_scanner import MarketScanner
+        from agents.districts.startups.market_scanner import MarketScanner
         created += _reg(MarketScanner())
     except Exception as e:
         logger.warning(f"[bootstrap] MarketScanner: {e}")
     try:
-        from agents.startups.idea_validator import IdeaValidator
+        from agents.districts.startups.idea_validator import IdeaValidator
         created += _reg(IdeaValidator())
     except Exception as e:
         logger.warning(f"[bootstrap] IdeaValidator: {e}")
     try:
-        from agents.startups.competitor_spy import CompetitorSpy
+        from agents.districts.startups.competitor_spy import CompetitorSpy
         created += _reg(CompetitorSpy())
     except Exception as e:
         logger.warning(f"[bootstrap] CompetitorSpy: {e}")
     try:
-        from agents.startups.revenue_modeler import RevenueModeler
+        from agents.districts.startups.revenue_modeler import RevenueModeler
         created += _reg(RevenueModeler())
     except Exception as e:
         logger.warning(f"[bootstrap] RevenueModeler: {e}")
 
     # ── Calls ─────────────────────────────────────────────────────────────────
     try:
-        from agents.calls.call_screener import CallScreener
+        from agents.districts.calls.call_screener import CallScreener
         created += _reg(CallScreener())
     except Exception as e:
         logger.warning(f"[bootstrap] CallScreener: {e}")
 
     # ── Karpathy Lab ──────────────────────────────────────────────────────────
     try:
-        from agents.karpathy_lab.autoresearch_runner import AutoresearchRunner
+        from agents.districts.karpathy_lab.autoresearch_runner import AutoresearchRunner
         created += _reg(AutoresearchRunner())
     except Exception as e:
         logger.warning(f"[bootstrap] AutoresearchRunner: {e}")
     try:
-        from agents.karpathy_lab.code_typer import CodeTyper
+        from agents.districts.karpathy_lab.code_typer import CodeTyper
         created += _reg(CodeTyper())
     except Exception as e:
         logger.warning(f"[bootstrap] CodeTyper: {e}")
 
     # ── Languages ─────────────────────────────────────────────────────────────
     try:
-        from agents.languages.japanese_coach import JapaneseCoach
+        from agents.districts.languages.japanese_coach import JapaneseCoach
         created += _reg(JapaneseCoach())
     except Exception as e:
         logger.warning(f"[bootstrap] JapaneseCoach: {e}")
 
     # ── Interview Prep ────────────────────────────────────────────────────────
     try:
-        from agents.interview_prep.mock_interviewer import MockInterviewer
+        from agents.districts.interview_prep.mock_interviewer import MockInterviewer
         created += _reg(MockInterviewer())
     except Exception as e:
         logger.warning(f"[bootstrap] MockInterviewer: {e}")
     try:
-        from agents.interview_prep.company_researcher import CompanyResearcher
+        from agents.districts.interview_prep.company_researcher import CompanyResearcher
         created += _reg(CompanyResearcher())
     except Exception as e:
         logger.warning(f"[bootstrap] CompanyResearcher: {e}")
 
     # ── Agency ────────────────────────────────────────────────────────────────
     try:
-        from agents.agency.content_strategist import ContentStrategist
+        from agents.districts.agency.content_strategist import ContentStrategist
         created += _reg(ContentStrategist())
     except Exception as e:
         logger.warning(f"[bootstrap] ContentStrategist: {e}")
 
     # ── Investment ────────────────────────────────────────────────────────────
     try:
-        from agents.investment.stock_analyst import StockAnalyst
+        from agents.districts.investment.stock_analyst import StockAnalyst
         created += _reg(StockAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] StockAnalyst: {e}")
     try:
-        from agents.investment.sentiment_bot import SentimentBot
+        from agents.districts.investment.sentiment_bot import SentimentBot
         created += _reg(SentimentBot())
     except Exception as e:
         logger.warning(f"[bootstrap] SentimentBot: {e}")
 
     # ── Content ───────────────────────────────────────────────────────────────
     try:
-        from agents.content.script_generator import ScriptGenerator
+        from agents.districts.content.script_generator import ScriptGenerator
         created += _reg(ScriptGenerator())
     except Exception as e:
         logger.warning(f"[bootstrap] ScriptGenerator: {e}")
     try:
-        from agents.content.comfyui_adapter import ComfyUIAdapter
+        from agents.districts.content.comfyui_adapter import ComfyUIAdapter
         created += _reg(ComfyUIAdapter())
     except Exception as e:
         logger.warning(f"[bootstrap] ComfyUIAdapter: {e}")
 
     # ── Skills ────────────────────────────────────────────────────────────────
     try:
-        from agents.skills.skill_mapper import SkillMapper
+        from agents.districts.skills.skill_mapper import SkillMapper
         created += _reg(SkillMapper())
     except Exception as e:
         logger.warning(f"[bootstrap] SkillMapper: {e}")
     try:
-        from agents.skills.mastery_tracker import MasteryTracker
+        from agents.districts.skills.mastery_tracker import MasteryTracker
         created += _reg(MasteryTracker())
     except Exception as e:
         logger.warning(f"[bootstrap] MasteryTracker: {e}")

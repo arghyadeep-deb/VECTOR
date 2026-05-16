@@ -10,7 +10,7 @@ import tempfile
 # ── ConsolidationBot ──────────────────────────────────────────────────────────
 
 def test_consolidation_bot_init():
-    from agents.memory_curator.consolidation_bot import ConsolidationBot
+    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
     bot = ConsolidationBot()
     assert bot.health_points == 500
     assert bot.name == "ConsolidationBot"
@@ -19,7 +19,7 @@ def test_consolidation_bot_init():
 
 
 def test_consolidation_bot_inherits_ghost():
-    from agents.memory_curator.consolidation_bot import ConsolidationBot
+    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
     ghost = {
         "lessons_learned": ["always verify before writing"],
         "best_decisions": [],
@@ -31,7 +31,7 @@ def test_consolidation_bot_inherits_ghost():
 
 
 def test_write_daily_reflection_creates_vault_note():
-    from agents.memory_curator.consolidation_bot import ConsolidationBot
+    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
     bot = ConsolidationBot()
     bot._memory.store(
         event_type="task",
@@ -55,7 +55,7 @@ def test_write_daily_reflection_creates_vault_note():
 
 
 def test_write_daily_reflection_awards_hp():
-    from agents.memory_curator.consolidation_bot import ConsolidationBot
+    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
     bot = ConsolidationBot()
     initial_hp = bot.health_points
 
@@ -69,7 +69,7 @@ def test_write_daily_reflection_awards_hp():
 
 
 def test_consolidate_old_episodes_stores_summary():
-    from agents.memory_curator.consolidation_bot import ConsolidationBot
+    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
     import datetime
     bot = ConsolidationBot()
 
@@ -98,7 +98,7 @@ def test_consolidate_old_episodes_stores_summary():
 # ── PatternFinder ─────────────────────────────────────────────────────────────
 
 def test_pattern_finder_init():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
     assert bot.health_points == 500
     assert bot.name == "PatternFinder"
@@ -107,7 +107,7 @@ def test_pattern_finder_init():
 
 
 def test_pattern_finder_inherits_ghost():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     ghost = {
         "lessons_learned": ["look for weekly cycles"],
         "best_decisions": [],
@@ -119,7 +119,7 @@ def test_pattern_finder_inherits_ghost():
 
 
 def test_find_patterns_returns_list():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
 
     for i in range(10):
@@ -140,7 +140,7 @@ def test_find_patterns_returns_list():
 
 
 def test_find_patterns_too_few_episodes():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     from unittest.mock import patch
     bot = PatternFinder()
     # Force _fetch_window to return fewer than MIN_EPISODES (5) episodes
@@ -150,7 +150,7 @@ def test_find_patterns_too_few_episodes():
 
 
 def test_find_patterns_changes_hp():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
     initial_hp = bot.health_points
 
@@ -172,7 +172,7 @@ def test_find_patterns_changes_hp():
 
 
 def test_find_patterns_writes_vault_note():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
 
     for i in range(8):
@@ -194,14 +194,14 @@ def test_find_patterns_writes_vault_note():
 
 
 def test_get_stored_patterns_returns_list():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
     result = bot.get_stored_patterns(days=30)
     assert isinstance(result, list)
 
 
 def test_parse_patterns_structured():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
     text = (
         "PATTERN: Late Night Coding\nOBSERVATION: Most commits after 10PM\nIMPACT: Sleep debt\n\n"
@@ -213,7 +213,7 @@ def test_parse_patterns_structured():
 
 
 def test_parse_patterns_fallback():
-    from agents.memory_curator.pattern_finder import PatternFinder
+    from agents.districts.memory_curator.pattern_finder import PatternFinder
     bot = PatternFinder()
     text = "Line one\nLine two\nLine three\nLine four"
     patterns = bot._parse_patterns(text)

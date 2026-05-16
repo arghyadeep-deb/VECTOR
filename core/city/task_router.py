@@ -1,6 +1,6 @@
 """
 V.E.C.T.O.R. TaskRouter.
-Routes incoming tasks to the appropriate district agents.
+Routes incoming tasks to the appropriate district agents.districts.
 """
 import sys
 from pathlib import Path

@@ -19,7 +19,7 @@ import subprocess
 import uuid
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, BaseAgent
+from vectorcode.src.vc_agents.districts._stubs import AgentContext, AgentResult, BaseAgent
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_engine._stubs import InferenceEngine

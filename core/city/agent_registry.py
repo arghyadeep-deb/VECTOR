@@ -11,7 +11,7 @@ from core.config import CONFIG
 
 class AgentRegistry:
     """
-    Central register of all living VECTOR City agents.
+    Central register of all living VECTOR City agents.districts.
     RULE 9 — Agent Darwinism is real. HP system wires to actual outcomes.
     Death → ghost memory preserved in agent_history table.
     """
@@ -37,7 +37,7 @@ class AgentRegistry:
 
     def deregister(self, agent_id: str) -> None:
         """Remove agent on death. Ghost saved, successor spawned (RULE 9 — Darwinism is real)."""
-        agent = self._agents.pop(agent_id, None)
+        agent = self._agents.districts.pop(agent_id, None)
         if not agent:
             return
         ghost_data = {
@@ -112,17 +112,17 @@ class AgentRegistry:
             logger.error(f"[VECTOR][agent_registry] ghost persist failed: {e}")
 
     def get(self, agent_id: str):
-        return self._agents.get(agent_id)
+        return self._agents.districts.get(agent_id)
 
     def get_by_district(self, district: str) -> list:
-        return [a for a in self._agents.values() if a.district == district]
+        return [a for a in self._agents.districts.values() if a.district == district]
 
     def get_council_eligible(self) -> list:
         """Agents with HP >= 700 who can vote in council."""
-        return [a for a in self._agents.values() if a.can_vote_in_council()]
+        return [a for a in self._agents.districts.values() if a.can_vote_in_council()]
 
     def get_elite(self, min_hp: int = 800) -> list:
-        return [a for a in self._agents.values() if a.health_points >= min_hp]
+        return [a for a in self._agents.districts.values() if a.health_points >= min_hp]
 
     def get_dead_ghosts(self, district: str | None = None, limit: int = 10) -> list[dict]:
         """Ghost memories of dead agents for next-gen inheritance."""
@@ -156,7 +156,7 @@ class AgentRegistry:
     def list_all(self) -> list[dict]:
         agents = []
         seen_ids: set[str] = set()
-        for agent in self._agents.values():
+        for agent in self._agents.districts.values():
             if hasattr(agent, "to_dict"):
                 data = agent.to_dict()
             else:
@@ -178,12 +178,12 @@ class AgentRegistry:
             data["agent_id"] = agent_id
             data["status"] = agent.get_status() if hasattr(agent, "get_status") else "unknown"
             data["is_alive"] = bool(getattr(agent, "health_points", 0) > 0)
-            agents.append(data)
+            agents.districts.append(data)
         return agents
 
     def count_by_district(self) -> dict[str, int]:
         counts: dict[str, int] = {}
-        for a in self._agents.values():
+        for a in self._agents.districts.values():
             counts[a.district] = counts.get(a.district, 0) + 1
         return counts
 
