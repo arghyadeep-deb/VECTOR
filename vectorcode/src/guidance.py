@@ -98,7 +98,7 @@ class ThreatSignal:
 _PROMPT_INJECTION_PATTERNS: List[Tuple[str, re.Pattern, float]] = [
     ("instruction-override",
      re.compile(
-         r"ignore\s+previous|system\s+prompt|you\s+are\s+now|forget\s+instructions"
+         r"ignore\s+(?:\w+\s+)?previous\s+instructions?|ignore\s+previous|system\s+prompt|you\s+are\s+now|forget\s+instructions"
          r"|disregard|override\s+your",
          re.I),
      0.9),
