@@ -66,7 +66,7 @@ class WhatsAppBaileysChannel(BaseChannel):
         self,
         *,
         auth_dir: str = "",
-        assistant_name: str = "Jarvis",
+        assistant_name: str = "VECTOR",
         assistant_has_own_number: bool = False,
         bus: Optional[EventBus] = None,
     ) -> None:

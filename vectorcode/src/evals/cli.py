@@ -212,7 +212,7 @@ def _build_backend(
             gpu_metrics=gpu_metrics,
         )
     elif backend_name == "vector":
-        from vectorcode.src.evals.backends.external import HermesBackend
+        from vectorcode.src.evals.backends.external import VectorAgentBackend
 
         if not base_url or not api_key:
             raise click.UsageError(
@@ -220,7 +220,7 @@ def _build_backend(
                 "the equivalent env vars / config entries) — Hermes needs "
                 "an OpenAI-compatible endpoint to call the model."
             )
-        return HermesBackend(
+        return VectorAgentBackend(
             base_url=base_url,
             api_key=api_key,
         )

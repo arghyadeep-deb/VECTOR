@@ -5,7 +5,7 @@
 
 """External-framework subprocess backends (Hermes Agent, OpenClaw)."""
 
-from vectorcode.src.evals.backends.external.vector_agent import HermesBackend
+from vectorcode.src.evals.backends.external.vector_agent import VectorAgentBackend
 from vectorcode.src.evals.backends.external.openclaw import OpenClawBackend
 
-__all__ = ["HermesBackend", "OpenClawBackend"]
+__all__ = ["VectorAgentBackend", "OpenClawBackend"]

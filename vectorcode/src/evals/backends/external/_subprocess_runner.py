@@ -5,7 +5,7 @@
 
 """Shared one-shot subprocess invocation with energy/timing capture.
 
-Used by HermesBackend and OpenClawBackend to spawn their respective
+Used by VectorAgentBackend and OpenClawBackend to spawn their respective
 foreign-framework runner scripts. Hermetic: a fresh subprocess per task,
 energy sampled by NVML/powermetrics/ROCm-SMI/RAPL fallback chain.
 """

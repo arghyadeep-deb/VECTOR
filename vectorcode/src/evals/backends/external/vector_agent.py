@@ -138,4 +138,4 @@ class VectorAgentBackend(InferenceBackend):
         }
 
 # Backward-compatible alias so evals/cli.py and __init__.py keep working
-HermesBackend = VectorAgentBackend
+VectorAgentBackend = VectorAgentBackend

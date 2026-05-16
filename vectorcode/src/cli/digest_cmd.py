@@ -176,9 +176,9 @@ def digest(
         # Trigger on-demand generation
         console.print("[yellow]Generating fresh digest...[/yellow]")
         try:
-            from vectorcode.src.sdk import Jarvis
+            from vectorcode.src.sdk import VectorAgent
 
-            with Jarvis() as j:
+            with VectorAgent() as j:
                 result = j.ask("Generate my morning digest", agent="morning_digest")
                 console.print(Markdown(result))
         except Exception as exc:

@@ -54,7 +54,7 @@ class DashboardApp:
                 "Install with: uv sync --extra dashboard"
             )
 
-        class JarvisDashboard(App):
+        class VectorDashboard(App):
             """VECTOR TUI Dashboard."""
 
             TITLE = "VECTOR Dashboard"
@@ -150,7 +150,7 @@ class DashboardApp:
                     lines.append("Config: not loaded")
                 status.update("\n".join(lines))
 
-        app = JarvisDashboard()
+        app = VectorDashboard()
         app.run()
 
 

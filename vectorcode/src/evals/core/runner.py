@@ -415,7 +415,7 @@ class EvalRunner:
             cost = full.get("cost_usd", 0.0)
 
             # Coerce None -> 0.0: backends may emit None when telemetry is
-            # unavailable (e.g., HermesBackend when no GPU sampler). The
+            # unavailable (e.g., VectorAgentBackend when no GPU sampler). The
             # 'or 0.0' handles the case where the key is present but the
             # value is None -- .get(default) only kicks in when missing.
             energy_j = full.get("energy_joules", 0.0) or 0.0

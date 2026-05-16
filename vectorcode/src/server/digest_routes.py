@@ -63,9 +63,9 @@ def create_digest_router(*, db_path: str = "") -> APIRouter:
     async def generate_digest():
         """Force re-generation of the digest."""
         try:
-            from vectorcode.src.sdk import Jarvis
+            from vectorcode.src.sdk import VectorAgent
 
-            with Jarvis() as j:
+            with VectorAgent() as j:
                 result = j.ask("Generate my morning digest", agent="morning_digest")
             return {"status": "ok", "text": result}
         except Exception as exc:

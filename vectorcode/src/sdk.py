@@ -121,14 +121,14 @@ class MemoryHandle:
         self.close()
 
 
-class Jarvis:
+class VectorAgent:
     """High-level VECTOR SDK.
 
     Usage::
 
-        from vectorcode.src import Jarvis
+        from vectorcode.src import VectorAgent
 
-        with Jarvis() as j:
+        with VectorAgent() as j:
             response = j.ask("Hello, what can you do?")
             print(response)
 
@@ -136,7 +136,7 @@ class Jarvis:
         import asyncio
 
         async def main():
-            j = Jarvis()
+            j = VectorAgent()
             async for token in j.ask_stream("Tell me a joke"):
                 print(token, end="", flush=True)
             j.close()
@@ -144,7 +144,7 @@ class Jarvis:
         asyncio.run(main())
 
         # Or without context manager:
-        j = Jarvis()
+        j = VectorAgent()
         response = j.ask("Hello")
         j.close()
     """
@@ -619,11 +619,14 @@ class Jarvis:
             self._audit_logger = None
         self._engine = None
 
-    def __enter__(self) -> Jarvis:
+    def __enter__(self) -> VectorAgent:
         return self
 
     def __exit__(self, *exc: Any) -> None:
         self.close()
 
 
-__all__ = ["Jarvis", "VectorSystem", "MemoryHandle", "SystemBuilder"]
+__all__ = ["VectorAgent", "VectorSystem", "MemoryHandle", "SystemBuilder"]
+
+# Backward-compatible alias
+Jarvis = VectorAgent

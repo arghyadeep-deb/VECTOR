@@ -124,7 +124,7 @@ def _oj_result_to_tau2_msg(result: dict):
 # VECTOR-powered tau2 agent
 # ---------------------------------------------------------------------------
 
-class JarvisHalfDuplexAgent:
+class VectorHalfDuplexAgent:
     """A tau2 HalfDuplexAgent backed by VectorCode's inference engine.
 
     Replaces tau2's built-in LLMAgent while keeping the same interface
@@ -309,7 +309,7 @@ class TauBenchTaskEnv:
             try:
                 environment = build_environment(domain)
 
-                agent = JarvisHalfDuplexAgent(
+                agent = VectorHalfDuplexAgent(
                     tools=environment.get_tools(),
                     domain_policy=environment.get_policy(),
                     engine=self._system.engine,
