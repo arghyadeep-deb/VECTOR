@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
-# vector_cli not available in VectorCode — use local stubs
+# vector_cli not available in VectorCode ï¿½ use local stubs
 def get_vector_home(): from pathlib import Path; return Path.home() / '.vector'
 def is_truthy_value(v, default=True): return bool(v) if v is not None else default
 
@@ -411,8 +411,8 @@ class GatewayConfig:
             try:
                 platform = Platform(platform_name)
                 reset_by_platform[platform] = SessionResetPolicy.from_dict(policy_data)
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
         
         default_policy = SessionResetPolicy()
         if "default_reset_policy" in data:
@@ -1106,8 +1106,8 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         if api_server_port:
             try:
                 config.platforms[Platform.API_SERVER].extra["port"] = int(api_server_port)
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
         if api_server_host:
             config.platforms[Platform.API_SERVER].extra["host"] = api_server_host
         api_server_model_name = os.getenv("API_SERVER_MODEL_NAME", "")
@@ -1125,8 +1125,8 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         if webhook_port:
             try:
                 config.platforms[Platform.WEBHOOK].extra["port"] = int(webhook_port)
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
         if webhook_secret:
             config.platforms[Platform.WEBHOOK].extra["secret"] = webhook_secret
 
@@ -1363,12 +1363,12 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
     if idle_minutes:
         try:
             config.default_reset_policy.idle_minutes = int(idle_minutes)
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
     
     reset_hour = os.getenv("SESSION_RESET_HOUR")
     if reset_hour:
         try:
             config.default_reset_policy.at_hour = int(reset_hour)
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
