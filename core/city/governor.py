@@ -223,6 +223,27 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "roadmap": "governance",
     "rice_score": "governance",
     "product_brief": "governance",
+    "credentials": "governance",
+    "api_keys": "governance",
+    "provider_scan": "governance",
+    # finance additions (vectorcode_llm)
+    "llm_cost": "finance",
+    "token_usage": "finance",
+    "cost_report": "finance",
+    "budget_alert": "finance",
+    # memory_curator additions
+    "compress_context": "memory_curator",
+    "context_compress": "memory_curator",
+    "prune_context": "memory_curator",
+    # security additions (vectorcode_llm)
+    "redact": "security",
+    "pii_check": "security",
+    "cloud_safety": "security",
+    "data_redact": "security",
+    # ops additions
+    "classify_error": "ops",
+    "error_type": "ops",
+    "retry_check": "ops",
 }
 
 
