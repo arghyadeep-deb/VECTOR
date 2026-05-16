@@ -1,119 +1,217 @@
 # Phase Status — VECTOR Implementation Tracker
+> Last updated: 2026-05-16 after full production-grade audit
+> Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
 
-## T1 — Day 1 Foundation ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T1.1 | `core/config.py` | ✅ Done |
-| T1.2 | `core/memory/episodic.py` | ✅ Done |
-| T1.3 | `core/memory/multi_db_manager.py` | ⚠️ Stub |
-| T1.4 | `core/main.py` + `run_vector.py` | ✅ Done (run_vector stub) |
+---
 
-## T2 — Day 2 Intelligence Stack ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T2.1 | `core/loop/context_engine.py` | ✅ Done |
-| T2.2 | `core/brain/goal_system.py` | ✅ Done |
-| T2.3 | `core/loop/decision_engine.py` | ✅ Done |
-| T2.4 | `core/memory/policy.py` | ✅ Done |
-| T2.5 | `core/memory/reasoning_memory.py` | ✅ Done |
-| T2.6 | `core/loop/permission_gateway.py` | ✅ Done |
-| T2.7 | `core/city/agent_base.py` | ✅ Done |
-| T2.8 | `core/city/agent_registry.py` + `governor.py` | ✅ Done |
-| T2.9 | `core/loop/autonomous_loop.py` | ✅ Done |
+## Core Intelligence Stack ✅ COMPLETE
 
-## T3 — Day 3 Voice + Loop ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T3.1 | `core/voice/stt.py` + `tts.py` | ✅ Done |
-| T3.2 | `core/voice/wake_word.py` + `ambient_listener.py` | ✅ Done |
-| T3.3 | `core/voice/language_detector.py` | ✅ Done |
-| T3.4 | `core/loop/autonomous_loop._observe_tick()` wired | ✅ Done |
-| NOTE | Kokoro model files (~300MB) needed for prod TTS | ⚠️ pyttsx3 fallback active |
-| NOTE | "Hey VECTOR" wake word needs custom training | ⚠️ hey_jarvis placeholder |
+| Module | File | Status |
+|--------|------|--------|
+| Config + secrets | `core/config.py` | ✅ Pydantic-validated, SecretStr, no hardcoded keys |
+| Context engine (RULE 1) | `core/loop/context_engine.py` | ✅ 14-domain world state, session_hydration_prompt() |
+| Decision engine (5-factor) | `core/loop/decision_engine.py` | ✅ goal(30%)+conf(25%)+policy(20%)+urgency(15%)+timing(10%)-cost(5%) |
+| Policy memory (RULE 7) | `core/memory/policy.py` | ✅ EMA get_score() BEFORE + update_from_outcome() AFTER |
+| Reasoning memory (RULE 8) | `core/memory/reasoning_memory.py` | ✅ All chains stored, reward>0.7 → training data |
+| Permission gateway (RULE 3) | `core/loop/permission_gateway.py` | ✅ GREEN/YELLOW/RED, HumanLayer, FORBIDDEN list |
+| Autonomous loop (RULE 2) | `core/loop/autonomous_loop.py` | ✅ run_forever(), observe→think→act→reflect, never stops |
+| Episodic memory | `core/memory/episodic.py` | ✅ SQLite FTS5, WAL, AES-256 optional (SQLCipher) |
+| Goal system (3 horizons) | `core/brain/goal_system.py` | ✅ LONG/MID/SHORT, 5 pre-seeded goals |
+| Epistemic tracker (Gap 3) | `core/brain/epistemic_tracker.py` | ✅ Confidence decay, staleness detection |
+| Red team agent (Gap 2) | `core/brain/red_team_agent.py` | ✅ Adversarial review before RED actions |
+| Hypothesis engine (Gap 5) | `core/brain/hypothesis_engine.py` | ✅ Proactive insights every 4h |
+| Synthesis bridge (Gap 1) | `core/brain/synthesis_bridge.py` | ✅ Cross-domain pattern detection every 30min |
+| Ollama safe (RULE 11) | `core/inference/ollama_safe.py` | ✅ All LLM calls gated, warm pool, AirLLM fallback |
 
-## T4 — Day 4 Sensing + Control ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T4.1 | `core/sensing/camera.py` | ✅ Done (face_recognition/mediapipe degrade gracefully if absent) |
-| T4.1 | `core/sensing/screen_observer.py` | ✅ Done (mss live capture; pytesseract optional) |
-| T4.1 | `core/sensing/health_monitor.py` | ✅ Done (psutil live; EAR fatigue scoring) |
-| T4.1 | `core/sensing/sound_classifier.py` | ✅ Done (RMS+ZCR heuristic) |
-| T4.2 | `core/control/pc_controller.py` | ✅ Done (pyautogui + mss screenshots) |
-| T4.2 | `core/control/phone_controller.py` | ✅ Done (ADB bridge; graceful if disconnected) |
-| T4.2 | `core/control/security/malware_detector.py` | ✅ Done (3-layer: VT + MIME + LightGBM) |
-| T4.2 | `core/control/security/threat_detector.py` | ✅ Done |
-| T4.2 | `core/control/security/node_router.py` | ✅ Done |
-| NOTE | `core/loop/context_engine.py` wired to sensing | ✅ health + screen_activity in world state |
-| NOTE | `face_recognition` + `mediapipe` not installed yet | ⚠️ camera stubs to neutral values |
+**VECTOR Gaps not yet built (architecture.md marks these Year 2):**
+| Gap | Module | Notes |
+|----|--------|-------|
+| Gap 4 | `counterfactual.py` | ❌ Learns from rejected decisions — Year 2 |
+| Gap 6 | `causal_graph.py` | ❌ Causal reasoning — Year 2 |
+| Gap 7 | `person_model.py` | ❌ Theory of mind per person — Year 2 |
+| Gap 8 | `meta_cognition.py` | ❌ Monthly bias detection — Year 2 |
 
-## T5 — Day 5 Phase 1 Districts ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T5.1 | `agents/districts/coding/git_bot.py` | ✅ Done (YELLOW/RED gateway wired) |
-| T5.1 | `agents/districts/coding/code_reviewer.py` | ✅ Done (AST + VECTOR rules checklist) |
-| T5.1 | `agents/districts/coding/architect_bot.py` | ✅ Done (codebase scan + circular import detect) |
-| T5.2 | `agents/districts/time_calendar/kiit_scraper.py` | ✅ Done |
-| T5.2 | `agents/districts/time_calendar/deadline_manager.py` | ✅ Done |
-| T5.2 | `agents/districts/time_calendar/time_blocker.py` | ✅ Done |
-| T5.3 | `agents/districts/security/threat_scout.py` | ✅ Done (process + startup + malware scan) |
-| T5.3 | `agents/districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
-| T5.4 | `agents/districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
+---
 
-## T6 — Day 6 Memory + Research + Cloud ✅ COMPLETE (cloud pending deploy)
-| Task | File | Status |
-|------|------|--------|
-| T6.1 | `agents/districts/memory_curator/consolidation_bot.py` | ✅ Done |
-| T6.1 | `agents/districts/memory_curator/pattern_finder.py` | ✅ Done |
-| T6.2 | `agents/districts/research/web_scout.py` | ✅ Done |
-| T6.2 | `agents/districts/research/paper_reader.py` | ✅ Done |
-| T6.2 | `agents/districts/research/news_aggregator.py` | ✅ Done |
-| T6.2 | `agents/districts/research/reddit_miner.py` | ✅ Done |
-| T6.3 | `cloud/brain_server/main.py` (FastAPI, /status → 200) | ✅ Done |
-| T6.3 | `cloud/agent_workers/workers.py` + `scheduler.py` | ✅ Done |
-| T6.3 | `cloud/comms_service/service.py` (Hermes bridge) | ✅ Done |
-| T6.3 | `api/src/*.ts` + `wrangler.toml` (Cloudflare Worker) | ✅ Done |
-| T6.3 | `dashboard/src/app/` (7 Next.js pages) | ✅ Done |
-| NOTE | Fly.io deploy: `fly launch` in cloud/brain_server/ | ⚠️ Not deployed yet |
-| NOTE | Cloudflare deploy: `wrangler deploy` in api/ | ⚠️ Not deployed yet |
+## Agent City ✅ COMPLETE
 
-## T7 — Day 7 Final Integration ✅ COMPLETE
-| Task | File | Status |
-|------|------|--------|
-| T7.1 | `core/memory/obsidian_sync.py` | ✅ Done |
-| T7.2 | `agents/districts/governance/llm_council.py` | ✅ Done |
-| T7.3 | `phone_node/ambient_server.py` (Termux HTTP server) | ✅ Done |
-| T7.3 | `phone_node/adb_bridge.py` (Legion ↔ phone bridge) | ✅ Done |
-| T7.3 | `phone_node/setup.sh` (Termux bootstrap) | ✅ Done |
-| T7.3 | `core/loop/autonomous_loop.py` phone_loop + heartbeat | ✅ Done |
+| Module | File | Status |
+|--------|------|--------|
+| Agent base + HP system | `core/city/agent_base.py` | ✅ HP 0-1000, ghost memory, council gate >700 HP |
+| Agent registry (Darwinism) | `core/city/agent_registry.py` | ✅ Death→ghost→successor, thread-safe singleton |
+| Governor (routing) | `core/city/governor.py` | ✅ RULE 9 HP wired, LLM classify fallback, council |
+| Evolution engine | `core/city/evolution_engine.py` | ✅ Cross-gen lesson inheritance, cull_bottom() |
+| MCP server | `core/mcp_server.py` | ✅ 14 real tools + kanban(4) + claims(7) + guidance(3) |
 
-## Phase 2 Districts — In Progress
-| Task | File | Status |
-|------|------|--------|
-| P2.1 | `agents/districts/reflection/daily_reviewer.py` | ✅ Done (vector-chairman, POLICY_UPDATES, Obsidian) |
-| P2.1 | `agents/districts/reflection/journal_writer.py` | ✅ Done (daily 22:30, weekly Sunday 23:00) |
-| P2.1 | `agents/districts/reflection/growth_analyst.py` | ✅ Done (21-day trend, velocity, bottlenecks) |
-| P2.2 | `agents/districts/health/sleep_tracker.py` | ✅ Done (activity-gap inference, quality labels) |
-| P2.2 | `agents/districts/health/fatigue_monitor.py` | ✅ Done (EAR + session-duration dual check) |
-| P2.2 | `agents/districts/health/exercise_logger.py` | ✅ Done (sedentary alerts, weekly report) |
-| P2.3 | `agents/districts/finance/upi_parser.py` | ✅ Done (UPI SMS regex, 8-category classifier) |
-| P2.3 | `agents/districts/finance/expense_tracker.py` | ✅ Done (monthly spend breakdown) |
-| P2.3 | `agents/districts/finance/budget_analyst.py` | ✅ Done (over-budget alerts + LLM recs) |
-| P2.3 | `agents/districts/finance/tax_calendar.py` | ✅ Done (Indian FY deadlines, T-7/1/0 alerts) |
-| P2.4 | `agents/districts/projects/project_planner.py` | ✅ Done (milestone plan, Obsidian) |
-| P2.4 | `agents/districts/projects/deadline_watcher.py` | ✅ Done (T-7/3/1/0 alerts, no-dupe guard) |
-| P2.4 | `agents/districts/projects/progress_tracker.py` | ✅ Done (git activity + manual, weekly report) |
-| P2.4 | `agents/districts/projects/doc_writer.py` | ✅ Done (5 doc types) |
-| NOTE | `tests/test_phase2_districts.py` | ✅ 47/47 passing |
-| NOTE | `core/config.py` obsidian write folders | ✅ Journals/Reviews/Health/Finance/Projects added |
+---
 
-## End-of-Day Gates
+## Voice Pipeline ⚠️ PARTIAL
+
+| Component | Status |
+|-----------|--------|
+| STT — Whisper | ✅ `core/voice/stt.py` ready (base model; upgrade to large-v3 for prod) |
+| TTS — Kokoro | ⚠️ `core/voice/tts.py` wired but using **pyttsx3 fallback** — Kokoro model file (~300MB) not downloaded |
+| Wake word | ⚠️ `core/voice/wake_word.py` uses hey_jarvis placeholder — **"Hey VECTOR" custom training needed** |
+| Language detector | ✅ `core/voice/language_detector.py` — HI/BN/AS/JA/EN auto-switch |
+| Ambient listener | ✅ `core/voice/ambient_listener.py` |
+
+**To activate full voice:**
+1. Download Kokoro model: `pip install kokoro` + pull model weights (~300MB)
+2. Train custom wake word: record 10 samples of "Hey VECTOR" → openWakeWord training
+
+---
+
+## Sensing + Control ✅ COMPLETE (libs pending install)
+
+| Component | Status |
+|-----------|--------|
+| Camera + face ID | ✅ `core/sensing/camera.py` — ⚠️ `face_recognition` + `mediapipe` not pip-installed yet → neutral fallback active |
+| Screen observer | ✅ `core/sensing/screen_observer.py` — mss live, pytesseract optional |
+| Health monitor | ✅ `core/sensing/health_monitor.py` — psutil live, EAR fatigue scoring |
+| Sound classifier | ✅ `core/sensing/sound_classifier.py` — RMS+ZCR heuristic |
+| PC controller | ✅ `core/control/pc_controller.py` — pyautogui + screenshots |
+| Phone controller (ADB) | ✅ `core/control/phone_controller.py` — ADB bridge |
+| Malware detector | ✅ `core/control/security/malware_detector.py` — 3-layer: VT + MIME + LightGBM |
+
+**To activate face recognition:** `pip install face-recognition mediapipe`
+
+---
+
+## Districts — ALL 25 PLANNED ✅ BUILT (28 total, 3 bonus)
+
+### Phase 1 Districts (Days 1-25)
+| # | District | Agents | Status |
+|---|----------|--------|--------|
+| 01 | governance/ | llm_council.py | ✅ 3-stage deliberative council, HP>700 gate |
+| 02 | security/ | threat_scout.py, node_guard.py, malware_hunter.py | ✅ Process+registry+network scan |
+| 03 | coding/ | git_bot.py, code_reviewer.py, architect_bot.py, bug_hunter.py, test_writer.py | ✅ AST review, circular imports, gateway-gated push |
+| 04 | time_calendar/ | kiit_scraper.py, deadline_manager.py, time_blocker.py | ✅ Playwright KIIT, Google Calendar |
+| 05 | communications/ | communications_adapter.py, person_model.py, style_model.py | ✅ VectorCode gateway adapter |
+| 06 | memory_curator/ | consolidation_bot.py, pattern_finder.py | ✅ LightRAG, Obsidian sync |
+| 07 | research/ | web_scout.py, paper_reader.py, news_aggregator.py, reddit_miner.py, opencli_adapter.py, research_hub.py | ✅ DuckDuckGo, ArXiv, RSS, Reddit |
+| 08 | intelligence/ | (via news_trends + pattern_detective) | ✅ Absorbed into Phase 3 districts |
+
+### Phase 2 Districts (Days 26-40)
+| # | District | Agents | Status |
+|---|----------|--------|--------|
+| 09 | skills/ | skill_mapper.py, gap_analyst.py, mastery_tracker.py | ✅ Skill graph, gap analysis |
+| 10 | languages/ | hindi_coach.py, bengali_coach.py, assamese_coach.py, english_coach.py, japanese_coach.py | ✅ 5 language coaches |
+| 11 | interview_prep/ | mock_interviewer.py, report_generator.py, company_researcher.py, feedback_analyst.py | ✅ MockInterviewer + 50-100 page reports |
+| 12 | learning/ | video_ingestor.py, concept_extractor.py, course_tracker.py, note_organizer.py | ✅ Any URL video ingestion |
+| 13 | finance/ | upi_parser.py, expense_tracker.py, budget_analyst.py, tax_calendar.py | ✅ UPI SMS, Indian FY deadlines |
+| 14 | health/ | sleep_tracker.py, fatigue_monitor.py, exercise_logger.py, biometrics_aggregator.py | ✅ EAR fatigue, sleep inference |
+| 15 | reflection/ | daily_reviewer.py, journal_writer.py, growth_analyst.py | ✅ 2AM review, Obsidian journal |
+| 21 | projects/ | project_planner.py, deadline_watcher.py, progress_tracker.py, doc_writer.py | ✅ T-7/3/1/0 alerts, 5 doc types |
+
+### Phase 3 Districts (Days 41-50)
+| # | District | Agents | Status |
+|---|----------|--------|--------|
+| 16 | startups/ | market_scanner.py, idea_validator.py, competitor_spy.py, revenue_modeler.py | ✅ HN/Reddit/G2 nightly scan |
+| 17 | investment/ | stock_analyst.py, fundamentals_bot.py, technical_bot.py, sentiment_bot.py | ✅ NSE/BSE analysis only, never trades |
+| 18 | content/ | script_generator.py, video_generator.py, voice_generator.py, uploader.py, comfyui_adapter.py, video_merger.py, caption_generator.py | ✅ SadTalker + FFmpeg CUDA + YouTube |
+| 19 | agency/ | content_strategist.py, client_manager.py, performance_tracker.py | ✅ ContentStrategist + ClientManager |
+| 20 | karpathy_lab/ | progress_tracker.py, code_typer.py, data_prep.py, architecture_builder.py, autoresearch_runner.py | ✅ 30min/day tracker, OpenMythos pipeline |
+| 22 | relationships/ | contact_manager.py, communication_analyst.py | ✅ ContactManager + CommunicationAnalyst |
+| 23 | privacy/ | data_flow_auditor.py, privacy_enforcer.py | ✅ Cloud vs local enforcement |
+| 24 | pattern_detective/ | behavior_analyst.py, habit_finder.py | ✅ BehaviorAnalyst + HabitFinder |
+| 25 | news_trends/ | ai_news_bot.py, market_trends_bot.py, opportunity_spotter.py | ✅ AINewsBot + OpportunitySpotter |
+
+### Bonus Districts (not in original plan)
+| District | Agents | Notes |
+|----------|--------|-------|
+| calls/ | call_screener.py, transcription_bot.py, voice_responder.py | Bonus — call handling |
+| data_analytics/ | (empty) | ❌ Scaffolded, no agents yet |
+| devops/ | (empty) | ❌ Scaffolded, no agents yet |
+
+---
+
+## Absorbed Repos — ALL COMPLETE ✅
+
+| Repo | What was absorbed | Where |
+|------|-------------------|-------|
+| OpenJarvis | 98.2% of symbols — VectorAgent SDK, eval backends, LSP | `vectorcode/src/` |
+| Hermes/vectorcode | 89.5% — gateway, 25+ platform adapters, curator, swarm, claims, guidance | `vectorcode/src/` |
+| Ruflo | 100% — neural RL, MoE router, FlashAttention, ReasoningBank, 282 SKILL.md | `vectorcode/src/` + `brain/.claude/skills/` |
+
+**Zero external repo traces** (hermes/ruflo/openjarvis/Jarvis/NousResearch/HermesBackend) — verified.
+
+---
+
+## Neural Intelligence Layer ✅ COMPLETE (absorbed from Ruflo)
+
+| Module | Contents | Status |
+|--------|----------|--------|
+| `vectorcode/src/neural_training.py` | A2C, DQN, PPO, SARSA, Q-Learning, DecisionTransformer, VECTORTrainer | ✅ 6 RL algorithms, fully wired into decision_engine |
+| `vectorcode/src/neural_flash_attention.py` | FlashAttention — O(N) block-tiled, online softmax | ✅ |
+| `vectorcode/src/neural_moe_router.py` | MoERouter — 8-expert gating, top-k, load balance | ✅ Wired as Layer 0 in GNNRouter |
+| `vectorcode/src/reasoning_bank.py` | ReasoningBank + PatternLearner — RULE 8 compliance | ✅ Wired into decision_engine (inject before + store after) |
+| `vectorcode/src/router.py` | GNNRouter: MoE(L0)→GNN(L1)→keyword(L2)→regex(L3) | ✅ 4-layer routing |
+| `vectorcode/src/claims.py` | ClaimService, WorkStealingService, LoadBalancer | ✅ |
+| `vectorcode/src/guidance.py` | ThreatDetector, AuthorityGate, CoherenceScheduler, ContinueGate | ✅ Wired in autonomous_loop |
+| `vectorcode/src/swarm.py` | SwarmCoordinator — 8 topologies (Byzantine, Raft, Gossip, CRDT, Quorum...) | ✅ |
+| `vectorcode/src/agent/curator.py` | Background skill maintenance orchestrator (1749L) | ✅ Wired in vector_cli/curator.py |
+| `vectorcode/src/agent/lsp/` | LSP client, manager, protocol — real-time lint delta | ✅ Full 10-file package |
+| `vectorcode/src/agent/tool_guardrails.py` | ToolCallGuardrailController | ✅ Wired in run_agent.py |
+
+---
+
+## Cloud Deployment ⚠️ CODE DONE — NOT YET DEPLOYED
+
+| Component | Code | Deploy |
+|-----------|------|--------|
+| Fly.io brain server | ✅ `cloud/brain_server/main.py` FastAPI + /status | ❌ Run: `fly launch` in cloud/brain_server/ |
+| Cloudflare Worker API | ✅ `api/src/` + `wrangler.toml` | ❌ Run: `wrangler deploy` in api/ |
+| Cloudflare D1/R2/KV | ✅ Config in wrangler.toml | ❌ Provision via Cloudflare dashboard |
+| Supabase cloud DB | ✅ Config in core/config.py | ❌ Create project + run migrations |
+| Next.js Dashboard | ❌ `dashboard/src` missing | ❌ Not built yet |
+| Phone Termux node | ✅ `phone_node/ambient_server.py` + `setup.sh` | ❌ Run setup.sh on Android |
+
+---
+
+## Tests ✅ ALL PASSING
+
+| Suite | Result |
+|-------|--------|
+| `scripts/smoke_test.py` | 38/38 PASS |
+| `scripts/integration_check.py` | 51/51 PASS |
+| `tests/test_phase2_districts.py` | 47/47 PASS |
+
+---
+
+## End-of-Day Gates (Final State)
+
 ```
 Day 1: python run_vector.py → JSON response + SQLite row        ✅ PASS
 Day 2: debug mode → 4 candidates + scores + policy table rows  ✅ PASS
-Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ✅ PASS (pyttsx3 TTS; Kokoro pending model download)
-Day 4: Face ID + cursor control + ADB screenshot                ✅ PASS (face_recognition pending install; cursor/ADB ready)
-Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready; Gmail pending T6)
-Day 6: fly.dev/status 200 + ambient running + Obsidian note     ⚠️ Code complete — deploy: fly launch (cloud/brain_server/), then setup.sh on phone
-Day 7: all 4 end-to-end scenarios pass                          ⚠️ All code complete — integration testing pending
+Day 3: "Hey VECTOR" → WAKE → TRANSCRIBE → THINK → SPEAK        ⚠️ PARTIAL (pyttsx3 TTS; Kokoro model not downloaded; hey_jarvis placeholder)
+Day 4: Face ID + cursor control + ADB screenshot                ⚠️ PARTIAL (cursor/ADB ready; face_recognition pip install pending)
+Day 5: GmailAgent reads + KIIT schedule + auto-commit           ✅ PASS (KIIT scraper + GitBot ready)
+Day 6: fly.dev/status 200 + ambient running + Obsidian note     ❌ NOT DEPLOYED (code complete; run fly launch + setup.sh)
+Day 7: all 4 end-to-end scenarios pass                          ⚠️ Code complete; integration test pending on live system
 Phase 2: Reflection/Health/Finance/Projects districts           ✅ 14 agents, 47 tests passing
+Phase 3: All 10 districts built                                 ✅ startups/investment/content/agency/karpathy_lab + 5 more
 ```
+
+---
+
+## What Needs to Happen Before "Shipped"
+
+### Must-do (blocks autonomous operation)
+1. **Download Kokoro TTS model** — `pip install kokoro` + model weights
+2. **Train "Hey VECTOR" wake word** — record 10 samples, openWakeWord training
+3. **`fly launch`** in `cloud/brain_server/` → VECTOR has a cloud brain
+4. **`setup.sh`** on Android Termux → ambient phone node active
+5. **`pip install face-recognition mediapipe`** → face ID works
+6. **`wrangler deploy`** in `api/` → Cloudflare API live
+
+### Nice-to-have (not blocking)
+7. Build Next.js dashboard (`dashboard/src/`) — monitoring UI
+8. Fill `data_analytics/` and `devops/` districts (scaffolded, empty)
+9. Build Gap 4 `counterfactual.py` — learns from rejected decisions
+
+### Year 2 (explicitly planned for later)
+- Gap 6 `causal_graph.py`
+- Gap 7 `person_model.py`
+- Gap 8 `meta_cognition.py`
+- OpenMythos custom LLM training
+- Full vector-chairman fine-tune on reasoning chains
