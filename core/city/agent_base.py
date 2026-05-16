@@ -20,7 +20,40 @@ class AgentBase:
         self.personality_traits = {}
         self.created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self.last_active = self.created_at
+        # ── Vectorcode-backed LLM caller (auto-loads .md system prompt) ──────
+        self._district_llm = self._make_district_llm()
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
+
+    def _make_district_llm(self):
+        """Lazy-init DistrictLLM — routes calls through vectorcode_llm + .md prompt."""
+        try:
+            from core.inference.district_llm import DistrictLLM
+            return DistrictLLM(self.district, self.name)
+        except Exception as e:
+            logger.debug(f"[VECTOR][city] DistrictLLM init skipped for {self.name}: {e}")
+            return None
+
+    def vchat(self, messages: list[dict], timeout: float = 30.0,
+               inject_md: bool = True) -> str:
+        """Convenience: call vectorcode LLM chain with optional .md system prompt.
+
+        Preferred over importing ollama_safe directly — routes through the full
+        Ollama → Gemini → Anthropic → OpenRouter provider chain.
+        """
+        if self._district_llm is not None:
+            return self._district_llm.chat(
+                model=self.model or "vector-focus",
+                messages=messages,
+                timeout=timeout,
+                inject_md=inject_md,
+            )
+        # Fallback to raw ollama_safe if DistrictLLM unavailable
+        try:
+            from core.inference.ollama_safe import chat
+            return chat(model=self.model or "vector-focus",
+                        messages=messages, timeout=timeout)
+        except Exception:
+            return ""
 
     def _calculate_model(self) -> str:
         if self.health_points >= 800:
