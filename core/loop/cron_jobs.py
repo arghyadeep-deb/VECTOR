@@ -52,7 +52,7 @@ async def job_daily_eval(*, _ctx: dict | None = None) -> dict:
 async def job_biometrics_pull(*, _ctx: dict | None = None) -> dict:
     """Daily biometrics pull from Apple Health / Oura / Strava."""
     try:
-        from agents.districts.health.biometrics_aggregator import BiometricsAggregator
+        from agents.health.biometrics_aggregator import BiometricsAggregator
         agent = BiometricsAggregator()
         return await agent.run({})
     except Exception as e:
@@ -64,7 +64,7 @@ async def job_daily_review(*, _ctx: dict | None = None) -> dict:
     """End-of-day daily reviewer + journal writer."""
     out: dict = {"daily_reviewer": "skipped", "journal_writer": "skipped"}
     try:
-        from agents.districts.reflection.daily_reviewer import DailyReviewer
+        from agents.reflection.daily_reviewer import DailyReviewer
         agent = DailyReviewer()
         r = await agent.run({})
         out["daily_reviewer"] = r.get("status", "ok") if isinstance(r, dict) else "ok"
@@ -72,7 +72,7 @@ async def job_daily_review(*, _ctx: dict | None = None) -> dict:
         logger.warning(f"[VECTOR][cron] daily_reviewer failed: {e}")
         out["daily_reviewer"] = f"error: {e}"
     try:
-        from agents.districts.reflection.journal_writer import JournalWriter
+        from agents.reflection.journal_writer import JournalWriter
         agent = JournalWriter()
         r = await agent.run({})
         out["journal_writer"] = r.get("status", "ok") if isinstance(r, dict) else "ok"
@@ -182,7 +182,7 @@ async def job_trigger_workflow(*, _ctx: dict | None = None) -> dict:
 async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
     """Weekly growth analyst report (Sunday)."""
     try:
-        from agents.districts.reflection.growth_analyst import GrowthAnalyst
+        from agents.reflection.growth_analyst import GrowthAnalyst
         agent = GrowthAnalyst()
         return await agent.run({})
     except Exception as e:

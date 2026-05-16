@@ -152,7 +152,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             return True
         console.print(f"[dim]Searching: {arg}...[/dim]")
         try:
-            from agents.districts.research.research_hub import ResearchHub
+            from agents.research.research_hub import ResearchHub
             hub = ResearchHub()
             results = asyncio.run(hub.search_web(arg, max_results=5))  # noqa: asyncio.run OK in sync handler
             if results:
@@ -230,7 +230,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             return True
         console.print("[dim]Convening council (this takes 2-5 minutes)...[/dim]")
         try:
-            from agents.districts.governance.llm_council import LLMCouncil
+            from agents.governance.llm_council import LLMCouncil
             result = asyncio.run(
                 LLMCouncil().convene(question=arg, stakes="high", requester_hp=800)
             )
@@ -245,7 +245,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
 
     if verb == "/karpathy":
         try:
-            from agents.districts.karpathy_lab.code_typer import CodeTyper
+            from agents.karpathy_lab.code_typer import CodeTyper
             typer = CodeTyper()
             streak = typer.get_streak()
             today = typer.get_today_summary()

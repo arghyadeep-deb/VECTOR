@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # ─── Reflection ───────────────────────────────────────────────────────────────
 
 def test_daily_reviewer_init():
-    from agents.districts.reflection.daily_reviewer import DailyReviewer
+    from agents.reflection.daily_reviewer import DailyReviewer
     bot = DailyReviewer()
     assert bot.health_points == 500
     assert bot.name == "DailyReviewer"
@@ -25,14 +25,14 @@ def test_daily_reviewer_init():
 
 
 def test_daily_reviewer_fetch_today_empty():
-    from agents.districts.reflection.daily_reviewer import DailyReviewer
+    from agents.reflection.daily_reviewer import DailyReviewer
     bot = DailyReviewer()
     events = bot._fetch_today()
     assert isinstance(events, list)
 
 
 def test_daily_reviewer_extract_policy_rules():
-    from agents.districts.reflection.daily_reviewer import DailyReviewer
+    from agents.reflection.daily_reviewer import DailyReviewer
     bot = DailyReviewer()
     text = (
         "## WINS\nSomething good\n"
@@ -45,7 +45,7 @@ def test_daily_reviewer_extract_policy_rules():
 
 
 def test_daily_reviewer_review_llm_unavailable():
-    from agents.districts.reflection.daily_reviewer import DailyReviewer
+    from agents.reflection.daily_reviewer import DailyReviewer
     bot = DailyReviewer()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -58,14 +58,14 @@ def test_daily_reviewer_review_llm_unavailable():
 
 
 def test_journal_writer_init():
-    from agents.districts.reflection.journal_writer import JournalWriter
+    from agents.reflection.journal_writer import JournalWriter
     bot = JournalWriter()
     assert bot.health_points == 500
     assert bot.name == "JournalWriter"
 
 
 def test_journal_writer_daily_llm_unavailable():
-    from agents.districts.reflection.journal_writer import JournalWriter
+    from agents.reflection.journal_writer import JournalWriter
     bot = JournalWriter()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -77,7 +77,7 @@ def test_journal_writer_daily_llm_unavailable():
 
 
 def test_journal_writer_weekly_llm_unavailable():
-    from agents.districts.reflection.journal_writer import JournalWriter
+    from agents.reflection.journal_writer import JournalWriter
     bot = JournalWriter()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -89,14 +89,14 @@ def test_journal_writer_weekly_llm_unavailable():
 
 
 def test_growth_analyst_init():
-    from agents.districts.reflection.growth_analyst import GrowthAnalyst
+    from agents.reflection.growth_analyst import GrowthAnalyst
     bot = GrowthAnalyst()
     assert bot.health_points == 500
     assert bot.name == "GrowthAnalyst"
 
 
 def test_growth_analyst_analyse_llm_unavailable():
-    from agents.districts.reflection.growth_analyst import GrowthAnalyst
+    from agents.reflection.growth_analyst import GrowthAnalyst
     bot = GrowthAnalyst()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -110,14 +110,14 @@ def test_growth_analyst_analyse_llm_unavailable():
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 def test_sleep_tracker_init():
-    from agents.districts.health.sleep_tracker import SleepTracker
+    from agents.health.sleep_tracker import SleepTracker
     bot = SleepTracker()
     assert bot.health_points == 500
     assert bot.name == "SleepTracker"
 
 
 def test_sleep_tracker_quality_labels():
-    from agents.districts.health.sleep_tracker import SleepTracker
+    from agents.health.sleep_tracker import SleepTracker
     bot = SleepTracker()
     assert bot._quality_label(8.5) == "excellent"
     assert bot._quality_label(7.0) == "good"
@@ -127,7 +127,7 @@ def test_sleep_tracker_quality_labels():
 
 
 def test_sleep_tracker_track_no_data():
-    from agents.districts.health.sleep_tracker import SleepTracker
+    from agents.health.sleep_tracker import SleepTracker
     bot = SleepTracker()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -138,14 +138,14 @@ def test_sleep_tracker_track_no_data():
 
 
 def test_fatigue_monitor_init():
-    from agents.districts.health.fatigue_monitor import FatigueMonitor
+    from agents.health.fatigue_monitor import FatigueMonitor
     bot = FatigueMonitor()
     assert bot.health_points == 500
     assert bot.name == "FatigueMonitor"
 
 
 def test_fatigue_monitor_check_once():
-    from agents.districts.health.fatigue_monitor import FatigueMonitor
+    from agents.health.fatigue_monitor import FatigueMonitor
     bot = FatigueMonitor()
     result = asyncio.run(bot.check_once())
     assert "fatigue" in result
@@ -154,7 +154,7 @@ def test_fatigue_monitor_check_once():
 
 
 def test_fatigue_monitor_session_tracking():
-    from agents.districts.health.fatigue_monitor import FatigueMonitor
+    from agents.health.fatigue_monitor import FatigueMonitor
     bot = FatigueMonitor()
     assert bot._session_minutes() == 0.0
     bot._session_start = datetime.datetime.now() - datetime.timedelta(minutes=30)
@@ -162,14 +162,14 @@ def test_fatigue_monitor_session_tracking():
 
 
 def test_exercise_logger_init():
-    from agents.districts.health.exercise_logger import ExerciseLogger
+    from agents.health.exercise_logger import ExerciseLogger
     bot = ExerciseLogger()
     assert bot.health_points == 500
     assert bot.name == "ExerciseLogger"
 
 
 def test_exercise_logger_log_session():
-    from agents.districts.health.exercise_logger import ExerciseLogger
+    from agents.health.exercise_logger import ExerciseLogger
     bot = ExerciseLogger()
     ok = bot.log_session("Running", 30, "Morning jog")
     assert ok is True
@@ -177,7 +177,7 @@ def test_exercise_logger_log_session():
 
 
 def test_exercise_logger_weekly_report():
-    from agents.districts.health.exercise_logger import ExerciseLogger
+    from agents.health.exercise_logger import ExerciseLogger
     bot = ExerciseLogger()
     bot.log_session("Yoga", 20)
     with tempfile.TemporaryDirectory() as d:
@@ -192,14 +192,14 @@ def test_exercise_logger_weekly_report():
 # ─── Finance ──────────────────────────────────────────────────────────────────
 
 def test_upi_parser_init():
-    from agents.districts.finance.upi_parser import UPIParser
+    from agents.finance.upi_parser import UPIParser
     bot = UPIParser()
     assert bot.health_points == 500
     assert bot.name == "UPIParser"
 
 
 def test_upi_parser_debit():
-    from agents.districts.finance.upi_parser import UPIParser
+    from agents.finance.upi_parser import UPIParser
     bot = UPIParser()
     txn = bot.ingest("Rs.250 debited from A/C XX1234 to Zomato on 07-05-2026. UPI Ref: 123456")
     assert txn is not None
@@ -209,7 +209,7 @@ def test_upi_parser_debit():
 
 
 def test_upi_parser_credit():
-    from agents.districts.finance.upi_parser import UPIParser
+    from agents.finance.upi_parser import UPIParser
     bot = UPIParser()
     txn = bot.ingest("Rs.1000 credited to A/C XX1234 from PhonePe on 07-05-2026.")
     assert txn is not None
@@ -217,14 +217,14 @@ def test_upi_parser_credit():
 
 
 def test_upi_parser_non_financial():
-    from agents.districts.finance.upi_parser import UPIParser
+    from agents.finance.upi_parser import UPIParser
     bot = UPIParser()
     txn = bot.ingest("Your OTP is 123456. Do not share with anyone.")
     assert txn is None
 
 
 def test_upi_parser_categories():
-    from agents.districts.finance.upi_parser import parse_sms
+    from agents.finance.upi_parser import parse_sms
     food_txn = parse_sms("Rs.150 debited to Swiggy Order")
     assert food_txn["category"] == "food"
 
@@ -233,14 +233,14 @@ def test_upi_parser_categories():
 
 
 def test_expense_tracker_init():
-    from agents.districts.finance.expense_tracker import ExpenseTracker
+    from agents.finance.expense_tracker import ExpenseTracker
     bot = ExpenseTracker()
     assert bot.health_points == 500
     assert bot.name == "ExpenseTracker"
 
 
 def test_expense_tracker_summarise_empty():
-    from agents.districts.finance.expense_tracker import ExpenseTracker
+    from agents.finance.expense_tracker import ExpenseTracker
     bot = ExpenseTracker()
     summary = bot.summarise(days=30)
     assert "total_debit" in summary
@@ -249,7 +249,7 @@ def test_expense_tracker_summarise_empty():
 
 
 def test_expense_tracker_monthly_report():
-    from agents.districts.finance.expense_tracker import ExpenseTracker
+    from agents.finance.expense_tracker import ExpenseTracker
     bot = ExpenseTracker()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -260,14 +260,14 @@ def test_expense_tracker_monthly_report():
 
 
 def test_budget_analyst_init():
-    from agents.districts.finance.budget_analyst import BudgetAnalyst
+    from agents.finance.budget_analyst import BudgetAnalyst
     bot = BudgetAnalyst()
     assert bot.health_points == 500
     assert bot.name == "BudgetAnalyst"
 
 
 def test_budget_analyst_over_budget_detection():
-    from agents.districts.finance.budget_analyst import BudgetAnalyst
+    from agents.finance.budget_analyst import BudgetAnalyst
     bot = BudgetAnalyst()
     # Inject spend above food budget
     spend = {"food": 5000.0, "transport": 500.0}
@@ -278,7 +278,7 @@ def test_budget_analyst_over_budget_detection():
 
 
 def test_budget_analyst_within_budget():
-    from agents.districts.finance.budget_analyst import BudgetAnalyst
+    from agents.finance.budget_analyst import BudgetAnalyst
     bot = BudgetAnalyst()
     spend = {"food": 100.0}
     over = bot._over_budget_categories(spend)
@@ -286,7 +286,7 @@ def test_budget_analyst_within_budget():
 
 
 def test_budget_analyst_analyse():
-    from agents.districts.finance.budget_analyst import BudgetAnalyst
+    from agents.finance.budget_analyst import BudgetAnalyst
     bot = BudgetAnalyst()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -298,14 +298,14 @@ def test_budget_analyst_analyse():
 
 
 def test_tax_calendar_init():
-    from agents.districts.finance.tax_calendar import TaxCalendar
+    from agents.finance.tax_calendar import TaxCalendar
     bot = TaxCalendar()
     assert bot.health_points == 500
     assert bot.name == "TaxCalendar"
 
 
 def test_tax_calendar_upcoming_deadlines():
-    from agents.districts.finance.tax_calendar import TaxCalendar
+    from agents.finance.tax_calendar import TaxCalendar
     bot = TaxCalendar()
     deadlines = bot.upcoming_deadlines(within_days=365)
     assert len(deadlines) > 0
@@ -315,7 +315,7 @@ def test_tax_calendar_upcoming_deadlines():
 
 
 def test_tax_calendar_sorted_by_days():
-    from agents.districts.finance.tax_calendar import TaxCalendar
+    from agents.finance.tax_calendar import TaxCalendar
     bot = TaxCalendar()
     deadlines = bot.upcoming_deadlines(within_days=365)
     days = [d["days_away"] for d in deadlines]
@@ -323,7 +323,7 @@ def test_tax_calendar_sorted_by_days():
 
 
 def test_tax_calendar_write_note():
-    from agents.districts.finance.tax_calendar import TaxCalendar
+    from agents.finance.tax_calendar import TaxCalendar
     bot = TaxCalendar()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -336,14 +336,14 @@ def test_tax_calendar_write_note():
 # ─── Projects ─────────────────────────────────────────────────────────────────
 
 def test_project_planner_init():
-    from agents.districts.projects.project_planner import ProjectPlanner
+    from agents.projects.project_planner import ProjectPlanner
     bot = ProjectPlanner()
     assert bot.health_points == 500
     assert bot.name == "ProjectPlanner"
 
 
 def test_project_planner_create_project():
-    from agents.districts.projects.project_planner import ProjectPlanner
+    from agents.projects.project_planner import ProjectPlanner
     bot = ProjectPlanner()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -357,7 +357,7 @@ def test_project_planner_create_project():
 
 
 def test_project_planner_list_active():
-    from agents.districts.projects.project_planner import ProjectPlanner
+    from agents.projects.project_planner import ProjectPlanner
     bot = ProjectPlanner()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -371,14 +371,14 @@ def test_project_planner_list_active():
 
 
 def test_deadline_watcher_init():
-    from agents.districts.projects.deadline_watcher import DeadlineWatcher
+    from agents.projects.deadline_watcher import DeadlineWatcher
     bot = DeadlineWatcher()
     assert bot.health_points == 500
     assert bot.name == "DeadlineWatcher"
 
 
 def test_deadline_watcher_add_and_check():
-    from agents.districts.projects.deadline_watcher import DeadlineWatcher
+    from agents.projects.deadline_watcher import DeadlineWatcher
     bot = DeadlineWatcher()
     future = (datetime.date.today() + datetime.timedelta(days=3)).isoformat()
     bot.add_deadline("Sprint Review", future, urgency="high")
@@ -387,7 +387,7 @@ def test_deadline_watcher_add_and_check():
 
 
 def test_deadline_watcher_no_duplicates():
-    from agents.districts.projects.deadline_watcher import DeadlineWatcher
+    from agents.projects.deadline_watcher import DeadlineWatcher
     bot = DeadlineWatcher()
     future = (datetime.date.today() + datetime.timedelta(days=3)).isoformat()
     bot.add_deadline("Unique Task", future)
@@ -397,14 +397,14 @@ def test_deadline_watcher_no_duplicates():
 
 
 def test_progress_tracker_init():
-    from agents.districts.projects.progress_tracker import ProgressTracker
+    from agents.projects.progress_tracker import ProgressTracker
     bot = ProgressTracker()
     assert bot.health_points == 500
     assert bot.name == "ProgressTracker"
 
 
 def test_progress_tracker_log():
-    from agents.districts.projects.progress_tracker import ProgressTracker
+    from agents.projects.progress_tracker import ProgressTracker
     bot = ProgressTracker()
     initial_hp = bot.health_points
     bot.log_progress("vec001", "Milestone 1 done", "shipped on time")
@@ -412,7 +412,7 @@ def test_progress_tracker_log():
 
 
 def test_progress_tracker_weekly_report():
-    from agents.districts.projects.progress_tracker import ProgressTracker
+    from agents.projects.progress_tracker import ProgressTracker
     bot = ProgressTracker()
     bot.log_progress("vec001", "Phase 2 complete")
     with tempfile.TemporaryDirectory() as d:
@@ -425,14 +425,14 @@ def test_progress_tracker_weekly_report():
 
 
 def test_doc_writer_init():
-    from agents.districts.projects.doc_writer import DocWriter
+    from agents.projects.doc_writer import DocWriter
     bot = DocWriter()
     assert bot.health_points == 500
     assert bot.name == "DocWriter"
 
 
 def test_doc_writer_invalid_type():
-    from agents.districts.projects.doc_writer import DocWriter
+    from agents.projects.doc_writer import DocWriter
     bot = DocWriter()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -443,7 +443,7 @@ def test_doc_writer_invalid_type():
 
 
 def test_doc_writer_readme():
-    from agents.districts.projects.doc_writer import DocWriter
+    from agents.projects.doc_writer import DocWriter
     bot = DocWriter()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)
@@ -455,7 +455,7 @@ def test_doc_writer_readme():
 
 
 def test_doc_writer_all_types():
-    from agents.districts.projects.doc_writer import DocWriter
+    from agents.projects.doc_writer import DocWriter
     bot = DocWriter()
     with tempfile.TemporaryDirectory() as d:
         vault = Path(d)

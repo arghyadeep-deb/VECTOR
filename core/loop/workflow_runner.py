@@ -345,11 +345,11 @@ class WorkflowRunner:
         cls_name = getattr(defn, "class_name", None)
         if cls_name:
             try:
-                # Best-effort lookup in agents.districts.* common locations
+                # Best-effort lookup in agents.* common locations
                 import importlib
                 import inspect
                 # Walk known package roots
-                for pkg in ("agents.districts",):
+                for pkg in ("agents",):
                     try:
                         importlib.import_module(pkg)
                     except Exception:

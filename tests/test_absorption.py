@@ -28,12 +28,12 @@ class TestPersonModelAbsorption:
     """Validates VectorCode's PersonModel covers all PersonModel features from absorbed codebase."""
 
     def test_persona_module_importable(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         assert pm is not None
 
     def test_learn_from_messages(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         msgs = [
             {"content": "Hey! Great work on the project!"},
@@ -46,7 +46,7 @@ class TestPersonModelAbsorption:
         assert "style_summary" in result
 
     def test_get_style(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         pm.learn_from_messages("VectorStyleTest", [
             {"content": "Please kindly review this document. Regards."},
@@ -56,7 +56,7 @@ class TestPersonModelAbsorption:
         assert isinstance(pm.list_profiles(), list)
 
     def test_list_profiles(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         pm.learn_from_messages("ProfileA", [{"content": "Hello there"}])
         pm.learn_from_messages("ProfileB", [{"content": "Good morning"}])
@@ -65,7 +65,7 @@ class TestPersonModelAbsorption:
         assert len(profiles) >= 2
 
     def test_compare_profiles(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         pm.learn_from_messages("PersonX", [{"content": "Hey bro, what's up? lol gonna chill"}])
         pm.learn_from_messages("PersonY", [{"content": "Good morning sir. Please kindly note."}])
@@ -74,7 +74,7 @@ class TestPersonModelAbsorption:
         assert 0 <= result["compatibility_score"] <= 100
 
     def test_delete_profile(self):
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         pm.learn_from_messages("DeleteMe", [{"content": "temporary"}])
         assert pm.delete_profile("DeleteMe") is True
@@ -82,7 +82,7 @@ class TestPersonModelAbsorption:
 
     def test_style_generation_falls_back_gracefully(self):
         """Even without Ollama, generate_response_style returns original text."""
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         pm = PersonModel()
         pm.learn_from_messages("StyleTestPerson", [{"content": "hey what's up bro"}])
         result = pm.generate_response_style("StyleTestPerson", "Hello friend")
@@ -98,7 +98,7 @@ class TestStyleModelAbsorption:
     """Validates VectorCode's StyleModel covers all StyleModel features from absorbed codebase."""
 
     def test_analyze_conversation(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         msgs = [
             {"content": "Hey! Great work, it looks awesome!"},
@@ -114,21 +114,21 @@ class TestStyleModelAbsorption:
         assert "tone_score" in analysis["style"]
 
     def test_formality_scoring(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         formal = sm.analyze_conversation([{"content": "I would kindly appreciate your regards sincerely."}])
         casual = sm.analyze_conversation([{"content": "hey bro gonna lmao lol yeah nah dude"}])
         assert formal["style"]["formality_score"] > casual["style"]["formality_score"]
 
     def test_tone_scoring(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         positive = sm.analyze_conversation([{"content": "Great amazing wonderful excellent thanks love!"}])
         negative = sm.analyze_conversation([{"content": "terrible bad hate awful fail wrong stupid"}])
         assert positive["style"]["tone_score"] > negative["style"]["tone_score"]
 
     def test_compare_styles(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         msgs_a = [{"content": "Hey bro, what's up? gonna chill lol"}]
         msgs_b = [{"content": "Good morning. Please kindly review the document. Regards."}]
@@ -138,40 +138,40 @@ class TestStyleModelAbsorption:
         assert "formality_gap" in result["differences"]
 
     def test_compare_styles_identical(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         msgs = [{"content": "Great job on the project!"}]
         result = sm.compare_styles(msgs, msgs)
         assert result["compatibility_score"] == 100.0
 
     def test_tone_adjustment_fallback(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         result = sm.suggest_tone_adjustment("The project is done.", "enthusiastic")
         assert isinstance(result, str)
         assert len(result) > 0
 
     def test_formality_adjustment_fallback(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         result = sm.match_formality_level("Hello there, how are you?", "very_formal")
         assert isinstance(result, str)
 
     def test_suggestions_generated(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         msgs = [{"content": "gonna lmao lol bro dude btw idk tbh imo"}]
         analysis = sm.analyze_conversation(msgs)
         assert isinstance(analysis.get("suggestions", []), list)
 
     def test_empty_messages_handled(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         result = sm.analyze_conversation([])
         assert result["status"] == "error"
 
     def test_tone_levels_defined(self):
-        from agents.districts.coding.vectorcode.persona import StyleModel
+        from agents.coding.vectorcode.persona import StyleModel
         sm = StyleModel()
         assert "very_formal" in sm.TONE_LEVELS
         assert "casual" in sm.TONE_LEVELS
@@ -186,12 +186,12 @@ class TestMessagingHubAbsorption:
     """Validates VectorCode's MessagingHub is the canonical comms implementation."""
 
     def test_hub_importable(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         assert hub is not None
 
     def test_known_platforms_complete(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         # Hermes supported 14 platforms — we cover at least as many
         assert len(hub.KNOWN_PLATFORMS) >= 14
@@ -199,7 +199,7 @@ class TestMessagingHubAbsorption:
             assert p in hub.KNOWN_PLATFORMS
 
     def test_priority_levels(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         assert "low" in hub.PRIORITY_LEVELS
         assert "urgent" in hub.PRIORITY_LEVELS
@@ -207,7 +207,7 @@ class TestMessagingHubAbsorption:
         assert hub.PRIORITY_LEVELS["critical"] > hub.PRIORITY_LEVELS["low"]
 
     def test_comms_status_structure(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         status = hub.get_comms_status()
         assert "urgent" in status
@@ -215,26 +215,26 @@ class TestMessagingHubAbsorption:
         assert "pending" in status
 
     def test_send_notification_returns_valid_status(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         result = asyncio.run(hub.send_notification("test message", "normal"))
         assert result.get("status") in ("sent", "queued", "error")
 
     def test_send_to_unconfigured_channel_queues(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         # Telegram not configured → should queue
         result = asyncio.run(hub.send_to_channel("telegram", "test", "normal"))
         assert result.get("status") in ("sent", "queued", "not_configured", "error")
 
     def test_unknown_platform_queued(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         result = asyncio.run(hub.send_to_channel("myspace", "hello", "normal"))
         assert result.get("status") in ("queued", "error")
 
     def test_skill_registry(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         reg = hub.register_skill("test-vector-skill", "skill content here")
         assert reg["status"] == "registered"
@@ -242,7 +242,7 @@ class TestMessagingHubAbsorption:
         assert hub.get_skill("test-vector-skill") == "skill content here"
 
     def test_cron_job_management(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         # Schedule a cron job
         result = hub.schedule_cron_job("0 9 * * *", "Good morning!", "telegram")
@@ -252,7 +252,7 @@ class TestMessagingHubAbsorption:
         assert isinstance(jobs, list)
 
     def test_sync_pending_messages(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         result = asyncio.run(hub.sync_pending_messages())
         assert "synced" in result
@@ -260,18 +260,18 @@ class TestMessagingHubAbsorption:
 
     def test_is_connected_always_true(self):
         """MessagingHub has no external dependency — always 'connected'."""
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         assert hub.is_connected() is True
 
     def test_message_history(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         history = hub.get_message_history(limit=10)
         assert isinstance(history, list)
 
     def test_receive_messages(self):
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         msgs = asyncio.run(hub.receive_messages(limit=5))
         assert isinstance(msgs, list)
@@ -285,13 +285,13 @@ class TestNeuralRouterAbsorption:
     """Validates NeuralRouter supersedes VECTOR's NeuralDomainMapper concept."""
 
     def test_neural_router_importable(self):
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         assert r is not None
 
     def test_static_routes_preserved(self):
         """Backward compat: SemanticRouter routes still work."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         assert r.route("write a function") == "vector-coder"
         assert r.route("review this code") == "vector-dev"
@@ -299,7 +299,7 @@ class TestNeuralRouterAbsorption:
 
     def test_learned_route_influences_result(self):
         """After learning with reward=1.0, the model should be preferred."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         r.learn("analyze syntax tree parsing", "vector-dev", reward=1.0)
         result = r.route("analyze syntax tree parsing")
@@ -308,14 +308,14 @@ class TestNeuralRouterAbsorption:
 
     def test_low_reward_penalises_weight(self):
         """After learning with reward=0.0, weight should decrease."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         initial_route = r.route("debug memory leak")
         r.learn("debug memory leak", "vector-chairman", reward=0.0)
         # chairman's weight for "debug" should be lower now
 
     def test_latency_tracking(self):
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         r.learn("write tests", "vector-dev", reward=0.8, latency_ms=1500)
         r.learn("write tests", "vector-dev", reward=0.9, latency_ms=1200)
@@ -323,13 +323,13 @@ class TestNeuralRouterAbsorption:
         assert len(r._latency.get("vector-dev", [])) >= 2
 
     def test_domain_cohesion(self):
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         cohesion = r.domain_cohesion("vector-coder")
         assert 0.0 <= cohesion <= 2.0
 
     def test_get_domain_map(self):
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         dm = r.get_domain_map()
         assert isinstance(dm, dict)
@@ -339,21 +339,21 @@ class TestNeuralRouterAbsorption:
         assert "avg_latency_ms" in dm["vector-coder"]
 
     def test_route_sequence(self):
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         models = r.route_sequence(["plan the task", "write the code", "review it"])
         assert len(models) == 3
 
     def test_rule4_max_switches(self):
         """RULE 4: At most 3 model switches across a 3-task sequence."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         switches = r.count_switches(["plan the task", "write the code", "review it"])
         assert switches <= 3
 
     def test_weight_persistence(self):
         """Weights should survive a new NeuralRouter instance."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r1 = NeuralRouter()
         r1.learn("unique_absorption_keyword_xyz", "vector-deep", reward=0.99)
         r2 = NeuralRouter()
@@ -370,7 +370,7 @@ class TestQueenCoordinatorAbsorption:
     """Validates QueenCoordinator now covers VECTOR's Queen.ts features."""
 
     def test_single_shot_decompose_preserved(self):
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator
+        from agents.coding.vectorcode.queen import QueenCoordinator
         q = QueenCoordinator()
         result = q.decompose("build a login endpoint with JWT auth")
         assert isinstance(result, list)
@@ -379,7 +379,7 @@ class TestQueenCoordinatorAbsorption:
 
     def test_capability_declarations(self):
         """VECTOR: Queen registers capabilities with the swarm."""
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator
+        from agents.coding.vectorcode.queen import QueenCoordinator
         q = QueenCoordinator()
         caps = q.get_capabilities()
         assert "strategic_planning" in caps
@@ -389,7 +389,7 @@ class TestQueenCoordinatorAbsorption:
 
     def test_coordination_loop_control(self):
         """Loop can be started and stopped."""
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator
+        from agents.coding.vectorcode.queen import QueenCoordinator
         q = QueenCoordinator()
         assert not q._loop_running
         q._loop_running = True
@@ -398,7 +398,7 @@ class TestQueenCoordinatorAbsorption:
 
     def test_consensus_proposal_proceed(self):
         """should_proceed returns True when verdict=PROCEED and confidence >= 0.7."""
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
+        from agents.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="run unit tests")
         p.verdict = ConsensusVerdict.PROCEED
@@ -406,7 +406,7 @@ class TestQueenCoordinatorAbsorption:
         assert q.should_proceed(p) is True
 
     def test_consensus_proposal_reject_on_low_confidence(self):
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
+        from agents.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="delete production database")
         p.verdict = ConsensusVerdict.PROCEED
@@ -414,7 +414,7 @@ class TestQueenCoordinatorAbsorption:
         assert q.should_proceed(p) is False
 
     def test_consensus_proposal_reject_on_defer(self):
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
+        from agents.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="push to production")
         p.verdict = ConsensusVerdict.DEFER
@@ -422,7 +422,7 @@ class TestQueenCoordinatorAbsorption:
         assert q.should_proceed(p) is False
 
     def test_status_dict(self):
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator
+        from agents.coding.vectorcode.queen import QueenCoordinator
         q = QueenCoordinator()
         status = q.get_status()
         assert "loop_running" in status
@@ -431,7 +431,7 @@ class TestQueenCoordinatorAbsorption:
 
     def test_build_consensus_falls_back_gracefully(self):
         """Without Ollama, build_consensus returns a proposal with DEFER verdict."""
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusVerdict
+        from agents.coding.vectorcode.queen import QueenCoordinator, ConsensusVerdict
         q = QueenCoordinator()
         proposal = q.build_consensus("delete everything", "test context")
         assert proposal.verdict in (ConsensusVerdict.DEFER, ConsensusVerdict.REJECT, ConsensusVerdict.PROCEED)
@@ -446,12 +446,12 @@ class TestMessageBusAbsorption:
     """Validates VectorCode MessageBus covers VECTOR's message-bus.ts concepts."""
 
     def test_message_bus_importable(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         assert bus is not None
 
     def test_default_channels_exist(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         channels = bus.list_channels()
         assert "tasks" in channels
@@ -460,14 +460,14 @@ class TestMessageBusAbsorption:
         assert "logs" in channels
 
     def test_create_channel(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         ch = bus.create_channel("absorption_test_ch", ChannelType.BROADCAST)
         assert ch is not None
         assert "absorption_test_ch" in bus.list_channels()
 
     def test_publish_and_subscribe(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         received = []
         sub_id = bus.subscribe("events", lambda m: received.append(m.content))
@@ -476,7 +476,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("events", sub_id)
 
     def test_dead_letter_on_empty_channel(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         bus.create_channel("dead_letter_test", ChannelType.BROADCAST)
         bus.publish("dead_letter_test", "orphan_message")
@@ -485,7 +485,7 @@ class TestMessageBusAbsorption:
         assert len(dl) >= 1
 
     def test_channel_stats(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         bus.create_channel("stats_test_ch", ChannelType.BROADCAST)
         sub_id = bus.subscribe("stats_test_ch", lambda m: None)
@@ -498,7 +498,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("stats_test_ch", sub_id)
 
     def test_qos_fire_and_forget(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, QoS
+        from agents.coding.vectorcode.message_bus import MessageBus, QoS
         bus = MessageBus.get()
         received = []
         sub_id = bus.subscribe("tasks", lambda m: received.append(m))
@@ -507,7 +507,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("tasks", sub_id)
 
     def test_qos_at_least_once_ack(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, QoS
+        from agents.coding.vectorcode.message_bus import MessageBus, QoS
         bus = MessageBus.get()
         sub_id = bus.subscribe("tasks", lambda m: None)
         msg = bus.publish("tasks", "ack test", qos=QoS.AT_LEAST_ONCE, sender="test")
@@ -517,7 +517,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("tasks", sub_id)
 
     def test_message_ttl(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         received = []
         sub_id = bus.subscribe("events", lambda m: received.append(m.content))
@@ -529,7 +529,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("events", sub_id)
 
     def test_queue_channel_round_robin(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         bus.create_channel("rr_queue", ChannelType.QUEUE)
         log_a, log_b = [], []
@@ -544,7 +544,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("rr_queue", id_b)
 
     def test_middleware_applied(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         tagged = []
         bus.add_middleware(lambda m: tagged.append("mw"))
@@ -554,7 +554,7 @@ class TestMessageBusAbsorption:
         bus.unsubscribe("logs", sub_id)
 
     def test_global_stats(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         stats = bus.get_stats()
         assert isinstance(stats, dict)
@@ -562,7 +562,7 @@ class TestMessageBusAbsorption:
         assert "events" in stats
 
     def test_broadcast_to_all_channels(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.message_bus import MessageBus
         bus = MessageBus.get()
         received = []
         ids = [bus.subscribe(ch, lambda m: received.append(m.channel)) for ch in ["tasks", "events", "logs"]]
@@ -580,14 +580,14 @@ class TestWorkersAbsorption:
     """Validates real worker implementations absorbed from VECTOR monitoring."""
 
     def test_all_12_workers_present(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
         bw = BackgroundWorkers()
         assert len(bw.list_workers()) == 12
         for w in WorkerName:
             assert w in bw.list_workers()
 
     def test_benchmark_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_benchmark()
         assert result.get("status") == "ok"
@@ -596,7 +596,7 @@ class TestWorkersAbsorption:
         assert "message_bus_p100_ms" in result["latencies"]
 
     def test_predict_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_predict()
         assert result.get("status") in ("ok", "error")
@@ -605,7 +605,7 @@ class TestWorkersAbsorption:
             assert isinstance(result["predictions"], list)
 
     def test_document_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_document()
         assert result.get("status") in ("ok", "error")
@@ -613,7 +613,7 @@ class TestWorkersAbsorption:
             assert "undocumented" in result
 
     def test_refactor_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_refactor()
         assert result.get("status") in ("ok", "error")
@@ -621,7 +621,7 @@ class TestWorkersAbsorption:
             assert "candidates" in result
 
     def test_testgaps_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_testgaps()
         assert result.get("status") in ("ok", "error")
@@ -629,25 +629,25 @@ class TestWorkersAbsorption:
             assert "untested" in result
 
     def test_preload_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_preload()
         assert result.get("status") in ("ok", "error")
 
     def test_optimize_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_optimize()
         assert result.get("status") in ("ok", "error", "skipped")
 
     def test_consolidate_worker_runs(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         result = bw.run_consolidate()
         assert result.get("status") in ("ok", "error")
 
     def test_submit_all_workers(self):
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
         bw = BackgroundWorkers()
         for worker in WorkerName:
             task_id = bw.submit(worker)
@@ -666,13 +666,13 @@ class TestVectorCodeSuperiority:
 
     def test_vectorcode_has_no_http_dependency(self):
         """VectorCode MessagingHub works without any external HTTP process."""
-        from agents.districts.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.comms import MessagingHub
         hub = MessagingHub()
         assert hub.is_connected() is True  # Always true — no process dependency
 
     def test_vectorcode_router_learns_from_outcomes(self):
         """VECTOR's NeuralDomainMapper concept: VectorCode router improves over time."""
-        from agents.districts.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
         # This is impossible with static SemanticRouter or VECTOR's TypeScript GNN
         r.learn("review authentication code", "vector-dev", reward=1.0)
@@ -681,7 +681,7 @@ class TestVectorCodeSuperiority:
 
     def test_vectorcode_queen_has_consensus_protocol(self):
         """VECTOR had consensus; Hermes had none. VectorCode has both + local Python."""
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
+        from agents.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="delete logs", context="maintenance")
         p.verdict = ConsensusVerdict.REJECT
@@ -690,14 +690,14 @@ class TestVectorCodeSuperiority:
 
     def test_vectorcode_message_bus_is_pure_python(self):
         """VECTOR's MessageBus required Node.js. VectorCode's is pure Python."""
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         # No Node.js needed — import succeeded
         assert bus is not None
 
     def test_vectorcode_persona_persists_to_disk(self):
         """Hermes PersonModel required Obsidian vault. VectorCode uses ~/.vector/personas/."""
-        from agents.districts.coding.vectorcode.persona import PersonModel
+        from agents.coding.vectorcode.persona import PersonModel
         from pathlib import Path
         pm = PersonModel()
         pm.learn_from_messages("DiskTestPerson", [{"content": "Hello world"}])
@@ -707,12 +707,12 @@ class TestVectorCodeSuperiority:
     def test_vectorcode_all_modules_importable_without_hermes_running(self):
         """Key superiority: VectorCode works fully offline without Hermes."""
         # Import everything — none should require Hermes HTTP
-        from agents.districts.coding.vectorcode.persona import PersonModel, StyleModel
-        from agents.districts.coding.vectorcode.comms import MessagingHub
-        from agents.districts.coding.vectorcode.message_bus import MessageBus
-        from agents.districts.coding.vectorcode.router import NeuralRouter
-        from agents.districts.coding.vectorcode.queen import QueenCoordinator
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from agents.coding.vectorcode.persona import PersonModel, StyleModel
+        from agents.coding.vectorcode.comms import MessagingHub
+        from agents.coding.vectorcode.message_bus import MessageBus
+        from agents.coding.vectorcode.router import NeuralRouter
+        from agents.coding.vectorcode.queen import QueenCoordinator
+        from agents.coding.vectorcode.hooks.workers import BackgroundWorkers
         # All imports succeeded without Hermes
         assert True
 
@@ -738,13 +738,13 @@ class TestMessageBusACL:
     """Validates full VECTOR ACL absorption: allowed_senders, banned_agents, 7 filter ops."""
 
     def test_acl_import(self):
-        from agents.districts.coding.vectorcode.message_bus import ChannelACL, FilterOp, FilterRule
+        from agents.coding.vectorcode.message_bus import ChannelACL, FilterOp, FilterRule
         acl = ChannelACL()
         assert acl.write_permission is True
         assert acl.read_permission  is True
 
     def test_allowed_senders_blocks_unknown(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
         bus = MessageBus()
         acl = ChannelACL(allowed_senders={"coder"})
         bus.create_channel("acl_send_test", ChannelType.BROADCAST, acl=acl)
@@ -755,7 +755,7 @@ class TestMessageBusACL:
         assert received == ["ok"]
 
     def test_banned_agent_blocked(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
         bus = MessageBus()
         acl = ChannelACL(banned_agents={"bad-bot"})
         bus.create_channel("acl_ban_test", ChannelType.BROADCAST, acl=acl)
@@ -766,7 +766,7 @@ class TestMessageBusACL:
         assert received == ["good"]
 
     def test_write_permission_false_blocks_all(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
         bus = MessageBus()
         acl = ChannelACL(write_permission=False)
         bus.create_channel("readonly_ch", ChannelType.BROADCAST, acl=acl)
@@ -776,49 +776,49 @@ class TestMessageBusACL:
         assert received == []
 
     def test_filter_op_eq(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="sender", op=FilterOp.EQ, value="vector")
         assert fr.evaluate(Message(sender="vector"))
         assert not fr.evaluate(Message(sender="other"))
 
     def test_filter_op_ne(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="sender", op=FilterOp.NE, value="banned")
         assert fr.evaluate(Message(sender="vector"))
         assert not fr.evaluate(Message(sender="banned"))
 
     def test_filter_op_gt(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="priority", op=FilterOp.GT, value=1)
         assert fr.evaluate(Message(priority=2))
         assert not fr.evaluate(Message(priority=1))
 
     def test_filter_op_lt(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="priority", op=FilterOp.LT, value=3)
         assert fr.evaluate(Message(priority=2))
         assert not fr.evaluate(Message(priority=4))
 
     def test_filter_op_contains(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="sender", op=FilterOp.CONTAINS, value="cod")
         assert fr.evaluate(Message(sender="coder"))
         assert not fr.evaluate(Message(sender="reviewer"))
 
     def test_filter_op_matches(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="sender", op=FilterOp.MATCHES, value=r"^vec")
         assert fr.evaluate(Message(sender="vector"))
         assert not fr.evaluate(Message(sender="hermes"))
 
     def test_filter_op_in(self):
-        from agents.districts.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
+        from agents.coding.vectorcode.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="priority", op=FilterOp.IN, value={1, 2, 3})
         assert fr.evaluate(Message(priority=2))
         assert not fr.evaluate(Message(priority=5))
 
     def test_acl_stats_track_denials(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
         bus = MessageBus()
         acl = ChannelACL(allowed_senders={"vector"})
         bus.create_channel("denial_stats_ch", ChannelType.BROADCAST, acl=acl)
@@ -827,7 +827,7 @@ class TestMessageBusACL:
         assert stats.get("acl_denied", 0) >= 1
 
     def test_subscribe_acl_allowed_receivers(self):
-        from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
+        from agents.coding.vectorcode.message_bus import MessageBus, ChannelType, ChannelACL
         bus = MessageBus()
         acl = ChannelACL(allowed_receivers={"worker-1"})
         bus.create_channel("sub_acl_ch", ChannelType.BROADCAST, acl=acl)
@@ -845,13 +845,13 @@ class TestSwarmTopologies:
     """Validates all 8 VECTOR topology strategies are implemented."""
 
     def test_all_8_topologies_in_enum(self):
-        from agents.districts.coding.vectorcode.swarm import Topology
+        from agents.coding.vectorcode.swarm import Topology
         names = {t.value for t in Topology}
         for t in ("hierarchical", "mesh", "adaptive", "byzantine", "raft", "gossip", "crdt", "quorum"):
             assert t in names
 
     def test_agent_state_tracks_task(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         a = sc.spawn("coder")
         sc.assign_task(a.id, "write unit tests")
@@ -863,7 +863,7 @@ class TestSwarmTopologies:
         assert state.tasks_completed == 1
 
     def test_hierarchical_selects_highest_hp(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.HIERARCHICAL)
         for _ in range(3):
             sc.spawn("coder")
@@ -872,7 +872,7 @@ class TestSwarmTopologies:
         assert hps == sorted(hps, reverse=True)
 
     def test_mesh_selects_all_idle(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.MESH)
         for _ in range(3):
             sc.spawn("coder")
@@ -880,7 +880,7 @@ class TestSwarmTopologies:
         assert len(selected) == 3
 
     def test_byzantine_requires_2f_plus_1(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.BYZANTINE, byzantine_f=1)
         for _ in range(3):
             sc.spawn("coder")
@@ -888,14 +888,14 @@ class TestSwarmTopologies:
         assert isinstance(agreed, bool)
 
     def test_byzantine_fails_without_enough_agents(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.BYZANTINE, byzantine_f=2)
         sc.spawn("coder")   # only 1, need 2*2+1=5
         agreed = sc.byzantine_agree("risky action", "delete cache")
         assert agreed is False
 
     def test_raft_elects_leader(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.RAFT)
         for _ in range(3):
             sc.spawn("coder")
@@ -903,7 +903,7 @@ class TestSwarmTopologies:
         assert sc._raft_leader.status == "idle"
 
     def test_raft_log_append(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.RAFT)
         sc.spawn("coder")
         idx = sc.raft_append_log({"action": "test", "data": "x"})
@@ -912,7 +912,7 @@ class TestSwarmTopologies:
         assert "ts" in sc._event_log[0]
 
     def test_gossip_broadcast_fanout(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.GOSSIP, gossip_fanout=2)
         for _ in range(5):
             sc.spawn("coder")
@@ -920,7 +920,7 @@ class TestSwarmTopologies:
         assert delivered <= 2
 
     def test_crdt_merge_union(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.CRDT)
         sc.spawn("coder")
         merged = sc.crdt_merge("agent-1", {"task_count": 5, "last_file": "main.py"})
@@ -929,7 +929,7 @@ class TestSwarmTopologies:
 
     def test_crdt_lww_register(self):
         """Last-write-wins: newer timestamp wins."""
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.CRDT)
         sc.crdt_merge("agent-1", {"key": "v1"})
         sc.crdt_merge("agent-2", {"key": "v2"})
@@ -937,7 +937,7 @@ class TestSwarmTopologies:
         assert sc._crdt_state.get("key", {}).get("writer") == "agent-2"
 
     def test_quorum_vote_pass(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.QUORUM, quorum_size=2)
         for _ in range(3):
             sc.spawn("coder")
@@ -945,14 +945,14 @@ class TestSwarmTopologies:
         assert result is True
 
     def test_quorum_vote_fail(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator, Topology
+        from agents.coding.vectorcode.swarm import SwarmCoordinator, Topology
         sc = SwarmCoordinator(topology=Topology.QUORUM, quorum_size=10)
         sc.spawn("coder")   # only 1 idle, need 10
         result = sc.quorum_vote("run deployment")
         assert result is False
 
     def test_report_includes_per_agent_state(self):
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         report = sc.report()
@@ -972,13 +972,13 @@ class TestSwarmMonitor:
     """Validates SwarmMonitor absorbs VECTOR real-time-monitor + health-check + diagnostics."""
 
     def test_import(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
         m = SwarmMonitor()
         assert m is not None
 
     def test_take_snapshot_structure(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         sc.spawn("reviewer")
@@ -989,8 +989,8 @@ class TestSwarmMonitor:
         assert len(snap.agents) == 2
 
     def test_health_check_all_ok(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         m = SwarmMonitor()
@@ -1000,8 +1000,8 @@ class TestSwarmMonitor:
         assert health.summary != ""
 
     def test_health_check_detects_no_agents(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()   # no agents
         m = SwarmMonitor()
         health = m.run_health_check(sc)
@@ -1011,8 +1011,8 @@ class TestSwarmMonitor:
         assert check.ok is False
 
     def test_diagnostics_structure(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         m = SwarmMonitor()
@@ -1024,8 +1024,8 @@ class TestSwarmMonitor:
         assert isinstance(diag.alerts, list)
 
     def test_metrics_window(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         m = SwarmMonitor()
@@ -1038,8 +1038,8 @@ class TestSwarmMonitor:
         assert "throughput_per_min" in metrics
 
     def test_snapshot_history(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         sc = SwarmCoordinator()
         sc.spawn("coder")
         m = SwarmMonitor()
@@ -1050,8 +1050,8 @@ class TestSwarmMonitor:
         assert "topology" in history[0]
 
     def test_stall_detection_marks_stalled(self):
-        from agents.districts.coding.vectorcode.monitoring import SwarmMonitor, AgentMetric
-        from agents.districts.coding.vectorcode.swarm import SwarmCoordinator
+        from agents.coding.vectorcode.monitoring import SwarmMonitor, AgentMetric
+        from agents.coding.vectorcode.swarm import SwarmCoordinator
         import time
         sc = SwarmCoordinator()
         a = sc.spawn("coder")
@@ -1074,21 +1074,21 @@ class TestSwarmDatabase:
     def setup_method(self):
         import tempfile
         from pathlib import Path
-        import agents.districts.coding.vectorcode.memory.swarm_db as _mod
+        import agents.coding.vectorcode.memory.swarm_db as _mod
         self._tmpdir = tempfile.mkdtemp()
         self._orig_root = _mod._DB_ROOT
         _mod._DB_ROOT = Path(self._tmpdir)
 
     def teardown_method(self):
-        import agents.districts.coding.vectorcode.memory.swarm_db as _mod
+        import agents.coding.vectorcode.memory.swarm_db as _mod
         _mod._DB_ROOT = self._orig_root
 
     def _make_db(self, swarm_id="test"):
-        from agents.districts.coding.vectorcode.memory.swarm_db import SwarmDatabase
+        from agents.coding.vectorcode.memory.swarm_db import SwarmDatabase
         return SwarmDatabase(swarm_id)
 
     def test_import(self):
-        from agents.districts.coding.vectorcode.memory.swarm_db import SwarmDatabase
+        from agents.coding.vectorcode.memory.swarm_db import SwarmDatabase
         db = self._make_db()
         assert db is not None
         db.close()
@@ -1201,26 +1201,26 @@ class TestTelegramBot:
     """Validates TelegramBot bidirectional long-polling."""
 
     def test_import(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         bot = TelegramBot(token="TEST_TOKEN")
         assert bot is not None
 
     def test_command_handler_registration(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         bot = TelegramBot(token="TEST")
         results = []
         bot.on_command("ping", lambda m, b: results.append("pong"))
         assert "ping" in bot._handlers
 
     def test_default_handlers_registered(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         bot = TelegramBot(token="TEST")
         assert "help"   in bot._handlers
         assert "start"  in bot._handlers
         assert "status" in bot._handlers
 
     def test_message_parsing(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramMessage
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramMessage
         import time
         raw = {
             "message_id": 42,
@@ -1236,7 +1236,7 @@ class TestTelegramBot:
         assert msg.sender_name == "testuser"
 
     def test_message_no_command(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramMessage
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramMessage
         import time
         raw = {"message_id": 1, "chat": {"id": 1}, "from": {}, "text": "hello world", "date": int(time.time())}
         msg = TelegramMessage(raw)
@@ -1244,14 +1244,14 @@ class TestTelegramBot:
         assert msg.text == "hello world"
 
     def test_allowed_chat_id_enforcement(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot, TelegramMessage
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot, TelegramMessage
         import time
         bot = TelegramBot(token="TEST", allowed_chat_ids={12345})
         assert 12345 in bot._allowed
         assert 99999 not in bot._allowed
 
     def test_stats_structure(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         bot = TelegramBot(token="TEST")
         stats = bot.get_stats()
         assert "running"   in stats
@@ -1261,13 +1261,13 @@ class TestTelegramBot:
         assert "help"      in stats["commands"]
 
     def test_text_handler_registered(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         bot = TelegramBot(token="TEST")
         bot.on_text(lambda m, b: None)
         assert bot._text_handler is not None
 
     def test_process_update_dispatches_command(self):
-        from agents.districts.coding.vectorcode.comms.telegram_bot import TelegramBot
+        from agents.coding.vectorcode.comms.telegram_bot import TelegramBot
         import time
         bot = TelegramBot(token="TEST", allowed_chat_ids={12345})
         handled = []
@@ -1294,7 +1294,7 @@ class TestPlatformAdapters:
     """Validates all 9 Hermes platform adapters are absorbed."""
 
     def test_all_adapters_importable(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import (
+        from agents.coding.vectorcode.comms.platform_adapters import (
             WhatsAppAdapter, MatrixAdapter, SignalAdapter, MattermostAdapter,
             HomeAssistantAdapter, DingTalkAdapter, FeishuAdapter, WeComAdapter,
             SMSAdapter, PlatformRegistry,
@@ -1302,7 +1302,7 @@ class TestPlatformAdapters:
         assert True
 
     def test_platform_registry(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import (
+        from agents.coding.vectorcode.comms.platform_adapters import (
             PlatformRegistry, FeishuAdapter, WeComAdapter, DingTalkAdapter
         )
         reg = PlatformRegistry()
@@ -1313,64 +1313,64 @@ class TestPlatformAdapters:
         assert "feishu" in reg.list_platforms()
 
     def test_registry_unregistered_platform_returns_false(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import PlatformRegistry
+        from agents.coding.vectorcode.comms.platform_adapters import PlatformRegistry
         reg = PlatformRegistry()
         result = reg.send("nonexistent", text="hello")
         assert result is False
 
     def test_whatsapp_adapter_url(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import WhatsAppAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import WhatsAppAdapter
         wa = WhatsAppAdapter(phone_number_id="PHONE_ID", access_token="TOKEN")
         assert "PHONE_ID" in wa._url
         assert "Bearer TOKEN" in wa._headers["Authorization"]
 
     def test_matrix_adapter_headers(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import MatrixAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import MatrixAdapter
         mx = MatrixAdapter("https://matrix.example.com", "ACCESS_TOKEN")
         assert "Bearer ACCESS_TOKEN" in mx._headers["Authorization"]
         assert mx._hs == "https://matrix.example.com"
 
     def test_signal_adapter_init(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import SignalAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import SignalAdapter
         sig = SignalAdapter("http://localhost:8080", "+91999")
         assert sig._sender == "+91999"
         assert "8080" in sig._host
 
     def test_mattermost_adapter_init(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import MattermostAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import MattermostAdapter
         mm = MattermostAdapter("https://mm.example.com/hook/abc", token="tok", base_url="https://mm.example.com")
         assert mm._webhook == "https://mm.example.com/hook/abc"
         assert mm._token == "tok"
 
     def test_homeassistant_adapter_headers(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import HomeAssistantAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import HomeAssistantAdapter
         ha = HomeAssistantAdapter("https://ha.example.com", "HA_TOKEN")
         assert "Bearer HA_TOKEN" in ha._headers["Authorization"]
 
     def test_dingtalk_sign_generation(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import DingTalkAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import DingTalkAdapter
         dt = DingTalkAdapter("https://example.com/dt?access_token=x", secret="mysecret")
         ts, sign = dt._sign()
         assert ts.isdigit() and len(sign) > 10
 
     def test_feishu_webhook_stored(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import FeishuAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import FeishuAdapter
         fs = FeishuAdapter("https://open.feishu.cn/hook/abc")
         assert fs._webhook == "https://open.feishu.cn/hook/abc"
 
     def test_wecom_webhook_stored(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import WeComAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import WeComAdapter
         wc = WeComAdapter("https://qyapi.weixin.qq.com/webhook/abc")
         assert wc._webhook == "https://qyapi.weixin.qq.com/webhook/abc"
 
     def test_sms_twilio_config(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import SMSAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import SMSAdapter
         sms = SMSAdapter(provider="twilio", twilio_sid="AC123", twilio_token="tok", twilio_from="+1")
         assert sms._provider == "twilio"
         assert sms._twilio_sid == "AC123"
 
     def test_sms_sns_config(self):
-        from agents.districts.coding.vectorcode.comms.platform_adapters import SMSAdapter
+        from agents.coding.vectorcode.comms.platform_adapters import SMSAdapter
         sms = SMSAdapter(provider="sns", sns_region="ap-south-1")
         assert sms._provider == "sns"
         assert sms._sns_region == "ap-south-1"
@@ -1384,12 +1384,12 @@ class TestInboundMessageRouter:
     """Validates InboundMessageRouter — command routing, dedup, rate limit, REPL bridge."""
 
     def test_import(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter
         r = InboundMessageRouter()
         assert r is not None
 
     def test_command_routing(self):
-        from agents.districts.coding.vectorcode.comms.inbound import (
+        from agents.coding.vectorcode.comms.inbound import (
             InboundMessageRouter, InboundMessage, RouteResult
         )
         router = InboundMessageRouter()
@@ -1402,7 +1402,7 @@ class TestInboundMessageRouter:
         assert len(handled) == 1
 
     def test_platform_routing(self):
-        from agents.districts.coding.vectorcode.comms.inbound import (
+        from agents.coding.vectorcode.comms.inbound import (
             InboundMessageRouter, InboundMessage, RouteResult
         )
         router = InboundMessageRouter()
@@ -1414,7 +1414,7 @@ class TestInboundMessageRouter:
         assert len(sms_log) == 1
 
     def test_keyword_routing(self):
-        from agents.districts.coding.vectorcode.comms.inbound import (
+        from agents.coding.vectorcode.comms.inbound import (
             InboundMessageRouter, InboundMessage, RouteResult
         )
         router = InboundMessageRouter()
@@ -1425,7 +1425,7 @@ class TestInboundMessageRouter:
         assert result.handled and urgent_log
 
     def test_default_handler_fallback(self):
-        from agents.districts.coding.vectorcode.comms.inbound import (
+        from agents.coding.vectorcode.comms.inbound import (
             InboundMessageRouter, InboundMessage, RouteResult
         )
         router = InboundMessageRouter()
@@ -1436,7 +1436,7 @@ class TestInboundMessageRouter:
         assert result.handled and "random text" in fallback
 
     def test_deduplication(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         router.set_default(lambda m, r: None)
         msg = InboundMessage(id="fixed-id-001", platform="telegram", sender_id="u1", text="hello")
@@ -1446,7 +1446,7 @@ class TestInboundMessageRouter:
         assert r2.handler == "dedup"
 
     def test_rate_limiting(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         router.set_default(lambda m, r: None)
         # Send 25 messages — limit is 20 per 60s window
@@ -1456,7 +1456,7 @@ class TestInboundMessageRouter:
         assert stats["rejected_rate"] >= 5
 
     def test_repl_bridge(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         router.bridge_to_repl(lambda text: f"VECTOR says: {text}")
         msg = InboundMessage(platform="telegram", sender_id="u1", text="hello there")
@@ -1465,7 +1465,7 @@ class TestInboundMessageRouter:
         assert "VECTOR says: hello there" in result.reply
 
     def test_thread_tracking(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         router.set_default(lambda m, r: None)
         for i in range(3):
@@ -1474,7 +1474,7 @@ class TestInboundMessageRouter:
         assert len(thread) >= 1
 
     def test_stats_structure(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         router.route(InboundMessage(platform="t", sender_id="u1", text="/ping"))
         stats = router.get_stats()
@@ -1485,7 +1485,7 @@ class TestInboundMessageRouter:
         assert "/ping"          in stats["commands"]
 
     def test_builtin_ping_command(self):
-        from agents.districts.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
+        from agents.coding.vectorcode.comms.inbound import InboundMessageRouter, InboundMessage
         router = InboundMessageRouter()
         result = router.route(InboundMessage(platform="t", sender_id="u1", text="/ping"))
         assert result.handled

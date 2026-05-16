@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 # ── Task 1: FAISSIndex ────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.memory.faiss_index import FAISSIndex
+from agents.coding.vectorcode.memory.faiss_index import FAISSIndex
 
 
 def test_faiss_add_and_search(tmp_path):
@@ -43,11 +43,11 @@ def test_faiss_similarity_threshold(tmp_path):
 
 # ── Task 2: PatternStore ─────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.memory.pattern_store import PatternStore
+from agents.coding.vectorcode.memory.pattern_store import PatternStore
 
 
 def test_pattern_store_save_and_recall(tmp_path):
-    with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+    with patch("agents.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
         mock_idx = MagicMock()
         mock_idx.search.return_value = [{"id": "p1", "score": 0.95, "meta": {"plan": "step1,step2", "outcome": "success"}}]
         MockFAISS.return_value = mock_idx
@@ -59,7 +59,7 @@ def test_pattern_store_save_and_recall(tmp_path):
 
 
 def test_pattern_store_skip_below_threshold(tmp_path):
-    with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+    with patch("agents.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
         mock_idx = MagicMock()
         mock_idx.search.return_value = [{"id": "p1", "score": 0.3, "meta": {"plan": "x"}}]
         MockFAISS.return_value = mock_idx
@@ -69,8 +69,8 @@ def test_pattern_store_skip_below_threshold(tmp_path):
 
 
 def test_pattern_store_reward_updates_policy(tmp_path):
-    with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex"):
-        with patch("agents.districts.coding.vectorcode.memory.pattern_store.EpisodicMemory") as MockMem:
+    with patch("agents.coding.vectorcode.memory.pattern_store.FAISSIndex"):
+        with patch("agents.coding.vectorcode.memory.pattern_store.EpisodicMemory") as MockMem:
             mock_mem = MagicMock()
             MockMem.return_value = mock_mem
             ps = PatternStore(index_path=str(tmp_path / "patterns"))
@@ -80,12 +80,12 @@ def test_pattern_store_reward_updates_policy(tmp_path):
 
 # ── Task 3: AutoMemoryBridge ─────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.memory.auto_bridge import AutoMemoryBridge
+from agents.coding.vectorcode.memory.auto_bridge import AutoMemoryBridge
 
 
 def test_bridge_sync_reads_episodic(tmp_path):
-    with patch("agents.districts.coding.vectorcode.memory.auto_bridge.EpisodicMemory") as MockMem:
-        with patch("agents.districts.coding.vectorcode.memory.auto_bridge.FAISSIndex") as MockFAISS:
+    with patch("agents.coding.vectorcode.memory.auto_bridge.EpisodicMemory") as MockMem:
+        with patch("agents.coding.vectorcode.memory.auto_bridge.FAISSIndex") as MockFAISS:
             mock_mem = MagicMock()
             mock_mem.recall.return_value = [{"content": "learned pattern", "tags": ["code"]}]
             MockMem.return_value = mock_mem

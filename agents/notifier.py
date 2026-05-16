@@ -23,7 +23,7 @@ class Notifier:
         for ch in channels:
             try:
                 if ch == "vectorcode":
-                    from agents.districts.communications.communications_adapter import CommunicationsAdapter
+                    from agents.communications.communications_adapter import CommunicationsAdapter
                     import asyncio
                     if CommunicationsAdapter is None:
                         results[ch] = {"status": "error", "detail": "MessagingHub unavailable"}

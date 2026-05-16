@@ -12,7 +12,7 @@ import pytest
 # Task 1: VectorCodeSession — shared state singleton
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.session import VectorCodeSession
+from agents.coding.vectorcode.session import VectorCodeSession
 
 
 def test_session_singleton():
@@ -58,7 +58,7 @@ def test_session_reset():
 # Task 2: SemanticRouter — model routing
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.router import SemanticRouter
+from agents.coding.vectorcode.router import SemanticRouter
 
 
 def test_router_routes_code():
@@ -102,7 +102,7 @@ def test_router_routes_council():
 # Task 3: FileTools — read/write/edit/grep/glob
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.tools.file_tools import FileTools
+from agents.coding.vectorcode.tools.file_tools import FileTools
 
 
 def test_file_read_write(tmp_path):
@@ -163,7 +163,7 @@ def test_file_edit_raises_if_old_not_found(tmp_path):
 # Task 4: BashTools — safe command execution
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.tools.bash_tools import BashTools
+from agents.coding.vectorcode.tools.bash_tools import BashTools
 
 
 def test_bash_allowed_command():
@@ -214,7 +214,7 @@ def test_bash_blocks_unknown_command():
 # Task 5: InputValidator + PathValidator
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.security.validator import InputValidator, PathValidator
+from agents.coding.vectorcode.security.validator import InputValidator, PathValidator
 
 
 def test_path_validator_blocks_traversal(tmp_path):
@@ -258,7 +258,7 @@ def test_input_validator_write_file():
 # Task 6: SafeExecutor — allowlist + injection protection
 # ─────────────────────────────────────────────────────────────────────────────
 
-from agents.districts.coding.vectorcode.security.safe_executor import SafeExecutor
+from agents.coding.vectorcode.security.safe_executor import SafeExecutor
 
 
 def test_safe_executor_allowlist_git():

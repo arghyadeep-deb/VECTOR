@@ -585,7 +585,7 @@ class AutonomousLoop:
     async def _reflect_tick(self) -> None:
         logger.info("[VECTOR][reflect] 2AM reflection starting...")
         try:
-            from agents.districts.reflection.daily_reviewer import DailyReviewer
+            from agents.reflection.daily_reviewer import DailyReviewer
             reviewer = DailyReviewer()
             ok = await reviewer.review()
             logger.info(f"[VECTOR][reflect] DailyReviewer done — ok={ok}")

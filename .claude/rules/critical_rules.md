@@ -45,7 +45,7 @@ Death triggers ghost memory preservation. Always.
 **RULE 10 — HERMES NOT REBUILT**
 `ollama launch hermes --model kimi-k2.6:cloud`
 Hermes already has multi-platform messaging, skill creation, persistent memory.
-Do not rebuild agents/districts/communications from scratch.
+Do not rebuild agents/communications from scratch.
 
 **RULE 11 — CLAUDE API NEVER IN RUNTIME**
 Claude Sonnet = your build sessions via Pro plan chat (unlimited).

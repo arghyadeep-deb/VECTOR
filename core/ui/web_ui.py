@@ -789,7 +789,7 @@ async def web_chat_ws(websocket: WebSocket):
 @router.get("/search")
 async def web_search(q: str = "", limit: int = 8):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from agents.research.research_hub import ResearchHub
         results = await ResearchHub().search_web(q, max_results=limit)
         return {"results": results}
     except Exception as e:
@@ -799,7 +799,7 @@ async def web_search(q: str = "", limit: int = 8):
 @router.get("/hn")
 async def web_hn(limit: int = 15):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from agents.research.research_hub import ResearchHub
         results = await ResearchHub().get_hn_top(limit=limit)
         return {"results": results}
     except Exception as e:
@@ -809,7 +809,7 @@ async def web_hn(limit: int = 15):
 @router.get("/github")
 async def web_github(lang: str = "python", limit: int = 10):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from agents.research.research_hub import ResearchHub
         results = await ResearchHub().get_github_trending(lang, limit=limit)
         return {"results": results}
     except Exception as e:
@@ -819,7 +819,7 @@ async def web_github(lang: str = "python", limit: int = 10):
 @router.get("/devto")
 async def web_devto(tag: str = "machinelearning", limit: int = 10):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from agents.research.research_hub import ResearchHub
         results = await ResearchHub().get_devto_posts(tag, limit=limit)
         return {"results": results}
     except Exception as e:
@@ -829,7 +829,7 @@ async def web_devto(tag: str = "machinelearning", limit: int = 10):
 @router.get("/arxiv")
 async def web_arxiv(q: str = "large language model", limit: int = 5, category: str = "cs.AI"):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from agents.research.research_hub import ResearchHub
         results = await ResearchHub().search_arxiv(q, max_results=limit, category=category)
         return {"results": results}
     except Exception as e:
@@ -860,7 +860,7 @@ async def web_memory(q: str = "", limit: int = 20):
 @router.get("/karpathy")
 async def web_karpathy():
     try:
-        from agents.districts.karpathy_lab.code_typer import CodeTyper
+        from agents.karpathy_lab.code_typer import CodeTyper
         typer = CodeTyper()
         return {"streak": typer.get_streak(), "today": typer.get_today_summary()}
     except Exception as e:

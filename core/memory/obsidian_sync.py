@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 
-_LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "agents/districts/memory_curator"
+_LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "agents/memory_curator"
 
 # FIX #15: File-level locking to prevent race conditions between agents writing to vault
 _vault_write_lock = threading.Lock()

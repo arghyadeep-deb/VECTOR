@@ -341,7 +341,7 @@ async def _materialize_agent(defn: Any) -> Any:
     import importlib
     import inspect
     import sys as _sys
-    candidates = ["agents.districts", "agents", "vectorcode.src.agents"]
+    candidates = ["agents", "agents", "vectorcode.src.agents"]
     for pkg in candidates:
         try:
             importlib.import_module(pkg)
