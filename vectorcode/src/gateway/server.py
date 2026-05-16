@@ -513,7 +513,7 @@ class GatewayServer:
                 try:
                     await asyncio.wait_for(task, timeout=5.0)
                 except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
+                    pass  # intentional: we cancelled the task, swallowing is correct during shutdown
             sess = self._sessions.get(session_id)
             if sess:
                 sess["status"] = "cancelled"
