@@ -1104,7 +1104,7 @@ if __name__ == "__main__":
         [False] * 4,
     )
     assert "td_error" in m3
-    print(f"[OK] SARSA(λ) td_error={m3['td_error']:.4f}")
+    print(f"[OK] SARSA(lambda) td_error={m3['td_error']:.4f}")
 
     # Q-Learning
     t_ql = VECTORTrainer("q-learning", SD, AD, use_curiosity=False)
