@@ -381,7 +381,7 @@ if __name__ == "__main__":
     # Smoke test: write_docs to temp dir
     with tempfile.TemporaryDirectory() as tmp:
         _DOCS_DIR_orig = _DOCS_DIR
-        import agents.documentation.technical_writer as _self_mod
+        import agents.districts.documentation.technical_writer as _self_mod
         _self_mod._DOCS_DIR = Path(tmp)
         ok = agent.write_docs("# Test\n\nContent.", "test_doc.md")
         _self_mod._DOCS_DIR = _DOCS_DIR_orig

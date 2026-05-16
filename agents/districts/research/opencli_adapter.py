@@ -146,7 +146,7 @@ class OpenCLIAdapter(AgentBase):
 
         # Fallback: reddit_miner native scraper
         try:
-            from agents.research.reddit_miner import RedditMiner
+            from agents.districts.research.reddit_miner import RedditMiner
             miner = RedditMiner()
             return await miner.mine_subreddit(subreddit, limit=limit)
         except Exception as e:

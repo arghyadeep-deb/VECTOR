@@ -48,7 +48,7 @@ def test_session_set_mode_invalid():
 def test_session_reset():
     s = VectorCodeSession.get()
     s.history.append({"role": "user", "content": "hello"})
-    s.active_agents.districts.append("vector-coder")
+    s.active_agents.append("vector-coder")
     s.reset()
     assert s.history == []
     assert s.active_agents == []

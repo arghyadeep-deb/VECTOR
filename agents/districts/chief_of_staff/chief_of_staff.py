@@ -412,7 +412,7 @@ class ChiefOfStaff(AgentBase):
             method = "council_escalation"
             district = "governance"
             try:
-                from agents.governance.llm_council import LLMCouncil
+                from agents.districts.governance.llm_council import LLMCouncil
 
                 council = LLMCouncil()
                 council_result = await council.convene(
