@@ -231,7 +231,7 @@ class NewsAggregator(AgentBase):
 
         # LLM picks the top 5 most relevant for Arghyadeep
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             titles_list = "\n".join(
                 f"[{i+1}] {a['title']} ({a['source']})" for i, a in enumerate(articles[:20])
             )

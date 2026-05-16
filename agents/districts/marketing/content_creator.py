@@ -17,7 +17,7 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
-from core.inference.ollama_safe import chat
+from core.inference.vectorcode_llm import chat
 
 _CONTENT_TYPES = ["blog_post", "whitepaper", "tutorial", "newsletter", "social_post",
                   "video_script", "case_study", "podcast_outline"]

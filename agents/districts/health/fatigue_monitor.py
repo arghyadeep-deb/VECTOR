@@ -69,7 +69,7 @@ class FatigueMonitor(AgentBase):
     def _notify(self, message: str) -> None:
         logger.warning(f"[VECTOR][fatigue_monitor] ALERT: {message}")
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             hydration = self._context.session_hydration_prompt()
             text = chat(model=_FOCUS, messages=[
                 {"role": "system", "content": hydration},

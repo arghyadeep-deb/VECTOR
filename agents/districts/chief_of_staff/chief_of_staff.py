@@ -66,7 +66,7 @@ class ChiefOfStaff(AgentBase):
     def _call_chairman(self, system: str, user: str, timeout: float = 120.0) -> str:
         """Blocking Ollama call — always via ollama_safe, RULE 11."""
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
 
             result = chat(
                 model=_CHAIRMAN,

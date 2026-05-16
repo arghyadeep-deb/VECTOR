@@ -18,7 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
-from core.inference.ollama_safe import chat
+from core.inference.vectorcode_llm import chat
 
 
 class ZKSteward(AgentBase):

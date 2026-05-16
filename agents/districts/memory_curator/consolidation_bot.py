@@ -104,7 +104,7 @@ class ConsolidationBot(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             summary = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
@@ -160,7 +160,7 @@ class ConsolidationBot(AgentBase):
             hydration = self._context.session_hydration_prompt()  # RULE 1
 
             try:
-                from core.inference.ollama_safe import chat
+                from core.inference.vectorcode_llm import chat
                 reflection = chat(
                     model=CONFIG["models"]["reasoning"],
                     messages=[

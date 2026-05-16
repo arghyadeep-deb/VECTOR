@@ -62,7 +62,7 @@ class PerformanceBenchmarker(AgentBase):
         """
         model = model or _FOCUS
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
         except Exception as e:
             logger.warning(
                 f"[VECTOR][performance_benchmarker] ollama_safe import failed: {e}"

@@ -112,7 +112,7 @@ class WebScout(AgentBase):
 
         summary = ""
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             summary = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[

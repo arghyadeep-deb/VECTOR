@@ -96,7 +96,7 @@ class PatternFinder(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             raw = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[

@@ -67,7 +67,7 @@ class JournalWriter(AgentBase):
             "Be concise, genuine, and specific."
         )
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             text = chat(model=_CHAIRMAN, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=120.0)
             if not text:
                 raise ValueError("ollama_safe returned empty response")

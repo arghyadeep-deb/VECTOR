@@ -46,7 +46,7 @@ class DocGenerator(AgentBase):
         """Single LLM call — always hydrates context first (RULE 1)."""
         hydration = self._context.session_hydration_prompt()
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             text = chat(
                 model=_CHAIRMAN,
                 messages=[

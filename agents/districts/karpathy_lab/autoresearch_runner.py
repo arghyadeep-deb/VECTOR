@@ -157,7 +157,7 @@ class AutoresearchRunner(AgentBase):
         )
 
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             result = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[

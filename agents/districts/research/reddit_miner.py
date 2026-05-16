@@ -113,7 +113,7 @@ class RedditMiner(AgentBase):
         )
         opportunities = ""
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             opportunities = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[

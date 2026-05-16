@@ -50,7 +50,7 @@ class ProjectPlanner(AgentBase):
             "Be specific, realistic, and concise."
         )
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             text = chat(model=_REASONING, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
             if not text:
                 raise ValueError("empty response")

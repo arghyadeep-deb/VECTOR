@@ -29,7 +29,7 @@ class DataAnalytics(AgentBase):
         logger.info("[VECTOR][data_analytics] DataAnalytics ready")
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        from core.inference.ollama_safe import chat as ollama_chat
+        from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()
         return ollama_chat(

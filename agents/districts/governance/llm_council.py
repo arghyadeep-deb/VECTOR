@@ -78,7 +78,7 @@ class LLMCouncil(AgentBase):
     def _call_model(self, model: str, system: str, user: str) -> str:
         """Ollama call via ollama_safe — RULE 11: no Claude API at runtime."""
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             return chat(
                 model=model,
                 messages=[

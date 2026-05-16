@@ -242,7 +242,7 @@ class BehavioralNudgeEngine(AgentBase):
         procrastinating = context.get("procrastination_detected", False)
 
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             from core.loop.context_engine import ContextEngine
 
             hydration = ContextEngine().session_hydration_prompt()

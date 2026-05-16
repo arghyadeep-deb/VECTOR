@@ -108,7 +108,7 @@ class TechnicalWriter(AgentBase):
         """Thin wrapper — always hydrates context first (RULE 1)."""
         hydration = system or self._context.session_hydration_prompt()
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             text = chat(
                 model=_REASONING,
                 messages=[
@@ -189,7 +189,7 @@ class TechnicalWriter(AgentBase):
 
         # LLM pass: summarise each section header
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             raw = "".join(sections)
             summary_prompt = (
                 "Rewrite this API reference with a brief one-line description after each "

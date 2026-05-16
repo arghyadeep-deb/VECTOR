@@ -213,7 +213,7 @@ class AnalyticsReporter(AgentBase):
         Falls back to a structured plain-text summary if the LLM is unavailable.
         """
         try:
-            from core.inference.ollama_safe import chat
+            from core.inference.vectorcode_llm import chat
             from core.loop.context_engine import ContextEngine
 
             hydration = ContextEngine().session_hydration_prompt()
