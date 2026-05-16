@@ -120,13 +120,26 @@
 | District | Agents | Notes |
 |----------|--------|-------|
 | calls/ | call_screener.py, transcription_bot.py, voice_responder.py | ✅ Call handling |
-| ops/ | sre_monitor.py, devops_automator.py, incident_commander.py | ✅ New — VECTOR self-monitors (SLO, DevOps, Incidents) |
-| data_analytics/ | analytics_reporter.py, performance_benchmarker.py | ✅ New — VECTOR data insights + latency benchmarks |
-| personal_growth/ | behavioral_nudge_engine.py, zk_steward.py | ✅ New — Motivation nudges + Zettelkasten knowledge links |
-| documentation/ | technical_writer.py, doc_generator.py | ✅ New — VECTOR documents itself (API docs, weekly summary, changelog) |
-| qa/ | reality_checker.py, evidence_collector.py, workflow_architect.py | ✅ New — Verify before shipping, collect proof, map workflows |
-| chief_of_staff/ | chief_of_staff.py | ✅ New — Master coordinator: morning/evening brief, noise filter, district escalation |
+| ops/ | sre_monitor.py, devops_automator.py, incident_commander.py | ✅ VECTOR self-monitors (SLO, DevOps, Incidents) |
+| data_analytics/ | analytics_reporter.py, performance_benchmarker.py, data_engineer.py | ✅ Data insights, benchmarks, ETL/lakehouse pipeline |
+| personal_growth/ | behavioral_nudge_engine.py, zk_steward.py, feedback_synthesizer.py | ✅ Nudges, Zettelkasten, feedback synthesis |
+| documentation/ | technical_writer.py, doc_generator.py | ✅ VECTOR documents itself |
+| qa/ | reality_checker.py, evidence_collector.py, workflow_architect.py, api_tester.py, test_results_analyzer.py, accessibility_auditor.py, tool_evaluator.py, workflow_optimizer.py, model_qa_specialist.py | ✅ Full QA suite + WCAG + ML auditing |
+| chief_of_staff/ | chief_of_staff.py | ✅ Morning/evening brief, noise filter, district escalation |
 | devops/ | (empty folder) | ❌ Replaced by ops/ above |
+
+### agency-agents Full Alignment — Districts Added 2026-05-17
+| District | New Agents | Source |
+|----------|-----------|--------|
+| coding/ | minimal_change_engineer.py, codebase_onboarding_engineer.py, rapid_prototyper.py | engineering-minimal-change, engineering-codebase-onboarding, engineering-rapid-prototyper |
+| security/ | threat_detection_engineer.py | engineering-threat-detection-engineer |
+| finance/ | financial_analyst.py, fpa_analyst.py | finance-financial-analyst, finance-fpa-analyst |
+| agency/ | sales_strategist.py, proposal_strategist.py | sales-outbound+coach+pipeline, sales-proposal-strategist |
+| governance/ | product_manager.py | product-manager |
+| marketing/ (**new**) | seo_specialist.py, growth_hacker.py, social_media_strategist.py, content_creator.py, ai_citation_strategist.py | marketing-seo, marketing-growth-hacker, marketing-social-media, marketing-content-creator, marketing-ai-citation+agentic-search |
+| design/ (**new**) | ui_designer.py, ux_researcher.py, image_prompt_engineer.py | design-ui-designer, design-ux-researcher, design-image-prompt-engineer |
+
+**Total Python agent files: 133 | Districts: 33 | Governor routes: 180**
 
 ---
 
