@@ -1,0 +1,235 @@
+"""
+Proposal Strategist — proposal writing, win themes, ROI calculators, exec summaries.
+
+Creates compelling project proposals for Arghyadeep's agency and freelance work.
+Transforms requirements into persuasive win narratives with clear value delivery.
+"""
+import sys
+import asyncio
+import datetime
+import json
+import re
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from loguru import logger
+from core.config import CONFIG
+from core.city.agent_base import AgentBase
+from core.memory.episodic import EpisodicMemory
+from core.inference.ollama_safe import chat
+
+_PROPOSAL_SECTIONS = [
+    "executive_summary", "problem_statement", "proposed_solution",
+    "technical_approach", "timeline", "pricing", "team", "next_steps",
+]
+
+
+class ProposalStrategist(AgentBase):
+    """
+    Proposal writing and win strategy specialist.
+    Creates technical project proposals, SOWs, ROI calculators, exec summaries.
+    """
+
+    def __init__(self):
+        super().__init__(agent_id="proposal_strategist_001",
+                         name="ProposalStrategist", district="agency")
+        self._memory: EpisodicMemory | None = None
+        self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
+        logger.info("[VECTOR][proposal] initialized")
+
+    def _get_memory(self):
+        if self._memory is None:
+            self._memory = EpisodicMemory()
+        return self._memory
+
+    def calculate_roi(self, current_cost_monthly: float, solution_cost: float,
+                      time_saved_hours_monthly: float, hourly_rate: float = 2000.0) -> dict:
+        """ROI calculator: monthly savings vs project investment."""
+        monthly_savings = time_saved_hours_monthly * hourly_rate
+        payback_months = solution_cost / monthly_savings if monthly_savings > 0 else float("inf")
+        roi_12m = ((monthly_savings * 12) - solution_cost) / solution_cost * 100 if solution_cost > 0 else 0
+        return {
+            "solution_investment": solution_cost,
+            "monthly_time_saved_hours": time_saved_hours_monthly,
+            "monthly_savings_inr": round(monthly_savings, 2),
+            "current_monthly_cost": current_cost_monthly,
+            "payback_months": round(payback_months, 1) if payback_months != float("inf") else "Never (no savings)",
+            "12_month_roi_pct": round(roi_12m, 1),
+            "3_year_savings": round(monthly_savings * 36 - solution_cost, 2),
+            "verdict": "Strong ROI" if roi_12m > 100 else "Moderate ROI" if roi_12m > 50 else "Low ROI — validate",
+        }
+
+    def build_proposal_structure(self, project_name: str, client: str,
+                                  problem: str, solution: str, timeline_weeks: int,
+                                  budget: float) -> dict:
+        """Build structured proposal outline."""
+        ts = datetime.datetime.now().strftime("%B %d, %Y")
+        return {
+            "metadata": {
+                "project": project_name,
+                "client": client,
+                "prepared_by": "Arghyadeep Deb",
+                "date": ts,
+                "version": "1.0",
+            },
+            "executive_summary": (
+                f"Proposal to build {project_name} for {client}. "
+                f"Addressing: {problem[:100]}. "
+                f"Delivered in {timeline_weeks} weeks for ₹{budget:,.0f}."
+            ),
+            "problem_statement": problem,
+            "proposed_solution": solution,
+            "technical_approach": {
+                "stack": ["Python", "FastAPI", "LangChain/LangGraph", "SQLite/PostgreSQL", "Docker"],
+                "architecture": "Modular, API-first design with clear separation of concerns",
+                "quality": "Unit + integration tests, CI/CD pipeline, documentation included",
+            },
+            "timeline": {
+                "total_weeks": timeline_weeks,
+                "phases": [
+                    {"phase": "Discovery & Architecture", "weeks": max(1, timeline_weeks // 5)},
+                    {"phase": "Core Development", "weeks": timeline_weeks // 2},
+                    {"phase": "Testing & QA", "weeks": timeline_weeks // 5},
+                    {"phase": "Deployment & Handover", "weeks": max(1, timeline_weeks // 5)},
+                ],
+            },
+            "investment": {
+                "total": budget,
+                "payment_structure": "40% upfront, 40% at milestone, 20% on delivery",
+                "currency": "INR",
+                "includes": ["Source code", "Documentation", "30-day post-launch support", "Knowledge transfer"],
+            },
+            "next_steps": [
+                "Review and sign proposal",
+                "Initial payment and project kickoff call",
+                "Start Week 1: Discovery and architecture review",
+            ],
+        }
+
+    async def write_executive_summary(self, problem: str, solution: str,
+                                       roi_data: dict = None) -> str:
+        """LLM-generated executive summary — the most-read section."""
+        roi_str = f"ROI: {roi_data['12_month_roi_pct']}% in 12 months" if roi_data else ""
+        prompt = (
+            f"Write a compelling 150-word executive summary for a technical proposal.\n"
+            f"Problem: {problem}\nSolution: {solution}\n{roi_str}\n"
+            f"Author: Arghyadeep Deb, Python AI developer (KIIT CSE)\n\n"
+            f"Structure: [Hook sentence]. [Problem statement]. [Our solution]. [Expected outcome + ROI]. "
+            f"[Why us — 1 sentence]. Be specific, avoid buzzwords."
+        )
+        try:
+            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+        except Exception as e:
+            logger.warning("[VECTOR][proposal] exec summary LLM failed: {}", e)
+            roi_sentence = f" Expected {roi_data['12_month_roi_pct']:.0f}% ROI in 12 months." if roi_data else ""
+            return (
+                f"{problem[:80]} — this is costing your team time and money every month. "
+                f"We propose to {solution[:80]}, delivered in a modular Python architecture "
+                f"with full documentation and 30-day support.{roi_sentence} "
+                f"Built by Arghyadeep Deb, who has hands-on experience building autonomous AI systems "
+                f"with exactly this stack. Next step: 30-minute discovery call."
+            )
+
+    async def generate_full_proposal(self, project_name: str, client: str,
+                                      problem: str, solution: str,
+                                      timeline_weeks: int, budget: float) -> str:
+        """Generate complete markdown proposal document."""
+        structure = self.build_proposal_structure(
+            project_name, client, problem, solution, timeline_weeks, budget
+        )
+        exec_summary = await self.write_executive_summary(problem, solution)
+        ts = structure["metadata"]["date"]
+        doc = (
+            f"# {project_name}\n**Proposal for {client}** | {ts} | Prepared by Arghyadeep Deb\n\n"
+            f"---\n\n"
+            f"## Executive Summary\n{exec_summary}\n\n"
+            f"## Problem Statement\n{problem}\n\n"
+            f"## Proposed Solution\n{solution}\n\n"
+            f"## Technical Approach\n"
+            f"**Stack:** {', '.join(structure['technical_approach']['stack'])}\n\n"
+            f"**Architecture:** {structure['technical_approach']['architecture']}\n\n"
+            f"**Quality:** {structure['technical_approach']['quality']}\n\n"
+            f"## Project Timeline ({timeline_weeks} weeks)\n"
+        )
+        for phase in structure["timeline"]["phases"]:
+            doc += f"- **{phase['phase']}**: {phase['weeks']} week(s)\n"
+        doc += (
+            f"\n## Investment\n"
+            f"**Total:** ₹{budget:,.0f}\n\n"
+            f"**Payment structure:** {structure['investment']['payment_structure']}\n\n"
+            f"**Includes:** {', '.join(structure['investment']['includes'])}\n\n"
+            f"## Next Steps\n"
+        )
+        for step in structure["next_steps"]:
+            doc += f"1. {step}\n"
+        return doc
+
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "proposal")
+        try:
+            if task_type == "roi":
+                result = self.calculate_roi(
+                    task.get("current_cost_monthly", 0),
+                    task.get("solution_cost", 100000),
+                    task.get("time_saved_hours_monthly", 20),
+                    task.get("hourly_rate", 2000.0),
+                )
+                self.award_points(15, "roi_calculated")
+                return {"status": "ok", "roi": result}
+
+            elif task_type == "structure":
+                result = self.build_proposal_structure(
+                    task.get("project_name", "AI Automation Project"),
+                    task.get("client", "Client"),
+                    task.get("problem", "Manual process taking too long"),
+                    task.get("solution", "Automated AI pipeline"),
+                    task.get("timeline_weeks", 8),
+                    task.get("budget", 150000),
+                )
+                self.award_points(20, "proposal_structured")
+                return {"status": "ok", "structure": result}
+
+            else:  # full proposal
+                doc = await self.generate_full_proposal(
+                    task.get("project_name", "AI Automation Project"),
+                    task.get("client", "Client"),
+                    task.get("problem", "Manual processes consuming 40+ hours/month"),
+                    task.get("solution", "Python AI automation pipeline with monitoring dashboard"),
+                    task.get("timeline_weeks", 8),
+                    task.get("budget", 150000),
+                )
+                self._get_memory().store(
+                    event_type="proposal_generated",
+                    content=f"Proposal for {task.get('client', 'client')}: {task.get('project_name', 'project')}",
+                    tags=["agency", "proposal"],
+                    source="proposal_strategist",
+                )
+                self.award_points(40, "proposal_generated")
+                return {"status": "ok", "proposal": doc}
+
+        except Exception as e:
+            logger.error("[VECTOR][proposal] {}", e)
+            self.deduct_points(30, "proposal_task_failed")
+            return {"status": "error", "error": str(e)}
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.stdout.reconfigure(encoding="utf-8")
+
+    async def _smoke():
+        agent = ProposalStrategist()
+        roi = agent.calculate_roi(current_cost_monthly=50000, solution_cost=120000,
+                                   time_saved_hours_monthly=30)
+        print(f"[OK] roi: payback={roi['payback_months']}m roi_12m={roi['12_month_roi_pct']}% verdict={roi['verdict']}")
+        struct = agent.build_proposal_structure("AI Chatbot", "StartupCo",
+                                                 "Support team overwhelmed", "LLM-powered support bot",
+                                                 6, 80000)
+        print(f"[OK] structure: phases={len(struct['timeline']['phases'])} sections={len(struct)}")
+        result = await agent.run({"type": "proposal", "client": "TechCo",
+                                   "project_name": "AI Pipeline", "budget": 100000, "timeline_weeks": 8})
+        print(f"[OK] run: status={result['status']} doc_len={len(result.get('proposal',''))}")
+        print("proposal_strategist.py OK")
+
+    asyncio.run(_smoke())
