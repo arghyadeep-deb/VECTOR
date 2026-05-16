@@ -172,14 +172,16 @@ class SwarmCoordinator:
     def spawn(self, agent_type: str):
         if len(self._states) >= self.max_agents:
             raise RuntimeError(f"SwarmCoordinator at capacity ({self.max_agents} agents)")
-        import agent_types as at
+        # Resolve agent class from VECTOR's city registry
+        from core.city.agent_base import AgentBase
         key = agent_type.lower().replace("_", "").replace(" ", "")
         class_name = _AGENT_MAP.get(key, agent_type.capitalize() + "Agent")
-        cls = getattr(at, class_name, None)
-        if cls is None:
-            logger.warning(f"[VECTOR][swarm] unknown agent type {agent_type!r} → CoderAgent")
-            cls = at.CoderAgent
-        agent = cls()
+        # Use AgentBase as a stand-in if specialized type not registered
+        district = key if key in {
+            "coder","tester","reviewer","architect","security",
+            "performance","researcher","coordinator"
+        } else "research"
+        agent = AgentBase(agent_id=f"{district}_{len(self._states):03d}", name=class_name, district=district)
         state = AgentState(agent)
         self._states.append(state)
         logger.info(f"[VECTOR][swarm] spawned {agent.name} (topology={self.topology.value})")
