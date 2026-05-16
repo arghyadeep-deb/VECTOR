@@ -86,7 +86,9 @@ test("non-daily cron returns None", lambda: None if none_result is None else (_ 
 
 print("\n[6] Claims System")
 with tempfile.TemporaryDirectory() as tmp:
-    svc = ClaimService(pathlib.Path(tmp) / "claims.db")
+    from vectorcode.src.claims import ClaimRepository
+    repo = ClaimRepository(db_path=pathlib.Path(tmp) / "claims.db")
+    svc = ClaimService(repo=repo)
     alice = Claimant(id="alice", type="agent", name="Alice", capabilities=["python"])
     bob = Claimant(id="bob", type="agent", name="Bob", capabilities=["python"])
 
