@@ -25,7 +25,7 @@ from vectorcode.src.vc_core.config import HardwareInfo
 class MiningCapabilities:
     """Result of a provider's ``detect()`` call.
 
-    ``reason`` is human-readable and surfaced verbatim by ``jarvis mine doctor``
+    ``reason`` is human-readable and surfaced verbatim by ``vector mine doctor``
     when ``supported=False``.
     """
 
