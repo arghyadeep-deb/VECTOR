@@ -337,6 +337,558 @@ class DecisionTransformer:
 
 
 # ---------------------------------------------------------------------------
+# PPO — Proximal Policy Optimization
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PPOConfig:
+    state_dim: int = 64
+    action_dim: int = 20
+    hidden_dim: int = 128
+    lr: float = 3e-4
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    entropy_coef: float = 0.01
+    value_loss_coef: float = 0.5
+    epochs: int = 4
+    mini_batch_size: int = 64
+    target_kl: float = 0.01
+    clip_range_vf: Optional[float] = None
+
+
+class PPO:
+    """Proximal Policy Optimization with clipped surrogate objective and GAE."""
+
+    def __init__(self, cfg: PPOConfig = PPOConfig()) -> None:
+        self.cfg = cfg
+        sd, hd, ad = cfg.state_dim, cfg.hidden_dim, cfg.action_dim
+        rng = np.random.default_rng(17)
+        sc = lambda n, m: rng.standard_normal((n, m)) * np.sqrt(2.0 / n)
+        # Policy network: state_dim → hidden_dim → action_dim
+        self.pW1 = sc(sd, hd);  self.pb1 = np.zeros(hd)
+        self.pW2 = sc(hd, ad);  self.pb2 = np.zeros(ad)
+        # Value network: state_dim → hidden_dim → 1
+        self.vW1 = sc(sd, hd);  self.vb1 = np.zeros(hd)
+        self.vW2 = sc(hd, 1);   self.vb2 = np.zeros(1)
+        # Adam optimizer moments for all 8 weight tensors
+        self._adam_m: dict = {k: np.zeros_like(v) for k, v in self._params().items()}
+        self._adam_v: dict = {k: np.zeros_like(v) for k, v in self._params().items()}
+        self._adam_t: int = 0
+        self.episode_count = 0
+        self.total_reward = 0.0
+
+    def _params(self) -> dict:
+        return {
+            "pW1": self.pW1, "pb1": self.pb1,
+            "pW2": self.pW2, "pb2": self.pb2,
+            "vW1": self.vW1, "vb1": self.vb1,
+            "vW2": self.vW2, "vb2": self.vb2,
+        }
+
+    def _adam_step(self, name: str, grad: np.ndarray) -> np.ndarray:
+        b1, b2, eps = 0.9, 0.999, 1e-8
+        self._adam_m[name] = b1 * self._adam_m[name] + (1.0 - b1) * grad
+        self._adam_v[name] = b2 * self._adam_v[name] + (1.0 - b2) * grad ** 2
+        m_hat = self._adam_m[name] / (1.0 - b1 ** self._adam_t)
+        v_hat = self._adam_v[name] / (1.0 - b2 ** self._adam_t)
+        return self.cfg.lr * m_hat / (np.sqrt(v_hat) + eps)
+
+    def _policy_forward(self, s: np.ndarray):
+        """Returns (hidden, probs)."""
+        h = _relu(_linear(s, self.pW1, self.pb1))
+        probs = _softmax(_linear(h, self.pW2, self.pb2))
+        return h, probs
+
+    def _value_forward(self, s: np.ndarray) -> float:
+        """Returns scalar value estimate."""
+        h = _relu(_linear(s, self.vW1, self.vb1))
+        return float(_linear(h, self.vW2, self.vb2)[0])
+
+    def select_action(self, state: np.ndarray):
+        """Returns (action, log_prob, value)."""
+        s = np.asarray(state, dtype=np.float32)
+        _, probs = self._policy_forward(s)
+        action = int(np.random.choice(len(probs), p=probs))
+        log_prob = float(np.log(probs[action] + 1e-8))
+        value = self._value_forward(s)
+        return action, log_prob, value
+
+    def _compute_gae(self, rewards, values, dones, next_value: float):
+        """Generalised Advantage Estimation."""
+        n = len(rewards)
+        advantages = np.zeros(n, dtype=np.float32)
+        gae = 0.0
+        for t in reversed(range(n)):
+            nv = next_value if t == n - 1 else values[t + 1]
+            dm = 0.0 if (t < len(dones) and dones[t]) else 1.0
+            delta = rewards[t] + self.cfg.gamma * nv * dm - values[t]
+            gae = delta + self.cfg.gamma * self.cfg.gae_lambda * dm * gae
+            advantages[t] = gae
+        returns = advantages + np.array(values, dtype=np.float32)
+        return advantages, returns
+
+    def update(self, states, actions, rewards, dones, next_state) -> dict:
+        """Run PPO epochs over collected rollout data."""
+        n = len(rewards)
+        states_arr = [np.asarray(s, dtype=np.float32) for s in states]
+        ns_arr = np.asarray(next_state, dtype=np.float32)
+
+        # Collect old log-probs and values from the current policy (before update)
+        old_log_probs = np.zeros(n, dtype=np.float32)
+        values = np.zeros(n, dtype=np.float32)
+        for i, s in enumerate(states_arr):
+            _, probs = self._policy_forward(s)
+            old_log_probs[i] = np.log(probs[actions[i]] + 1e-8)
+            values[i] = self._value_forward(s)
+        next_value = self._value_forward(ns_arr)
+
+        advantages, returns = self._compute_gae(rewards, values.tolist(), dones, next_value)
+        # Normalise advantages
+        adv_std = advantages.std() + 1e-8
+        advantages = (advantages - advantages.mean()) / adv_std
+
+        total_policy_loss = 0.0
+        total_value_loss = 0.0
+        total_entropy = 0.0
+        total_approx_kl = 0.0
+        total_clip_frac = 0.0
+        update_count = 0
+
+        for _epoch in range(self.cfg.epochs):
+            # Build mini-batches
+            indices = np.arange(n)
+            np.random.shuffle(indices)
+            mb_size = min(self.cfg.mini_batch_size, n)
+            for start in range(0, n, mb_size):
+                mb_idx = indices[start: start + mb_size]
+                if len(mb_idx) == 0:
+                    continue
+
+                self._adam_t += 1
+                # Accumulate gradients across mini-batch
+                grad_pW1 = np.zeros_like(self.pW1)
+                grad_pb1 = np.zeros_like(self.pb1)
+                grad_pW2 = np.zeros_like(self.pW2)
+                grad_pb2 = np.zeros_like(self.pb2)
+                grad_vW1 = np.zeros_like(self.vW1)
+                grad_vb1 = np.zeros_like(self.vb1)
+                grad_vW2 = np.zeros_like(self.vW2)
+                grad_vb2 = np.zeros_like(self.vb2)
+
+                mb_policy_loss = 0.0
+                mb_value_loss = 0.0
+                mb_entropy = 0.0
+                mb_approx_kl = 0.0
+                mb_clip_frac = 0.0
+
+                for idx in mb_idx:
+                    s = states_arr[idx]
+                    a = int(actions[idx])
+                    adv = float(advantages[idx])
+                    ret = float(returns[idx])
+                    old_lp = float(old_log_probs[idx])
+
+                    # Policy forward
+                    ph, probs = self._policy_forward(s)
+                    new_lp = float(np.log(probs[a] + 1e-8))
+                    ratio = np.exp(new_lp - old_lp)
+                    clipped_ratio = np.clip(ratio, 1.0 - self.cfg.clip_range, 1.0 + self.cfg.clip_range)
+                    is_clipped = float(abs(ratio - 1.0) > self.cfg.clip_range)
+
+                    # PPO clipped surrogate loss (negate for gradient descent)
+                    surr1 = ratio * adv
+                    surr2 = clipped_ratio * adv
+                    p_loss = -min(surr1, surr2)
+                    entropy = float(-np.sum(probs * np.log(probs + 1e-8)))
+
+                    # Value forward
+                    vh = _relu(_linear(s, self.vW1, self.vb1))
+                    val = float(_linear(vh, self.vW2, self.vb2)[0])
+                    if self.cfg.clip_range_vf is not None:
+                        old_val = float(values[idx])
+                        val_clipped = old_val + np.clip(val - old_val, -self.cfg.clip_range_vf, self.cfg.clip_range_vf)
+                        v_loss = max((val - ret) ** 2, (val_clipped - ret) ** 2)
+                    else:
+                        v_loss = (val - ret) ** 2
+
+                    approx_kl = old_lp - new_lp
+
+                    mb_policy_loss += p_loss
+                    mb_value_loss += v_loss
+                    mb_entropy += entropy
+                    mb_approx_kl += approx_kl
+                    mb_clip_frac += is_clipped
+
+                    # Policy gradients — d(-min(surr1,surr2))/d(log_prob)
+                    # gradient flows through whichever branch was active
+                    if surr1 <= surr2:
+                        # unclipped branch active: grad wrt log_prob = -ratio * adv
+                        d_lp = -ratio * adv
+                    else:
+                        # clipped branch active: no gradient (ratio outside clip)
+                        d_lp = 0.0
+                    # Chain through log_prob = log(probs[a]):  d_lp * d(log p_a)/d(p_a) * d(softmax)/d(logits)
+                    d_probs = probs.copy()
+                    d_probs[a] -= 1.0           # d softmax cross-entropy style
+                    d_probs *= d_lp             # scale by policy gradient
+                    # Entropy gradient: +entropy_coef * (log p + 1)
+                    d_probs -= self.cfg.entropy_coef * (np.log(probs + 1e-8) + 1.0) * probs
+
+                    grad_pW2 += np.outer(ph, d_probs)
+                    grad_pb2 += d_probs
+                    d_ph = (ph > 0) * (self.pW2 @ d_probs)
+                    grad_pW1 += np.outer(s, d_ph)
+                    grad_pb1 += d_ph
+
+                    # Value gradients
+                    d_val = 2.0 * (val - ret) * self.cfg.value_loss_coef
+                    grad_vW2 += d_val * vh.reshape(-1, 1)
+                    grad_vb2 += np.array([d_val])
+                    d_vh = (vh > 0) * (self.vW2[:, 0] * d_val)
+                    grad_vW1 += np.outer(s, d_vh)
+                    grad_vb1 += d_vh
+
+                mb_len = len(mb_idx)
+                total_policy_loss += mb_policy_loss / mb_len
+                total_value_loss += mb_value_loss / mb_len
+                total_entropy += mb_entropy / mb_len
+                total_approx_kl += mb_approx_kl / mb_len
+                total_clip_frac += mb_clip_frac / mb_len
+                update_count += 1
+
+                # Apply Adam updates
+                scale = 1.0 / mb_len
+                self.pW1 -= self._adam_step("pW1", grad_pW1 * scale)
+                self.pb1 -= self._adam_step("pb1", grad_pb1 * scale)
+                self.pW2 -= self._adam_step("pW2", grad_pW2 * scale)
+                self.pb2 -= self._adam_step("pb2", grad_pb2 * scale)
+                self.vW1 -= self._adam_step("vW1", grad_vW1 * scale)
+                self.vb1 -= self._adam_step("vb1", grad_vb1 * scale)
+                self.vW2 -= self._adam_step("vW2", grad_vW2 * scale)
+                self.vb2 -= self._adam_step("vb2", grad_vb2 * scale)
+
+            # Early stopping on KL divergence
+            if update_count > 0 and (total_approx_kl / update_count) > 1.5 * self.cfg.target_kl:
+                logger.debug(f"[VECTOR][ppo] Early stopping at epoch {_epoch} due to KL divergence")
+                break
+
+        denom = max(1, update_count)
+        self.episode_count += 1
+        self.total_reward += sum(rewards)
+        return {
+            "policy_loss": total_policy_loss / denom,
+            "value_loss": total_value_loss / denom,
+            "entropy": total_entropy / denom,
+            "approx_kl": total_approx_kl / denom,
+            "clip_fraction": total_clip_frac / denom,
+        }
+
+    def save(self, path: Path) -> None:
+        data = {k: v.tolist() for k, v in self._params().items()}
+        data["episode_count"] = self.episode_count
+        data["total_reward"] = self.total_reward
+        path.write_text(json.dumps(data))
+
+    def load(self, path: Path) -> None:
+        d = json.loads(path.read_text())
+        for k in self._params():
+            if k in d:
+                setattr(self, k, np.array(d[k], dtype=np.float32))
+        self.episode_count = d.get("episode_count", 0)
+        self.total_reward = d.get("total_reward", 0.0)
+        # Reset Adam moments since weight shapes are loaded fresh
+        self._adam_m = {k: np.zeros_like(v) for k, v in self._params().items()}
+        self._adam_v = {k: np.zeros_like(v) for k, v in self._params().items()}
+        self._adam_t = 0
+
+
+# ---------------------------------------------------------------------------
+# SARSA — On-policy TD control
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SARSAConfig:
+    state_dim: int = 64
+    action_dim: int = 4
+    lr: float = 0.1
+    gamma: float = 0.99
+    epsilon_start: float = 1.0
+    epsilon_end: float = 0.01
+    epsilon_decay: int = 10000
+    max_states: int = 10000
+    use_expected_sarsa: bool = False
+    use_eligibility_traces: bool = False
+    trace_decay: float = 0.9
+
+
+class SARSA:
+    """On-policy SARSA (and Expected SARSA) with epsilon-greedy and optional eligibility traces."""
+
+    def __init__(self, cfg: SARSAConfig = SARSAConfig()) -> None:
+        self.cfg = cfg
+        self.q_table: dict[str, np.ndarray] = {}
+        self.eligibility: dict[str, np.ndarray] = {}
+        self._steps = 0
+        self.episode_count = 0
+        self.total_reward = 0.0
+
+    # ------------------------------------------------------------------
+    # State hashing: bin first 8 dims into 10 bins each
+    # ------------------------------------------------------------------
+    def _hash(self, state: np.ndarray) -> str:
+        s = np.asarray(state, dtype=np.float32)
+        dims = s[:8] if len(s) >= 8 else np.pad(s, (0, 8 - len(s)))
+        bins = np.digitize(dims, np.linspace(-3.0, 3.0, 11)[1:-1])  # 10 bins → indices 0-9
+        return ",".join(str(int(b)) for b in bins)
+
+    def _get_q(self, key: str) -> np.ndarray:
+        if key not in self.q_table:
+            self.q_table[key] = np.zeros(self.cfg.action_dim, dtype=np.float32)
+        return self.q_table[key]
+
+    def _get_eligibility(self, key: str) -> np.ndarray:
+        if key not in self.eligibility:
+            self.eligibility[key] = np.zeros(self.cfg.action_dim, dtype=np.float32)
+        return self.eligibility[key]
+
+    def _epsilon(self) -> float:
+        frac = min(1.0, self._steps / max(1, self.cfg.epsilon_decay))
+        return self.cfg.epsilon_start + frac * (self.cfg.epsilon_end - self.cfg.epsilon_start)
+
+    def select_action(self, state, explore: bool = True) -> int:
+        key = self._hash(np.asarray(state, dtype=np.float32))
+        if explore and random.random() < self._epsilon():
+            return random.randrange(self.cfg.action_dim)
+        return int(np.argmax(self._get_q(key)))
+
+    def _prune_if_needed(self) -> None:
+        """LRU-style pruning: drop oldest keys when table exceeds max_states."""
+        if len(self.q_table) > self.cfg.max_states:
+            n_drop = len(self.q_table) - self.cfg.max_states
+            for key in list(self.q_table.keys())[:n_drop]:
+                self.q_table.pop(key, None)
+                self.eligibility.pop(key, None)
+
+    def update(self, states, actions, rewards, dones) -> dict:
+        """SARSA update over a trajectory. Returns dict with td_error."""
+        n = len(rewards)
+        if n == 0:
+            return {"td_error": 0.0}
+
+        total_td = 0.0
+        # Decay eligibility traces at episode start if using them
+        if self.cfg.use_eligibility_traces:
+            for key in self.eligibility:
+                self.eligibility[key] *= 0.0  # reset at episode boundary
+
+        for t in range(n):
+            self._steps += 1
+            s_key = self._hash(np.asarray(states[t], dtype=np.float32))
+            a = int(actions[t])
+            r = float(rewards[t])
+            done = bool(dones[t]) if t < len(dones) else False
+
+            q_sa = self._get_q(s_key)[a]
+
+            if done or t == n - 1:
+                td_target = r
+            else:
+                ns_key = self._hash(np.asarray(states[t + 1], dtype=np.float32))
+                q_ns = self._get_q(ns_key)
+                if self.cfg.use_expected_sarsa:
+                    eps = self._epsilon()
+                    # Expected SARSA: weighted sum over all actions
+                    greedy_a = int(np.argmax(q_ns))
+                    probs = np.full(self.cfg.action_dim, eps / self.cfg.action_dim, dtype=np.float32)
+                    probs[greedy_a] += 1.0 - eps
+                    expected_q = float(np.dot(probs, q_ns))
+                    td_target = r + self.cfg.gamma * expected_q
+                else:
+                    # Next action follows epsilon-greedy policy (on-policy)
+                    a_next = int(actions[t + 1]) if t + 1 < n else int(np.argmax(q_ns))
+                    td_target = r + self.cfg.gamma * float(q_ns[a_next])
+
+            td_error = td_target - q_sa
+
+            if self.cfg.use_eligibility_traces:
+                # Accumulating traces
+                e = self._get_eligibility(s_key)
+                e[a] += 1.0
+                # Update all states with eligibility > threshold
+                for key, q_vals in self.q_table.items():
+                    e_k = self._get_eligibility(key)
+                    q_vals += self.cfg.lr * td_error * e_k
+                    e_k *= self.cfg.gamma * self.cfg.trace_decay
+            else:
+                self._get_q(s_key)[a] += self.cfg.lr * td_error
+
+            total_td += abs(td_error)
+
+        self._prune_if_needed()
+        self.episode_count += 1
+        self.total_reward += sum(rewards)
+        return {"td_error": total_td / n}
+
+    def save(self, path: Path) -> None:
+        data = {
+            "q_table": {k: v.tolist() for k, v in self.q_table.items()},
+            "steps": self._steps,
+            "episode_count": self.episode_count,
+            "total_reward": self.total_reward,
+        }
+        path.write_text(json.dumps(data))
+
+    def load(self, path: Path) -> None:
+        d = json.loads(path.read_text())
+        self.q_table = {k: np.array(v, dtype=np.float32) for k, v in d.get("q_table", {}).items()}
+        self._steps = d.get("steps", 0)
+        self.episode_count = d.get("episode_count", 0)
+        self.total_reward = d.get("total_reward", 0.0)
+
+
+# ---------------------------------------------------------------------------
+# Q-Learning — Off-policy tabular TD control
+# ---------------------------------------------------------------------------
+
+@dataclass
+class QLearningConfig:
+    state_dim: int = 64
+    action_dim: int = 4
+    lr: float = 0.1
+    gamma: float = 0.99
+    epsilon_start: float = 1.0
+    epsilon_end: float = 0.01
+    epsilon_decay: int = 10000
+    max_states: int = 10000
+    use_eligibility_traces: bool = False
+    trace_decay: float = 0.9
+
+
+class QLearning:
+    """Tabular Q-Learning (off-policy) with epsilon-greedy, state hashing, and optional eligibility traces."""
+
+    def __init__(self, cfg: QLearningConfig = QLearningConfig()) -> None:
+        self.cfg = cfg
+        self.q_table: dict[str, np.ndarray] = {}
+        self.eligibility: dict[str, np.ndarray] = {}
+        # Insertion-order tracking for LRU pruning
+        self._insert_order: list[str] = []
+        self._steps = 0
+        self.episode_count = 0
+        self.total_reward = 0.0
+
+    # ------------------------------------------------------------------
+    # State hashing: bin first 8 dims into 10 bins each
+    # ------------------------------------------------------------------
+    def _hash(self, state: np.ndarray) -> str:
+        s = np.asarray(state, dtype=np.float32)
+        dims = s[:8] if len(s) >= 8 else np.pad(s, (0, 8 - len(s)))
+        bins = np.digitize(dims, np.linspace(-3.0, 3.0, 11)[1:-1])
+        return ",".join(str(int(b)) for b in bins)
+
+    def _get_q(self, key: str) -> np.ndarray:
+        if key not in self.q_table:
+            self.q_table[key] = np.zeros(self.cfg.action_dim, dtype=np.float32)
+            self._insert_order.append(key)
+        return self.q_table[key]
+
+    def _get_eligibility(self, key: str) -> np.ndarray:
+        if key not in self.eligibility:
+            self.eligibility[key] = np.zeros(self.cfg.action_dim, dtype=np.float32)
+        return self.eligibility[key]
+
+    def _epsilon(self) -> float:
+        frac = min(1.0, self._steps / max(1, self.cfg.epsilon_decay))
+        return self.cfg.epsilon_start + frac * (self.cfg.epsilon_end - self.cfg.epsilon_start)
+
+    def select_action(self, state, explore: bool = True) -> int:
+        key = self._hash(np.asarray(state, dtype=np.float32))
+        if explore and random.random() < self._epsilon():
+            return random.randrange(self.cfg.action_dim)
+        return int(np.argmax(self._get_q(key)))
+
+    def _prune_lru(self) -> None:
+        """Drop oldest-inserted entries when q_table exceeds max_states."""
+        while len(self.q_table) > self.cfg.max_states and self._insert_order:
+            oldest = self._insert_order.pop(0)
+            self.q_table.pop(oldest, None)
+            self.eligibility.pop(oldest, None)
+
+    def update(self, states, actions, rewards, dones) -> dict:
+        """Off-policy Q-Learning update. Returns dict with td_error."""
+        n = len(rewards)
+        if n == 0:
+            return {"td_error": 0.0}
+
+        total_td = 0.0
+        # Reset eligibility traces at episode boundary
+        if self.cfg.use_eligibility_traces:
+            for key in self.eligibility:
+                self.eligibility[key] *= 0.0
+
+        for t in range(n):
+            self._steps += 1
+            s_key = self._hash(np.asarray(states[t], dtype=np.float32))
+            a = int(actions[t])
+            r = float(rewards[t])
+            done = bool(dones[t]) if t < len(dones) else False
+
+            q_sa = self._get_q(s_key)[a]
+
+            if done or t == n - 1:
+                td_target = r
+            else:
+                ns_key = self._hash(np.asarray(states[t + 1], dtype=np.float32))
+                # Off-policy: max Q(s', a') regardless of behaviour policy
+                q_ns_max = float(np.max(self._get_q(ns_key)))
+                td_target = r + self.cfg.gamma * q_ns_max
+
+            td_error = td_target - q_sa
+
+            if self.cfg.use_eligibility_traces:
+                # Watkins Q(λ): reset traces on non-greedy actions
+                e = self._get_eligibility(s_key)
+                greedy_a = int(np.argmax(self._get_q(s_key)))
+                if a != greedy_a:
+                    # Non-greedy action: cut traces
+                    for key in self.eligibility:
+                        self.eligibility[key] *= 0.0
+                e[a] += 1.0
+                for key, q_vals in self.q_table.items():
+                    e_k = self._get_eligibility(key)
+                    q_vals += self.cfg.lr * td_error * e_k
+                    e_k *= self.cfg.gamma * self.cfg.trace_decay
+            else:
+                self._get_q(s_key)[a] += self.cfg.lr * td_error
+
+            total_td += abs(td_error)
+
+        self._prune_lru()
+        self.episode_count += 1
+        self.total_reward += sum(rewards)
+        return {"td_error": total_td / n}
+
+    def save(self, path: Path) -> None:
+        data = {
+            "q_table": {k: v.tolist() for k, v in self.q_table.items()},
+            "insert_order": self._insert_order,
+            "steps": self._steps,
+            "episode_count": self.episode_count,
+            "total_reward": self.total_reward,
+        }
+        path.write_text(json.dumps(data))
+
+    def load(self, path: Path) -> None:
+        d = json.loads(path.read_text())
+        self.q_table = {k: np.array(v, dtype=np.float32) for k, v in d.get("q_table", {}).items()}
+        self._insert_order = d.get("insert_order", list(self.q_table.keys()))
+        self._steps = d.get("steps", 0)
+        self.episode_count = d.get("episode_count", 0)
+        self.total_reward = d.get("total_reward", 0.0)
+
+
+# ---------------------------------------------------------------------------
 # VECTORTrainer
 # ---------------------------------------------------------------------------
 
