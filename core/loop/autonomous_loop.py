@@ -30,6 +30,7 @@ class AutonomousLoop:
         self._policy = None
         self._red_team = None
         self._hypothesis_engine = None
+        self._gateway = None
         self._cron_last_run: dict[str, datetime.datetime] = {}
         logger.info("[VECTOR][autonomous_loop] initialized")
 
