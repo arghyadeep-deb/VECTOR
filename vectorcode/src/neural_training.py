@@ -1052,4 +1052,93 @@ if __name__ == "__main__":
 
     assert t_a2c.hp_recommendation({"total_reward": 0.8}) == 30
     print("[OK] HP recommendation +30")
+
+    # PPO
+    t_ppo = VECTORTrainer("ppo", SD, AD, use_curiosity=False)
+    m = t_ppo.train_episode(fake_batch(16))
+    assert "policy_loss" in m, "PPO missing policy_loss"
+    assert "value_loss" in m, "PPO missing value_loss"
+    assert "entropy" in m, "PPO missing entropy"
+    assert "approx_kl" in m, "PPO missing approx_kl"
+    assert "clip_fraction" in m, "PPO missing clip_fraction"
+    print(f"[OK] PPO policy_loss={m['policy_loss']:.4f} value_loss={m['value_loss']:.4f} "
+          f"entropy={m['entropy']:.4f} kl={m['approx_kl']:.4f}")
+    # Run a second episode to exercise multi-epoch path
+    for _ in range(3):
+        t_ppo.train_episode(fake_batch(16))
+    print("[OK] PPO 4 episodes total")
+    # Verify select_action works
+    a_ppo = t_ppo.select_action(rng.standard_normal(SD).astype(np.float32))
+    assert 0 <= a_ppo < AD, f"PPO action {a_ppo} out of range"
+    print(f"[OK] PPO select_action={a_ppo}")
+
+    # SARSA
+    t_sarsa = VECTORTrainer("sarsa", SD, AD, use_curiosity=False)
+    m = t_sarsa.train_episode(fake_batch(8))
+    assert "td_error" in m, "SARSA missing td_error"
+    print(f"[OK] SARSA td_error={m['td_error']:.4f}")
+    for _ in range(4):
+        t_sarsa.train_episode(fake_batch(8))
+    print("[OK] SARSA 5 episodes total")
+    a_sarsa = t_sarsa.select_action(rng.standard_normal(SD).astype(np.float32))
+    assert 0 <= a_sarsa < AD, f"SARSA action {a_sarsa} out of range"
+    print(f"[OK] SARSA select_action={a_sarsa}")
+
+    # Expected SARSA variant
+    sarsa_expected = SARSA(SARSAConfig(state_dim=SD, action_dim=AD, use_expected_sarsa=True))
+    m2 = sarsa_expected.update(
+        [rng.standard_normal(SD).astype(np.float32) for _ in range(4)],
+        [rng.integers(0, AD) for _ in range(4)],
+        [float(rng.uniform(0, 1)) for _ in range(4)],
+        [False] * 4,
+    )
+    assert "td_error" in m2
+    print(f"[OK] Expected SARSA td_error={m2['td_error']:.4f}")
+
+    # SARSA with eligibility traces
+    sarsa_traces = SARSA(SARSAConfig(state_dim=SD, action_dim=AD, use_eligibility_traces=True))
+    m3 = sarsa_traces.update(
+        [rng.standard_normal(SD).astype(np.float32) for _ in range(4)],
+        [rng.integers(0, AD) for _ in range(4)],
+        [float(rng.uniform(0, 1)) for _ in range(4)],
+        [False] * 4,
+    )
+    assert "td_error" in m3
+    print(f"[OK] SARSA(λ) td_error={m3['td_error']:.4f}")
+
+    # Q-Learning
+    t_ql = VECTORTrainer("q-learning", SD, AD, use_curiosity=False)
+    m = t_ql.train_episode(fake_batch(8))
+    assert "td_error" in m, "Q-Learning missing td_error"
+    print(f"[OK] Q-Learning td_error={m['td_error']:.4f}")
+    for _ in range(4):
+        t_ql.train_episode(fake_batch(8))
+    print("[OK] Q-Learning 5 episodes total")
+    a_ql = t_ql.select_action(rng.standard_normal(SD).astype(np.float32))
+    assert 0 <= a_ql < AD, f"Q-Learning action {a_ql} out of range"
+    print(f"[OK] Q-Learning select_action={a_ql}")
+
+    # Q-Learning with eligibility traces
+    ql_traces = QLearning(QLearningConfig(state_dim=SD, action_dim=AD, use_eligibility_traces=True))
+    m4 = ql_traces.update(
+        [rng.standard_normal(SD).astype(np.float32) for _ in range(4)],
+        [rng.integers(0, AD) for _ in range(4)],
+        [float(rng.uniform(0, 1)) for _ in range(4)],
+        [False] * 4,
+    )
+    assert "td_error" in m4
+    print(f"[OK] Q(λ) td_error={m4['td_error']:.4f}")
+
+    # LRU pruning smoke test
+    ql_small = QLearning(QLearningConfig(state_dim=SD, action_dim=AD, max_states=5))
+    for _ in range(20):
+        ql_small.update(
+            [rng.standard_normal(SD).astype(np.float32)],
+            [rng.integers(0, AD)],
+            [float(rng.uniform(0, 1))],
+            [False],
+        )
+    assert len(ql_small.q_table) <= 5, f"LRU failed: {len(ql_small.q_table)} states"
+    print("[OK] Q-Learning LRU pruning")
+
     print("neural_training.py OK")
