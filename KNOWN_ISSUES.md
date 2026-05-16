@@ -19,8 +19,8 @@
 
 | Item | Status | Action needed |
 |------|--------|--------------|
-| ✅ Kokoro TTS model | `models/kokoro/` has kokoro-v1.0.fp16-gpu.onnx + voices-v1.0.bin | Wire path in `core/voice/tts.py` |
-| ⚠️ "Hey VECTOR" wake word | hey_jarvis placeholder active | Record 10 samples → openWakeWord custom training |
+| ⚠️ Kokoro TTS model | Model files present but onnxruntime 1.25.1 fails to parse (INVALID_PROTOBUF). pyttsx3 fallback active. | `pip install onnxruntime==1.19.2 kokoro-onnx` and retest, or re-download from HuggingFace kokoro-onnx repo |
+| ⚠️ "Hey VECTOR" wake word | hey_vector phrase configured; openWakeWord needs custom model file | Record 10 voice samples → `python -m openwakeword.train` |
 | ⚠️ Whisper large-v3 | Using base model | `whisper.load_model("large-v3")` for prod quality |
 
 ---
