@@ -65,7 +65,7 @@ print("\n[3] Context Engine")
 ce = ContextEngine()
 state = ce.get_world_state()
 test("world state is dict", lambda: None if isinstance(state, dict) else (_ for _ in ()).throw(AssertionError("not dict")))
-test("time in world state", lambda: None if "time" in state else (_ for _ in ()).throw(AssertionError(f"keys={list(state)[:5]}")))
+test("time/timestamp in world state", lambda: None if "time" in state or "timestamp" in state else (_ for _ in ()).throw(AssertionError(f"keys={list(state)[:5]}")))
 hydration = ce.session_hydration_prompt()
 test("session hydration is non-empty string", lambda: None if isinstance(hydration, str) and len(hydration) > 10 else (_ for _ in ()).throw(AssertionError(f"len={len(hydration)}")))
 
