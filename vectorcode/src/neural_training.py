@@ -1,4 +1,4 @@
-"""VECTOR neural training — A2C, DQN, Curiosity, DecisionTransformer, VECTORTrainer."""
+"""VECTOR neural training — A2C, DQN, Curiosity, DecisionTransformer, PPO, SARSA, Q-Learning, VECTORTrainer."""
 from __future__ import annotations
 
 import json
