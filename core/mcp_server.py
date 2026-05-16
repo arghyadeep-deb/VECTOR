@@ -59,7 +59,7 @@ def _make_server():
         try:
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
-            results = mem.search(query, limit=limit)
+            results = mem.recall(query, limit=limit)
             if not results:
                 return "No memories found for that query."
             lines = [f"[{r.get('timestamp', '?')}] {r.get('content', '')}" for r in results]
