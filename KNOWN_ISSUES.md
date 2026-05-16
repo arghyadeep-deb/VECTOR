@@ -81,6 +81,9 @@ Per `architecture.md` — explicitly planned for after MVP:
 | ✅ Zero stubs in core/ + agents/ (ABC files excluded) | 2026-05-16 |
 | ✅ 38/38 smoke tests passing | 2026-05-16 |
 | ✅ 51/51 integration checks passing | 2026-05-16 |
+| ✅ Kokoro model path wired to absolute path (CONFIG) | 2026-05-16 |
+| ✅ Zero hey_jarvis/Jarvis traces in active Python source | 2026-05-16 |
+| ✅ wake_phrase → "hey_vector" in config and wake_word.py | 2026-05-16 |
 | ✅ ToolCallGuardrails wired into run_agent.py | 2026-05-16 |
 | ✅ ReasoningBank wired into decision_engine (Rule 8) | 2026-05-16 |
 | ✅ MoERouter wired as Layer 0 in GNNRouter | 2026-05-16 |
