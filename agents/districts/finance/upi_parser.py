@@ -159,7 +159,7 @@ class UPIParser(AgentBase):
                 self.ingest(sms)
                 return {"status": "ok", "transaction": result}
             return {"status": "not_financial"}
-        txns = self.get_recent_transactions(p.get("days", 30))
+        txns = self.fetch_transactions(p.get("days", 30))
         return {"status": "ok", "transactions": txns, "count": len(txns)}
 
     async def run_forever(self) -> None:

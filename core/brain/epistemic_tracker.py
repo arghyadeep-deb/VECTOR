@@ -27,7 +27,7 @@ class EpistemicTracker:
         if not (0.0 <= confidence <= 1.0):
             confidence = max(0.0, min(1.0, confidence))
 
-        now = datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         self._beliefs[key] = {
             "value": value,
             "confidence": confidence,
@@ -47,8 +47,8 @@ class EpistemicTracker:
         belief = self._beliefs[key].copy()
         created = datetime.fromisoformat(belief["created_at"])
         if created.tzinfo is None:
-            created = created.replace(tzinfo=datetime.timezone.utc)
-        age_hours = (datetime.now(datetime.timezone.utc) - created).total_seconds() / 3600
+            created = created.replace(tzinfo=timezone.utc)
+        age_hours = (datetime.now(timezone.utc) - created).total_seconds() / 3600
 
         if age_hours > belief["ttl_hours"]:
             belief["stale"] = True
