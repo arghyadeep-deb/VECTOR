@@ -978,6 +978,10 @@ class VECTORTrainer:
             metrics = {"loss": self.model.update(traj)}
             self._dt_traj.extend(traj[-5:])
             self._dt_traj = self._dt_traj[-100:]
+        elif self.algorithm == "ppo":
+            metrics = self.model.update(states, actions, rewards, dones, next_states[-1])
+        elif self.algorithm in ("sarsa", "q-learning"):
+            metrics = self.model.update(states, actions, rewards, dones)
 
         ep_reward = sum(rewards)
         self.stats.episode_count += 1
