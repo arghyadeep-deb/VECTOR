@@ -132,14 +132,11 @@ These were created as stubs to fix import errors. They work for import resolutio
 - **Risk:** GoalManager is fully implemented but nothing in `vector_cli/main.py` or the gateway calls `GoalManager.set_goal()` on user input
 - **What to do:** Add `/goal <text>` slash command to the CLI and gateway
 
-### 🟡 `tools/kanban_tools.py` not registered in MCP server
-- **File:** `vectorcode/src/tools/kanban_tools.py` (1,139L)
-- **Risk:** Full Kanban MCP tool surface exists but `core/mcp_server.py` doesn't import it
-- **What to do:** Add `from vectorcode.src.tools.kanban_tools import ...` to `core/mcp_server.py` registrations
+### ✅ `tools/kanban_tools.py` registered in MCP server — RESOLVED
+- **Resolution:** Added `_add_kanban_tools(mcp)` to `core/mcp_server.py` with 4 tools: kanban_list, kanban_create, kanban_update, kanban_complete
 
-### 🟡 `vectorcode/src/agent/tool_guardrails.py` not integrated into agent loop
-- **Risk:** ToolCallGuardrailController is implemented but nothing in `run_agent.py` or the agent loop instantiates it
-- **What to do:** Add guardrail controller to `run_agent.py`'s tool execution path
+### ✅ `vectorcode/src/agent/tool_guardrails.py` integrated into agent loop — RESOLVED
+- **Resolution:** `ToolCallGuardrailController` initialized in `AIAgent.__init__`, `reset_for_turn()` called per turn, `after_call()` checked after every sequential tool execution with halt/warn/block propagation
 
 ---
 
