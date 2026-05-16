@@ -121,6 +121,34 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "evening_brief": "chief_of_staff",
     "chief": "chief_of_staff",
     "coordinate": "chief_of_staff",
+    # new coding agents
+    "frontend": "coding",
+    "dashboard_build": "coding",
+    "scaffold_component": "coding",
+    "db_optimize": "coding",
+    "slow_query": "coding",
+    "index": "coding",
+    # email intelligence
+    "email_brief": "communications",
+    "gmail": "communications",
+    "parse_email": "communications",
+    # qa additions
+    "test_analysis": "qa",
+    "api_health": "qa",
+    "api_test": "qa",
+    # interview_prep additions
+    "recruitment": "interview_prep",
+    "placement": "interview_prep",
+    "job_search": "interview_prep",
+    "resume": "interview_prep",
+    "cold_outreach": "interview_prep",
+    # personal_growth additions
+    "feedback": "personal_growth",
+    "synthesize_feedback": "personal_growth",
+    # projects additions
+    "experiment": "projects",
+    "ab_test": "projects",
+    "hypothesis": "projects",
 }
 
 
