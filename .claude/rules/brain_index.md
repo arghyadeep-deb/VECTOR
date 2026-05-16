@@ -49,7 +49,7 @@ brain/
 ## Claude Code Agents (live in brain — read on-demand, never copied)
 All agents are at `brain/.claude/agents/`. Read before using as a subagent context.
 - `vector-coder.md` — coding District 4, GitBot, code review
-- `vector-comms.md` — comms District 6, Hermes gateway
+- `vector-comms.md` — comms District 6, vectorcode channels gateway (30+ platforms)
 - `vector-memory-curator.md` — memory District 7, LightRAG, episodic
 - `vector-researcher.md` — research District, OpenCLI, ArXiv
 - `vector-security.md` — security District, ThreatScout
