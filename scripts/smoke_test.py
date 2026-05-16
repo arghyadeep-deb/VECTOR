@@ -52,14 +52,13 @@ test("score in [0,1]", lambda: None if 0 <= c.total_score <= 1 else (_ for _ in 
 test("formula weights sum correctly", lambda: None if c.goal_alignment >= 0 else (_ for _ in ()).throw(AssertionError("negative alignment")))
 
 print("\n[2] Policy Memory")
-with tempfile.TemporaryDirectory() as tmp:
-    pm = PolicyMemory(db_path=pathlib.Path(tmp) / "p.db")
-    pm.update_from_outcome("test_action", "hash123", 0.8)
-    s = pm.get_score("test_action", "hash123")
-    test("policy round-trip score ~0.8", lambda: None if abs(s - 0.8) < 0.15 else (_ for _ in ()).throw(AssertionError(f"got {s}")))
-    pm.update_from_outcome("test_action", "hash123", 0.2)
-    s2 = pm.get_score("test_action", "hash123")
-    test("policy blends multiple outcomes", lambda: None if 0.2 < s2 < 0.8 else (_ for _ in ()).throw(AssertionError(f"no blend: {s2}")))
+pm = PolicyMemory()
+pm.update_from_outcome("test_action_smoke", "hash999", 0.8)
+s = pm.get_score("test_action_smoke", "hash999")
+test("policy round-trip score ~0.8", lambda: None if abs(s - 0.8) < 0.15 else (_ for _ in ()).throw(AssertionError(f"got {s}")))
+pm.update_from_outcome("test_action_smoke", "hash999", 0.2)
+s2 = pm.get_score("test_action_smoke", "hash999")
+test("policy blends multiple outcomes", lambda: None if 0.2 < s2 < 0.8 else (_ for _ in ()).throw(AssertionError(f"no blend: {s2}")))
 
 print("\n[3] Context Engine")
 ce = ContextEngine()
