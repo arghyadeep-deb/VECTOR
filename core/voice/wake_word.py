@@ -7,15 +7,15 @@ import numpy as np
 from loguru import logger
 from core.config import CONFIG
 
-# NOTE: Uses hey_jarvis pre-trained model as placeholder until "Hey VECTOR"
-# custom training is complete (openwakeword requires custom training for new phrases)
+# NOTE: Uses hey_vector phrase. openwakeword requires custom training for new phrases;
+# download the community hey_vector model or train one with openwakeword's train script.
 
 
 class WakeWordDetector:
     def __init__(self):
         self._model = None
         self._threshold = CONFIG.get("voice", {}).get("wake_threshold", 0.5)
-        self._wake_phrase = CONFIG.get("voice", {}).get("wake_phrase", "hey_jarvis")
+        self._wake_phrase = CONFIG.get("voice", {}).get("wake_phrase", "hey_vector")
         self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
         self._frame_size = 512
         self._init_model()
