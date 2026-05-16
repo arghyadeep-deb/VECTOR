@@ -128,10 +128,21 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "db_optimize": "coding",
     "slow_query": "coding",
     "index": "coding",
-    # email intelligence
+    # email intelligence + email agent (agentic-inbox)
     "email_brief": "communications",
     "gmail": "communications",
     "parse_email": "communications",
+    "list_emails": "communications",
+    "get_email": "communications",
+    "read_email": "communications",
+    "draft_reply": "communications",
+    "draft_email": "communications",
+    "send_email": "communications",
+    "email_thread": "communications",
+    "email_search": "communications",
+    "check_inbox": "communications",
+    "new_email": "communications",
+    "auto_draft": "communications",
     # qa additions
     "test_analysis": "qa",
     "api_health": "qa",
