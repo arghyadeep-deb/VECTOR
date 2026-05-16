@@ -42,10 +42,11 @@ HP system must wire to actual task outcomes.
 Fake HP = fake evolution = system that never improves.
 Death triggers ghost memory preservation. Always.
 
-**RULE 10 — HERMES NOT REBUILT**
-`ollama launch hermes --model kimi-k2.6:cloud`
-Hermes already has multi-platform messaging, skill creation, persistent memory.
-Do not rebuild agents/communications from scratch.
+**RULE 10 — VECTORCODE IS THE COMMS LAYER**
+Hermes Agent is fully replaced by vectorcode. All multi-platform messaging,
+skill creation, and persistent memory lives in `vectorcode/src/`.
+30+ channel adapters in `vectorcode/src/channels/`. Do not rebuild from scratch.
+`from vectorcode.src.vc_agents.agent_registry import vc_agents` for all comms work.
 
 **RULE 11 — CLAUDE API NEVER IN RUNTIME**
 Claude Sonnet = your build sessions via Pro plan chat (unlimited).
