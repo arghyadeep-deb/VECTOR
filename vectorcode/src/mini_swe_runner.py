@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
 from loguru import logger
-SWE Runner with Hermes Trajectory Format
+SWE Runner with VECTOR Trajectory Format
 
-A runner that uses Hermes-Agent's built-in execution environments
-(local, docker, modal) and outputs trajectories in the Hermes-Agent format
+A runner that uses VECTOR's built-in execution environments
+(local, docker, modal) and outputs trajectories in the VECTOR format
 compatible with batch_runner.py and trajectory_compressor.py.
 
 Features:
-- Uses Hermes-Agent's Docker, Modal, or Local environments for command execution
-- Outputs trajectories in Hermes format (from/value pairs with <tool_call>/<tool_response> XML)
+- Uses VECTOR's Docker, Modal, or Local environments for command execution
+- Outputs trajectories in VECTOR format (from/value pairs with <tool_call>/<tool_response> XML)
 - Compatible with the trajectory compression pipeline
 - Supports batch processing from JSONL prompt files
 
@@ -66,7 +66,7 @@ def _effective_temperature_for_model(
 
 
 # ============================================================================
-# Terminal Tool Definition (matches Hermes-Agent format)
+# Terminal Tool Definition (matches VECTOR format)
 # ============================================================================
 
 TERMINAL_TOOL_DEFINITION = {
@@ -126,7 +126,7 @@ def create_environment(
     **kwargs
 ):
     """
-    Create an execution environment using Hermes-Agent's built-in backends.
+    Create an execution environment using VECTOR's built-in backends.
     
     Args:
         env_type: One of "local", "docker", "modal"
@@ -155,13 +155,13 @@ def create_environment(
 
 
 # ============================================================================
-# Mini-SWE Runner with Hermes Trajectory Format
+# Mini-SWE Runner with VECTOR Trajectory Format
 # ============================================================================
 
 class MiniSWERunner:
     """
-    Agent runner that uses Hermes-Agent's built-in execution environments
-    and outputs trajectories in Hermes-Agent format.
+    Agent runner that uses VECTOR's built-in execution environments
+    and outputs trajectories in VECTOR format.
     """
     
     def __init__(
@@ -312,7 +312,7 @@ class MiniSWERunner:
         completed: bool
     ) -> List[Dict[str, Any]]:
         """
-        Convert internal message format to Hermes trajectory format.
+        Convert internal message format to VECTOR trajectory format.
         
         This produces the exact format used by batch_runner.py.
         """
@@ -568,7 +568,7 @@ Complete the user's task step by step."""
             # Cleanup environment
             self._cleanup_env()
         
-        # Convert to Hermes trajectory format
+        # Convert to VECTOR trajectory format
         trajectory = self._convert_to_vector_format(messages, task, completed)
         
         return {
@@ -654,7 +654,7 @@ def main(
     verbose: bool = False,
 ):
     """
-    Run SWE tasks with Hermes trajectory format output.
+    Run SWE tasks with VECTOR trajectory format output.
     
     Args:
         task: Single task to run (use this OR prompts_file)
@@ -680,7 +680,7 @@ def main(
         # Batch from file
         python mini_swe_runner.py --prompts_file tasks.jsonl --output_file results.jsonl
     """
-    print("🚀 Mini-SWE Runner with Hermes Trajectory Format")
+    print("🚀 Mini-SWE Runner with VECTOR Trajectory Format")
     print("=" * 60)
     
     # Initialize runner

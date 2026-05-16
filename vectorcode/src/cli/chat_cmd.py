@@ -1,4 +1,4 @@
-"""``jarvis chat`` -- interactive multi-turn chat REPL."""
+"""``vector chat`` -- interactive multi-turn chat REPL."""
 
 from __future__ import annotations
 

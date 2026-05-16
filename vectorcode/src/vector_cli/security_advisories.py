@@ -1,5 +1,5 @@
 """
-Security advisory checker for Hermes Agent.
+Security advisory checker for VECTOR.
 
 Detects known-compromised Python packages installed in the active venv
 (supply-chain attacks like the Mini Shai-Hulud worm of May 2026 that
@@ -28,7 +28,7 @@ The check is invoked from three places:
    a one-line operator banner)
 
 This module is intentionally dependency-free beyond the stdlib so it can
-run in environments where the rest of Hermes failed to import.
+run in environments where the rest of VECTOR failed to import.
 """
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ ADVISORIES: tuple[Advisory, ...] = (
             "environment variables and credential files (~/.npmrc, ~/.pypirc, "
             "~/.aws/credentials, GitHub PATs, cloud SDK tokens) and exfils "
             "them to a hardcoded webhook. If you ran any Python process that "
-            "imported mistralai 2.4.6 — including hermes when configured "
+            "imported mistralai 2.4.6 — including VECTOR gateway when configured "
             "with provider=mistral for TTS or STT — assume those credentials "
             "are exposed."
         ),
@@ -149,7 +149,7 @@ def _installed_version(pkg_name: str) -> Optional[str]:
     """
     try:
         from importlib.metadata import PackageNotFoundError, version
-    except ImportError:  # py<3.8 — Hermes requires 3.10+ but defensive.
+    except ImportError:  # py<3.8 — VECTOR requires 3.10+ but defensive.
         return None
     try:
         return version(pkg_name)

@@ -740,13 +740,13 @@ class AutonomousLoop:
             self.phone_loop(),
             self.vectorcode_loop(),
             self.scheduler_loop(),
-            self.hypothesis_loop(),      # JARVIS Gap 5 — proactive insights every 4h
+            self.hypothesis_loop(),      # VECTOR Gap 5 — proactive insights every 4h
             return_exceptions=True,
         )
 
     async def hypothesis_loop(self) -> None:
         """
-        JARVIS Gap 5 — HypothesisEngine: proactive insight generation.
+        VECTOR Gap 5 — HypothesisEngine: proactive insight generation.
         Runs every 4 hours. Only surfaces insights with confidence > 0.85.
         RULE 2 — never dies: all exceptions caught, loop always restarts.
         """

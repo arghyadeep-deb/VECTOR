@@ -1,7 +1,7 @@
 """SQLite-backed Kanban board for multi-profile, multi-project collaboration.
 
 In a fresh install the board lives at ``<root>/kanban.db`` where
-``<root>`` is the **shared Hermes root** (the parent of any active
+``<root>`` is the **shared VECTOR root** (the parent of any active
 profile). Profiles intentionally collapse onto a shared board: it IS
 the cross-profile coordination primitive. A worker spawned with
 ``vector -p <profile>`` joins the same board as the dispatcher that
@@ -12,7 +12,7 @@ claimed the task. The same applies to ``<root>/kanban/workspaces/`` and
 separate unrelated streams of work (e.g. one per project / repo / domain).
 Each board is a directory under ``<root>/kanban/boards/<slug>/`` with
 its own ``kanban.db``, ``workspaces/``, and ``logs/``. All boards share
-the profile's Hermes home but are otherwise isolated: a worker spawned
+the profile's VECTOR home but are otherwise isolated: a worker spawned
 for a task on board ``atm10-server`` sees only that board's tasks,
 cannot enumerate other boards, and its dispatcher ticks don't touch
 other boards' DBs.
@@ -144,7 +144,7 @@ def _normalize_board_slug(slug: Optional[str]) -> Optional[str]:
 
 
 def kanban_home() -> Path:
-    """Return the shared Hermes root that anchors the kanban board.
+    """Return the shared VECTOR root that anchors the kanban board.
 
     Resolution order:
 
@@ -2907,7 +2907,7 @@ class DispatchResult:
     Operator-actionable — usually a misfiled task waiting for routing."""
     skipped_nonspawnable: list[str] = field(default_factory=list)
     """Ready task ids skipped because their assignee names a control-plane
-    lane (a Claude Code terminal like ``orion-cc``) rather than a Hermes
+    lane (a Claude Code terminal like ``orion-cc``) rather than a VECTOR
     profile. Expected steady-state on multi-lane setups; NOT an
     operator-actionable failure. Tracked separately so health telemetry
     can distinguish "real stuck" (nothing spawned but spawnable work
@@ -3634,7 +3634,7 @@ _clear_spawn_failures = _clear_failure_counter
 
 def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
     """Return True iff there is at least one ready+assigned+unclaimed task
-    whose assignee maps to a real Hermes profile.
+    whose assignee maps to a real VECTOR profile.
 
     Used by the gateway- and CLI-embedded dispatchers' health telemetry to
     decide whether ``0 spawned`` is a "stuck" condition (real spawnable
@@ -3775,11 +3775,11 @@ def dispatch_once(
         if not row["assignee"]:
             result.skipped_unassigned.append(row["id"])
             continue
-        # Skip ready tasks whose assignee is not a real Hermes profile.
+        # Skip ready tasks whose assignee is not a real VECTOR profile.
         # `_default_spawn` invokes ``vector -p <assignee>`` which fails
         # with "Profile 'X' does not exist" when the assignee names a
         # control-plane lane (e.g. an interactive Claude Code terminal
-        # like ``orion-cc`` / ``orion-research``) rather than a Hermes
+        # like ``orion-cc`` / ``orion-research``) rather than a VECTOR
         # profile. Those task lanes are pulled by terminals via
         # ``claim_task`` directly and should NEVER auto-spawn — the
         # subprocess would crash on startup, get reaped as a zombie,
@@ -3883,7 +3883,7 @@ def _resolve_vector_argv() -> list[str]:
        that shows up in ``ps`` output and existing logs. Preferred so live
        systems' diagnostics stay familiar.
     2. ``sys.executable -m vector_cli.main`` — fallback for setups where
-       Hermes is launched from a venv and the ``vector`` shim is not on
+       VECTOR is launched from a venv and the ``vector`` shim is not on
        the dispatcher's ``$PATH`` (cron, systemd ``User=`` services,
        launchd jobs, detached processes, etc.). Goes through the running
        interpreter so the result is independent of ``$PATH``.
@@ -4030,7 +4030,7 @@ def _default_spawn(
         log_f.close()
         raise RuntimeError(
             "`vector` executable not found on PATH. "
-            "Install Hermes Agent or activate its venv before running the kanban dispatcher."
+            "Install VECTOR or activate its venv before running the kanban dispatcher."
         )
     # NOTE: we intentionally do NOT close log_f here — we want Popen's
     # child process to keep writing after this function returns.  The
@@ -4665,7 +4665,7 @@ def list_profiles_on_disk() -> list[str]:
 
     Includes:
     - named profiles under ``<default-root>/profiles/<name>/config.yaml``
-    - the implicit ``default`` profile when the default Hermes root exists
+    - the implicit ``default`` profile when the default VECTOR root exists
 
     Reads profile paths directly so this module has no import dependency on
     ``vector_cli.profiles`` (which pulls in a large chunk of the CLI startup

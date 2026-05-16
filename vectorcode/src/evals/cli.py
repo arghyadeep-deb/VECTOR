@@ -160,7 +160,7 @@ BENCHMARKS = {
 BACKENDS = {
     "vector-direct": "Engine-level inference (local or cloud)",
     "vector-agent": "Agent-level inference with tool calling",
-    "vector": "Real Hermes Agent (Nous Research) via subprocess",
+    "vector": "Real VECTOR agent via subprocess",
     "openclaw": "Real OpenClaw via Node subprocess",
 }
 
@@ -217,7 +217,7 @@ def _build_backend(
         if not base_url or not api_key:
             raise click.UsageError(
                 "vector backend requires --base-url and --api-key (or "
-                "the equivalent env vars / config entries) — Hermes needs "
+                "the equivalent env vars / config entries) — VECTOR needs "
                 "an OpenAI-compatible endpoint to call the model."
             )
         return VectorAgentBackend(

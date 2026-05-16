@@ -1,4 +1,4 @@
-"""``jarvis eval`` — evaluation framework CLI commands."""
+"""``vector eval`` — evaluation framework CLI commands."""
 
 from __future__ import annotations
 
@@ -59,8 +59,8 @@ KNOWN_BENCHMARKS = {
 }
 
 KNOWN_BACKENDS = {
-    "jarvis-direct": "Engine-level inference (local or cloud)",
-    "jarvis-agent": "Agent-level inference with tool calling",
+    "vector-direct": "Engine-level inference (local or cloud)",
+    "vector-agent": "Agent-level inference with tool calling",
 }
 
 
@@ -132,9 +132,9 @@ def eval_list() -> None:
 @click.option(
     "--backend",
     "backend",
-    default="jarvis-direct",
+    default="vector-direct",
     type=click.Choice(
-        ["jarvis-direct", "jarvis-agent", "hermes", "openclaw", "terminalbench-native"]
+        ["vector-direct", "vector-agent", "vector-gateway", "openclaw", "terminalbench-native"]
     ),
     help=(
         "Inference backend. For vector/openclaw, also pass --base-url and "
@@ -160,7 +160,7 @@ def eval_list() -> None:
     "--agent",
     "agent_name",
     default=None,
-    help="Agent name for jarvis-agent backend.",
+    help="Agent name for vector-agent backend.",
 )
 @click.option(
     "-e",

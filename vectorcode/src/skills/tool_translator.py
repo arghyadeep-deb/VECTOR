@@ -1,6 +1,6 @@
 """ToolTranslator -- translate external tool names to VECTOR equivalents.
 
-External skill libraries (Hermes Agent, OpenClaw) reference tools by Claude
+External skill libraries (VECTOR, OpenClaw) reference tools by Claude
 Code's standard tool names (Bash, Read, Write, etc.).  VECTOR uses
 different names (shell_exec, file_read, file_write).  This module translates
 those references in skill markdown bodies and ``allowed-tools`` fields.

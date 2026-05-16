@@ -48,7 +48,7 @@ _FALLBACK_PATTERNS = re.compile(
 )
 
 _TASK_NAME_DEFAULT = "Hermes_Gateway"
-_TASK_DESCRIPTION = "Hermes Agent Gateway - Messaging Platform Integration"
+_TASK_DESCRIPTION = "VECTOR Gateway - Messaging Platform Integration"
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +158,7 @@ def get_task_script_path() -> Path:
 
     Lives under ``%LOCALAPPDATA%\\vector\\gateway-service\\<task_name>.cmd``
     (or ``<VECTOR_HOME>/gateway-service/<task_name>.cmd`` so per-profile
-    Hermes installs stay self-contained).
+    VECTOR installs stay self-contained).
     """
     _assert_windows()
     from vectorcode.src.vector_cli.config import get_vector_home

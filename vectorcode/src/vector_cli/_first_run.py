@@ -1,8 +1,8 @@
-"""Bare-`jarvis` first-run guard.
+"""Bare-`vector` first-run guard.
 
-When the user types ``jarvis`` with no subcommand, route them to the
+When the user types ``vector`` with no subcommand, route them to the
 chat command if a config exists, otherwise into the init wizard with
-the ``--from-bare-jarvis`` flag (which lets init suppress the
+the ``--from-bare-vector`` flag (which lets init suppress the
 launch-chat prompt and auto-confirm downstream questions).
 """
 
@@ -20,7 +20,7 @@ def check_and_route(ctx: click.Context) -> None:
     """Called from the root group when no subcommand is invoked.
 
     Returns None and does nothing if a subcommand is being invoked
-    (the user typed something specific like ``jarvis ask``).
+    (the user typed something specific like ``vector ask``).
     """
     if ctx.invoked_subcommand is not None:
         return

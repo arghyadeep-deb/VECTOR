@@ -593,7 +593,7 @@ def _rule_stranded_in_ready(task, events, runs, now, cfg) -> list[Diagnostic]:
     on the dispatcher and a different operator response).
 
     The signal is age-based on purpose: it's identity-agnostic, so it
-    works for Hermes profiles, registered lanes, external workers, and
+    works for VECTOR profiles, registered lanes, external workers, and
     typos uniformly. No registry to curate, no per-board allowlist.
     """
     threshold_seconds = float(

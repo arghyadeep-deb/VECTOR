@@ -629,4 +629,4 @@ class VectorAgent:
 __all__ = ["VectorAgent", "VectorSystem", "MemoryHandle", "SystemBuilder"]
 
 # Backward-compatible alias
-Jarvis = VectorAgent
+vector = VectorAgent

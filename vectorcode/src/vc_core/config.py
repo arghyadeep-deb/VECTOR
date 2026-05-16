@@ -1215,7 +1215,7 @@ class CompressionConfig:
 
 @dataclass(slots=True)
 class SkillSourceConfig:
-    """Configuration for a single skill source (Hermes, OpenClaw, GitHub)."""
+    """Configuration for a single skill source (VECTOR, OpenClaw, GitHub)."""
 
     source: str = ""  # "vector", "openclaw", or "github"
     url: str = ""  # required when source = "github"

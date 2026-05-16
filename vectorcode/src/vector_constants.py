@@ -1,4 +1,4 @@
-"""Shared constants for Hermes Agent.
+"""Shared constants for VECTOR.
 from loguru import logger
 
 Import-safe module with no dependencies — can be imported from anywhere
@@ -13,7 +13,7 @@ _profile_fallback_warned: bool = False
 
 
 def get_vector_home() -> Path:
-    """Return the Hermes home directory (default: ~/.vector).
+    """Return the VECTOR home directory (default: ~/.vector).
 
     Reads VECTOR_HOME env var, falls back to ~/.vector.
     This is the single source of truth — all other copies should import this.
@@ -70,7 +70,7 @@ def get_vector_home() -> Path:
 
 
 def get_default_vector_root() -> Path:
-    """Return the root Hermes directory for profile-level operations.
+    """Return the root VECTOR directory for profile-level operations.
 
     In standard deployments this is ``~/.vector``.
 
@@ -123,7 +123,7 @@ def get_optional_skills_dir(default: Path | None = None) -> Path:
 
 
 def get_vector_dir(new_subpath: str, old_name: str) -> Path:
-    """Resolve a Hermes subdirectory with backward compatibility.
+    """Resolve a VECTOR subdirectory with backward compatibility.
 
     New installs get the consolidated layout (e.g. ``cache/images``).
     Existing installs that already have the old path (e.g. ``image_cache``)
@@ -168,7 +168,7 @@ def get_subprocess_home() -> str | None:
 
     When ``{VECTOR_HOME}/home/`` exists on disk, subprocesses should use it
     as ``HOME`` so system tools (git, ssh, gh, npm …) write their configs
-    inside the Hermes data directory instead of the OS-level ``/root`` or
+    inside the VECTOR data directory instead of the OS-level ``/root`` or
     ``~/``.  This provides:
 
     * **Docker persistence** — tool configs land inside the persistent volume.

@@ -1,4 +1,4 @@
-"""``jarvis config`` — configuration inspection commands."""
+"""``vector config`` — configuration inspection commands."""
 
 from __future__ import annotations
 
@@ -316,7 +316,7 @@ def _coerce_value(value: str, target_type: type) -> object:
 @click.argument("key")
 @click.argument("value")
 def set_config(key: str, value: str) -> None:
-    """Set a configuration value (e.g. jarvis config set engine.ollama.host URL)."""
+    """Set a configuration value (e.g. vector config set engine.ollama.host URL)."""
     import tomlkit
 
     from vectorcode.src.core.config import DEFAULT_CONFIG_DIR, validate_config_key

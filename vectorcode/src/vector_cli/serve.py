@@ -1,4 +1,4 @@
-"""``jarvis serve`` — OpenAI-compatible API server."""
+"""``vector serve`` — OpenAI-compatible API server."""
 
 from __future__ import annotations
 from loguru import logger

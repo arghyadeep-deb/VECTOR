@@ -262,7 +262,7 @@ class PearlDockerLauncher:
         if password is None:
             raise ConfigurationError(
                 f"environment variable {password_env!r} is not set; "
-                f"set it before running `jarvis mine start`"
+                f"set it before running `vector mine start`"
             )
 
         hf_token_env = extra.get("hf_token_env", "HF_TOKEN")

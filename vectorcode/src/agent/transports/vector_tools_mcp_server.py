@@ -1,25 +1,25 @@
-"""Hermes-tools-as-MCP server for the codex_app_server runtime.
+"""VECTOR-tools-as-MCP server for the codex_app_server runtime.
 
 When the user runs `openai/*` turns through the codex app-server, codex
 owns the loop and builds its own tool list. By default, that means
-Hermes' richer tool surface — web search, browser automation,
+VECTOR's richer tool surface — web search, browser automation,
 delegate_task subagents, vision analysis, persistent memory, skills,
 cross-session search, image generation, TTS — is unreachable.
 
-This module exposes a curated subset of those Hermes tools to the
+This module exposes a curated subset of those VECTOR tools to the
 spawned codex subprocess via stdio MCP. Codex registers it as a normal
 MCP server (per `~/.codex/config.toml [mcp_servers.vector-tools]`) and
-the user gets full Hermes capability inside a Codex turn.
+the user gets full VECTOR capability inside a Codex turn.
 
 Scope (what we expose):
   - web_search, web_extract              — Firecrawl, no codex equivalent
   - browser_navigate / _click / _type /  — Camofox/Browserbase automation
     _snapshot / _screenshot / _scroll / _back / _press / _vision
-  - delegate_task                        — Hermes subagents
+  - delegate_task                        — VECTOR subagents
   - vision_analyze                       — image inspection by vision model
   - image_generate                       — image generation
-  - memory                               — Hermes' persistent memory store
-  - skill_view, skills_list              — Hermes' skill library
+  - memory                               — VECTOR's persistent memory store
+  - skill_view, skills_list              — VECTOR's skill library
   - session_search                       — cross-session search
   - text_to_speech                       — TTS
 
@@ -45,7 +45,7 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
-# Tools we expose. Each name MUST match a registered Hermes tool that
+# Tools we expose. Each name MUST match a registered VECTOR tool that
 # `model_tools.handle_function_call()` can dispatch.
 #
 # What we deliberately DO NOT expose:
@@ -53,9 +53,9 @@ logger = logging.getLogger(__name__)
 #     process — codex's built-ins cover these and approval routes through
 #     codex's own UI.
 #   - delegate_task / memory / session_search / todo — these are
-#     `_AGENT_LOOP_TOOLS` in Hermes (model_tools.py:493). They require
+#     `_AGENT_LOOP_TOOLS` in VECTOR (model_tools.py:493). They require
 #     the running AIAgent context to dispatch (mid-loop state), so a
-#     stateless MCP callback can't drive them. Hermes' default runtime
+#     stateless MCP callback can't drive them. VECTOR's default runtime
 #     keeps these working; the codex_app_server runtime cannot.
 EXPOSED_TOOLS: tuple[str, ...] = (
     "web_search",
@@ -98,7 +98,7 @@ EXPOSED_TOOLS: tuple[str, ...] = (
 
 
 def _build_server() -> Any:
-    """Create the FastMCP server with Hermes tools attached. Lazy imports
+    """Create the FastMCP server with VECTOR tools attached. Lazy imports
     so the module can be imported without the mcp package installed
     (we degrade to a clear error only when actually run)."""
     try:
@@ -108,7 +108,7 @@ def _build_server() -> Any:
             f"vector-tools MCP server requires the 'mcp' package: {exc}"
         ) from exc
 
-    # Discover Hermes tools so dispatch works.
+    # Discover VECTOR tools so dispatch works.
     from model_tools import (
         get_tool_definitions,
         handle_function_call,
@@ -117,7 +117,7 @@ def _build_server() -> Any:
     mcp = FastMCP(
         "vector-tools",
         instructions=(
-            "Hermes Agent's tool surface, exposed for use inside a Codex "
+            "VECTOR's tool surface, exposed for use inside a Codex "
             "session. Use these for capabilities Codex's built-in toolset "
             "doesn't cover: web search/extract, browser automation, "
             "subagent delegation, vision, image generation, persistent "
@@ -125,8 +125,8 @@ def _build_server() -> Any:
         ),
     )
 
-    # Pull authoritative Hermes tool schemas for the ones we expose, so
-    # MCP clients see the same parameter docs Hermes gives the model.
+    # Pull authoritative VECTOR tool schemas for the ones we expose, so
+    # MCP clients see the same parameter docs VECTOR gives the model.
     all_defs = {
         td["function"]["name"]: td["function"]
         for td in (get_tool_definitions(quiet_mode=True) or [])
@@ -139,11 +139,11 @@ def _build_server() -> Any:
         spec = all_defs.get(name)
         if spec is None:
             logger.debug(
-                "skipping %s — not registered in this Hermes process", name
+                "skipping %s — not registered in this VECTOR process", name
             )
             continue
 
-        description = spec.get("description") or f"Hermes {name} tool"
+        description = spec.get("description") or f"VECTOR {name} tool"
         params_schema = spec.get("parameters") or {"type": "object", "properties": {}}
 
         # FastMCP wants a Python callable. Build a closure that takes the
@@ -198,7 +198,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    # Quiet mode: keep Hermes' own banners off stdout (which is the MCP wire).
+    # Quiet mode: keep VECTOR's own banners off stdout (which is the MCP wire).
     os.environ.setdefault("HERMES_QUIET", "1")
     os.environ.setdefault("HERMES_REDACT_SECRETS", "true")
 

@@ -187,7 +187,7 @@ def _get_resolver(source: str, url: str = ""):
 def install(query: str, with_scripts: bool, force: bool, url: str):
     """Install a skill from a source.
 
-    Example: ``jarvis skill install vector:apple-notes``
+    Example: ``vector skill install vector:apple-notes``
     """
     console = Console()
     source, name = _parse_source_query(query)
@@ -476,7 +476,7 @@ def search(query: str, source: str):
     console.print(table)
     console.print(
         f"[dim]{len(rows)} match(es). "
-        f"Install with: jarvis skill install <source>:<name>[/dim]"
+        f"Install with: vector skill install <source>:<name>[/dim]"
     )
 
 @skill.command("update")

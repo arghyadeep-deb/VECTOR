@@ -1,4 +1,4 @@
-"""``jarvis agents`` -- persistent agent lifecycle management."""
+"""``vector agents`` -- persistent agent lifecycle management."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def list_agents() -> None:
         agents = mgr.list_agents()
         if not agents:
             console.print(
-                "[dim]No agents found. Create one with: jarvis agents create[/dim]"
+                "[dim]No agents found. Create one with: vector agents create[/dim]"
             )
             return
         table = Table(title="Managed Agents")

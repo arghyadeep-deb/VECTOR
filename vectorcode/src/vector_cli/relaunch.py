@@ -1,5 +1,5 @@
 """
-Unified self-relaunch for Hermes CLI.
+Unified self-relaunch for VECTOR CLI.
 
 Preserves critical flags (--tui, --dev, --profile, --model, etc.) across
 process replacement so that ``vector sessions browse`` or post-setup relaunch

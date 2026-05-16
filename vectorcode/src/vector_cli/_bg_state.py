@@ -1,7 +1,7 @@
 """Read background-work state from ``~/.vectorcode.src/.state/``.
 
 Pure-function reader used by the chat banner, completion-notification
-dispatcher, and ``jarvis doctor``.  No side effects — safe to call
+dispatcher, and ``vector doctor``.  No side effects — safe to call
 between every chat turn.
 """
 

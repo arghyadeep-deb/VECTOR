@@ -1,4 +1,4 @@
-"""``jarvis host`` — download and serve a model locally with auto backend setup."""
+"""``vector host`` — download and serve a model locally with auto backend setup."""
 
 from __future__ import annotations
 from loguru import logger
@@ -317,10 +317,10 @@ def host(
     Examples:
 
     \b
-      jarvis host mlx-community/Qwen2.5-7B-4bit --backend mlx
-      jarvis host Qwen/Qwen3-8B --backend vllm
-      jarvis host qwen3:8b --backend ollama
-      jarvis host meta-llama/Llama-3-8B -b sglang
+      vector host mlx-community/Qwen2.5-7B-4bit --backend mlx
+      vector host Qwen/Qwen3-8B --backend vllm
+      vector host qwen3:8b --backend ollama
+      vector host meta-llama/Llama-3-8B -b sglang
     """
     console = Console()
 

@@ -1,4 +1,4 @@
-"""``jarvis optimize`` — LLM-driven configuration optimization CLI."""
+"""``vector optimize`` — LLM-driven configuration optimization CLI."""
 
 from __future__ import annotations
 from loguru import logger

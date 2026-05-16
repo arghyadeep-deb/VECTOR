@@ -65,7 +65,7 @@ def check_bind_safety(host: str, *, api_key: str) -> None:
     if not is_loop and not api_key:
         logger.error(
             "Binding to %s requires OPENVECTOR_API_KEY to be set. "
-            "Run: jarvis auth generate-key",
+            "Run: vector auth generate-key",
             host,
         )
         sys.exit(1)

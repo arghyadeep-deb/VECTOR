@@ -6,7 +6,7 @@
 """Path resolution and commit-pin verification for foreign frameworks.
 
 The ``_third_party.toml`` file declares the canonical filesystem path and
-expected git commit for each foreign framework (Hermes Agent, OpenClaw).
+expected git commit for each foreign framework (VECTOR, OpenClaw).
 Env vars (``HERMES_AGENT_PATH``, ``OPENCLAW_PATH``) override the default path.
 ``JARVIS_ALLOW_COMMIT_DRIFT=1`` disables strict commit-pin enforcement.
 """
@@ -32,7 +32,7 @@ _PATH_ENV_VAR = {
 }
 
 # Map framework name -> env var that overrides its language-runtime executable.
-# For vector this overrides `python_executable` (point at the Hermes venv's
+# For vector this overrides `python_executable` (point at the VECTOR venv's
 # python so its deps don't need to be installed in VectorCode's venv); for
 # openclaw it overrides `node_executable` (point at a Node ≥14.8 binary if
 # the system default is too old).

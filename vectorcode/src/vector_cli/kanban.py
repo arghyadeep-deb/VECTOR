@@ -1,4 +1,4 @@
-"""CLI for the Hermes Kanban board — ``vector kanban …`` subcommand.
+"""CLI for the VECTOR Kanban board — ``vector kanban …`` subcommand.
 
 Exposes the full 15-verb surface documented in the design spec
 (``docs/vector-kanban-v1-spec.pdf``).  All DB work is delegated to
@@ -164,7 +164,7 @@ def build_parser(parent_subparsers: argparse._SubParsersAction) -> argparse.Argu
         "kanban",
         help="Multi-profile collaboration board (tasks, links, comments)",
         description=(
-            "Durable SQLite-backed task board shared across Hermes profiles. "
+            "Durable SQLite-backed task board shared across VECTOR profiles. "
             "Tasks are claimed atomically, can depend on other tasks, and "
             "are executed by a named profile in an isolated workspace. "
             "See https://vector-agent/docs/features/kanban "
@@ -1836,7 +1836,7 @@ def _cmd_daemon(args: argparse.Namespace) -> int:
 
     def _ready_queue_nonempty() -> bool:
         """Cheap probe — is there at least one ready+assigned+unclaimed
-        task whose assignee maps to a real Hermes profile (i.e. one the
+        task whose assignee maps to a real VECTOR profile (i.e. one the
         dispatcher would actually try to spawn for)?
 
         Filters out tasks assigned to control-plane lanes

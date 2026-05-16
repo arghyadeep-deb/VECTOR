@@ -1,4 +1,4 @@
-"""``jarvis scheduler`` -- task scheduling commands."""
+"""``vector scheduler`` -- task scheduling commands."""
 
 from __future__ import annotations
 
