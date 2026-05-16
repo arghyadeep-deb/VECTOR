@@ -440,7 +440,7 @@ class AutonomousLoop:
             logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
             return
 
-        # RedTeamAgent adversarial review for RED-level actions (JARVIS Gap 2)
+        # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
         _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
         if winner.action_type in _RED_ACTION_TYPES:
             red_team = self._get_red_team()
