@@ -328,9 +328,58 @@ class GNNRouter(NeuralRouter):
             logger.debug("[VECTOR][router] suppressed Exception: %s", _sve)
         return None
 
+    # ── MoE Router (Layer 0) — expert-type → VECTOR model mapping ─────────────
+
+    # Map MoE expert names → VECTOR model names
+    _MOE_TO_MODEL: dict[str, str] = {
+        "coder":        "vector-coder",
+        "tester":       "vector-dev",
+        "reviewer":     "vector-dev",
+        "architect":    "vector-reasoning",
+        "security":     "vector-dev",
+        "performance":  "vector-deep",
+        "researcher":   "vector-deep",
+        "coordinator":  "vector-chairman",
+    }
+
+    def _get_moe_router(self):
+        if getattr(self, "_moe_router", None) is None:
+            try:
+                import sys as _sys
+                _sys.path.insert(0, str(Path(__file__).parent))
+                from neural_moe_router import MoERouter as _MoE
+                import numpy as _np
+                self._moe_router = _MoE()
+                # Seed: encode task text as 384-dim hash embedding for routing
+                self._moe_encode = lambda text: _np.frombuffer(
+                    __import__("hashlib").sha256(text.encode()).digest() * 12, dtype=_np.uint8
+                )[:384].astype(_np.float32) / 127.5 - 1.0
+                logger.info("[VECTOR][router] MoERouter loaded (Layer 0)")
+            except Exception as _e:
+                logger.debug("[VECTOR][router] MoERouter unavailable: %s", _e)
+                self._moe_router = False  # sentinel: tried and failed
+        return self._moe_router if self._moe_router is not False else None
+
     # ── Core routing ──────────────────────────────────────────────────────────
 
     def route(self, task: str) -> str:
+        # Layer 0: MoE expert routing (when available)
+        moe = self._get_moe_router()
+        if moe is not None:
+            try:
+                embedding_384 = self._moe_encode(task)
+                experts = moe.route(embedding_384, top_k=1)
+                if experts:
+                    mapped = self._MOE_TO_MODEL.get(experts[0])
+                    if mapped:
+                        logger.debug(
+                            "[VECTOR][router] MoE '%s' → expert=%s → %s",
+                            task[:50], experts[0], mapped,
+                        )
+                        return mapped
+            except Exception as _e:
+                logger.debug("[VECTOR][router] MoE route suppressed: %s", _e)
+
         # Layer 1: GNN cosine similarity
         embedding = self._embed(task)
         if embedding:
