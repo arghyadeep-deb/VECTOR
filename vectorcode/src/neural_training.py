@@ -919,6 +919,12 @@ class VECTORTrainer:
             self.model = DQN(DQNConfig(state_dim=state_dim, action_dim=action_dim))
         elif algorithm == "dt":
             self.model = DecisionTransformer(state_dim=state_dim, action_dim=action_dim)
+        elif algorithm == "ppo":
+            self.model = PPO(PPOConfig(state_dim=state_dim, action_dim=action_dim))
+        elif algorithm == "sarsa":
+            self.model = SARSA(SARSAConfig(state_dim=state_dim, action_dim=action_dim))
+        elif algorithm == "q-learning":
+            self.model = QLearning(QLearningConfig(state_dim=state_dim, action_dim=action_dim))
         else:
             raise ValueError(f"Unknown algorithm: {algorithm}")
         self.curiosity = CuriosityModule(state_dim=state_dim, action_dim=action_dim) if use_curiosity else None
