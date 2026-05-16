@@ -188,7 +188,7 @@ class DecisionEngine:
             try:
                 past = reasoning_bank.inject_past_reasoning(candidate.action_type, top_k=2)
                 if past:
-                    candidate.reasoning_steps = [f"[past reasoning] {past}"] + candidate.reasoning_steps
+                    candidate.reasoning_steps = [f"[ReasoningBank] {past[:200]}"] + candidate.reasoning_steps
             except Exception as _rbe:
                 logger.debug("[VECTOR][decision_engine] ReasoningBank inject suppressed: %s", _rbe)
 
