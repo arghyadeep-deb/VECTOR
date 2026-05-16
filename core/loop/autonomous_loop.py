@@ -58,6 +58,12 @@ class AutonomousLoop:
             self._governor = Governor()
         return self._governor
 
+    def _get_gateway(self):
+        if self._gateway is None:
+            from core.loop.permission_gateway import PermissionGateway
+            self._gateway = PermissionGateway()
+        return self._gateway
+
     def _get_policy(self):
         if self._policy is None:
             from core.memory.policy import PolicyMemory
