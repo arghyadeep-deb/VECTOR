@@ -77,6 +77,24 @@ class PromptAgent(AgentBase):
         logger.info("[VECTOR][prompt_agent] {} loaded ({} chars system prompt)",
                     name, len(self._system_prompt))
 
+    def _resolve_md_path(self, md_filename: str) -> Path:
+        """Find the .md file — checks flat location first, then all district subfolders."""
+        # Direct path given (absolute or relative)
+        direct = Path(md_filename)
+        if direct.is_absolute() and direct.exists():
+            return direct
+        # Flat in agents dir (legacy)
+        flat = _AGENTS_DIR / md_filename
+        if flat.exists():
+            return flat
+        # Search district subfolders
+        for subdir in _AGENTS_DIR.iterdir():
+            if subdir.is_dir():
+                candidate = subdir / md_filename
+                if candidate.exists():
+                    return candidate
+        return flat  # Return non-existent path; caller handles missing
+
     def _load_definition(self) -> tuple[dict, str]:
         """Load and parse the .md definition file."""
         if not self._md_path.exists():
