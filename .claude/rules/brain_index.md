@@ -17,7 +17,7 @@ Read any file below with the Read tool using the `brain/` prefix.
 - `brain/VECTOR/Districts/02-education.md` — Skills, Languages, Interview Prep, Learning, Karpathy Lab
 - `brain/VECTOR/Districts/03-builder.md` — Coding, Projects, Startups, Investment, Agency
 - `brain/VECTOR/Districts/04-security.md` — ThreatScout, MalwareHunter, NodeGuard, Privacy Guardian
-- `brain/VECTOR/Districts/05-communications.md` — Hermes, WhatsApp, Telegram, Discord, Signal
+- `brain/VECTOR/Districts/05-communications.md` — vectorcode channels, WhatsApp, Telegram, Discord, Signal (Hermes replaced by vectorcode)
 - `brain/VECTOR/Districts/06-life.md` — Finance, Health, Relationships, Time/Calendar, Reflection
 - `brain/VECTOR/Districts/07-intelligence.md` — Research, Memory Curator, Pattern Detective, News
 
