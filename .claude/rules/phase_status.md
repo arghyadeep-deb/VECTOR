@@ -116,12 +116,17 @@
 | 24 | pattern_detective/ | behavior_analyst.py, habit_finder.py | ✅ BehaviorAnalyst + HabitFinder |
 | 25 | news_trends/ | ai_news_bot.py, market_trends_bot.py, opportunity_spotter.py | ✅ AINewsBot + OpportunitySpotter |
 
-### Bonus Districts (not in original plan)
+### Bonus Districts (from agency-agents + original plan)
 | District | Agents | Notes |
 |----------|--------|-------|
-| calls/ | call_screener.py, transcription_bot.py, voice_responder.py | Bonus — call handling |
-| data_analytics/ | (empty) | ❌ Scaffolded, no agents yet |
-| devops/ | (empty) | ❌ Scaffolded, no agents yet |
+| calls/ | call_screener.py, transcription_bot.py, voice_responder.py | ✅ Call handling |
+| ops/ | sre_monitor.py, devops_automator.py, incident_commander.py | ✅ New — VECTOR self-monitors (SLO, DevOps, Incidents) |
+| data_analytics/ | analytics_reporter.py, performance_benchmarker.py | ✅ New — VECTOR data insights + latency benchmarks |
+| personal_growth/ | behavioral_nudge_engine.py, zk_steward.py | ✅ New — Motivation nudges + Zettelkasten knowledge links |
+| documentation/ | technical_writer.py, doc_generator.py | ✅ New — VECTOR documents itself (API docs, weekly summary, changelog) |
+| qa/ | reality_checker.py, evidence_collector.py, workflow_architect.py | ✅ New — Verify before shipping, collect proof, map workflows |
+| chief_of_staff/ | chief_of_staff.py | ✅ New — Master coordinator: morning/evening brief, noise filter, district escalation |
+| devops/ | (empty folder) | ❌ Replaced by ops/ above |
 
 ---
 
