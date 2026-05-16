@@ -21,6 +21,7 @@ Flow:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json
@@ -74,8 +75,8 @@ async def _exec_request(client, method, uri, paths=None, queries=None, body=None
         try:
             body_json = json.loads(raw.content)
             data = body_json.get("data", {})
-        except (json.JSONDecodeError, AttributeError):
-            pass
+        except (json.JSONDecodeError, AttributeError) as _sve:
+            logger.debug("[VECTOR][gateway.platforms.feishu_comment] suppressed (json.JSONDecodeError, AttributeError): %s", _sve)
     if not data:
         resp_data = getattr(response, "data", None)
         if isinstance(resp_data, dict):
@@ -988,8 +989,8 @@ def _resolve_model_and_runtime() -> Tuple[str, dict]:
         try:
             from vector_cli.models import get_default_model_for_provider
             model = get_default_model_for_provider(runtime_kwargs["provider"])
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.feishu_comment] suppressed Exception: %s", _sve)
 
     return model, runtime_kwargs
 

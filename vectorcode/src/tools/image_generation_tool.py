@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Image Generation Tools Module
 
 Provides image generation via FAL.ai. Multiple FAL models are supported and
@@ -805,8 +806,8 @@ def check_image_generation_requirements() -> bool:
                     return True
             except Exception:
                 continue
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.image_generation_tool] suppressed Exception: %s", _sve)
 
     return False
 

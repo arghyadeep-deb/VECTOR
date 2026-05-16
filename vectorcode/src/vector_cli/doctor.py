@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Doctor command for vector CLI.
 
 Diagnoses issues with VectorCode setup.
@@ -294,8 +295,8 @@ def run_doctor(args):
             try:
                 from vector_cli.auth import PROVIDER_REGISTRY
                 known_providers = set(PROVIDER_REGISTRY.keys()) | {"openrouter", "custom", "auto"}
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
             try:
                 from vector_cli.config import get_compatible_custom_providers as _compatible_custom_providers
                 from vector_cli.providers import resolve_provider_full as _resolve_provider_full
@@ -376,8 +377,8 @@ def run_doctor(args):
                                 f"Run 'vector setup' or set the provider's API key in {_DHH}/.env, "
                                 f"or switch providers with 'vector config set model.provider <name>'"
                             )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
         except Exception as e:
             check_warn("Could not validate model/provider config", f"({e})")
@@ -421,8 +422,8 @@ def run_doctor(args):
                     issues.append("Run 'vector doctor --fix' or 'vector setup' to migrate config")
             else:
                 check_ok(f"Config version up to date (v{current_ver})")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
         # Detect stale root-level model keys (known bug source — PR #4329)
         try:
@@ -448,8 +449,8 @@ def run_doctor(args):
                     fixed_count += 1
                 else:
                     issues.append("Stale root-level provider/base_url in config.yaml — run 'vector doctor --fix'")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
         # Validate config structure (catches malformed custom_providers, etc.)
         try:
@@ -467,8 +468,8 @@ def run_doctor(args):
                     for hint_line in ci.hint.splitlines():
                         check_info(hint_line)
                     issues.append(ci.message)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
     # =========================================================================
     # Check: Auth providers
@@ -632,8 +633,8 @@ def run_doctor(args):
                     issues.append("Large WAL file — run 'vector doctor --fix' to checkpoint")
             elif wal_size > 10 * 1024 * 1024:  # 10 MB
                 check_info(f"WAL file is {wal_size // (1024*1024)} MB (normal for active sessions)")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
     _check_gateway_service_linger(issues)
 
@@ -858,8 +859,8 @@ def run_doctor(args):
                     issues.append(f"{label} has {total} npm vulnerability(ies)")
                 else:
                     check_ok(f"{label} deps", f"({moderate} moderate vulnerability(ies))")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
     # =========================================================================
     # Check: API connectivity
@@ -1128,8 +1129,8 @@ def run_doctor(args):
             with open(_mem_cfg_path) as _f:
                 _raw_cfg = _yaml.safe_load(_f) or {}
             _active_memory_provider = (_raw_cfg.get("memory") or {}).get("provider", "")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
     if not _active_memory_provider:
         check_ok("Built-in memory active", "(no external provider configured — this is fine)")
@@ -1233,12 +1234,12 @@ def run_doctor(args):
                             _m = _re.search(r"vector -p (\S+)", content)
                             if _m and not profile_exists(_m.group(1)):
                                 check_warn(f"Orphan alias: {wrapper.name} → profile '{_m.group(1)}' no longer exists")
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
     except ImportError:
         pass
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 
     # =========================================================================
     # Summary

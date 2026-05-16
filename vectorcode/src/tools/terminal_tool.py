@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Terminal Tool Module
 
 A terminal tool that executes commands in local, Docker, Modal, SSH, Singularity, and Daytona environments.
@@ -997,8 +998,8 @@ def _create_environment(env_type: str, image: str, cwd: str, timeout: int,
                 import inspect, modal
                 if "ephemeral_disk" in inspect.signature(modal.Sandbox.create).parameters:
                     sandbox_kwargs["ephemeral_disk"] = disk
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.terminal_tool] suppressed Exception: %s", _sve)
 
         modal_state = _get_modal_backend_state(cc.get("modal_mode"))
 
@@ -1873,8 +1874,8 @@ def terminal_tool(
                     if isinstance(hook_result, str):
                         output = hook_result
                         break
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.terminal_tool] suppressed Exception: %s", _sve)
             
             # Truncate output if too long, keeping both head and tail
             from tools.tool_output_limits import get_max_bytes

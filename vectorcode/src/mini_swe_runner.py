@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 SWE Runner with Hermes Trajectory Format
 
 A runner that uses Hermes-Agent's built-in execution environments
@@ -381,8 +382,8 @@ class MiniSWERunner:
                         try:
                             if tool_content.strip().startswith(("{", "[")):
                                 tool_content = json.loads(tool_content)
-                        except (json.JSONDecodeError, AttributeError):
-                            pass
+                        except (json.JSONDecodeError, AttributeError) as _sve:
+                            logger.debug("[VECTOR][mini_swe_runner] suppressed (json.JSONDecodeError, AttributeError): %s", _sve)
                         
                         tool_response = "<tool_response>\n"
                         tool_response += json.dumps({

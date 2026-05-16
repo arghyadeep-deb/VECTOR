@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Skills Tool Module
 
 This module provides tools for listing and viewing skill documents.
@@ -453,8 +454,8 @@ def _get_category_from_path(skill_path: Path) -> Optional[str]:
     try:
         from agent.skill_utils import get_external_skills_dirs
         dirs_to_check.extend(get_external_skills_dirs())
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.skills_tool] suppressed Exception: %s", _sve)
     for skills_dir in dirs_to_check:
         try:
             rel_path = skill_path.relative_to(skills_dir)
@@ -773,8 +774,8 @@ def _serve_plugin_skill(
     parsed_frontmatter: Dict[str, Any] = {}
     try:
         parsed_frontmatter, _ = _parse_frontmatter(content)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.skills_tool] suppressed Exception: %s", _sve)
 
     if not skill_matches_platform(parsed_frontmatter):
         return json.dumps(
@@ -1013,8 +1014,8 @@ def skill_view(
         _trusted_dirs = [SKILLS_DIR.resolve()]
         try:
             _trusted_dirs.extend(d.resolve() for d in all_dirs[1:])
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.skills_tool] suppressed Exception: %s", _sve)
         for _td in _trusted_dirs:
             try:
                 skill_md.resolve().relative_to(_td)

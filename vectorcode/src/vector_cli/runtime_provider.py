@@ -1,6 +1,7 @@
 """Shared runtime provider resolution for CLI, gateway, cron, and helpers."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -102,8 +103,8 @@ def _auto_detect_local_model(base_url: str) -> str:
                 model_id = models[0].get("id", "")
                 if model_id:
                     return model_id
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.runtime_provider] suppressed Exception: %s", _sve)
     return ""
 
 

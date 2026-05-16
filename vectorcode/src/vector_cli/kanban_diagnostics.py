@@ -28,6 +28,7 @@ Design goals:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Optional
@@ -129,8 +130,8 @@ def _task_field(task, name, default=None):
         # dicts return default via .get. Handle both.
         if hasattr(task, "keys") and name in task.keys():
             return task[name]
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.kanban_diagnostics] suppressed Exception: %s", _sve)
     if isinstance(task, dict):
         return task.get(name, default)
     return getattr(task, name, default)

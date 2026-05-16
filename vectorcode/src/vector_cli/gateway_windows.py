@@ -27,6 +27,7 @@ Design notes
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import re
@@ -555,8 +556,8 @@ def uninstall() -> None:
         try:
             path.unlink()
             print(f"✓ Removed {label}: {path}")
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as _sve:
+            logger.warning("[VECTOR][vector_cli.gateway_windows] suppressed FileNotFoundError: %s", _sve)
 
 
 # ---------------------------------------------------------------------------

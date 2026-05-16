@@ -1,4 +1,5 @@
 """Base class for all VectorCode execution environment backends.
+from loguru import logger
 
 Unified spawn-per-call model: every command spawns a fresh ``bash -c`` process.
 A session snapshot (env vars, functions, aliases) is captured once at init and
@@ -74,8 +75,8 @@ def touch_activity_if_due(
         if cb:
             elapsed = int(now - state["start"])
             cb(f"{label} ({elapsed}s elapsed)")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
 
 
 def get_sandbox_dir() -> Path:
@@ -105,8 +106,8 @@ def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
         try:
             proc.stdin.write(data)
             proc.stdin.close()
-        except (BrokenPipeError, OSError):
-            pass
+        except (BrokenPipeError, OSError) as _sve:
+            logger.warning("[VECTOR][tools.environments.base] suppressed (BrokenPipeError, OSError): %s", _sve)
 
     threading.Thread(target=_write, daemon=True).start()
 
@@ -138,8 +139,8 @@ def _load_json_store(path: Path) -> dict:
     if path.exists():
         try:
             return json.loads(path.read_text())
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
     return {}
 
 
@@ -212,16 +213,16 @@ class _ThreadedProcessHandle:
                 # Write output into the pipe so drain thread picks it up.
                 try:
                     os.write(self._write_fd, output.encode("utf-8", errors="replace"))
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][tools.environments.base] suppressed OSError: %s", _sve)
             except Exception as exc:
                 self._error = exc
                 self._returncode = 1
             finally:
                 try:
                     os.close(self._write_fd)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][tools.environments.base] suppressed OSError: %s", _sve)
                 self._done.set()
 
         t = threading.Thread(target=_worker, daemon=True)
@@ -242,8 +243,8 @@ class _ThreadedProcessHandle:
         if self._cancel_fn:
             try:
                 self._cancel_fn()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
 
     def wait(self, timeout: float | None = None) -> int:
         self._done.wait(timeout=timeout)
@@ -514,8 +515,8 @@ class BaseEnvironment(ABC):
                     tail = decoder.decode(b"", final=True)
                     if tail:
                         output_chunks.append(tail)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
 
         drain_thread = threading.Thread(target=_drain, daemon=True)
         drain_thread.start()
@@ -629,8 +630,8 @@ class BaseEnvironment(ABC):
 
         try:
             proc.stdout.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
 
         if _DEBUG_INTERRUPT:
             logger.info(
@@ -647,8 +648,8 @@ class BaseEnvironment(ABC):
         """Terminate a process. Subclasses may override for process-group kill."""
         try:
             proc.kill()
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
+        except (ProcessLookupError, PermissionError, OSError) as _sve:
+            logger.warning("[VECTOR][tools.environments.base] suppressed (ProcessLookupError, PermissionError, OSError): %s", _sve)
 
     # ------------------------------------------------------------------
     # CWD extraction
@@ -769,8 +770,8 @@ class BaseEnvironment(ABC):
     def __del__(self):
         try:
             self.cleanup()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.base] suppressed Exception: %s", _sve)
 
     def _prepare_command(self, command: str) -> tuple[str, str | None]:
         """Transform sudo commands if SUDO_PASSWORD is available."""

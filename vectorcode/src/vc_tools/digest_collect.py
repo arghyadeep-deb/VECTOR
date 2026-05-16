@@ -6,6 +6,7 @@
 """Digest collection tool — fetches recent data from configured connectors."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import re
@@ -256,8 +257,8 @@ def _format_gcalendar(doc: Document) -> str:
                 else:
                     duration = f"{mins} min"
                 time_range = f" ({duration})"
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as _sve:
+                logger.debug("[VECTOR][vc_tools.digest_collect] suppressed (ValueError, TypeError): %s", _sve)
     return f"[gcalendar] {time_str} — {title}{time_range}"
 
 def _format_spotify(doc: Document) -> str:
@@ -337,7 +338,7 @@ def _format_doc(source: str, doc: Document) -> str:
         try:
             return formatter(doc)
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("[VECTOR][vc_tools.digest_collect] suppressed Exception: %s", _sve)
     # Fallback: connector name + title
     return f"[{source}] {doc.title}"
 

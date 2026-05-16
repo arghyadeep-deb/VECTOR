@@ -1,5 +1,6 @@
 # Ported from GitHub/VectorCode_vectorcode/repo/vector_time.py
 """Timezone-aware clock for VectorCode."""
+from loguru import logger
 import logging
 import os
 from datetime import datetime
@@ -29,8 +30,8 @@ def _resolve_timezone_name() -> str:
             tz_cfg = cfg.get("timezone", "")
             if isinstance(tz_cfg, str) and tz_cfg.strip():
                 return tz_cfg.strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][utils.time_utils] suppressed Exception: %s", _sve)
     return ""
 
 

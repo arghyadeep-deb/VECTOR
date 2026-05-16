@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Cron job scheduler - executes due jobs.
 
 Provides tick() which checks for due jobs and runs them. The gateway
@@ -201,8 +202,8 @@ def _resolve_single_delivery_target(job: dict, deliver_value: str) -> Optional[d
                     chat_id, thread_id = parsed_chat_id, parsed_thread_id
                 else:
                     chat_id = resolved
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
 
         return {
             "platform": platform_name,
@@ -347,8 +348,8 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
     try:
         user_cfg = load_config()
         wrap_response = user_cfg.get("cron", {}).get("wrap_response", True)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
 
     if wrap_response:
         task_name = job.get("name", job["id"])
@@ -584,8 +585,8 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
             from agent.redact import redact_sensitive_text
             stdout = redact_sensitive_text(stdout)
             stderr = redact_sensitive_text(stderr)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
 
         if result.returncode != 0:
             parts = [f"Script exited with code {result.returncode}"]
@@ -904,8 +905,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             _net_cfg = _cfg.get("network", {})
             if isinstance(_net_cfg, dict) and _net_cfg.get("force_ipv4"):
                 apply_ipv4_preference(force=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
 
         # Reasoning config from config.yaml
         from vector_constants import parse_reasoning_effort
@@ -1058,8 +1059,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                         try:
                             _act = agent.get_activity_summary()
                             _idle_secs = _act.get("seconds_since_activity", 0.0)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
                     if _idle_secs >= _cron_inactivity_limit:
                         _inactivity_timeout = True
                         break
@@ -1075,8 +1076,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             if hasattr(agent, "get_activity_summary"):
                 try:
                     _activity = agent.get_activity_summary()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
             _last_desc = _activity.get("last_activity_desc", "unknown")
             _secs_ago = _activity.get("seconds_since_activity", 0)
             _cur_tool = _activity.get("current_tool")
@@ -1255,8 +1256,8 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                 ).get("max_parallel_jobs")
                 if _cfg_par is not None:
                     _max_workers = int(_cfg_par) or None
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
 
         if verbose:
             logger.info(
@@ -1347,8 +1348,8 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
         elif msvcrt:
             try:
                 msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
-            except (OSError, IOError):
-                pass
+            except (OSError, IOError) as _sve:
+                logger.warning("[VECTOR][cron.scheduler] suppressed (OSError, IOError): %s", _sve)
         lock_fd.close()
 
 

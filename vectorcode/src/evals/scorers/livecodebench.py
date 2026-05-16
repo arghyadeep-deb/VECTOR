@@ -13,6 +13,7 @@ Reference: https://livecodebench.github.io/
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -136,8 +137,8 @@ def _run_single_test(
     finally:
         try:
             os.unlink(script_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][evals.scorers.livecodebench] suppressed OSError: %s", _sve)
 
 def _numeric_match(actual: str, expected: str, rel_tol: float = 1e-6) -> bool:
     """Check if outputs match numerically (for floating point problems)."""
@@ -211,8 +212,8 @@ class LiveCodeBenchScorer(Scorer):
                 # time_limit is usually in seconds; add buffer
                 timeout = max(int(float(str(time_limit))) * 2, 5)
                 timeout = min(timeout, 60)  # cap at 60s
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as _sve:
+                logger.debug("[VECTOR][evals.scorers.livecodebench] suppressed (ValueError, TypeError): %s", _sve)
 
         passed = 0
         total = len(test_inputs)

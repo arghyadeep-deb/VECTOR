@@ -6,6 +6,7 @@ Add, remove, or reorder entries here — both `vector setup` and
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -1258,8 +1259,8 @@ def _resolve_nous_pricing_credentials() -> tuple[str, str]:
         creds = resolve_nous_runtime_credentials()
         if creds:
             return (creds.get("api_key", ""), creds.get("base_url", ""))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     return ("", "")
 
 
@@ -1331,8 +1332,8 @@ def list_available_providers() -> list[dict[str, str]]:
             else:
                 status = get_auth_status(pid)
                 has_creds = bool(status.get("logged_in") or status.get("configured"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
         result.append({
             "id": pid,
             "label": label,
@@ -1386,8 +1387,8 @@ def _get_custom_base_url() -> str:
         model_cfg = config.get("model", {})
         if isinstance(model_cfg, dict):
             return str(model_cfg.get("base_url", "")).strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     return ""
 
 
@@ -1808,8 +1809,8 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
             live = _fetch_github_models(_resolve_copilot_catalog_api_key())
             if live:
                 return live
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
         if normalized == "copilot-acp":
             return list(_PROVIDER_MODELS.get("copilot", []))
     if normalized == "nous":
@@ -1821,8 +1822,8 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
                 live = fetch_nous_models(api_key=creds.get("api_key", ""), inference_base_url=creds.get("base_url", ""))
                 if live:
                     return live
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     if normalized == "stepfun":
         try:
             from vector_cli.auth import resolve_api_key_provider_credentials
@@ -1834,8 +1835,8 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
                 live = fetch_api_models(api_key, base_url)
                 if live:
                     return live
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     if normalized == "anthropic":
         live = _fetch_anthropic_models()
         if live:
@@ -1857,8 +1858,8 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
                 live = fetch_api_models(api_key, base)
                 if live:
                     return live
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     if normalized == "gmi":
         try:
             from vector_cli.auth import resolve_api_key_provider_credentials
@@ -1870,8 +1871,8 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
                 live = fetch_api_models(api_key, base_url)
                 if live:
                     return live
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     if normalized == "custom":
         base_url = _get_custom_base_url()
         if base_url:
@@ -2545,8 +2546,8 @@ def _load_ollama_cloud_cache(*, ignore_ttl: bool = False) -> Optional[dict]:
             if (time.time() - cached_at) > _OLLAMA_CLOUD_CACHE_TTL:
                 return None  # stale
         return data
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
     return None
 
 
@@ -2557,8 +2558,8 @@ def _save_ollama_cloud_cache(models: list[str]) -> None:
         cache_path = _ollama_cloud_cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_json_write(cache_path, {"models": models, "cached_at": time.time()}, indent=None)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
 
 
 def fetch_ollama_cloud_models(
@@ -2600,8 +2601,8 @@ def fetch_ollama_cloud_models(
     try:
         from agent.models_dev import list_agentic_models
         mdev_models = list_agentic_models("ollama-cloud")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.models] suppressed Exception: %s", _sve)
 
     # 4. Merge: live first, then models.dev additions (deduped, order-preserving)
     if live_models or mdev_models:

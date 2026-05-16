@@ -9,6 +9,7 @@ To add an alias: set ``aliases=("short",)`` on the existing ``CommandDef``.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import re
@@ -659,8 +660,8 @@ def _collect_gateway_skill_entries(
             if len(desc) > desc_limit:
                 desc = desc[:desc_limit - 3] + "..."
             plugin_pairs.append((name, desc))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     plugin_pairs = _clamp_command_names(plugin_pairs, reserved_names)
     reserved_names.update(n for n, _ in plugin_pairs)
@@ -673,8 +674,8 @@ def _collect_gateway_skill_entries(
     try:
         from agent.skill_utils import get_disabled_skill_names
         _platform_disabled = get_disabled_skill_names(platform=platform)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     skill_triples: list[tuple[str, str, str]] = []
     try:
@@ -701,8 +702,8 @@ def _collect_gateway_skill_entries(
             if len(desc) > desc_limit:
                 desc = desc[:desc_limit - 3] + "..."
             skill_triples.append((name, desc, cmd_key))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     # Clamp names; _clamp_command_names works on (name, desc) pairs so we
     # need to zip/unzip.
@@ -815,8 +816,8 @@ def discord_skill_commands_by_category(
     try:
         from agent.skill_utils import get_disabled_skill_names
         _platform_disabled = get_disabled_skill_names(platform="discord")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     # Collect raw skill data --------------------------------------------------
     categories: dict[str, list[tuple[str, str, str]]] = {}
@@ -870,8 +871,8 @@ def discord_skill_commands_by_category(
                 categories.setdefault(cat, []).append((discord_name, desc, cmd_key))
             else:
                 uncategorized.append((discord_name, desc, cmd_key))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     # Enforce Discord limits: 25 subcommand groups, 25 subcommands each ------
     _MAX_GROUPS = 25
@@ -1392,8 +1393,8 @@ class SlashCommandCompleter(Completer):
                         display=name,
                         display_meta=s.get("description", "") or s.get("source", ""),
                     )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     @staticmethod
     def _personality_completions(sub_text: str, sub_lower: str):
@@ -1420,8 +1421,8 @@ class SlashCommandCompleter(Completer):
                         display=name,
                         display_meta=meta,
                     )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     def _model_completions(self, sub_text: str, sub_lower: str):
         """Yield completions for /model from config aliases + built-in aliases."""
@@ -1453,8 +1454,8 @@ class SlashCommandCompleter(Completer):
                         display=name,
                         display_meta=f"{identity.vendor}/{identity.family}",
                     )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor
@@ -1539,8 +1540,8 @@ class SlashCommandCompleter(Completer):
                         display=f"/{cmd_name}",
                         display_meta=f"🔌 {short_desc}",
                     )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.commands] suppressed Exception: %s", _sve)
 
 
 # ---------------------------------------------------------------------------

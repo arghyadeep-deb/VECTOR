@@ -1,4 +1,5 @@
 """BlueBubbles iMessage platform adapter.
+from loguru import logger
 
 Uses the local BlueBubbles macOS server for outbound REST sends and inbound
 webhooks.  Supports text messaging, media attachments (images, voice, video,
@@ -247,8 +248,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             data = res.get("data")
             if isinstance(data, list):
                 return [wh for wh in data if wh.get("url") == url]
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
         return []
 
     async def _register_webhook(self) -> bool:
@@ -367,8 +368,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     if (part.get("address") or "").strip() == target and guid:
                         self._guid_cache[target] = guid
                         return guid
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
         return None
 
     async def _create_chat_for_handle(
@@ -597,8 +598,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 await self.client.post(
                     self._api_url(f"/api/v1/chat/{encoded}/typing"), timeout=5
                 )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
 
     async def stop_typing(self, chat_id: str) -> None:
         if not self._private_api_enabled or not self._helper_connected or not self.client:
@@ -610,8 +611,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 await self.client.delete(
                     self._api_url(f"/api/v1/chat/{encoded}/typing"), timeout=5
                 )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
 
     # ------------------------------------------------------------------
     # Read receipts
@@ -628,8 +629,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     self._api_url(f"/api/v1/chat/{encoded}/read"), timeout=5
                 )
                 return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
         return False
 
     # ------------------------------------------------------------------
@@ -667,8 +668,8 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 info["name"] = display_name
                 if participants:
                     info["participants"] = participants
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
         return info
 
     def format_message(self, content: str) -> str:

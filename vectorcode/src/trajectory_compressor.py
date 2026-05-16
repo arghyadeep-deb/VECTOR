@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Trajectory Compressor
 
 Post-processes completed agent trajectories to compress them within a target
@@ -1465,8 +1466,8 @@ def main(
                             if line:
                                 try:
                                     entries.append(json.loads(line))
-                                except json.JSONDecodeError:
-                                    pass
+                                except json.JSONDecodeError as _sve:
+                                    logger.debug("[VECTOR][trajectory_compressor] suppressed json.JSONDecodeError: %s", _sve)
                     
                     total_original += len(entries)
                     sample_size = max(1, int(len(entries) * sample_percent / 100))

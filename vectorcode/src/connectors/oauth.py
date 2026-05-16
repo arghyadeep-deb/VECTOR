@@ -12,6 +12,7 @@ Provides:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import json
@@ -521,8 +522,8 @@ def _wait_for_callback_code(
     test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         test_sock.bind((host, port))
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][connectors.oauth] suppressed OSError: %s", _sve)
     finally:
         test_sock.close()
 

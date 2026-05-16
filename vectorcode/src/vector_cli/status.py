@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Status command for vector CLI.
 
 Shows the status of all VectorCode components.
@@ -248,8 +249,8 @@ def show_status(args):
             portal_url = nous_status.get("portal_base_url", "").rstrip("/")
             if portal_url:
                 print(f"  Upgrade: {portal_url}")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.status] suppressed Exception: %s", _sve)
 
     # =========================================================================
     # API-Key Providers
@@ -454,8 +455,8 @@ def show_status(args):
             port_in_use = result == 0
             # This is informational, not necessarily bad
             print(f"  Port 18789:   {'in use' if port_in_use else 'available'}")
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.status] suppressed OSError: %s", _sve)
     
     print()
     print(color("─" * 60, Colors.DIM))

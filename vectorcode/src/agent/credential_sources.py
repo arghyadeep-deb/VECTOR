@@ -44,6 +44,7 @@ No more per-source if/elif chain in ``auth_remove_command``.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 from dataclasses import dataclass, field
@@ -167,8 +168,8 @@ def _remove_env_source(provider: str, removed) -> RemovalResult:
                 line.strip().startswith(f"{env_var}=")
                 for line in env_path.read_text(errors="replace").splitlines()
             )
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][agent.credential_sources] suppressed OSError: %s", _sve)
     shell_exported = env_in_process and not env_in_dotenv
 
     cleared = remove_env_value(env_var)

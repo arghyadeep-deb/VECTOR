@@ -10,6 +10,7 @@ LLM turns and tool calls, capturing per-turn traces with energy attribution.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import copy
@@ -450,8 +451,8 @@ class AgenticRunner:
                 for etype, cb in _bus_unsubs:
                     try:
                         agent_bus.unsubscribe(etype, cb)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", _sve)
             return QueryTrace(
                 query_id=query_id,
                 workload_type=str(workload_type),
@@ -467,8 +468,8 @@ class AgenticRunner:
             for etype, cb in _bus_unsubs:
                 try:
                     agent_bus.unsubscribe(etype, cb)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", _sve)
 
         end_time = time.time()
         end_ns = time.monotonic_ns()

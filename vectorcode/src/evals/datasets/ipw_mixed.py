@@ -11,6 +11,7 @@ must be present on disk (e.g. bundled from the IPW repository).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -112,8 +113,8 @@ class IPWDataset(DatasetProvider):
             data_path = Path(str(ref))
             if data_path.exists():
                 return data_path
-        except (ImportError, TypeError, ModuleNotFoundError):
-            pass
+        except (ImportError, TypeError, ModuleNotFoundError) as _sve:
+            logger.debug("[VECTOR][evals.datasets.ipw_mixed] suppressed (ImportError, TypeError, ModuleNotFoundError): %s", _sve)
 
         # Fallback: look relative to this file
         fallback = Path(__file__).resolve().parent.parent / "data" / "ipw"

@@ -1,4 +1,5 @@
 """Feishu Document Tool -- read document content via Feishu/Lark API.
+from loguru import logger
 
 Provides ``feishu_doc_read`` for reading document content as plain text.
 Uses the same lazy-import + BaseRequest pattern as feishu_comment.py.
@@ -99,8 +100,8 @@ def _handle_feishu_doc_read(args: dict, **kwargs) -> str:
             body = json.loads(raw.content)
             content = body.get("data", {}).get("content", "")
             return tool_result(success=True, content=content)
-        except (json.JSONDecodeError, AttributeError):
-            pass
+        except (json.JSONDecodeError, AttributeError) as _sve:
+            logger.debug("[VECTOR][tools.feishu_doc_tool] suppressed (json.JSONDecodeError, AttributeError): %s", _sve)
 
     # Fallback: try response.data
     data = getattr(response, "data", None)

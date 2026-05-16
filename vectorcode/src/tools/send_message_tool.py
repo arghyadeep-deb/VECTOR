@@ -1,4 +1,5 @@
 """Send Message Tool -- cross-channel messaging via platform APIs.
+from loguru import logger
 
 Sends a message to a user or channel on any connected messaging platform
 (Telegram, Discord, Slack). Supports listing available targets and resolving
@@ -311,8 +312,8 @@ def _handle_send(args):
                     user_id=user_id,
                 ):
                     result["mirrored"] = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.send_message_tool] suppressed Exception: %s", _sve)
 
         if isinstance(result, dict) and "error" in result:
             result["error"] = _sanitize_error_text(result["error"])
@@ -811,8 +812,8 @@ async def _send_discord(token, chat_id, message, thread_id=None, media_files=Non
             try:
                 from gateway.channel_directory import lookup_channel_type
                 _channel_type = lookup_channel_type("discord", chat_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.send_message_tool] suppressed Exception: %s", _sve)
 
             if _channel_type == "forum":
                 is_forum = True
@@ -1285,8 +1286,8 @@ async def _send_matrix_via_adapter(pconfig, chat_id, message, media_files=None, 
     finally:
         try:
             await adapter.disconnect()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.send_message_tool] suppressed Exception: %s", _sve)
 
 
 async def _send_homeassistant(token, extra, chat_id, message):

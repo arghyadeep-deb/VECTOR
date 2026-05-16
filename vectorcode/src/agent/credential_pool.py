@@ -1,6 +1,7 @@
 """Persistent multi-credential pool for same-provider failover."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import random
@@ -1425,8 +1426,8 @@ def _seed_custom_pool(pool_key: str, entries: List[PooledCredential]) -> Tuple[b
                                 "label": "model_config",
                             },
                         )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.credential_pool] suppressed Exception: %s", _sve)
 
     return changed, active_sources
 

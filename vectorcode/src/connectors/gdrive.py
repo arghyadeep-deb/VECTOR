@@ -11,6 +11,7 @@ to make them trivially mockable in tests.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional
@@ -206,7 +207,7 @@ class GDriveConnector(BaseConnector):
                         credentials_path=self._credentials_path,
                     )
                 except Exception:  # noqa: BLE001
-                    pass
+                    logger.debug("[VECTOR][connectors.gdrive] suppressed Exception: %s", _sve)
 
             threading.Thread(target=_run, daemon=True).start()
         else:

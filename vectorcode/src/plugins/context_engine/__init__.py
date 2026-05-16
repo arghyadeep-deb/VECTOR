@@ -17,6 +17,7 @@ Usage:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import importlib
 import importlib.util
@@ -57,8 +58,8 @@ def discover_context_engines() -> List[Tuple[str, str, bool]]:
                 with open(yaml_file) as f:
                     meta = yaml.safe_load(f) or {}
                 desc = meta.get("description", "")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
 
         # Quick availability check — try loading and calling is_available()
         available = True
@@ -133,8 +134,8 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
                         sys.modules[parent] = parent_mod
                         try:
                             spec.loader.exec_module(parent_mod)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
 
         # Now load the engine module
         spec = importlib.util.spec_from_file_location(
@@ -190,8 +191,8 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
                 and attr is not ContextEngine):
             try:
                 return attr()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
 
     return None
 

@@ -7,6 +7,7 @@ new sandboxes from those snapshots on later task reuse.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 from functools import cache
 from dataclasses import dataclass
@@ -417,8 +418,8 @@ class VercelSandboxEnvironment(BaseEnvironment):
             return
         try:
             sandbox.client.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
 
     def _stop_sandbox(self, sandbox: Sandbox | None) -> None:
         if sandbox is None:
@@ -432,10 +433,10 @@ class VercelSandboxEnvironment(BaseEnvironment):
         except TypeError:
             try:
                 sandbox.stop()
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
 
     def _snapshot_sandbox(self, sandbox: Sandbox) -> str | None:
         if not self._persistent or not self._task_id:
@@ -577,8 +578,8 @@ class VercelSandboxEnvironment(BaseEnvironment):
                     ["-lc", f"rm -f {shlex.quote(remote_tar)}"],
                     cwd=self._workspace_root,
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
 
     def _before_execute(self) -> None:
         with self._lock:

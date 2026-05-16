@@ -28,6 +28,7 @@ Nothing in this module touches the agent's system prompt or toolset.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -311,8 +312,8 @@ def _goal_judge_max_tokens() -> int:
         value = int(value)
         if value > 0:
             return value
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.goals] suppressed Exception: %s", _sve)
     return DEFAULT_JUDGE_MAX_TOKENS
 
 

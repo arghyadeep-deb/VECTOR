@@ -1,4 +1,5 @@
 from __future__ import annotations
+from loguru import logger
 
 """
 Discord platform adapter.
@@ -180,8 +181,8 @@ class VoiceReceiver:
         self._running = False
         try:
             self._vc._connection.remove_socket_listener(self._on_packet)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
         with self._lock:
             self._buffers.clear()
             self._last_packet_time.clear()
@@ -400,8 +401,8 @@ class VoiceReceiver:
                 self._ssrc_to_user[ssrc] = uid
                 logger.info("Auto-mapped ssrc=%d -> user=%d (sole allowed member)", ssrc, uid)
                 return uid
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
         return 0
 
     def check_silence(self) -> list:
@@ -466,8 +467,8 @@ class VoiceReceiver:
         finally:
             try:
                 os.unlink(pcm_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.discord] suppressed OSError: %s", _sve)
 
 
 class DiscordAdapter(BasePlatformAdapter):
@@ -644,8 +645,8 @@ class DiscordAdapter(BasePlatformAdapter):
                 if not adapter_self._ready_event.is_set():
                     try:
                         await asyncio.wait_for(adapter_self._ready_event.wait(), timeout=30.0)
-                    except asyncio.TimeoutError:
-                        pass
+                    except asyncio.TimeoutError as _sve:
+                        logger.debug("[VECTOR][gateway.platforms.discord] suppressed asyncio.TimeoutError: %s", _sve)
 
                 # Dedup: Discord RESUME replays events after reconnects (#4777)
                 if adapter_self._dedup.is_duplicate(str(message.id)):
@@ -787,7 +788,7 @@ class DiscordAdapter(BasePlatformAdapter):
             try:
                 await self._post_connect_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
 
         self._running = False
         self._client = None
@@ -1574,15 +1575,15 @@ class DiscordAdapter(BasePlatformAdapter):
         if self._on_voice_disconnect and text_ch_id:
             try:
                 self._on_voice_disconnect(str(text_ch_id))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
         if text_ch_id and self._client:
             ch = self._client.get_channel(text_ch_id)
             if ch:
                 try:
                     await ch.send("Left voice channel (inactivity timeout).")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
 
     def is_in_voice_channel(self, guild_id: int) -> bool:
         """Check if the bot is connected to a voice channel in this guild."""
@@ -1684,8 +1685,8 @@ class DiscordAdapter(BasePlatformAdapter):
                         vc = self._voice_clients.get(guild_id)
                         if vc and vc.is_connected():
                             vc._connection.send_packet(b'\xf8\xff\xfe')
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
 
                 completed = receiver.check_silence()
                 for user_id, pcm_data in completed:
@@ -1693,7 +1694,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         continue
                     await self._process_voice_input(guild_id, user_id, pcm_data)
         except asyncio.CancelledError:
-            pass
+            raise  # must propagate for asyncio to work
         except Exception as e:
             logger.error("Voice listen loop error: %s", e, exc_info=True)
 
@@ -1729,8 +1730,8 @@ class DiscordAdapter(BasePlatformAdapter):
         finally:
             try:
                 os.unlink(wav_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.discord] suppressed OSError: %s", _sve)
 
     def _is_allowed_user(self, user_id: str, author=None) -> bool:
         """Check if user is allowed via DISCORD_ALLOWED_USERS or DISCORD_ALLOWED_ROLES.
@@ -2005,7 +2006,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         return
                     await asyncio.sleep(8)
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
 
         self._typing_tasks[chat_id] = asyncio.create_task(_typing_loop())
 
@@ -2017,7 +2018,7 @@ class DiscordAdapter(BasePlatformAdapter):
             try:
                 await task
             except (asyncio.CancelledError, Exception):
-                pass
+                raise  # must propagate for asyncio to work
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
         """Get information about a Discord channel."""
@@ -2357,8 +2358,8 @@ class DiscordAdapter(BasePlatformAdapter):
 
             try:
                 already_registered = {cmd.name for cmd in tree.get_commands()}
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
 
             config_overrides = _resolve_config_gates()
 
@@ -2377,10 +2378,10 @@ class DiscordAdapter(BasePlatformAdapter):
                 try:
                     tree.add_command(auto_cmd)
                     already_registered.add(discord_name)
-                except Exception:
+                except Exception as _sve:
                     # Silently skip commands that fail registration (e.g.
                     # name conflict with a subcommand group).
-                    pass
+                    logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
 
             logger.debug(
                 "Discord auto-registered %d commands from COMMAND_REGISTRY",
@@ -2409,10 +2410,10 @@ class DiscordAdapter(BasePlatformAdapter):
                 try:
                     tree.add_command(auto_cmd)
                     already_registered.add(discord_name)
-                except Exception:
+                except Exception as _sve:
                     # Silently skip commands that fail registration (e.g.
                     # name conflict with a subcommand group).
-                    pass
+                    logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
         except Exception as e:
             logger.warning(
                 "Discord auto-register from plugin commands failed: %s", e
@@ -2448,8 +2449,8 @@ class DiscordAdapter(BasePlatformAdapter):
             existing_names = set()
             try:
                 existing_names = {cmd.name for cmd in tree.get_commands()}
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.discord] suppressed Exception: %s", _sve)
 
             # Reuse the existing collector for consistent filtering
             # (per-platform disabled, hub-excluded, name clamping), then
@@ -3387,8 +3388,8 @@ class DiscordAdapter(BasePlatformAdapter):
                                         pending_text_injection = f"{pending_text_injection}\n\n{injection}"
                                     else:
                                         pending_text_injection = injection
-                                except UnicodeDecodeError:
-                                    pass
+                                except UnicodeDecodeError as _sve:
+                                    logger.debug("[VECTOR][gateway.platforms.discord] suppressed UnicodeDecodeError: %s", _sve)
                         except Exception as e:
                             logger.warning(
                                 "[Discord] Failed to cache document %s: %s",
@@ -3518,11 +3519,11 @@ class DiscordAdapter(BasePlatformAdapter):
             # aborting the response the user was waiting on.  The new
             # chunk is handled by the fresh flush task regardless.
             await asyncio.shield(self.handle_message(event))
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as _sve:
             # Only reached if cancel landed before the pop — the shielded
             # handle_message is unaffected either way.  Let the task exit
             # cleanly so the finally block cleans up.
-            pass
+            logger.debug("[VECTOR][gateway.platforms.discord] suppressed asyncio.CancelledError: %s", _sve)
         finally:
             if self._pending_text_batch_tasks.get(key) is current_task:
                 self._pending_text_batch_tasks.pop(key, None)

@@ -15,6 +15,7 @@ Both are local-only; no API keys are needed.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import hashlib
 import json
@@ -247,14 +248,14 @@ class AppleHealthConnector(BaseConnector):
                 elif rec_type in (_HEART_RATE, _RESTING_HEART_RATE):
                     try:
                         hr_by_day[day].append(float(elem.get("value", 0)))
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as _sve:
+                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
 
                 elif rec_type == _ACTIVE_ENERGY:
                     try:
                         energy_by_day[day] += float(elem.get("value", 0))
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as _sve:
+                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
 
                 elem.clear()
 
@@ -395,8 +396,8 @@ class AppleHealthConnector(BaseConnector):
             if w.get("total_distance"):
                 try:
                     parts.append(f"{float(w['total_distance']):.1f} km")
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as _sve:
+                    logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
             duration_s = w.get("duration_seconds", 0)
             if duration_s:
                 parts.append(_format_duration(float(duration_s)))

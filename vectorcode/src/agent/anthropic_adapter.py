@@ -1,4 +1,5 @@
 """Anthropic Messages API adapter for VectorCode.
+from loguru import logger
 
 Translates between VectorCode's internal OpenAI-style message format and
 Anthropic's Messages API. Follows the same pattern as the codex_responses
@@ -270,8 +271,8 @@ def _detect_claude_code_version() -> str:
                 version = result.stdout.strip().split()[0]
                 if version and version[0].isdigit():
                     return version
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: %s", _sve)
     return _CLAUDE_CODE_VERSION_FALLBACK
 
 
@@ -942,8 +943,8 @@ def run_vector_oauth_login_pure() -> Optional[Dict[str, Any]]:
     try:
         webbrowser.open(auth_url)
         print("  (Browser opened automatically)")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: %s", _sve)
 
     print()
     print("After authorizing, you'll see a code. Paste it below.")

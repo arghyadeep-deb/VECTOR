@@ -25,6 +25,7 @@ Conversion to EvalRecord:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import ast
 import random
@@ -70,8 +71,8 @@ def _parse_content(raw: object) -> List[MutableMapping[str, object]]:
             parsed = ast.literal_eval(raw)
             if isinstance(parsed, list):
                 return parsed  # type: ignore[return-value]
-        except (ValueError, SyntaxError):
-            pass
+        except (ValueError, SyntaxError) as _sve:
+            logger.debug("[VECTOR][evals.datasets.adp] suppressed (ValueError, SyntaxError): %s", _sve)
     return []
 
 def _extract_problem_reference(

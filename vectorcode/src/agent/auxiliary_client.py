@@ -1,4 +1,5 @@
 """Shared auxiliary client router for side tasks.
+from loguru import logger
 
 Provides a single resolution chain so every consumer (context compression,
 session search, web extraction, vision analysis, browser vision) picks up
@@ -252,8 +253,8 @@ def _codex_cloudflare_headers(access_token: str) -> Dict[str, str]:
         acct_id = claims.get("https://api.openai.com/auth", {}).get("chatgpt_account_id")
         if isinstance(acct_id, str) and acct_id:
             headers["ChatGPT-Account-ID"] = acct_id
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
     return headers
 
 
@@ -964,8 +965,8 @@ def _try_nous(vision: bool = False) -> Tuple[Optional[OpenAI], Optional[str]]:
                 _remaining,
             )
             return None, None
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
 
     nous = _read_nous_auth()
     runtime = _resolve_nous_runtime_api(force_refresh=False)
@@ -1033,8 +1034,8 @@ def _read_main_model() -> str:
             default = model_cfg.get("default", "")
             if isinstance(default, str) and default.strip():
                 return default.strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
     return ""
 
 
@@ -1052,8 +1053,8 @@ def _read_main_provider() -> str:
             provider = model_cfg.get("provider", "")
             if isinstance(provider, str) and provider.strip():
                 return provider.strip().lower()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
     return ""
 
 
@@ -1253,8 +1254,8 @@ def _try_anthropic() -> Tuple[Optional[Any], Optional[str]]:
                 cfg_base_url = (model_cfg.get("base_url") or "").strip().rstrip("/")
                 if cfg_base_url:
                     base_url = cfg_base_url
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
 
     from agent.anthropic_adapter import _is_oauth_token
     is_oauth = _is_oauth_token(token)
@@ -1425,8 +1426,8 @@ def _evict_cached_clients(provider: str) -> None:
                     close_fn = getattr(client, "close", None)
                     if callable(close_fn):
                         close_fn()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
             _client_cache.pop(key, None)
 
 
@@ -2406,8 +2407,8 @@ def _store_cached_client(cache_key: tuple, client: Any, default_model: Optional[
                 close_fn = getattr(old_entry[0], "close", None)
                 if callable(close_fn):
                     close_fn()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
         _client_cache[cache_key] = (client, default_model, bound_loop)
 
 
@@ -2436,8 +2437,8 @@ def _refresh_nous_auxiliary_client(
         try:
             import asyncio as _aio
             current_loop = _aio.get_event_loop()
-        except RuntimeError:
-            pass
+        except RuntimeError as _sve:
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: %s", _sve)
         client, final_model = _to_async_client(sync_client, final_model or "", is_vision=is_vision)
     else:
         client = sync_client
@@ -2504,8 +2505,8 @@ def _force_close_async_httpx(client: Any) -> None:
         inner = getattr(client, "_client", None)
         if inner is not None and not getattr(inner, "is_closed", True):
             inner._state = ClientState.CLOSED
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
 
 
 def shutdown_cached_clients() -> None:
@@ -2530,8 +2531,8 @@ def shutdown_cached_clients() -> None:
                 close_fn = getattr(client, "close", None)
                 if close_fn and not inspect.iscoroutinefunction(close_fn):
                     close_fn()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
         _client_cache.clear()
 
 
@@ -2613,8 +2614,8 @@ def _get_cached_client(
         try:
             import asyncio as _aio
             current_loop = _aio.get_event_loop()
-        except RuntimeError:
-            pass
+        except RuntimeError as _sve:
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: %s", _sve)
     runtime = _normalize_main_runtime(main_runtime)
     cache_key = _client_cache_key(
         provider,
@@ -2754,8 +2755,8 @@ def _get_task_timeout(task: str, default: float = _DEFAULT_AUX_TIMEOUT) -> float
     if raw is not None:
         try:
             return float(raw)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as _sve:
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed (ValueError, TypeError): %s", _sve)
     return default
 
 

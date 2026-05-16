@@ -6,6 +6,7 @@ section 7 for the design.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import re
@@ -395,11 +396,11 @@ class PearlDockerLauncher:
         try:
             container.stop(timeout=timeout)
         except Exception:  # noqa: BLE001 - best-effort
-            pass
+            logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
         try:
             container.remove()
         except Exception:  # noqa: BLE001 - best-effort
-            pass
+            logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
         self._container = None
 
     def is_running(self) -> bool:

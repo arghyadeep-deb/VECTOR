@@ -4,6 +4,7 @@ Handles: vector honcho setup | status | sessions | map | peer
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -258,8 +259,8 @@ def _read_config() -> dict:
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.honcho.cli] suppressed Exception: %s", _sve)
     return {}
 
 

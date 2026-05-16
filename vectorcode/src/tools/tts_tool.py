@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Text-to-Speech Tool Module
 
 Supports seven TTS providers:
@@ -757,8 +758,8 @@ def _generate_gemini_tts(text: str, output_path: str, tts_config: Dict[str, Any]
     finally:
         try:
             os.remove(wav_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][tools.tts_tool] suppressed OSError: %s", _sve)
 
     return output_path
 
@@ -1378,8 +1379,8 @@ def stream_tts_to_speaker(
                 if tmp_path:
                     try:
                         os.unlink(tmp_path)
-                    except OSError:
-                        pass
+                    except OSError as _sve:
+                        logger.warning("[VECTOR][tools.tts_tool] suppressed OSError: %s", _sve)
 
         while not stop_event.is_set():
             # Read next delta from queue
@@ -1442,8 +1443,8 @@ def stream_tts_to_speaker(
             try:
                 output_stream.stop()
                 output_stream.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.tts_tool] suppressed Exception: %s", _sve)
         tts_done_event.set()
 
 

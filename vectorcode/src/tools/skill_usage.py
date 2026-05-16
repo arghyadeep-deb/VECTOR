@@ -23,6 +23,7 @@ Lifecycle states:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -91,8 +92,8 @@ def _usage_file_lock():
             try:
                 fd.seek(0)
                 msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
-            except (OSError, IOError):
-                pass
+            except (OSError, IOError) as _sve:
+                logger.warning("[VECTOR][tools.skill_usage] suppressed (OSError, IOError): %s", _sve)
         fd.close()
 
 
@@ -354,8 +355,8 @@ def save_usage(data: Dict[str, Dict[str, Any]]) -> None:
         except BaseException:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.skill_usage] suppressed OSError: %s", _sve)
             raise
     except Exception as e:
         logger.debug("Failed to write %s: %s", path, e, exc_info=True)

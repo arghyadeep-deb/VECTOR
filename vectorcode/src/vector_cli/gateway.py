@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Gateway subcommand for vector CLI.
 
 Handles: vector gateway [run|start|stop|restart|status|install|uninstall|setup]
@@ -92,10 +93,10 @@ def _get_service_pids() -> set:
                         pid = int(show.stdout.strip())
                         if pid > 0:
                             pids.add(pid)
-                    except (ValueError, subprocess.TimeoutExpired):
-                        pass
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
+                    except (ValueError, subprocess.TimeoutExpired) as _sve:
+                        logger.debug("[VECTOR][vector_cli.gateway] suppressed (ValueError, subprocess.TimeoutExpired): %s", _sve)
+            except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+                logger.warning("[VECTOR][vector_cli.gateway] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
     # --- launchd (macOS) ---
     if is_macos():
@@ -114,10 +115,10 @@ def _get_service_pids() -> set:
                             pid = int(parts[0])
                             if pid > 0:
                                 pids.add(pid)
-                        except ValueError:
-                            pass
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+                        except ValueError as _sve:
+                            logger.debug("[VECTOR][vector_cli.gateway] suppressed ValueError: %s", _sve)
+        except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+            logger.warning("[VECTOR][vector_cli.gateway] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
     return pids
 
@@ -220,10 +221,10 @@ def _graceful_restart_via_sigusr1(pid: int, drain_timeout: float) -> bool:
             os.kill(pid, 0)  # signal 0 — probe liveness
         except ProcessLookupError:
             return True
-        except PermissionError:
+        except PermissionError as _sve:
             # Process still exists but we can't signal it.  Treat as alive
             # so the caller falls back.
-            pass
+            logger.warning("[VECTOR][vector_cli.gateway] suppressed PermissionError: %s", _sve)
         _time.sleep(0.5)
     # Drain didn't finish in time.
     return False
@@ -295,8 +296,8 @@ def _scan_gateway_pids(exclude_pids: set[int], all_profiles: bool = False) -> li
                     ):
                         try:
                             _append_unique_pid(pids, int(pid_str), exclude_pids)
-                        except ValueError:
-                            pass
+                        except ValueError as _sve:
+                            logger.debug("[VECTOR][vector_cli.gateway] suppressed ValueError: %s", _sve)
                     current_cmd = ""
         else:
             result = subprocess.run(
@@ -360,8 +361,8 @@ def find_gateway_pids(exclude_pids: set | None = None, all_profiles: bool = Fals
             from gateway.status import get_running_pid
 
             _append_unique_pid(pids, get_running_pid(), _exclude)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.gateway] suppressed Exception: %s", _sve)
     for pid in _get_service_pids():
         _append_unique_pid(pids, pid, _exclude)
     for pid in _scan_gateway_pids(_exclude, all_profiles=all_profiles):
@@ -621,9 +622,9 @@ def kill_gateway_processes(force: bool = False, exclude_pids: set | None = None,
         try:
             terminate_pid(pid, force=force)
             killed += 1
-        except ProcessLookupError:
+        except ProcessLookupError as _sve:
             # Process already gone
-            pass
+            logger.warning("[VECTOR][vector_cli.gateway] suppressed ProcessLookupError: %s", _sve)
         except PermissionError:
             print(f"⚠ Permission denied to kill PID {pid}")
     
@@ -760,8 +761,8 @@ def _profile_suffix() -> str:
         parts = rel.parts
         if len(parts) == 1 and re.match(r"^[a-z0-9][a-z0-9_-]{0,63}$", parts[0]):
             return parts[0]
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.gateway] suppressed ValueError: %s", _sve)
     # Fallback: short hash for arbitrary VECTOR_HOME paths
     return hashlib.sha256(str(home).encode()).hexdigest()[:8]
 
@@ -789,8 +790,8 @@ def _profile_arg(vector_home: str | None = None) -> str:
         parts = rel.parts
         if len(parts) == 1 and re.match(r"^[a-z0-9][a-z0-9_-]{0,63}$", parts[0]):
             return f"--profile {parts[0]}"
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.gateway] suppressed ValueError: %s", _sve)
     return ""
 
 
@@ -1170,8 +1171,8 @@ def remove_legacy_vector_units(
     if user_units:
         try:
             _run_systemctl(["daemon-reload"], system=False, check=False, timeout=30)
-        except RuntimeError:
-            pass
+        except RuntimeError as _sve:
+            logger.debug("[VECTOR][vector_cli.gateway] suppressed RuntimeError: %s", _sve)
 
     # System-scope removal (needs root)
     if system_units:
@@ -1195,8 +1196,8 @@ def remove_legacy_vector_units(
 
             try:
                 _run_systemctl(["daemon-reload"], system=True, check=False, timeout=30)
-            except RuntimeError:
-                pass
+            except RuntimeError as _sve:
+                logger.debug("[VECTOR][vector_cli.gateway] suppressed RuntimeError: %s", _sve)
 
     print()
     if remaining:
@@ -3155,8 +3156,8 @@ def _is_service_running() -> bool:
                 )
                 if result.stdout.strip() == "active":
                     return True
-            except (RuntimeError, subprocess.TimeoutExpired):
-                pass
+            except (RuntimeError, subprocess.TimeoutExpired) as _sve:
+                logger.warning("[VECTOR][vector_cli.gateway] suppressed (RuntimeError, subprocess.TimeoutExpired): %s", _sve)
 
         if system_unit_exists:
             try:
@@ -3166,8 +3167,8 @@ def _is_service_running() -> bool:
                 )
                 if result.stdout.strip() == "active":
                     return True
-            except (RuntimeError, subprocess.TimeoutExpired):
-                pass
+            except (RuntimeError, subprocess.TimeoutExpired) as _sve:
+                logger.warning("[VECTOR][vector_cli.gateway] suppressed (RuntimeError, subprocess.TimeoutExpired): %s", _sve)
 
         return False
     elif is_macos() and get_launchd_plist_path().exists():
@@ -4039,14 +4040,14 @@ def _gateway_command_inner(args):
                 try:
                     systemd_stop(system=system)
                     service_available = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
             elif is_macos() and get_launchd_plist_path().exists():
                 try:
                     launchd_stop()
                     service_available = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
             killed = kill_gateway_processes(all_profiles=True)
             total = killed + (1 if service_available else 0)
             if total:
@@ -4060,14 +4061,14 @@ def _gateway_command_inner(args):
                 try:
                     systemd_stop(system=system)
                     service_available = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
             elif is_macos() and get_launchd_plist_path().exists():
                 try:
                     launchd_stop()
                     service_available = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
 
             if not service_available:
                 # No systemd/launchd — use profile-scoped PID file
@@ -4092,14 +4093,14 @@ def _gateway_command_inner(args):
                 try:
                     systemd_stop(system=system)
                     service_stopped = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
             elif is_macos() and get_launchd_plist_path().exists():
                 try:
                     launchd_stop()
                     service_stopped = True
-                except subprocess.CalledProcessError:
-                    pass
+                except subprocess.CalledProcessError as _sve:
+                    logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
             killed = kill_gateway_processes(all_profiles=True)
             total = killed + (1 if service_stopped else 0)
             if total:
@@ -4121,15 +4122,15 @@ def _gateway_command_inner(args):
             try:
                 systemd_restart(system=system)
                 service_available = True
-            except subprocess.CalledProcessError:
-                pass
+            except subprocess.CalledProcessError as _sve:
+                logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
         elif is_macos() and get_launchd_plist_path().exists():
             service_configured = True
             try:
                 launchd_restart()
                 service_available = True
-            except subprocess.CalledProcessError:
-                pass
+            except subprocess.CalledProcessError as _sve:
+                logger.warning("[VECTOR][vector_cli.gateway] suppressed subprocess.CalledProcessError: %s", _sve)
         
         if not service_available:
             # systemd/launchd restart failed — check if linger is the issue

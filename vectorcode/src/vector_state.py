@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 SQLite State Store for Hermes Agent.
 
 Provides persistent session storage with FTS5 full-text search, replacing
@@ -398,8 +399,8 @@ class SessionDB:
                     except BaseException:
                         try:
                             self._conn.rollback()
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][vector_state] suppressed Exception: %s", _sve)
                         raise
                 # Success — periodic best-effort checkpoint.
                 self._write_count += 1
@@ -455,8 +456,8 @@ class SessionDB:
             if self._conn:
                 try:
                     self._conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_state] suppressed Exception: %s", _sve)
                 self._conn.close()
                 self._conn = None
 
@@ -620,13 +621,13 @@ class SessionDB:
                 ):
                     try:
                         cursor.execute(f"DROP TRIGGER IF EXISTS {_trig}")
-                    except sqlite3.OperationalError:
-                        pass
+                    except sqlite3.OperationalError as _sve:
+                        logger.debug("[VECTOR][vector_state] suppressed sqlite3.OperationalError: %s", _sve)
                 for _tbl in ("messages_fts", "messages_fts_trigram"):
                     try:
                         cursor.execute(f"DROP TABLE IF EXISTS {_tbl}")
-                    except sqlite3.OperationalError:
-                        pass
+                    except sqlite3.OperationalError as _sve:
+                        logger.debug("[VECTOR][vector_state] suppressed sqlite3.OperationalError: %s", _sve)
                 # Recreate virtual tables + triggers with the new inline-mode
                 # schema that indexes content || tool_name || tool_calls.
                 cursor.executescript(FTS_SQL)
@@ -2261,17 +2262,17 @@ class SessionDB:
             p = sessions_dir / f"{session_id}{suffix}"
             try:
                 p.unlink(missing_ok=True)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_state] suppressed OSError: %s", _sve)
         # request_dump files use session_id as a prefix component
         try:
             for p in sessions_dir.glob(f"request_dump_{session_id}_*.json"):
                 try:
                     p.unlink(missing_ok=True)
-                except OSError:
-                    pass
-        except OSError:
-            pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][vector_state] suppressed OSError: %s", _sve)
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_state] suppressed OSError: %s", _sve)
 
     def delete_session(
         self,
@@ -2787,8 +2788,8 @@ class SessionDB:
             # Best-effort WAL checkpoint first, then VACUUM.
             try:
                 self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_state] suppressed Exception: %s", _sve)
             self._conn.execute("VACUUM")
 
     def maybe_auto_prune_and_vacuum(

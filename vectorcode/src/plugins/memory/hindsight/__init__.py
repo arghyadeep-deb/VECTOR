@@ -27,6 +27,7 @@ Or via $VECTOR_HOME/hindsight/config.json (profile-scoped), falling back to
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import importlib
@@ -204,16 +205,16 @@ def _load_config() -> dict:
     if profile_path.exists():
         try:
             return json.loads(profile_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
 
     # Legacy shared path (backward compat)
     legacy_path = Path.home() / ".hindsight" / "config.json"
     if legacy_path.exists():
         try:
             return json.loads(legacy_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
 
     return {
         "mode": os.environ.get("HINDSIGHT_MODE", "cloud"),
@@ -507,8 +508,8 @@ class HindsightMemoryProvider(MemoryProvider):
         if config_path.exists():
             try:
                 existing = json.loads(config_path.read_text())
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
         existing.update(values)
         config_path.write_text(json.dumps(existing, indent=2))
 
@@ -692,8 +693,8 @@ class HindsightMemoryProvider(MemoryProvider):
             config_path = Path(vector_home) / "hindsight" / "config.json"
             try:
                 materialized_config = json.loads(config_path.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
 
             llm_api_key = env_writes.get("HINDSIGHT_LLM_API_KEY", "")
             if not llm_api_key:
@@ -973,8 +974,8 @@ class HindsightMemoryProvider(MemoryProvider):
         try:
             from importlib.metadata import version as pkg_version
             _client_version = pkg_version("hindsight-client")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
         logger.info("Hindsight initialized: mode=%s, api_url=%s, bank=%s, budget=%s, memory_mode=%s, prefetch_method=%s, client=%s",
                      self._mode, self._api_url, self._bank_id, self._budget, self._memory_mode, self._prefetch_method, _client_version)
         if self._bank_id_template:
@@ -1343,16 +1344,16 @@ class HindsightMemoryProvider(MemoryProvider):
                         _run_sync(inner_client.aclose())
                         try:
                             self._client._client = None
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
                     try:
                         self._client.close()
-                    except RuntimeError:
-                        pass
+                    except RuntimeError as _sve:
+                        logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed RuntimeError: %s", _sve)
                 else:
                     self._run_sync(self._client.aclose())
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
             self._client = None
         # The module-global background event loop (_loop / _loop_thread)
         # is intentionally NOT stopped here. It is shared across every

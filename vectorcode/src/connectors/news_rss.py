@@ -11,6 +11,7 @@ functions for easy mocking in tests.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import xml.etree.ElementTree as ET
@@ -80,8 +81,8 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
         return None
     try:
         return parsedate_to_datetime(date_str)
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as _sve:
+        logger.debug("[VECTOR][connectors.news_rss] suppressed (ValueError, TypeError): %s", _sve)
     try:
         return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
     except (ValueError, TypeError):

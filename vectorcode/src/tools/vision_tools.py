@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Vision Tools Module
 
 This module provides vision analysis tools that work with image URLs.
@@ -53,16 +54,16 @@ def _resolve_download_timeout() -> float:
     if env_val:
         try:
             return float(env_val)
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][tools.vision_tools] suppressed ValueError: %s", _sve)
     try:
         from vector_cli.config import load_config
         cfg = load_config()
         val = cfg.get("auxiliary", {}).get("vision", {}).get("download_timeout")
         if val is not None:
             return float(val)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: %s", _sve)
     return 30.0
 
 _VISION_DOWNLOAD_TIMEOUT = _resolve_download_timeout()
@@ -564,8 +565,8 @@ async def vision_analyze_tool(
             _vtemp = _vision_cfg.get("temperature")
             if _vtemp is not None:
                 vision_temperature = float(_vtemp)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: %s", _sve)
         call_kwargs = {
             "task": "vision",
             "messages": messages,

@@ -1,4 +1,5 @@
 """Docker execution environment for sandboxed command execution.
+from loguru import logger
 
 Security hardened (cap-drop ALL, no-new-privileges, PID limits),
 configurable resource limits (CPU, memory, disk), and optional filesystem
@@ -472,8 +473,8 @@ class DockerEnvironment(BaseEnvironment):
         try:
             from tools.env_passthrough import get_all_passthrough
             passthrough_keys = set(get_all_passthrough())
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", _sve)
         # Explicit docker_forward_env entries are an intentional opt-in and must
         # win over the generic VectorCode secret blocklist. Only implicit passthrough
         # keys are filtered.
@@ -574,8 +575,8 @@ class DockerEnvironment(BaseEnvironment):
                         f"sleep 3 && {self._docker_exe} rm -f {self._container_id} >/dev/null 2>&1 &",
                         shell=True,
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", _sve)
             self._container_id = None
 
         if not self._persistent:

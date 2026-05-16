@@ -52,6 +52,7 @@ Wire protocol
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import difflib
 import json
@@ -572,8 +573,8 @@ def save_allowlist(data: Dict[str, Any]) -> None:
         except Exception:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][agent.shell_hooks] suppressed OSError: %s", _sve)
             raise
     except OSError as exc:
         logger.warning(

@@ -18,6 +18,7 @@ See spec §7.4 and §7.6.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import subprocess
@@ -85,8 +86,8 @@ class CheckpointStore:
         if source_root is not None:
             try:
                 self._root.relative_to(source_root)
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][learning.distillation.checkpoint.store] suppressed ValueError: %s", _sve)
             else:
                 raise ConfigurationError(
                     f"CheckpointStore root ({self._root}) is inside the "

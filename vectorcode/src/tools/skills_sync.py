@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Skills Sync -- Manifest-based seeding and updating of bundled skills.
 
 Copies bundled skills from the repo's skills/ directory into ~/.vectorcode/skills/
@@ -102,8 +103,8 @@ def _write_manifest(entries: Dict[str, str]):
         except BaseException:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.skills_sync] suppressed OSError: %s", _sve)
             raise
     except Exception as e:
         logger.debug("Failed to write skills manifest %s: %s", MANIFEST_FILE, e, exc_info=True)
@@ -168,8 +169,8 @@ def _dir_hash(directory: Path) -> str:
                 rel = fpath.relative_to(directory)
                 hasher.update(str(rel).encode("utf-8"))
                 hasher.update(fpath.read_bytes())
-    except (OSError, IOError):
-        pass
+    except (OSError, IOError) as _sve:
+        logger.warning("[VECTOR][tools.skills_sync] suppressed (OSError, IOError): %s", _sve)
     return hasher.hexdigest()
 
 

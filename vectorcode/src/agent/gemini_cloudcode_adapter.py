@@ -27,6 +27,7 @@ reverse-engineered from the opencode-gemini-auth and clawdbot implementations.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -613,8 +614,8 @@ class GeminiCloudCodeClient:
         self.is_closed = True
         try:
             self._http.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed Exception: %s", _sve)
 
     # Implement the OpenAI SDK's context-manager-ish closure check
     def __enter__(self):
@@ -824,8 +825,8 @@ def _gemini_http_error(response: httpx.Response) -> CodeAssistError:
             if isinstance(delay_raw, str) and delay_raw.endswith("s"):
                 try:
                     retry_delay_seconds = float(delay_raw[:-1])
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed ValueError: %s", _sve)
             elif isinstance(delay_raw, (int, float)):
                 retry_delay_seconds = float(delay_raw)
 

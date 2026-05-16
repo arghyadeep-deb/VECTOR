@@ -1,4 +1,5 @@
 """Signal messenger platform adapter.
+from loguru import logger
 
 Connects to a signal-cli daemon running in HTTP mode.
 Inbound messages arrive via SSE (Server-Sent Events) streaming.
@@ -267,14 +268,14 @@ class SignalAdapter(BasePlatformAdapter):
             try:
                 await self._sse_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
 
         if self._health_monitor_task:
             self._health_monitor_task.cancel()
             try:
                 await self._health_monitor_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
 
         # Cancel all typing tasks
         for task in self._typing_tasks.values():
@@ -395,8 +396,8 @@ class SignalAdapter(BasePlatformAdapter):
                 task = asyncio.create_task(self._sse_response.aclose())
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.signal] suppressed Exception: %s", _sve)
             self._sse_response = None
 
     # ------------------------------------------------------------------
@@ -952,7 +953,7 @@ class SignalAdapter(BasePlatformAdapter):
             try:
                 await task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
         # Reset per-chat typing backoff state so the next agent turn starts
         # fresh rather than inheriting a cooldown from a prior conversation.
         self._typing_failures.pop(chat_id, None)

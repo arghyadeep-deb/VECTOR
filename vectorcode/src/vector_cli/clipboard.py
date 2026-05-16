@@ -1,4 +1,5 @@
 """Clipboard image extraction for macOS, Windows, Linux, and WSL2.
+from loguru import logger
 
 Provides a single function `save_clipboard_image(dest)` that checks the
 system clipboard for image data, saves it to *dest* as PNG, and returns
@@ -339,8 +340,8 @@ def _wayland_has_image() -> bool:
         )
     except FileNotFoundError:
         logger.debug("wl-paste not installed — Wayland clipboard unavailable")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.clipboard] suppressed Exception: %s", _sve)
     return False
 
 
@@ -443,10 +444,10 @@ def _xclip_has_image() -> bool:
             capture_output=True, text=True, timeout=3,
         )
         return r.returncode == 0 and "image/png" in r.stdout
-    except FileNotFoundError:
-        pass
-    except Exception:
-        pass
+    except FileNotFoundError as _sve:
+        logger.warning("[VECTOR][vector_cli.clipboard] suppressed FileNotFoundError: %s", _sve)
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.clipboard] suppressed Exception: %s", _sve)
     return False
 
 

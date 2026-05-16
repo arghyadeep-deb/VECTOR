@@ -24,6 +24,7 @@ Checks performed:
   • Disk space available
 """
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import json
@@ -206,8 +207,8 @@ def check_gpu() -> CheckResult:
             if r.returncode == 0 and r.stdout.strip():
                 line = r.stdout.strip().split("\n")[0]
                 return CheckResult("GPU", "ok", f"NVIDIA — {line}")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor_cmd] suppressed Exception: %s", _sve)
     # macOS / Apple Silicon
     if sys.platform == "darwin":
         return CheckResult("GPU", "info", "Apple SoC (Metal)")
@@ -386,8 +387,8 @@ def attempt_fixes(results: list[CheckResult]) -> list[str]:
                         capture_output=True, timeout=5.0,
                     )
                     actions.append(f"Set {var}={val} (User scope)")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.doctor_cmd] suppressed Exception: %s", _sve)
 
     # Fix 3: run fix_oj_imports.py if telemetry import failed
     tel_failed = any(r.name == "telemetry" and r.status == "fail" for r in results)
@@ -401,8 +402,8 @@ def attempt_fixes(results: list[CheckResult]) -> list[str]:
                 )
                 if r.returncode == 0:
                     actions.append("Ran fix_oj_imports.py to repair absorbed module imports")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.doctor_cmd] suppressed Exception: %s", _sve)
 
     return actions
 
@@ -437,8 +438,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.doctor_cmd] suppressed Exception: %s", _sve)
 
     if args.no_color:
         global GREEN, YELLOW, RED, DIM, BOLD, RESET

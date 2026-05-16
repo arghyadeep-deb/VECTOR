@@ -321,8 +321,8 @@ if __name__ == "__main__":
     try:
         MemoryProvider()  # type: ignore[abstract]
         assert False, "should have raised TypeError"
-    except TypeError:
-        pass
+    except TypeError as _sve:
+        logger.debug("[VECTOR][memory.provider] suppressed TypeError: %s", _sve)
 
     with tempfile.TemporaryDirectory() as tmp:
         provider = VectorBuiltinMemoryProvider()

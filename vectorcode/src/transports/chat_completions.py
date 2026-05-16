@@ -316,8 +316,8 @@ class ChatCompletionsTransport(ProviderTransport):
                     if hasattr(extra, "model_dump"):
                         try:
                             extra = extra.model_dump()
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][transports.chat_completions] suppressed Exception: %s", _sve)
                     tc_provider_data["extra_content"] = extra
 
                 # Extract id / name / arguments

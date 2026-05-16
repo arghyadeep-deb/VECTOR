@@ -6,6 +6,7 @@
 """PinchBench task environment — per-task workspace setup and grading."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -147,8 +148,8 @@ class PinchBenchTaskEnv:
         if self._original_cwd:
             try:
                 os.chdir(self._original_cwd)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][evals.execution.pinchbench_env] suppressed OSError: %s", _sve)
             self._original_cwd = None
 
         # Only clean up workspaces we created ourselves (not AgenticRunner's)

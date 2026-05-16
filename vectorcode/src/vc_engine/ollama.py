@@ -6,6 +6,7 @@
 """Ollama inference engine backend."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -68,8 +69,8 @@ class OllamaEngine(InferenceEngine):
                 if isinstance(args, str):
                     try:
                         fn["arguments"] = json.loads(args)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError) as _sve:
+                        logger.debug("[VECTOR][vc_engine.ollama] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
         payload: Dict[str, Any] = {
             "model": model,
             "messages": msg_dicts,
@@ -254,8 +255,8 @@ class OllamaEngine(InferenceEngine):
                 if isinstance(args, str):
                     try:
                         fn["arguments"] = json.loads(args)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError) as _sve:
+                        logger.debug("[VECTOR][vc_engine.ollama] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
         payload: Dict[str, Any] = {
             "model": model,

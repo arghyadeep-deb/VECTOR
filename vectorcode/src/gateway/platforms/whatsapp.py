@@ -1,4 +1,5 @@
 """
+from loguru import logger
 WhatsApp platform adapter.
 
 WhatsApp integration is more complex than Telegram/Discord because:
@@ -51,8 +52,8 @@ def _kill_port_process(port: int) -> None:
                                 ["taskkill", "/PID", parts[4], "/F"],
                                 capture_output=True, timeout=5,
                             )
-                        except subprocess.SubprocessError:
-                            pass
+                        except subprocess.SubprocessError as _sve:
+                            logger.debug("[VECTOR][gateway.platforms.whatsapp] suppressed subprocess.SubprocessError: %s", _sve)
         else:
             result = subprocess.run(
                 ["fuser", f"{port}/tcp"],
@@ -63,8 +64,8 @@ def _kill_port_process(port: int) -> None:
                     ["fuser", "-k", f"{port}/tcp"],
                     capture_output=True, timeout=5,
                 )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.platforms.whatsapp] suppressed Exception: %s", _sve)
 
 
 def _terminate_bridge_process(proc, *, force: bool = False) -> None:
@@ -542,8 +543,8 @@ class WhatsAppAdapter(BasePlatformAdapter):
         if self._bridge_log_fh:
             try:
                 self._bridge_log_fh.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.whatsapp] suppressed Exception: %s", _sve)
             self._bridge_log_fh = None
 
     async def _check_managed_bridge_exit(self) -> Optional[str]:
@@ -589,7 +590,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except (asyncio.CancelledError, Exception):
-                pass
+                raise  # must propagate for asyncio to work
         self._poll_task = None
 
         # Close the persistent HTTP session

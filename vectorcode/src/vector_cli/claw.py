@@ -1,4 +1,5 @@
 """vector claw — OpenClaw migration commands.
+from loguru import logger
 
 Usage:
     vector claw migrate              # Preview then migrate (always shows preview first)
@@ -70,8 +71,8 @@ def _detect_openclaw_processes() -> list[str]:
             )
             if result.stdout.strip() == "active":
                 found.append("systemd service: openclaw-gateway.service")
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+        except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+            logger.warning("[VECTOR][vector_cli.claw] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
     # -- process scan ------------------------------------------------------
     if sys.platform == "win32":
@@ -97,8 +98,8 @@ def _detect_openclaw_processes() -> list[str]:
             )
             if result.stdout.strip():
                 found.append(f"node.exe process with openclaw in command line (PID {result.stdout.strip()})")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.claw] suppressed Exception: %s", _sve)
     else:
         try:
             result = subprocess.run(
@@ -108,8 +109,8 @@ def _detect_openclaw_processes() -> list[str]:
             if result.returncode == 0:
                 pids = result.stdout.strip().split()
                 found.append(f"openclaw process(es) (PIDs: {', '.join(pids)})")
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+        except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+            logger.warning("[VECTOR][vector_cli.claw] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
     return found
 

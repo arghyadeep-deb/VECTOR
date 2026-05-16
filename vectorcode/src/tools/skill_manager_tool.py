@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Skill Manager Tool -- Agent-Managed Skill Creation & Editing
 
 Allows the agent to create, update, and delete skills, turning successful
@@ -475,8 +476,8 @@ def _patch_skill(
         try:
             from tools.fuzzy_match import format_no_match_hint
             err_msg += format_no_match_hint(match_error, match_count, old_string, content)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: %s", _sve)
         return {
             "success": False,
             "error": err_msg,
@@ -696,8 +697,8 @@ def skill_manage(
         try:
             from agent.prompt_builder import clear_skills_system_prompt_cache
             clear_skills_system_prompt_cache(clear_snapshot=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: %s", _sve)
 
     return json.dumps(result, ensure_ascii=False)
 

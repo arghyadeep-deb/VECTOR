@@ -20,6 +20,7 @@ Two usage modes are exposed:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -54,8 +55,8 @@ def _debug(msg: str) -> None:
         return
     try:
         print(f"[voice] {msg}", file=sys.stderr, flush=True)
-    except (BrokenPipeError, OSError):
-        pass
+    except (BrokenPipeError, OSError) as _sve:
+        logger.warning("[VECTOR][vector_cli.voice] suppressed (BrokenPipeError, OSError): %s", _sve)
 
 
 def _beeps_enabled() -> bool:
@@ -66,8 +67,8 @@ def _beeps_enabled() -> bool:
         voice_cfg = load_config().get("voice", {})
         if isinstance(voice_cfg, dict):
             return bool(voice_cfg.get("beep_enabled", True))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
     return True
 
 
@@ -161,8 +162,8 @@ def stop_and_transcribe() -> Optional[str]:
         try:
             if os.path.isfile(wav_path):
                 os.unlink(wav_path)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
     # transcribe_recording returns {"success": bool, "transcript": str, ...}
     # — matches cli.py:_voice_stop_and_transcribe's result.get("transcript").
@@ -239,8 +240,8 @@ def start_continuous(
     if on_status:
         try:
             on_status("listening")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
 
 def stop_continuous() -> None:
@@ -280,8 +281,8 @@ def stop_continuous() -> None:
     if on_status:
         try:
             on_status("idle")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
 
 def is_continuous_active() -> bool:
@@ -317,8 +318,8 @@ def _continuous_on_silence() -> None:
     if on_status:
         try:
             on_status("transcribing")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
     wav_path = rec.stop()
     # Peak RMS is the critical diagnostic when stop() returns None despite
@@ -358,8 +359,8 @@ def _continuous_on_silence() -> None:
             try:
                 if os.path.isfile(wav_path):
                     os.unlink(wav_path)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
     with _continuous_lock:
         if not _continuous_active:
@@ -387,17 +388,17 @@ def _continuous_on_silence() -> None:
         if on_silent_limit:
             try:
                 on_silent_limit()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
         try:
             rec.cancel()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
         if on_status:
             try:
                 on_status("idle")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
         return
 
     # CLI parity (cli.py:10619-10621): wait for any in-flight TTS to
@@ -432,8 +433,8 @@ def _continuous_on_silence() -> None:
     if on_status:
         try:
             on_status("listening")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.voice] suppressed Exception: %s", _sve)
 
 
 # ── TTS API ──────────────────────────────────────────────────────────
@@ -519,8 +520,8 @@ def speak_text(text: str) -> None:
                 ogg_path = mp3_path.rsplit(".", 1)[0] + ".ogg"
                 if os.path.isfile(ogg_path):
                     os.unlink(ogg_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.voice] suppressed OSError: %s", _sve)
         else:
             _debug(f"speak_text: TTS tool produced no audio at {mp3_path}")
     except Exception as e:

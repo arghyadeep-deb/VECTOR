@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 MCP OAuth 2.1 Client Support
 
 Implements the browser-based OAuth 2.1 authorization code flow with PKCE
@@ -136,8 +137,8 @@ def _can_open_browser() -> bool:
     try:
         if os.uname().sysname == "Darwin":
             return True
-    except AttributeError:
-        pass
+    except AttributeError as _sve:
+        logger.debug("[VECTOR][tools.mcp_oauth] suppressed AttributeError: %s", _sve)
     # Linux/other posix: need DISPLAY or WAYLAND_DISPLAY
     if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
         return True
@@ -224,8 +225,8 @@ class VectorCodeTokenStorage:
                 try:
                     implied_expiry = file_mtime + int(data["expires_in"])
                     data["expires_in"] = int(max(implied_expiry - time.time(), 0))
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as _sve:
+                    logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): %s", _sve)
         try:
             return OAuthToken.model_validate(data)
         except (ValueError, TypeError, KeyError) as exc:
@@ -245,10 +246,10 @@ class VectorCodeTokenStorage:
         if expires_in is not None:
             try:
                 payload["expires_at"] = time.time() + int(expires_in)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as _sve:
                 # Mock tokens or unusual shapes: skip the expires_at write
                 # rather than fail persistence.
-                pass
+                logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): %s", _sve)
         _write_json(self._tokens_path(), payload)
         logger.debug("OAuth tokens saved for %s", self._server_name)
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 DM Pairing System
 
 Code-based approval flow for authorizing new users on messaging platforms.
@@ -67,8 +68,8 @@ def _secure_write(path: Path, data: str) -> None:
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][gateway.pairing] suppressed OSError: %s", _sve)
         raise
 
 

@@ -17,6 +17,7 @@ Storage: ``fallback_providers`` in ``~/.vectorcode/config.yaml`` (top-level, lis
 ``fallback_model`` format is migrated to the new list format on first add.
 """
 from __future__ import annotations
+from loguru import logger
 
 import copy
 from typing import Any, Dict, List, Optional
@@ -100,11 +101,11 @@ def _restore_auth_active_provider(value: Any) -> None:
             store = _load_auth_store()
             store["active_provider"] = value
             _save_auth_store(store)
-    except Exception:
+    except Exception as _sve:
         # Best-effort — if auth.json can't be restored, the user's primary
         # provider may have been deactivated by the picker.  They can re-run
         # `vector model` to fix it.  Don't fail the fallback add.
-        pass
+        logger.debug("[VECTOR][vector_cli.fallback_cmd] suppressed Exception: %s", _sve)
 
 
 # ---------------------------------------------------------------------------

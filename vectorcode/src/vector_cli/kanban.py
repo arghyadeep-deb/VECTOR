@@ -13,6 +13,7 @@ Exposes the full 15-verb surface documented in the design spec
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import json
@@ -965,8 +966,8 @@ def _parse_duration(val) -> Optional[int]:
     # Bare integer → seconds.
     try:
         return int(s)
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.kanban] suppressed ValueError: %s", _sve)
     # Suffixed form.
     units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
     if s and s[-1] in units:
@@ -1860,8 +1861,8 @@ def _cmd_daemon(args: argparse.Namespace) -> int:
         if pidfile:
             try:
                 Path(pidfile).unlink()
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.kanban] suppressed OSError: %s", _sve)
     print("(dispatcher stopped)")
     return 0
 

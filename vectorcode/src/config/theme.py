@@ -96,8 +96,8 @@ def _parse_toml_theme(text: str) -> dict:
             else:
                 result[k] = v
         return result
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][config.theme] suppressed Exception: %s", _sve)
 
     # Regex-based fallback
     result: dict = {}
@@ -112,8 +112,8 @@ def _parse_toml_theme(text: str) -> dict:
             # Unescape \\x1b → actual ESC, \\x1b[... sequences
             try:
                 val = bytes(val, "utf-8").decode("unicode_escape")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][config.theme] suppressed Exception: %s", _sve)
             result[key] = val
             continue
         m = re.match(r'^(\w+)\s*=\s*(true|false)$', line)

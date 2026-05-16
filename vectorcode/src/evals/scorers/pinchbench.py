@@ -14,6 +14,7 @@ Reference: https://github.com/pinchbench/skill
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -259,8 +260,8 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
             parsed = json.loads(code_block.group(1))
             if isinstance(parsed, dict):
                 return _normalize_judge_response(parsed)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as _sve:
+            logger.debug("[VECTOR][evals.scorers.pinchbench] suppressed json.JSONDecodeError: %s", _sve)
 
     # Try balanced braces extraction
     candidates: List[str] = []
@@ -312,8 +313,8 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
                     "total": total,
                     "notes": "Score extracted from prose",
                 }
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][evals.scorers.pinchbench] suppressed ValueError: %s", _sve)
 
     LOGGER.warning("Failed to parse judge response")
     return {"scores": {}, "total": 0.0, "notes": "Failed to parse judge response"}

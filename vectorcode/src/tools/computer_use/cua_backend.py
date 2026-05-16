@@ -16,6 +16,7 @@ VERSION` if you want reproducibility across an OS bump.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import base64
@@ -174,8 +175,8 @@ class _AsyncBridge:
             finally:
                 try:
                     self._loop.close()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.computer_use.cua_backend] suppressed Exception: %s", _sve)
 
         self._thread = threading.Thread(target=_run, daemon=True, name="cua-driver-loop")
         self._thread.start()

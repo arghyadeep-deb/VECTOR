@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Unified tool configuration for VectorCode.
 
 `vector tools` and `vector setup tools` both enter this module.
@@ -122,8 +123,8 @@ def _get_effective_configurable_toolsets():
                 continue
             seen.add(entry[0])
             result.append(entry)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.tools_config] suppressed Exception: %s", _sve)
     return result
 
 
@@ -1094,8 +1095,8 @@ def _toolset_needs_configuration_prompt(ts_key: str, config: dict) -> bool:
                         return False
                 except Exception:
                     continue
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.tools_config] suppressed Exception: %s", _sve)
         return True
 
     return not _toolset_has_keys(ts_key, config)

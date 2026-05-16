@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VectorCode — Web UI server.
 
 Provides a FastAPI backend serving the Vite/React frontend and REST API
@@ -565,8 +566,8 @@ async def get_status():
             )
         finally:
             db.close()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
 
     return {
         "version": __version__,
@@ -894,8 +895,8 @@ def get_model_info():
                     "max_output_tokens": mc.max_output_tokens,
                     "model_family": mc.model_family,
                 }
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
 
         return {
             "model": model_name,
@@ -1316,14 +1317,14 @@ async def disconnect_oauth_provider(provider_id: str, request: Request):
             from agent.anthropic_adapter import _VECTOR_OAUTH_FILE
             if _VECTOR_OAUTH_FILE.exists():
                 _VECTOR_OAUTH_FILE.unlink()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
         # Also clear the credential pool entry if present.
         try:
             from vector_cli.auth import clear_provider_auth
             clear_provider_auth("anthropic")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
         _log.info("oauth/disconnect: %s", provider_id)
         return {"ok": True, "provider": provider_id}
 
@@ -1450,8 +1451,8 @@ def _save_anthropic_oauth_creds(access_token: str, refresh_token: str, expires_a
         for e in existing:
             try:
                 pool.remove_entry(getattr(e, "id", ""))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
         entry = PooledCredential(
             provider="anthropic",
             id=uuid.uuid4().hex[:6],
@@ -2361,10 +2362,10 @@ async def _broadcast_event(channel: str, payload: str) -> None:
     for sub in subs:
         try:
             await sub.send_text(payload)
-        except Exception:
+        except Exception as _sve:
             # Subscriber went away mid-send; the /api/events finally clause
             # will remove it from the registry on its next iteration.
-            pass
+            logger.debug("[VECTOR][vector_cli.web_server] suppressed Exception: %s", _sve)
 
 
 def _channel_or_close_code(ws: WebSocket) -> Optional[str]:
@@ -2469,7 +2470,7 @@ async def pty_ws(ws: WebSocket) -> None:
         try:
             await reader_task
         except (asyncio.CancelledError, Exception):
-            pass
+            raise  # must propagate for asyncio to work
         bridge.close()
 
 

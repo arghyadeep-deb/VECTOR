@@ -1,3 +1,4 @@
+from loguru import logger
 import json
 import os
 import signal
@@ -59,8 +60,8 @@ def _log_signal(signum: int, frame) -> None:
             for tid, th in _threading._active.items():
                 f.write(f"\n--- thread {th.name} (id={tid}) ---\n")
                 f.write("".join(traceback.format_stack(sys._current_frames().get(tid))))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.entry] suppressed Exception: %s", _sve)
     print(f"[gateway-signal] {name}", file=sys.stderr, flush=True)
     sys.exit(0)
 
@@ -97,8 +98,8 @@ def _log_exit(reason: str) -> None:
                 f"\n=== gateway exit · {time.strftime('%Y-%m-%d %H:%M:%S')} "
                 f"· reason={reason} ===\n"
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.entry] suppressed Exception: %s", _sve)
     print(f"[gateway-exit] {reason}", file=sys.stderr, flush=True)
 
 

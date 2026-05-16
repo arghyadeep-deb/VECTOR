@@ -18,6 +18,7 @@ Actual ``send`` calls run on a daemon thread so the TeeTransport's
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -106,10 +107,10 @@ class WsPublisherTransport:
         if w is not None and w.is_alive():
             try:
                 self._q.put_nowait(_DRAIN_STOP)
-            except queue.Full:
+            except queue.Full as _sve:
                 # Best-effort: if the queue is wedged, the daemon thread
                 # will be torn down with the process.
-                pass
+                logger.debug("[VECTOR][tui_gateway.event_publisher] suppressed queue.Full: %s", _sve)
             w.join(timeout=3.0)
         self._worker = None
 
@@ -120,7 +121,7 @@ class WsPublisherTransport:
             with self._lock:
                 if self._ws is not None:
                     self._ws.close()  # type: ignore[union-attr]
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.event_publisher] suppressed Exception: %s", _sve)
 
         self._ws = None

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Memory Tool Module - Persistent Curated Memory
 
 Provides bounded, file-backed memory that persists across sessions. Two stores:
@@ -172,8 +173,8 @@ class MemoryStore:
                 try:
                     fd.seek(0)
                     msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
-                except (OSError, IOError):
-                    pass
+                except (OSError, IOError) as _sve:
+                    logger.warning("[VECTOR][tools.memory_tool] suppressed (OSError, IOError): %s", _sve)
             fd.close()
 
     @staticmethod
@@ -453,8 +454,8 @@ class MemoryStore:
                 # Clean up temp file on any failure
                 try:
                     os.unlink(tmp_path)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][tools.memory_tool] suppressed OSError: %s", _sve)
                 raise
         except (OSError, IOError) as e:
             raise RuntimeError(f"Failed to write memory file {path}: {e}")

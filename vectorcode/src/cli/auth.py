@@ -164,8 +164,8 @@ class AuthManager:
         try:
             import stat
             self.STORAGE_PATH.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][cli.auth] suppressed Exception: %s", _sve)
 
     # ── Public API ───────────────────────────────────────────────
 

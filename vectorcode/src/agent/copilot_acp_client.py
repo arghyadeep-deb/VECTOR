@@ -7,6 +7,7 @@ back into the minimal shape VectorCode expects from an OpenAI client.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -55,8 +56,8 @@ def _resolve_home_dir() -> str:
         profile_home = get_subprocess_home()
         if profile_home:
             return profile_home
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
 
     home = os.environ.get("HOME", "").strip()
     if home:
@@ -72,8 +73,8 @@ def _resolve_home_dir() -> str:
         resolved = pwd.getpwuid(os.getuid()).pw_dir.strip()
         if resolved:
             return resolved
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
 
     # Last resort: /tmp (writable on any POSIX system). Avoids crashing the
     # subprocess with no HOME; callers can set VECTOR_HOME explicitly if they
@@ -350,8 +351,8 @@ class CopilotACPClient:
         except Exception:
             try:
                 proc.kill()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
 
     def _create_chat_completion(
         self,

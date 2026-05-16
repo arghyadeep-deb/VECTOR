@@ -40,6 +40,7 @@ before authorization begins.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import contextlib
@@ -233,8 +234,8 @@ def _credentials_lock(timeout_seconds: float = LOCK_TIMEOUT_SECONDS):
 
                         try:
                             msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-                        except OSError:
-                            pass
+                        except OSError as _sve:
+                            logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: %s", _sve)
                     except ImportError:
                         pass
         finally:
@@ -504,8 +505,8 @@ def save_credentials(creds: GoogleCredentials) -> Path:
             try:
                 if tmp_path.exists():
                     tmp_path.unlink()
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: %s", _sve)
     return path
 
 
@@ -515,8 +516,8 @@ def clear_credentials() -> None:
     with _credentials_lock():
         try:
             path.unlink()
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as _sve:
+            logger.warning("[VECTOR][agent.google_oauth] suppressed FileNotFoundError: %s", _sve)
         except OSError as exc:
             logger.warning("Failed to remove Google OAuth credentials at %s: %s", path, exc)
 
@@ -545,8 +546,8 @@ def _post_form(url: str, data: Dict[str, str], timeout: float) -> Dict[str, Any]
         detail = ""
         try:
             detail = exc.read().decode("utf-8", errors="replace")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
         # Detect invalid_grant to signal credential revocation
         code = "google_oauth_token_http_error"
         if "invalid_grant" in detail.lower():
@@ -908,12 +909,12 @@ def start_oauth_flow(
     finally:
         try:
             server.shutdown()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
         try:
             server.server_close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
         server_thread.join(timeout=2.0)
 
     if not code:

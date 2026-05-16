@@ -1,4 +1,5 @@
 """Shared curses-based UI components for VectorCode CLI.
+from loguru import logger
 
 Used by `vector tools` and `vector skills` for interactive checklists.
 Provides a curses multi-select with keyboard navigation, plus a
@@ -28,8 +29,8 @@ def flush_stdin() -> None:
             return
         import termios
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.curses_ui] suppressed Exception: %s", _sve)
 
 
 def curses_checklist(
@@ -93,8 +94,8 @@ def curses_checklist(
                         "  ↑↓ navigate  SPACE toggle  ENTER confirm  ESC cancel",
                         max_x - 1, curses.A_DIM,
                     )
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 # Scrollable item list
                 visible_rows = max_y - 3 - footer_rows
@@ -119,8 +120,8 @@ def curses_checklist(
                             attr |= curses.color_pair(1)
                     try:
                         stdscr.addnstr(y, 0, line, max_x - 1, attr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 # Status bar (bottom row, right-aligned)
                 if status_fn:
@@ -133,8 +134,8 @@ def curses_checklist(
                             if curses.has_colors():
                                 sattr |= curses.color_pair(3)
                             stdscr.addnstr(max_y - 1, sx, status_text, max_x - sx - 1, sattr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 stdscr.refresh()
                 key = stdscr.getch()
@@ -230,8 +231,8 @@ def curses_radiolist(
                         max_x - 1, curses.A_DIM,
                     )
                     row += 1
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 # Scrollable item list
                 items_start = row + 1
@@ -257,8 +258,8 @@ def curses_radiolist(
                             attr |= curses.color_pair(1)
                     try:
                         stdscr.addnstr(y, 0, line, max_x - 1, attr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 stdscr.refresh()
                 key = stdscr.getch()
@@ -354,8 +355,8 @@ def curses_single_select(
                         "  ↑↓ navigate  ENTER confirm  ESC/q cancel",
                         max_x - 1, curses.A_DIM,
                     )
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 visible_rows = max_y - 3
                 if cursor < scroll_offset:
@@ -378,8 +379,8 @@ def curses_single_select(
                             attr |= curses.color_pair(1)
                     try:
                         stdscr.addnstr(y, 0, line, max_x - 1, attr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.curses_ui] suppressed curses.error: %s", _sve)
 
                 stdscr.refresh()
                 key = stdscr.getch()

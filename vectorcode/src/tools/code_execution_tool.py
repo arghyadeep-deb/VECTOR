@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Code Execution Tool -- Programmatic Tool Calling (PTC)
 
 Lets the LLM write a Python script that calls VectorCode tools via RPC,
@@ -283,8 +284,8 @@ def _call(tool_name, args):
     # Clean up response file
     try:
         os.unlink(res_file)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.code_execution_tool] suppressed OSError: %s", _sve)
 
     result = json.loads(raw)
     if isinstance(result, str):
@@ -1125,8 +1126,8 @@ def execute_code(
                     while tail_collected > tail_bytes and tail_buf:
                         oldest = tail_buf.popleft()
                         tail_collected -= len(oldest)
-            except (ValueError, OSError):
-                pass
+            except (ValueError, OSError) as _sve:
+                logger.debug("[VECTOR][tools.code_execution_tool] suppressed (ValueError, OSError): %s", _sve)
             # Transfer final tail to output list
             tail_chunks.extend(tail_buf)
 
@@ -1164,8 +1165,8 @@ def execute_code(
             try:
                 from tools.environments.base import touch_activity_if_due
                 touch_activity_if_due(_activity_state, "execute_code running")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.code_execution_tool] suppressed Exception: %s", _sve)
             time.sleep(0.2)
 
         # Wait for readers to finish draining

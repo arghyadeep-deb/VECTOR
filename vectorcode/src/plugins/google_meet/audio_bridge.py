@@ -18,6 +18,7 @@ Windows: not supported in v2.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import platform
 import subprocess
@@ -87,9 +88,9 @@ class AudioBridge:
                         check=False,
                         capture_output=True,
                     )
-                except Exception:
+                except Exception as _sve:
                     # Best-effort teardown — never raise from here.
-                    pass
+                    logger.debug("[VECTOR][plugins.google_meet.audio_bridge] suppressed Exception: %s", _sve)
             self._module_ids = []
         self._torn_down = True
 

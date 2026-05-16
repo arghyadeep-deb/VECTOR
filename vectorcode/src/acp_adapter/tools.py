@@ -1,6 +1,7 @@
 """ACP tool-call helpers for mapping vector tools to ACP ToolKind and building content."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import uuid
@@ -255,8 +256,8 @@ def _build_tool_complete_content(
                 diff_content = _parse_unified_diff_content(diff_text)
                 if diff_content:
                     return diff_content
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][acp_adapter.tools] suppressed Exception: %s", _sve)
 
     return [acp.tool_content(acp.text_block(display_result))]
 

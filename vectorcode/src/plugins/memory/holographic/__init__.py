@@ -16,6 +16,7 @@ Config in $VECTOR_HOME/config.yaml (profile-scoped):
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -141,8 +142,8 @@ class HolographicMemoryProvider(MemoryProvider):
             existing["plugins"]["vector-memory-store"] = values
             with open(config_path, "w") as f:
                 yaml.dump(existing, f, default_flow_style=False)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
 
     def get_config_schema(self):
         from vector_constants import display_vector_home
@@ -379,8 +380,8 @@ class HolographicMemoryProvider(MemoryProvider):
                     try:
                         self._store.add_fact(content[:400], category="user_pref")
                         extracted += 1
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
                     break
 
             for pattern in _DECISION_PATTERNS:
@@ -388,8 +389,8 @@ class HolographicMemoryProvider(MemoryProvider):
                     try:
                         self._store.add_fact(content[:400], category="project")
                         extracted += 1
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
                     break
 
         if extracted:

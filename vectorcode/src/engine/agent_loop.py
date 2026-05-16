@@ -55,8 +55,8 @@ class _SafeWriter:
     def flush(self):
         try:
             self._inner.flush()
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as _sve:
+            logger.warning("[VECTOR][engine.agent_loop] suppressed (OSError, ValueError): %s", _sve)
 
     def fileno(self):
         return self._inner.fileno()
@@ -300,8 +300,8 @@ class VectorAgent:
             if self._step_cb:
                 try:
                     self._step_cb(api_call_count, self.model_id, 0)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
 
             # ── Call the model ────────────────────────────────────────────────
             try:
@@ -334,8 +334,8 @@ class VectorAgent:
             if self._step_cb:
                 try:
                     self._step_cb(api_call_count, self.model_id, len(tool_calls))
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
 
             # Append assistant message with tool_calls
             assistant_msg: dict = {"role": "assistant", "content": assistant_content or ""}
@@ -522,16 +522,16 @@ class VectorAgent:
                         tool_id, tool_name,
                         f"[BLOCKED: user denied {tool_name}]",
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
 
         # Notify start
         if self._tool_start_cb:
             try:
                 preview = json.dumps(args)[:80]
                 self._tool_start_cb(tool_name, preview)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
 
         t0 = time.perf_counter()
 
@@ -549,8 +549,8 @@ class VectorAgent:
         if self._tool_complete_cb:
             try:
                 self._tool_complete_cb(tool_name, str(output)[:100], duration_ms)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
 
         self.session.tool_calls.append({
             "name": tool_name, "args": args, "duration_ms": duration_ms,

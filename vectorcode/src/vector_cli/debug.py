@@ -1,4 +1,5 @@
 """``vector debug`` — debug tools for VectorCode.
+from loguru import logger
 
 Currently supports:
     vector debug share    Upload debug report (system info + logs) to a
@@ -68,8 +69,8 @@ def _load_pending() -> list[dict]:
                 e for e in data
                 if isinstance(e, dict) and "url" in e and "expire_at" in e
             ]
-    except (OSError, ValueError, json.JSONDecodeError):
-        pass
+    except (OSError, ValueError, json.JSONDecodeError) as _sve:
+        logger.debug("[VECTOR][vector_cli.debug] suppressed (OSError, ValueError, json.JSONDecodeError): %s", _sve)
     return []
 
 
@@ -80,10 +81,10 @@ def _save_pending(entries: list[dict]) -> None:
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(entries, indent=2), encoding="utf-8")
         os.replace(tmp, path)
-    except OSError:
+    except OSError as _sve:
         # Non-fatal — worst case the user has to run ``vector debug delete``
         # manually.
-        pass
+        logger.warning("[VECTOR][vector_cli.debug] suppressed OSError: %s", _sve)
 
 
 def _record_pending(urls: list[str], delay_seconds: int = _AUTO_DELETE_SECONDS) -> None:
@@ -136,10 +137,10 @@ def _sweep_expired_pastes(now: Optional[float] = None) -> tuple[int, int]:
             if delete_paste(url):
                 deleted += 1
                 continue
-        except Exception:
+        except Exception as _sve:
             # Network hiccup, 404 (already gone), etc. — drop the entry
             # after a grace period; don't retry forever.
-            pass
+            logger.debug("[VECTOR][vector_cli.debug] suppressed Exception: %s", _sve)
 
         # Retain failed deletes for up to 24h past expiration, then give up.
         if expire_at + 86400 > current:
@@ -157,8 +158,8 @@ def _best_effort_sweep_expired_pastes() -> None:
     """Attempt pending-paste cleanup without letting /debug fail offline."""
     try:
         _sweep_expired_pastes()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.debug] suppressed Exception: %s", _sve)
 
 
 # ---------------------------------------------------------------------------
@@ -646,8 +647,8 @@ def run_debug(args):
     # reliable even when offline.
     try:
         _sweep_expired_pastes()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.debug] suppressed Exception: %s", _sve)
 
     subcmd = getattr(args, "debug_command", None)
     if subcmd == "share":

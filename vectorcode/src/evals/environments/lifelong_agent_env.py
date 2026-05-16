@@ -14,6 +14,7 @@ Reference: https://github.com/caixd-220529/LifelongAgentBench
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import re
@@ -541,14 +542,14 @@ class DBEnvironment(TaskEnvironment):
         if self._conn is not None:
             try:
                 self._conn.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
             self._conn = None
         if self._mysql_conn is not None:
             try:
                 self._mysql_conn.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
             self._mysql_conn = None
         if self._mysql_container:
             try:
@@ -557,8 +558,8 @@ class DBEnvironment(TaskEnvironment):
                     capture_output=True,
                     timeout=30,
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
             self._mysql_container = None
 
 # ====================================================================
@@ -1037,8 +1038,8 @@ class OSEnvironment(TaskEnvironment):
                     capture_output=True,
                     timeout=30,
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
             self._container_name = None
 
 # ====================================================================
@@ -1073,8 +1074,8 @@ def _build_sqlite_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
                 padded.append(None)
             try:
                 conn.execute(f'INSERT INTO "{table_name}" VALUES ({ph})', padded)
-            except sqlite3.Error:
-                pass
+            except sqlite3.Error as _sve:
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed sqlite3.Error: %s", _sve)
     conn.commit()
     return conn
 

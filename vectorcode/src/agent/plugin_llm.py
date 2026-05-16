@@ -58,6 +58,7 @@ supports.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import json
@@ -535,8 +536,8 @@ def _extract_text(response: Any) -> str:
                     if isinstance(txt, str):
                         parts.append(txt)
             return "".join(parts)
-    except (AttributeError, IndexError, TypeError):
-        pass
+    except (AttributeError, IndexError, TypeError) as _sve:
+        logger.debug("[VECTOR][agent.plugin_llm] suppressed (AttributeError, IndexError, TypeError): %s", _sve)
     return ""
 
 

@@ -20,6 +20,7 @@ Typical usage::
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import sqlite3
 from datetime import datetime, timezone
@@ -101,8 +102,8 @@ class SyncEngine:
         if checkpoint and checkpoint.get("last_sync"):
             try:
                 since = datetime.fromisoformat(checkpoint["last_sync"])
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as _sve:
+                logger.debug("[VECTOR][connectors.sync_engine] suppressed (ValueError, TypeError): %s", _sve)
 
         items_ingested = 0
         current_cursor: Optional[str] = prior_cursor

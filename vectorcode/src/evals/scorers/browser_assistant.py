@@ -15,6 +15,7 @@ Score: (exact/total_exact) * 0.35 + (semantic/total_semantic) * 0.35
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import re
@@ -57,8 +58,8 @@ def _exact_match_score(
                 found = str(int(fact_num)) in ans_norm or fact_norm in ans_norm
                 details.append({"fact": fact, "found": found})
                 continue
-        except (ValueError, OverflowError):
-            pass
+        except (ValueError, OverflowError) as _sve:
+            logger.debug("[VECTOR][evals.scorers.browser_assistant] suppressed (ValueError, OverflowError): %s", _sve)
 
         # Word-level match as fallback
         matched = sum(1 for w in words if w in ans_norm)

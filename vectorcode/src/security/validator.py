@@ -159,8 +159,8 @@ if __name__ == "__main__":
         try:
             pv.validate("../secret")
             assert False, "Should have raised PermissionError"
-        except PermissionError:
-            pass
+        except PermissionError as _sve:
+            logger.warning("[VECTOR][security.validator] suppressed PermissionError: %s", _sve)
         result = pv.validate("src/main.py")
         assert result.endswith("src/main.py"), f"Got: {result}"
 
@@ -170,8 +170,8 @@ if __name__ == "__main__":
     try:
         iv.validate_tool_call("read_file", {"path": ""})
         assert False, "Should have raised ValueError"
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][security.validator] suppressed ValueError: %s", _sve)
 
     print("validator.py OK")
 

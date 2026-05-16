@@ -10,6 +10,7 @@ so the parent agent loop can't block on it. We communicate via files only.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -65,8 +66,8 @@ def _write_active(data: Dict[str, Any]) -> None:
 def _clear_active() -> None:
     try:
         _active_file().unlink()
-    except FileNotFoundError:
-        pass
+    except FileNotFoundError as _sve:
+        logger.warning("[VECTOR][plugins.google_meet.process_manager] suppressed FileNotFoundError: %s", _sve)
 
 
 def _pid_alive(pid: int) -> bool:
@@ -132,8 +133,8 @@ def start(
         if f.exists():
             try:
                 f.unlink()
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][plugins.google_meet.process_manager] suppressed OSError: %s", _sve)
 
     env = os.environ.copy()
     env["VECTOR_MEET_URL"] = url
@@ -204,8 +205,8 @@ def status() -> Dict[str, Any]:
     if status_path.is_file():
         try:
             bot_status = json.loads(status_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.google_meet.process_manager] suppressed Exception: %s", _sve)
 
     return {
         "ok": True,
@@ -305,8 +306,8 @@ def stop(*, reason: str = "requested") -> Dict[str, Any]:
     if pid and _pid_alive(pid):
         try:
             os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        except ProcessLookupError as _sve:
+            logger.warning("[VECTOR][plugins.google_meet.process_manager] suppressed ProcessLookupError: %s", _sve)
         for _ in range(20):
             if not _pid_alive(pid):
                 break
@@ -314,8 +315,8 @@ def stop(*, reason: str = "requested") -> Dict[str, Any]:
         if _pid_alive(pid):
             try:
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            except ProcessLookupError as _sve:
+                logger.warning("[VECTOR][plugins.google_meet.process_manager] suppressed ProcessLookupError: %s", _sve)
 
     _clear_active()
     return {

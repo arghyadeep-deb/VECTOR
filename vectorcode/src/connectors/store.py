@@ -13,6 +13,7 @@ Pure Python ``sqlite3`` (no Rust extension required).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import sqlite3
@@ -377,7 +378,7 @@ class KnowledgeStore(MemoryBackend):
         """Close the underlying SQLite connection."""
         try:
             self._conn.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][connectors.store] suppressed Exception: %s", _sve)
 
 __all__ = ["KnowledgeStore"]

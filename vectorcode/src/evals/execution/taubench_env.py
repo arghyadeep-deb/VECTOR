@@ -12,6 +12,7 @@ agent's LLM calls go through VectorCode.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -398,8 +399,8 @@ class TauBenchTaskEnv:
         if self._system:
             try:
                 self._system.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.execution.taubench_env] suppressed Exception: %s", _sve)
             self._system = None
 
 __all__ = ["TauBenchTaskEnv"]

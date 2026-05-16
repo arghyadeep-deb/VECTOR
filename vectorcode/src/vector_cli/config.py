@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Configuration management for VectorCode.
 
 Config files are stored in ~/.vectorcode/ for easy access:
@@ -241,8 +242,8 @@ def _secure_dir(path):
         mode = 0o700
     try:
         os.chmod(path, mode)
-    except (OSError, NotImplementedError):
-        pass
+    except (OSError, NotImplementedError) as _sve:
+        logger.debug("[VECTOR][vector_cli.config] suppressed (OSError, NotImplementedError): %s", _sve)
 
 
 def _is_container() -> bool:
@@ -265,8 +266,8 @@ def _is_container() -> bool:
             cgroup_content = f.read()
         if "docker" in cgroup_content or "lxc" in cgroup_content or "kubepods" in cgroup_content:
             return True
-    except (OSError, IOError):
-        pass
+    except (OSError, IOError) as _sve:
+        logger.warning("[VECTOR][vector_cli.config] suppressed (OSError, IOError): %s", _sve)
     return False
 
 
@@ -284,8 +285,8 @@ def _secure_file(path):
     try:
         if os.path.exists(str(path)):
             os.chmod(path, 0o600)
-    except (OSError, NotImplementedError):
-        pass
+    except (OSError, NotImplementedError) as _sve:
+        logger.debug("[VECTOR][vector_cli.config] suppressed (OSError, NotImplementedError): %s", _sve)
 
 
 def _ensure_default_soul_md(home: Path) -> None:
@@ -2723,8 +2724,8 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
                 save_env_value("ANTHROPIC_TOKEN", "")
                 if not quiet:
                     print("  ✓ Cleared ANTHROPIC_TOKEN from .env (no longer used)")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.config] suppressed Exception: %s", _sve)
 
     # ── Version 11 → 12: migrate custom_providers list → providers dict ──
     if current_ver < 12:
@@ -2801,8 +2802,8 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
                     save_env_value(dead_var, "")
                     if not quiet:
                         print(f"  ✓ Cleared {dead_var} from .env (no longer used — config.yaml is source of truth)")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.config] suppressed Exception: %s", _sve)
 
     # ── Version 13 → 14: migrate legacy flat stt.model to provider section ──
     # Old configs (and cli-config.yaml.example) had a flat `stt.model` key
@@ -3325,8 +3326,8 @@ def read_raw_config() -> Dict[str, Any]:
         if config_path.exists():
             with open(config_path, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.config] suppressed Exception: %s", _sve)
     return {}
 
 
@@ -3588,8 +3589,8 @@ def sanitize_env_file() -> int:
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
         raise
     _secure_file(env_path)
     return fixes
@@ -3611,8 +3612,8 @@ def _check_non_ascii_credential(key: str, value: str) -> str:
     try:
         value.encode("ascii")
         return value  # all ASCII — nothing to do
-    except UnicodeEncodeError:
-        pass
+    except UnicodeEncodeError as _sve:
+        logger.debug("[VECTOR][vector_cli.config] suppressed UnicodeEncodeError: %s", _sve)
 
     # Build a readable list of the offending characters
     bad_chars: list[str] = []
@@ -3680,8 +3681,8 @@ def save_env_value(key: str, value: str):
     if env_path.exists():
         try:
             original_mode = stat.S_IMODE(env_path.stat().st_mode)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
     try:
         with os.fdopen(fd, 'w', **write_kw) as f:
             f.writelines(lines)
@@ -3692,13 +3693,13 @@ def save_env_value(key: str, value: str):
         if original_mode is not None:
             try:
                 os.chmod(env_path, original_mode)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
         raise
     _secure_file(env_path)
 
@@ -3736,8 +3737,8 @@ def remove_env_value(key: str) -> bool:
         original_mode = None
         try:
             original_mode = stat.S_IMODE(env_path.stat().st_mode)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
         try:
             with os.fdopen(fd, 'w', **write_kw) as f:
                 f.writelines(new_lines)
@@ -3747,13 +3748,13 @@ def remove_env_value(key: str) -> bool:
             if original_mode is not None:
                 try:
                     os.chmod(env_path, original_mode)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
         except BaseException:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
             raise
         _secure_file(env_path)
 
@@ -3993,8 +3994,8 @@ def show_config():
                 skill_name = var.get("skill", "")
                 display_val = str(value) if value else color("(not set)", Colors.DIM)
                 print(f"  {key:<20s} {display_val}  {color(f'[{skill_name}]', Colors.DIM)}")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.config] suppressed Exception: %s", _sve)
 
     print()
     print(color("─" * 60, Colors.DIM))

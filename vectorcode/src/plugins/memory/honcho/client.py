@@ -12,6 +12,7 @@ Resolution order for host-specific settings:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -48,8 +49,8 @@ def resolve_active_host() -> str:
         profile = get_active_profile_name()
         if profile and profile not in ("default", "custom"):
             return f"{HOST}.{profile}"
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed Exception: %s", _sve)
     return HOST
 
 
@@ -105,8 +106,8 @@ def _parse_context_tokens(host_val, root_val) -> int | None:
         if val is not None:
             try:
                 return int(val)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as _sve:
+                logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): %s", _sve)
     return None
 
 
@@ -116,8 +117,8 @@ def _parse_dialectic_depth(host_val, root_val) -> int:
         if val is not None:
             try:
                 return max(1, min(int(val), 3))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as _sve:
+                logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): %s", _sve)
     return 1
 
 
@@ -544,8 +545,8 @@ class HonchoClientConfig:
             )
             if root.returncode == 0:
                 return Path(root.stdout.strip()).name
-        except (OSError, subprocess.TimeoutExpired):
-            pass
+        except (OSError, subprocess.TimeoutExpired) as _sve:
+            logger.warning("[VECTOR][plugins.memory.honcho.client] suppressed (OSError, subprocess.TimeoutExpired): %s", _sve)
         return None
 
     # Honcho enforces a 100-char limit on session IDs. Long gateway session keys
@@ -702,8 +703,8 @@ def get_honcho_client(config: HonchoClientConfig | None = None) -> Honcho:
                         honcho_cfg.get("timeout"),
                         honcho_cfg.get("request_timeout"),
                     )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed Exception: %s", _sve)
 
     # Fall back to the default so an unconfigured install cannot hang
     # indefinitely on a stalled Honcho request.

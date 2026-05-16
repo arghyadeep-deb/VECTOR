@@ -21,6 +21,7 @@ the stream lazily through a callback.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import contextvars
 import json
@@ -112,8 +113,8 @@ class TeeTransport:
         for sec in self._secondaries:
             try:
                 sec.write(obj)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.transport] suppressed Exception: %s", _sve)
         return ok
 
     def close(self) -> None:
@@ -123,5 +124,5 @@ class TeeTransport:
             for sec in self._secondaries:
                 try:
                     sec.close()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tui_gateway.transport] suppressed Exception: %s", _sve)

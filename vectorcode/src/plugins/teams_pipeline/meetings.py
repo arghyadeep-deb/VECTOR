@@ -1,6 +1,7 @@
 """Graph-backed Teams meeting helpers for the plugin runtime."""
 
 from __future__ import annotations
+from loguru import logger
 
 import tempfile
 from pathlib import Path
@@ -214,8 +215,8 @@ async def download_transcript_text(
     finally:
         try:
             destination.unlink(missing_ok=True)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][plugins.teams_pipeline.meetings] suppressed OSError: %s", _sve)
 
     if not text:
         raise TeamsMeetingArtifactNotFoundError(

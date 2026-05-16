@@ -48,6 +48,7 @@ against double-reconfigure.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import sys
@@ -102,10 +103,10 @@ def apply_windows_utf8_bootstrap() -> bool:
             continue
         try:
             reconfigure(encoding="utf-8", errors="replace")
-        except (OSError, ValueError):
+        except (OSError, ValueError) as _sve:
             # Already closed, or someone replaced it with something
             # non-reconfigurable.  Non-fatal.
-            pass
+            logger.warning("[VECTOR][vector_bootstrap] suppressed (OSError, ValueError): %s", _sve)
 
     # stdin is reconfigured separately with errors="replace" too — input
     # from a legacy pipe shouldn't crash the process.
@@ -115,8 +116,8 @@ def apply_windows_utf8_bootstrap() -> bool:
         if reconfigure is not None:
             try:
                 reconfigure(encoding="utf-8", errors="replace")
-            except (OSError, ValueError):
-                pass
+            except (OSError, ValueError) as _sve:
+                logger.warning("[VECTOR][vector_bootstrap] suppressed (OSError, ValueError): %s", _sve)
 
     _bootstrap_applied = True
     return True

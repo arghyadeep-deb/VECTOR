@@ -19,6 +19,7 @@ Design spec: ``website/docs/developer-guide/browser-supervisor.md``.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json
@@ -364,15 +365,15 @@ class CDPSupervisor:
                 if ws is not None:
                     try:
                         await ws.close()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
 
             try:
                 fut = asyncio.run_coroutine_threadsafe(_close_ws(), loop)
                 try:
                     fut.result(timeout=2.0)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
             except RuntimeError:
                 pass  # loop already shutting down
         if self._thread is not None:
@@ -481,12 +482,12 @@ class CDPSupervisor:
                     t.cancel()
                 if pending:
                     loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
             try:
                 loop.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
             with self._state_lock:
                 self._active = False
 
@@ -564,7 +565,7 @@ class CDPSupervisor:
                     try:
                         await reader_task
                     except (asyncio.CancelledError, Exception):
-                        pass
+                        raise  # must propagate for asyncio to work
                 for handle in list(self._dialog_watchdogs.values()):
                     handle.cancel()
                 self._dialog_watchdogs.clear()
@@ -573,8 +574,8 @@ class CDPSupervisor:
                 if ws is not None:
                     try:
                         await ws.close()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
 
             if self._stop_requested:
                 return
@@ -670,8 +671,8 @@ class CDPSupervisor:
                 session_id=session_id,
                 timeout=3.0,
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
 
     async def _cdp(
         self,
@@ -959,8 +960,8 @@ class CDPSupervisor:
                     "Fetch.continueRequest", {"requestId": request_id},
                     session_id=session_id, timeout=3.0,
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.browser_supervisor] suppressed Exception: %s", _sve)
             return
 
         # Parse query string for dialog metadata. Use urllib to be robust.

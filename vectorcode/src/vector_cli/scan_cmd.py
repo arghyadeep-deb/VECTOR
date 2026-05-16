@@ -1,6 +1,7 @@
 """``jarvis scan`` — audit your environment for privacy and security risks."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import subprocess
@@ -154,8 +155,8 @@ class PrivacyScanner:
                         message="iCloud Desktop/Documents sync may be active.",
                         platform="darwin",
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.scan_cmd] suppressed Exception: %s", _sve)
             return ScanResult(
                 name="iCloud Sync",
                 status="ok",

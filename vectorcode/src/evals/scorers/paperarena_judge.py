@@ -6,6 +6,7 @@
 """Scorer for PaperArena: MC exact match + LLM judge for CA/OA."""
 
 from __future__ import annotations
+from loguru import logger
 
 import re
 from typing import Any, Dict, Optional, Tuple
@@ -125,8 +126,8 @@ class PaperArenaScorer(LLMJudgeScorer):
             m = re.search(r"([A-D])", letter)
             if m:
                 return m.group(1)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][evals.scorers.paperarena_judge] suppressed Exception: %s", _sve)
         return None
 
     def _score_open(

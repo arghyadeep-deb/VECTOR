@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Discord Voice Doctor — diagnostic tool for voice channel support.
+from loguru import logger
 
 Checks all dependencies, configuration, and bot permissions needed
 for Discord voice mode to work correctly.
@@ -208,8 +209,8 @@ def check_env_vars():
                     )
                     if r.status_code == 200:
                         label = f"{r.json().get('username', '?')} ({mask(uid)})"
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][scripts.discord-voice-doctor] suppressed Exception: %s", _sve)
             user_labels.append(label)
         check("DISCORD_ALLOWED_USERS", True, f"{len(users)} user(s): {', '.join(user_labels)}")
     else:

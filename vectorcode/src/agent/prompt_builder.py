@@ -1,4 +1,5 @@
 """System prompt assembly -- identity, platform hints, skills index, context files.
+from loguru import logger
 
 All functions are stateless. AIAgent._build_system_prompt() calls these to
 assemble pieces, then combines them with memory and ephemeral prompts.
@@ -1004,8 +1005,8 @@ def _load_vector_md(cwd_path: Path) -> str:
         rel = vector_md_path.name
         try:
             rel = str(vector_md_path.relative_to(cwd_path))
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][agent.prompt_builder] suppressed ValueError: %s", _sve)
         content = _scan_context_content(content, rel)
         result = f"## {rel}\n\n{content}"
         return _truncate_content(result, ".vector.md")

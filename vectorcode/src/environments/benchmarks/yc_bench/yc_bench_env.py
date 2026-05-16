@@ -1,4 +1,5 @@
 """
+from loguru import logger
 YCBenchEvalEnv -- YC-Bench Long-Horizon Agent Benchmark Environment
 
 Evaluates agentic LLMs on YC-Bench: a deterministic, long-horizon benchmark
@@ -268,9 +269,9 @@ def _read_final_score(db_path: str) -> Dict[str, Any]:
             event_row = cur.fetchone()
             if event_row:
                 terminal_reason = event_row[0]
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as _sve:
             # Table may not exist if simulation didn't progress
-            pass
+            logger.debug("[VECTOR][environments.benchmarks.yc_bench.yc_bench_env] suppressed sqlite3.OperationalError: %s", _sve)
 
         survived = funds >= 0 and terminal_reason != "bankruptcy"
         return {
@@ -711,8 +712,8 @@ class YCBenchEvalEnv(VectorAgentBaseEnv):
             try:
                 from tools.terminal_tool import cleanup_all_environments
                 cleanup_all_environments()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][environments.benchmarks.yc_bench.yc_bench_env] suppressed Exception: %s", _sve)
             if hasattr(self, "_streaming_file") and not self._streaming_file.closed:
                 self._streaming_file.close()
             return
@@ -821,14 +822,14 @@ class YCBenchEvalEnv(VectorAgentBaseEnv):
         try:
             from tools.terminal_tool import cleanup_all_environments
             cleanup_all_environments()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][environments.benchmarks.yc_bench.yc_bench_env] suppressed Exception: %s", _sve)
 
         try:
             from environments.agent_loop import _tool_executor
             _tool_executor.shutdown(wait=False, cancel_futures=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][environments.benchmarks.yc_bench.yc_bench_env] suppressed Exception: %s", _sve)
 
     # =========================================================================
     # Wandb logging

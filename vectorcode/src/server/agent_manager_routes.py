@@ -1,6 +1,7 @@
 """FastAPI routes for the Agent Manager."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import re as _re
@@ -108,8 +109,8 @@ def _make_lightweight_system(
         except Exception:
             pass  # telemetry is optional
         return _LightweightSystem(plain_engine, model, cfg)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
     return _LightweightSystem(engine, model, config)
 
 def _parse_param_count(model_name: str) -> float:
@@ -157,20 +158,20 @@ def _ensure_registries_populated() -> None:
     # First, try a normal import (works if modules haven't been imported yet)
     try:
         import vectorcode.src.channels  # noqa: F401
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     try:
         import vectorcode.src.tools  # noqa: F401
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     # Also try to import browser tools (not included in vector.tools.__init__)
     for _browser_mod in ("vector.tools.browser", "vector.tools.browser_axtree"):
         try:
             importlib.import_module(_browser_mod)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     # If registries are still empty, reload individual submodules from sys.modules
     if not ChannelRegistry.keys():
@@ -180,8 +181,8 @@ def _ensure_registries_populated() -> None:
             ):
                 try:
                     importlib.reload(sys.modules[mod_name])
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     if not ToolRegistry.keys():
         for mod_name in list(sys.modules):
@@ -192,8 +193,8 @@ def _ensure_registries_populated() -> None:
             ):
                 try:
                     importlib.reload(sys.modules[mod_name])
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     # After reloading tools, also try browser tools if still not registered
     if not any(ToolRegistry.contains(n) for n in _BROWSER_SUB_TOOLS):
@@ -205,8 +206,8 @@ def _ensure_registries_populated() -> None:
             if mod is not None:
                 try:
                     importlib.reload(mod)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
 def build_tools_list() -> List[Dict[str, Any]]:
     """Build unified tools list from ToolRegistry + ChannelRegistry."""
@@ -265,8 +266,8 @@ def build_tools_list() -> List[Dict[str, Any]]:
                     "configured": True,
                 }
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     try:
         for name, _cls in ChannelRegistry.items():
@@ -288,8 +289,8 @@ def build_tools_list() -> List[Dict[str, Any]]:
                     ),
                 }
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
 
     return items
 
@@ -586,8 +587,8 @@ def _tool_progress_label(tool_name: str, args: str) -> str:
             q = parsed.get("query") or parsed.get("question") or ""
             if q:
                 label += f' — "{q[:50]}"'
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
     return label
 
 async def _stream_managed_agent(
@@ -1407,8 +1408,8 @@ def create_agent_manager_router(
                 )
                 try:
                     manager.end_tick(agent_id)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
                 manager.update_agent(agent_id, status="error")
                 manager.update_summary_memory(
                     agent_id,
@@ -1684,8 +1685,8 @@ def create_agent_manager_router(
                     )
 
                     stop_slack_daemon()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
         manager.unbind_channel(binding_id)
         return {"status": "unbound"}
 
@@ -1769,8 +1770,8 @@ def create_agent_manager_router(
                     )
                     try:
                         manager.end_tick(agent_id)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
                     manager.update_agent(agent_id, status="error")
                     manager.update_summary_memory(
                         agent_id,
@@ -1965,8 +1966,8 @@ def create_agent_manager_router(
                         "configured": True,
                     }
                 )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
         return {"tools": items}
 
     @tools_router.post("/{tool_name}/credentials")

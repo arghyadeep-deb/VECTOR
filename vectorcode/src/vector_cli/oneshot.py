@@ -20,6 +20,7 @@ Env var fallbacks (used when the corresponding arg is not passed):
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -81,8 +82,8 @@ def run_oneshot(
     finally:
         try:
             devnull.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.oneshot] suppressed Exception: %s", _sve)
 
     if response:
         real_stdout.write(response)

@@ -28,6 +28,7 @@ Inspired by Clawdbot's ``normalizeAnthropicModelId`` pattern.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import re
 from typing import Optional
@@ -421,10 +422,10 @@ def normalize_model_for_provider(model_input: str, target_provider: str) -> str:
             normalized = normalize_copilot_model_id(name)
             if normalized:
                 return normalized
-        except Exception:
+        except Exception as _sve:
             # Fall through to the generic strip-vendor behaviour below
             # if the Copilot-specific path is unavailable for any reason.
-            pass
+            logger.debug("[VECTOR][vector_cli.model_normalize] suppressed Exception: %s", _sve)
 
     # --- Copilot / Copilot ACP / openai-codex fallback:
     #     strip matching provider prefix, keep dots ---

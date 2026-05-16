@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 MCP (Model Context Protocol) Client Support
 
 Connects to external MCP servers via stdio or HTTP/StreamableHTTP transport,
@@ -155,8 +156,8 @@ def _write_stderr_log_header(server_name: str) -> None:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         fh.write(f"\n===== [{ts}] starting MCP server '{server_name}' =====\n")
         fh.flush()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.mcp_tool] suppressed Exception: %s", _sve)
 
 # ---------------------------------------------------------------------------
 # Graceful import -- MCP SDK is an optional dependency
@@ -1003,7 +1004,7 @@ class MCPServerTask:
                     try:
                         await t
                     except (asyncio.CancelledError, Exception):
-                        pass
+                        raise  # must propagate for asyncio to work
 
         if self._shutdown_event.is_set():
             return "shutdown"
@@ -1362,7 +1363,7 @@ class MCPServerTask:
                 try:
                     await self._task
                 except asyncio.CancelledError:
-                    pass
+                    raise  # must propagate for asyncio to work
         for tool_name in list(getattr(self, "_registered_tool_names", [])):
             registry.deregister(tool_name)
         self._registered_tool_names = []
@@ -1757,15 +1758,15 @@ def _snapshot_child_pids() -> set:
         children_path = f"/proc/{my_pid}/task/{my_pid}/children"
         with open(children_path) as f:
             return {int(p) for p in f.read().split() if p.strip()}
-    except (FileNotFoundError, OSError, ValueError):
-        pass
+    except (FileNotFoundError, OSError, ValueError) as _sve:
+        logger.warning("[VECTOR][tools.mcp_tool] suppressed (FileNotFoundError, OSError, ValueError): %s", _sve)
 
     # Fallback: psutil
     try:
         import psutil
         return {c.pid for c in psutil.Process(my_pid).children()}
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.mcp_tool] suppressed Exception: %s", _sve)
 
     return set()
 
@@ -1879,8 +1880,8 @@ def _load_mcp_config() -> Dict[str, dict]:
         try:
             from vector_cli.env_loader import load_vector_dotenv
             load_vector_dotenv()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.mcp_tool] suppressed Exception: %s", _sve)
         return {name: _interpolate_env_vars(cfg) for name, cfg in servers.items()}
     except Exception as exc:
         logger.debug("Failed to load MCP config: %s", exc)
@@ -3023,8 +3024,8 @@ def _kill_orphaned_mcp_children(include_active: bool = False) -> None:
         try:
             os.kill(pid, _signal.SIGTERM)
             logger.debug("Sent SIGTERM to orphaned MCP process %d (%s)", pid, server_name)
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
+        except (ProcessLookupError, PermissionError, OSError) as _sve:
+            logger.warning("[VECTOR][tools.mcp_tool] suppressed (ProcessLookupError, PermissionError, OSError): %s", _sve)
 
     # Phase 2: Wait for graceful exit
     _time.sleep(2)
@@ -3057,8 +3058,8 @@ def _stop_mcp_loop():
             thread.join(timeout=5)
         try:
             loop.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.mcp_tool] suppressed Exception: %s", _sve)
         # After closing the loop, any stdio subprocesses that survived the
         # graceful shutdown are now orphaned — include active PIDs too
         # since the loop is gone and no session can still be in flight.

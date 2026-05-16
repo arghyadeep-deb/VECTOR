@@ -237,8 +237,8 @@ class StdioMCPClient:
             except Exception:
                 try:
                     self._proc.kill()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][mcp_client.client] suppressed Exception: %s", _sve)
             self._proc = None
 
     # ── I/O ──────────────────────────────────────────────────────────────────

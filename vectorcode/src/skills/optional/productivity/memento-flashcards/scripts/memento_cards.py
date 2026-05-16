@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Memento card storage, spaced-repetition engine, and CSV I/O.
+from loguru import logger
 
 Stdlib-only. All output is JSON for agent parsing.
 Data file: $VECTOR_HOME/skills/productivity/memento-flashcards/data/cards.json
@@ -56,8 +57,8 @@ def _save(data: dict) -> None:
     except BaseException:
         try:
             os.unlink(tmp)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][skills.optional.productivity.memento-flashcards.scripts.memento_cards] suppressed OSError: %s", _sve)
         raise
 
 def _out(obj: object) -> None:

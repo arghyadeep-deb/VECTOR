@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Backup and import commands for vector CLI.
 
 `vector backup` creates a zip archive of the entire ~/.vectorcode/ directory
@@ -177,8 +178,8 @@ def run_backup(args) -> None:
             try:
                 if fpath.resolve() == out_path.resolve():
                     continue
-            except (OSError, ValueError):
-                pass
+            except (OSError, ValueError) as _sve:
+                logger.warning("[VECTOR][vector_cli.backup] suppressed (OSError, ValueError): %s", _sve)
 
             files_to_add.append((fpath, rel))
 
@@ -790,8 +791,8 @@ def create_pre_update_backup(
                 try:
                     if fpath.resolve() == out_path.resolve():
                         continue
-                except (OSError, ValueError):
-                    pass
+                except (OSError, ValueError) as _sve:
+                    logger.warning("[VECTOR][vector_cli.backup] suppressed (OSError, ValueError): %s", _sve)
 
                 files_to_add.append((fpath, rel))
     except OSError as exc:
@@ -823,8 +824,8 @@ def create_pre_update_backup(
         # Best-effort cleanup of partial file
         try:
             out_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.backup] suppressed OSError: %s", _sve)
         return None
 
     _prune_pre_update_backups(backup_dir, keep=keep)

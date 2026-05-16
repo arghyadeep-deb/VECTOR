@@ -16,6 +16,7 @@ the async helper, never in the synchronous probe.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -52,8 +53,8 @@ def _read_proc_field(pid: int, key: str) -> Optional[str]:
             for line in fh:
                 if line.startswith(key + ":"):
                     return line.split(":", 1)[1].strip()
-    except (FileNotFoundError, PermissionError, OSError):
-        pass
+    except (FileNotFoundError, PermissionError, OSError) as _sve:
+        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (FileNotFoundError, PermissionError, OSError): %s", _sve)
     return None
 
 
@@ -88,8 +89,8 @@ def _proc_summary(pid: int) -> Dict[str, Any]:
     if ppid is not None:
         try:
             summary["ppid"] = int(ppid)
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed ValueError: %s", _sve)
     uid = _read_proc_field(pid, "Uid")
     if uid is not None:
         # "real effective saved fs"
@@ -146,8 +147,8 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
     # crushing the box" rather than "external killer".
     try:
         ctx["loadavg_1m"] = os.getloadavg()[0]
-    except (OSError, AttributeError):
-        pass
+    except (OSError, AttributeError) as _sve:
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, AttributeError): %s", _sve)
 
     # /proc/self/status TracerPid: nonzero means a debugger / strace is
     # attached.  Useful when "phantom SIGKILL" turns out to be a manual
@@ -157,8 +158,8 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
         if tracer is not None and tracer != "0":
             ctx["tracer_pid"] = int(tracer) if tracer.isdigit() else tracer
             ctx["tracer"] = _proc_summary(int(tracer)) if tracer.isdigit() else None
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as _sve:
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (TypeError, ValueError): %s", _sve)
 
     # Race-detection hint: did somebody recently start a sibling gateway
     # with --replace?  We can't see the new process directly here, but if
@@ -179,17 +180,17 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
                         f'"target_pid": {pid}' in raw
                         or f"'target_pid': {pid}" in raw
                     )
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
             planned_stop_path = Path(vector_home_str) / ".gateway-planned-stop.json"
             if planned_stop_path.exists():
                 try:
                     raw = planned_stop_path.read_text(encoding="utf-8")
                     ctx["planned_stop_marker"] = raw[:300]
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
     except Exception:  # noqa: BLE001 — never raise from a signal handler
-        pass
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed Exception: %s", _sve)
 
     return ctx
 
@@ -265,15 +266,15 @@ def spawn_async_diagnostic(
     except (FileNotFoundError, OSError):
         try:
             os.close(fd)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
         return None
     finally:
         # Subprocess inherited the fd; we can drop our handle.
         try:
             os.close(fd)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
 
     return proc.pid
 
@@ -355,8 +356,8 @@ def check_systemd_timing_alignment(drain_timeout: float) -> Optional[Dict[str, A
                             break
                     if unit_name:
                         break
-    except (OSError, FileNotFoundError):
-        pass
+    except (OSError, FileNotFoundError) as _sve:
+        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, FileNotFoundError): %s", _sve)
     if not unit_name:
         return None
 

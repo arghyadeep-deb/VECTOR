@@ -22,6 +22,7 @@ Mounting
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json
@@ -170,5 +171,5 @@ async def handle_ws(ws: Any) -> None:
 
         try:
             await ws.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.ws] suppressed Exception: %s", _sve)

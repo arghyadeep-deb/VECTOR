@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Interactive setup wizard for VectorCode.
 
 Modular wizard with independently-runnable sections:
@@ -433,8 +434,8 @@ def _print_setup_summary(config: dict, vector_home):
                         break
                 except Exception:
                     continue
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.setup] suppressed Exception: %s", _sve)
         if _img_backend:
             tool_status.append((f"Image Generation ({_img_backend})", True, None))
         else:
@@ -506,8 +507,8 @@ def _print_setup_summary(config: dict, vector_home):
         _spotify_state = get_provider_auth_state("spotify") or {}
         if _spotify_state.get("access_token") or _spotify_state.get("refresh_token"):
             tool_status.append(("Spotify (PKCE OAuth)", True, None))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed Exception: %s", _sve)
 
     # Skills Hub
     if get_env_value("GITHUB_TOKEN"):
@@ -634,24 +635,24 @@ def _prompt_container_resources(config: dict):
     cpu_str = prompt("  CPU cores", str(current_cpu))
     try:
         terminal["container_cpu"] = float(cpu_str)
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
 
     # Memory
     current_mem = terminal.get("container_memory", 5120)
     mem_str = prompt("  Memory in MB (5120 = 5GB)", str(current_mem))
     try:
         terminal["container_memory"] = int(mem_str)
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
 
     # Disk
     current_disk = terminal.get("container_disk", 51200)
     disk_str = prompt("  Disk in MB (51200 = 50GB)", str(current_disk))
     try:
         terminal["container_disk"] = int(disk_str)
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
 
 
 # Tool categories and provider config are now in tools_config.py (shared
@@ -1601,8 +1602,8 @@ def setup_agent_settings(config: dict):
         threshold = float(threshold_str)
         if 0.5 <= threshold <= 0.95:
             config["compression"]["threshold"] = threshold
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
 
     print_success(
         f"Context compression threshold set to {config['compression'].get('threshold', 0.50)}"
@@ -1656,15 +1657,15 @@ def setup_agent_settings(config: dict):
             idle_val = int(idle_str)
             if idle_val > 0:
                 config["session_reset"]["idle_minutes"] = idle_val
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
         hour_str = prompt("  Daily reset hour (0-23, local time)", str(current_hour))
         try:
             hour_val = int(hour_str)
             if 0 <= hour_val <= 23:
                 config["session_reset"]["at_hour"] = hour_val
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
         print_success(
             f"Sessions reset after {config['session_reset'].get('idle_minutes', 1440)} min idle or daily at {config['session_reset'].get('at_hour', 4)}:00"
         )
@@ -1675,8 +1676,8 @@ def setup_agent_settings(config: dict):
             idle_val = int(idle_str)
             if idle_val > 0:
                 config["session_reset"]["idle_minutes"] = idle_val
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
         print_success(
             f"Sessions reset after {config['session_reset'].get('idle_minutes', 1440)} min of inactivity"
         )
@@ -1687,8 +1688,8 @@ def setup_agent_settings(config: dict):
             hour_val = int(hour_str)
             if 0 <= hour_val <= 23:
                 config["session_reset"]["at_hour"] = hour_val
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.setup] suppressed ValueError: %s", _sve)
         print_success(
             f"Sessions reset daily at {config['session_reset'].get('at_hour', 4)}:00"
         )
@@ -2532,8 +2533,8 @@ def _model_section_has_credentials(config: dict) -> bool:
         from vector_cli.auth import get_active_provider
         if get_active_provider():
             return True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed Exception: %s", _sve)
 
     try:
         from vector_cli.auth import PROVIDER_REGISTRY
@@ -3131,8 +3132,8 @@ def _resolve_vector_chat_argv() -> Optional[list[str]]:
     try:
         if importlib.util.find_spec("vector_cli") is not None:
             return [sys.executable, "-m", "vector_cli.main", "chat"]
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.setup] suppressed Exception: %s", _sve)
 
     return None
 

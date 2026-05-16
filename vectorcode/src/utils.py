@@ -1,4 +1,5 @@
 """Shared utility functions for vectorcode."""
+from loguru import logger
 
 import json
 import logging
@@ -54,8 +55,8 @@ def _restore_file_mode(path: Path, mode: "int | None") -> None:
         return
     try:
         os.chmod(path, mode)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][utils] suppressed OSError: %s", _sve)
 
 
 def atomic_json_write(
@@ -106,8 +107,8 @@ def atomic_json_write(
         # KeyboardInterrupt/SystemExit before re-raising the original signal.
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][utils] suppressed OSError: %s", _sve)
         raise
 
 
@@ -157,8 +158,8 @@ def atomic_yaml_write(
         # interruptions before we re-raise them.
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][utils] suppressed OSError: %s", _sve)
         raise
 
 

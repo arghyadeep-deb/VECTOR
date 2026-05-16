@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Telegram platform adapter.
 
 Uses python-telegram-bot library for:
@@ -376,8 +377,8 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             if self._app and self._app.updater and self._app.updater.running:
                 await self._app.updater.stop()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.telegram] suppressed Exception: %s", _sve)
 
         try:
             await self._app.updater.start_polling(
@@ -423,8 +424,8 @@ class TelegramAdapter(BasePlatformAdapter):
             try:
                 if self._app and self._app.updater and self._app.updater.running:
                     await self._app.updater.stop()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.telegram] suppressed Exception: %s", _sve)
             await asyncio.sleep(RETRY_DELAY)
             try:
                 await self._app.updater.start_polling(
@@ -558,8 +559,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 except BaseException:
                     try:
                         os.unlink(tmp_path)
-                    except OSError:
-                        pass
+                    except OSError as _sve:
+                        logger.warning("[VECTOR][gateway.platforms.telegram] suppressed OSError: %s", _sve)
                     raise
                 logger.info(
                     "[%s] Persisted thread_id=%s for topic '%s' in config.yaml",
@@ -1573,8 +1574,8 @@ class TelegramAdapter(BasePlatformAdapter):
                         parse_mode=None,
                         reply_markup=None,
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.telegram] suppressed Exception: %s", _sve)
             await query.answer(text="Model switched!")
 
             # Clean up state

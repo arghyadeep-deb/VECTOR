@@ -10,6 +10,7 @@ Wires ``vector meet <subcommand>``:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import json
@@ -297,8 +298,8 @@ def _cmd_install(*, realtime: bool, assume_yes: bool) -> int:
             try:
                 out = _sp.check_output(["system_profiler", "SPAudioDataType"], text=True)
                 have_bh = "BlackHole" in out
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.cli] suppressed Exception: %s", _sve)
             have_ffmpeg = bool(_shutil.which("ffmpeg"))
             needs = []
             if not have_bh:
@@ -358,8 +359,8 @@ def _cmd_auth() -> int:
             page.goto("https://accounts.google.com/", wait_until="domcontentloaded")
             try:
                 input("press Enter after you've signed in ... ")
-            except EOFError:
-                pass
+            except EOFError as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.cli] suppressed EOFError: %s", _sve)
             context.storage_state(path=str(path))
             browser.close()
     except Exception as e:

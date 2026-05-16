@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GLM 4.5 (GLM-4-MoE) tool call parser.
 
 Format uses custom arg_key/arg_value tags rather than standard JSON:
@@ -33,13 +34,13 @@ def _deserialize_value(value: str) -> Any:
     """
     try:
         return json.loads(value)
-    except (json.JSONDecodeError, TypeError):
-        pass
+    except (json.JSONDecodeError, TypeError) as _sve:
+        logger.debug("[VECTOR][environments.tool_call_parsers.glm45_parser] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
     try:
         return ast.literal_eval(value)
-    except (ValueError, SyntaxError, TypeError):
-        pass
+    except (ValueError, SyntaxError, TypeError) as _sve:
+        logger.debug("[VECTOR][environments.tool_call_parsers.glm45_parser] suppressed (ValueError, SyntaxError, TypeError): %s", _sve)
 
     return value
 

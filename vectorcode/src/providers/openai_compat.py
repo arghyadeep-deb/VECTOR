@@ -94,8 +94,8 @@ class OpenAICompatProvider(BaseProvider):
                                 if delta:
                                     print(delta, end="", flush=True)
                                     content_parts.append(delta)
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][providers.openai_compat] suppressed Exception: %s", _sve)
                 print()
                 content = "".join(content_parts)
                 usage = TokenUsage()

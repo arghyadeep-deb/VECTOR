@@ -1,6 +1,7 @@
 """Shared helpers for tool backend selection."""
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 from pathlib import Path
@@ -118,8 +119,8 @@ def prefers_gateway(config_section: str) -> bool:
         section = (load_config() or {}).get(config_section)
         if isinstance(section, dict):
             return is_truthy_value(section.get("use_gateway"), default=False)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.tool_backend_helpers] suppressed Exception: %s", _sve)
     return False
 
 

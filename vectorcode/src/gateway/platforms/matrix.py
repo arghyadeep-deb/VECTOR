@@ -25,6 +25,7 @@ Environment variables:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import logging
@@ -499,8 +500,8 @@ class MatrixAdapter(BasePlatformAdapter):
                 logger.info(
                     "Matrix: deleted stale device %s from server", client.device_id
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
             try:
                 await olm.share_keys()
             except Exception as exc:
@@ -849,7 +850,7 @@ class MatrixAdapter(BasePlatformAdapter):
             try:
                 await self._sync_task
             except (asyncio.CancelledError, Exception):
-                pass
+                raise  # must propagate for asyncio to work
 
         # Close the SQLite crypto store database.
         if hasattr(self, "_crypto_db") and self._crypto_db:
@@ -861,8 +862,8 @@ class MatrixAdapter(BasePlatformAdapter):
         if self._client:
             try:
                 await self._client.api.session.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
             self._client = None
 
         logger.info("Matrix: disconnected")
@@ -977,8 +978,8 @@ class MatrixAdapter(BasePlatformAdapter):
                 )
                 if name_evt and hasattr(name_evt, "name") and name_evt.name:
                     name = name_evt.name
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
 
         return {"name": name, "type": chat_type}
 
@@ -993,16 +994,16 @@ class MatrixAdapter(BasePlatformAdapter):
         if self._client:
             try:
                 await self._client.set_typing(RoomID(chat_id), timeout=30000)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
 
     async def stop_typing(self, chat_id: str) -> None:
         """Clear the typing indicator."""
         if self._client:
             try:
                 await self._client.set_typing(RoomID(chat_id), timeout=0)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
 
 
     async def edit_message(
@@ -2317,8 +2318,8 @@ class MatrixAdapter(BasePlatformAdapter):
                 members = await state_store.get_members(room_id)
                 if members and len(members) == 2:
                     return True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
         return False
 
     async def _refresh_dm_cache(self) -> None:
@@ -2495,8 +2496,8 @@ class MatrixAdapter(BasePlatformAdapter):
                 member = await state_store.get_member(room_id, user_id)
                 if member and getattr(member, "displayname", None):
                     return member.displayname
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.matrix] suppressed Exception: %s", _sve)
         # Strip the @...:server format to just the localpart.
         if user_id.startswith("@") and ":" in user_id:
             return user_id[1:].split(":")[0]

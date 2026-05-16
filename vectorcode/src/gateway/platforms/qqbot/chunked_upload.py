@@ -32,6 +32,7 @@ so the heavy-upload path stays in-tree. Authorship preserved via Co-authored-by.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import functools
@@ -421,7 +422,7 @@ class ChunkedUploader:
                 try:
                     body_preview = getattr(resp, "text", "")[:200]
                 except Exception:  # pragma: no cover — defensive
-                    pass
+                    logger.debug("[VECTOR][gateway.platforms.qqbot.chunked_upload] suppressed Exception: %s", _sve)
                 raise RuntimeError(
                     f"COS PUT returned {status}: {body_preview}"
                 )

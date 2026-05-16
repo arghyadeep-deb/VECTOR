@@ -1,4 +1,5 @@
 """SSH remote execution environment with ControlMaster connection persistence."""
+from loguru import logger
 
 import hashlib
 import logging
@@ -114,8 +115,8 @@ class SSHEnvironment(BaseEnvironment):
             if home and result.returncode == 0:
                 logger.debug("SSH: remote home = %s", home)
                 return home
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.ssh] suppressed Exception: %s", _sve)
         if self.user == "root":
             return "/root"
         return f"/home/{self.user}"
@@ -279,9 +280,9 @@ class SSHEnvironment(BaseEnvironment):
                 cmd = ["ssh", "-o", f"ControlPath={self.control_socket}",
                        "-O", "exit", f"{self.user}@{self.host}"]
                 subprocess.run(cmd, capture_output=True, timeout=5)
-            except (OSError, subprocess.SubprocessError):
-                pass
+            except (OSError, subprocess.SubprocessError) as _sve:
+                logger.debug("[VECTOR][tools.environments.ssh] suppressed (OSError, subprocess.SubprocessError): %s", _sve)
             try:
                 self.control_socket.unlink()
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.environments.ssh] suppressed OSError: %s", _sve)

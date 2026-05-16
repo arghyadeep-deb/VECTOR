@@ -24,6 +24,7 @@ Design constraints:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import errno
 import fcntl
@@ -188,8 +189,8 @@ class PtyBridge:
         winsize = struct.pack("HHHH", max(1, rows), max(1, cols), 0, 0)
         try:
             fcntl.ioctl(self._fd, termios.TIOCSWINSZ, winsize)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.pty_bridge] suppressed OSError: %s", _sve)
 
     # -- teardown ---------------------------------------------------------
 
@@ -210,16 +211,16 @@ class PtyBridge:
                 break
             try:
                 self._proc.kill(sig)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.pty_bridge] suppressed Exception: %s", _sve)
             deadline = time.monotonic() + 0.5
             while self._proc.isalive() and time.monotonic() < deadline:
                 time.sleep(0.02)
 
         try:
             self._proc.close(force=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.pty_bridge] suppressed Exception: %s", _sve)
 
     # Context-manager sugar — handy in tests and ad-hoc scripts.
     def __enter__(self) -> "PtyBridge":

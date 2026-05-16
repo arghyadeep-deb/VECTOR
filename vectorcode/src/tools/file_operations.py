@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 File Operations Module
 
 Provides file manipulation capabilities (read, write, patch, search) that work
@@ -783,8 +784,8 @@ class ShellFileOperations(FileOperations):
             try:
                 from tools.fuzzy_match import format_no_match_hint
                 err_msg += format_no_match_hint(err_msg, match_count, old_string, content)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.file_operations] suppressed Exception: %s", _sve)
             return PatchResult(error=err_msg)
         # Write back
         write_result = self.write_file(path, new_content)
@@ -1113,8 +1114,8 @@ class ShellFileOperations(FileOperations):
                     if len(parts) == 2:
                         try:
                             counts[parts[0]] = int(parts[1])
-                        except ValueError:
-                            pass
+                        except ValueError as _sve:
+                            logger.debug("[VECTOR][tools.file_operations] suppressed ValueError: %s", _sve)
             return SearchResult(counts=counts, total_count=sum(counts.values()))
         
         else:
@@ -1213,8 +1214,8 @@ class ShellFileOperations(FileOperations):
                     if len(parts) == 2:
                         try:
                             counts[parts[0]] = int(parts[1])
-                        except ValueError:
-                            pass
+                        except ValueError as _sve:
+                            logger.debug("[VECTOR][tools.file_operations] suppressed ValueError: %s", _sve)
             return SearchResult(counts=counts, total_count=sum(counts.values()))
         
         else:

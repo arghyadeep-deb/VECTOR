@@ -1,4 +1,5 @@
 """Voice Mode -- Push-to-talk audio recording and playback for the CLI.
+from loguru import logger
 
 Provides audio capture via sounddevice, WAV encoding via stdlib wave,
 STT dispatch via tools.transcription_tools, and TTS playback via
@@ -121,8 +122,8 @@ def detect_audio_environment() -> dict:
                         "  2. Create ~/.asoundrc pointing ALSA at PulseAudio\n"
                         "  3. Verify with: arecord -d 3 /tmp/test.wav && aplay /tmp/test.wav"
                     )
-    except (FileNotFoundError, PermissionError, OSError):
-        pass
+    except (FileNotFoundError, PermissionError, OSError) as _sve:
+        logger.warning("[VECTOR][tools.voice_mode] suppressed (FileNotFoundError, PermissionError, OSError): %s", _sve)
 
     # Check audio libraries
     try:
@@ -334,14 +335,14 @@ class TermuxAudioRecorder:
         if time.monotonic() - started_at < 0.3:
             try:
                 os.unlink(path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.voice_mode] suppressed OSError: %s", _sve)
             return None
         if os.path.getsize(path) <= 0:
             try:
                 os.unlink(path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.voice_mode] suppressed OSError: %s", _sve)
             return None
         logger.info("Termux voice recording stopped: %s", path)
         return path
@@ -354,13 +355,13 @@ class TermuxAudioRecorder:
             self._current_rms = 0
         try:
             self._stop_termux_recording()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
         if path and os.path.isfile(path):
             try:
                 os.unlink(path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.voice_mode] suppressed OSError: %s", _sve)
         logger.info("Termux voice recording cancelled")
 
     def shutdown(self) -> None:
@@ -555,8 +556,8 @@ class AudioRecorder:
             if stream is not None:
                 try:
                     stream.close()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
             raise RuntimeError(
                 f"Failed to open audio input stream: {e}. "
                 "Check that a microphone is connected and accessible."
@@ -621,8 +622,8 @@ class AudioRecorder:
             try:
                 stream.stop()
                 stream.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
 
         t = threading.Thread(target=_do_close, daemon=True)
         t.start()
@@ -830,14 +831,14 @@ def stop_playback() -> None:
         try:
             proc.terminate()
             logger.info("Audio playback interrupted")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
     # Also stop sounddevice playback if active
     try:
         sd, _ = _import_audio()
         sd.stop()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
 
 
 def play_audio_file(file_path: str) -> bool:
@@ -1009,8 +1010,8 @@ def cleanup_temp_recordings(max_age_seconds: int = 3600) -> int:
                 if age > max_age_seconds:
                     os.unlink(entry.path)
                     deleted += 1
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.voice_mode] suppressed OSError: %s", _sve)
 
     if deleted:
         logger.debug("Cleaned up %d old voice recordings", deleted)

@@ -1,4 +1,5 @@
 """Modal cloud execution environment using the native Modal SDK directly.
+from loguru import logger
 
 Uses ``Sandbox.create()`` + ``Sandbox.exec()`` instead of the older runtime
 wrapper, while preserving VectorCode' persistent snapshot behavior across sessions.
@@ -452,8 +453,8 @@ class ModalEnvironment(BaseEnvironment):
 
         try:
             self._worker.run_coroutine(self._sandbox.terminate.aio(), timeout=15)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.modal] suppressed Exception: %s", _sve)
         finally:
             self._worker.stop()
             self._sandbox = None

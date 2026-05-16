@@ -1,6 +1,7 @@
 """``jarvis optimize`` — LLM-driven configuration optimization CLI."""
 
 from __future__ import annotations
+from loguru import logger
 
 import sys
 from pathlib import Path
@@ -167,8 +168,8 @@ def optimize_run(
             from vectorcode.src.evals.cli import _build_judge_backend
 
             optimizer_backend = _build_judge_backend(optimizer_model)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.optimize_cmd] suppressed Exception: %s", _sve)
 
         store = OptimizationStore(DEFAULT_CONFIG_DIR / "optimize.db")
         llm_opt = LLMOptimizer(

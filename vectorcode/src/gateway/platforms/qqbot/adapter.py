@@ -30,6 +30,7 @@ Reference: https://bot.q.qq.com/wiki/develop/api-v2/
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import base64
@@ -283,7 +284,7 @@ class QQAdapter(BasePlatformAdapter):
             try:
                 await self._listen_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._listen_task = None
 
         if self._heartbeat_task:
@@ -291,7 +292,7 @@ class QQAdapter(BasePlatformAdapter):
             try:
                 await self._heartbeat_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._heartbeat_task = None
 
         await self._cleanup()
@@ -615,7 +616,7 @@ class QQAdapter(BasePlatformAdapter):
                 except Exception as exc:
                     logger.debug("[%s] Heartbeat failed: %s", self._log_tag, exc)
         except asyncio.CancelledError:
-            pass
+            raise  # must propagate for asyncio to work
 
     async def _send_identify(self) -> None:
         """Send op 2 Identify to authenticate the WebSocket connection.
@@ -1379,8 +1380,8 @@ class QQAdapter(BasePlatformAdapter):
             # 5. Cleanup temp file
             try:
                 os.unlink(wav_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.qqbot.adapter] suppressed OSError: %s", _sve)
 
             if transcript:
                 logger.debug("[%s] STT success: %r", self._log_tag, transcript[:100])
@@ -1441,8 +1442,8 @@ class QQAdapter(BasePlatformAdapter):
         # Cleanup source file
         try:
             os.unlink(src_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][gateway.platforms.qqbot.adapter] suppressed OSError: %s", _sve)
 
         return result
 
@@ -1520,8 +1521,8 @@ class QQAdapter(BasePlatformAdapter):
         finally:
             try:
                 os.unlink(silk_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.qqbot.adapter] suppressed OSError: %s", _sve)
 
         return None
 
@@ -1745,8 +1746,8 @@ class QQAdapter(BasePlatformAdapter):
         finally:
             try:
                 os.unlink(src_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.qqbot.adapter] suppressed OSError: %s", _sve)
 
         # Verify output and cache
         try:
@@ -2359,12 +2360,12 @@ class QQAdapter(BasePlatformAdapter):
             return datetime.now(tz=timezone.utc)
         try:
             return datetime.fromisoformat(raw)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as _sve:
+            logger.debug("[VECTOR][gateway.platforms.qqbot.adapter] suppressed (ValueError, TypeError): %s", _sve)
         try:
             return datetime.fromtimestamp(int(raw) / 1000, tz=timezone.utc)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as _sve:
+            logger.debug("[VECTOR][gateway.platforms.qqbot.adapter] suppressed (ValueError, TypeError): %s", _sve)
         return datetime.now(tz=timezone.utc)
 
     def _is_duplicate(self, msg_id: str) -> bool:

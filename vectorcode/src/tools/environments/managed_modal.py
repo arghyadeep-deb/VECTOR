@@ -1,6 +1,7 @@
 """Managed Modal environment backed by tool-gateway."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -273,8 +274,8 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 if isinstance(message, str) and message:
                     return f"{prefix}: {message}"
                 return f"{prefix}: {json.dumps(payload, ensure_ascii=False)}"
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.managed_modal] suppressed Exception: %s", _sve)
 
         text = response.text.strip()
         if text:

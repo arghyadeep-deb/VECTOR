@@ -36,6 +36,7 @@ we leave it alone.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -270,8 +271,8 @@ def snapshot_skills(reason: str = "manual") -> Optional[Path]:
         # Clean up partial snapshot
         try:
             shutil.rmtree(dest, ignore_errors=True)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
         return None
 
     _prune_old(keep=get_keep())
@@ -589,12 +590,12 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
         for orig, dest in moved:
             try:
                 shutil.move(str(dest), str(orig))
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
         try:
             shutil.rmtree(staged, ignore_errors=True)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
         return (False, f"failed to stage current skills: {e}", None)
 
     # Step 4: extract the snapshot into skills/
@@ -619,20 +620,20 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
         for orig, dest in moved:
             try:
                 shutil.move(str(dest), str(orig))
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
         try:
             shutil.rmtree(staged, ignore_errors=True)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
         return (False, f"snapshot extract failed (state restored): {e}", None)
 
     # Extract succeeded — the staging dir has served its purpose. The
     # user's undo handle is the safety snapshot tarball we took earlier.
     try:
         shutil.rmtree(staged, ignore_errors=True)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
 
     # Reconcile cron skill-links. Surgical: only the skills/skill fields
     # on jobs matched by id. Everything else in jobs.json is live state

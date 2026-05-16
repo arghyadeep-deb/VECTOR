@@ -15,6 +15,7 @@ runtime is not selected.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -141,8 +142,8 @@ class CodexAppServerClient:
         try:
             if self._proc.stdin and not self._proc.stdin.closed:
                 self._proc.stdin.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
         try:
             self._proc.terminate()
             self._proc.wait(timeout=timeout)
@@ -150,8 +151,8 @@ class CodexAppServerClient:
             try:
                 self._proc.kill()
                 self._proc.wait(timeout=1.0)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
 
     def __enter__(self) -> "CodexAppServerClient":
         return self
@@ -296,7 +297,7 @@ class CodexAppServerClient:
                 try:
                     pending.queue.put_nowait(msg)
                 except queue.Full:  # pragma: no cover - defensive
-                    pass
+                    logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed queue.Full: %s", _sve)
             return
         # Server-initiated request (has id + method)
         if "id" in msg and "method" in msg:
@@ -321,7 +322,7 @@ class CodexAppServerClient:
                     if len(self._stderr_lines) > 500:
                         self._stderr_lines = self._stderr_lines[-500:]
         except Exception:  # pragma: no cover
-            pass
+            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
 
 
 def parse_codex_version(output: str) -> Optional[tuple[int, int, int]]:

@@ -12,6 +12,7 @@ is missing.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import json
@@ -107,8 +108,8 @@ class RealtimeSession:
         if self._ws is not None:
             try:
                 self._ws.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.realtime.openai_client] suppressed Exception: %s", _sve)
             self._ws = None
 
     # ── speaking ──────────────────────────────────────────────────────────

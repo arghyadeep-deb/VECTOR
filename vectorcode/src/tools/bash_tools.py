@@ -108,14 +108,14 @@ if __name__ == "__main__":
     try:
         bt.run(["rm", "-rf", "/"])
         assert False, "Should have raised PermissionError"
-    except PermissionError:
-        pass
+    except PermissionError as _sve:
+        logger.warning("[VECTOR][tools.bash_tools] suppressed PermissionError: %s", _sve)
 
     try:
         bt.run(["bash", "-c", "whoami"])
         assert False, "Should have raised PermissionError"
-    except PermissionError:
-        pass
+    except PermissionError as _sve:
+        logger.warning("[VECTOR][tools.bash_tools] suppressed PermissionError: %s", _sve)
 
     print("bash_tools.py OK")
 

@@ -1,4 +1,5 @@
 """Tirith pre-exec security scanning wrapper.
+from loguru import logger
 
 Runs the tirith binary as a subprocess to scan commands for content-level
 threats (homograph URLs, pipe-to-interpreter, terminal injection, etc.).
@@ -162,16 +163,16 @@ def _mark_install_failed(reason: str = ""):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         with open(p, "w") as f:
             f.write(reason)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
 
 
 def _clear_install_failed():
     """Remove the failure marker after successful install."""
     try:
         os.unlink(_failure_marker_path())
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
 
 
 def _vector_bin_dir() -> str:
@@ -373,8 +374,8 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
                 # Clean up partial dest to prevent a non-executable retry loop
                 try:
                     os.unlink(dest)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
                 return None, "cross_device_copy_failed"
         os.chmod(dest, os.stat(dest).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 

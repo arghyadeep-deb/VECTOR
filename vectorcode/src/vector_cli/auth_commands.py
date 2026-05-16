@@ -1,6 +1,7 @@
 """Credential-pool auth subcommands."""
 
 from __future__ import annotations
+from loguru import logger
 
 from getpass import getpass
 import math
@@ -188,8 +189,8 @@ def auth_add_command(args) -> None:
             suppressed = _load_auth_store().get("suppressed_sources", {})
             for src in list(suppressed.get(provider, []) or []):
                 unsuppress_credential_source(provider, src)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.auth_commands] suppressed Exception: %s", _sve)
 
     if requested_type == AUTH_TYPE_API_KEY:
         token = (getattr(args, "api_key", None) or "").strip()

@@ -11,6 +11,7 @@ Supports multiple self-built apps under one gateway instance, scoped by
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import logging
@@ -115,8 +116,8 @@ class WecomCallbackAdapter(BasePlatformAdapter):
                 sock.connect(("127.0.0.1", self._port))
             logger.error("[WecomCallback] Port %d already in use", self._port)
             return False
-        except (ConnectionRefusedError, OSError):
-            pass
+        except (ConnectionRefusedError, OSError) as _sve:
+            logger.debug("[VECTOR][gateway.platforms.wecom_callback] suppressed (ConnectionRefusedError, OSError): %s", _sve)
 
         try:
             self._http_client = httpx.AsyncClient(timeout=20.0)
@@ -155,7 +156,7 @@ class WecomCallbackAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._poll_task = None
         await self._cleanup()
         self._mark_disconnected()

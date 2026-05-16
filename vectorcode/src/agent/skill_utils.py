@@ -1,4 +1,5 @@
 """Lightweight skill metadata utilities shared by prompt_builder and skills_tool.
+from loguru import logger
 
 This module intentionally avoids importing the tool registry, CLI config, or any
 heavy dependency chain.  It is safe to import at module level without triggering
@@ -391,8 +392,8 @@ def resolve_skill_config_values(
             parsed = yaml_load(config_path.read_text(encoding="utf-8"))
             if isinstance(parsed, dict):
                 config = parsed
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.skill_utils] suppressed Exception: %s", _sve)
 
     resolved: Dict[str, Any] = {}
     for var in config_vars:

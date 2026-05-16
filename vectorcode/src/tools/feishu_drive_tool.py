@@ -1,4 +1,5 @@
 """Feishu Drive Tools -- document comment operations via Feishu/Lark API.
+from loguru import logger
 
 Provides tools for listing, replying to, and adding document comments.
 Uses the same lazy-import + BaseRequest pattern as feishu_comment.py.
@@ -72,8 +73,8 @@ def _do_request(client, method, uri, paths=None, queries=None, body=None):
         try:
             body_json = json.loads(raw.content)
             data = body_json.get("data", {})
-        except (json.JSONDecodeError, AttributeError):
-            pass
+        except (json.JSONDecodeError, AttributeError) as _sve:
+            logger.debug("[VECTOR][tools.feishu_drive_tool] suppressed (json.JSONDecodeError, AttributeError): %s", _sve)
     if not data:
         resp_data = getattr(response, "data", None)
         if isinstance(resp_data, dict):

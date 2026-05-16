@@ -11,6 +11,7 @@ found in the TOML file.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import functools
 import os
@@ -177,8 +178,8 @@ def _detect_cpu_brand() -> str:
             for line in cpuinfo.read_text().splitlines():
                 if line.startswith("model name"):
                     return line.split(":", 1)[1].strip()
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vc_core.config] suppressed OSError: %s", _sve)
     return platform.processor() or "unknown"
 
 def _total_ram_gb() -> float:
@@ -192,8 +193,8 @@ def _total_ram_gb() -> float:
                 if line.startswith("MemTotal"):
                     kb = int(line.split()[1])
                     return round(kb / (1024**2), 1)
-    except (OSError, ValueError):
-        pass
+    except (OSError, ValueError) as _sve:
+        logger.warning("[VECTOR][vc_core.config] suppressed (OSError, ValueError): %s", _sve)
     return 0.0
 
 def detect_hardware() -> HardwareInfo:

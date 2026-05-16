@@ -1,4 +1,5 @@
 """
+from loguru import logger
 OpenAI-compatible API server platform adapter.
 
 Exposes an HTTP server with endpoints:
@@ -97,8 +98,8 @@ def _normalize_chat_content(
                     if text:
                         try:
                             parts.append(str(text)[:MAX_NORMALIZED_TEXT_LENGTH])
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
                 # Silently skip image_url / other non-text parts
             elif isinstance(item, list):
                 nested = _normalize_chat_content(item, _max_depth=_max_depth, _depth=_depth + 1)
@@ -374,8 +375,8 @@ class ResponseStore:
         """Close the database connection."""
         try:
             self._conn.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
 
     def __len__(self) -> int:
         row = self._conn.execute("SELECT COUNT(*) FROM responses").fetchone()
@@ -623,8 +624,8 @@ class APIServerAdapter(BasePlatformAdapter):
             profile = get_active_profile_name()
             if profile and profile not in ("default", "custom"):
                 return profile
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
         return "vector-agent"
 
     def _cors_headers_for_origin(self, origin: str) -> Optional[Dict[str, str]]:
@@ -1135,8 +1136,8 @@ class APIServerAdapter(BasePlatformAdapter):
             try:
                 result, agent_usage = await agent_task
                 usage = agent_usage or usage
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
 
             # Finish chunk
             finish_chunk = {
@@ -1159,14 +1160,14 @@ class APIServerAdapter(BasePlatformAdapter):
             if agent is not None:
                 try:
                     agent.interrupt("SSE client disconnected")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
             if not agent_task.done():
                 agent_task.cancel()
                 try:
                     await agent_task
                 except (asyncio.CancelledError, Exception):
-                    pass
+                    raise  # must propagate for asyncio to work
             logger.info("SSE client disconnected; interrupted agent task %s", completion_id)
 
         return response
@@ -1643,14 +1644,14 @@ class APIServerAdapter(BasePlatformAdapter):
             if agent is not None:
                 try:
                     agent.interrupt("SSE client disconnected")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
             if not agent_task.done():
                 agent_task.cancel()
                 try:
                     await agent_task
                 except (asyncio.CancelledError, Exception):
-                    pass
+                    raise  # must propagate for asyncio to work
             logger.info("SSE client disconnected; interrupted agent task %s", response_id)
         except asyncio.CancelledError:
             # Server-side cancellation (e.g. shutdown, request timeout) —
@@ -1662,8 +1663,8 @@ class APIServerAdapter(BasePlatformAdapter):
             if agent is not None:
                 try:
                     agent.interrupt("SSE task cancelled")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
             if not agent_task.done():
                 agent_task.cancel()
             logger.info("SSE task cancelled; persisted incomplete snapshot for %s", response_id)
@@ -2306,8 +2307,8 @@ class APIServerAdapter(BasePlatformAdapter):
                 return
             try:
                 loop.call_soon_threadsafe(q.put_nowait, event)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
 
         def _callback(event_type: str, tool_name: str = None, preview: str = None, args=None, **kwargs):
             ts = time.time()
@@ -2384,8 +2385,8 @@ class APIServerAdapter(BasePlatformAdapter):
                     "timestamp": time.time(),
                     "delta": delta,
                 })
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
 
         instructions = body.get("instructions")
         previous_response_id = body.get("previous_response_id")
@@ -2477,14 +2478,14 @@ class APIServerAdapter(BasePlatformAdapter):
                         "timestamp": time.time(),
                         "error": str(exc),
                     })
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
             finally:
                 # Sentinel: signal SSE stream to close
                 try:
                     q.put_nowait(None)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
                 self._active_run_agents.pop(run_id, None)
                 self._active_run_tasks.pop(run_id, None)
 
@@ -2492,8 +2493,8 @@ class APIServerAdapter(BasePlatformAdapter):
         self._active_run_tasks[run_id] = task
         try:
             self._background_tasks.add(task)
-        except TypeError:
-            pass
+        except TypeError as _sve:
+            logger.debug("[VECTOR][gateway.platforms.api_server] suppressed TypeError: %s", _sve)
         if hasattr(task, "add_done_callback"):
             task.add_done_callback(self._background_tasks.discard)
 
@@ -2564,8 +2565,8 @@ class APIServerAdapter(BasePlatformAdapter):
         if agent is not None:
             try:
                 agent.interrupt("Stop requested via API")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
 
         if task is not None and not task.done():
             task.cancel()
@@ -2582,7 +2583,7 @@ class APIServerAdapter(BasePlatformAdapter):
                     run_id,
                 )
             except (asyncio.CancelledError, Exception):
-                pass
+                raise  # must propagate for asyncio to work
 
         return web.json_response({"run_id": run_id, "status": "stopping"})
 
@@ -2642,8 +2643,8 @@ class APIServerAdapter(BasePlatformAdapter):
             sweep_task = asyncio.create_task(self._sweep_orphaned_runs())
             try:
                 self._background_tasks.add(sweep_task)
-            except TypeError:
-                pass
+            except TypeError as _sve:
+                logger.debug("[VECTOR][gateway.platforms.api_server] suppressed TypeError: %s", _sve)
             if hasattr(sweep_task, "add_done_callback"):
                 sweep_task.add_done_callback(self._background_tasks.discard)
 

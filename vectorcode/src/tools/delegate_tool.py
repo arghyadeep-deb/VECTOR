@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Delegate Tool -- Subagent Architecture
 
 Spawns child AIAgent instances with isolated context, restricted toolsets,
@@ -293,8 +294,8 @@ def _looks_like_error_output(content: str) -> bool:
                 status = str(parsed.get("status") or "").strip().lower()
                 if status in {"error", "failed", "failure", "timeout"}:
                     return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
 
     first = content.splitlines()[0].strip().lower() if content.splitlines() else ""
     return (
@@ -382,8 +383,8 @@ def _get_child_timeout() -> float:
     if env_val:
         try:
             return max(30.0, float(env_val))
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as _sve:
+            logger.debug("[VECTOR][tools.delegate_tool] suppressed (TypeError, ValueError): %s", _sve)
     return float(DEFAULT_CHILD_TIMEOUT)
 
 
@@ -1170,8 +1171,8 @@ def _dump_subagent_timeout_diagnostic(
             _w(f"  loaded tool count: {len(tool_names)}")
             try:
                 _w(f"  loaded tools:      {sorted(list(tool_names))}")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
         _w("")
 
         _w("## Prompt / schema sizes")
@@ -1342,12 +1343,12 @@ def _run_single_child(
                             f"delegate_task: subagent {child_desc} "
                             f"(iteration {child_iter}/{child_max})"
                         )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
             try:
                 touch(desc)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
 
     _heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
     _heartbeat_thread.start()
@@ -1433,8 +1434,8 @@ def _run_single_child(
                     child.interrupt()
                 elif hasattr(child, "_interrupt_requested"):
                     child._interrupt_requested = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
 
             is_timeout = isinstance(_timeout_exc, (FuturesTimeoutError, TimeoutError))
             duration = round(time.monotonic() - child_start, 2)
@@ -1453,8 +1454,8 @@ def _run_single_child(
             try:
                 _summary = child.get_activity_summary()
                 child_api_calls = int(_summary.get("api_call_count", 0) or 0)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
             if is_timeout and child_api_calls == 0:
                 diagnostic_path = _dump_subagent_timeout_diagnostic(
                     child=child,
@@ -1484,8 +1485,8 @@ def _run_single_child(
                         duration_seconds=duration,
                         summary="",
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
 
             if is_timeout:
                 if child_api_calls == 0:
@@ -1718,8 +1719,8 @@ def _run_single_child(
         if _cost_usd is not None:
             try:
                 complete_kwargs["cost_usd"] = float(_cost_usd)
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError) as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed (TypeError, ValueError): %s", _sve)
 
         if child_progress_cb:
             try:
@@ -2111,8 +2112,8 @@ def delegate_task(
                         else ""
                     ),
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
 
     # Fire subagent_stop hooks once per child, serialised on the parent thread.
     # This keeps Python-plugin and shell-hook callbacks off of the worker threads
@@ -2137,8 +2138,8 @@ def delegate_task(
         try:
             if child_cost:
                 _children_cost_total += float(child_cost)
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as _sve:
+            logger.debug("[VECTOR][tools.delegate_tool] suppressed (TypeError, ValueError): %s", _sve)
         if _invoke_hook is None:
             continue
         try:
@@ -2326,8 +2327,8 @@ def _load_config() -> dict:
         cfg = CLI_CONFIG.get("delegation", {})
         if cfg:
             return cfg
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
     try:
         from vector_cli.config import load_config
 

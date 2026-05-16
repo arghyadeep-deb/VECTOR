@@ -12,6 +12,7 @@ Environment variables:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json
@@ -235,7 +236,7 @@ class MattermostAdapter(BasePlatformAdapter):
             try:
                 await self._ws_task
             except (asyncio.CancelledError, Exception):
-                pass
+                raise  # must propagate for asyncio to work
 
         if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()

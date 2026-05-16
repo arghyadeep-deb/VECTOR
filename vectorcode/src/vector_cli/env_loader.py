@@ -1,6 +1,7 @@
 """Helpers for loading Hermes .env files consistently across entrypoints."""
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import sys
@@ -60,8 +61,8 @@ def _sanitize_loaded_credentials() -> None:
         try:
             value.encode("ascii")
             continue
-        except UnicodeEncodeError:
-            pass
+        except UnicodeEncodeError as _sve:
+            logger.debug("[VECTOR][vector_cli.env_loader] suppressed UnicodeEncodeError: %s", _sve)
         cleaned = value.encode("ascii", errors="ignore").decode("ascii")
         os.environ[key] = cleaned
         if key in _WARNED_KEYS:
@@ -137,8 +138,8 @@ def _sanitize_env_file_if_needed(path: Path) -> None:
             except BaseException:
                 try:
                     os.unlink(tmp)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][vector_cli.env_loader] suppressed OSError: %s", _sve)
                 raise
     except Exception:
         pass  # best-effort — don't block gateway startup

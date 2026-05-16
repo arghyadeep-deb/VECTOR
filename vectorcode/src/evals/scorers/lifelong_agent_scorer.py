@@ -34,6 +34,7 @@ with the ``vector-agent`` backend for faithful evaluation.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import hashlib
 import logging
@@ -601,8 +602,8 @@ def _parse_text_answer(text: str) -> Optional[List[List[Any]]]:
                 return [list(row) for row in parsed]
             return [list(parsed)]
         return [[parsed]]
-    except (ValueError, SyntaxError):
-        pass
+    except (ValueError, SyntaxError) as _sve:
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, SyntaxError): %s", _sve)
 
     if "," in answer_text:
         parts = [p.strip().strip("'\"") for p in answer_text.split(",")]
@@ -624,12 +625,12 @@ def _safe_literal_eval(s: str) -> Any:
 def _try_numeric(s: str) -> Any:
     try:
         return int(s)
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as _sve:
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
     try:
         return float(s)
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as _sve:
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
     return s if s else None
 
 # ====================================================================
@@ -766,8 +767,8 @@ def _evaluate_os_in_docker(
                 "Build the original's Docker image for faithful evaluation.",
                 image,
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed Exception: %s", _sve)
 
     try:
         subprocess.run(
@@ -901,8 +902,8 @@ def values_match(expected: Any, actual: Any) -> bool:
             rel_tol=_REL_TOLERANCE,
             abs_tol=_ABS_TOLERANCE,
         )
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as _sve:
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
 
     return str(expected).strip() == str(actual).strip()
 

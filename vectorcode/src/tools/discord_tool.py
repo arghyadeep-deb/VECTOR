@@ -1,4 +1,5 @@
 """Discord server introspection and management tool.
+from loguru import logger
 
 Provides the agent with the ability to interact with Discord servers
 when running on the Discord gateway. Uses Discord REST API directly
@@ -92,8 +93,8 @@ def _discord_request(
         error_body = ""
         try:
             error_body = e.read().decode("utf-8", errors="replace")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.discord_tool] suppressed Exception: %s", _sve)
         raise DiscordAPIError(e.code, error_body) from e
 
 

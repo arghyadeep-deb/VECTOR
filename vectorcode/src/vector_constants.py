@@ -1,4 +1,5 @@
 """Shared constants for Hermes Agent.
+from loguru import logger
 
 Import-safe module with no dependencies — can be imported from anywhere
 without risk of circular imports.
@@ -62,8 +63,8 @@ def get_vector_home() -> Path:
             try:
                 sys.stderr.write(msg + "\n")
                 sys.stderr.flush()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_constants] suppressed Exception: %s", _sve)
 
     return Path.home() / ".vector"
 
@@ -93,8 +94,8 @@ def get_default_vector_root() -> Path:
         env_path.resolve().relative_to(native_home.resolve())
         # VECTOR_HOME is under ~/.vector (normal or profile mode)
         return native_home
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_constants] suppressed ValueError: %s", _sve)
 
     # Docker / custom deployment.
     # Check if this is a profile path: <root>/profiles/<name>
@@ -265,8 +266,8 @@ def is_container() -> bool:
             if "docker" in cgroup or "podman" in cgroup or "/lxc/" in cgroup:
                 _container_detected = True
                 return True
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][vector_constants] suppressed OSError: %s", _sve)
     _container_detected = False
     return False
 

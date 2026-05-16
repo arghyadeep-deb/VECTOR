@@ -406,8 +406,8 @@ class BackgroundWorkers:
                                         "function": node.name,
                                         "line": node.lineno,
                                     })
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][hooks.workers] suppressed Exception: %s", _sve)
 
             if undocumented:
                 logger.info(f"[VECTOR][workers] DOCUMENT: {len(undocumented)} undocumented functions")
@@ -446,8 +446,8 @@ class BackgroundWorkers:
                                     "line": node.lineno,
                                     "complexity": complexity,
                                 })
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][hooks.workers] suppressed Exception: %s", _sve)
 
             complex_fns.sort(key=lambda x: x["complexity"], reverse=True)
             if complex_fns:
@@ -526,8 +526,8 @@ class BackgroundWorkers:
                             if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                                 # Strip test_ prefix and try to match to source function
                                 test_names.add(node.name[5:])
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][hooks.workers] suppressed Exception: %s", _sve)
 
             # Find public functions in source
             source_fns = []
@@ -543,8 +543,8 @@ class BackgroundWorkers:
                                         "function": node.name,
                                         "line": node.lineno,
                                     })
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][hooks.workers] suppressed Exception: %s", _sve)
 
             if source_fns:
                 logger.info(f"[VECTOR][workers] TESTGAPS: {len(source_fns)} untested functions")

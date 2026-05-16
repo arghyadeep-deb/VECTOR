@@ -1,6 +1,7 @@
 """``jarvis serve`` — OpenAI-compatible API server."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import sys
@@ -350,8 +351,8 @@ def serve(
                     from vectorcode.src.traces.store import TraceStore
 
                     _trace_store = TraceStore(db_path=config.traces.db_path)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.serve] suppressed Exception: %s", _sve)
 
             executor = AgentExecutor(
                 manager=agent_manager,
@@ -411,8 +412,8 @@ def serve(
             with open(_cfg_path, "rb") as _f:
                 _raw = tomllib.load(_f)
             api_key = _raw.get("server", {}).get("auth", {}).get("api_key", "")
-        except (FileNotFoundError, ImportError):
-            pass
+        except (FileNotFoundError, ImportError) as _sve:
+            logger.debug("[VECTOR][vector_cli.serve] suppressed (FileNotFoundError, ImportError): %s", _sve)
 
     from vectorcode.src.server.auth_middleware import check_bind_safety
 

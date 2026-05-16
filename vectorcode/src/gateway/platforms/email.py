@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Email platform adapter for the VectorCode gateway.
 
 Allows users to interact with VectorCode by sending emails.
@@ -314,7 +315,7 @@ class EmailAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._poll_task = None
         logger.info("[Email] Disconnected.")
 
@@ -397,8 +398,8 @@ class EmailAdapter(BasePlatformAdapter):
             finally:
                 try:
                     imap.logout()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.email] suppressed Exception: %s", _sve)
         except Exception as e:
             logger.error("[Email] IMAP fetch error: %s", e)
         return results

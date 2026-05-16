@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """File Tools Module - LLM agent file manipulation tools."""
+from loguru import logger
 
 import errno
 import json
@@ -54,8 +55,8 @@ def _get_max_read_chars() -> int:
         if isinstance(val, (int, float)) and val > 0:
             _max_read_chars_cached = int(val)
             return _max_read_chars_cached
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.file_tools] suppressed Exception: %s", _sve)
     _max_read_chars_cached = _DEFAULT_MAX_READ_CHARS
     return _max_read_chars_cached
 
@@ -111,8 +112,8 @@ def _get_live_tracking_cwd(task_id: str = "default") -> str | None:
             live_cwd = getattr(env, "cwd", None) if env is not None else None
         if live_cwd:
             return live_cwd
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.file_tools] suppressed Exception: %s", _sve)
 
     return None
 
@@ -1168,8 +1169,8 @@ class FileTools:
                 for i, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
                     if _re.search(pattern, line):
                         results.append({"file": str(f.relative_to(self._root)), "line": i, "content": line})
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.file_tools] suppressed Exception: %s", _sve)
         return results
 
     def glob(self, pattern: str) -> list[str]:

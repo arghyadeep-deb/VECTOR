@@ -6,6 +6,7 @@ environment.  Uses httpx directly so no cloud SDK packages are required.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -170,8 +171,8 @@ async def _stream_openai(
                     delta = chunk["choices"][0]["delta"].get("content") or ""
                     if delta:
                         yield delta
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
 
 async def _stream_anthropic(
     model: str,
@@ -217,8 +218,8 @@ async def _stream_anthropic(
                         text = event.get("delta", {}).get("text", "")
                         if text:
                             yield text
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
 
 async def _stream_google(
     model: str,
@@ -263,8 +264,8 @@ async def _stream_google(
                         text = part.get("text", "")
                         if text:
                             yield text
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
 
 # ---------------------------------------------------------------------------
 # Local (Ollama) direct streaming -- bypasses engine routing entirely
@@ -306,8 +307,8 @@ async def stream_local(
                         yield token
                     if data.get("done"):
                         break
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
 
 async def list_local_models() -> list[str]:
     """Return Ollama model names directly from the Ollama API."""

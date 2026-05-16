@@ -35,6 +35,7 @@ Key design decisions matching the original:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import ast
 import json
@@ -111,12 +112,12 @@ def _parse_field(raw: Any) -> Any:
         return raw
     try:
         return json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        pass
+    except (json.JSONDecodeError, TypeError) as _sve:
+        logger.debug("[VECTOR][evals.datasets.lifelong_agent] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
     try:
         return ast.literal_eval(raw)
-    except (ValueError, SyntaxError):
-        pass
+    except (ValueError, SyntaxError) as _sve:
+        logger.debug("[VECTOR][evals.datasets.lifelong_agent] suppressed (ValueError, SyntaxError): %s", _sve)
     return raw
 
 def _parse_skills(raw: Any) -> List[str]:
@@ -127,8 +128,8 @@ def _parse_skills(raw: Any) -> List[str]:
             parsed = ast.literal_eval(raw)
             if isinstance(parsed, list):
                 return [str(s) for s in parsed]
-        except (ValueError, SyntaxError):
-            pass
+        except (ValueError, SyntaxError) as _sve:
+            logger.debug("[VECTOR][evals.datasets.lifelong_agent] suppressed (ValueError, SyntaxError): %s", _sve)
     return []
 
 class LifelongAgentDataset(DatasetProvider):

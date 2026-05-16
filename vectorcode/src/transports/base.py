@@ -171,8 +171,8 @@ if __name__ == "__main__":
     try:
         ProviderTransport()  # type: ignore[abstract]
         assert False, "Should not be instantiable"
-    except TypeError:
-        pass
+    except TypeError as _sve:
+        logger.debug("[VECTOR][transports.base] suppressed TypeError: %s", _sve)
 
     # Build a concrete stub to verify the ABC contract
     class _StubTransport(ProviderTransport):

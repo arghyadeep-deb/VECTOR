@@ -10,6 +10,7 @@ All API calls are in module-level functions for easy mocking in tests.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 from datetime import datetime
@@ -89,8 +90,8 @@ class GitHubNotificationsConnector(BaseConnector):
             if updated_at:
                 try:
                     ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][connectors.github_notifications] suppressed ValueError: %s", _sve)
 
             yield Document(
                 doc_id=f"github-notification-{notif_id}",

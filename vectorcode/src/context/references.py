@@ -584,8 +584,8 @@ if __name__ == "__main__":
     try:
         _ensure_path_allowed((home / ".ssh" / "id_rsa").resolve())
         assert False, "should have raised ValueError"
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][context.references] suppressed ValueError: %s", _sve)
 
     print("context/references.py OK")
 

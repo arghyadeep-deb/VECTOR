@@ -11,6 +11,7 @@ it before subsequent attempts, we eliminate the amplification effect.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -61,8 +62,8 @@ def _parse_reset_seconds(headers: Optional[Mapping[str, str]]) -> Optional[float
                 val = float(raw)
                 if val > 0:
                     return val
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError) as _sve:
+                logger.debug("[VECTOR][agent.nous_rate_guard] suppressed (TypeError, ValueError): %s", _sve)
 
     return None
 
@@ -123,8 +124,8 @@ def record_nous_rate_limit(
             # Clean up temp file on failure
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: %s", _sve)
             raise
 
         logger.info(
@@ -152,8 +153,8 @@ def nous_rate_limit_remaining() -> Optional[float]:
         # Expired — clean up
         try:
             os.unlink(path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: %s", _sve)
         return None
     except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
         return None
@@ -163,8 +164,8 @@ def clear_nous_rate_limit() -> None:
     """Clear the rate limit state (e.g., after a successful Nous request)."""
     try:
         os.unlink(_state_path())
-    except FileNotFoundError:
-        pass
+    except FileNotFoundError as _sve:
+        logger.warning("[VECTOR][agent.nous_rate_guard] suppressed FileNotFoundError: %s", _sve)
     except OSError as exc:
         logger.debug("Failed to clear Nous rate limit state: %s", exc)
 

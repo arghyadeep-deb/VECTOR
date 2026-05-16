@@ -20,6 +20,7 @@ Usage:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import importlib
 import importlib.util
@@ -137,8 +138,8 @@ def discover_memory_providers() -> List[Tuple[str, str, bool]]:
                 with open(yaml_file) as f:
                     meta = yaml.safe_load(f) or {}
                 desc = meta.get("description", "")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
 
         # Quick availability check — try loading and calling is_available()
         available = True
@@ -220,8 +221,8 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
                         sys.modules[parent] = parent_mod
                         try:
                             spec.loader.exec_module(parent_mod)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
 
         # Now load the provider module
         spec = importlib.util.spec_from_file_location(
@@ -278,8 +279,8 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
                 and attr is not MemoryProvider):
             try:
                 return attr()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
 
     return None
 
@@ -386,8 +387,8 @@ def discover_plugin_cli_commands() -> List[dict]:
                 if desc:
                     help_text = desc
                     description = desc
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
 
         handler_fn = getattr(cli_mod, f"{active_provider}_command", None) or \
                      getattr(cli_mod, "honcho_command", None)

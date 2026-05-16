@@ -69,6 +69,7 @@ new locking.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import contextlib
 import json
@@ -207,8 +208,8 @@ def get_current_board() -> str:
             normed = _normalize_board_slug(env)
             if normed:
                 return normed
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.kanban_db] suppressed ValueError: %s", _sve)
     try:
         f = current_board_path()
         if f.exists():
@@ -218,10 +219,10 @@ def get_current_board() -> str:
                     normed = _normalize_board_slug(val)
                     if normed and board_exists(normed):
                         return normed
-                except ValueError:
-                    pass
-    except OSError:
-        pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][vector_cli.kanban_db] suppressed ValueError: %s", _sve)
+    except OSError as _sve:
+        logger.warning("[VECTOR][vector_cli.kanban_db] suppressed OSError: %s", _sve)
     return DEFAULT_BOARD
 
 
@@ -246,8 +247,8 @@ def clear_current_board() -> None:
     """Remove ``<root>/kanban/current`` so the active board reverts to ``default``."""
     try:
         current_board_path().unlink()
-    except FileNotFoundError:
-        pass
+    except FileNotFoundError as _sve:
+        logger.warning("[VECTOR][vector_cli.kanban_db] suppressed FileNotFoundError: %s", _sve)
 
 
 def board_dir(board: Optional[str] = None) -> Path:
@@ -389,8 +390,8 @@ def read_board_metadata(board: Optional[str] = None) -> dict:
                 # its directory — trust the filesystem.
                 raw["slug"] = slug
                 meta.update(raw)
-    except (OSError, json.JSONDecodeError):
-        pass
+    except (OSError, json.JSONDecodeError) as _sve:
+        logger.debug("[VECTOR][vector_cli.kanban_db] suppressed (OSError, json.JSONDecodeError): %s", _sve)
     meta["db_path"] = str(kanban_db_path(slug))
     return meta
 
@@ -2985,8 +2986,8 @@ def _classify_worker_exit(pid: int) -> "tuple[str, Optional[int]]":
             return ("nonzero_exit", code)
         if os.WIFSIGNALED(raw):
             return ("signaled", os.WTERMSIG(raw))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.kanban_db] suppressed Exception: %s", _sve)
     return ("unknown", None)
 
 
@@ -3029,11 +3030,11 @@ def _pid_alive(pid: Optional[int]) -> bool:
                         if "Z" in line.split(":", 1)[1]:
                             return False
                         break
-        except (FileNotFoundError, PermissionError, OSError):
+        except (FileNotFoundError, PermissionError, OSError) as _sve:
             # proc entry gone → already reaped; treat as dead.
             # PermissionError shouldn't happen for our own children but
             # be defensive.
-            pass
+            logger.warning("[VECTOR][vector_cli.kanban_db] suppressed (FileNotFoundError, PermissionError, OSError): %s", _sve)
     elif sys.platform == "darwin":
         try:
             proc = subprocess.run(
@@ -3048,9 +3049,9 @@ def _pid_alive(pid: Optional[int]) -> bool:
                 return False
             if "Z" in (proc.stdout or "").strip():
                 return False
-        except (OSError, subprocess.SubprocessError, TimeoutError):
+        except (OSError, subprocess.SubprocessError, TimeoutError) as _sve:
             # If the secondary probe fails, keep the kill(0) answer.
-            pass
+            logger.debug("[VECTOR][vector_cli.kanban_db] suppressed (OSError, subprocess.SubprocessError, TimeoutError): %s", _sve)
     return True
 
 
@@ -3216,8 +3217,8 @@ def enforce_max_runtime(
         if kill is not None:
             try:
                 kill(pid, signal.SIGTERM)
-            except (ProcessLookupError, OSError):
-                pass
+            except (ProcessLookupError, OSError) as _sve:
+                logger.warning("[VECTOR][vector_cli.kanban_db] suppressed (ProcessLookupError, OSError): %s", _sve)
             # Short polling wait — no time.sleep on the write txn.
             for _ in range(10):
                 if not _pid_alive(pid):
@@ -3229,8 +3230,8 @@ def enforce_max_runtime(
                     _sigkill = getattr(signal, "SIGKILL", signal.SIGTERM)
                     kill(pid, _sigkill)
                     killed = True
-                except (ProcessLookupError, OSError):
-                    pass
+                except (ProcessLookupError, OSError) as _sve:
+                    logger.warning("[VECTOR][vector_cli.kanban_db] suppressed (ProcessLookupError, OSError): %s", _sve)
 
         with write_txn(conn):
             cur = conn.execute(
@@ -3730,8 +3731,8 @@ def dispatch_once(
                 if _pid == 0:
                     break
                 _record_worker_exit(_pid, _status)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.kanban_db] suppressed Exception: %s", _sve)
 
     result = DispatchResult()
     result.reclaimed = release_stale_claims(conn)
@@ -3866,11 +3867,11 @@ def _rotate_worker_log(log_path: Path, max_bytes: int) -> None:
         try:
             if rotated.exists():
                 rotated.unlink()
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.kanban_db] suppressed OSError: %s", _sve)
         log_path.rename(rotated)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][vector_cli.kanban_db] suppressed OSError: %s", _sve)
 
 
 def _resolve_vector_argv() -> list[str]:
@@ -3943,12 +3944,12 @@ def _default_spawn(
     from vectorcode.src.vector_cli.profiles import resolve_profile_env
     try:
         env["VECTOR_HOME"] = resolve_profile_env(profile_arg)
-    except FileNotFoundError:
+    except FileNotFoundError as _sve:
         # Profile dir doesn't exist — defer resolution to the CLI's
         # _apply_profile_override() via VECTOR_PROFILE (set below).
         # This only happens in test fixtures where the isolated
         # VECTOR_HOME never had profiles created.
-        pass
+        logger.warning("[VECTOR][vector_cli.kanban_db] suppressed FileNotFoundError: %s", _sve)
     if task.tenant:
         env["VECTOR_TENANT"] = task.tenant
     env["VECTOR_KANBAN_TASK"] = task.id
@@ -4075,8 +4076,8 @@ def run_daemon(
             if sig is not None:
                 try:
                     signal.signal(sig, _handle)
-                except (ValueError, OSError):
-                    pass
+                except (ValueError, OSError) as _sve:
+                    logger.debug("[VECTOR][vector_cli.kanban_db] suppressed (ValueError, OSError): %s", _sve)
 
     while not stop_event.is_set():
         try:
@@ -4089,8 +4090,8 @@ def run_daemon(
             if on_tick is not None:
                 try:
                     on_tick(res)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.kanban_db] suppressed Exception: %s", _sve)
         except Exception:
             # Don't let any single tick kill the daemon.
             import traceback
@@ -4189,8 +4190,8 @@ def build_worker_context(conn: sqlite3.Connection, task_id: str) -> str:
                 try:
                     meta_str = json.dumps(run.metadata, ensure_ascii=False, sort_keys=True)
                     lines.append(f"_metadata_: `{_cap(meta_str)}`")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.kanban_db] suppressed Exception: %s", _sve)
             lines.append("")
 
     # Parents: prefer the most-recent 'completed' run's summary + metadata,
@@ -4229,8 +4230,8 @@ def build_worker_context(conn: sqlite3.Connection, task_id: str) -> str:
                 try:
                     meta_str = json.dumps(run.metadata, ensure_ascii=False, sort_keys=True)
                     body_lines.append(f"_metadata_: `{_cap(meta_str)}`")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.kanban_db] suppressed Exception: %s", _sve)
             lines.extend(body_lines)
             lines.append("")
 
@@ -4688,8 +4689,8 @@ def list_profiles_on_disk() -> list[str]:
                     continue
                 if (entry / "config.yaml").is_file():
                     names.add(entry.name)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.kanban_db] suppressed OSError: %s", _sve)
 
     return sorted(names)
 

@@ -17,6 +17,7 @@ Requires:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import html
 import logging
@@ -133,26 +134,26 @@ class WebChoreArenaTaskEnv:
         if self._cdp_session is not None:
             try:
                 self._cdp_session.detach()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
             self._cdp_session = None
         if self._context is not None:
             try:
                 self._context.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
             self._context = None
         if self._browser is not None:
             try:
                 self._browser.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
             self._browser = None
         if self._playwright is not None:
             try:
                 self._playwright.stop()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
             self._playwright = None
 
     # ------------------------------------------------------------------
@@ -422,8 +423,8 @@ class WebChoreArenaTaskEnv:
             for prep_action in prep_actions:
                 try:
                     self._page.evaluate(f"() => {prep_action}")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
             try:
                 result = self._page.evaluate(f"() => {locator}")
                 selected_element = str(result) if result else ""

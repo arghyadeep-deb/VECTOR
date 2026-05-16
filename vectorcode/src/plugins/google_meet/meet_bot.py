@@ -27,6 +27,7 @@ No meet.google.com URL → exits non-zero. Any URL that doesn't start with
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os
@@ -574,8 +575,8 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
             try:
                 page.evaluate(_enable_captions_js())
                 state.set(captions_enabled_attempted=True)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
             try:
                 page.evaluate(_CAPTION_OBSERVER_JS)
             except Exception as e:
@@ -669,8 +670,8 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                                         cancelled = rt["session"].cancel_response()
                                         if cancelled:
                                             state.set(last_barge_in_at=now)
-                                    except Exception:
-                                        pass
+                                    except Exception as _sve:
+                                        logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
                 except Exception:
                     # Meet reloaded or we got booted — try to detect and
                     # exit gracefully rather than spinning.
@@ -694,8 +695,8 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                     "() => { const b = document.querySelector('button[aria-label*=\"eave call\"]');"
                     " if (b) b.click(); }"
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
 
             context.close()
             browser.close()
@@ -703,23 +704,23 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
             if rt["speaker_stop"]:
                 try:
                     rt["speaker_stop"]()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
             if rt["speaker_thread"] is not None:
                 try:
                     rt["speaker_thread"].join(timeout=5.0)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
             if rt["session"]:
                 try:
                     rt["session"].close()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
             if rt["bridge"]:
                 try:
                     rt["bridge"].teardown()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
             state.set(in_call=False, captioning=False, exited=True)
             return 0
 
@@ -735,8 +736,8 @@ def _try_guest_name(page, guest_name: str) -> None:
         locator = page.locator('input[aria-label*="name" i]').first
         if locator.count() and locator.is_visible():
             locator.fill(guest_name, timeout=2_000)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
 
 
 def _detect_admission(page) -> bool:

@@ -19,6 +19,7 @@ Dataset:   https://huggingface.co/datasets/Salesforce/LiveResearchBench
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -47,8 +48,8 @@ def _parse_checklist(checklist: Any) -> List[str]:
             return [str(item).strip() for item in parsed if str(item).strip()]
         if isinstance(parsed, str):
             return [parsed.strip()] if parsed.strip() else []
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as _sve:
+        logger.debug("[VECTOR][evals.datasets.liveresearchbench] suppressed json.JSONDecodeError: %s", _sve)
     # Fall back: treat as newline-separated items
     return [line.strip() for line in checklist.splitlines() if line.strip()]
 

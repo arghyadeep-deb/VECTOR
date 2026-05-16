@@ -1,6 +1,7 @@
 """Reusable Microsoft Graph REST client helpers."""
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import os
@@ -361,8 +362,8 @@ class MicrosoftGraphClient:
             if retry_after:
                 try:
                     return max(0.0, float(retry_after))
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][tools.microsoft_graph_client] suppressed ValueError: %s", _sve)
         return min(8.0, 0.5 * (2 ** attempt))
 
     @staticmethod

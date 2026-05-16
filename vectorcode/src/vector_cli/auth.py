@@ -14,6 +14,7 @@ Architecture:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -471,8 +472,8 @@ def _resolve_api_key_provider_secret(
                 return get_copilot_api_token(token), source
         except ValueError as exc:
             logger.warning("Copilot token validation failed: %s", exc)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
         return "", ""
 
     from vector_cli.config import get_env_value
@@ -493,8 +494,8 @@ def _resolve_api_key_provider_secret(
                 key = str(key).strip()
                 if has_usable_secret(key):
                     return key, f"credential_pool:{provider_id}"
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
 
     return "", ""
 
@@ -764,8 +765,8 @@ def _auth_store_lock(timeout_seconds: float = AUTH_LOCK_TIMEOUT_SECONDS):
                 try:
                     lock_file.seek(0)
                     msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-                except (OSError, IOError):
-                    pass
+                except (OSError, IOError) as _sve:
+                    logger.warning("[VECTOR][vector_cli.auth] suppressed (OSError, IOError): %s", _sve)
 
 
 def _load_auth_store(auth_file: Optional[Path] = None) -> Dict[str, Any]:
@@ -780,8 +781,8 @@ def _load_auth_store(auth_file: Optional[Path] = None) -> Dict[str, Any]:
         try:
             import shutil
             shutil.copy2(auth_file, corrupt_path)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
         logger.warning(
             "auth: failed to parse %s (%s) — starting with empty store. "
             "Corrupt file preserved at %s",
@@ -834,13 +835,13 @@ def _save_auth_store(auth_store: Dict[str, Any]) -> Path:
         try:
             if tmp_path.exists():
                 tmp_path.unlink()
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.auth] suppressed OSError: %s", _sve)
     # Restrict file permissions to owner only
     try:
         auth_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][vector_cli.auth] suppressed OSError: %s", _sve)
     return auth_file
 
 
@@ -989,8 +990,8 @@ def is_provider_explicitly_configured(provider_id: str) -> bool:
         active = (auth_store.get("active_provider") or "").strip().lower()
         if active and active == normalized:
             return True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
 
     # 2. Check config.yaml model.provider
     try:
@@ -1001,8 +1002,8 @@ def is_provider_explicitly_configured(provider_id: str) -> bool:
             cfg_provider = (model_cfg.get("provider") or "").strip().lower()
             if cfg_provider == normalized:
                 return True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
 
     # 3. Check provider-specific env vars
     # Exclude CLAUDE_CODE_OAUTH_TOKEN — it's set by Claude Code itself,
@@ -1997,8 +1998,8 @@ def _spotify_interactive_setup(redirect_uri_hint: str) -> str:
     if not _is_remote_session():
         try:
             webbrowser.open(SPOTIFY_DASHBOARD_URL)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
 
     try:
         raw = input("Spotify Client ID: ").strip()
@@ -2246,8 +2247,8 @@ def refresh_codex_oauth_pure(
                     err_desc = err.get("error_description") or err.get("message")
                     if isinstance(err_desc, str) and err_desc.strip():
                         message = f"Codex token refresh failed: {err_desc.strip()}"
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
         if code in {"invalid_grant", "invalid_token", "invalid_request"}:
             relogin_required = True
         if code == "refresh_token_reused":
@@ -3342,8 +3343,8 @@ def get_codex_auth_status() -> Dict[str, Any]:
                         "source": f"pool:{getattr(entry, 'label', 'unknown')}",
                         "api_key": api_key,
                     }
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
 
     # Fall back to legacy provider state
     try:
@@ -3797,8 +3798,8 @@ def _prompt_model_selection(
             custom = input("Enter model name: ").strip()
             return custom if custom else None
         return None
-    except (ImportError, NotImplementedError, OSError, subprocess.SubprocessError):
-        pass
+    except (ImportError, NotImplementedError, OSError, subprocess.SubprocessError) as _sve:
+        logger.warning("[VECTOR][vector_cli.auth] suppressed (ImportError, NotImplementedError, OSError, subprocess.SubprocessError): %s", _sve)
 
     # Fallback: numbered list
     print(menu_title)

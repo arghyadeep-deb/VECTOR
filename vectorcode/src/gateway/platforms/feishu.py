@@ -46,6 +46,7 @@ user is seen through different apps in the future.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import hashlib
@@ -1279,8 +1280,8 @@ def _run_official_feishu_ws_client(ws_client: Any, adapter: Any) -> None:
     _apply_runtime_ws_overrides()
     try:
         ws_client.start()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.platforms.feishu] suppressed Exception: %s", _sve)
     finally:
         ws_client_module.websockets.connect = original_connect
         if original_configure is not None:
@@ -1292,12 +1293,12 @@ def _run_official_feishu_ws_client(ws_client: Any, adapter: Any) -> None:
             loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
         try:
             loop.stop()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.feishu] suppressed Exception: %s", _sve)
         try:
             loop.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.feishu] suppressed Exception: %s", _sve)
         adapter._ws_thread_loop = None
 
 
@@ -1613,8 +1614,8 @@ class FeishuAdapter(BasePlatformAdapter):
             return
         try:
             setattr(self._ws_client, "_auto_reconnect", False)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.feishu] suppressed Exception: %s", _sve)
         finally:
             self._ws_client = None
 
@@ -2465,8 +2466,8 @@ class FeishuAdapter(BasePlatformAdapter):
         if action_value:
             try:
                 synthetic_text += f" {json.dumps(action_value, ensure_ascii=False)}"
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.feishu] suppressed Exception: %s", _sve)
 
         sender_id = SimpleNamespace(open_id=open_id, user_id=None, union_id=None)
         sender_profile = await self._resolve_sender_profile(sender_id)

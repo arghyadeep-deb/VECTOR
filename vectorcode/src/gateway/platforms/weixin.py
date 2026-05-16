@@ -11,6 +11,7 @@ Design notes:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import base64
@@ -234,8 +235,8 @@ def save_weixin_account(
     atomic_json_write(path, payload)
     try:
         path.chmod(0o600)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][gateway.platforms.weixin] suppressed OSError: %s", _sve)
 
 
 def load_weixin_account(vector_home: str, account_id: str) -> Optional[Dict[str, Any]]:
@@ -1077,8 +1078,8 @@ async def qr_login(
                         qr.add_data(qr_scan_data)
                         qr.make(fit=True)
                         qr.print_ascii(invert=True)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.platforms.weixin] suppressed Exception: %s", _sve)
                 except Exception as exc:
                     logger.error("weixin: QR refresh failed: %s", exc)
                     return None
@@ -1219,7 +1220,7 @@ class WeixinAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
         self._poll_task = None
         if self._poll_session and not self._poll_session.closed:
             await self._poll_session.close()
@@ -1678,8 +1679,8 @@ class WeixinAdapter(BasePlatformAdapter):
             if cleanup and file_path and os.path.exists(file_path):
                 try:
                     os.unlink(file_path)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][gateway.platforms.weixin] suppressed OSError: %s", _sve)
 
     async def send_image_file(
         self,

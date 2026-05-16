@@ -6,6 +6,7 @@
 """Operator manager — lifecycle management for autonomous operators."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 from pathlib import Path
@@ -88,8 +89,8 @@ class OperatorManager:
                 if t.id == task_id and t.status == "active":
                     logger.info("Operator %s already active", operator_id)
                     return task_id
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][operators.manager] suppressed Exception: %s", _sve)
 
         tools_str = ",".join(manifest.tools) if manifest.tools else ""
 
@@ -176,8 +177,8 @@ class OperatorManager:
                             info["next_run"] = t.next_run
                             info["last_run"] = t.last_run
                             break
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][operators.manager] suppressed Exception: %s", _sve)
 
             results.append(info)
         return results

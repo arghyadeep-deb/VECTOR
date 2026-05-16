@@ -114,8 +114,8 @@ class EmailClient:
             return
         try:
             self._imap.logout()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][comms.email_client] suppressed Exception: %s", _sve)
         finally:
             self._imap = None
             logger.debug("[VECTOR][email] IMAP disconnected")

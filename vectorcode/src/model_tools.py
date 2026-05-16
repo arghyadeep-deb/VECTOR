@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Model Tools Module
 
 Thin orchestration layer over the tool registry. Each tool file in tools/
@@ -538,8 +539,8 @@ def handle_function_call(
                     session_id=session_id or "",
                     tool_call_id=tool_call_id or "",
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
 
             if block_message is not None:
                 return json.dumps({"error": block_message}, ensure_ascii=False)
@@ -556,8 +557,8 @@ def handle_function_call(
                     session_id=session_id or "",
                     tool_call_id=tool_call_id or "",
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
 
         # Notify the read-loop tracker when a non-read/search tool runs,
         # so the *consecutive* counter resets (reads after other work are fine).
@@ -605,8 +606,8 @@ def handle_function_call(
                 tool_call_id=tool_call_id or "",
                 duration_ms=duration_ms,
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
 
         # Generic tool-result canonicalization seam: plugins receive the
         # final result string (JSON, usually) and may replace it by
@@ -630,8 +631,8 @@ def handle_function_call(
                 if isinstance(hook_result, str):
                     result = hook_result
                     break
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
 
         return result
 

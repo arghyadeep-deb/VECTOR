@@ -1,6 +1,7 @@
 """``jarvis host`` — download and serve a model locally with auto backend setup."""
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import shutil
@@ -118,8 +119,8 @@ def _detect_backend() -> str | None:
             )
             if "Apple" in result.stdout:
                 return "mlx"
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as _sve:
+            logger.warning("[VECTOR][vector_cli.host_cmd] suppressed FileNotFoundError: %s", _sve)
         return "ollama"
 
     if system == "linux":

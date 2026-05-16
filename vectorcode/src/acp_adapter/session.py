@@ -7,6 +7,7 @@ find the persisted session in the database and restore the full conversation
 history.
 """
 from __future__ import annotations
+from loguru import logger
 
 from vector_constants import get_vector_home
 
@@ -300,8 +301,8 @@ class SessionManager:
             if mc:
                 try:
                     session_cwd = json.loads(mc).get("cwd", ".")
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                except (json.JSONDecodeError, TypeError) as _sve:
+                    logger.debug("[VECTOR][acp_adapter.session] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
             if normalized_cwd and _normalize_cwd_for_compare(session_cwd) != normalized_cwd:
                 continue
             results.append({
@@ -476,8 +477,8 @@ class SessionManager:
                     requested_provider = meta.get("provider") or requested_provider
                     restored_base_url = meta.get("base_url") or restored_base_url
                     restored_api_mode = meta.get("api_mode") or restored_api_mode
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as _sve:
+                logger.debug("[VECTOR][acp_adapter.session] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
         model = row.get("model") or None
 

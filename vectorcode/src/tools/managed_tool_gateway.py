@@ -1,6 +1,7 @@
 """Generic managed-tool gateway helpers for Nous-hosted vendor passthroughs."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -44,8 +45,8 @@ def _read_nous_provider_state() -> Optional[dict]:
         nous_provider = providers.get("nous", {})
         if isinstance(nous_provider, dict):
             return nous_provider
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.managed_tool_gateway] suppressed Exception: %s", _sve)
     return None
 
 

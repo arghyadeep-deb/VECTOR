@@ -15,6 +15,7 @@ minimal environment with no extra pip installs.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import base64
@@ -140,8 +141,8 @@ def _load_state(path: Path | None = None) -> dict[str, Any]:
         if isinstance(data, dict):
             data.setdefault("version", STATE_VERSION)
             return data
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][skills.optional.productivity.telephony.scripts.telephony] suppressed Exception: %s", _sve)
     return {"version": STATE_VERSION}
 
 def _save_state(state: dict[str, Any], path: Path | None = None) -> Path:

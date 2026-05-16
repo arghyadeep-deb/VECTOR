@@ -7,6 +7,7 @@ reports exactly what was skipped and why.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import hashlib
@@ -1332,8 +1333,8 @@ class Migrator:
                             secret_additions["OPENAI_API_KEY"] = api_key.strip()
                         elif "anthropic" in name_lower and "ANTHROPIC_API_KEY" not in secret_additions:
                             secret_additions["ANTHROPIC_API_KEY"] = api_key.strip()
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as _sve:
+                logger.debug("[VECTOR][skills.optional.migration.openclaw-migration.scripts.openclaw_to_vector] suppressed (json.JSONDecodeError, OSError): %s", _sve)
 
         if secret_additions:
             self.merge_env_values(secret_additions, "provider-keys", self.source_root / "openclaw.json")

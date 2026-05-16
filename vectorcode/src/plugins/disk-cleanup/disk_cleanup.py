@@ -20,6 +20,7 @@ Never touches: ~/.vectorcode/logs/ or any system directory.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -72,8 +73,8 @@ def is_safe_path(path: Path) -> bool:
     try:
         path.resolve().relative_to(vector_home)
         return True
-    except (ValueError, OSError):
-        pass
+    except (ValueError, OSError) as _sve:
+        logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed (ValueError, OSError): %s", _sve)
     # Allow /tmp/vector-* explicitly
     parts = path.parts
     if len(parts) >= 3 and parts[1] == "tmp" and parts[2].startswith("vector-"):
@@ -92,9 +93,9 @@ def _log(message: str) -> None:
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         with open(log_file, "a") as f:
             f.write(f"[{ts}] {message}\n")
-    except OSError:
+    except OSError as _sve:
         # Never let the audit log break the agent loop.
-        pass
+        logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +119,8 @@ def load_tracked() -> List[Dict[str, Any]]:
                 data = json.loads(bak.read_text())
                 _log("WARN: tracked.json corrupted — restored from .bak")
                 return data
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed Exception: %s", _sve)
         _log("WARN: tracked.json corrupted, no backup — starting fresh")
         return []
 
@@ -317,10 +318,10 @@ def quick() -> Dict[str, Any]:
                     dirpath.rmdir()
                     empty_removed += 1
                     _log(f"DELETED: {dirpath} (empty dir)")
-            except OSError:
-                pass
-    except OSError:
-        pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
+    except OSError as _sve:
+        logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
 
     save_tracked(new_tracked)
     _log(
@@ -484,9 +485,9 @@ def guess_category(path: Path) -> Optional[str]:
             return "cron-output"
         if top == "cache":
             return "temp"
-    except ValueError:
+    except ValueError as _sve:
         # Path isn't under VECTOR_HOME (e.g. /tmp/vector-*) — fall through.
-        pass
+        logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed ValueError: %s", _sve)
 
     name = path.name
     if name.startswith(_TEST_PATTERNS):

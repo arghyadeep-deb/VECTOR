@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Cron job storage and management.
 
 Jobs are stored in ~/.vectorcode/cron/jobs.json
@@ -83,8 +84,8 @@ def _secure_file(path: Path):
     try:
         if path.exists():
             os.chmod(path, 0o600)
-    except (OSError, NotImplementedError):
-        pass
+    except (OSError, NotImplementedError) as _sve:
+        logger.debug("[VECTOR][cron.jobs] suppressed (OSError, NotImplementedError): %s", _sve)
 
 
 def ensure_dirs():
@@ -197,8 +198,8 @@ def parse_schedule(schedule: str) -> Dict[str, Any]:
             "run_at": run_at.isoformat(),
             "display": f"once in {original}"
         }
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][cron.jobs] suppressed ValueError: %s", _sve)
     
     raise ValueError(
         f"Invalid schedule '{original}'. Use:\n"
@@ -281,8 +282,8 @@ def _compute_grace_seconds(schedule: dict) -> int:
             period_seconds = int((second - first).total_seconds())
             grace = period_seconds // 2
             return max(MIN_GRACE, min(grace, MAX_GRACE))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][cron.jobs] suppressed Exception: %s", _sve)
 
     return MIN_GRACE
 
@@ -372,8 +373,8 @@ def save_jobs(jobs: List[Dict[str, Any]]):
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][cron.jobs] suppressed OSError: %s", _sve)
         raise
 
 
@@ -868,8 +869,8 @@ def save_job_output(job_id: str, output: str):
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][cron.jobs] suppressed OSError: %s", _sve)
         raise
     
     return output_file

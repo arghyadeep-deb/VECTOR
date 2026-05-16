@@ -1,4 +1,5 @@
 """Dangerous command approval -- detection, prompting, and per-session state.
+from loguru import logger
 
 This module is the single source of truth for the dangerous command system:
 - Pattern detection (DANGEROUS_PATTERNS, detect_dangerous_command)
@@ -583,11 +584,11 @@ def prompt_dangerous_approval(command: str, description: str,
                 command, description,
             )
             return "deny"
-    except Exception:
+    except Exception as _sve:
         # prompt_toolkit not installed, or detection failed -- fall through
         # to the legacy input() path (safe in non-TUI contexts: scripts,
         # tests, sshd, etc.).
-        pass
+        logger.debug("[VECTOR][tools.approval] suppressed Exception: %s", _sve)
 
     os.environ["VECTOR_SPINNER_PAUSE"] = "1"
     try:

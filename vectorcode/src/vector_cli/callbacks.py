@@ -1,4 +1,5 @@
 """Interactive prompt callbacks for terminal_tool integration.
+from loguru import logger
 
 These bridge terminal_tool's interactive prompts (clarify, sudo, approval)
 into prompt_toolkit's event loop. Each function takes the VectorCodeCLI instance
@@ -113,13 +114,13 @@ def prompt_for_secret(cli, var_name: str, prompt: str, metadata=None) -> dict:
     if hasattr(cli, "_clear_secret_input_buffer"):
         try:
             cli._clear_secret_input_buffer()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.callbacks] suppressed Exception: %s", _sve)
     elif hasattr(cli, "_app") and cli._app:
         try:
             cli._app.current_buffer.reset()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.callbacks] suppressed Exception: %s", _sve)
 
     if hasattr(cli, "_app") and cli._app:
         cli._app.invalidate()
@@ -163,13 +164,13 @@ def prompt_for_secret(cli, var_name: str, prompt: str, metadata=None) -> dict:
     if hasattr(cli, "_clear_secret_input_buffer"):
         try:
             cli._clear_secret_input_buffer()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.callbacks] suppressed Exception: %s", _sve)
     elif hasattr(cli, "_app") and cli._app:
         try:
             cli._app.current_buffer.reset()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.callbacks] suppressed Exception: %s", _sve)
     if hasattr(cli, "_app") and cli._app:
         cli._app.invalidate()
     cprint(f"\n{_DIM}  ⏱ Timeout — secret capture cancelled{_RST}")

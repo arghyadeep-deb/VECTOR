@@ -1,5 +1,6 @@
 # Ported from GitHub/VectorCode_vectorcode/repo/utils.py
 """Core utility functions for VectorCode."""
+from loguru import logger
 import json
 import os
 import stat
@@ -57,8 +58,8 @@ def _restore_file_mode(path: Path, mode: Optional[int]) -> None:
         return
     try:
         os.chmod(path, mode)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][utils.core] suppressed OSError: %s", _sve)
 
 
 def atomic_json_write(
@@ -83,8 +84,8 @@ def atomic_json_write(
     except BaseException:
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][utils.core] suppressed OSError: %s", _sve)
         raise
 
 

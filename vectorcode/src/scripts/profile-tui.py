@@ -22,6 +22,7 @@ or produced no perf data (suggests VECTOR_DEV_PERF wiring is broken).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import json
@@ -451,12 +452,12 @@ def run_once(args: argparse.Namespace) -> dict[str, Any]:
             else:
                 os.kill(pid, signal.SIGKILL)
                 os.waitpid(pid, 0)
-        except (ProcessLookupError, ChildProcessError):
-            pass
+        except (ProcessLookupError, ChildProcessError) as _sve:
+            logger.warning("[VECTOR][scripts.profile-tui] suppressed (ProcessLookupError, ChildProcessError): %s", _sve)
         try:
             os.close(fd)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][scripts.profile-tui] suppressed OSError: %s", _sve)
 
     time.sleep(0.2)
     return summarize(log, since_ms)
@@ -536,8 +537,8 @@ def loop_mode(args: argparse.Namespace) -> int:
                 if path.suffix in {".ts", ".tsx"} and "__tests__" not in str(path):
                     try:
                         mtimes[str(path)] = path.stat().st_mtime
-                    except OSError:
-                        pass
+                    except OSError as _sve:
+                        logger.warning("[VECTOR][scripts.profile-tui] suppressed OSError: %s", _sve)
         return mtimes
 
     previous_metrics: dict[str, float] | None = None

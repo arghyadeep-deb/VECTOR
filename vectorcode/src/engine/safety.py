@@ -1,5 +1,6 @@
 # Ported from GitHub/VectorCode_vectorcode/repo/run_agent.py
 """Safety utilities: SafeWriter, surrogate sanitization, destructive command detection."""
+from loguru import logger
 import os
 import re
 import sys
@@ -25,8 +26,8 @@ class _SafeWriter:
     def flush(self):
         try:
             self._inner.flush()
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as _sve:
+            logger.warning("[VECTOR][engine.safety] suppressed (OSError, ValueError): %s", _sve)
 
     def fileno(self):
         return self._inner.fileno()

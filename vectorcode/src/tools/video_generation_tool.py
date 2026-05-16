@@ -41,6 +41,7 @@ the tool surface stable as new providers ship with different capabilities.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -213,8 +214,8 @@ def check_video_generation_requirements() -> bool:
                     return True
             except Exception:
                 continue
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.video_generation_tool] suppressed Exception: %s", _sve)
     return False
 
 

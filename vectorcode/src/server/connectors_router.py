@@ -1,6 +1,7 @@
 """FastAPI router for /v1/connectors — connector management endpoints."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 from typing import Any, Dict, Optional
@@ -25,8 +26,8 @@ def _ensure_connectors_registered() -> None:
     # First, try a normal import (works if modules haven't been imported yet).
     try:
         import vectorcode.src.connectors  # noqa: F401
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
 
     # If the registry is still empty, reload individual connector submodules
     # that are already present in sys.modules.
@@ -44,8 +45,8 @@ def _ensure_connectors_registered() -> None:
             ):
                 try:
                     importlib.reload(sys.modules[mod_name])
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
 
 # ---------------------------------------------------------------------------
 # Pydantic request model -- defined at module level so FastAPI can resolve
@@ -111,8 +112,8 @@ def create_connectors_router():
                     (connector_id,),
                 ).fetchone()
                 chunks = rows[0] if rows else 0
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
 
         return {
             "connector_id": connector_id,
@@ -162,15 +163,15 @@ def create_connectors_router():
         auth_url: Optional[str] = None
         try:
             auth_url = instance.auth_url()
-        except (NotImplementedError, Exception):
-            pass
+        except (NotImplementedError, Exception) as _sve:
+            logger.debug("[VECTOR][server.connectors_router] suppressed (NotImplementedError, Exception): %s", _sve)
 
         # Serialise MCP tool names only (ToolSpec objects are not JSON-safe).
         mcp_tools = []
         try:
             mcp_tools = [t.name for t in instance.mcp_tools()]
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
 
         # Include OAuth provider setup info if applicable
         oauth_setup = None
@@ -189,8 +190,8 @@ def create_connectors_router():
                     "setup_hint": provider.setup_hint,
                     "has_credentials": has_creds,
                 }
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
 
         return {
             "connector_id": connector_id,

@@ -76,8 +76,8 @@ class MessagingHub:
         if _PENDING_FILE.exists():
             try:
                 return json.loads(_PENDING_FILE.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][comms.messenger] suppressed Exception: %s", _sve)
         return []
 
     def _save_pending(self) -> None:
@@ -327,8 +327,8 @@ class MessagingHub:
         if self._scheduler:
             try:
                 self._scheduler.remove_job(job_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][comms.messenger] suppressed Exception: %s", _sve)
         before = len(self._cron_jobs)
         self._cron_jobs = [j for j in self._cron_jobs if j.get("job_id") != job_id]
         return len(self._cron_jobs) < before

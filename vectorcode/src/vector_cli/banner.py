@@ -1,4 +1,5 @@
 """Welcome banner, ASCII art, skills summary, and update check for the CLI.
+from loguru import logger
 
 Pure display functions with no VectorCodeCLI state dependency.
 """
@@ -147,8 +148,8 @@ def check_for_updates() -> Optional[int]:
             cached = json.loads(cache_file.read_text())
             if now - cached.get("ts", 0) < _UPDATE_CHECK_CACHE_SECONDS:
                 return cached.get("behind")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.banner] suppressed Exception: %s", _sve)
 
     # Fetch latest refs (fast — only downloads ref metadata, no files)
     try:
@@ -177,8 +178,8 @@ def check_for_updates() -> Optional[int]:
     # Write cache
     try:
         cache_file.write_text(json.dumps({"ts": now, "behind": behind}))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.banner] suppressed Exception: %s", _sve)
 
     return behind
 

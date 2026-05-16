@@ -1,6 +1,7 @@
 """Thin Spotify Web API helper used by VectorCode native tools."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 from typing import Any, Dict, Iterable, Optional
@@ -331,8 +332,8 @@ def _extract_spotify_error_detail(response: httpx.Response, *, fallback: str) ->
                 detail = str(error_obj.get("message") or detail)
             elif isinstance(error_obj, str):
                 detail = error_obj
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][plugins.spotify.client] suppressed Exception: %s", _sve)
     return detail.strip()
 
 

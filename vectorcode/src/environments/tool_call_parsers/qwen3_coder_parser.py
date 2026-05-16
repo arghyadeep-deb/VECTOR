@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Qwen3-Coder tool call parser.
 
 Format uses XML-style nested tags:
@@ -43,14 +44,14 @@ def _try_convert_value(value: str) -> Any:
     # Try JSON first (handles objects, arrays, strings, numbers, booleans)
     try:
         return json.loads(stripped)
-    except (json.JSONDecodeError, TypeError):
-        pass
+    except (json.JSONDecodeError, TypeError) as _sve:
+        logger.debug("[VECTOR][environments.tool_call_parsers.qwen3_coder_parser] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
     # Try Python literal eval (handles tuples, etc.)
     try:
         return ast.literal_eval(stripped)
-    except (ValueError, SyntaxError, TypeError):
-        pass
+    except (ValueError, SyntaxError, TypeError) as _sve:
+        logger.debug("[VECTOR][environments.tool_call_parsers.qwen3_coder_parser] suppressed (ValueError, SyntaxError, TypeError): %s", _sve)
 
     # Return as string
     return stripped

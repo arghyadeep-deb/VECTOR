@@ -9,6 +9,7 @@ Short-answer factual QA benchmark for evaluating factual accuracy.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import ast
 import random
@@ -124,8 +125,8 @@ def _parse_metadata(meta_raw: object) -> Dict[str, Any]:
             parsed = ast.literal_eval(text)
             if isinstance(parsed, dict):
                 return parsed
-        except (ValueError, SyntaxError):
-            pass
+        except (ValueError, SyntaxError) as _sve:
+            logger.debug("[VECTOR][evals.datasets.simpleqa] suppressed (ValueError, SyntaxError): %s", _sve)
     return {}
 
 __all__ = ["SimpleQADataset"]

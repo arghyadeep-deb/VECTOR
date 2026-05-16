@@ -41,8 +41,8 @@ def _load_allowlist() -> dict:
     if _ALLOWLIST_PATH.exists():
         try:
             return json.loads(_ALLOWLIST_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][hooks.shell_hooks] suppressed Exception: %s", _sve)
     return {}
 
 

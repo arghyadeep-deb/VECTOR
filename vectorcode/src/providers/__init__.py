@@ -29,6 +29,7 @@ Usage::
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import importlib
 import importlib.util
@@ -187,5 +188,5 @@ def _discover_providers() -> None:
                 logger.warning(
                     "Failed to import legacy provider module %s: %s", modname, exc
                 )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][providers.__init__] suppressed Exception: %s", _sve)

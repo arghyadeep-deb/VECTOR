@@ -1,4 +1,5 @@
 """Centralized logging setup for Hermes Agent.
+from loguru import logger
 
 Provides a single ``setup_logging()`` entry point that both the CLI and
 gateway call early in their startup path.  All log files live under
@@ -314,8 +315,8 @@ class _ManagedRotatingFileHandler(RotatingFileHandler):
         if self._managed:
             try:
                 os.chmod(self.baseFilename, 0o660)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_logging] suppressed OSError: %s", _sve)
 
     def _open(self):
         stream = super()._open()
@@ -384,6 +385,6 @@ def _read_logging_config():
                     log_cfg.get("max_size_mb"),
                     log_cfg.get("backup_count"),
                 )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_logging] suppressed Exception: %s", _sve)
     return (None, None, None)

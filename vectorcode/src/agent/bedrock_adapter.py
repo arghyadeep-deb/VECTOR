@@ -1,4 +1,5 @@
 """AWS Bedrock Converse API adapter for VectorCode.
+from loguru import logger
 
 Provides native integration with Amazon Bedrock using the Converse API,
 bypassing the OpenAI-compatible endpoint in favor of direct AWS SDK calls.
@@ -252,8 +253,8 @@ def resolve_aws_auth_env_var(env: Optional[Dict[str, str]] = None) -> Optional[s
             resolved = credentials.get_frozen_credentials()
             if resolved and resolved.access_key:
                 return "iam-role"
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: %s", _sve)
     return None
 
 
@@ -283,8 +284,8 @@ def has_aws_credentials(env: Optional[Dict[str, str]] = None) -> bool:
             resolved = credentials.get_frozen_credentials()
             if resolved and resolved.access_key:
                 return True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: %s", _sve)
     return False
 
 

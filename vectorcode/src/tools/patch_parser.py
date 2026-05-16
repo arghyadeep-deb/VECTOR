@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 V4A Patch Format Parser
 
 Parses the V4A patch format used by codex, cline, and other coding agents.
@@ -297,8 +298,8 @@ def _validate_operations(
                     try:
                         from tools.fuzzy_match import format_no_match_hint
                         msg += format_no_match_hint(match_error, count, search_pattern, simulated)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tools.patch_parser] suppressed Exception: %s", _sve)
                     errors.append(msg)
                 else:
                     # Advance simulation so subsequent hunks validate correctly.
@@ -547,8 +548,8 @@ def _apply_update(op: PatchOperation, file_ops: Any) -> Tuple[bool, str]:
                     try:
                         from tools.fuzzy_match import format_no_match_hint
                         err_msg += format_no_match_hint(error, 0, search_pattern, new_content)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tools.patch_parser] suppressed Exception: %s", _sve)
                     return False, err_msg
         else:
             # Addition-only hunk (no context or removed lines).

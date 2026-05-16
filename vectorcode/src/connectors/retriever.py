@@ -18,6 +18,7 @@ Typical usage::
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 from abc import ABC, abstractmethod
@@ -113,8 +114,8 @@ class ColBERTReranker(Reranker):
 
                 if torch.cuda.is_available():
                     gpus = 1
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][connectors.retriever] suppressed Exception: %s", _sve)
 
             os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
             config = ColBERTConfig(gpus=gpus)

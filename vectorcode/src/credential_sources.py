@@ -66,8 +66,8 @@ def atomic_json_write(path: Path, data: dict) -> None:
         # If temp write failed, clean up leftover .tmp
         try:
             tmp.unlink(missing_ok=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][credential_sources] suppressed Exception: %s", _sve)
         raise
 
 

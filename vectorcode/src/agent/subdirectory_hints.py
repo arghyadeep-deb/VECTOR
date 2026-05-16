@@ -1,4 +1,5 @@
 """Progressive subdirectory hint discovery.
+from loguru import logger
 
 As the agent navigates into subdirectories via tool calls (read_file, terminal,
 search_files, etc.), this module discovers and loads project context files
@@ -135,8 +136,8 @@ class SubdirectoryHintTracker:
                 if parent == p:
                     break  # filesystem root
                 p = parent
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as _sve:
+            logger.warning("[VECTOR][agent.subdirectory_hints] suppressed (OSError, ValueError): %s", _sve)
 
     def _extract_paths_from_command(self, cmd: str, candidates: Set[Path]):
         """Extract path-like tokens from a shell command string."""

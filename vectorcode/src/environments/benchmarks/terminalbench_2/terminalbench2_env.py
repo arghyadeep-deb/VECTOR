@@ -1,4 +1,5 @@
 """
+from loguru import logger
 TerminalBench2Env -- Terminal-Bench 2.0 Evaluation Environment
 
 Evaluates agentic LLMs on challenging terminal tasks from Terminal-Bench 2.0.
@@ -200,8 +201,8 @@ def _safe_extract_tar(tar: tarfile.TarFile, target_dir: Path) -> None:
 
         try:
             os.chmod(target_real, member.mode & 0o777)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][environments.benchmarks.terminalbench_2.terminalbench2_env] suppressed OSError: %s", _sve)
 
 
 def _extract_base64_tar(b64_data: str, target_dir: Path):

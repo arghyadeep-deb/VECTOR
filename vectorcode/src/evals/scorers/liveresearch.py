@@ -15,6 +15,7 @@ Paper: https://arxiv.org/abs/2510.14240
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -171,13 +172,13 @@ def _safe_json_loads(text: str) -> Any:
     """Permissive JSON: strict json -> json5 (if installed) -> tolerant fallback."""
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as _sve:
+        logger.debug("[VECTOR][evals.scorers.liveresearch] suppressed json.JSONDecodeError: %s", _sve)
     if _json5 is not None:
         try:
             return _json5.loads(text)
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("[VECTOR][evals.scorers.liveresearch] suppressed Exception: %s", _sve)
     return json.loads(_escape_newlines_inside_strings(text))
 
 def _parse_judge_response(raw: str) -> Dict[str, Any]:
@@ -199,8 +200,8 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
             parsed = _safe_json_loads(code_block.group(1))
             if isinstance(parsed, dict):
                 return _normalize_response(parsed)
-        except (json.JSONDecodeError, ValueError):
-            pass
+        except (json.JSONDecodeError, ValueError) as _sve:
+            logger.debug("[VECTOR][evals.scorers.liveresearch] suppressed (json.JSONDecodeError, ValueError): %s", _sve)
 
     # Try balanced braces extraction
     candidates: List[str] = []
@@ -260,8 +261,8 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
                 val = float(match.group(1))
                 if 0.0 <= val <= 10.0:
                     scores[dim] = val
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][evals.scorers.liveresearch] suppressed ValueError: %s", _sve)
 
     if scores:
         LOGGER.warning("Fell back to regex score extraction")

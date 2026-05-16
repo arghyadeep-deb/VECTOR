@@ -67,8 +67,8 @@ class OllamaProvider(BaseProvider):
                     if len(parts) >= 2:
                         try:
                             ctx = int(parts[-1])
-                        except ValueError:
-                            pass
+                        except ValueError as _sve:
+                            logger.debug("[VECTOR][providers.ollama] suppressed ValueError: %s", _sve)
             return ModelCapabilities(
                 context_window=ctx,
                 tool_use=True,

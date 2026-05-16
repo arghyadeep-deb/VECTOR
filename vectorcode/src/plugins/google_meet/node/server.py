@@ -23,6 +23,7 @@ actually host a node.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import secrets
@@ -67,8 +68,8 @@ class NodeServer:
                 if isinstance(tok, str) and tok:
                     self._token = tok
                     return tok
-            except (OSError, json.JSONDecodeError):
-                pass
+            except (OSError, json.JSONDecodeError) as _sve:
+                logger.debug("[VECTOR][plugins.google_meet.node.server] suppressed (OSError, json.JSONDecodeError): %s", _sve)
         tok = secrets.token_hex(16)  # 32 hex chars
         self.token_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.token_path.with_suffix(".json.tmp")

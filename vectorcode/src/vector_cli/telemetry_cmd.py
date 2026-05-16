@@ -22,6 +22,7 @@ Subcommands:
     clear --yes   — wipe the telemetry table (requires --yes confirmation)
 """
 from __future__ import annotations
+from loguru import logger
 
 import argparse
 import csv
@@ -335,8 +336,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.telemetry_cmd] suppressed Exception: %s", _sve)
 
     args = p.parse_args(argv)
     return args.func(args)

@@ -1,4 +1,5 @@
 """OpenAI Chat Completions transport.
+from loguru import logger
 
 Handles the default api_mode ('chat_completions') used by ~16 OpenAI-compatible
 providers (OpenRouter, Nous, NVIDIA, Qwen, Ollama, DeepSeek, xAI, Kimi, etc.).
@@ -321,8 +322,8 @@ class ChatCompletionsTransport(ProviderTransport):
                     if hasattr(extra, "model_dump"):
                         try:
                             extra = extra.model_dump()
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][agent.transports.chat_completions] suppressed Exception: %s", _sve)
                     tc_provider_data["extra_content"] = extra
                 tool_calls.append(ToolCall(
                     id=tc.id,

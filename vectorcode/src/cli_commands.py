@@ -1,4 +1,5 @@
 """VectorCode CLI commands — consolidated from VectorCode 52+ CLI files."""
+from loguru import logger
 
 import argparse
 import json
@@ -29,8 +30,8 @@ def cmd_status(args):
     try:
         from providers.model_metadata import MODELS
         print(f"  Models configured: {len(MODELS)}")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][cli_commands] suppressed Exception: %s", _sve)
 
 
 def cmd_doctor(args):

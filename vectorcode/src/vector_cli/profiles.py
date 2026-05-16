@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Profile management for multiple isolated VectorCode instances.
 
 Each profile is a fully independent VECTOR_HOME directory with its own
@@ -209,11 +210,11 @@ def check_alias_collision(name: str) -> Optional[str]:
                     content = (wrapper_dir / name).read_text()
                     if "vector -p" in content:
                         return None  # it's our wrapper, safe to overwrite
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.profiles] suppressed Exception: %s", _sve)
             return f"'{name}' conflicts with an existing command ({existing_path})"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+        logger.warning("[VECTOR][vector_cli.profiles] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
     return None  # safe
 
@@ -256,8 +257,8 @@ def remove_wrapper_script(name: str) -> bool:
             if "vector -p" in content:
                 wrapper_path.unlink()
                 return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.profiles] suppressed Exception: %s", _sve)
     return False
 
 
@@ -581,8 +582,8 @@ def delete_profile(name: str, yes: bool = False) -> Path:
         if active == name:
             set_active_profile("default")
             print("✓ Active profile reset to default")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.profiles] suppressed Exception: %s", _sve)
 
     print(f"\nProfile '{name}' deleted.")
     return profile_dir
@@ -661,8 +662,8 @@ def _stop_gateway_process(profile_dir: Path) -> None:
         # Force kill
         try:
             os.kill(pid, _signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        except ProcessLookupError as _sve:
+            logger.warning("[VECTOR][vector_cli.profiles] suppressed ProcessLookupError: %s", _sve)
         print(f"✓ Gateway force-stopped (PID {pid})")
     except (ProcessLookupError, PermissionError):
         print("✓ Gateway already stopped")
@@ -734,8 +735,8 @@ def get_active_profile_name() -> str:
         parts = rel.parts
         if len(parts) == 1 and _PROFILE_ID_RE.match(parts[0]):
             return parts[0]
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.profiles] suppressed ValueError: %s", _sve)
 
     return "custom"
 
@@ -859,8 +860,8 @@ def _safe_extract_profile_archive(archive: Path, destination: Path) -> None:
 
             try:
                 os.chmod(target, member.mode & 0o777)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.profiles] suppressed OSError: %s", _sve)
 
 
 def _inspect_profile_archive_roots(archive: Path) -> set[str]:
@@ -998,8 +999,8 @@ def rename_profile(old_name: str, new_name: str) -> Path:
         if get_active_profile() == old_name:
             set_active_profile(new_name)
             print(f"✓ Active profile updated: {new_name}")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.profiles] suppressed Exception: %s", _sve)
 
     return new_dir
 

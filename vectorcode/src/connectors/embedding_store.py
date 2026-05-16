@@ -16,6 +16,7 @@ public method returns ``None`` or ``False`` instead of raising.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import sqlite3
@@ -176,7 +177,7 @@ class EmbeddingStore:
         """Close the underlying SQLite connection."""
         try:
             self._conn.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][connectors.embedding_store] suppressed Exception: %s", _sve)
 
 __all__ = ["EmbeddingStore"]

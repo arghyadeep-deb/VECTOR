@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Browser Tool Module
 
 This module provides browser automation tools using agent-browser CLI.  It
@@ -130,8 +131,8 @@ def _discover_homebrew_node_dirs() -> tuple[str, ...]:
                 bin_dir = os.path.join(homebrew_opt, entry, "bin")
                 if os.path.isdir(bin_dir):
                     dirs.append(bin_dir)
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.browser_tool] suppressed OSError: %s", _sve)
     return tuple(dirs)
 
 
@@ -546,8 +547,8 @@ def _url_is_private(url: str) -> bool:
                 or ip.is_link_local
                 or ip in ipaddress.ip_network("100.64.0.0/10")
             )
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][tools.browser_tool] suppressed ValueError: %s", _sve)
         # Hostname — must resolve to confirm it's private (bare "localhost"
         # resolves to 127.0.0.1 via /etc/hosts).  Short-circuit on obvious
         # names to avoid a DNS hop.
@@ -917,8 +918,8 @@ def _reap_orphaned_browser_sessions():
             logger.info("Reaped orphaned browser daemon PID %d (session %s)",
                         daemon_pid, session_name)
             reaped += 1
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
+        except (ProcessLookupError, PermissionError, OSError) as _sve:
+            logger.warning("[VECTOR][tools.browser_tool] suppressed (ProcessLookupError, PermissionError, OSError): %s", _sve)
 
         # Clean up the socket directory
         shutil.rmtree(socket_dir, ignore_errors=True)
@@ -1505,8 +1506,8 @@ def _run_browser_command(
         for p in (stdout_path, stderr_path):
             try:
                 os.unlink(p)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.browser_tool] suppressed OSError: %s", _sve)
 
         # Log stderr for diagnostics — use warning level on failure so it's visible
         if stderr and stderr.strip():
@@ -2199,8 +2200,8 @@ def _camofox_eval(expression: str, task_id: Optional[str] = None) -> str:
         if isinstance(raw_result, str):
             try:
                 parsed = json.loads(raw_result)
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as _sve:
+                logger.debug("[VECTOR][tools.browser_tool] suppressed (json.JSONDecodeError, ValueError): %s", _sve)
 
         return json.dumps({
             "success": True,
@@ -2438,8 +2439,8 @@ def browser_vision(question: str, annotate: bool = False, task_id: Optional[str]
             _vtemp = _vision_cfg.get("temperature")
             if _vtemp is not None:
                 vision_temperature = float(_vtemp)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.browser_tool] suppressed Exception: %s", _sve)
 
         call_kwargs = {
             "task": "vision",
@@ -2685,8 +2686,8 @@ def cleanup_all_browsers() -> None:
     try:
         from tools.browser_supervisor import SUPERVISOR_REGISTRY  # type: ignore[import-not-found]
         SUPERVISOR_REGISTRY.stop_all()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.browser_tool] suppressed Exception: %s", _sve)
 
     # Reset cached lookups so they are re-evaluated on next use.
     global _cached_agent_browser, _agent_browser_resolved

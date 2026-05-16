@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 VectorCode CLI - Main entry point.
 
 Usage:
@@ -291,8 +292,8 @@ def _has_any_provider_configured() -> bool:
                 val = val.strip().strip("'\"")
                 if key.strip() in provider_env_vars and val:
                     return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Check provider-specific auth fallbacks (for example, Copilot via gh auth).
     try:
@@ -302,8 +303,8 @@ def _has_any_provider_configured() -> bool:
             status = get_auth_status(provider_id)
             if status.get("logged_in"):
                 return True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Check for Nous Portal OAuth credentials
     auth_file = get_vector_home() / "auth.json"
@@ -317,8 +318,8 @@ def _has_any_provider_configured() -> bool:
                 status = get_auth_status(active)
                 if status.get("logged_in"):
                     return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Check config.yaml — if model is a dict with an explicit provider set,
     # the user has gone through setup (fresh installs have model as a plain
@@ -346,8 +347,8 @@ def _has_any_provider_configured() -> bool:
                 is_claude_code_token_valid(creds) or creds.get("refreshToken")
             ):
                 return True
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     return False
 
@@ -423,8 +424,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                     # Terminal too small
                     try:
                         stdscr.addstr(0, 0, "Terminal too small")
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
                     stdscr.refresh()
                     stdscr.getch()
                     return
@@ -442,8 +443,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                         header_attr |= curses.color_pair(2)
                 try:
                     stdscr.addnstr(0, 0, header, max_x - 1, header_attr)
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
 
                 # Column header line
                 fixed_cols = 3 + 12 + 6 + 18 + 6
@@ -454,8 +455,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                         curses.color_pair(4) if curses.has_colors() else curses.A_DIM
                     )
                     stdscr.addnstr(1, 0, col_header, max_x - 1, dim_attr)
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
 
                 # Compute visible area
                 visible_rows = max_y - 4  # header + col header + blank + footer
@@ -467,8 +468,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                     try:
                         msg = "  No sessions match the filter."
                         stdscr.addnstr(3, 0, msg, max_x - 1, curses.A_DIM)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
                 else:
                     if cursor >= len(filtered):
                         cursor = len(filtered) - 1
@@ -498,8 +499,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                                 attr |= curses.color_pair(1)
                         try:
                             stdscr.addnstr(y, 0, row, max_x - 1, attr)
-                        except curses.error:
-                            pass
+                        except curses.error as _sve:
+                            logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
 
                 # Footer
                 footer_y = max_y - 1
@@ -517,8 +518,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
                         max_x - 1,
                         curses.color_pair(4) if curses.has_colors() else curses.A_DIM,
                     )
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.main] suppressed curses.error: %s", _sve)
 
                 stdscr.refresh()
                 key = stdscr.getch()
@@ -564,8 +565,8 @@ def _session_browse_picker(sessions: list) -> Optional[str]:
         curses.wrapper(_curses_browse)
         return result_holder[0]
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Fallback: numbered list (Windows without curses, etc.)
     print("\n  Browse sessions  (enter number to resume, q to cancel)\n")
@@ -604,14 +605,14 @@ def _resolve_last_session(source: str = "cli") -> Optional[str]:
         db = SessionDB()
         sessions = db.search_sessions(source=source, limit=1)
         return sessions[0]["id"] if sessions else None
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     finally:
         if db is not None:
             try:
                 db.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     return None
 
 
@@ -756,13 +757,13 @@ def _resolve_session_by_name_or_id(name_or_id: str) -> Optional[str]:
             # the live tip instead of a dead compressed parent.
             try:
                 resolved_id = db.get_compression_tip(resolved_id) or resolved_id
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
         db.close()
         return resolved_id
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     return None
 
 
@@ -1150,8 +1151,8 @@ def _launch_tui(
     finally:
         try:
             os.unlink(active_session_file)
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][vector_cli.main] suppressed OSError: %s", _sve)
 
     sys.exit(code)
 
@@ -1231,16 +1232,16 @@ def cmd_chat(args):
         from vector_cli.banner import prefetch_update_check
 
         prefetch_update_check()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Sync bundled skills on every CLI launch (fast -- skips unchanged skills)
     try:
         from tools.skills_sync import sync_skills
 
         sync_skills(quiet=True)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # --yolo: bypass all dangerous command approvals
     if getattr(args, "yolo", False):
@@ -2200,8 +2201,8 @@ def _prompt_provider_choice(choices, *, default=0):
         if idx >= 0:
             print()
             return idx
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Fallback: numbered list
     print("Select provider:")
@@ -2382,8 +2383,8 @@ def _model_flow_nous(config, current_model="", args=None):
             try:
                 _refreshed = load_config() or {}
                 prompt_enable_tool_gateway(_refreshed)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
         except SystemExit:
             print("Login cancelled or failed.")
             return
@@ -2459,8 +2460,8 @@ def _model_flow_nous(config, current_model="", args=None):
         _nous_state = get_provider_auth_state("nous")
         if _nous_state:
             _nous_portal_url = _nous_state.get("portal_base_url", "")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     if free_tier and not model_ids:
         print("No free models currently available.")
@@ -2581,16 +2582,16 @@ def _model_flow_openai_codex(config, current_model=""):
         _codex_status = get_codex_auth_status()
         if _codex_status.get("logged_in"):
             _codex_token = _codex_status.get("api_key")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     if not _codex_token:
         try:
             from vector_cli.auth import resolve_codex_runtime_credentials
 
             _codex_creds = resolve_codex_runtime_credentials()
             _codex_token = _codex_creds.get("api_key")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     codex_models = get_codex_model_ids(access_token=_codex_token)
 
@@ -2637,8 +2638,8 @@ def _model_flow_qwen_oauth(_config, current_model=""):
     try:
         creds = resolve_qwen_runtime_credentials(refresh_if_expiring=True)
         models = fetch_api_models(creds["api_key"], creds["base_url"])
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     if not models:
         models = list(_DEFAULT_QWEN_PORTAL_MODELS)
 
@@ -3523,8 +3524,8 @@ def _prompt_reasoning_effort_selection(efforts, current_effort=""):
         if idx == len(ordered):
             return "none"
         return None
-    except (ImportError, NotImplementedError, OSError, subprocess.SubprocessError):
-        pass
+    except (ImportError, NotImplementedError, OSError, subprocess.SubprocessError) as _sve:
+        logger.warning("[VECTOR][vector_cli.main] suppressed (ImportError, NotImplementedError, OSError, subprocess.SubprocessError): %s", _sve)
 
     print("Select reasoning effort:")
     for i, effort in enumerate(ordered, 1):
@@ -3794,8 +3795,8 @@ def _model_flow_copilot_acp(config, current_model=""):
     try:
         catalog_creds = resolve_api_key_provider_credentials("copilot")
         catalog_api_key = catalog_creds.get("api_key", "")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     catalog = fetch_github_model_catalog(catalog_api_key)
     normalized_current_model = (
@@ -4533,8 +4534,8 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
             from agent.models_dev import list_agentic_models
 
             mdev_models = list_agentic_models(provider_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
         if mdev_models:
             # Merge models.dev with curated list so newly added models
@@ -4737,8 +4738,8 @@ def _model_flow_anthropic(config, current_model=""):
         cc_creds = read_claude_code_credentials()
         if cc_creds and is_claude_code_token_valid(cc_creds):
             cc_available = True
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     # Stale-OAuth guard: if the only existing cred is an expired OAuth token
     # (no valid cc_creds to fall back on), treat it as missing so the re-auth
@@ -5001,8 +5002,8 @@ def cmd_version(args):
             )
         elif behind == 0:
             print("Up to date")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
 
 def cmd_uninstall(args):
@@ -5035,8 +5036,8 @@ def _clear_bytecode_cache(root: Path) -> int:
             try:
                 shutil.rmtree(dirpath)
                 removed += 1
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.main] suppressed OSError: %s", _sve)
             dirnames.clear()  # nothing left to recurse into
     return removed
 
@@ -5080,8 +5081,8 @@ def _gateway_prompt(prompt_text: str, default: str = "", timeout: float = 300.0)
                 response_path.unlink(missing_ok=True)
                 prompt_path.unlink(missing_ok=True)
                 return answer if answer else default
-            except (OSError, ValueError):
-                pass
+            except (OSError, ValueError) as _sve:
+                logger.warning("[VECTOR][vector_cli.main] suppressed (OSError, ValueError): %s", _sve)
         _time.sleep(0.5)
 
     # Timeout — clean up and use default
@@ -5342,8 +5343,8 @@ def _update_via_zip(args):
             print(f"  − {len(result['cleaned'])} removed from manifest")
         if not result["copied"] and not result.get("updated"):
             print("  ✓ Skills are up to date")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
     print()
     print("✓ Update complete!")
@@ -5560,8 +5561,8 @@ def _get_origin_url(git_cmd: list[str], cwd: Path) -> Optional[str]:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     return None
 
 
@@ -5621,8 +5622,8 @@ def _count_commits_between(git_cmd: list[str], cwd: Path, base: str, head: str) 
         )
         if result.returncode == 0:
             return int(result.stdout.strip())
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     return -1
 
 
@@ -5639,8 +5640,8 @@ def _mark_skip_upstream_prompt():
         from vector_constants import get_vector_home
 
         (get_vector_home() / SKIP_UPSTREAM_PROMPT_FILE).touch()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
 
 def _sync_fork_with_upstream(git_cmd: list[str], cwd: Path) -> bool:
@@ -5798,8 +5799,8 @@ def _invalidate_update_cache():
             cache_file = home / ".update_check"
             if cache_file.exists():
                 cache_file.unlink()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
 
 def _load_installable_optional_extras() -> list[str]:
@@ -5945,9 +5946,9 @@ class _UpdateOutputStream:
         if self._log is not None:
             try:
                 self._log.write(data)
-            except Exception:
+            except Exception as _sve:
                 # Log errors should never abort the update.
-                pass
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
         if self._original_broken:
             return len(data) if isinstance(data, (str, bytes)) else 0
@@ -5964,8 +5965,8 @@ class _UpdateOutputStream:
         if self._log is not None:
             try:
                 self._log.flush()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
         if self._original_broken:
             return
         try:
@@ -6035,10 +6036,10 @@ def _install_hangup_protection(gateway_mode: bool = False):
     if hasattr(_signal, "SIGHUP"):
         try:
             _signal.signal(_signal.SIGHUP, _signal.SIG_IGN)
-        except (ValueError, OSError):
+        except (ValueError, OSError) as _sve:
             # Called from a non-main thread — not fatal.  The update still
             # runs, just without hangup protection.
-            pass
+            logger.debug("[VECTOR][vector_cli.main] suppressed (ValueError, OSError): %s", _sve)
 
     # (2) Mirror output to update.log and wrap stdio for broken-pipe
     # tolerance.  Any failure here is non-fatal; we just skip the wrap.
@@ -6078,19 +6079,19 @@ def _finalize_update_output(state):
     if state.get("installed"):
         try:
             sys.stdout = state.get("prev_stdout", sys.stdout)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
         try:
             sys.stderr = state.get("prev_stderr", sys.stderr)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
     log_file = state.get("log_file")
     if log_file is not None:
         try:
             log_file.flush()
             log_file.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
 
 def _cmd_update_check():
@@ -6803,8 +6804,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
             _exit_code_path = get_vector_home() / ".update_exit_code"
             try:
                 _exit_code_path.write_text("0")
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][vector_cli.main] suppressed OSError: %s", _sve)
 
         # Auto-restart ALL gateways after update.
         # The code update (git pull) is shared across all profiles, so every
@@ -6839,8 +6840,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                         )
                         if _verify.stdout.strip() == "active":
                             return True
-                    except (FileNotFoundError, subprocess.TimeoutExpired):
-                        pass
+                    except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+                        logger.warning("[VECTOR][vector_cli.main] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
                     if _time.monotonic() >= deadline:
                         return False
                     _time.sleep(0.5)
@@ -6884,8 +6885,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                             try:
                                 total += float(part[: -len(_suf)]) * _mult
                                 matched = True
-                            except ValueError:
-                                pass
+                            except ValueError as _sve:
+                                logger.debug("[VECTOR][vector_cli.main] suppressed ValueError: %s", _sve)
                             break
                 return total if matched else default
 
@@ -6906,8 +6907,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 from vector_cli.config import load_config
                 _cfg_agent = (load_config().get("agent") or {})
                 _cfg_drain = _cfg_agent.get("restart_drain_timeout")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
             try:
                 _drain_budget = float(_cfg_drain) if _cfg_drain is not None else float(_DEFAULT_DRAIN)
             except (TypeError, ValueError):
@@ -6924,8 +6925,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
             if supports_systemd_services():
                 try:
                     _ensure_user_systemd_env()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
 
                 for scope, scope_cmd in [
                     ("user", ["systemctl", "--user"]),
@@ -7069,8 +7070,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                                 print(
                                     f"  ⚠ Failed to restart {svc_name}: {restart.stderr.strip()}"
                                 )
-                    except (FileNotFoundError, subprocess.TimeoutExpired):
-                        pass
+                    except (FileNotFoundError, subprocess.TimeoutExpired) as _sve:
+                        logger.warning("[VECTOR][vector_cli.main] suppressed (FileNotFoundError, subprocess.TimeoutExpired): %s", _sve)
 
             # --- Launchd services (macOS) ---
             if is_macos():
@@ -7096,8 +7097,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                             except subprocess.CalledProcessError as e:
                                 stderr = (getattr(e, "stderr", "") or "").strip()
                                 print(f"  ⚠ Gateway restart failed: {stderr}")
-                except (FileNotFoundError, subprocess.TimeoutExpired, ImportError):
-                    pass
+                except (FileNotFoundError, subprocess.TimeoutExpired, ImportError) as _sve:
+                    logger.warning("[VECTOR][vector_cli.main] suppressed (FileNotFoundError, subprocess.TimeoutExpired, ImportError): %s", _sve)
 
             # --- Manual (non-service) gateways ---
             # Kill any remaining gateway processes not managed by a service.
@@ -7111,8 +7112,8 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 try:
                     os.kill(pid, _signal.SIGTERM)
                     killed_pids.add(pid)
-                except (ProcessLookupError, PermissionError):
-                    pass
+                except (ProcessLookupError, PermissionError) as _sve:
+                    logger.warning("[VECTOR][vector_cli.main] suppressed (ProcessLookupError, PermissionError): %s", _sve)
 
             if restarted_services or killed_pids:
                 print()

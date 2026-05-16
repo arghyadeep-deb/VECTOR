@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Skills Hub — Source adapters and hub state management for the VectorCode Skills Hub.
 
 This is a library module (not an agent tool). It provides:
@@ -1395,8 +1396,8 @@ class SkillsShSource(SkillSource):
                         for meta in skills:
                             if self._matches_skill_tokens(meta, tokens):
                                 return meta.identifier
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.skills_hub] suppressed Exception: %s", _sve)
 
         return None
 
@@ -2518,8 +2519,8 @@ def _write_index_cache(key: str, data: Any) -> None:
     if not ignore_file.exists():
         try:
             ignore_file.write_text("# Exclude hub internals from search tools\n*\n")
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][tools.skills_hub] suppressed OSError: %s", _sve)
     cache_file = INDEX_CACHE_DIR / f"{key}.json"
     try:
         cache_file.write_text(json.dumps(data, ensure_ascii=False, default=str))
@@ -2751,8 +2752,8 @@ def install_from_quarantine(
                     safe_skill_name,
                     f"{skill_size:,}",
                 )
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][tools.skills_hub] suppressed OSError: %s", _sve)
 
     install_dir.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(quarantine_path), str(install_dir))
@@ -2891,8 +2892,8 @@ def _load_vector_index() -> Optional[dict]:
             age = time.time() - VECTOR_INDEX_CACHE_FILE.stat().st_mtime
             if age < VECTOR_INDEX_TTL:
                 return json.loads(VECTOR_INDEX_CACHE_FILE.read_text())
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as _sve:
+            logger.debug("[VECTOR][tools.skills_hub] suppressed (OSError, json.JSONDecodeError): %s", _sve)
 
     # Fetch from docs site
     try:
@@ -2913,8 +2914,8 @@ def _load_vector_index() -> Optional[dict]:
     try:
         VECTOR_INDEX_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         VECTOR_INDEX_CACHE_FILE.write_text(json.dumps(data))
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.skills_hub] suppressed OSError: %s", _sve)
 
     return data
 
@@ -2924,8 +2925,8 @@ def _load_stale_index_cache() -> Optional[dict]:
     if VECTOR_INDEX_CACHE_FILE.exists():
         try:
             return json.loads(VECTOR_INDEX_CACHE_FILE.read_text())
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as _sve:
+            logger.debug("[VECTOR][tools.skills_hub] suppressed (OSError, json.JSONDecodeError): %s", _sve)
     return None
 
 
@@ -3187,8 +3188,8 @@ def parallel_search_sources(
                     all_results.extend(results)
                     if on_source_done:
                         on_source_done(sid, len(results))
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.skills_hub] suppressed Exception: %s", _sve)
         except TimeoutError:
             timed_out_ids = [
                 futures[f] for f in futures if not f.done()

@@ -1,6 +1,7 @@
 """SkillManager -- coordinates skill discovery, catalog, tool wrapping, and execution."""
 
 from __future__ import annotations
+from loguru import logger
 
 import html
 from pathlib import Path
@@ -50,8 +51,8 @@ class SkillManager:
                 )
                 if cfg_dir:
                     overlay_dir = Path(cfg_dir).expanduser()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][skills.manager] suppressed Exception: %s", _sve)
             if overlay_dir is None:
                 overlay_dir = Path("~/.vector/learning/skills/").expanduser()
         self._overlay_dir = Path(overlay_dir).expanduser()

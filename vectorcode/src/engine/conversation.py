@@ -52,8 +52,8 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
                         plugin_context_extras.append(str(extras))
                 except Exception as e:
                     logger.warning(f"Plugin pre_llm_call hook failed: {e}")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][engine.conversation] suppressed Exception: %s", _sve)
 
     # If plugins added context, inject it before the user message
     if plugin_context_extras:
@@ -187,8 +187,8 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
                     hook(agent, final_text, tool_calls_total)
                 except Exception as e:
                     logger.warning(f"Plugin post_llm_call hook failed: {e}")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][engine.conversation] suppressed Exception: %s", _sve)
 
     # Memory review cadence — every N turns, write a summary memory
     cadence = getattr(agent, "_memory_nudge_interval", 10)

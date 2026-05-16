@@ -15,6 +15,7 @@ OpenAI-compat layer entirely.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import base64
@@ -824,8 +825,8 @@ class GeminiNativeClient:
         self.is_closed = True
         try:
             self._http.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.gemini_native_adapter] suppressed Exception: %s", _sve)
 
     def __enter__(self):
         return self

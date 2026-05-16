@@ -14,6 +14,7 @@ Config: Uses the existing Honcho config chain:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -255,8 +256,8 @@ class HonchoMemoryProvider(MemoryProvider):
         if config_path.exists():
             try:
                 existing = json.loads(config_path.read_text())
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: %s", _sve)
         existing.update(values)
         config_path.write_text(json.dumps(existing, indent=2))
 
@@ -1315,8 +1316,8 @@ class HonchoMemoryProvider(MemoryProvider):
         if self._manager:
             try:
                 self._manager.flush_all()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: %s", _sve)
 
 
 # ---------------------------------------------------------------------------

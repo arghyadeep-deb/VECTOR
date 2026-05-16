@@ -1,4 +1,5 @@
 """URL safety checks — blocks requests to private/internal network addresses.
+from loguru import logger
 
 Prevents SSRF (Server-Side Request Forgery) where a malicious prompt or
 skill could trick the agent into fetching internal resources like cloud
@@ -121,9 +122,9 @@ def _global_allow_private_urls() -> bool:
         ):
             _cached_allow_private = True
             return _cached_allow_private
-    except Exception:
+    except Exception as _sve:
         # Config unavailable (e.g. tests, early import) — keep default
-        pass
+        logger.debug("[VECTOR][tools.url_safety] suppressed Exception: %s", _sve)
 
     return _cached_allow_private
 

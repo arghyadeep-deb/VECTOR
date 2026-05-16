@@ -10,6 +10,7 @@ to the five existing primitives (Intelligence, Agent, Tools, Engine, Learning).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import sqlite3
@@ -464,8 +465,8 @@ class AgentManager:
                     tpl = data.get("template", {})
                     tpl["source"] = "built-in"
                     templates.append(tpl)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: %s", _sve)
 
         # User templates
         user_dir = Path("~/.vector/templates").expanduser()
@@ -476,8 +477,8 @@ class AgentManager:
                     tpl = data.get("template", {})
                     tpl["source"] = "user"
                     templates.append(tpl)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: %s", _sve)
 
         return templates
 

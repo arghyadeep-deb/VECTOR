@@ -1,4 +1,5 @@
 """Remove unreferenced files from an unpacked PPTX directory.
+from loguru import logger
 
 Usage: python clean.py <unpacked_dir>
 
@@ -114,8 +115,8 @@ def get_slide_referenced_files(unpacked_dir: Path) -> set:
             target_path = (rels_file.parent.parent / target).resolve()
             try:
                 referenced.add(target_path.relative_to(unpacked_dir.resolve()))
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: %s", _sve)
 
     return referenced
 
@@ -155,8 +156,8 @@ def get_referenced_files(unpacked_dir: Path) -> set:
             target_path = (rels_file.parent.parent / target).resolve()
             try:
                 referenced.add(target_path.relative_to(unpacked_dir.resolve()))
-            except ValueError:
-                pass
+            except ValueError as _sve:
+                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: %s", _sve)
 
     return referenced
 

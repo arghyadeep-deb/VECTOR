@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Base platform adapter interface.
 
 All platform adapters (Telegram, Discord, WhatsApp) inherit from this
@@ -93,9 +94,9 @@ def is_network_accessible(host: str) -> bool:
         if getattr(addr, "ipv4_mapped", None) and addr.ipv4_mapped.is_loopback:
             return False
         return True
-    except ValueError:
+    except ValueError as _sve:
         # when host variable is a hostname, we should try to resolve below
-        pass
+        logger.debug("[VECTOR][gateway.platforms.base] suppressed ValueError: %s", _sve)
 
     try:
         resolved = _socket.getaddrinfo(
@@ -197,8 +198,8 @@ def _no_proxy_entry_matches(entry: str, host: str, port: int | None = None) -> b
             return ipaddress.ip_address(host) in network
         except ValueError:
             return False
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][gateway.platforms.base] suppressed ValueError: %s", _sve)
 
     try:
         token_ip = ipaddress.ip_address(token_host)
@@ -206,8 +207,8 @@ def _no_proxy_entry_matches(entry: str, host: str, port: int | None = None) -> b
             return ipaddress.ip_address(host) == token_ip
         except ValueError:
             return False
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][gateway.platforms.base] suppressed ValueError: %s", _sve)
 
     if token_host.startswith("*."):
         suffix = token_host[1:]
@@ -587,8 +588,8 @@ def cleanup_image_cache(max_age_hours: int = 24) -> int:
             try:
                 f.unlink()
                 removed += 1
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.base] suppressed OSError: %s", _sve)
     return removed
 
 
@@ -801,8 +802,8 @@ def cleanup_document_cache(max_age_hours: int = 24) -> int:
             try:
                 f.unlink()
                 removed += 1
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][gateway.platforms.base] suppressed OSError: %s", _sve)
     return removed
 
 
@@ -1187,8 +1188,8 @@ class BasePlatformAdapter(ABC):
         try:
             from gateway.status import write_runtime_status
             write_runtime_status(platform=self.platform.value, platform_state="connected", error_code=None, error_message=None)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
 
     def _mark_disconnected(self) -> None:
         self._running = False
@@ -1197,8 +1198,8 @@ class BasePlatformAdapter(ABC):
         try:
             from gateway.status import write_runtime_status
             write_runtime_status(platform=self.platform.value, platform_state="disconnected", error_code=None, error_message=None)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
 
     def _set_fatal_error(self, code: str, message: str, *, retryable: bool) -> None:
         self._running = False
@@ -1213,8 +1214,8 @@ class BasePlatformAdapter(ABC):
                 error_code=code,
                 error_message=message,
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
 
     async def _notify_fatal_error(self) -> None:
         handler = self._fatal_error_handler
@@ -1731,10 +1732,10 @@ class BasePlatformAdapter(ABC):
                             self.send_typing(chat_id, metadata=metadata),
                             timeout=_send_typing_timeout,
                         )
-                    except asyncio.TimeoutError:
+                    except asyncio.TimeoutError as _sve:
                         # Slow network — abandon this tick, keep the loop
                         # on schedule so the next send_typing fires fresh.
-                        pass
+                        logger.debug("[VECTOR][gateway.platforms.base] suppressed asyncio.TimeoutError: %s", _sve)
                     except asyncio.CancelledError:
                         raise
                     except Exception as typing_err:
@@ -1760,8 +1761,8 @@ class BasePlatformAdapter(ABC):
             if hasattr(self, "stop_typing"):
                 try:
                     await self.stop_typing(chat_id)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
             self._typing_paused.discard(chat_id)
 
     def pause_typing_for_chat(self, chat_id: str) -> None:
@@ -1784,8 +1785,8 @@ class BasePlatformAdapter(ABC):
                 interrupt_event.set()
         try:
             await self.stop_typing(chat_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
 
     def register_post_delivery_callback(
         self,
@@ -2095,7 +2096,7 @@ class BasePlatformAdapter(ABC):
             try:
                 await task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             except Exception:
                 logger.debug(
                     "[%s] Session cancellation raised while unwinding %s",
@@ -2426,8 +2427,8 @@ class BasePlatformAdapter(ABC):
                     finally:
                         try:
                             os.remove(_tts_path)
-                        except OSError:
-                            pass
+                        except OSError as _sve:
+                            logger.warning("[VECTOR][gateway.platforms.base] suppressed OSError: %s", _sve)
 
                 # Send the text portion
                 if text_content:
@@ -2575,7 +2576,7 @@ class BasePlatformAdapter(ABC):
                 try:
                     await typing_task
                 except asyncio.CancelledError:
-                    pass
+                    raise  # must propagate for asyncio to work
                 # Process pending message in new background task
                 await self._process_message_background(pending_event, session_key)
                 return  # Already cleaned up
@@ -2620,21 +2621,21 @@ class BasePlatformAdapter(ABC):
             if callable(_post_cb):
                 try:
                     _post_cb()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
             # Stop typing indicator
             typing_task.cancel()
             try:
                 await typing_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             # Also cancel any platform-level persistent typing tasks (e.g. Discord)
             # that may have been recreated by _keep_typing after the last stop_typing()
             try:
                 if hasattr(self, "stop_typing"):
                     await self.stop_typing(event.source.chat_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.base] suppressed Exception: %s", _sve)
             # Late-arrival drain: a message may have arrived during the
             # cleanup awaits above (typing_task cancel, stop_typing).  Such
             # messages passed the Level-1 guard (entry still live, Event
@@ -2660,9 +2661,9 @@ class BasePlatformAdapter(ABC):
                 try:
                     self._background_tasks.add(drain_task)
                     drain_task.add_done_callback(self._background_tasks.discard)
-                except TypeError:
+                except TypeError as _sve:
                     # Tests stub create_task() with non-hashable sentinels; tolerate.
-                    pass
+                    logger.debug("[VECTOR][gateway.platforms.base] suppressed TypeError: %s", _sve)
                 # Leave _active_sessions[session_key] populated — the drain
                 # task's own lifecycle will clean it up.
             else:

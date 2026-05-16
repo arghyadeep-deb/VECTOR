@@ -324,8 +324,8 @@ class GNNRouter(NeuralRouter):
                     oldest = next(iter(self._embed_cache))
                     del self._embed_cache[oldest]
                 return vec
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][router] suppressed Exception: %s", _sve)
         return None
 
     # ── Core routing ──────────────────────────────────────────────────────────

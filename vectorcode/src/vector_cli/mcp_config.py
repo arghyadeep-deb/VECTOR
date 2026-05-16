@@ -1,4 +1,5 @@
 """
+from loguru import logger
 MCP Server Management CLI — ``vector mcp`` subcommand.
 
 Implements ``vector mcp add/remove/list/test/configure`` for interactive
@@ -435,8 +436,8 @@ def cmd_mcp_remove(args):
         from tools.mcp_oauth_manager import get_manager
         get_manager().remove(name)
         _success("Cleaned up OAuth tokens")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.mcp_config] suppressed Exception: %s", _sve)
 
 
 # ─── vector mcp list ──────────────────────────────────────────────────────────

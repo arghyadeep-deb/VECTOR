@@ -19,6 +19,7 @@ OpenRouter variant suffixes (``:free``, ``:extended``, ``:fast``).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import re
@@ -207,8 +208,8 @@ def _load_direct_aliases() -> dict[str, DirectAlias]:
                     merged[name.strip().lower()] = DirectAlias(
                         model=model, provider=provider, base_url=base_url,
                     )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
     return merged
 
 
@@ -354,8 +355,8 @@ def _model_sort_key(model_id: str, prefix: str) -> tuple:
                     # Second dot — flush current number, start new component
                     try:
                         nums.append(float(num_buf.rstrip(".")))
-                    except ValueError:
-                        pass
+                    except ValueError as _sve:
+                        logger.debug("[VECTOR][vector_cli.model_switch] suppressed ValueError: %s", _sve)
                     num_buf = ""
                 else:
                     num_buf += ch
@@ -363,16 +364,16 @@ def _model_sort_key(model_id: str, prefix: str) -> tuple:
                 if num_buf:
                     try:
                         nums.append(float(num_buf.rstrip(".")))
-                    except ValueError:
-                        pass
+                    except ValueError as _sve:
+                        logger.debug("[VECTOR][vector_cli.model_switch] suppressed ValueError: %s", _sve)
                     num_buf = ""
                 state = "between"
             else:
                 if num_buf:
                     try:
                         nums.append(float(num_buf.rstrip(".")))
-                    except ValueError:
-                        pass
+                    except ValueError as _sve:
+                        logger.debug("[VECTOR][vector_cli.model_switch] suppressed ValueError: %s", _sve)
                     num_buf = ""
                 state = "in_suffix"
                 suffix_buf += ch
@@ -394,8 +395,8 @@ def _model_sort_key(model_id: str, prefix: str) -> tuple:
     if num_buf and state == "in_version":
         try:
             nums.append(float(num_buf.rstrip(".")))
-        except ValueError:
-            pass
+        except ValueError as _sve:
+            logger.debug("[VECTOR][vector_cli.model_switch] suppressed ValueError: %s", _sve)
 
     suffix = suffix_buf.lower().strip("-_.")
     suffix = suffix.strip()
@@ -460,8 +461,8 @@ def resolve_alias(
             for m in static:
                 if m.lower() not in seen:
                     catalog.append(m)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
 
     # For aggregators, models are vendor/model-name format
     aggregator = is_aggregator(current_provider)
@@ -563,8 +564,8 @@ def resolve_display_context_length(
         )
         if ctx:
             return int(ctx)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
     if model_info is not None and model_info.context_window:
         return int(model_info.context_window)
     return None
@@ -658,8 +659,8 @@ def switch_model(
                     _switch_err += "\n\nRun 'vector doctor' — config issues detected:"
                     for _ci in _cfg_issues[:3]:
                         _switch_err += f"\n  • {_ci.message}"
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
             return ModelSwitchResult(
                 success=False,
                 is_global=is_global,
@@ -846,8 +847,8 @@ def switch_model(
                 api_key = runtime.get("api_key", "")
                 base_url = runtime.get("base_url", "")
                 api_mode = runtime.get("api_mode", "")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
 
     # --- Direct alias override: use exact base_url from the alias if set ---
     if resolved_alias:
@@ -1060,8 +1061,8 @@ def list_authenticated_providers(
                 store = _load_auth_store()
                 if store and vector_id in store.get("credential_pool", {}):
                     has_creds = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
         if not has_creds:
             continue
 
@@ -1226,16 +1227,16 @@ def list_authenticated_providers(
                     or _cp.slug in _cp_pool_store
                 ):
                     _cp_has_creds = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
         if not _cp_has_creds:
             try:
                 from agent.credential_pool import load_pool
                 _cp_pool = load_pool(_cp.slug)
                 if _cp_pool.has_credentials():
                     _cp_has_creds = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.model_switch] suppressed Exception: %s", _sve)
 
         if not _cp_has_creds:
             continue

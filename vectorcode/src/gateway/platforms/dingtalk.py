@@ -1,4 +1,5 @@
 """
+from loguru import logger
 DingTalk platform adapter using Stream Mode.
 
 Uses dingtalk-stream SDK (>=0.20) for real-time message reception without webhooks.
@@ -313,8 +314,8 @@ class DingTalkAdapter(BasePlatformAdapter):
             if hasattr(self._stream_client, "close"):
                 try:
                     await asyncio.to_thread(self._stream_client.close)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.dingtalk] suppressed Exception: %s", _sve)
 
             self._stream_task.cancel()
             try:
@@ -579,8 +580,8 @@ class DingTalkAdapter(BasePlatformAdapter):
             if len(self._session_webhooks) >= _SESSION_WEBHOOKS_MAX:
                 try:
                     self._session_webhooks.pop(next(iter(self._session_webhooks)))
-                except StopIteration:
-                    pass
+                except StopIteration as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.dingtalk] suppressed StopIteration: %s", _sve)
             self._session_webhooks[chat_id] = (
                 session_webhook,
                 session_webhook_expired_time,

@@ -12,6 +12,7 @@ trust-boundary decisions in their own modules.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import shlex
 import time
@@ -115,8 +116,8 @@ class BaseModalExecutionEnvironment(BaseEnvironment):
             if is_interrupted():
                 try:
                     self._cancel_modal_exec(start.handle)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.environments.modal_utils] suppressed Exception: %s", _sve)
                 return self._result(self._interrupt_output, 130)
 
             try:
@@ -130,16 +131,16 @@ class BaseModalExecutionEnvironment(BaseEnvironment):
             if deadline is not None and time.monotonic() >= deadline:
                 try:
                     self._cancel_modal_exec(start.handle)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.environments.modal_utils] suppressed Exception: %s", _sve)
                 return self._timeout_result_for_modal(prepared.timeout)
 
             # Periodic activity touch so the gateway knows we're alive
             try:
                 from tools.environments.base import touch_activity_if_due
                 touch_activity_if_due(_activity_state, "modal command running")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.environments.modal_utils] suppressed Exception: %s", _sve)
 
             time.sleep(self._poll_interval_seconds)
 

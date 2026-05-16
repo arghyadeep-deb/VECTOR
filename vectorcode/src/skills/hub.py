@@ -336,8 +336,8 @@ class SkillsHub:
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][skills.hub] suppressed Exception: %s", _sve)
         return ""
 
     @staticmethod

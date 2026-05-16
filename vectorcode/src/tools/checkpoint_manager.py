@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Checkpoint Manager — Transparent filesystem snapshots via shadow git repos.
 
 Creates automatic snapshots of working directories before file-mutating
@@ -263,8 +264,8 @@ def _dir_file_count(path: str) -> int:
             count += 1
             if count > _MAX_FILES:
                 return count
-    except (PermissionError, OSError):
-        pass
+    except (PermissionError, OSError) as _sve:
+        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed (PermissionError, OSError): %s", _sve)
     return count
 
 
@@ -703,8 +704,8 @@ def _shadow_repo_newest_mtime(shadow_repo: Path) -> float:
                     newest = m
             except OSError:
                 continue
-    except OSError:
-        pass
+    except OSError as _sve:
+        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed OSError: %s", _sve)
     return newest
 
 

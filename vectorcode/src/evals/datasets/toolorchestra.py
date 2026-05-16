@@ -33,6 +33,7 @@ Conversion to EvalRecord:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import ast
 import random
@@ -54,8 +55,8 @@ def _parse_field(raw: object) -> Any:
     if isinstance(raw, str):
         try:
             return ast.literal_eval(raw)
-        except (ValueError, SyntaxError):
-            pass
+        except (ValueError, SyntaxError) as _sve:
+            logger.debug("[VECTOR][evals.datasets.toolorchestra] suppressed (ValueError, SyntaxError): %s", _sve)
     return raw
 
 def _extract_problem_reference(

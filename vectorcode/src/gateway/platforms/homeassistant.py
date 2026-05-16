@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Home Assistant platform adapter.
 
 Connects to the HA WebSocket API for real-time event monitoring.
@@ -201,7 +202,7 @@ class HomeAssistantAdapter(BasePlatformAdapter):
             try:
                 await self._listen_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._listen_task = None
 
         await self._cleanup_ws()

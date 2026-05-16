@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Timezone-aware clock for Hermes.
 
 Provides a single ``now()`` helper that returns a timezone-aware datetime
@@ -55,8 +56,8 @@ def _resolve_timezone_name() -> str:
             tz_cfg = cfg.get("timezone", "")
             if isinstance(tz_cfg, str) and tz_cfg.strip():
                 return tz_cfg.strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_time] suppressed Exception: %s", _sve)
 
     return ""
 

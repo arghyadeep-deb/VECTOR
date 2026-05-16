@@ -1,4 +1,5 @@
 """Daytona cloud execution environment.
+from loguru import logger
 
 Uses the Daytona Python SDK to run commands in cloud sandboxes.
 Supports persistent sandboxes: when enabled, sandboxes are stopped on cleanup
@@ -126,8 +127,8 @@ class DaytonaEnvironment(BaseEnvironment):
                 self._remote_home = home
                 if requested_cwd in ("~", "/home/daytona"):
                     self.cwd = home
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: %s", _sve)
         logger.info("Daytona: resolved home to %s, cwd to %s", self._remote_home, self.cwd)
 
         self._sync_manager = FileSyncManager(
@@ -216,8 +217,8 @@ class DaytonaEnvironment(BaseEnvironment):
             with lock:
                 try:
                     sandbox.stop()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: %s", _sve)
 
         if login:
             shell_cmd = f"bash -l -c {shlex.quote(cmd_string)}"

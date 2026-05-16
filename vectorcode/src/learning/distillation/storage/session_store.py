@@ -18,6 +18,7 @@ spec §8.1 / brainstorming Q8). The two SQLite files live side-by-side in
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -136,8 +137,8 @@ class SessionStore:
         for stmt in _MIGRATE:
             try:
                 self._conn.execute(stmt)
-            except sqlite3.OperationalError:
-                pass
+            except sqlite3.OperationalError as _sve:
+                logger.debug("[VECTOR][learning.distillation.storage.session_store] suppressed sqlite3.OperationalError: %s", _sve)
         self._conn.commit()
 
     def close(self) -> None:

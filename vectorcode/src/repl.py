@@ -96,8 +96,8 @@ def _load_soul() -> str:
     if _SOUL_PATH.exists():
         try:
             return _SOUL_PATH.read_text(encoding="utf-8").strip()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
     return _DEFAULT_SOUL
 
 def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = None,
@@ -114,8 +114,8 @@ def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = No
             vmd_content = VectorMD(project_dir).as_system_block()
             if vmd_content:
                 parts.insert(0, vmd_content)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
     if skills_index:
         parts.append(f"\n<available_skills>\n{skills_index}\n</available_skills>")
     parts.append("\nPlatform: CLI terminal. Use plain text and markdown code fences. No MEDIA: tags.")
@@ -186,8 +186,8 @@ def _compress_history(history: list, model: str) -> list:
             messages=[{"role": "user", "content": summary_prompt}],
         )
         summary = resp["message"]["content"]
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
     compressed = system_msgs + [
         {"role": "assistant", "content": f"<context-summary>\n{summary}\n</context-summary>"}
@@ -262,8 +262,8 @@ def _list_sessions() -> list[dict]:
                 "turns": len(data.get("history", [])),
                 "tokens": data.get("tokens", 0),
             })
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
     return sessions
 
 
@@ -455,8 +455,8 @@ class VectorREPL:
             # Auto-migrate to latest schema
             try:
                 self._db.migrate_up()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
             self._db.create_session(
                 self.session.session_id,
                 self.session.current_model,
@@ -656,8 +656,8 @@ Runner: {cfg["runner"]}
                     if data.get("mode"):
                         try:
                             self.session.set_mode(data["mode"])
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
                     n_msgs = len(self._history) - 1
                     ts = datetime.datetime.fromtimestamp(data["ts"]).strftime("%Y-%m-%d %H:%M")
                     result = [f"\033[92mSession restored — {n_msgs} messages loaded\033[0m"]
@@ -980,8 +980,8 @@ Runner: {cfg["runner"]}
                         token_count=len(reply) // 4,
                         finish_reason="stop",
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
             return reply
 
@@ -1065,8 +1065,8 @@ Runner: {cfg["runner"]}
                         expanded_input = ref_result.message
                         for w in ref_result.warnings:
                             print(f"  \033[93m⚠ {w}\033[0m")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
                 # Prefetch memory context and inject as context
                 try:
@@ -1075,8 +1075,8 @@ Runner: {cfg["runner"]}
                     mem_ctx = mm.prefetch_all(raw)
                     if mem_ctx:
                         expanded_input = f"[Memory context]\n{mem_ctx}\n\n{expanded_input}"
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
                 # ── Agent execution loop (Think→Act→Observe) ──────────────────
                 print()
@@ -1093,8 +1093,8 @@ Runner: {cfg["runner"]}
                     from memory.manager import get_memory_manager
                     mm = get_memory_manager()
                     mm.sync_all(raw, reply, session_id=self.session.session_id)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
                 self.session.history.append({"role": "user", "content": raw})
 
@@ -1102,8 +1102,8 @@ Runner: {cfg["runner"]}
                 latency_ms = (time.perf_counter() - t_route_start) * 1000
                 try:
                     self.router.learn(raw, model, reward=0.9, latency_ms=latency_ms)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting VECTOR.")
@@ -1125,13 +1125,13 @@ Runner: {cfg["runner"]}
                     tool_calls=self.session.tool_calls,
                 )
                 _save_trajectory(self._history, self.session.current_model)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
             try:
                 from context.session_memory import update_session_memory
                 update_session_memory(self._history)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
 
 
 # ── self-test ─────────────────────────────────────────────────────────────────

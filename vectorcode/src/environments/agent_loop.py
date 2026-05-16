@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VectorAgentLoop -- Reusable Multi-Turn Agent Engine
 
 Runs the vectorcode tool-calling loop using standard OpenAI-spec tool calling.
@@ -451,8 +452,8 @@ class VectorAgentLoop:
                                         error=str(err),
                                         tool_result=tool_result[:500],
                                     ))
-                        except (json.JSONDecodeError, TypeError):
-                            pass
+                        except (json.JSONDecodeError, TypeError) as _sve:
+                            logger.debug("[VECTOR][environments.agent_loop] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
                     tc_id = tc.get("id", "") if isinstance(tc, dict) else tc.id
                     tool_result = maybe_persist_tool_result(

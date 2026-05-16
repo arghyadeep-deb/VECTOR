@@ -1,4 +1,5 @@
 """Shared slash command helpers for skills.
+from loguru import logger
 
 Shared between CLI (cli.py) and gateway (gateway/run.py) so both surfaces
 can invoke skills via /skill-name commands.
@@ -272,8 +273,8 @@ def scan_skill_commands() -> Dict[str, Dict[str, Any]]:
                     }
                 except Exception:
                     continue
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.skill_commands] suppressed Exception: %s", _sve)
     return _skill_commands
 
 

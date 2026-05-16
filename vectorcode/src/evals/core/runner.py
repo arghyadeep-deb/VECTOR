@@ -17,6 +17,7 @@ generation — matching benchmarks that require agent-environment interaction.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import dataclasses
 import json
@@ -820,8 +821,8 @@ class EvalRunner:
             if env is not None:
                 try:
                     env.close()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][evals.core.runner] suppressed Exception: %s", _sve)
 
     @staticmethod
     def _format_messages_as_prompt(messages: List[Dict[str, str]]) -> str:

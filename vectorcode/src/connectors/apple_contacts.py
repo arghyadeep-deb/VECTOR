@@ -19,6 +19,7 @@ of 2001-01-01 00:00:00 UTC.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -384,8 +385,8 @@ class AppleContactsConnector(BaseConnector):
                             birthday = _apple_ts_to_datetime(birthday_ts).strftime(
                                 "%Y-%m-%d"
                             )
-                        except (ValueError, OverflowError):
-                            pass
+                        except (ValueError, OverflowError) as _sve:
+                            logger.debug("[VECTOR][connectors.apple_contacts] suppressed (ValueError, OverflowError): %s", _sve)
 
                     meta: Dict[str, Any] = {
                         "name": name,

@@ -11,6 +11,7 @@ automatic state management between ticks.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -193,8 +194,8 @@ class OperativeAgent(ToolUsingAgent):
                         state_key = f"operator:{self._operator_id}:state"
                         if args.get("key", "") == state_key:
                             state_stored_by_tool = True
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError) as _sve:
+                        logger.debug("[VECTOR][vc_agents.operative] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
 
                 messages.append(
                     Message(

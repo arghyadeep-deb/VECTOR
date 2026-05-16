@@ -1,4 +1,5 @@
 """Local execution environment — spawn-per-call with session snapshot."""
+from loguru import logger
 
 import os
 import platform
@@ -384,8 +385,8 @@ class LocalEnvironment(BaseEnvironment):
         except (ProcessLookupError, PermissionError):
             try:
                 proc.kill()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.environments.local] suppressed Exception: %s", _sve)
 
     def _update_cwd(self, result: dict):
         """Read CWD from temp file (local-only, no round-trip needed)."""
@@ -393,8 +394,8 @@ class LocalEnvironment(BaseEnvironment):
             cwd_path = open(self._cwd_file).read().strip()
             if cwd_path:
                 self.cwd = cwd_path
-        except (OSError, FileNotFoundError):
-            pass
+        except (OSError, FileNotFoundError) as _sve:
+            logger.warning("[VECTOR][tools.environments.local] suppressed (OSError, FileNotFoundError): %s", _sve)
 
         # Still strip the marker from output so it's not visible
         self._extract_cwd_from_output(result)
@@ -404,5 +405,5 @@ class LocalEnvironment(BaseEnvironment):
         for f in (self._snapshot_path, self._cwd_file):
             try:
                 os.unlink(f)
-            except OSError:
-                pass
+            except OSError as _sve:
+                logger.warning("[VECTOR][tools.environments.local] suppressed OSError: %s", _sve)

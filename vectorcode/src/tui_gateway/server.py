@@ -1,3 +1,4 @@
+from loguru import logger
 import atexit
 import concurrent.futures
 import contextvars
@@ -56,8 +57,8 @@ def _panic_hook(exc_type, exc_value, exc_tb):
                 f"\n=== unhandled exception · {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n"
             )
             f.write(trace)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     # Stderr goes through to the TUI as a gateway.stderr Activity line —
     # the first line here is what the user will see without opening any
     # log files.  Rest of the stack is still in the log for full context.
@@ -89,8 +90,8 @@ def _thread_panic_hook(args):
                 f"· thread={args.thread.name} ===\n"
             )
             f.write(trace)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     first_line = (
         str(args.exc_value).strip().splitlines()[0]
         if str(args.exc_value).strip()
@@ -109,8 +110,8 @@ try:
     from vectorcode.src.vector_cli.banner import prefetch_update_check
 
     prefetch_update_check()
-except Exception:
-    pass
+except Exception as _sve:
+    logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
 from vectorcode.tui_gateway.render import make_stream_renderer, render_diff, render_message
 
@@ -247,8 +248,8 @@ class _SlashWorker:
         except Exception:
             try:
                 self.proc.kill()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
 
 def _load_busy_input_mode() -> str:
@@ -265,8 +266,8 @@ def _notify_session_boundary(event_type: str, session_id: str | None) -> None:
         from vectorcode.src.vector_cli.plugins import invoke_hook as _invoke_hook
 
         _invoke_hook(event_type, session_id=session_id, platform="tui")
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
 
 def _finalize_session(session: dict | None) -> None:
@@ -285,8 +286,8 @@ def _finalize_session(session: dict | None) -> None:
     if agent is not None and history and hasattr(agent, "commit_memory_session"):
         try:
             agent.commit_memory_session(history)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
     session_id = getattr(agent, "session_id", None) or session.get("session_key")
     _notify_session_boundary("on_session_finalize", session_id)
@@ -299,8 +300,8 @@ def _shutdown_sessions() -> None:
             worker = session.get("slash_worker")
             if worker:
                 worker.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
 
 atexit.register(_shutdown_sessions)
@@ -392,8 +393,8 @@ def _image_meta(path: Path) -> dict:
         meta["width"] = int(width)
         meta["height"] = int(height)
         meta["token_estimate"] = _estimate_image_tokens(int(width), int(height))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return meta
 
 
@@ -511,8 +512,8 @@ def _load_cfg() -> dict:
             _cfg_mtime = mtime
             _cfg_path = p
         return data
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return {}
 
 
@@ -548,8 +549,8 @@ def _clear_session_context(tokens: list) -> None:
         from gateway.session_context import clear_session_vars
 
         clear_session_vars(tokens)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
 
 def _enable_gateway_prompts() -> None:
@@ -655,8 +656,8 @@ def _resolve_startup_runtime() -> tuple[str, str | None]:
         if detected:
             provider, detected_model = detected
             return detected_model, provider
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return model, None
 
 
@@ -751,8 +752,8 @@ def _restart_slash_worker(session: dict):
     if worker:
         try:
             worker.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         session["slash_worker"] = _SlashWorker(
             session["session_key"],
@@ -813,8 +814,8 @@ def _apply_model_switch(sid: str, session: dict, raw_input: str) -> dict:
             {"provider": k, **v} for k, v in (cfg.get("providers") or {}).items()
         ]
         custom_provs = get_compatible_custom_providers(cfg)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
     result = switch_model(
         raw_input=model_input,
@@ -916,8 +917,8 @@ def _get_usage(agent) -> dict:
         usage["cost_status"] = cost.status
         if cost.amount_usd is not None:
             usage["cost_usd"] = float(cost.amount_usd)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return usage
 
 
@@ -928,8 +929,8 @@ def _probe_credentials(agent) -> str:
         provider = getattr(agent, "provider", "") or ""
         if not key or key == "no-key-required":
             return f"No API key configured for provider '{provider}'. First message will fail."
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return ""
 
 
@@ -994,8 +995,8 @@ def _session_info(agent) -> dict:
 
         info["version"] = __version__
         info["release_date"] = __release_date__
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         from model_tools import get_toolset_for_tool
 
@@ -1004,14 +1005,14 @@ def _session_info(agent) -> dict:
             info["tools"].setdefault(get_toolset_for_tool(name) or "other", []).append(
                 name
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         from vectorcode.src.vector_cli.banner import get_available_skills
 
         info["skills"] = get_available_skills()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         from tools.mcp_tool import get_mcp_status
 
@@ -1024,8 +1025,8 @@ def _session_info(agent) -> dict:
 
         info["update_behind"] = get_update_result(timeout=0.5)
         info["update_command"] = recommended_update_command()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return info
 
 
@@ -1090,8 +1091,8 @@ def _on_tool_start(sid: str, tool_call_id: str, name: str, args: dict):
             snapshot = capture_local_edit_snapshot(name, args)
             if snapshot is not None:
                 session.setdefault("edit_snapshots", {})[tool_call_id] = snapshot
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
         session.setdefault("tool_started_at", {})[tool_call_id] = time.time()
     if _tool_progress_enabled(sid):
         # tool.complete is the source of truth for todos (full list from the
@@ -1122,8 +1123,8 @@ def _on_tool_complete(sid: str, tool_call_id: str, name: str, args: dict, result
             data = json.loads(result)
             if isinstance(data, dict) and isinstance(data.get("todos"), list):
                 payload["todos"] = data.get("todos")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         from agent.display import render_edit_diff_with_delta
 
@@ -1136,8 +1137,8 @@ def _on_tool_complete(sid: str, tool_call_id: str, name: str, args: dict, result
             print_fn=rendered.append,
         ):
             payload["inline_diff"] = "\n".join(rendered)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     if _tool_progress_enabled(sid) or payload.get("inline_diff"):
         _emit("tool.complete", sid, payload)
 
@@ -1189,13 +1190,13 @@ def _on_tool_progress(
             if val is not None:
                 try:
                     payload[int_key] = int(val)
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as _sve:
+                    logger.debug("[VECTOR][tui_gateway.server] suppressed (TypeError, ValueError): %s", _sve)
         if _kwargs.get("cost_usd") is not None:
             try:
                 payload["cost_usd"] = float(_kwargs["cost_usd"])
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError) as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed (TypeError, ValueError): %s", _sve)
         if _kwargs.get("files_read"):
             payload["files_read"] = [str(p) for p in _kwargs["files_read"]]
         if _kwargs.get("files_written"):
@@ -1465,8 +1466,8 @@ def _init_session(sid: str, key: str, agent, history: list, cols: int = 80):
 
         register_gateway_notify(key, lambda data: _emit("approval.request", sid, data))
         load_permanent_allowlist()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     _wire_callbacks(sid)
     _notify_session_boundary("on_session_reset", key)
     _emit("session.info", sid, _session_info(agent))
@@ -1668,8 +1669,8 @@ def _(rid, params: dict) -> dict:
             try:
                 worker = _SlashWorker(key, getattr(agent, "model", _resolve_model()))
                 session["slash_worker"] = worker
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
             try:
                 from tools.approval import (
@@ -1682,8 +1683,8 @@ def _(rid, params: dict) -> dict:
                 )
                 notify_registered = True
                 load_permanent_allowlist()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
             _wire_callbacks(sid)
             _notify_session_boundary("on_session_reset", key)
@@ -1710,15 +1711,15 @@ def _(rid, params: dict) -> dict:
                 if worker is not None:
                     try:
                         worker.close()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
                 if notify_registered:
                     try:
                         from tools.approval import unregister_gateway_notify
 
                         unregister_gateway_notify(key)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
             ready.set()
 
     threading.Thread(target=_build, daemon=True).start()
@@ -1908,8 +1909,8 @@ def _(rid, params: dict) -> dict:
             history = db.get_messages_as_conversation(
                 session["session_key"], include_ancestors=True
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return _ok(
         rid,
         {
@@ -2015,14 +2016,14 @@ def _(rid, params: dict) -> dict:
         from tools.approval import unregister_gateway_notify
 
         unregister_gateway_notify(session["session_key"])
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     try:
         worker = session.get("slash_worker")
         if worker:
             worker.close()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return _ok(rid, {"closed": True})
 
 
@@ -2094,8 +2095,8 @@ def _(rid, params: dict) -> dict:
         from tools.approval import resolve_gateway_approval
 
         resolve_gateway_approval(session["session_key"], "deny", resolve_all=True)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
     return _ok(rid, {"status": "interrupted"})
 
 
@@ -2556,8 +2557,8 @@ def _(rid, params: dict) -> dict:
                         raw,
                         session.get("history", []),
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
             # CLI parity: when voice-mode TTS is on, speak the agent reply
             # (cli.py:_voice_speak_response).  Only the final text — tool
@@ -2592,8 +2593,8 @@ def _(rid, params: dict) -> dict:
                         f"{time.strftime('%Y-%m-%d %H:%M:%S')} · sid={sid} ===\n"
                     )
                     f.write(trace)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
             print(
                 f"[gateway-turn] {type(e).__name__}: {e}", file=sys.stderr, flush=True
             )
@@ -2602,8 +2603,8 @@ def _(rid, params: dict) -> dict:
             try:
                 if approval_token is not None:
                     reset_current_session_key(approval_token)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
             _clear_session_context(session_tokens)
             with session["history_lock"]:
                 session["running"] = False
@@ -3581,8 +3582,8 @@ def _(rid, params: dict) -> dict:
         handler = get_plugin_command_handler(name)
         if handler:
             return _ok(rid, {"type": "plugin", "output": str(handler(arg) or "")})
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
     try:
         from agent.skill_commands import (
@@ -3605,8 +3606,8 @@ def _(rid, params: dict) -> dict:
                         "name": cmds[key].get("name", name),
                     },
                 )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
     # ── Commands that queue messages onto _pending_input in the CLI ───
     # In the TUI the slash worker subprocess has no reader for that queue,
@@ -3666,8 +3667,8 @@ def _(rid, params: dict) -> dict:
                             "output": f"⏩ Steer queued — arrives after the next tool call: {arg[:80]}{'...' if len(arg) > 80 else ''}",
                         },
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
         # Fallback: no active run, treat as next-turn message
         return _ok(rid, {"type": "send", "message": arg})
 
@@ -3790,8 +3791,8 @@ def _list_repo_files(root: str) -> list[str]:
                     files.append(rel)
                     if len(files) >= _FUZZY_CACHE_MAX_FILES:
                         break
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+    except (OSError, subprocess.TimeoutExpired) as _sve:
+        logger.warning("[VECTOR][tui_gateway.server] suppressed (OSError, subprocess.TimeoutExpired): %s", _sve)
 
     if not files:
         # Fallback walk: skip vendor/build dirs + dot-dirs so the walk stays
@@ -3812,8 +3813,8 @@ def _list_repo_files(root: str) -> list[str]:
                         break
                 if len(files) >= _FUZZY_CACHE_MAX_FILES:
                     break
-        except OSError:
-            pass
+        except OSError as _sve:
+            logger.warning("[VECTOR][tui_gateway.server] suppressed OSError: %s", _sve)
 
     with _fuzzy_cache_lock:
         _fuzzy_cache[root] = (now, files)
@@ -4280,8 +4281,8 @@ def _(rid, params: dict) -> dict:
             return _err(
                 rid, 4018, f"skill command: use command.dispatch for {_cmd_key}"
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
     worker = session.get("slash_worker")
     if not worker:
@@ -4304,8 +4305,8 @@ def _(rid, params: dict) -> dict:
     except Exception as e:
         try:
             worker.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
         session["slash_worker"] = None
         return _err(rid, 5030, str(e))
 
@@ -4662,8 +4663,8 @@ def _(rid, params: dict) -> dict:
             from tools.browser_tool import cleanup_all_browsers
 
             cleanup_all_browsers()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
         return _ok(rid, {"connected": False})
     return _err(rid, 4015, f"unknown action: {action}")
 

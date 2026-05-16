@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Skills configuration for VectorCode.
 `vector skills` enters this module.
 
@@ -84,8 +85,8 @@ def _select_platform() -> Optional[str]:
         if 0 <= idx < len(options):
             key = options[idx][0]
             return None if key == "global" else key
-    except ValueError:
-        pass
+    except ValueError as _sve:
+        logger.debug("[VECTOR][vector_cli.skills_config] suppressed ValueError: %s", _sve)
     return None
 
 

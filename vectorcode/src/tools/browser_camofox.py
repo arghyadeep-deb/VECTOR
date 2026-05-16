@@ -21,6 +21,7 @@ Then set ``CAMOFOX_URL=http://localhost:9377`` in ``~/.vectorcode/.env``.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import json
@@ -83,8 +84,8 @@ def check_camofox_available() -> bool:
                     parsed = urlparse(url)
                     host = parsed.hostname or "localhost"
                     _vnc_url = f"http://{host}:{vnc_port}"
-            except (ValueError, KeyError):
-                pass
+            except (ValueError, KeyError) as _sve:
+                logger.debug("[VECTOR][tools.browser_camofox] suppressed (ValueError, KeyError): %s", _sve)
             _vnc_url_checked = True
         return resp.status_code == 200
     except Exception:
@@ -525,8 +526,8 @@ def camofox_vision(question: str, annotate: bool = False,
                     params={"userId": session["user_id"]},
                 )
                 annotation_context = f"\n\nAccessibility tree (element refs for interaction):\n{snap_data.get('snapshot', '')[:3000]}"
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.browser_camofox] suppressed Exception: %s", _sve)
 
         # Redact secrets from annotation context before sending to vision LLM.
         # The screenshot image itself cannot be redacted, but at least the

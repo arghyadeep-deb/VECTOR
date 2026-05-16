@@ -1,4 +1,5 @@
 """Shared helper classes for gateway platform adapters.
+from loguru import logger
 
 Extracts common patterns that were duplicated across 5-7 adapters:
 message deduplication, text batch aggregation, markdown stripping,
@@ -231,8 +232,8 @@ class ThreadParticipationTracker:
         if path.exists():
             try:
                 return set(json.loads(path.read_text(encoding="utf-8")))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.helpers] suppressed Exception: %s", _sve)
         return set()
 
     def _save(self) -> None:

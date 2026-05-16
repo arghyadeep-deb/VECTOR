@@ -6,6 +6,7 @@
 """CLI for the VectorCode evaluation framework."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -890,8 +891,8 @@ def _run_agentic(
         if telemetry_session is not None and hasattr(telemetry_session, "stop"):
             try:
                 telemetry_session.stop()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][evals.cli] suppressed Exception: %s", _sve)
 
     # Export results
     jsonl_path = run_dir / "traces.jsonl"

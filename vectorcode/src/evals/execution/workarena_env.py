@@ -11,6 +11,7 @@ scoring against the live ServiceNow instance.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import re
@@ -195,11 +196,11 @@ class WorkArenaTaskEnv:
             if pw is not None:
                 try:
                     pw.stop()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][evals.execution.workarena_env] suppressed Exception: %s", _sve)
                 _bgym_core._set_global_playwright(None)
-        except (ImportError, AttributeError):
-            pass
+        except (ImportError, AttributeError) as _sve:
+            logger.debug("[VECTOR][evals.execution.workarena_env] suppressed (ImportError, AttributeError): %s", _sve)
 
     @property
     def goal(self) -> str:

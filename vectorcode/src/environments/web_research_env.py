@@ -36,6 +36,7 @@ Inspired by: GroceryMind — production VectorCode agent doing live web research
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json
@@ -706,8 +707,8 @@ class WebResearchEnv(VectorAgentBaseEnv):
                 domain = parsed.netloc.lower().lstrip("www.")
                 if domain:
                     domains.add(domain)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][environments.web_research_env] suppressed Exception: %s", _sve)
         return domains
 
 

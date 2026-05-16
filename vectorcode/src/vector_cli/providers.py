@@ -18,6 +18,7 @@ Other modules import from this file.  No parallel registries.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 from dataclasses import dataclass
@@ -642,7 +643,7 @@ def resolve_provider_full(
                 base_url=mdev_info.api,
                 source="models.dev",
             )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.providers] suppressed Exception: %s", _sve)
 
     return None

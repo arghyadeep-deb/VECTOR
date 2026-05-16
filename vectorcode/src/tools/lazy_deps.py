@@ -50,6 +50,7 @@ Adding a new backend:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -475,8 +476,8 @@ def ensure(feature: str, *, prompt: bool = True) -> None:
         import importlib.metadata as _md
         if hasattr(_md, "_cache_clear"):
             _md._cache_clear()  # type: ignore[attr-defined]
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][tools.lazy_deps] suppressed Exception: %s", _sve)
 
     still_missing = feature_missing(feature)
     if still_missing:

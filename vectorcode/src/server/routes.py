@@ -1,6 +1,7 @@
 """Route handlers for the OpenAI-compatible API server."""
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import uuid
@@ -351,8 +352,8 @@ async def _handle_stream(
                         _routed = _inner._engine_for(model)
                         if _routed is not None and getattr(_routed, "is_cloud", False):
                             _use_local_fallback = True
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][server.routes] suppressed Exception: %s", _sve)
                 if _use_local_fallback:
                     token_iter = stream_local(
                         model, messages, req.temperature, req.max_tokens

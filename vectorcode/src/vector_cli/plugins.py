@@ -32,6 +32,7 @@ so plugin-defined tools appear alongside the built-in tools.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import importlib
 import importlib.metadata
@@ -799,8 +800,8 @@ class PluginManager:
                                 "treating as kind='exclusive'",
                                 key,
                             )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][vector_cli.plugins] suppressed Exception: %s", _sve)
 
             return PluginManifest(
                 name=name,

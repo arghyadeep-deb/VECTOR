@@ -147,8 +147,8 @@ class SessionDB:
                     except BaseException:
                         try:
                             self._conn.rollback()
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][session_db] suppressed Exception: %s", _sve)
                         raise
                 self._write_count += 1
                 if self._write_count % _CHECKPOINT_EVERY_N == 0:
@@ -168,8 +168,8 @@ class SessionDB:
         try:
             with self._lock:
                 self._conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][session_db] suppressed Exception: %s", _sve)
 
     def close(self) -> None:
         """Close the database connection after a best-effort checkpoint."""
@@ -177,8 +177,8 @@ class SessionDB:
             if self._conn:
                 try:
                     self._conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][session_db] suppressed Exception: %s", _sve)
                 self._conn.close()
                 self._conn = None  # type: ignore[assignment]
 

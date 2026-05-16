@@ -35,6 +35,7 @@ What's NOT migrated (intentional):
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -748,8 +749,8 @@ def migrate(
             try:
                 if tmp_path.exists():
                     tmp_path.unlink()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.codex_runtime_plugin_migration] suppressed Exception: %s", _sve)
             raise
         report.written = True
     except Exception as exc:

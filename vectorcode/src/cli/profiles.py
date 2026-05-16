@@ -95,8 +95,8 @@ class ProfileManager:
                 active = self.ACTIVE_PATH.read_text(encoding="utf-8").strip()
                 if active in self._profiles:
                     self._active = active
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][cli.profiles] suppressed Exception: %s", _sve)
 
     def _save(self) -> None:
         """Persist custom profiles (not built-ins) to disk."""
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     try:
         mgr.PROFILES_PATH.unlink(missing_ok=True)
         mgr.ACTIVE_PATH.unlink(missing_ok=True)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][cli.profiles] suppressed Exception: %s", _sve)
 
     print("✅ cli/profiles.py OK")

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Gateway runner - entry point for messaging platform integrations.
 
 This module provides:
@@ -237,22 +238,22 @@ try:
     _network_cfg = (_cfg if '_cfg' in dir() else {}).get("network", {})
     if isinstance(_network_cfg, dict) and _network_cfg.get("force_ipv4"):
         apply_ipv4_preference(force=True)
-except Exception:
-    pass
+except Exception as _sve:
+    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
 # Validate config structure early — log warnings so gateway operators see problems
 try:
     from vector_cli.config import print_config_warnings
     print_config_warnings()
-except Exception:
-    pass
+except Exception as _sve:
+    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
 # Warn if user has deprecated MESSAGING_CWD / TERMINAL_CWD in .env
 try:
     from vector_cli.config import warn_deprecated_cwd_env_vars
     warn_deprecated_cwd_env_vars()
-except Exception:
-    pass
+except Exception as _sve:
+    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
 # Gateway runs in quiet mode - suppress debug output and use cwd directly (no temp dirs)
 os.environ["VECTOR_QUIET"] = "1"
@@ -391,8 +392,8 @@ def _try_resolve_fallback_provider() -> dict | None:
             except Exception as fb_exc:
                 logger.debug("Fallback entry %s failed: %s", entry.get("provider"), fb_exc)
                 continue
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
     return None
 
 
@@ -498,8 +499,8 @@ def _check_unavailable_skill(command_name: str) -> str | None:
                         f"The **{command_name}** skill is available but not installed.\n"
                         f"Install it with: `vector skills install {install_path}`"
                     )
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
     return None
 
 
@@ -558,8 +559,8 @@ def _resolve_vector_bin() -> Optional[list[str]]:
 
         if importlib.util.find_spec("vector_cli") is not None:
             return [sys.executable, "-m", "vector_cli.main"]
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     return None
 
@@ -1020,8 +1021,8 @@ class GatewayRunner:
                 session_key = self.session_store._generate_session_key(source)
                 if isinstance(session_key, str) and session_key:
                     return session_key
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         config = getattr(self, "config", None)
         return build_session_key(
             source,
@@ -1098,8 +1099,8 @@ class GatewayRunner:
                         "No model configured — defaulting to %s for provider %s",
                         model, runtime_kwargs["provider"],
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         return model, runtime_kwargs
 
@@ -1313,8 +1314,8 @@ class GatewayRunner:
                 restart_requested=self._restart_requested,
                 active_agents=self._running_agent_count(),
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     def _update_platform_runtime_status(
         self,
@@ -1332,8 +1333,8 @@ class GatewayRunner:
                 error_code=error_code,
                 error_message=error_message,
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
     
     @staticmethod
     def _load_prefill_messages() -> List[Dict[str, Any]]:
@@ -1352,8 +1353,8 @@ class GatewayRunner:
                     with open(cfg_path, encoding="utf-8") as _f:
                         cfg = _y.safe_load(_f) or {}
                     file_path = cfg.get("prefill_messages_file", "")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         if not file_path:
             return []
         path = Path(file_path).expanduser()
@@ -1390,8 +1391,8 @@ class GatewayRunner:
                 with open(cfg_path, encoding="utf-8") as _f:
                     cfg = _y.safe_load(_f) or {}
                 return (cfg.get("agent", {}).get("system_prompt", "") or "").strip()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         return ""
 
     @staticmethod
@@ -1411,8 +1412,8 @@ class GatewayRunner:
                 with open(cfg_path, encoding="utf-8") as _f:
                     cfg = _y.safe_load(_f) or {}
                 effort = str(cfg.get("agent", {}).get("reasoning_effort", "") or "").strip()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         result = parse_reasoning_effort(effort)
         if effort and effort.strip() and result is None:
             logger.warning("Unknown reasoning_effort '%s', using default (medium)", effort)
@@ -1494,8 +1495,8 @@ class GatewayRunner:
                 with open(cfg_path, encoding="utf-8") as _f:
                     cfg = _y.safe_load(_f) or {}
                 raw = str(cfg.get("agent", {}).get("service_tier", "") or "").strip()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         value = raw.lower()
         if not value or value in {"normal", "default", "standard", "off", "none"}:
@@ -1515,8 +1516,8 @@ class GatewayRunner:
                 with open(cfg_path, encoding="utf-8") as _f:
                     cfg = _y.safe_load(_f) or {}
                 return bool(cfg.get("display", {}).get("show_reasoning", False))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         return False
 
     @staticmethod
@@ -1531,8 +1532,8 @@ class GatewayRunner:
                     with open(cfg_path, encoding="utf-8") as _f:
                         cfg = _y.safe_load(_f) or {}
                     mode = str(cfg.get("display", {}).get("busy_input_mode", "") or "").strip().lower()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         if mode == "queue":
             return "queue"
         if mode == "steer":
@@ -1551,8 +1552,8 @@ class GatewayRunner:
                     with open(cfg_path, encoding="utf-8") as _f:
                         cfg = _y.safe_load(_f) or {}
                     raw = str(cfg.get("agent", {}).get("restart_drain_timeout", "") or "").strip()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         value = parse_restart_drain_timeout(raw)
         if raw and value == DEFAULT_GATEWAY_RESTART_DRAIN_TIMEOUT:
             try:
@@ -1588,8 +1589,8 @@ class GatewayRunner:
                         mode = "off"
                     elif raw not in (None, ""):
                         mode = str(raw)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         mode = (mode or "all").strip().lower()
         valid = {"all", "result", "error", "off"}
         if mode not in valid:
@@ -1610,8 +1611,8 @@ class GatewayRunner:
                 with open(cfg_path, encoding="utf-8") as _f:
                     cfg = _y.safe_load(_f) or {}
                 return cfg.get("provider_routing", {}) or {}
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         return {}
 
     @staticmethod
@@ -1631,8 +1632,8 @@ class GatewayRunner:
                 fb = cfg.get("fallback_providers") or cfg.get("fallback_model") or None
                 if fb:
                     return fb
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         return None
 
     def _snapshot_running_agents(self) -> Dict[str, Any]:
@@ -1747,8 +1748,8 @@ class GatewayRunner:
                     status_parts.append(f"iteration {iteration}/{max_iter}")
                 if current_tool:
                     status_parts.append(f"running: {current_tool}")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         status_detail = f" ({', '.join(status_parts)})" if status_parts else ""
         if is_steer_mode:
@@ -1933,8 +1934,8 @@ class GatewayRunner:
                     session_id=getattr(agent, "session_id", None),
                     platform="gateway",
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             self._cleanup_agent_resources(agent)
 
     def _cleanup_agent_resources(self, agent: Any) -> None:
@@ -1958,16 +1959,16 @@ class GatewayRunner:
                     agent.shutdown_memory_provider(session_messages)
                 else:
                     agent.shutdown_memory_provider()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         # Close tool resources (terminal sandboxes, browser daemons,
         # background processes, httpx clients) to prevent zombie
         # process accumulation.
         try:
             if hasattr(agent, "close"):
                 agent.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         # Auxiliary async clients (session_search/web/vision/etc.) live in a
         # process-global cache and are created inside worker threads. Clean up
         # any entries whose event loop is now dead so their httpx transports do
@@ -1975,8 +1976,8 @@ class GatewayRunner:
         try:
             from agent.auxiliary_client import cleanup_stale_async_clients
             cleanup_stale_async_clients()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     _STUCK_LOOP_THRESHOLD = 3  # restarts while active before auto-suspend
     _STUCK_LOOP_FILE = ".restart_failure_counts"
@@ -2005,8 +2006,8 @@ class GatewayRunner:
 
         try:
             path.write_text(json.dumps(new_counts))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     def _suspend_stuck_loop_sessions(self) -> int:
         """Suspend sessions that have been active across too many restarts.
@@ -2040,20 +2041,20 @@ class GatewayRunner:
                         "consecutive restarts — likely a stuck loop)",
                         session_key, counts[session_key],
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         if suspended:
             try:
                 self.session_store._save()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Clear the file — counters start fresh after suspension
         try:
             path.unlink(missing_ok=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         return suspended
 
@@ -2075,8 +2076,8 @@ class GatewayRunner:
                     path.write_text(json.dumps(counts))
                 else:
                     path.unlink(missing_ok=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     async def _launch_detached_restart_command(self) -> None:
         import shutil
@@ -2139,13 +2140,13 @@ class GatewayRunner:
             _profile = get_active_profile_name()
             if _profile and _profile != "default":
                 logger.info("Active profile: %s", _profile)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         try:
             from gateway.status import write_runtime_status
             write_runtime_status(gateway_state="starting", exit_reason=None)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         
         # Warn if no user allowlists are configured and open access is not opted in
         _any_allowlist = any(
@@ -2246,8 +2247,8 @@ class GatewayRunner:
             logger.info("Previous gateway exited cleanly — skipping session suspension")
             try:
                 _clean_marker.unlink()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         else:
             try:
                 suspended = self.session_store.suspend_recently_active()
@@ -2386,8 +2387,8 @@ class GatewayRunner:
                 try:
                     from gateway.status import write_runtime_status
                     write_runtime_status(gateway_state="startup_failed", exit_reason=reason)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 self._request_clean_exit(reason)
                 return True
             if enabled_platform_count > 0:
@@ -2396,8 +2397,8 @@ class GatewayRunner:
                 try:
                     from gateway.status import write_runtime_status
                     write_runtime_status(gateway_state="startup_failed", exit_reason=reason)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 return False
             logger.warning("No messaging platforms enabled.")
             logger.info("Gateway will continue running for cron job execution.")
@@ -2520,8 +2521,8 @@ class GatewayRunner:
                                 session_id=entry.session_id,
                                 platform=_platform,
                             )
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                         # Shut down memory provider and close tool resources
                         # on the cached agent.  Idle agents live in
                         # _agent_cache (not _running_agents), so look there.
@@ -2707,8 +2708,8 @@ class GatewayRunner:
                         try:
                             from gateway.channel_directory import build_channel_directory
                             await build_channel_directory(self.adapters)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                     else:
                         # Check if the failure is non-retryable
                         if adapter.has_fatal_error and not adapter.fatal_error_retryable:
@@ -2982,8 +2983,8 @@ class GatewayRunner:
             if not timed_out:
                 try:
                     (_vector_home / ".clean_shutdown").touch()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             else:
                 logger.info(
                     "Skipping .clean_shutdown marker — drain timed out with "
@@ -3590,8 +3591,8 @@ class GatewayRunner:
                         f"({_stale_idle:.0f}s ago) "
                         f"| iteration={_sa.get('api_call_count', 0)}/{_sa.get('max_iterations', 0)}"
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             # Evict if: agent is idle beyond timeout, OR wall-clock age is
             # extreme (10x timeout or 2h, whichever is larger — catches
             # cases where the agent object was garbage-collected).
@@ -4057,8 +4058,8 @@ class GatewayRunner:
                 return "Usage: /steer <prompt>  (no agent is running; sending as a normal message)"
             try:
                 event.text = steer_payload
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             # Do NOT return — fall through to _handle_message_with_agent
             # at the end of this function so the rewritten text is sent
             # to the agent as a regular user turn.
@@ -4318,8 +4319,8 @@ class GatewayRunner:
                                 _stt_msg,
                                 metadata=_stt_meta,
                             )
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         if event.media_urls and event.message_type == MessageType.DOCUMENT:
             import mimetypes as _mimetypes
@@ -4450,8 +4451,8 @@ class GatewayRunner:
             with open(_config_path, encoding="utf-8") as _pf:
                 _pcfg = _pii_yaml.safe_load(_pf) or {}
             _redact_pii = bool((_pcfg.get("privacy") or {}).get("redact_pii", False))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Build the context prompt to inject
         context_prompt = build_session_context_prompt(context, redact_pii=_redact_pii)
@@ -4508,8 +4509,8 @@ class GatewayRunner:
                             session_info = self._format_session_info()
                             if session_info:
                                 notice = f"{notice}\n\n{session_info}"
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                         await adapter.send(
                             source.chat_id, notice,
                             metadata=getattr(event, 'metadata', None),
@@ -4615,8 +4616,8 @@ class GatewayRunner:
                         if _raw_ctx is not None:
                             try:
                                 _hyg_config_context_length = int(_raw_ctx)
-                            except (TypeError, ValueError):
-                                pass
+                            except (TypeError, ValueError) as _sve:
+                                logger.debug("[VECTOR][gateway.run] suppressed (TypeError, ValueError): %s", _sve)
                         # Read provider for accurate context detection
                         _hyg_provider = _model_cfg.get("provider") or None
                         _hyg_base_url = _model_cfg.get("base_url") or None
@@ -4639,8 +4640,8 @@ class GatewayRunner:
                     _hyg_provider = _hyg_runtime.get("provider") or _hyg_provider
                     _hyg_base_url = _hyg_runtime.get("base_url") or _hyg_base_url
                     _hyg_api_key = _hyg_runtime.get("api_key") or _hyg_api_key
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
                 # Check custom_providers per-model context_length
                 # (same fallback as run_agent.py lines 1171-1189).
@@ -4667,10 +4668,10 @@ class GatewayRunner:
                                         if _cp_ctx is not None:
                                             _hyg_config_context_length = int(_cp_ctx)
                                 break
-                    except (TypeError, ValueError):
-                        pass
-            except Exception:
-                pass
+                    except (TypeError, ValueError) as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed (TypeError, ValueError): %s", _sve)
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             if _hyg_compression_enabled:
                 _hyg_context_length = get_model_context_length(
@@ -4963,8 +4964,8 @@ class GatewayRunner:
                 _typing_adapter = self.adapters.get(source.platform)
                 if _typing_adapter and hasattr(_typing_adapter, "stop_typing"):
                     await _typing_adapter.stop_typing(source.chat_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             if not self._is_session_run_current(_quick_key, run_generation):
                 logger.info(
@@ -5259,8 +5260,8 @@ class GatewayRunner:
                 _err_adapter = self.adapters.get(source.platform)
                 if _err_adapter and hasattr(_err_adapter, "stop_typing"):
                     await _err_adapter.stop_typing(source.chat_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             logger.exception("Agent error in session %s", session_key)
             error_type = type(e).__name__
             error_detail = str(e)[:300] if str(e) else "no details available"
@@ -5278,8 +5279,8 @@ class GatewayRunner:
                 try:
                     if _err_body is not None:
                         _err_json = _err_body.json().get("error", {})
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 if _err_json.get("type") == "usage_limit_reached":
                     _resets_in = _err_json.get("resets_in_seconds")
                     if _resets_in and _resets_in > 0:
@@ -5342,8 +5343,8 @@ class GatewayRunner:
                     if raw_ctx is not None:
                         try:
                             config_context_length = int(raw_ctx)
-                        except (TypeError, ValueError):
-                            pass
+                        except (TypeError, ValueError) as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed (TypeError, ValueError): %s", _sve)
                     provider = model_cfg.get("provider") or None
                     base_url = model_cfg.get("base_url") or None
                 try:
@@ -5351,8 +5352,8 @@ class GatewayRunner:
                     custom_provs = get_compatible_custom_providers(data)
                 except Exception:
                     custom_provs = data.get("custom_providers")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Resolve runtime credentials for probing
         try:
@@ -5360,8 +5361,8 @@ class GatewayRunner:
             provider = provider or runtime.get("provider")
             base_url = base_url or runtime.get("base_url")
             api_key = runtime.get("api_key")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         context_length = get_model_context_length(
             model,
@@ -5434,14 +5435,14 @@ class GatewayRunner:
         try:
             from tools.env_passthrough import clear_env_passthrough
             clear_env_passthrough()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         try:
             from tools.credential_files import clear_credential_files
             clear_credential_files()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Reset the session
         new_entry = self.session_store.reset_session(session_key)
@@ -5464,8 +5465,8 @@ class GatewayRunner:
             _old_sid = old_entry.session_id if old_entry else None
             _invoke_hook("on_session_finalize", session_id=_old_sid,
                          platform=source.platform.value if source.platform else "")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Emit session:end hook (session is ending)
         await self.hooks.emit("session:end", {
@@ -5500,8 +5501,8 @@ class GatewayRunner:
             _new_sid = new_entry.session_id if new_entry else None
             _invoke_hook("on_session_reset", session_id=_new_sid,
                          platform=source.platform.value if source.platform else "")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Append a random tip to the reset message
         try:
@@ -5846,8 +5847,8 @@ class GatewayRunner:
                     lines.append(f"`{cmd}` — {skill_cmds[cmd]['description']}")
                 if len(sorted_cmds) > 10:
                     lines.append(f"\n... and {len(sorted_cmds) - 10} more. Use `/commands` for the full paginated list.")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         return "\n".join(lines)
 
     async def _handle_commands_command(self, event: MessageEvent) -> str:
@@ -5874,8 +5875,8 @@ class GatewayRunner:
                 for cmd in sorted(skill_cmds):
                     desc = skill_cmds[cmd].get("description", "").strip() or "Skill command"
                     entries.append(f"`{cmd}` — {desc}")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         if not entries:
             return "No commands available."
@@ -5948,8 +5949,8 @@ class GatewayRunner:
                     custom_provs = get_compatible_custom_providers(cfg)
                 except Exception:
                     custom_provs = cfg.get("custom_providers")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Check for session override
         source = event.source
@@ -6110,8 +6111,8 @@ class GatewayRunner:
                     elif p.get("api_url"):
                         lines.append(f"  `{p['api_url']}`")
                     lines.append("")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             lines.append("`/model <name>` — switch model")
             lines.append("`/model <name> --provider <slug>` — switch provider")
@@ -6622,8 +6623,8 @@ class GatewayRunner:
             if channel:
                 safe_text = transcript[:2000].replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
                 await channel.send(f"**[Voice]** <@{user_id}>: {safe_text}")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Build a synthetic MessageEvent and feed through the normal pipeline
         # Use SimpleNamespace as raw_message so _get_guild_id() can extract
@@ -6747,8 +6748,8 @@ class GatewayRunner:
             for p in {audio_path, actual_path} - {None}:
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][gateway.run] suppressed OSError: %s", _sve)
 
     async def _deliver_media_from_response(
         self,
@@ -6841,8 +6842,8 @@ class GatewayRunner:
                 cp_cfg = _data.get("checkpoints", {})
                 if isinstance(cp_cfg, bool):
                     cp_cfg = {"enabled": cp_cfg}
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         if not cp_cfg.get("enabled", False):
             return (
@@ -7025,8 +7026,8 @@ class GatewayRunner:
                             caption=alt_text,
                             metadata=_thread_metadata,
                         )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
                 # Send media files
                 for media_path, _is_voice in (media_files or []):
@@ -7036,8 +7037,8 @@ class GatewayRunner:
                             file_path=media_path,
                             metadata=_thread_metadata,
                         )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             else:
                 preview = prompt[:60] + ("..." if len(prompt) > 60 else "")
                 await adapter.send(
@@ -7054,8 +7055,8 @@ class GatewayRunner:
                     content=f"❌ Background task {task_id} failed: {e}",
                     metadata=_thread_metadata,
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     async def _handle_reasoning_command(self, event: MessageEvent) -> str:
         """Handle /reasoning command — manage reasoning effort and display toggle.
@@ -7625,8 +7626,8 @@ class GatewayRunner:
         # Set title
         try:
             self._session_db.set_session_title(new_session_id, branch_title)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Switch the session store entry to the new session
         new_entry = self.session_store.switch_session(session_key, new_session_id)
@@ -7745,8 +7746,8 @@ class GatewayRunner:
                     lines.append(f"Cost: {prefix}${float(cost_result.amount_usd):.4f}")
                 elif cost_result.status == "included":
                     lines.append("Cost: included")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             # Context window and compressions
             ctx = agent.context_compressor
@@ -8203,8 +8204,8 @@ class GatewayRunner:
                         if not session_key:
                             session_key = f"{platform_str}:{chat_id}"
                     break
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         if not adapter or not chat_id:
             logger.warning("Update watcher: cannot resolve adapter/chat_id, falling back to completion-only")
@@ -8257,8 +8258,8 @@ class GatewayRunner:
                         if len(content) > bytes_sent:
                             buffer += content[bytes_sent:]
                             bytes_sent = len(content)
-                    except OSError:
-                        pass
+                    except OSError as _sve:
+                        logger.warning("[VECTOR][gateway.run] suppressed OSError: %s", _sve)
                 await _flush_buffer()
 
                 # Send final status
@@ -8288,8 +8289,8 @@ class GatewayRunner:
                     if len(content) > bytes_sent:
                         buffer += content[bytes_sent:]
                         bytes_sent = len(content)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][gateway.run] suppressed OSError: %s", _sve)
 
             # Flush buffer periodically
             if buffer.strip() and (loop.time() - last_stream_time) >= stream_interval:
@@ -8350,8 +8351,8 @@ class GatewayRunner:
             await _flush_buffer()
             try:
                 await adapter.send(chat_id, "❌ VectorCode update timed out after 30 minutes.")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             for p in (pending_path, claimed_path, output_path,
                       exit_code_path, prompt_path):
                 p.unlink(missing_ok=True)
@@ -9126,8 +9127,8 @@ class GatewayRunner:
             interrupt_event = getattr(adapter, "_active_sessions", {}).get(session_key)
             if interrupt_event is not None:
                 setattr(interrupt_event, "_vector_run_generation", int(generation))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     async def _interrupt_and_clear_session(
         self,
@@ -9199,8 +9200,8 @@ class GatewayRunner:
                 # Older agent instance (shouldn't happen in practice) —
                 # fall back to the legacy full-close path.
                 self._cleanup_agent_resources(agent)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     def _enforce_agent_cache_cap(self) -> None:
         """Evict oldest cached agents when cache exceeds _AGENT_CACHE_MAX_SIZE.
@@ -9502,8 +9503,8 @@ class GatewayRunner:
         if _adapter:
             try:
                 await _adapter.send_typing(source.chat_id, metadata=_thread_metadata)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Make the HTTP request with SSE streaming -----------------------
         full_response = ""
@@ -9571,8 +9572,8 @@ class GatewayRunner:
                                             full_response += content
                                             if _stream_consumer:
                                                 _stream_consumer.on_delta(content)
-                                except json.JSONDecodeError:
-                                    pass
+                                except json.JSONDecodeError as _sve:
+                                    logger.debug("[VECTOR][gateway.run] suppressed json.JSONDecodeError: %s", _sve)
 
         except asyncio.CancelledError:
             raise
@@ -9698,8 +9699,8 @@ class GatewayRunner:
             from agent.display import set_tool_preview_max_len
             _tpl = resolve_display_setting(user_config, platform_key, "tool_preview_length", 0)
             set_tool_preview_max_len(int(_tpl) if _tpl else 0)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
         # Tool progress mode — resolved per-platform with env var fallback
         _resolved_tp = resolve_display_setting(user_config, platform_key, "tool_progress")
@@ -9781,8 +9782,8 @@ class GatewayRunner:
                     _agent_for_interrupt, "is_interrupted", False
                 ):
                     return
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             # "new" mode: only report when tool changes
             if progress_mode == "new" and tool_name == last_tool[0]:
@@ -9903,8 +9904,8 @@ class GatewayRunner:
                             # Drop this event and continue draining.
                             await asyncio.sleep(0)
                             continue
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
                     # Handle dedup messages: update last line with repeat counter
                     if isinstance(raw, tuple) and len(raw) == 3 and raw[0] == "__dedup__":
@@ -9994,8 +9995,8 @@ class GatewayRunner:
                                 message_id=progress_msg_id,
                                 content=full_text,
                             )
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                     return
                 except Exception as e:
                     logger.error("Progress message error: %s", e)
@@ -10093,8 +10094,8 @@ class GatewayRunner:
                 load_dotenv(_env_path, override=True, encoding="utf-8")
             except UnicodeDecodeError:
                 load_dotenv(_env_path, override=True, encoding="latin-1")
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             try:
                 model, runtime_kwargs = self._resolve_session_agent_runtime(
@@ -10242,8 +10243,8 @@ class GatewayRunner:
                         if hasattr(_cache, "move_to_end"):
                             try:
                                 _cache.move_to_end(session_key)
-                            except KeyError:
-                                pass
+                            except KeyError as _sve:
+                                logger.debug("[VECTOR][gateway.run] suppressed KeyError: %s", _sve)
                         self._init_cached_agent_for_turn(agent, _interrupt_depth)
                         logger.debug("Reusing cached agent for session %s", session_key)
 
@@ -10709,8 +10710,8 @@ class GatewayRunner:
                         all_msgs,
                         failure_callback=_title_failure_cb,
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             return {
                 "final_response": final_response,
@@ -10851,8 +10852,8 @@ class GatewayRunner:
                         else:
                             _parts.append(_a.get("last_activity_desc", ""))
                         _status_detail = " — " + ", ".join(_parts)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 try:
                     await _notify_adapter.send(
                         source.chat_id,
@@ -10934,8 +10935,8 @@ class GatewayRunner:
                         try:
                             _act = _agent_ref.get_activity_summary()
                             _idle_secs = _act.get("seconds_since_activity", 0.0)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                     # Staged warning: fire once before escalating to full timeout.
                     if (not _warning_fired and _agent_warning is not None
                             and _idle_secs >= _agent_warning):
@@ -10983,8 +10984,8 @@ class GatewayRunner:
                 if _timed_out_agent and hasattr(_timed_out_agent, "get_activity_summary"):
                     try:
                         _activity = _timed_out_agent.get_activity_summary()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
                 _last_desc = _activity.get("last_activity_desc", "unknown")
                 _secs_ago = _activity.get("seconds_since_activity", 0)
@@ -11117,8 +11118,8 @@ class GatewayRunner:
                             )
                             pending_event = None
                             pending = None
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
             if self._draining and (pending_event or pending):
                 logger.info(
@@ -11167,7 +11168,7 @@ class GatewayRunner:
                             try:
                                 await stream_task
                             except asyncio.CancelledError:
-                                pass
+                                raise  # must propagate for asyncio to work
                         except Exception as e:
                             logger.debug("Stream consumer wait before queued message failed: %s", e)
                     _previewed = bool(result.get("response_previewed"))
@@ -11206,15 +11207,15 @@ class GatewayRunner:
                         if callable(_bg_cb):
                             try:
                                 _bg_cb()
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                     elif adapter and hasattr(adapter, "_post_delivery_callbacks"):
                         _bg_cb = adapter._post_delivery_callbacks.pop(session_key, None)
                         if callable(_bg_cb):
                             try:
                                 _bg_cb()
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 # else: interrupted — discard the interrupted response ("Operation
                 # interrupted." is just noise; the user already knows they sent a
                 # new message).
@@ -11246,8 +11247,8 @@ class GatewayRunner:
                             source.chat_id,
                             metadata=_status_thread_metadata,
                         )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
                 return await self._run_agent(
                     message=next_message,
@@ -11277,7 +11278,7 @@ class GatewayRunner:
                     try:
                         await stream_task
                     except asyncio.CancelledError:
-                        pass
+                        raise  # must propagate for asyncio to work
             
             # Clean up tracking
             tracking_task.cancel()
@@ -11299,7 +11300,7 @@ class GatewayRunner:
                     try:
                         await task
                     except asyncio.CancelledError:
-                        pass
+                        raise  # must propagate for asyncio to work
 
         # If streaming already delivered the response, mark it so the
         # caller's send() is skipped (avoiding duplicate messages).
@@ -11471,8 +11472,8 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 try:
                     from gateway.status import clear_takeover_marker
                     clear_takeover_marker()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
                 return False
             # Wait up to 10 seconds for the old process to exit
             for _ in range(20):
@@ -11490,22 +11491,22 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 try:
                     terminate_pid(existing_pid, force=True)
                     time.sleep(0.5)
-                except (ProcessLookupError, PermissionError, OSError):
-                    pass
+                except (ProcessLookupError, PermissionError, OSError) as _sve:
+                    logger.warning("[VECTOR][gateway.run] suppressed (ProcessLookupError, PermissionError, OSError): %s", _sve)
             remove_pid_file()
             # remove_pid_file() is a no-op when the PID doesn't match.
             # Force-unlink to cover the old-process-crashed case.
             try:
                 (get_vector_home() / "gateway.pid").unlink(missing_ok=True)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             # Clean up any takeover marker the old process didn't consume
             # (e.g. SIGKILL'd before its shutdown handler could read it).
             try:
                 from gateway.status import clear_takeover_marker
                 clear_takeover_marker()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
             # Also release all scoped locks left by the old process.
             # Stopped (Ctrl+Z) processes don't release locks on exit,
             # leaving stale lock files that block the new gateway from starting.
@@ -11517,8 +11518,8 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 )
                 if _released:
                     logger.info("Released %d stale scoped lock(s) from old gateway.", _released)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         else:
             vector_home = str(get_vector_home())
             logger.error(
@@ -11538,8 +11539,8 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
     try:
         from tools.skills_sync import sync_skills
         sync_skills(quiet=True)
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     # Centralized logging — agent.log (INFO+), errors.log (WARNING+),
     # and gateway.log (INFO+, gateway-component records only).
@@ -11618,8 +11619,8 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 )
             else:
                 logger.info("Shutdown diagnostic — no other vector processes found")
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
         asyncio.create_task(runner.stop())
 
     def restart_signal_handler():
@@ -11630,13 +11631,13 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
                 loop.add_signal_handler(sig, shutdown_signal_handler)
-            except NotImplementedError:
-                pass
+            except NotImplementedError as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed NotImplementedError: %s", _sve)
         if hasattr(signal, "SIGUSR1"):
             try:
                 loop.add_signal_handler(signal.SIGUSR1, restart_signal_handler)
-            except NotImplementedError:
-                pass
+            except NotImplementedError as _sve:
+                logger.debug("[VECTOR][gateway.run] suppressed NotImplementedError: %s", _sve)
     else:
         logger.info("Skipping signal handlers (not running in main thread).")
     
@@ -11708,8 +11709,8 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
     try:
         from tools.mcp_tool import shutdown_mcp_servers
         shutdown_mcp_servers()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
 
     if runner.exit_code is not None:
         raise SystemExit(runner.exit_code)

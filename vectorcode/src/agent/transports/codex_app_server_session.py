@@ -23,6 +23,7 @@ call is synchronous and behaves like AIAgent's existing chat_completions loop.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -267,7 +268,7 @@ class CodexAppServerSession:
             try:
                 self._client.close()
             except Exception:  # pragma: no cover - best-effort cleanup
-                pass
+                logger.debug("[VECTOR][agent.transports.codex_app_server_session] suppressed Exception: %s", _sve)
             self._client = None
         self._thread_id = None
 

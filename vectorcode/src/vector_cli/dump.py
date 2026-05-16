@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Dump command for vector CLI.
 
 Outputs a compact, plain-text summary of the user's VectorCode setup
@@ -27,8 +28,8 @@ def _get_git_commit(project_root: Path) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][vector_cli.dump] suppressed Exception: %s", _sve)
     return "(unknown)"
 
 

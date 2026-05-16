@@ -17,6 +17,7 @@ See spec §5.2.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 from typing import Any
@@ -234,8 +235,8 @@ def build_diagnostic_tools(
                     desc = line.split("=", 1)[1].strip().strip('"')
                     if tools_list:
                         tools_list[-1]["description"] = desc
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as _sve:
+            logger.warning("[VECTOR][learning.distillation.diagnose.tools] suppressed FileNotFoundError: %s", _sve)
         return json.dumps(tools_list, default=str)
 
     # ------------------------------------------------------------------

@@ -1,4 +1,5 @@
 """CLI presentation -- spinner, kawaii faces, tool preview formatting.
+from loguru import logger
 
 Pure display functions and classes with no AIAgent dependency.
 Used by AIAgent._execute_tool_calls for CLI feedback.
@@ -67,8 +68,8 @@ def _diff_ansi() -> dict[str, str]:
         if ok_h and len(ok_h) == 7:
             or_, og, ob = int(ok_h[1:3], 16), int(ok_h[3:5], 16), int(ok_h[5:7], 16)
             plus = f"\033[38;2;255;255;255;48;2;{max(or_//4,10)};{max(og//2,20)};{max(ob//4,10)}m"
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
 
     _diff_colors_cached = {
         "dim": dim, "file": file_c, "hunk": hunk,
@@ -152,8 +153,8 @@ def get_tool_emoji(tool_name: str, default: str = "⚡") -> str:
         emoji = registry.get_emoji(tool_name, default="")
         if emoji:
             return emoji
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
     # 3. Hardcoded fallback
     return default
 
@@ -611,8 +612,8 @@ class KawaiiSpinner:
                 faces = skin.spinner.get("waiting_faces", [])
                 if faces:
                     return faces
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
         return cls.KAWAII_WAITING
 
     @classmethod
@@ -624,8 +625,8 @@ class KawaiiSpinner:
                 faces = skin.spinner.get("thinking_faces", [])
                 if faces:
                     return faces
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
         return cls.KAWAII_THINKING
 
     @classmethod
@@ -637,8 +638,8 @@ class KawaiiSpinner:
                 verbs = skin.spinner.get("thinking_verbs", [])
                 if verbs:
                     return verbs
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
         return cls.THINKING_VERBS
 
     def __init__(self, message: str = "", spinner_type: str = 'dots', print_fn=None):
@@ -666,15 +667,15 @@ class KawaiiSpinner:
         if self._print_fn is not None:
             try:
                 self._print_fn(text)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
             return
         try:
             self._out.write(text + end)
             if flush:
                 self._out.flush()
-        except (ValueError, OSError):
-            pass
+        except (ValueError, OSError) as _sve:
+            logger.debug("[VECTOR][agent.display] suppressed (ValueError, OSError): %s", _sve)
 
     @property
     def _is_tty(self) -> bool:

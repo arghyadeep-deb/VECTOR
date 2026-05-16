@@ -8,6 +8,7 @@ rendered with Rich Markdown.  Otherwise a default confirmation is shown.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import logging
 import os
@@ -684,8 +685,8 @@ def _discover_all_plugins() -> list:
                     name = manifest.get("name", d.name)
                     version = manifest.get("version", "")
                     description = manifest.get("description", "")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed Exception: %s", _sve)
             # User plugins override bundled on name collision.
             if name in seen and source == "bundled":
                 continue
@@ -976,8 +977,8 @@ def _run_composite_ui(curses, plugin_names, plugin_labels, plugin_selected,
                     "  \u2191\u2193 navigate  SPACE toggle  ENTER configure/confirm  ESC done",
                     max_x - 1, curses.A_DIM,
                 )
-            except curses.error:
-                pass
+            except curses.error as _sve:
+                logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed curses.error: %s", _sve)
 
             # Build display rows
             # Row layout:
@@ -1010,8 +1011,8 @@ def _run_composite_ui(curses, plugin_names, plugin_labels, plugin_selected,
                         if curses.has_colors():
                             sattr |= curses.color_pair(2)
                         stdscr.addnstr(y, 0, "  General Plugins", max_x - 1, sattr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed curses.error: %s", _sve)
                     y += 1
 
                 for i in range(n_plugins):
@@ -1027,8 +1028,8 @@ def _run_composite_ui(curses, plugin_names, plugin_labels, plugin_selected,
                             attr |= curses.color_pair(1)
                     try:
                         stdscr.addnstr(y, 0, line, max_x - 1, attr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed curses.error: %s", _sve)
                     y += 1
 
             # --- Separator ---
@@ -1042,8 +1043,8 @@ def _run_composite_ui(curses, plugin_names, plugin_labels, plugin_selected,
                     if curses.has_colors():
                         sattr |= curses.color_pair(2)
                     stdscr.addnstr(y, 0, "  Provider Plugins", max_x - 1, sattr)
-                except curses.error:
-                    pass
+                except curses.error as _sve:
+                    logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed curses.error: %s", _sve)
                 y += 1
 
                 for ci, (cat_name, cat_current, _cat_fn) in enumerate(categories):
@@ -1059,8 +1060,8 @@ def _run_composite_ui(curses, plugin_names, plugin_labels, plugin_selected,
                             attr |= curses.color_pair(3)
                     try:
                         stdscr.addnstr(y, 0, line, max_x - 1, attr)
-                    except curses.error:
-                        pass
+                    except curses.error as _sve:
+                        logger.debug("[VECTOR][vector_cli.plugins_cmd] suppressed curses.error: %s", _sve)
                     y += 1
 
             stdscr.refresh()

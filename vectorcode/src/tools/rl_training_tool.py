@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 RL Training Tools Module
 
 This module provides tools for running RL training through Tinker-Atropos.
@@ -497,8 +498,8 @@ def _stop_training_run(run_state: RunState):
         if fh is not None:
             try:
                 fh.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][tools.rl_training_tool] suppressed Exception: %s", _sve)
             setattr(run_state, attr, None)
 
 

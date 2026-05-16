@@ -16,6 +16,7 @@ Configuration in config.yaml (or via env vars):
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import collections
@@ -1417,8 +1418,8 @@ class RecallGuardMiddleware(InboundMiddleware):
                         if line:
                             try:
                                 transcript.append(json.loads(line))
-                            except json.JSONDecodeError:
-                                pass
+                            except json.JSONDecodeError as _sve:
+                                logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed json.JSONDecodeError: %s", _sve)
         except Exception as exc:
             logger.warning("[%s] Recall: failed to load transcript: %s", adapter.name, exc)
             return
@@ -1709,8 +1710,8 @@ class ExtractContentMiddleware(InboundMiddleware):
                     try:
                         face_data = json.loads(raw_data)
                         face_name = (face_data.get("name") or "").strip()
-                    except (json.JSONDecodeError, TypeError, AttributeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError, AttributeError) as _sve:
+                        logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed (json.JSONDecodeError, TypeError, AttributeError): %s", _sve)
                 parts.append(f"[emoji: {face_name}]" if face_name else "[emoji]")
             elif elem_type:
                 # Unknown element type — include type as placeholder
@@ -1802,8 +1803,8 @@ class ExtractContentMiddleware(InboundMiddleware):
                         link = parsed.get("link") if isinstance(parsed, dict) else None
                         if link and isinstance(link, str):
                             urls.append(link)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError) as _sve:
+                        logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
         return urls
 
     async def handle(self, ctx: InboundContext, next_fn) -> None:
@@ -2699,8 +2700,8 @@ class ConnectionManager:
                 if open_attr is True or (callable(open_attr) and open_attr()):
                     logger.debug("[%s] Already connected, skipping connect()", adapter.name)
                     return True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
 
         # Acquire platform-scoped lock to prevent duplicate connections
         if not adapter._acquire_platform_lock(
@@ -2776,7 +2777,7 @@ class ConnectionManager:
             try:
                 await self._heartbeat_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._heartbeat_task = None
 
         if self._recv_task:
@@ -2784,7 +2785,7 @@ class ConnectionManager:
             try:
                 await self._recv_task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
             self._recv_task = None
 
         # Fail any pending ACK futures
@@ -2930,7 +2931,7 @@ class ConnectionManager:
                 except Exception as exc:
                     logger.debug("[%s] Heartbeat send failed: %s", adapter.name, exc)
         except asyncio.CancelledError:
-            pass
+            raise  # must propagate for asyncio to work
 
     # -- Receive loop ------------------------------------------------------
 
@@ -2943,7 +2944,7 @@ class ConnectionManager:
                     continue
                 await self._handle_frame(bytes(raw))
         except asyncio.CancelledError:
-            pass
+            raise  # must propagate for asyncio to work
         except websockets.exceptions.ConnectionClosed as close_exc:  # type: ignore[union-attr]
             close_code = getattr(close_exc, 'code', None)
             logger.warning(
@@ -3071,15 +3072,15 @@ class ConnectionManager:
                 )
                 if from_account:
                     return f"{from_account}:{group_code}"
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
         # Protobuf: try decode_inbound_push for sender info
         try:
             push = decode_inbound_push(raw_data)
             if push:
                 return f"{push.get('from_account', '')}:{push.get('group_code', '')}"
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
         # Fallback: unique key (no aggregation)
         return f"__unknown_{id(raw_data)}"
 
@@ -3269,8 +3270,8 @@ class ConnectionManager:
         if ws is not None:
             try:
                 await ws.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
 
 class MediaSendHandler(ABC):
     """Abstract base class for media send strategies.
@@ -3780,8 +3781,8 @@ class HeartbeatManager:
             if not cancelled:
                 try:
                     await self.send_heartbeat_once(chat_id, WS_HEARTBEAT_FINISH)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
             self._reply_heartbeat_tasks.pop(chat_id, None)
             self._reply_hb_last_active.pop(chat_id, None)
 
@@ -3793,12 +3794,12 @@ class HeartbeatManager:
             try:
                 await task
             except asyncio.CancelledError:
-                pass
+                raise  # must propagate for asyncio to work
         if send_finish:
             try:
                 await self.send_heartbeat_once(chat_id, WS_HEARTBEAT_FINISH)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
 
     async def close(self) -> None:
         """Cancel all reply heartbeat tasks."""
@@ -3840,7 +3841,7 @@ class SlowResponseNotifier:
             )
             await self._sender.send_text_chunk(chat_id, SLOW_RESPONSE_MESSAGE)
         except asyncio.CancelledError:
-            pass
+            raise  # must propagate for asyncio to work
         except Exception as exc:
             logger.debug("[%s] Slow-response notifier failed: %s", self._adapter.name, exc)
 
@@ -3951,8 +3952,8 @@ class MessageSender:
         if self._on_send_finish:
             try:
                 await self._on_send_finish(chat_id)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
         return SendResult(success=True)
 
     async def send_media(
@@ -4567,8 +4568,8 @@ class YuanbaoAdapter(BasePlatformAdapter):
         """Send "typing" status heartbeat (RUNNING). Delegates to OutboundManager."""
         try:
             await self._outbound.start_typing(chat_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
 
     async def stop_typing(self, chat_id: str) -> None:
         """Stop the RUNNING heartbeat loop without sending FINISH immediately.
@@ -4578,8 +4579,8 @@ class YuanbaoAdapter(BasePlatformAdapter):
         """
         try:
             await self._outbound.stop_typing(chat_id, send_finish=False)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][gateway.platforms.yuanbao] suppressed Exception: %s", _sve)
 
     async def _process_message_background(self, event, session_key: str) -> None:
         """Wrap base class processing with a slow-response notifier."""

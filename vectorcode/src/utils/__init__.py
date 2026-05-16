@@ -1,4 +1,5 @@
 """VectorCode utilities package.
+from loguru import logger
 
 Re-exports the top-level utils.py contents so `from utils import X` works
 whether callers expect the package or the legacy single-file module.
@@ -23,8 +24,8 @@ try:
         for _name in dir(_mod):
             if not _name.startswith("_"):
                 globals()[_name] = getattr(_mod, _name)
-except Exception:
-    pass
+except Exception as _sve:
+    logger.debug("[VECTOR][utils.__init__] suppressed Exception: %s", _sve)
 
 # Also import from local core.py for our additions
 try:

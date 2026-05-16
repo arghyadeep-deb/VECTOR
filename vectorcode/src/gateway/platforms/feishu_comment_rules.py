@@ -8,6 +8,7 @@ Pairing store: ~/.vector/feishu_comment_pairing.json.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import logging
@@ -353,8 +354,8 @@ def _main() -> int:
     try:
         from vector_cli.env_loader import load_vector_dotenv
         load_vector_dotenv()
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][gateway.platforms.feishu_comment_rules] suppressed Exception: %s", _sve)
 
     usage = (
         "Usage: python -m gateway.platforms.feishu_comment_rules <command> [args]\n"

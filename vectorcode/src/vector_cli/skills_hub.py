@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Skills Hub CLI — Unified interface for the VectorCode Skills Hub.
 
 Powers both:
@@ -617,8 +618,8 @@ def do_install(identifier: str, category: str = "", force: bool = False,
         try:
             from agent.prompt_builder import clear_skills_system_prompt_cache
             clear_skills_system_prompt_cache(clear_snapshot=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.skills_hub] suppressed Exception: %s", _sve)
     else:
         c.print("[dim]Skill will be available in your next session.[/]")
         c.print("[dim]Use /reset to start a new session now, or --now to activate immediately (invalidates prompt cache).[/]\n")
@@ -959,8 +960,8 @@ def do_uninstall(name: str, console: Optional[Console] = None,
             try:
                 from agent.prompt_builder import clear_skills_system_prompt_cache
                 clear_skills_system_prompt_cache(clear_snapshot=True)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][vector_cli.skills_hub] suppressed Exception: %s", _sve)
         else:
             c.print("[dim]Change will take effect in your next session.[/]")
             c.print("[dim]Use /reset to start a new session now, or --now to apply immediately (invalidates prompt cache).[/]\n")
@@ -1006,8 +1007,8 @@ def do_reset(name: str, restore: bool = False,
         try:
             from agent.prompt_builder import clear_skills_system_prompt_cache
             clear_skills_system_prompt_cache(clear_snapshot=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][vector_cli.skills_hub] suppressed Exception: %s", _sve)
     else:
         c.print("[dim]Change will take effect in your next session.[/]")
         c.print("[dim]Use /reset to start a new session now, or --now to apply immediately (invalidates prompt cache).[/]\n")
@@ -1082,8 +1083,8 @@ def do_publish(skill_path: str, target: str = "github", repo: str = "",
         if match:
             try:
                 fm = yaml.safe_load(skill_md[3:match.start() + 3]) or {}
-            except yaml.YAMLError:
-                pass
+            except yaml.YAMLError as _sve:
+                logger.debug("[VECTOR][vector_cli.skills_hub] suppressed yaml.YAMLError: %s", _sve)
 
     name = fm.get("name", path.name)
     description = fm.get("description", "")
@@ -1417,14 +1418,14 @@ def handle_skills_slash(cmd: str, console: Optional[Console] = None) -> None:
             if args[i] == "--page" and i + 1 < len(args):
                 try:
                     page = int(args[i + 1])
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][vector_cli.skills_hub] suppressed ValueError: %s", _sve)
                 i += 2
             elif args[i] == "--size" and i + 1 < len(args):
                 try:
                     page_size = int(args[i + 1])
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][vector_cli.skills_hub] suppressed ValueError: %s", _sve)
                 i += 2
             elif args[i] == "--source" and i + 1 < len(args):
                 source = args[i + 1]
@@ -1448,8 +1449,8 @@ def handle_skills_slash(cmd: str, console: Optional[Console] = None) -> None:
             elif args[i] == "--limit" and i + 1 < len(args):
                 try:
                     limit = int(args[i + 1])
-                except ValueError:
-                    pass
+                except ValueError as _sve:
+                    logger.debug("[VECTOR][vector_cli.skills_hub] suppressed ValueError: %s", _sve)
                 i += 2
             else:
                 query_parts.append(args[i])

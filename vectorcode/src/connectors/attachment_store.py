@@ -15,6 +15,7 @@ Pure Python ``sqlite3`` (no Rust extension required).
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import hashlib
 import json
@@ -177,7 +178,7 @@ class AttachmentStore:
         """Close the underlying SQLite connection."""
         try:
             self._conn.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][connectors.attachment_store] suppressed Exception: %s", _sve)
 
 __all__ = ["AttachmentStore"]
