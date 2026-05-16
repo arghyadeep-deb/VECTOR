@@ -65,7 +65,7 @@ class PromptAgent(AgentBase):
     """
 
     def __init__(self, md_filename: str, agent_id: str, district: str):
-        self._md_path = _AGENTS_DIR / md_filename
+        self._md_path = self._resolve_md_path(md_filename)
         self._frontmatter, self._system_prompt = self._load_definition()
 
         name = self._frontmatter.get("name", md_filename.replace(".md", "").replace("-", "_"))
