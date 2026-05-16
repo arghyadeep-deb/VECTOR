@@ -1,70 +1,82 @@
 """
 Fix silent exception swallows in vectorcode/src.
-Rules:
-  - ImportError: pass → keep as-is (optional deps)
-  - asyncio.CancelledError → already fixed (must raise)
-  - Exception: pass → add logger.debug
-  - OSError: pass → add logger.warning
-  - ValueError: pass → add logger.debug
-  - Others (FileNotFoundError, subprocess.*, etc.) → add logger.debug
-  - (SystemExit, KeyboardInterrupt): pass → keep as-is
-  - WebSocketDisconnect: pass → keep as-is (framework-level signal)
-  - curses.error: pass → add logger.debug (TUI optional)
+Strategy:
+  - Files WITH 'from loguru import logger': add logger.debug/warning logging
+  - Files WITHOUT loguru: add 'from loguru import logger' at top (line 1 or after shebang/encoding)
+  - asyncio.CancelledError: always re-raise (never swallow)
+  - ImportError / ModuleNotFoundError: keep as pass (optional deps)
+  - (SystemExit, KeyboardInterrupt): keep as pass
+  - WebSocketDisconnect, AuthError: keep as pass (framework signals)
+  - Shutdown context CancelledError already commented — skip
+
 Run: python -X utf8 scripts/fix_silent_exceptions.py
 """
-import pathlib, re, sys
+import pathlib, re, sys, ast
 
 ROOT = pathlib.Path(__file__).parent.parent / "vectorcode" / "src"
 
-# Exception types to SKIP (leave as pass)
 SKIP_TYPES = {
-    "ImportError",
-    "ModuleNotFoundError",
-    "asyncio.CancelledError",
-    "SystemExit",
-    "KeyboardInterrupt",
+    "ImportError", "ModuleNotFoundError",
+    "SystemExit", "KeyboardInterrupt",
     "(SystemExit, KeyboardInterrupt)",
-    "WebSocketDisconnect",
-    "AuthError",
-    "image_not_found",
-    "(asyncio.CancelledError, asyncio.TimeoutError)",  # shutdown context, already commented
+    "(ValueError, KeyboardInterrupt, EOFError)",
+    "WebSocketDisconnect", "AuthError", "image_not_found",
+    # CancelledError handled separately (must raise)
 }
 
-# Exception types → log level mapping
+KEEP_PASS_COMMENT = "# intentional:"  # already-annotated lines — don't touch
+
 def log_level(exc_str: str) -> str:
     exc = exc_str.strip()
-    if exc in ("OSError", "PermissionError", "FileNotFoundError",
-               "(OSError, IOError)", "(FileNotFoundError, PermissionError, OSError)",
-               "(OSError, FileNotFoundError)", "(PermissionError, OSError)",
-               "(FileNotFoundError, OSError, ValueError)", "(OSError, ValueError)",
-               "(OSError, PermissionError)", "(ProcessLookupError, PermissionError, OSError)",
-               "(ProcessLookupError, PermissionError)", "(ProcessLookupError, OSError)",
-               "(BrokenPipeError, OSError)", "(ProcessLookupError, ChildProcessError)",
-               "subprocess.CalledProcessError", "(FileNotFoundError, subprocess.TimeoutExpired)",
-               "(OSError, subprocess.TimeoutExpired)", "(RuntimeError, subprocess.TimeoutExpired)",
-               "(FileNotFoundError, subprocess.TimeoutExpired, ImportError)",
-               "(ImportError, NotImplementedError, OSError, subprocess.SubprocessError)",
-               "ProcessLookupError"):
-        return "warning"
-    return "debug"
+    os_errors = {
+        "OSError", "PermissionError", "FileNotFoundError",
+        "ProcessLookupError", "BrokenPipeError",
+        "(OSError, IOError)", "(FileNotFoundError, PermissionError, OSError)",
+        "(OSError, FileNotFoundError)", "(PermissionError, OSError)",
+        "(FileNotFoundError, OSError, ValueError)", "(OSError, ValueError)",
+        "(OSError, PermissionError)", "(ProcessLookupError, PermissionError, OSError)",
+        "(ProcessLookupError, PermissionError)", "(ProcessLookupError, OSError)",
+        "(BrokenPipeError, OSError)", "(ProcessLookupError, ChildProcessError)",
+        "subprocess.CalledProcessError", "(FileNotFoundError, subprocess.TimeoutExpired)",
+        "(OSError, subprocess.TimeoutExpired)", "(RuntimeError, subprocess.TimeoutExpired)",
+        "(FileNotFoundError, subprocess.TimeoutExpired, ImportError)",
+        "(ImportError, NotImplementedError, OSError, subprocess.SubprocessError)",
+    }
+    return "warning" if exc in os_errors else "debug"
 
-# Regex: match `except <type>:` followed by `    pass` on next line
-# We'll process line by line for precision
-def fix_file(path: pathlib.Path) -> tuple[int, str]:
-    """Returns (changes_count, new_content)"""
-    src = path.read_text(encoding="utf-8", errors="replace")
+
+def insert_loguru_at_top(src: str) -> str:
+    """Add 'from loguru import logger' at the very first non-shebang, non-encoding line."""
     lines = src.splitlines(keepends=True)
+    insert_at = 0
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#!") or stripped.startswith("# -*-") or stripped.startswith("# coding"):
+            insert_at = i + 1
+        elif stripped.startswith('"""') or stripped.startswith("'''") or stripped.startswith("#"):
+            # Skip module docstrings and top-level comments
+            if i < 5:
+                insert_at = i + 1
+        else:
+            break
+    lines.insert(insert_at, "from loguru import logger\n")
+    return "".join(lines)
 
-    # Derive a module name for the log tag
+
+def fix_file(path: pathlib.Path) -> tuple[int, str]:
+    """Returns (changes_count, new_content)."""
+    src = path.read_text(encoding="utf-8", errors="replace")
+
+    # Derive module tag from relative path
     try:
         rel = path.relative_to(ROOT)
         module_tag = str(rel).replace("\\", "/").replace(".py", "").replace("/", ".")
     except ValueError:
         module_tag = path.stem
 
-    # Check if loguru is already imported
-    has_logger = "from loguru import logger" in src or "import logger" in src
+    has_logger = "from loguru import logger" in src
 
+    lines = src.splitlines(keepends=True)
     changes = 0
     new_lines = []
     i = 0
@@ -75,56 +87,71 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
         lstripped = stripped.lstrip()
 
         if lstripped.startswith("except ") or lstripped.startswith("except:"):
-            # Determine indent level of this except clause
             indent = len(stripped) - len(lstripped)
-            except_indent = " " * indent
             body_indent = " " * (indent + 4)
 
             # Extract exception type
             if lstripped.startswith("except:"):
                 exc_type = "Exception"
             else:
-                # "except Foo:" or "except (Foo, Bar):"
                 m = re.match(r'except\s+(.*?)\s*(?:as\s+\w+\s*)?:', lstripped)
                 exc_type = m.group(1).strip() if m else ""
 
-            # Check if the NEXT non-empty line is just `pass`
-            # Collect all next lines
+            # Handle asyncio.CancelledError — always re-raise
+            if "CancelledError" in exc_type and "asyncio.TimeoutError" not in exc_type:
+                # Check next non-empty line
+                j = i + 1
+                while j < len(lines) and lines[j].strip() in ("", ):
+                    j += 1
+                if j < len(lines) and lines[j].strip() == "pass":
+                    # Check not already annotated
+                    if KEEP_PASS_COMMENT not in lines[j]:
+                        new_lines.append(line)
+                        for k in range(i + 1, j):
+                            new_lines.append(lines[k])
+                        new_lines.append(f"{body_indent}raise  # must propagate for asyncio to work\n")
+                        changes += 1
+                        i = j + 1
+                        continue
+
+            # Skip types that should stay silent
+            if exc_type in SKIP_TYPES:
+                new_lines.append(line)
+                i += 1
+                continue
+
+            # Check next non-empty line for `pass`
             j = i + 1
             found_pass = False
             pass_line_idx = -1
-
             while j < len(lines):
-                next_stripped = lines[j].rstrip("\n\r").strip()
-                if next_stripped == "" or next_stripped.startswith("#"):
+                ns = lines[j].rstrip("\n\r").strip()
+                if ns == "" or ns.startswith("#"):
                     j += 1
                     continue
-                if next_stripped == "pass":
-                    found_pass = True
-                    pass_line_idx = j
+                if ns == "pass":
+                    # Check not already annotated as intentional
+                    if KEEP_PASS_COMMENT not in lines[j]:
+                        found_pass = True
+                        pass_line_idx = j
                 break
 
-            if found_pass and exc_type not in SKIP_TYPES:
+            if found_pass:
                 level = log_level(exc_type)
-                # Replace `pass` with `logger.debug/warning(...)`
                 log_stmt = f'{body_indent}logger.{level}("[VECTOR][{module_tag}] suppressed {exc_type}: %s", _sve)\n'
 
-                # Modify the except line to capture exception
-                # except Foo: → except Foo as _sve:
-                new_except_line = re.sub(
-                    r'^(\s*except\s+.*?)(\s*as\s+\w+)?(\s*:)',
-                    lambda m: f'{m.group(1)} as _sve{m.group(3)}',
+                # Add `as _sve` to the except clause if not already there
+                new_except = re.sub(
+                    r'^(\s*except\s+)(.*?)(\s*:\s*)$',
+                    lambda m: f'{m.group(1)}{m.group(2)} as _sve{m.group(3)}',
                     stripped
                 )
-                if new_except_line == stripped:
-                    # bare `except:`
-                    new_except_line = stripped.replace("except:", "except Exception as _sve:", 1)
+                if "except:" in stripped:
+                    new_except = stripped.replace("except:", "except Exception as _sve:", 1)
 
-                new_lines.append(new_except_line + "\n")
-                # Add all comment lines between except and pass
+                new_lines.append(new_except + "\n")
                 for k in range(i + 1, pass_line_idx):
                     new_lines.append(lines[k])
-                # Replace pass with logger call
                 new_lines.append(log_stmt)
                 changes += 1
                 i = pass_line_idx + 1
@@ -135,20 +162,9 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
 
     new_src = "".join(new_lines)
 
-    # Add loguru import if we made changes and it's not already there
+    # Add loguru import if changes were made and it's not there
     if changes > 0 and not has_logger:
-        # Find a good place to insert — after the last import block
-        import_end = 0
-        for idx, ln in enumerate(new_src.splitlines()):
-            stripped_ln = ln.strip()
-            if stripped_ln.startswith("import ") or stripped_ln.startswith("from "):
-                import_end = idx
-
-        # Insert after last import
-        src_lines = new_src.splitlines(keepends=True)
-        insert_idx = import_end + 1
-        src_lines.insert(insert_idx, "from loguru import logger\n")
-        new_src = "".join(src_lines)
+        new_src = insert_loguru_at_top(new_src)
 
     return changes, new_src
 
@@ -156,7 +172,7 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
 def main():
     total_files = 0
     total_changes = 0
-    errored = []
+    syntax_errors = []
 
     py_files = list(ROOT.rglob("*.py"))
     print(f"Scanning {len(py_files)} files in vectorcode/src ...")
@@ -165,18 +181,23 @@ def main():
         try:
             changes, new_src = fix_file(path)
             if changes > 0:
+                # Verify syntax before writing
+                try:
+                    ast.parse(new_src)
+                except SyntaxError as se:
+                    syntax_errors.append((str(path.relative_to(ROOT)), str(se)))
+                    continue  # Skip writing this file
                 path.write_text(new_src, encoding="utf-8")
                 total_files += 1
                 total_changes += changes
-                print(f"  [{changes:3d} fixes] {path.relative_to(ROOT.parent.parent)}")
         except Exception as e:
-            errored.append((str(path), str(e)))
+            syntax_errors.append((str(path), str(e)))
 
     print(f"\n{'='*55}")
     print(f"  Fixed {total_changes} silent exceptions in {total_files} files")
-    if errored:
-        print(f"  Errors ({len(errored)}):")
-        for fp, err in errored[:10]:
+    if syntax_errors:
+        print(f"  Skipped (syntax errors): {len(syntax_errors)}")
+        for fp, err in syntax_errors[:20]:
             print(f"    {fp}: {err}")
     print(f"{'='*55}")
 
