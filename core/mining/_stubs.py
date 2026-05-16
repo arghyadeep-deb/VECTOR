@@ -107,7 +107,7 @@ class MiningProvider(ABC):
         """Return whether this provider can run on the given combo.
 
         Must be a pure inspection -- no subprocess, no network, no Docker. Used
-        by ``jarvis mine doctor`` and ``jarvis mine init`` for fast capability
+        by ``vector mine doctor`` and ``vector mine init`` for fast capability
         reporting.
         """
 
