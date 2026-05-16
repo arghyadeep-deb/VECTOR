@@ -64,7 +64,24 @@ class DecisionEngine:
         self._goals = None
         self._memory = None
         self._epistemic = None
+        self._reasoning_bank = None
         logger.info("[VECTOR][decision_engine] initialized")
+
+    def _get_reasoning_bank(self):
+        """ReasoningBank: inject past reasoning chains before scoring (RULE 8)."""
+        if self._reasoning_bank is None:
+            try:
+                import sys as _sys
+                from pathlib import Path as _Path
+                _sys.path.insert(0, str(_Path(__file__).parent.parent.parent / "vectorcode" / "src"))
+                from reasoning_bank import ReasoningBank
+                self._reasoning_bank = ReasoningBank()
+                self._reasoning_bank.load()
+                logger.info("[VECTOR][decision_engine] ReasoningBank online")
+            except Exception as e:
+                logger.debug(f"[VECTOR][decision_engine] ReasoningBank unavailable: {e}")
+                self._reasoning_bank = False  # sentinel
+        return self._reasoning_bank if self._reasoning_bank is not False else None
 
     def _get_policy(self):
         if self._policy is None:
