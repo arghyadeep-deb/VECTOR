@@ -46,13 +46,15 @@ class EpistemicTracker:
 
         belief = self._beliefs[key].copy()
         created = datetime.fromisoformat(belief["created_at"])
-        age_hours = (datetime.utcnow() - created).total_seconds() / 3600
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=datetime.timezone.utc)
+        age_hours = (datetime.now(datetime.timezone.utc) - created).total_seconds() / 3600
 
         if age_hours > belief["ttl_hours"]:
             belief["stale"] = True
             belief["current_confidence"] = 0.0
         else:
-            decay = min(age_hours * self._confidence_decay_rate, confidence * 0.5)
+            decay = min(age_hours * self._confidence_decay_rate, belief["confidence"] * 0.5)
             belief["stale"] = False
             belief["current_confidence"] = round(max(0.0, belief["confidence"] - decay), 3)
 
