@@ -101,12 +101,12 @@ class CostConfig(BaseModel):
 
 class VoiceConfig(BaseModel):
     whisper_model: str = "large-v3"
-    kokoro_model_dir: str = "./models/kokoro"
+    kokoro_model_dir: str = str(Path(__file__).parent.parent / "models" / "kokoro")
     kokoro_speed: float = Field(0.85, ge=0.1, le=3.0)
     wake_threshold: float = Field(0.5, ge=0.0, le=1.0)
     record_duration_sec: float = Field(5.0, ge=1.0, le=120.0)
     sample_rate: int = Field(16000, ge=8000, le=96000)
-    wake_phrase: str = "hey_jarvis"
+    wake_phrase: str = "hey_vector"
 
 
 class SecurityCfg(BaseModel):
