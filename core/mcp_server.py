@@ -837,6 +837,56 @@ def _add_guidance_tools(mcp) -> None:
         logger.warning(f"[VECTOR][mcp] guidance tools unavailable: {e}")
 
 
+def _add_kanban_tools(mcp) -> None:
+    """Register kanban task-management tools (4 tools: list, create, update, complete)."""
+    import json as _json
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent.parent / "vectorcode" / "src"))
+        from tools.kanban_tools import (
+            list_kanban_tasks,
+            create_kanban_task,
+            update_kanban_task,
+            complete_kanban_task,
+        )
+
+        @mcp.tool
+        def kanban_list(status: str = "active", limit: int = 20) -> str:
+            """List VECTOR kanban tasks. status: active|done|all."""
+            try:
+                return _json.dumps(list_kanban_tasks(status=status, limit=limit))
+            except Exception as e:
+                return _json.dumps({"error": str(e)})
+
+        @mcp.tool
+        def kanban_create(title: str, description: str = "", priority: str = "normal") -> str:
+            """Create a new kanban task in VECTOR's task board."""
+            try:
+                return _json.dumps(create_kanban_task(title=title, description=description, priority=priority))
+            except Exception as e:
+                return _json.dumps({"error": str(e)})
+
+        @mcp.tool
+        def kanban_update(task_id: str, status: str = None, description: str = None) -> str:
+            """Update a kanban task's status or description."""
+            try:
+                return _json.dumps(update_kanban_task(task_id=task_id, status=status, description=description))
+            except Exception as e:
+                return _json.dumps({"error": str(e)})
+
+        @mcp.tool
+        def kanban_complete(task_id: str) -> str:
+            """Mark a kanban task as complete."""
+            try:
+                return _json.dumps(complete_kanban_task(task_id=task_id))
+            except Exception as e:
+                return _json.dumps({"error": str(e)})
+
+        logger.info("[VECTOR][mcp] kanban tools registered (4 tools)")
+    except ImportError as e:
+        logger.warning(f"[VECTOR][mcp] kanban tools unavailable: {e}")
+
+
 def main():
     if not _FASTMCP_AVAILABLE:
         logger.critical("[VECTOR][mcp] fastmcp not installed. Install: pip install fastmcp")
