@@ -27,13 +27,14 @@ class EpistemicTracker:
         if not (0.0 <= confidence <= 1.0):
             confidence = max(0.0, min(1.0, confidence))
 
+        now = datetime.now(datetime.timezone.utc).isoformat()
         self._beliefs[key] = {
             "value": value,
             "confidence": confidence,
             "source": source,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": now,
             "ttl_hours": ttl_hours,
-            "last_verified": datetime.utcnow().isoformat(),
+            "last_verified": now,
         }
         logger.info(f"[VECTOR][epistemic] Belief updated: {key} = {value[:50]}... (conf={confidence})")
         return self._beliefs[key]
