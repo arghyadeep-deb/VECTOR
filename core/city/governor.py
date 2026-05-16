@@ -82,6 +82,45 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "generate_image": "content",
     "comfyui": "content",
     "script": "content",
+    # ops
+    "slo": "ops",
+    "uptime": "ops",
+    "incident": "ops",
+    "deploy": "ops",
+    "devops": "ops",
+    "monitor_system": "ops",
+    "backup": "ops",
+    "restart": "ops",
+    "post_mortem": "ops",
+    # data_analytics
+    "analytics": "data_analytics",
+    "benchmark": "data_analytics",
+    "metrics": "data_analytics",
+    "performance_report": "data_analytics",
+    # personal_growth
+    "nudge": "personal_growth",
+    "motivation": "personal_growth",
+    "zettelkasten": "personal_growth",
+    "zk": "personal_growth",
+    "knowledge_links": "personal_growth",
+    # documentation
+    "write_docs": "documentation",
+    "api_reference": "documentation",
+    "changelog": "documentation",
+    "weekly_summary": "documentation",
+    "generate_doc": "documentation",
+    # qa
+    "reality_check": "qa",
+    "evidence": "qa",
+    "map_workflow": "qa",
+    "verify_output": "qa",
+    "qa_check": "qa",
+    # chief_of_staff
+    "executive_brief": "chief_of_staff",
+    "morning_brief": "chief_of_staff",
+    "evening_brief": "chief_of_staff",
+    "chief": "chief_of_staff",
+    "coordinate": "chief_of_staff",
 }
 
 
