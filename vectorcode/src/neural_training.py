@@ -942,6 +942,10 @@ class VECTORTrainer:
             ac = [t[1] for t in self._dt_traj]
             rg = [t[2] for t in self._dt_traj]
             return self.model.predict_action(st + [state], ac + [0], rg + [0.0])
+        elif self.algorithm == "ppo":
+            return self.model.select_action(s)[0]
+        elif self.algorithm in ("sarsa", "q-learning"):
+            return self.model.select_action(s)
         return 0
 
     def train_episode(self, experience_batch: list[dict]) -> dict:
