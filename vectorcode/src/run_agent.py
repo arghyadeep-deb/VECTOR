@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 AI Agent Runner with Tool Calling
 
 This module provides a clean, standalone agent that can execute AI models
@@ -161,8 +162,8 @@ class _SafeWriter:
     def flush(self):
         try:
             self._inner.flush()
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as _sve:
+            logger.warning("[VECTOR][run_agent] suppressed (OSError, ValueError): %s", _sve)
 
     def fileno(self):
         return self._inner.fileno()
@@ -204,8 +205,8 @@ def _get_proxy_for_base_url(base_url: Optional[str]) -> Optional[str]:
     try:
         if urllib.request.proxy_bypass_environment(host):
             return None
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     return proxy
 
@@ -587,8 +588,8 @@ def _repair_tool_call_arguments(raw_args: str, tool_name: str = "?") -> str:
                 tool_name,
             )
         return reserialised
-    except (json.JSONDecodeError, TypeError, ValueError):
-        pass
+    except (json.JSONDecodeError, TypeError, ValueError) as _sve:
+        logger.debug("[VECTOR][run_agent] suppressed (json.JSONDecodeError, TypeError, ValueError): %s", _sve)
 
     # Attempt common JSON repairs
     fixed = raw_stripped
@@ -621,8 +622,8 @@ def _repair_tool_call_arguments(raw_args: str, tool_name: str = "?") -> str:
             tool_name, raw_stripped[:80], fixed[:80],
         )
         return fixed
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as _sve:
+        logger.debug("[VECTOR][run_agent] suppressed json.JSONDecodeError: %s", _sve)
 
     # Repair pass 4: escape unescaped control chars inside JSON strings,
     # then retry. Catches cases where strict=False alone fails because
@@ -636,8 +637,8 @@ def _repair_tool_call_arguments(raw_args: str, tool_name: str = "?") -> str:
                 tool_name, raw_stripped[:80], escaped[:80],
             )
             return escaped
-    except (json.JSONDecodeError, TypeError, ValueError):
-        pass
+    except (json.JSONDecodeError, TypeError, ValueError) as _sve:
+        logger.debug("[VECTOR][run_agent] suppressed (json.JSONDecodeError, TypeError, ValueError): %s", _sve)
 
     # Last resort: replace with empty object so the API request doesn't
     # crash the entire session.
@@ -1027,8 +1028,8 @@ class AIAgent:
 
             if self.provider not in _AGGREGATOR_PROVIDERS:
                 self.model = normalize_model_for_provider(self.model, self.provider)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # GPT-5.x models usually require the Responses API path, but some
         # providers have exceptions (for example Copilot's gpt-5-mini still
@@ -1163,8 +1164,8 @@ class AIAgent:
             _ttl = _pc_cfg.get("cache_ttl", "5m")
             if _ttl in ("5m", "1h"):
                 self._cache_ttl = _ttl
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # Iteration budget: the LLM is only notified when it actually exhausts
         # the iteration budget (api_call_count >= max_iterations).  At that
@@ -1317,8 +1318,8 @@ class AIAgent:
                         self._bedrock_guardrail_config["streamProcessingMode"] = _gr["stream_processing_mode"]
                     if _gr.get("trace"):
                         self._bedrock_guardrail_config["trace"] = _gr["trace"]
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             self.client = None
             self._client_kwargs = {}
             if not self.quiet_mode:
@@ -1401,8 +1402,8 @@ class AIAgent:
                             _pcfg = PROVIDER_REGISTRY.get(_explicit)
                             if _pcfg and _pcfg.api_key_env_vars:
                                 _env_hint = _pcfg.api_key_env_vars[0]
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         raise RuntimeError(
                             f"Provider '{_explicit}' is set in config.yaml but no API key "
                             f"was found. Set the {_env_hint} environment "
@@ -1557,6 +1558,14 @@ class AIAgent:
             enabled=checkpoints_enabled,
             max_snapshots=checkpoint_max_snapshots,
         )
+
+        # Tool-call guardrail controller (VECTOR safety layer — rate limit + failure detection)
+        try:
+            from agent.tool_guardrails import ToolCallGuardrailController
+            self._guardrail_ctrl = ToolCallGuardrailController()
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] ToolCallGuardrailController unavailable: %s", _sve)
+            self._guardrail_ctrl = None
         
         # SQLite session store (optional -- provided by CLI or gateway)
         self._session_db = session_db
@@ -1655,8 +1664,8 @@ class AIAgent:
                                 _st = self._session_db.get_session_title(self.session_id)
                                 if _st:
                                     _init_kwargs["session_title"] = _st
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         # Thread gateway user identity for per-user memory scoping
                         if self._user_id:
                             _init_kwargs["user_id"] = self._user_id
@@ -1679,8 +1688,8 @@ class AIAgent:
                             _profile = get_active_profile_name()
                             _init_kwargs["agent_identity"] = _profile
                             _init_kwargs["agent_workspace"] = "vector"
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         self._memory_manager.initialize_all(**_init_kwargs)
                         logger.info("Memory provider '%s' activated", _mem_provider_name)
                     else:
@@ -1717,8 +1726,8 @@ class AIAgent:
         try:
             skills_config = _agent_cfg.get("skills", {})
             self._skill_nudge_interval = int(skills_config.get("creation_nudge_interval", 10))
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # Tool-use enforcement config: "auto" (default — matches hardcoded
         # model list), true (always), false (never), or list of substrings.
@@ -1863,8 +1872,8 @@ class AIAgent:
         try:
             _ctx_cfg = _agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}
             _engine_name = _ctx_cfg.get("engine", "compressor") or "compressor"
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         if _engine_name != "compressor":
             # Try loading from plugins/context_engine/<name>/
@@ -1881,8 +1890,8 @@ class AIAgent:
                     _candidate = get_plugin_context_engine()
                     if _candidate and _candidate.name == _engine_name:
                         _selected_engine = _candidate
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             if _selected_engine is None:
                 logger.warning(
@@ -2289,8 +2298,8 @@ class AIAgent:
         try:
             fn = self._print_fn or print
             fn(*args, **kwargs)
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as _sve:
+            logger.warning("[VECTOR][run_agent] suppressed (OSError, ValueError): %s", _sve)
 
     def _vprint(self, *args, force: bool = False, **kwargs):
         """Verbose print — suppressed when actively streaming tokens.
@@ -2364,8 +2373,8 @@ class AIAgent:
         """
         try:
             self._vprint(f"{self.log_prefix}{message}", force=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         if self.status_callback:
             try:
                 self.status_callback("lifecycle", message)
@@ -2381,8 +2390,8 @@ class AIAgent:
         """
         try:
             self._vprint(f"{self.log_prefix}{message}", force=True)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         if self.status_callback:
             try:
                 self.status_callback("warn", message)
@@ -2591,8 +2600,8 @@ class AIAgent:
         if msg and self.status_callback:
             try:
                 self.status_callback("lifecycle", msg)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def _is_direct_openai_url(self, base_url: str = None) -> bool:
         """Return True when a base URL targets OpenAI's native API."""
@@ -2783,10 +2792,10 @@ class AIAgent:
             try:
                 from vector_cli.models import _should_use_copilot_responses_api
                 return _should_use_copilot_responses_api(model)
-            except Exception:
+            except Exception as _sve:
                 # Fall back to the generic GPT-5 rule if Copilot-specific
                 # logic is unavailable for any reason.
-                pass
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         return AIAgent._model_requires_responses_api(model)
 
     def _max_tokens_param(self, value: int) -> dict:
@@ -3302,8 +3311,8 @@ class AIAgent:
                 return "deny"
             try:
                 _set_approval_callback(_bg_review_auto_deny)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             review_agent = None
             try:
                 with open(os.devnull, "w") as _devnull, \
@@ -3362,8 +3371,8 @@ class AIAgent:
                     if _bg_cb:
                         try:
                             _bg_cb(f"💾 {summary}")
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             except Exception as e:
                 logger.warning("Background memory/skill review failed: %s", e)
@@ -3380,18 +3389,18 @@ class AIAgent:
                 if review_agent is not None:
                     try:
                         review_agent.shutdown_memory_provider()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                     try:
                         review_agent.close()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 # Clear the approval callback on this bg-review thread so a
                 # recycled thread-id doesn't inherit a stale reference.
                 try:
                     _set_approval_callback(None)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         t = threading.Thread(target=_run_review, daemon=True, name="bg-review")
         t.start()
@@ -3833,8 +3842,8 @@ class AIAgent:
             if retry_after not in (None, "") and "reset_at" not in context:
                 try:
                     context["reset_at"] = time.time() + float(retry_after)
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", _sve)
 
         response = getattr(error, "response", None)
         headers = getattr(response, "headers", None)
@@ -3843,8 +3852,8 @@ class AIAgent:
             if retry_after and "reset_at" not in context:
                 try:
                     context["reset_at"] = time.time() + float(retry_after)
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", _sve)
             ratelimit_reset = headers.get("x-ratelimit-reset")
             if ratelimit_reset and "reset_at" not in context:
                 context["reset_at"] = ratelimit_reset
@@ -4102,8 +4111,8 @@ class AIAgent:
             for _wtid in _worker_tids:
                 try:
                     _set_interrupt(True, _wtid)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         # Propagate interrupt to any running child agents (subagent delegation)
         with self._active_children_lock:
             children_copy = list(self._active_children)
@@ -4137,8 +4146,8 @@ class AIAgent:
             for _wtid in _worker_tids:
                 try:
                     _set_interrupt(False, _wtid)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         # A hard interrupt supersedes any pending /steer — the steer was
         # meant for the agent's next tool-call iteration, which will no
         # longer happen. Drop it instead of surprising the user with a
@@ -4320,12 +4329,12 @@ class AIAgent:
         if self._memory_manager:
             try:
                 self._memory_manager.on_session_end(messages or [])
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             try:
                 self._memory_manager.shutdown_all()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         # Notify context engine of session end (flush DAG, close DBs, etc.)
         if hasattr(self, "context_compressor") and self.context_compressor:
             try:
@@ -4333,8 +4342,8 @@ class AIAgent:
                     self.session_id or "",
                     messages or [],
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
     
     def commit_memory_session(self, messages: list = None) -> None:
         """Trigger end-of-session extraction without tearing providers down.
@@ -4345,8 +4354,8 @@ class AIAgent:
             return
         try:
             self._memory_manager.on_session_end(messages or [])
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def _sync_external_memory_for_turn(
         self,
@@ -4388,8 +4397,8 @@ class AIAgent:
         try:
             self._memory_manager.sync_all(original_user_message, final_response)
             self._memory_manager.queue_prefetch_all(original_user_message)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def release_clients(self) -> None:
         """Release LLM client resources WITHOUT tearing down session tool state.
@@ -4424,10 +4433,10 @@ class AIAgent:
                     # Fall back to full close on children; they're per-turn.
                     try:
                         child.close()
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # Close the OpenAI/httpx client to release sockets immediately.
         try:
@@ -4435,8 +4444,8 @@ class AIAgent:
             if client is not None:
                 self._close_openai_client(client, reason="cache_evict", shared=True)
                 self.client = None
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def close(self) -> None:
         """Release all resources held by this agent instance.
@@ -4457,20 +4466,20 @@ class AIAgent:
         try:
             from tools.process_registry import process_registry
             process_registry.kill_all(task_id=task_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # 2. Clean terminal sandbox environments
         try:
             cleanup_vm(task_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # 3. Clean browser daemon sessions
         try:
             cleanup_browser(task_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # 4. Close active child agents
         try:
@@ -4480,10 +4489,10 @@ class AIAgent:
             for child in children:
                 try:
                     child.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # 5. Close the OpenAI/httpx client
         try:
@@ -4491,8 +4500,8 @@ class AIAgent:
             if client is not None:
                 self._close_openai_client(client, reason="agent_close", shared=True)
                 self.client = None
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def _hydrate_todo_store(self, history: List[Dict[str, Any]]) -> None:
         """
@@ -4643,8 +4652,8 @@ class AIAgent:
                 _ext_mem_block = self._memory_manager.build_system_prompt()
                 if _ext_mem_block:
                     prompt_parts.append(_ext_mem_block)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         has_skills_tools = any(name in self.valid_tool_names for name in ['skills_list', 'skill_view', 'skill_manage'])
         if has_skills_tools:
@@ -5162,12 +5171,12 @@ class AIAgent:
                     continue
                 try:
                     sock.shutdown(_socket.SHUT_RDWR)
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][run_agent] suppressed OSError: %s", _sve)
                 try:
                     sock.close()
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][run_agent] suppressed OSError: %s", _sve)
                 closed += 1
         except Exception as exc:
             logger.debug("Force-close TCP sockets sweep error: %s", exc)
@@ -5287,8 +5296,8 @@ class AIAgent:
                 finally:
                     try:
                         sock.setblocking(True)
-                    except OSError:
-                        pass
+                    except OSError as _sve:
+                        logger.warning("[VECTOR][run_agent] suppressed OSError: %s", _sve)
             if dead_count > 0:
                 logger.warning(
                     "Found %d dead connection(s) in client pool — rebuilding client",
@@ -5384,8 +5393,8 @@ class AIAgent:
                                     if on_first_delta:
                                         try:
                                             on_first_delta()
-                                        except Exception:
-                                            pass
+                                        except Exception as _sve:
+                                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                                 self._fire_stream_delta(delta_text)
                         # Track tool calls to suppress text streaming
                         elif "function_call" in event_type:
@@ -5546,8 +5555,8 @@ class AIAgent:
             if callable(close_fn):
                 try:
                     close_fn()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         if terminal_response is not None:
             return terminal_response
@@ -5681,8 +5690,8 @@ class AIAgent:
 
         try:
             self._anthropic_client.close()
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         try:
             self._anthropic_client = build_anthropic_client(
@@ -5737,8 +5746,8 @@ class AIAgent:
 
             try:
                 self._anthropic_client.close()
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             self._anthropic_api_key = runtime_key
             self._anthropic_base_url = runtime_base
@@ -5986,8 +5995,8 @@ class AIAgent:
                         rc = request_client_holder.get("client")
                         if rc is not None:
                             self._close_request_openai_client(rc, reason="stale_call_kill")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 self._touch_activity(
                     f"stale non-streaming call killed after {int(_elapsed)}s"
                 )
@@ -6012,8 +6021,8 @@ class AIAgent:
                         request_client = request_client_holder.get("client")
                         if request_client is not None:
                             self._close_request_openai_client(request_client, reason="interrupt_abort")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 raise InterruptedError("Agent interrupted during API call")
         if result["error"] is not None:
             raise result["error"]
@@ -6034,8 +6043,8 @@ class AIAgent:
                 for cb in callbacks:
                     try:
                         cb(tail)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 self._record_streamed_assistant_text(tail)
         self._current_streamed_assistant_text = ""
 
@@ -6115,8 +6124,8 @@ class AIAgent:
             try:
                 cb(text)
                 delivered = True
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         if delivered:
             self._record_streamed_assistant_text(text)
 
@@ -6126,8 +6135,8 @@ class AIAgent:
         if cb is not None:
             try:
                 cb(text)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def _fire_tool_gen_started(self, tool_name: str) -> None:
         """Notify display layer that the model is generating tool call arguments.
@@ -6141,8 +6150,8 @@ class AIAgent:
         if cb is not None:
             try:
                 cb(tool_name)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
     def _has_stream_consumers(self) -> bool:
         """Return True if any streaming consumer is registered."""
@@ -6192,8 +6201,8 @@ class AIAgent:
                     first_delta_fired["done"] = True
                     try:
                         on_first_delta()
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             def _bedrock_call():
                 try:
@@ -6262,8 +6271,8 @@ class AIAgent:
                 first_delta_fired["done"] = True
                 try:
                     on_first_delta()
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         def _call_chat_completions():
             """Stream a chat completions response."""
@@ -6381,8 +6390,8 @@ class AIAgent:
                             try:
                                 self.stream_delta_callback(delta.content)
                                 self._record_streamed_assistant_text(delta.content)
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
                 # Accumulate tool call deltas — notify display on first name
                 if delta and delta.tool_calls:
@@ -6682,16 +6691,16 @@ class AIAgent:
                                     "\n\n⚠ Connection dropped mid tool-call; "
                                     "reconnecting…\n\n"
                                 )
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                             # Reset the streamed-text buffer so the retry's
                             # fresh preamble doesn't get double-recorded in
                             # _current_streamed_assistant_text (which would
                             # pollute the interim-visible-text comparison).
                             try:
                                 self._reset_stream_delivery_tracking()
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                             # Reset in-memory accumulators so the next
                             # attempt's chunks don't concat onto the dead
                             # stream's partial JSON.
@@ -6717,8 +6726,8 @@ class AIAgent:
                                 self._replace_primary_openai_client(
                                     reason="stream_mid_tool_retry_pool_cleanup"
                                 )
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                             self._emit_status("🔄 Reconnected — resuming…")
                             continue
 
@@ -6786,8 +6795,8 @@ class AIAgent:
                                     self._replace_primary_openai_client(
                                         reason="stream_retry_pool_cleanup"
                                     )
-                                except Exception:
-                                    pass
+                                except Exception as _sve:
+                                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                                 self._emit_status("🔄 Reconnected — resuming…")
                                 continue
                             self._emit_status(
@@ -6898,14 +6907,14 @@ class AIAgent:
                     rc = request_client_holder.get("client")
                     if rc is not None:
                         self._close_request_openai_client(rc, reason="stale_stream_kill")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 # Rebuild the primary client too — its connection pool
                 # may hold dead sockets from the same provider outage.
                 try:
                     self._replace_primary_openai_client(reason="stale_stream_pool_cleanup")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 # Reset the timer so we don't kill repeatedly while
                 # the inner thread processes the closure.
                 last_chunk_time["t"] = time.time()
@@ -6922,8 +6931,8 @@ class AIAgent:
                         request_client = request_client_holder.get("client")
                         if request_client is not None:
                             self._close_request_openai_client(request_client, reason="stream_interrupt_abort")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 raise InterruptedError("Agent interrupted during streaming API call")
         if result["error"] is not None:
             if deltas_were_sent["yes"]:
@@ -6962,8 +6971,8 @@ class AIAgent:
                     # instead of only in the persisted transcript.
                     try:
                         self._fire_stream_delta(_warn)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                     logger.warning(
                         "Partial stream dropped tool call(s) %s after %s chars "
                         "of text; surfaced warning to user: %s",
@@ -7057,8 +7066,8 @@ class AIAgent:
                 from vector_cli.model_normalize import normalize_model_for_provider
 
                 fb_model = normalize_model_for_provider(fb_model, fb_provider)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             # Determine api_mode from provider / base URL / model
             fb_api_mode = "chat_completions"
@@ -7311,8 +7320,8 @@ class AIAgent:
                     self._close_openai_client(
                         self.client, reason="primary_recovery", shared=True,
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             # Rebuild from primary snapshot
             rt = self._primary_runtime
@@ -7422,8 +7431,8 @@ class AIAgent:
             if cleanup_path and cleanup_path.exists():
                 try:
                     cleanup_path.unlink()
-                except OSError:
-                    pass
+                except OSError as _sve:
+                    logger.warning("[VECTOR][run_agent] suppressed OSError: %s", _sve)
 
         if not description:
             description = "Image analysis failed."
@@ -7647,8 +7656,8 @@ class AIAgent:
                 finally:
                     try:
                         Path(tmp.name).unlink(missing_ok=True)
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 if not resized or len(resized) >= len(url):
                     # Shrink didn't help (or made it bigger — corrupt input?).
                     return None
@@ -8058,8 +8067,8 @@ class AIAgent:
             if not self.stream_delta_callback and not self._stream_callback:
                 try:
                     self.reasoning_callback(reasoning_text)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # Sanitize surrogates from API response — some models (e.g. Kimi/GLM via Ollama)
         # can return invalid surrogate code points that crash json.dumps() on persist.
@@ -8442,8 +8451,8 @@ class AIAgent:
         if self._memory_manager:
             try:
                 self._memory_manager.on_pre_compress(messages)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         try:
             compressed = self.context_compressor.compress(messages, current_tokens=approx_tokens, focus_topic=focus_topic)
@@ -8556,8 +8565,8 @@ class AIAgent:
         try:
             from tools.file_tools import reset_file_dedup
             reset_file_dedup(task_id)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         logger.info(
             "context compression done: session=%s messages=%d->%d tokens=~%s",
@@ -8623,8 +8632,8 @@ class AIAgent:
             block_message = get_pre_tool_call_block_message(
                 function_name, function_args, task_id=effective_task_id or "",
             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         if block_message is not None:
             return json.dumps({"error": block_message}, ensure_ascii=False)
 
@@ -8668,8 +8677,8 @@ class AIAgent:
                             tool_call_id=tool_call_id,
                         ),
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             return result
         elif self._memory_manager and self._memory_manager.has_tool(function_name):
             return self._memory_manager.handle_tool_call(function_name, function_args)
@@ -8761,8 +8770,8 @@ class AIAgent:
                     if file_path:
                         work_dir = self._checkpoint_mgr.get_working_dir_for_path(file_path)
                         self._checkpoint_mgr.ensure_checkpoint(work_dir, f"before {function_name}")
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             # Checkpoint before destructive terminal commands
             if function_name == "terminal" and self._checkpoint_mgr.enabled:
@@ -8773,8 +8782,8 @@ class AIAgent:
                         self._checkpoint_mgr.ensure_checkpoint(
                             cwd, f"before terminal: {cmd[:60]}"
                         )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             parsed_calls.append((tool_call, function_name, function_args))
 
@@ -8838,8 +8847,8 @@ class AIAgent:
             if self._interrupt_requested:
                 try:
                     _set_interrupt(True, _worker_tid)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             # Set the activity callback on THIS worker thread so
             # _wait_for_process (terminal commands) can fire heartbeats.
             # The callback is thread-local; the main thread's callback
@@ -8847,20 +8856,20 @@ class AIAgent:
             try:
                 from tools.environments.base import set_activity_callback
                 set_activity_callback(self._touch_activity)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             # Propagate approval/sudo callbacks to this worker thread.
             # Mirrors cli.py run_agent() pattern (GHSA-qg5c-hvr5-hjgr).
             if _parent_approval_cb is not None:
                 try:
                     _set_approval_callback(_parent_approval_cb)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             if _parent_sudo_cb is not None:
                 try:
                     _set_sudo_password_callback(_parent_sudo_cb)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             start = time.time()
             try:
                 result = self._invoke_tool(function_name, function_args, effective_task_id, tool_call.id, messages=messages)
@@ -8881,15 +8890,15 @@ class AIAgent:
                 self._tool_worker_threads.discard(_worker_tid)
             try:
                 _set_interrupt(False, _worker_tid)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
             # Clear thread-local callbacks so a recycled worker thread
             # doesn't hold stale references to a disposed CLI instance.
             try:
                 _set_approval_callback(None)
                 _set_sudo_password_callback(None)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # Start spinner for CLI mode (skip when TUI handles tool progress)
         spinner = None
@@ -9083,8 +9092,8 @@ class AIAgent:
                 _block_msg = get_pre_tool_call_block_message(
                     function_name, function_args, task_id=effective_task_id or "",
                 )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             if _block_msg is not None:
                 # Tool blocked by plugin policy — skip counter resets.
@@ -9117,8 +9126,8 @@ class AIAgent:
                 try:
                     from tools.environments.base import set_activity_callback
                     set_activity_callback(self._touch_activity)
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
             if _block_msg is None and self.tool_progress_callback:
                 try:
@@ -9210,8 +9219,8 @@ class AIAgent:
                                 tool_call_id=getattr(tool_call, "id", None),
                             ),
                         )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 tool_duration = time.time() - tool_start_time
                 if self._should_emit_quiet_tool_messages():
                     self._vprint(f"  {_get_cute_tool_message_impl('memory', function_args, tool_duration, result=function_result)}")
@@ -9686,8 +9695,8 @@ class AIAgent:
                         "issue — cleaned up automatically. Proceeding with fresh "
                         "connection."
                     )
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
         # Replay compression warning through status_callback for gateway
         # platforms (the callback was not wired during __init__).
         if self._compression_warning:
@@ -9949,8 +9958,8 @@ class AIAgent:
             try:
                 _turn_msg = original_user_message if isinstance(original_user_message, str) else ""
                 self._memory_manager.on_turn_start(self._user_turn_count, _turn_msg)
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         # External memory provider: prefetch once before the tool loop.
         # Reuse the cached result on every iteration to avoid re-calling
@@ -9962,8 +9971,8 @@ class AIAgent:
             try:
                 _query = original_user_message if isinstance(original_user_message, str) else ""
                 _ext_prefetch_cache = self._memory_manager.prefetch_all(_query) or ""
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
         while (api_call_count < self.max_iterations and self.iteration_budget.remaining > 0) or self._budget_grace_call:
             # Reset per-turn checkpoint dedup so each iteration can take one snapshot
@@ -10054,8 +10063,8 @@ class AIAgent:
                                 blocks = list(existing) if existing else []
                                 blocks.append({"type": "text", "text": marker})
                                 _sm["content"] = blocks
-                            except Exception:
-                                pass
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         _injected = True
                         logger.debug(
                             "Pre-API-call steer drain: injected into tool msg at index %d",
@@ -10344,8 +10353,8 @@ class AIAgent:
                             request_char_count=total_chars,
                             max_tokens=self.max_tokens,
                         )
-                    except Exception:
-                        pass
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
                     if env_var_enabled("VECTOR_DUMP_REQUESTS"):
                         self._dump_api_request_debug(api_kwargs, reason="preflight")
@@ -10542,8 +10551,8 @@ class AIAgent:
                             if _code_raw is not None:
                                 try:
                                     _resp_error_code = int(_code_raw)
-                                except (TypeError, ValueError):
-                                    pass
+                                except (TypeError, ValueError) as _sve:
+                                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", _sve)
 
                         # Build a human-readable failure hint from the error code
                         # and response time, instead of always assuming rate limiting.
@@ -10964,8 +10973,8 @@ class AIAgent:
                         try:
                             from agent.nous_rate_guard import clear_nous_rate_limit
                             clear_nous_rate_limit()
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                     self._touch_activity(f"API call #{api_call_count} completed")
                     break  # Success, exit retry loop
 
@@ -11238,8 +11247,8 @@ class AIAgent:
                             _body = getattr(api_error, "body", None) or getattr(api_error, "response", None)
                             if _body is not None:
                                 _body_text = str(_body)[:200]
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         print(f"{self.log_prefix}🔐 Nous 401 — Portal authentication failed.")
                         if _body_text:
                             print(f"{self.log_prefix}   Response: {_body_text}")
@@ -11523,8 +11532,8 @@ class AIAgent:
                                     "last-known state) -- not tripping "
                                     "cross-session breaker."
                                 )
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                         if _genuine_nous_rate_limit:
                             # Skip straight to max_retries -- the
                             # top-of-loop guard will handle fallback or
@@ -11938,8 +11947,8 @@ class AIAgent:
                             if _ra_raw:
                                 try:
                                     _retry_after = min(int(_ra_raw), 120)  # Cap at 2 minutes
-                                except (TypeError, ValueError):
-                                    pass
+                                except (TypeError, ValueError) as _sve:
+                                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", _sve)
                     wait_time = _retry_after if _retry_after else jittered_backoff(retry_count, base_delay=2.0, max_delay=60.0)
                     if is_rate_limited:
                         self._emit_status(f"⏱️ Rate limited. Waiting {wait_time:.1f}s (attempt {retry_count + 1}/{max_retries})...")
@@ -12064,8 +12073,8 @@ class AIAgent:
                         assistant_content_chars=len(_assistant_text),
                         assistant_tool_call_count=len(_assistant_tool_calls),
                     )
-                except Exception:
-                    pass
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
                 # Handle assistant response
                 if assistant_message.content and not self.quiet_mode:
@@ -12088,13 +12097,13 @@ class AIAgent:
                     if first_line and getattr(self, '_delegate_depth', 0) > 0:
                         try:
                             self.tool_progress_callback("_thinking", first_line)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                     elif _think_text:
                         try:
                             self.tool_progress_callback("reasoning.available", "_thinking", _think_text[:500], None)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
                 
                 # Check for incomplete <REASONING_SCRATCHPAD> (opened but never closed)
                 # This means the model ran out of output tokens mid-reasoning — retry up to 2 times
@@ -12415,8 +12424,8 @@ class AIAgent:
                     if self.stream_delta_callback:
                         try:
                             self.stream_delta_callback(None)
-                        except Exception:
-                            pass
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
 
                     self._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
 
