@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 # Root of all district agent folders
-_DISTRICTS_ROOT = Path(__file__).parent.parent.parent / "agents" / "districts"
+_DISTRICTS_ROOT = Path(__file__).parent.parent.parent / "agents"
 
 # Cached system prompt storage: (district, agent_name) → system_prompt str
 _prompt_cache: dict[tuple[str, str], str] = {}
@@ -67,7 +67,7 @@ def _parse_md_body(path: Path) -> str:
 def load_district_prompt(district: str, agent_name: str) -> str:
     """Find and return the best matching .md system prompt for an agent.
 
-    Searches agents/districts/<district>/*.md and returns the body of the
+    Searches agents/<district>/*.md and returns the body of the
     best-scoring match. Returns empty string if nothing found.
     Results are cached in-process.
     """
@@ -105,7 +105,7 @@ class DistrictLLM:
     """
     LLM caller for a specific district agent.
 
-    - Loads matching .md system prompt from agents/districts/<district>/
+    - Loads matching .md system prompt from agents/<district>/
     - Routes calls through vectorcode_llm (Ollama → free cloud → paid cloud)
     - Injects system prompt only when caller hasn't already set one
     """
