@@ -661,7 +661,7 @@ class ClaimService:
         self.repo.append_event(claim.id, issue_id, "ClaimCreated", {
             "claimant_id": claimant.id,
             "issue_title": issue_title,
-            "priority": priority.value,
+            "priority": priority.value if hasattr(priority, "value") else str(priority),
         })
         logger.info(f"[VECTOR][claims] {claimant.name} claimed issue {issue_id}")
         return claim
