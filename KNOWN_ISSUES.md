@@ -108,10 +108,10 @@ These were created as stubs to fix import errors. They work for import resolutio
 
 ## 5. SECURITY FLAGS (not critical, but review)
 
-### 🟡 SHA1 in WeChat / WeCom files
-- **Files:** `comms/wecom_callback.py:27`, `comms/wecom_crypto.py:43,62`
+### ✅ SHA1 in WeChat / WeCom files — RESOLVED
+- **Files:** `comms/wecom_callback.py:27`, `comms/wecom_crypto.py:43`
 - **Why it's there:** WeChat Enterprise API mandates SHA1 for webhook signature verification — cannot be changed
-- **What to do:** Accept as-is, document in code comments that this is API-mandated
+- **Resolution:** Added `# nosec` comments with explanation at both sites
 
 ### 🟡 SHA1/MD5 used for IDs (not passwords)
 - **Files:** `agent/codex_responses_adapter.py:197`, `comms/email_client.py:244`, `context/compactor.py:238`
