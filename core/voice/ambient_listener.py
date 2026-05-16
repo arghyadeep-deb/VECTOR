@@ -9,10 +9,9 @@ from core.config import CONFIG
 
 _END_PHRASES = {"that's all vector", "thats all vector", "stop vector", "goodbye vector"}
 _WAKE_MODES = {
-    "hey_jarvis": "conversation",     # → "Hey VECTOR" (placeholder)
-    "hey_vector": "conversation",     # future custom model
-    "vector_think": "deep_think",     # → "VECTOR think"
-    "vector_private": "private",      # → "VECTOR private"
+    "hey_vector": "conversation",
+    "vector_think": "deep_think",
+    "vector_private": "private",
 }
 _SILENCE_TIMEOUT_SEC = 45.0
 
