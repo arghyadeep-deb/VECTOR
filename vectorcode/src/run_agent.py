@@ -9363,6 +9363,28 @@ class AIAgent:
             else:
                 logger.info("tool %s completed (%.2fs, %d chars)", function_name, tool_duration, len(function_result))
 
+            # VECTOR guardrail check: rate-limit + repeated-failure detection
+            if self._guardrail_ctrl is not None:
+                try:
+                    _gr_decision = self._guardrail_ctrl.after_call(
+                        function_name, function_args,
+                        function_result if not _is_error_result else None,
+                        failed=_is_error_result,
+                    )
+                    if _gr_decision.action == "halt":
+                        logger.warning(
+                            "[VECTOR][guardrail] HALT on tool=%s reason=%s",
+                            function_name, _gr_decision.reason,
+                        )
+                        self._interrupt_requested = True
+                    elif _gr_decision.action in ("warn", "block"):
+                        logger.warning(
+                            "[VECTOR][guardrail] %s on tool=%s reason=%s",
+                            _gr_decision.action.upper(), function_name, _gr_decision.reason,
+                        )
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] guardrail.after_call suppressed: %s", _sve)
+
             if self.tool_progress_callback:
                 try:
                     self.tool_progress_callback(
