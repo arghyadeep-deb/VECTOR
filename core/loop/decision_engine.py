@@ -316,6 +316,23 @@ class DecisionEngine:
             except Exception:
                 pass
 
+        # RULE 8: store winning decision reasoning in ReasoningBank
+        # High-reward decisions (score > 0.7) become training data
+        reasoning_bank = self._get_reasoning_bank()
+        if reasoning_bank is not None:
+            try:
+                reasoning_bank.store(
+                    task=winner.action_type,
+                    reasoning="\n".join(winner.reasoning_steps) if winner.reasoning_steps else reasoning,
+                    outcome=f"score={winner.total_score:.3f} goal_align={winner.goal_alignment:.2f}",
+                    reward=winner.total_score,
+                    task_type=winner.action_type,
+                )
+                if winner.total_score > 0.7:
+                    reasoning_bank.save()
+            except Exception as _rbe:
+                logger.debug("[VECTOR][decision_engine] ReasoningBank store suppressed: %s", _rbe)
+
         # Persist neural trainer checkpoint every 50 decisions so learning survives restart
         trainer = self._get_neural_trainer()
         if trainer is not None:
