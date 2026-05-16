@@ -182,6 +182,16 @@ class DecisionEngine:
         """Apply the 5-factor formula. Mutates candidate with computed scores."""
         situation_hash = self._make_situation_hash(candidate)
 
+        # RULE 8: inject past reasoning before scoring (ReasoningBank)
+        reasoning_bank = self._get_reasoning_bank()
+        if reasoning_bank is not None:
+            try:
+                past = reasoning_bank.inject_past_reasoning(candidate.action_type, top_k=2)
+                if past:
+                    candidate.reasoning_steps = [f"[past reasoning] {past}"] + candidate.reasoning_steps
+            except Exception as _rbe:
+                logger.debug("[VECTOR][decision_engine] ReasoningBank inject suppressed: %s", _rbe)
+
         policy_score = self._get_policy().get_score(candidate.action_type, situation_hash)
         candidate.policy_score = policy_score
 
