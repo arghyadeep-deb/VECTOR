@@ -24,7 +24,7 @@ class WeComCallback:
         """Verify the callback URL by decrypting echo_str."""
         if not _CRYPTO: return None
         sort_str = "".join(sorted([self.token, timestamp, nonce]))
-        calc_sig = hashlib.sha1(sort_str.encode()).hexdigest()
+        calc_sig = hashlib.sha1(sort_str.encode()).hexdigest()  # nosec — WeCom API mandates SHA1
         if calc_sig != msg_signature: return None
         try:
             key = base64.b64decode(self.encoding_aes_key + "=")
