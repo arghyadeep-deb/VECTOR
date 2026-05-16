@@ -40,7 +40,7 @@ class WXBizMsgCrypt:
 
     def decrypt(self, msg_signature: str, timestamp: str, nonce: str, encrypt: str) -> bytes:
         parts = sorted([self.token, timestamp, nonce, encrypt])
-        if hashlib.sha1("".join(parts).encode()).hexdigest() != msg_signature:
+        if hashlib.sha1("".join(parts).encode()).hexdigest() != msg_signature:  # nosec — WeCom API mandates SHA1
             raise SignatureError("signature mismatch")
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
         padded = cipher.decryptor().update(base64.b64decode(encrypt)) + cipher.decryptor().finalize()
