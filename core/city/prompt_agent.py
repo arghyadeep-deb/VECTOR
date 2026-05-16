@@ -28,7 +28,7 @@ from core.memory.episodic import EpisodicMemory
 from core.config import CONFIG
 
 # Location of all agent .md prompts — colocated with Python agents in districts
-_AGENTS_DIR = Path(__file__).parent.parent.parent / "agents" / "districts"
+_AGENTS_DIR = Path(__file__).parent.parent.parent / "agents"
 
 
 def _parse_md(path: Path) -> tuple[dict, str]:
