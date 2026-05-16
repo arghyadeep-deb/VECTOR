@@ -25,12 +25,14 @@ For cloud tasks (when local is deliberately skipped):
 from __future__ import annotations
 
 import os
+import sys
 import time
-import json
 import threading
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
