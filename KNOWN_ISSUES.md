@@ -15,13 +15,13 @@
 
 ---
 
-## 2. VOICE (code complete, assets missing)
+## 2. VOICE (code complete, model files present)
 
-| Item | Action needed |
-|------|--------------|
-| ⚠️ Kokoro TTS model | `pip install kokoro` + download model weights (~300MB) |
-| ⚠️ "Hey VECTOR" wake word | Record 10 samples → openWakeWord custom training |
-| ⚠️ Whisper large-v3 | Currently using base model — `whisper.load_model("large-v3")` for prod |
+| Item | Status | Action needed |
+|------|--------|--------------|
+| ✅ Kokoro TTS model | `models/kokoro/` has kokoro-v1.0.fp16-gpu.onnx + voices-v1.0.bin | Wire path in `core/voice/tts.py` |
+| ⚠️ "Hey VECTOR" wake word | hey_jarvis placeholder active | Record 10 samples → openWakeWord custom training |
+| ⚠️ Whisper large-v3 | Using base model | `whisper.load_model("large-v3")` for prod quality |
 
 ---
 
