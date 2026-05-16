@@ -77,7 +77,8 @@ class PromptAgent(AgentBase):
         logger.info("[VECTOR][prompt_agent] {} loaded ({} chars system prompt)",
                     name, len(self._system_prompt))
 
-    def _resolve_md_path(self, md_filename: str) -> Path:
+    @staticmethod
+    def _resolve_md_path(md_filename: str) -> Path:
         """Find the .md file — checks flat location first, then all district subfolders."""
         # Direct path given (absolute or relative)
         direct = Path(md_filename)
