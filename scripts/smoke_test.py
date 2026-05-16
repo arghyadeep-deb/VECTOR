@@ -86,7 +86,7 @@ none_result = loop._parse_cron_daily("0 14 1 * *")
 test("non-daily cron returns None", lambda: None if none_result is None else (_ for _ in ()).throw(AssertionError(f"got {none_result}")))
 
 print("\n[6] Claims System")
-with tempfile.TemporaryDirectory() as tmp:
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
     from vectorcode.src.claims import ClaimRepository
     repo = ClaimRepository(db_path=pathlib.Path(tmp) / "claims.db")
     svc = ClaimService(repo=repo)
