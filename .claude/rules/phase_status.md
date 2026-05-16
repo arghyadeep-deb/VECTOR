@@ -224,7 +224,7 @@ Phase 3: All 10 districts built                                 ✅ startups/inv
 
 ### Nice-to-have (not blocking)
 7. Build Next.js dashboard (`dashboard/src/`) — monitoring UI
-8. Fill `data_analytics/` and `devops/` districts (scaffolded, empty)
+8. `data_analytics/` district has agents — `devops/` merged into `ops/`
 9. Build Gap 4 `counterfactual.py` — learns from rejected decisions
 
 ### Year 2 (explicitly planned for later)
