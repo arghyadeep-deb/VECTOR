@@ -89,7 +89,7 @@ def _make_server():
         try:
             from core.loop.context_engine import ContextEngine
             ctx = ContextEngine()
-            state = ctx.get_full_context()
+            state = ctx.get_world_state()
             import json
             return json.dumps(state, indent=2, default=str)
         except Exception as e:
