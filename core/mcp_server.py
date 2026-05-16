@@ -351,6 +351,7 @@ def _make_server():
     _add_claims_tools(mcp)
     _add_guidance_tools(mcp)
     _add_kanban_tools(mcp)
+    _add_email_tools(mcp)
     return mcp
 
 
