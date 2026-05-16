@@ -1,0 +1,1 @@
+"""VECTOR Specialized District."""
