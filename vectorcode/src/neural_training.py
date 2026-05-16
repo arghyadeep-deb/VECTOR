@@ -1127,7 +1127,7 @@ if __name__ == "__main__":
         [False] * 4,
     )
     assert "td_error" in m4
-    print(f"[OK] Q(λ) td_error={m4['td_error']:.4f}")
+    print(f"[OK] Q(lambda) td_error={m4['td_error']:.4f}")
 
     # LRU pruning smoke test
     ql_small = QLearning(QLearningConfig(state_dim=SD, action_dim=AD, max_states=5))
