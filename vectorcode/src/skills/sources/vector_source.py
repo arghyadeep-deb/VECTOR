@@ -1,4 +1,4 @@
-"""VectorSkillResolver -- resolves skills from VECTOR/vector-agent.
+"""VectorSkillResolver — resolves skills from the VECTOR skill repository.
 
 Layout:
     skills/<category>/<skill-name>/SKILL.md
@@ -18,10 +18,10 @@ from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
 
 LOGGER = logging.getLogger(__name__)
 
-HERMES_REPO_URL = "https://github.com/VECTOR/vector-agent.git"
+VECTOR_SKILL_REPO_URL = "https://github.com/VECTOR/vector-agent.git"
 
 class VectorSkillResolver(SourceResolver):
-    """Resolves skills from the Hermes Agent repository."""
+    """Resolves skills from the VECTOR agent repository."""
 
     name = "vector"
 
@@ -34,7 +34,7 @@ class VectorSkillResolver(SourceResolver):
         return self._cache_root
 
     def sync(self) -> None:
-        """Clone or pull the Hermes repo into the cache directory."""
+        """Clone or pull the VECTOR skill repo into the cache directory."""
         if self._cache_root.exists() and (self._cache_root / ".git").exists():
             subprocess.run(
                 ["git", "-C", str(self._cache_root), "pull", "--ff-only"],
@@ -43,7 +43,7 @@ class VectorSkillResolver(SourceResolver):
         else:
             self._cache_root.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["git", "clone", HERMES_REPO_URL, str(self._cache_root)],
+                ["git", "clone", VECTOR_SKILL_REPO_URL, str(self._cache_root)],
                 check=True,
             )
 
@@ -125,4 +125,4 @@ class VectorSkillResolver(SourceResolver):
         except subprocess.CalledProcessError:
             return ""
 
-__all__ = ["VectorSkillResolver", "HERMES_REPO_URL"]
+__all__ = ["VectorSkillResolver", "VECTOR_SKILL_REPO_URL"]
