@@ -1,6 +1,6 @@
 """VECTOR ReasoningBank + PatternLearner — stores and retrieves reasoning trajectories."""
 from __future__ import annotations
-# VECTOR module — ported from ruflo/v3/@claude-flow/neural
+# VECTOR module — neural intelligence subsystem
 # Owner: Arghyadeep Deb | Ingested: 2026-05-16
 
 import hashlib

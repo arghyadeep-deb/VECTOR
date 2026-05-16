@@ -278,11 +278,11 @@ class TestMessagingHubAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 4 — RUFLO ABSORPTION: NeuralRouter
+# SECTION 4 — VECTORCODE ABSORPTION: NeuralRouter
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestNeuralRouterAbsorption:
-    """Validates NeuralRouter supersedes Ruflo's NeuralDomainMapper concept."""
+    """Validates NeuralRouter supersedes VECTOR's NeuralDomainMapper concept."""
 
     def test_neural_router_importable(self):
         from agents.districts.coding.vectorcode.router import NeuralRouter
@@ -363,11 +363,11 @@ class TestNeuralRouterAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 5 — RUFLO ABSORPTION: QueenCoordinator (loop + consensus)
+# SECTION 5 — VECTORCODE ABSORPTION: QueenCoordinator (loop + consensus)
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestQueenCoordinatorAbsorption:
-    """Validates QueenCoordinator now covers Ruflo's Queen.ts features."""
+    """Validates QueenCoordinator now covers VECTOR's Queen.ts features."""
 
     def test_single_shot_decompose_preserved(self):
         from agents.districts.coding.vectorcode.queen import QueenCoordinator
@@ -378,7 +378,7 @@ class TestQueenCoordinatorAbsorption:
         assert "task" in result[0] and "domain" in result[0]
 
     def test_capability_declarations(self):
-        """Ruflo: Queen registers capabilities with the swarm."""
+        """VECTOR: Queen registers capabilities with the swarm."""
         from agents.districts.coding.vectorcode.queen import QueenCoordinator
         q = QueenCoordinator()
         caps = q.get_capabilities()
@@ -439,11 +439,11 @@ class TestQueenCoordinatorAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 6 — RUFLO ABSORPTION: MessageBus
+# SECTION 6 — VECTORCODE ABSORPTION: MessageBus
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestMessageBusAbsorption:
-    """Validates VectorCode MessageBus covers Ruflo's message-bus.ts concepts."""
+    """Validates VectorCode MessageBus covers VECTOR's message-bus.ts concepts."""
 
     def test_message_bus_importable(self):
         from agents.districts.coding.vectorcode.message_bus import MessageBus
@@ -573,11 +573,11 @@ class TestMessageBusAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 7 — RUFLO ABSORPTION: BackgroundWorkers
+# SECTION 7 — VECTORCODE ABSORPTION: BackgroundWorkers
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestWorkersAbsorption:
-    """Validates real worker implementations absorbed from Ruflo monitoring."""
+    """Validates real worker implementations absorbed from VECTOR monitoring."""
 
     def test_all_12_workers_present(self):
         from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
@@ -655,13 +655,13 @@ class TestWorkersAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 8 — SUPERIORITY CHECK: VectorCode > Hermes + Ruflo
+# SECTION 8 — SUPERIORITY CHECK: VectorCode > Hermes + VECTOR
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestVectorCodeSuperiority:
     """
-    Proves VectorCode is functionally superior to Hermes + Ruflo combined.
-    Each test represents a feature VectorCode has that Hermes/Ruflo lacked.
+    Proves VectorCode is functionally superior to Hermes + VECTOR combined.
+    Each test represents a feature VectorCode has that Hermes/VECTOR lacked.
     """
 
     def test_vectorcode_has_no_http_dependency(self):
@@ -671,16 +671,16 @@ class TestVectorCodeSuperiority:
         assert hub.is_connected() is True  # Always true — no process dependency
 
     def test_vectorcode_router_learns_from_outcomes(self):
-        """Ruflo's NeuralDomainMapper concept: VectorCode router improves over time."""
+        """VECTOR's NeuralDomainMapper concept: VectorCode router improves over time."""
         from agents.districts.coding.vectorcode.router import NeuralRouter
         r = NeuralRouter()
-        # This is impossible with static SemanticRouter or Ruflo's TypeScript GNN
+        # This is impossible with static SemanticRouter or VECTOR's TypeScript GNN
         r.learn("review authentication code", "vector-dev", reward=1.0)
         dm = r.get_domain_map()
         assert "vector-dev" in dm  # model domain exists with learned keywords
 
     def test_vectorcode_queen_has_consensus_protocol(self):
-        """Ruflo had consensus; Hermes had none. VectorCode has both + local Python."""
+        """VECTOR had consensus; Hermes had none. VectorCode has both + local Python."""
         from agents.districts.coding.vectorcode.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="delete logs", context="maintenance")
@@ -689,7 +689,7 @@ class TestVectorCodeSuperiority:
         assert not q.should_proceed(p)  # RED action blocked
 
     def test_vectorcode_message_bus_is_pure_python(self):
-        """Ruflo's MessageBus required Node.js. VectorCode's is pure Python."""
+        """VECTOR's MessageBus required Node.js. VectorCode's is pure Python."""
         from agents.districts.coding.vectorcode.message_bus import MessageBus, ChannelType
         bus = MessageBus.get()
         # No Node.js needed — import succeeded
@@ -716,7 +716,7 @@ class TestVectorCodeSuperiority:
         # All imports succeeded without Hermes
         assert True
 
-    def test_vectorcode_combines_ruflo_hermes_in_single_python_package(self):
+    def test_vectorcode_combines_vector_hermes_in_single_python_package(self):
         """VectorCode is a single Python package — no TypeScript, no separate processes."""
         base = Path(__file__).parent.parent / "agents" / "districts" / "coding" / "vectorcode"
         required_paths = [
@@ -735,7 +735,7 @@ class TestVectorCodeSuperiority:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestMessageBusACL:
-    """Validates full Ruflo ACL absorption: allowed_senders, banned_agents, 7 filter ops."""
+    """Validates full VECTOR ACL absorption: allowed_senders, banned_agents, 7 filter ops."""
 
     def test_acl_import(self):
         from agents.districts.coding.vectorcode.message_bus import ChannelACL, FilterOp, FilterRule
@@ -842,7 +842,7 @@ class TestMessageBusACL:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestSwarmTopologies:
-    """Validates all 8 Ruflo topology strategies are implemented."""
+    """Validates all 8 VECTOR topology strategies are implemented."""
 
     def test_all_8_topologies_in_enum(self):
         from agents.districts.coding.vectorcode.swarm import Topology
@@ -965,11 +965,11 @@ class TestSwarmTopologies:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 11 — SwarmMonitor (Ruflo real-time-monitor.ts)
+# SECTION 11 — SwarmMonitor (VECTOR real-time-monitor.ts)
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestSwarmMonitor:
-    """Validates SwarmMonitor absorbs Ruflo real-time-monitor + health-check + diagnostics."""
+    """Validates SwarmMonitor absorbs VECTOR real-time-monitor + health-check + diagnostics."""
 
     def test_import(self):
         from agents.districts.coding.vectorcode.monitoring import SwarmMonitor
@@ -1065,11 +1065,11 @@ class TestSwarmMonitor:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 12 — SwarmDatabase (Ruflo DatabaseManager.ts)
+# SECTION 12 — SwarmDatabase (VECTOR DatabaseManager.ts)
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestSwarmDatabase:
-    """Validates SwarmDatabase absorbs Ruflo DatabaseManager.ts."""
+    """Validates SwarmDatabase absorbs VECTOR DatabaseManager.ts."""
 
     def setup_method(self):
         import tempfile

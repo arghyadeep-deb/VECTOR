@@ -33,7 +33,7 @@ Run `/prune` — VECTOR will identify and drop the least-relevant context from w
 Then run `/rules-distill` — condenses accumulated rules/learnings into a compact form.
 
 ### 4. Route cheap tasks to smaller models
-For: simple edits, renaming, formatting, single-file writes → prefix with "use haiku:" or configure ruflo routing.
+For: simple edits, renaming, formatting, single-file writes → prefix with "use haiku:" or configure vector routing.
 For: architecture decisions, complex debugging → use the default Sonnet/Opus.
 
 ### 5. Save session before hitting the limit

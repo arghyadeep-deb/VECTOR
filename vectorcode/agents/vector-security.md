@@ -38,7 +38,7 @@ Every new tool registered in VECTOR MUST be reviewed by you before activation. N
 - [ ] Financial tools: "ANALYSIS ONLY" comment present, no order/trade execution possible
 - [ ] Voice tools: Whisper local, no cloud STT
 - [ ] Memory writes: source and confidence tagged
-- [ ] All cloud model calls: use Ruflo proxy to save costs
+- [ ] All cloud model calls: use VECTOR cost optimizer to save costs
 
 ## Output Format
 ```

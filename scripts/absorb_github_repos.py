@@ -53,7 +53,7 @@ DELETE_ONLY: list[str] = [
     "obra_superpowers",              # already in vectorcode/skills/
     "addyosmani_agent-skills",       # already in vectorcode/skills/
     "NousResearch_hermes-agent",     # already in vectorcode/src/comms/
-    "ruvnet_ruflo",                  # already in vectorcode/src/swarm.py
+    "ruvnet_vector",                  # absorbed into vectorcode/src (swarm, neural, reasoning_bank)
     "lyogavin_airllm",               # already in integrations/airllm/
     "kyegomez_OpenMythos",           # already in integrations/openmythos/
     "tirth8205_code-review-graph",   # already in integrations/code_review_graph/

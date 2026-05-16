@@ -1,6 +1,6 @@
 # VectorCode VC-5: Hooks + Background Workers
 
-**Goal:** Port Ruflo's 17 hooks and 12 background workers to Python, wired into VectorCode's task lifecycle and VECTOR's TaskQueue.
+**Goal:** Port VECTOR's 17 hooks and 12 background workers to Python, wired into VectorCode's task lifecycle and VECTOR's TaskQueue.
 **Architecture:** HookRegistry is a priority-ordered dict of hook_name → list[callable]. HookExecutor fires hooks with timeout protection. All 12 background workers submit themselves as LOW-priority TaskQueue tasks. Workers run between user tasks and feed results back into PatternStore and episodic_memory.
 **Files:**
 - Create: `agents/districts/coding/vectorcode/hooks/__init__.py`

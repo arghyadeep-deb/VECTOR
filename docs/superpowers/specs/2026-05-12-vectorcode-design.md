@@ -1,12 +1,12 @@
 # VectorCode — Design Spec
 **Date:** 2026-05-12  
-**Goal:** Full Python port of Ruflo's architecture into VECTOR. VECTOR replaces Claude Code as the autonomous coding agent — locally, using Ollama models only.
+**Goal:** Full Python port of VECTOR's architecture into VECTOR. VECTOR replaces Claude Code as the autonomous coding agent — locally, using Ollama models only.
 
 ---
 
 ## Architecture
 
-VectorCode = Ruflo (completely ported to Python) + VECTOR infrastructure.  
+VectorCode = VECTOR (completely ported to Python) + VECTOR infrastructure.  
 Claude API removed everywhere. All inference via Ollama. RULE 11 enforced.
 
 ```
@@ -26,7 +26,7 @@ agents/districts/coding/vectorcode/
 │   ├── code_graph.py   ← code-review-graph AST + blast-radius analysis
 │   └── browser_tools.py← Playwright browser automation
 ├── memory/
-│   ├── faiss_index.py  ← replaces Ruflo HNSW WASM (FAISS C++ bindings)
+│   ├── faiss_index.py  ← replaces VECTOR HNSW WASM (FAISS C++ bindings)
 │   ├── pattern_store.py← SONA port: patterns → reasoning_chains
 │   └── auto_bridge.py  ← bidirectional sync: file memory ↔ FAISS
 ├── hooks/
@@ -61,7 +61,7 @@ All three share `session.py` state. Mode B and C submit via TaskQueue so Mode A 
 
 ---
 
-## SwarmCoordinator (Ruflo UnifiedSwarmCoordinator → Python)
+## SwarmCoordinator (VECTOR UnifiedSwarmCoordinator → Python)
 
 ### Agent Types (60+, all use Ollama)
 ```
@@ -73,7 +73,7 @@ Specialized:    SQLExpert, APIDesigner, PerformanceProfiler, RefactorBot
 Support:        ContextLoader, SummaryBot, ReportWriter, StatusChecker
 ```
 
-### Topologies (Ruflo port)
+### Topologies (VECTOR port)
 - **Hierarchical** — Queen → Domain leads → Workers. Best for complex tasks.
 - **Mesh** — All agents peer. Best for parallel independent subtasks.
 - **Adaptive** — Starts hierarchical, switches to mesh when subtasks diverge.
@@ -84,7 +84,7 @@ Uses `vector-reasoning` for planning. Respects RULE 4 — plans model switches u
 
 ---
 
-## SemanticRouter (Ruflo's provider routing → Ollama routing)
+## SemanticRouter (VECTOR's provider routing → Ollama routing)
 
 | Task Type | Model | Switch Cost |
 |-----------|-------|-------------|
@@ -101,20 +101,20 @@ Router minimizes total switches per GSD cycle. Pattern cache skips discuss phase
 
 ## Memory Layer
 
-### FAISSIndex (Ruflo HNSW → FAISS)
+### FAISSIndex (VECTOR HNSW → FAISS)
 - `faiss.IndexHNSWFlat` — same algorithm, C++ bindings, faster than WASM
 - Embeddings: `nomic-embed-text` via Ollama (already installed)
 - Dimensions: 768 (nomic-embed-text output)
 - Persistence: SQLite metadata + FAISS binary index on disk
 - Search: cosine similarity, top-k with confidence threshold
 
-### PatternStore (Ruflo SONA → reasoning_chains)
+### PatternStore (VECTOR SONA → reasoning_chains)
 Stores successful (task_description, plan, execution_steps, outcome) tuples.  
 On new task: embed → FAISS search → if similarity > 0.85, reuse plan (skip discuss).  
 Reward updates write back to `policy_memory` (RULE 7).  
 High-reward patterns (>0.7) tagged `is_training_data=1` (RULE 8).
 
-### AutoMemoryBridge (Ruflo AutoMemoryBridge → Python)
+### AutoMemoryBridge (VECTOR AutoMemoryBridge → Python)
 Bidirectional sync between:
 - VECTOR file-based memory (`~/.claude/projects/.../memory/`)
 - FAISS index + episodic_memory
@@ -123,7 +123,7 @@ Bidirectional sync between:
 
 ---
 
-## Hooks (Ruflo 17 hooks → Python)
+## Hooks (VECTOR 17 hooks → Python)
 
 ```python
 PRE_EDIT       POST_EDIT      PRE_TASK       POST_TASK
@@ -138,7 +138,7 @@ Hooks fire around every tool call and task lifecycle event.
 
 ---
 
-## Background Workers (Ruflo 12 workers → Python TaskQueue)
+## Background Workers (VECTOR 12 workers → Python TaskQueue)
 
 All submitted as low-priority `TaskQueue` tasks. Run between user tasks.
 
@@ -159,7 +159,7 @@ testgaps      — detects untested functions → feeds test_writer.py
 
 ---
 
-## Security Layer (Ruflo @claude-flow/security → Pydantic + Python)
+## Security Layer (VECTOR @claude-flow/security → Pydantic + Python)
 
 ### InputValidator
 Pydantic models for every tool input. No raw strings pass through tool boundaries.
@@ -196,7 +196,7 @@ VERIFY   → vector-dev reviews output, runs tests, checks coverage
 
 ## MCP Tool Expansion (14 → 314)
 
-Grouped into categories matching Ruflo's 314 tools, all pointing to VECTOR internals:
+Grouped into categories matching VECTOR's 314 tools, all pointing to VECTOR internals:
 
 | Category | Count | Backend |
 |----------|-------|---------|
