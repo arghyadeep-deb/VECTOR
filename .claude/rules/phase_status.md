@@ -50,7 +50,7 @@
 | Component | Status |
 |-----------|--------|
 | STT — Whisper | ✅ `core/voice/stt.py` ready (base model; upgrade to large-v3 for prod) |
-| TTS — Kokoro | ⚠️ `core/voice/tts.py` wired but using **pyttsx3 fallback** — Kokoro model file (~300MB) not downloaded |
+| TTS — Kokoro | ⚠️ `core/voice/tts.py` wired but using pyttsx3 fallback — **model files ARE in `models/kokoro/`** (fp16-gpu.onnx + voices.bin), path just needs wiring |
 | Wake word | ⚠️ `core/voice/wake_word.py` uses hey_jarvis placeholder — **"Hey VECTOR" custom training needed** |
 | Language detector | ✅ `core/voice/language_detector.py` — HI/BN/AS/JA/EN auto-switch |
 | Ambient listener | ✅ `core/voice/ambient_listener.py` |
