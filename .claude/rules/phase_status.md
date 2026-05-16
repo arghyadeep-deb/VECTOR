@@ -126,7 +126,7 @@
 | documentation/ | technical_writer.py, doc_generator.py | ✅ VECTOR documents itself |
 | qa/ | reality_checker.py, evidence_collector.py, workflow_architect.py, api_tester.py, test_results_analyzer.py, accessibility_auditor.py, tool_evaluator.py, workflow_optimizer.py, model_qa_specialist.py | ✅ Full QA suite + WCAG + ML auditing |
 | chief_of_staff/ | chief_of_staff.py | ✅ Morning/evening brief, noise filter, district escalation |
-| devops/ | (empty folder) | ❌ Replaced by ops/ above |
+| devops/ | merged into ops/ | ✅ Removed — ops/ is the unified DevOps+SRE+Incident district |
 
 ### agency-agents Full Alignment — Districts Added 2026-05-17
 | District | New Agents | Source |
