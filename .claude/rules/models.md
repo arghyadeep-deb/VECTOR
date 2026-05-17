@@ -52,11 +52,22 @@ YOUR build sessions     → Claude Sonnet 4.6 via Pro plan chat (unlimited)
 YOUR complex planning   → Claude Opus 4.6 via Pro plan chat
 ```
 
-## VECTOR Runtime Rule
+## VECTOR Runtime Rule (Phase 3 Update)
 ```
-Claude API is NEVER called during VECTOR's autonomous operation.
-Local models handle ALL runtime decisions.
-Claude API = your build sessions only = Pro plan chat = ₹0.
+Ollama is PRIMARY — always tried first (free, local, private, 0 latency overhead).
+Cloud providers via API keys are ALLOWED as:
+  - Explicit fallback when Ollama unavailable
+  - Tasks requiring cloud-grade models (vision, 200K context, ultra-reasoning)
+  - Content creation (ElevenLabs, image generation)
+  - Build sessions (Claude Sonnet/Opus via Pro plan chat, unlimited)
+
+Set API keys in .env to activate cloud providers:
+  ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY,
+  DEEPSEEK_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, etc.
+
+Use core/inference/provider_client.py for all LLM calls — it routes
+Ollama first, then configured cloud providers, with automatic fallback.
+Budget tracked per-agent via core/metering/budget_meter.py.
 ```
 
 ## Custom LLM Plan (OpenMythos RDT)
