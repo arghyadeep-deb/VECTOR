@@ -303,4 +303,4 @@ if __name__ == "__main__":
 
         store.close(s, summary="quick test session")
 
-    print("✅ session_persistence.py OK")
+    print("OK session_persistence.py")
