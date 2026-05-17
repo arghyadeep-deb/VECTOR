@@ -42,6 +42,8 @@ def get_agent(name: str):
         "VideoMerger": VideoMerger,
         "VoiceGenerator": VoiceGenerator,
         "ComfyUIAdapter": ComfyUIAdapter,
+        "MediaStudioAgent": MediaStudioAgent,
+        "media_studio": MediaStudioAgent,
     }
     return agents.get(name)
 
