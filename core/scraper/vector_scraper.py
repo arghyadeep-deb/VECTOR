@@ -163,6 +163,13 @@ class VectorScraper:
             except ImportError:
                 pass
 
+            # Tag fetched content as EXTERNAL_NETWORK (taint tracking)
+            try:
+                from core.security.taint_tracker import get_taint_tracker, TaintLabel
+                get_taint_tracker().tag_external(result.content)
+            except Exception:
+                pass
+
             self._audit("fetch_http", url, result.status_code)
             logger.info("[VECTOR][scraper] fetch {} → {}", url[:60], result.status_code)
             return result
