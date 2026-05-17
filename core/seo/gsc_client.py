@@ -322,8 +322,93 @@ class GSCClient:
         return self.analyze(raw)
 
 
+# ── URL Inspection API ────────────────────────────────────────────────────────
+
+def _inspect_url(
+    site: str,
+    url: str,
+    access_token: str | None = None,
+) -> dict:
+    """
+    Run URL Inspection API on a single URL.
+    Returns indexing status, mobile usability, rich results, last crawl time.
+    Requires broader OAuth scope: https://www.googleapis.com/auth/webmasters
+    """
+    token = access_token or _get_access_token()
+    if not token:
+        raise RuntimeError("No gcloud access token")
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    quota = _get_quota_project()
+    if quota:
+        headers["x-goog-user-project"] = quota
+
+    encoded_site = urllib.parse.quote(site, safe="")
+    url_api = f"https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
+    payload = {"inspectionUrl": url, "siteUrl": site}
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(url_api, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read())
+            ir = result.get("inspectionResult", {})
+            return {
+                "url": url,
+                "verdict": ir.get("indexStatusResult", {}).get("verdict", "unknown"),
+                "coverage": ir.get("indexStatusResult", {}).get("coverageState", "unknown"),
+                "last_crawl": ir.get("indexStatusResult", {}).get("lastCrawlTime", ""),
+                "mobile_usability": ir.get("mobileUsabilityResult", {}).get("verdict", "unknown"),
+                "rich_results": [r.get("resultType") for r in ir.get("richResultsResult", {}).get("detectedItems", [])],
+            }
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:300]
+        return {"url": url, "error": f"HTTP {e.code}: {body}"}
+
+
+class URLInspector:
+    """
+    VECTOR's URL Inspection client.
+    Checks per-page indexing status, mobile usability, and rich results.
+    """
+
+    def __init__(self) -> None:
+        self._token: str | None = None
+
+    def inspect_urls(self, site: str, urls: list[str], max_workers: int = 5) -> list[dict]:
+        """Inspect multiple URLs concurrently. Returns list of inspection results."""
+        token = _get_access_token()
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futs = {pool.submit(_inspect_url, site, url, token): url for url in urls}
+            for fut in futs:
+                try:
+                    results.append(fut.result(timeout=30))
+                except Exception as e:
+                    results.append({"url": futs[fut], "error": str(e)})
+        logger.info("[VECTOR][gsc] inspected {} URLs for {}", len(results), site)
+        return results
+
+    def find_not_indexed(self, site: str, urls: list[str]) -> list[dict]:
+        """Return only URLs that are not indexed or have coverage issues."""
+        all_results = self.inspect_urls(site, urls)
+        return [
+            r for r in all_results
+            if r.get("verdict", "").lower() not in ("pass", "valid")
+            and "error" not in r
+        ]
+
+    async def inspect_async(self, site: str, urls: list[str]) -> list[dict]:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.inspect_urls, site, urls)
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     client = GSCClient()
-    print("OK gsc_client.py — GSCClient ready (requires gcloud auth to run live)")
-    print(f"  Methods: list_sites(), fetch(site, days), analyze(data), fetch_and_analyze(site)")
+    inspector = URLInspector()
+    print("OK gsc_client.py — GSCClient + URLInspector ready (requires gcloud auth)")
+    print(f"  GSCClient: list_sites(), fetch(site, days), analyze(data), fetch_and_analyze(site)")
+    print(f"  URLInspector: inspect_urls(site, urls), find_not_indexed(site, urls)")
