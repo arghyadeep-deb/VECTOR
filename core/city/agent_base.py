@@ -31,6 +31,37 @@ class AgentBase:
         self._district_llm = self._make_district_llm()
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
 
+    def _load_role(self, name: str, district: str):
+        """Load specialist role from roles registry by agent name or district."""
+        try:
+            from core.engine.agents.roles import get_agent_prompt, ROLES_BY_NAME
+            # Try exact name match first (e.g. "researcher" → RESEARCHER role)
+            key = name.lower().replace("agent", "").replace("bot", "").strip("_- ")
+            role = ROLES_BY_NAME.get(key)
+            if role:
+                return role
+            # Fall back to district-level mapping
+            _DISTRICT_ROLES = {
+                "research": "researcher",
+                "coding":   "code_executor",
+                "governance": "orchestrator",
+                "memory_curator": "archivist",
+                "reflection": "archivist",
+                "intelligence": "researcher",
+            }
+            district_role_key = _DISTRICT_ROLES.get(district)
+            if district_role_key:
+                return ROLES_BY_NAME.get(district_role_key)
+        except Exception:
+            pass
+        return None
+
+    def get_system_prompt(self) -> str:
+        """Return this agent's system prompt (from role if set, else empty)."""
+        if self.role and self.role.system_prompt:
+            return self.role.system_prompt
+        return ""
+
     def _make_district_llm(self):
         """Lazy-init DistrictLLM — routes calls through vectorcode_llm + .md prompt."""
         try:
