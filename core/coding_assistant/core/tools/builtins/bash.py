@@ -40,7 +40,9 @@ from core.coding_assistant.core.utils import is_windows, kill_async_subprocess
 
 
 @lru_cache(maxsize=1)
-def _get_parser() -> Parser:
+def _get_parser() -> "Parser | None":
+    if not _TREE_SITTER_AVAILABLE:
+        return None
     return Parser(Language(tsbash.language()))
 
 
