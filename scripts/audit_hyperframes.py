@@ -228,7 +228,9 @@ with tempfile.TemporaryDirectory() as tmp:
     comp = os.path.join(tmp, "comp.html")
     build_composition_from_content(content, None, comp)
     comp_html = open(comp, encoding="utf-8").read()
-    assert "VECTOR Intelligence" in comp_html
+    # headline = h1 text "VECTOR AI Platform", title is fallback only
+    assert "VECTOR AI Platform" in comp_html
+    assert "Multi-agent" in comp_html
     assert "window.__vector" in comp_html
     assert "enableRenderMode" in comp_html
     assert "vector.ai" in comp_html.lower()
