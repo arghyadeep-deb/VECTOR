@@ -210,7 +210,7 @@ def handle_forward_email(
     conn.execute(
         """INSERT INTO emails
            (id, folder_id, subject, sender, recipient, cc, bcc, date, body,
-            in_reply_to, email_references, thread_id, message_id, raw_headers, is_read)
+            in_reply_to, email_references, thread_id, message_id, raw_headers, read)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, 1)""",
         (
             message_id,
