@@ -111,9 +111,13 @@ class Block:
 
 
 def _read_attr(tag_raw: str, attr: str) -> Optional[str]:
+    """Read attribute value. Returns '' for boolean attributes (no value), None if absent."""
     for m in _ATTR_RE.finditer(tag_raw):
         if m.group(1).lower() == attr.lower():
-            return m.group(2) or m.group(3) or m.group(4)
+            return m.group(2) or m.group(3) or m.group(4) or ""
+    # Boolean attribute (no = value): match bare attr name
+    if re.search(rf'(?:^|[\s<]){re.escape(attr)}(?:\s|/?>|$)', tag_raw, re.IGNORECASE):
+        return ""
     return None
 
 
