@@ -1,6 +1,9 @@
 annotated-doc==0.0.4
 # ── VECTOR Coding Assistant (core/coding_assistant/) ─────────────────────────
 tomli_w>=1.0.0             # TOML writer — used by coding assistant config system
+acp>=0.1.0                 # Agent Communication Protocol — coding assistant ACP server
+tree-sitter>=0.21.0        # Syntax tree parsing (bash tool uses this)
+tree-sitter-bash>=0.21.0   # Bash grammar for tree-sitter (bash syntax analysis)
 # ── VECTOR Research Engine (core/research_engine/) ───────────────────────────
 sqlalchemy>=2.0.0          # settings + research history DB
 alembic>=1.13.0            # DB migrations for research engine
