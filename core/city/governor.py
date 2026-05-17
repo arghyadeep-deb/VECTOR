@@ -46,6 +46,21 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "code_search": "coding",
     "load_skill": "coding",
     "skill_run": "coding",
+    # core/jcode/ tools (ported from high-performance agent harness)
+    "multiedit": "coding",
+    "multi_edit": "coding",
+    "apply_patch": "coding",
+    "cache_tracker": "coding",
+    "kv_cache": "coding",
+    # ambient scheduler (core/jcode/ambient_scheduler.py)
+    "ambient": "governance",
+    "directive": "governance",
+    "schedule_task": "governance",
+    "ambient_status": "governance",
+    # session persistence (core/jcode/session_persistence.py)
+    "session_persist": "memory_curator",
+    "recover_session": "memory_curator",
+    "session_recovery": "memory_curator",
     "calendar": "time_calendar",
     "schedule": "time_calendar",
     "deadline": "time_calendar",
