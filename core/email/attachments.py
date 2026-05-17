@@ -49,6 +49,8 @@ def store_attachments(
     for att in attachments:
         attachment_id = str(uuid.uuid4())
         raw_name = att.get("filename") or "untitled"
+        # Take only the final path component to prevent traversal (e.g. ../../evil.sh → evil.sh)
+        raw_name = Path(raw_name).name or "untitled"
         safe_name = _UNSAFE_CHARS.sub("_", raw_name)
         dest_dir = _ATTACH_ROOT / email_id / attachment_id
         dest_dir.mkdir(parents=True, exist_ok=True)
