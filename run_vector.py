@@ -554,6 +554,20 @@ async def _start_background_services() -> None:
     """Start lightweight background services that augment VECTOR's capabilities."""
     import asyncio
 
+    # Session persistence — recover crashed sessions + register current run
+    try:
+        from core.jcode.session_persistence import SessionPersistence
+        _sp = SessionPersistence()
+        crashed = _sp.recover_crashed_sessions()
+        if crashed:
+            logger.warning(
+                "[VECTOR][startup] {} crashed session(s) recovered from prior run",
+                len(crashed),
+            )
+        logger.info("[VECTOR][startup] SessionPersistence active — crash recovery enabled")
+    except Exception as e:
+        logger.debug("[VECTOR][startup] SessionPersistence skipped: {}", e)
+
     # OAuth server (port 51201) — provides token exchange for 119 integrations
     try:
         from core.engine.oauth.server import create_oauth_app
