@@ -1,4 +1,23 @@
 annotated-doc==0.0.4
+# ── VECTOR Research Engine (core/research_engine/) ───────────────────────────
+sqlalchemy>=2.0.0          # settings + research history DB
+alembic>=1.13.0            # DB migrations for research engine
+beautifulsoup4>=4.12.0     # HTML parsing for content extraction
+langchain-ollama>=0.3.0    # Ollama LangChain integration
+langchain-community>=0.3.0 # DuckDuckGo + other search integrations
+langchain-openai>=0.3.0    # OpenAI-compatible endpoint support
+langchain-text-splitters>=0.3.0  # document chunking
+arxiv>=2.1.0               # ArXiv academic paper search
+wikipedia>=1.4.0           # Wikipedia search engine
+trafilatura>=2.0.0         # web content extraction (best quality)
+readabilipy>=0.2.0         # article text extraction fallback
+justext>=3.0.0             # boilerplate removal
+pypdf>=5.0.0               # PDF reading
+platformdirs>=4.0.0        # cross-platform config paths
+defusedxml>=0.7.1          # safe XML parsing
+sentence-transformers>=3.0.0  # local embeddings for semantic search
+pdfplumber>=0.11.0         # advanced PDF extraction
+# ─────────────────────────────────────────────────────────────────────────────
 fastmcp>=2.0.0
 humanlayer>=0.5.0
 markitdown>=0.0.1
