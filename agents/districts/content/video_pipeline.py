@@ -179,6 +179,12 @@ class VideoPipelineAgent(AgentBase):
                 await self._generate_narration(narration_text, narration_path)
                 self._update_job(job, status="rendering", stage_pct=40)
 
+                # Stage 3.5: AI thumbnail (optional — uses Muapi.ai if key set)
+                ai_thumbnail_url = await self._generate_ai_thumbnail(script_data, niche)
+
+                # Stage 3.7: Lip sync avatar (optional — uses Muapi.ai lipsync if configured)
+                lipsync_path = await self._generate_lipsync_avatar(narration_path)
+
                 # Stage 4: Render composition → MP4
                 comp_path  = os.path.join(tmp, "composition.html")
                 raw_mp4    = os.path.join(tmp, "raw.mp4")
@@ -194,6 +200,7 @@ class VideoPipelineAgent(AgentBase):
                     channel_name=CONFIG.get("content_niche", niche) + " by VECTOR",
                     niche=niche,
                     output_path=comp_path,
+                    extra_vars={"thumbnail_url": ai_thumbnail_url, "lipsync_video": lipsync_path or ""},
                 )
                 composer = VectorComposer(
                     on_progress=lambda p, m: self._update_job(
