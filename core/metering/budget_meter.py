@@ -42,12 +42,34 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "ollama":           {"input": 0.0,   "output": 0.0},
 }
 
-DEFAULT_PRICING = {"input": 3.0, "output": 15.0}  # fallback: Sonnet pricing
+DEFAULT_PRICING = {"input": 3.0, "output": 15.0}  # fallback for unknown cloud models
+
+# Model families served locally via Ollama (always $0)
+_OLLAMA_FREE_PREFIXES = frozenset({
+    "qwen", "gemma", "llama", "mistral", "deepseek", "devstral", "phi",
+    "codellama", "solar", "vicuna", "orca", "falcon", "mpt", "starcoder",
+    "vector", "nomic", "yi", "dolphin", "openchat", "wizardcoder",
+    "stablelm", "neural", "zephyr", "orca-mini", "tinyllama",
+})
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Estimate USD cost for a completion."""
-    pricing = MODEL_PRICING.get(model.split(":")[0].lower(), DEFAULT_PRICING)
+    """
+    Estimate USD cost for a completion.
+    Ollama-served models (local) are always $0.
+    Cloud models use per-million-token pricing.
+    """
+    base = model.split(":")[0].lower().replace("-", "").replace("_", "")
+    # Explicit free entry
+    if model.lower() in ("ollama", "local"):
+        return 0.0
+    # Known Ollama model families
+    if any(base.startswith(prefix.replace("-", "")) for prefix in _OLLAMA_FREE_PREFIXES):
+        return 0.0
+    pricing = MODEL_PRICING.get(base, None)
+    if pricing is None:
+        # Unknown model — assume cloud, use Sonnet pricing as conservative estimate
+        pricing = DEFAULT_PRICING
     return (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
 
 
