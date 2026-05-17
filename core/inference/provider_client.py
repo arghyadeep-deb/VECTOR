@@ -89,20 +89,49 @@ class ProviderClient:
         temperature: float = 0.7,
         max_tokens: int = 4096,
         tools: list[dict] | None = None,
+        caller_id: str = "system",
     ) -> CompletionResult:
         """
         Multi-turn chat with automatic provider routing and fallback.
 
-        Tries providers in order until one succeeds.
+        Pipeline:
+          1. Rate-limit check (GCRA, 500 tokens/min per caller)
+          2. ModelRouter resolves tier → model
+          3. ReliableProvider wraps call with retry + backoff
+          4. Tries providers in order until one succeeds
         """
-        # Determine provider order
+        # ── Rate limit check ────────────────────────────────────────────────────
+        try:
+            from core.metering.rate_limiter import get_rate_limiter
+            rl = get_rate_limiter()
+            allowed, wait_ms = rl.check(caller_id, "llm_message")
+            if not allowed:
+                logger.warning(
+                    "[VECTOR][provider_client] rate limit hit caller={} wait={:.0f}ms",
+                    caller_id, wait_ms,
+                )
+                if wait_ms > 5000:
+                    raise RuntimeError(f"Rate limit exceeded — retry in {wait_ms/1000:.1f}s")
+        except ImportError:
+            pass
+
+        # ── Model routing via ModelRouter ───────────────────────────────────────
+        if not model:
+            try:
+                from core.engine.providers.model_router import ModelRouter
+                _router = ModelRouter()
+                route = _router.route(tier)
+                model = route.model
+            except Exception:
+                pass
+
+        # ── Provider selection ──────────────────────────────────────────────────
         if provider:
             prov_obj = get_provider(provider)
             if not prov_obj:
                 raise ValueError(f"Unknown provider: {provider}")
             providers_to_try = [prov_obj]
         else:
-            # Tier-based routing
             order = TIER_ROUTING.get(tier, ["ollama"])
             providers_to_try = []
             for slug in order:
@@ -112,6 +141,7 @@ class ProviderClient:
             if not providers_to_try:
                 providers_to_try = [PROVIDERS["ollama"]]
 
+        # ── ReliableProvider retry loop ──────────────────────────────────────────
         last_error = ""
         for prov in providers_to_try:
             target_model = model or prov.default_model
@@ -120,8 +150,9 @@ class ProviderClient:
                     "[VECTOR][provider_client] {} → {} ({})",
                     tier, target_model, prov.slug,
                 )
-                result = await self._call(prov, target_model, messages,
-                                          temperature, max_tokens, tools)
+                result = await self._call_with_retry(
+                    prov, target_model, messages, temperature, max_tokens, tools
+                )
                 return result
             except Exception as e:
                 last_error = str(e)
@@ -132,6 +163,50 @@ class ProviderClient:
                 continue
 
         raise RuntimeError(f"All providers failed. Last error: {last_error}")
+
+    async def _call_with_retry(
+        self,
+        prov,
+        model: str,
+        messages: list[dict],
+        temperature: float,
+        max_tokens: int,
+        tools: list[dict] | None,
+        max_retries: int = 3,
+    ):
+        """Wrap _call() with ReliableProvider retry + exponential backoff."""
+        import asyncio
+        try:
+            from core.engine.providers.reliable_provider import (
+                is_non_retryable, is_rate_limited, parse_retry_after_ms
+            )
+            use_reliable = True
+        except ImportError:
+            use_reliable = False
+
+        backoff = 1.0
+        for attempt in range(max_retries):
+            try:
+                return await self._call(prov, model, messages, temperature, max_tokens, tools)
+            except Exception as e:
+                err = str(e)
+                if use_reliable and is_non_retryable(err):
+                    raise
+                if attempt == max_retries - 1:
+                    raise
+                wait = backoff
+                if use_reliable:
+                    retry_after = parse_retry_after_ms(err)
+                    if retry_after:
+                        wait = retry_after / 1000
+                    elif is_rate_limited(err):
+                        wait = backoff * 2
+                logger.warning(
+                    "[VECTOR][provider_client] attempt {}/{} failed — retrying in {:.1f}s",
+                    attempt + 1, max_retries, wait,
+                )
+                await asyncio.sleep(wait)
+                backoff = min(backoff * 2, 30.0)
 
     async def _call(
         self,
