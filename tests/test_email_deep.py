@@ -566,7 +566,7 @@ def test_reply_forward_sender_mismatch():
     seed_id = str(uuid.uuid4())
     conn.execute(
         "INSERT OR IGNORE INTO emails(id,folder_id,subject,sender,recipient,date,body,thread_id,message_id,read) VALUES(?,?,?,?,?,?,?,?,?,0)",
-        (seed_id, "inbox", "Mismatch", "x@x.com", "me@x.com", datetime.datetime.now().isoformat(), "body", seed_id, seed_id),
+        (seed_id, "inbox", "Mismatch", "x@x.com", "me@x.com", datetime.datetime.now().isoformat(), "body", seed_id, seed_id)
     )
     conn.commit()
     conn.close()
