@@ -278,7 +278,13 @@ CONFIG: dict = {
         "kiit_username": _s.KIIT_USERNAME,
         "kiit_password": _s.KIIT_PASSWORD.get_secret_value(),
         "google_credentials_path": _s.GOOGLE_CREDENTIALS_PATH,
+        "youtube_channel_id": _s.YOUTUBE_CHANNEL_ID,
+        "instagram_access_token": _s.INSTAGRAM_ACCESS_TOKEN.get_secret_value(),
+        "instagram_account_id": _s.INSTAGRAM_ACCOUNT_ID,
+        "elevenlabs_key": _s.ELEVENLABS_KEY.get_secret_value(),
     },
+    "content_niche": _s.CONTENT_NICHE,
+    "video_upload_delay_minutes": _s.VIDEO_UPLOAD_DELAY_MINUTES,
     # Top-level aliases so CONFIG.get("pushover_token") works (permission_gateway uses this)
     "pushover_token": _s.PUSHOVER_TOKEN.get_secret_value(),
     "pushover_user": _s.PUSHOVER_USER,
