@@ -226,6 +226,76 @@ async def lint_endpoint(path: str) -> JSONResponse:
     })
 
 
+# ── Content pipeline API ──────────────────────────────────────────────────────
+
+@app.get("/api/content/queue")
+async def content_queue() -> JSONResponse:
+    """Active + pending video jobs."""
+    try:
+        from agents.districts.content.video_pipeline import get_job_queue
+        jobs = get_job_queue(limit=20)
+        return JSONResponse({"jobs": jobs})
+    except Exception as e:
+        return JSONResponse({"jobs": [], "error": str(e)})
+
+
+@app.get("/api/content/history")
+async def content_history() -> JSONResponse:
+    """Completed + failed video jobs."""
+    try:
+        from agents.districts.content.video_pipeline import get_job_history
+        jobs = get_job_history(limit=10)
+        return JSONResponse({"jobs": jobs})
+    except Exception as e:
+        return JSONResponse({"jobs": [], "error": str(e)})
+
+
+@app.post("/api/content/generate")
+async def content_generate(body: dict) -> JSONResponse:
+    """Trigger video creation. body: {topic?, platform?, niche?, dry_run?}"""
+    topic    = body.get("topic")
+    platform = body.get("platform", "both")
+    niche    = body.get("niche", "AI")
+    dry_run  = bool(body.get("dry_run", False))
+
+    async def _run():
+        from agents.districts.content.video_pipeline import VideoPipelineAgent
+        agent = VideoPipelineAgent()
+        result = await agent.create_and_upload(
+            topic=topic, platform=platform, niche=niche, dry_run=dry_run
+        )
+        await _broadcast({"type": "content_done", **result})
+
+    asyncio.create_task(_run())
+    return JSONResponse({"status": "started", "topic": topic or "auto", "niche": niche})
+
+
+@app.delete("/api/content/cancel/{job_id}")
+async def content_cancel(job_id: str) -> JSONResponse:
+    """Cancel a pending upload within the safety window."""
+    try:
+        from agents.districts.content.video_pipeline import cancel_job
+        cancelled = cancel_job(job_id)
+        await _broadcast({"type": "content_cancelled", "job_id": job_id})
+        return JSONResponse({"cancelled": cancelled, "job_id": job_id})
+    except Exception as e:
+        return JSONResponse({"cancelled": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/content/status")
+async def content_status() -> JSONResponse:
+    """Platform credential status."""
+    from core.config import CONFIG
+    keys = CONFIG.get("api_keys", {})
+    return JSONResponse({
+        "youtube":   bool(keys.get("google_credentials_path")),
+        "instagram": bool(keys.get("instagram_access_token")),
+        "elevenlabs": bool(keys.get("elevenlabs_key")),
+        "niche":     CONFIG.get("content_niche", "AI"),
+        "upload_delay_min": CONFIG.get("video_upload_delay_minutes", 30),
+    })
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def start_studio_server(
