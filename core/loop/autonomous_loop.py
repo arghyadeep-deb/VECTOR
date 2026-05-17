@@ -296,7 +296,7 @@ class AutonomousLoop:
                 await self._observe_tick()
                 self._tick_count += 1
             except Exception as e:
-                logger.error(f"[VECTOR][observe] tick error: {e}")
+                _capture_loop_error(e, "observe_loop")
             await asyncio.sleep(interval)
 
     async def _observe_tick(self):
