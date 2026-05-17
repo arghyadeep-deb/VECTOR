@@ -590,7 +590,7 @@ class AutonomousLoop:
                     await self._reflect_tick()
 
             except Exception as e:
-                logger.error(f"[VECTOR][reflect] error: {e}")
+                _capture_loop_error(e, "reflect_loop")
                 # Chunked backoff so stop() is responsive
                 for _ in range(300):
                     if not self._running:
