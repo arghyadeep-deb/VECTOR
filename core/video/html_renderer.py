@@ -33,6 +33,14 @@ from loguru import logger
 
 from core.video.composition_types import Fps, canvas_size, QUALITY_CRF, RenderQuality
 
+# ── Load inline runtime JS ────────────────────────────────────────────────────
+_RUNTIME_JS_PATH = Path(__file__).parent / "runtime" / "vector_runtime.js"
+_RUNTIME_JS: str = ""
+try:
+    _RUNTIME_JS = _RUNTIME_JS_PATH.read_text(encoding="utf-8")
+except Exception:
+    pass  # runtime optional — compositions with window.__vector already set work fine
+
 
 # ── Local file server ─────────────────────────────────────────────────────────
 
