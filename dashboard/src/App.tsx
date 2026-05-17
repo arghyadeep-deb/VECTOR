@@ -169,13 +169,21 @@ export default function App() {
         </div>
       </main>
 
-      {/* ── Right panel — metrics ── */}
-      <aside style={{ gridColumn: '3', gridRow: '2' }} className="jarvis-panel corner-tl overflow-hidden flex flex-col">
-        <div className="py-2 px-3 border-b" style={{ borderColor: 'var(--jarvis-border)' }}>
-          <span className="label">System Metrics</span>
+      {/* ── Right panel — metrics + content pipeline ── */}
+      <aside style={{ gridColumn: '3', gridRow: '2', display: 'flex', flexDirection: 'column', gap: 0 }}
+             className="jarvis-panel corner-tl overflow-hidden">
+        {/* System Metrics (top half) */}
+        <div style={{ flex: '0 0 auto' }}>
+          <div className="py-2 px-3 border-b" style={{ borderColor: 'var(--jarvis-border)' }}>
+            <span className="label">System Metrics</span>
+          </div>
+          <div className="p-2">
+            <SystemMetrics state={state} />
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          <SystemMetrics state={state} />
+        {/* Content Pipeline (bottom half) */}
+        <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid rgba(0,212,255,0.1)', overflow: 'hidden' }}>
+          <ContentPanel />
         </div>
       </aside>
 
