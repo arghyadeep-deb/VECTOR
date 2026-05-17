@@ -481,6 +481,43 @@ class Governor:
         district = task.get("district") or self.route_task(task_type)
 
         logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
+
+        # Prompt injection scan on task content
+        task_content = str(task.get("params", {}).get("content", ""))
+        if task_content:
+            try:
+                from core.security.prompt_injection import scan_text
+                scan_result = scan_text(task_content, context=f"governor.{task_type}")
+                if not scan_result.clean:
+                    logger.warning(
+                        f"[VECTOR][governor] prompt injection blocked task {task_id}: {scan_result}"
+                    )
+                    return {"status": "blocked", "reason": "prompt_injection", "task_id": task_id, "district": district}
+            except Exception:
+                pass
+
+        # Budget check before dispatch (non-blocking — just warns)
+        try:
+            from core.metering.budget_meter import get_budget_meter
+            meter = get_budget_meter()
+            allowed, budget_reason = meter.check_quota(f"district_{district}")
+            if not allowed:
+                logger.warning(f"[VECTOR][governor] budget warning for {district}: {budget_reason}")
+        except Exception:
+            pass
+
+        # Audit log — record dispatch
+        try:
+            from core.audit.merkle_chain import get_audit_chain
+            get_audit_chain().log(
+                agent_id=f"governor_{district}",
+                action="dispatch",
+                district=district,
+                payload={"task_type": task_type, "task_id": task_id},
+            )
+        except Exception:
+            pass
+
         # OTel: open a trace span for this dispatch
         try:
             from core.engine.telemetry.otel_bridge import get_telemetry
