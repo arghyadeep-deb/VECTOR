@@ -418,6 +418,40 @@ class EmailAgent(AgentBase):
                 self.award_points(10, "email_stored")
                 return {"status": "ok", "email_id": email_id}
 
+            elif task_type in ("reply", "send_reply"):
+                from agents.districts.communications.reply_forward import handle_reply_email
+                result = handle_reply_email(
+                    mailbox_id=task.get("mailbox_id", CONFIG.get("EMAIL_ADDRESS", "")),
+                    original_id=task.get("original_email_id", ""),
+                    to=task.get("to", ""),
+                    from_addr=task.get("from", CONFIG.get("EMAIL_ADDRESS", "")),
+                    subject=task.get("subject", ""),
+                    html=task.get("html"),
+                    text=task.get("text"),
+                    cc=task.get("cc"),
+                    bcc=task.get("bcc"),
+                    attachments=task.get("attachments"),
+                )
+                self.award_points(20, "email_replied")
+                return {"status": "ok", **result}
+
+            elif task_type == "forward":
+                from agents.districts.communications.reply_forward import handle_forward_email
+                result = handle_forward_email(
+                    mailbox_id=task.get("mailbox_id", CONFIG.get("EMAIL_ADDRESS", "")),
+                    original_id=task.get("original_email_id", ""),
+                    to=task.get("to", ""),
+                    from_addr=task.get("from", CONFIG.get("EMAIL_ADDRESS", "")),
+                    subject=task.get("subject", ""),
+                    html=task.get("html"),
+                    text=task.get("text"),
+                    cc=task.get("cc"),
+                    bcc=task.get("bcc"),
+                    attachments=task.get("attachments"),
+                )
+                self.award_points(20, "email_forwarded")
+                return {"status": "ok", **result}
+
             else:
                 # Status
                 conn = self._conn()
