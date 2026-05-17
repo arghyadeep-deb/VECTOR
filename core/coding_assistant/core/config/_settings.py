@@ -11,11 +11,12 @@ from typing import Annotated, Any, Literal, get_args
 from urllib.parse import urljoin
 
 from dotenv import dotenv_values
-# [VECTOR] mistral SDK removed — stub SpeechOutputFormat
+# [VECTOR] mistral SDK removed — stub SpeechOutputFormat as StrEnum (Pydantic-compatible)
 try:
     from mistralai.client.models import SpeechOutputFormat
 except ImportError:
-    class SpeechOutputFormat(str):  # type: ignore[no-redef]
+    from enum import StrEnum as _StrEnum
+    class SpeechOutputFormat(_StrEnum):  # type: ignore[no-redef]
         """Stub — mistralai SDK not installed; VECTOR uses local Kokoro TTS."""
         MP3 = "mp3"
         PCM = "pcm"
