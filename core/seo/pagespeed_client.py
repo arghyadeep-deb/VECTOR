@@ -34,7 +34,7 @@ def _load_api_key() -> str | None:
         return key
     for env_file in [".env", ".env.local"]:
         try:
-            with open(env_file) as f:
+            with open(env_file, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     line = line.strip()
                     if line.startswith("PAGESPEED_API_KEY=") and not line.startswith("#"):
