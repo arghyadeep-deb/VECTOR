@@ -72,26 +72,45 @@ class WebScout(AgentBase):
                 break
         return results
 
-    async def fetch_page(self, url: str) -> str:
-        """Fetch a URL and convert to markdown via MarkItDown."""
+    async def fetch_page(self, url: str, stealth: bool = False) -> str:
+        """
+        Fetch a URL and convert to markdown.
+        Uses VECTOR Scraper (TLS fingerprint impersonation + adaptive tracking).
+        Falls back to stealth mode for Cloudflare-protected sites.
+        """
         try:
-            import httpx
-            sys.path.insert(0, str(Path(__file__).parent))
-            from markitdown import MarkItDown
-
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                r = await client.get(
-                    url, headers={"User-Agent": "Mozilla/5.0 (compatible; VECTOR/1.0)"}
-                )
-            md = MarkItDown()
-            result = md.convert_stream(
-                __import__("io").BytesIO(r.content),
-                file_extension=".html",
-            )
-            return result.text_content[:8000]
+            from core.scraper.vector_scraper import get_scraper
+            scraper = get_scraper()
+            result = await scraper.smart_fetch(url, try_stealth_on_fail=stealth)
+            if result.markdown:
+                return result.markdown[:8000]
+            return result.content[:8000]
+        except ImportError:
+            # Fallback to httpx if scraper not available
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                    r = await client.get(
+                        url, headers={"User-Agent": "Mozilla/5.0 (compatible; VECTOR/1.0)"}
+                    )
+                return r.text[:8000]
+            except Exception as e2:
+                logger.warning(f"[VECTOR][web_scout] fetch_page fallback failed {url}: {e2}")
+                return ""
         except Exception as e:
             logger.warning(f"[VECTOR][web_scout] fetch_page failed {url}: {e}")
             return ""
+
+    async def fetch_page_stealth(self, url: str) -> str:
+        """Fetch with full anti-bot bypass for Cloudflare / bot-protected sites."""
+        try:
+            from core.scraper.vector_scraper import get_scraper
+            scraper = get_scraper()
+            result = await scraper.fetch_stealth(url)
+            return result.markdown or result.content[:8000]
+        except Exception as e:
+            logger.warning(f"[VECTOR][web_scout] stealth fetch failed {url}: {e}")
+            return await self.fetch_page(url)
 
     async def research(self, query: str, save_note: bool = True) -> dict:
         """
