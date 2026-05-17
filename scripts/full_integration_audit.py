@@ -91,7 +91,7 @@ except Exception as e:
 # skills parser
 try:
     from core.coding_assistant.core.skills.parser import parse_skill_markdown
-    from core.coding_assistant.core.skills.models import Skill
+    from core.coding_assistant.core.skills.models import SkillInfo
     check("skills parser importable", True)
 except Exception as e:
     check("skills parser", False, str(e)[:60])
