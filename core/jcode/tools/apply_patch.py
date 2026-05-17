@@ -378,7 +378,6 @@ if __name__ == "__main__":
         patch = """*** Begin Patch
 *** Update File: hello.py
 @@ x = 1
- x = 1
 -y = 2
 +y = 99
 *** Add File: new_file.py
@@ -392,4 +391,4 @@ if __name__ == "__main__":
         assert (Path(tmpdir) / "new_file.py").exists()
         assert result["applied"] == 2
 
-    print("✅ apply_patch.py OK")
+    print("OK apply_patch.py")
