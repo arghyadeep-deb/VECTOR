@@ -257,10 +257,12 @@ class AutonomousLoop:
     async def _fire_vnative_cron_jobs(self) -> None:
         """Check and fire VECTOR-native cron job entries at their scheduled times."""
         from core.loop.cron_jobs import job_trigger_workflow, job_benchmark_suite, job_recipe_sync
+        from agents.districts.content.video_pipeline import job_generate_daily_video
         entries: list[tuple[str, str, Callable]] = [
-            ("daily-workflow-trigger", "0 8 * * *", job_trigger_workflow),
-            ("weekly-benchmark-suite", "0 1 * * 0", job_benchmark_suite),
-            ("weekly-recipe-sync",     "30 1 * * 0", job_recipe_sync),
+            ("daily-workflow-trigger",  "0 8 * * *",  job_trigger_workflow),
+            ("weekly-benchmark-suite",  "0 1 * * 0",  job_benchmark_suite),
+            ("weekly-recipe-sync",      "30 1 * * 0", job_recipe_sync),
+            ("daily-video-generation",  "0 22 * * *", job_generate_daily_video),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
         for job_id, cron_expr, fn in entries:
