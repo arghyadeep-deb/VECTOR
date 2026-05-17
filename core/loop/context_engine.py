@@ -290,7 +290,29 @@ class ContextEngine:
                 lines.append(f"{k}: {v}")
 
         lines.append("[END SESSION CONTEXT]")
-        return "\n".join(lines)
+        raw = "\n".join(lines)
+
+        # ── TokenJuice compression — strip noise before injecting into LLM ──────
+        try:
+            from core.engine.token_juice.compressor import reduce_text
+            compressed = reduce_text(
+                raw,
+                strip_boilerplate=True,
+                strip_log_noise=True,
+                compress_repeated_lines=True,
+                max_chars=2000,
+            )
+            if len(compressed) < len(raw):
+                logger.debug(
+                    "[VECTOR][context_engine] TokenJuice: {} → {} chars ({:.0f}% reduction)",
+                    len(raw), len(compressed),
+                    (1 - len(compressed) / len(raw)) * 100,
+                )
+                return compressed
+        except Exception:
+            pass
+
+        return raw
 
     def _time_of_day(self, now: datetime.datetime) -> str:
         h = now.hour
