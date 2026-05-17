@@ -371,4 +371,4 @@ if __name__ == "__main__":
         assert due[0].context == "run code review"
         assert len(sched.peek_queue()) == 0
 
-    print("✅ ambient_scheduler.py OK")
+    print("OK ambient_scheduler.py")
