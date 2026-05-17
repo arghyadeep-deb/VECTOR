@@ -286,6 +286,46 @@ class VideoPipelineAgent(AgentBase):
             self.deduct_points(30, f"pipeline failed: {e}")
             return {"status": "error", "error": str(e), "job_id": job_id}
 
+    # ── Media Studio hooks ────────────────────────────────────────────────────
+
+    async def _generate_ai_thumbnail(self, script_data: dict, niche: str) -> str:
+        """Generate an AI thumbnail image for the video. Returns URL or empty string."""
+        try:
+            from core.media.generative_studio import GenerativeStudio
+            studio = GenerativeStudio()
+            if not studio._has_muapi() and not studio._wan2gp._base_url and not studio._local.is_available():
+                return ""
+            title = script_data.get("title", "")
+            prompt = (
+                f"Cinematic YouTube thumbnail for a {niche} video titled '{title}'. "
+                "Bold text, high contrast, professional composition, 16:9 aspect ratio."
+            )
+            result = await studio.generate_image(prompt, model="flux-dev", aspect_ratio="16:9")
+            url = result.get("url") or result.get("image_path") or ""
+            if url:
+                logger.info("[VECTOR][video_pipeline] AI thumbnail generated: {}", url[:80])
+            return url
+        except Exception as e:
+            logger.debug("[VECTOR][video_pipeline] AI thumbnail skipped: {}", e)
+            return ""
+
+    async def _generate_lipsync_avatar(self, narration_path: str) -> str:
+        """Generate a lipsync avatar video from narration. Returns local path or empty string."""
+        try:
+            media_cfg = CONFIG.get("media", {})
+            if not media_cfg.get("use_lipsync_avatar"):
+                return ""
+            portrait = media_cfg.get("portrait_image", "")
+            if not portrait or not narration_path or not Path(narration_path).exists():
+                return ""
+            from core.media.generative_studio import GenerativeStudio
+            studio = GenerativeStudio()
+            result = await studio.lipsync(portrait, narration_path)
+            return result.get("url") or ""
+        except Exception as e:
+            logger.debug("[VECTOR][video_pipeline] Lipsync avatar skipped: {}", e)
+            return ""
+
     # ── Stage implementations ─────────────────────────────────────────────────
 
     async def _pick_topic(self, topic: Optional[str], niche: str) -> str:
