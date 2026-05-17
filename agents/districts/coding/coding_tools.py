@@ -171,6 +171,51 @@ def load_skill(skill_name: str) -> dict | None:
         return None
 
 
+# ── jcode tools (ported from high-performance agent harness) ──────────────────
+
+def multiedit_file(file_path: str, edits: list[dict]) -> dict:
+    """
+    Atomically apply multiple search/replace operations to a single file.
+    Each edit: {old_string, new_string, replace_all (optional)}.
+    Returns {success, applied, failed, diff}.
+    """
+    try:
+        from core.jcode.tools.multiedit import multiedit
+        return multiedit(file_path, edits)
+    except Exception as e:
+        logger.error("[VECTOR][coding_tools] multiedit failed: {}", e)
+        return {"success": False, "error": str(e)}
+
+
+def apply_codex_patch(patch_text: str, base_dir: str = ".") -> dict:
+    """
+    Apply a Codex-style *** Begin Patch / *** End Patch block.
+    Supports Add File, Delete File, Update File (with Move to).
+    Returns {success, results, touched_files}.
+    """
+    try:
+        from core.jcode.tools.apply_patch import apply_patch
+        return apply_patch(patch_text, base_dir)
+    except Exception as e:
+        logger.error("[VECTOR][coding_tools] apply_patch failed: {}", e)
+        return {"success": False, "error": str(e)}
+
+
+def check_cache_violation(messages: list[dict], tracker=None):
+    """
+    Check message list for KV cache append-only violations.
+    Pass a CacheTracker instance to persist state across calls.
+    Returns CacheViolation or None.
+    """
+    try:
+        from core.jcode.cache_tracker import CacheTracker
+        t = tracker or CacheTracker()
+        return t.record_request(messages)
+    except Exception as e:
+        logger.warning("[VECTOR][coding_tools] cache_tracker unavailable: {}", e)
+        return None
+
+
 if __name__ == "__main__":
     # Smoke tests
     import tempfile, os
