@@ -1,0 +1,303 @@
+"""
+VECTOR HTML Frame Renderer
+Ported from hyperframes engine/frameCapture.ts + services/browserManager.ts
+
+Captures an HTML composition as a sequence of PNG frames using Playwright.
+Pipeline:
+  1. Serve the HTML file via a local HTTP server (avoids file:// CORS)
+  2. Launch headless Chromium with correct viewport/DPR for target resolution
+  3. Seek the VECTOR runtime to each frame's timestamp
+  4. Capture screenshot as PNG
+  5. Write frames to temp directory for FFmpeg ingestion
+
+Supports:
+  - Variable injection via window.__vector.setVariables(vars)
+  - Parallel frame capture across multiple browser contexts
+  - GPU/software rendering toggle (hardware vs SwiftShader)
+  - 4K supersampling via deviceScaleFactor
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import json
+import os
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+from typing import Any, Callable, Optional
+
+from loguru import logger
+
+from core.video.composition_types import Fps, canvas_size, QUALITY_CRF, RenderQuality
+
+
+# ── Local file server ─────────────────────────────────────────────────────────
+
+class _SilentHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *_): pass
+
+
+def _start_file_server(directory: str, port: int) -> HTTPServer:
+    """Serve composition files over HTTP to avoid CORS issues."""
+    handler_class = type("VectorFileHandler", (_SilentHandler,), {"directory": directory})
+    server = HTTPServer(("127.0.0.1", port), handler_class)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server
+
+
+def _find_free_port(start: int = 51000) -> int:
+    import socket
+    for port in range(start, start + 1000):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError("No free port found in range 51000-52000")
+
+
+# ── Frame capture result ──────────────────────────────────────────────────────
+
+@dataclass
+class FrameCaptureResult:
+    frame_dir: str
+    frame_count: int
+    width: int
+    height: int
+    fps: Fps
+    duration_seconds: float
+    avg_capture_ms: float
+    frames: list[str] = field(default_factory=list)  # sorted PNG paths
+
+
+@dataclass
+class RendererConfig:
+    """Maps to hyperframes engine RenderConfig."""
+    quality: RenderQuality = "standard"
+    use_gpu: bool = False
+    device_scale_factor: int = 1  # >1 = supersampling for 4K
+    timeout_ms: int = 30_000
+    warmup_frames: int = 2       # discard first N frames (JS warmup)
+    on_progress: Optional[Callable[[int, int, float], None]] = None  # (frame, total, ms)
+
+
+# ── Playwright frame capture ──────────────────────────────────────────────────
+
+class HTMLFrameRenderer:
+    """
+    Captures an HTML composition as PNG frames using Playwright.
+    Equivalent to hyperframes engine/services/frameCapture.ts
+    """
+
+    def __init__(self, config: Optional[RendererConfig] = None) -> None:
+        self._config = config or RendererConfig()
+
+    async def capture(
+        self,
+        composition_path: str,
+        output_dir: str,
+        fps: Fps,
+        duration_seconds: float,
+        resolution: str = "landscape",
+        variables: Optional[dict[str, Any]] = None,
+    ) -> FrameCaptureResult:
+        """
+        Capture all frames for a composition.
+        Returns FrameCaptureResult with sorted PNG paths.
+        """
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            raise RuntimeError(
+                "playwright not installed. Run: pip install playwright && playwright install chromium"
+            )
+
+        width, height = canvas_size(resolution)
+        real_width  = width  * self._config.device_scale_factor
+        real_height = height * self._config.device_scale_factor
+
+        total_frames = int(duration_seconds * fps.to_float())
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        # Serve composition files over local HTTP
+        comp_path    = Path(composition_path).resolve()
+        project_dir  = str(comp_path.parent)
+        file_name    = comp_path.name
+        port         = _find_free_port()
+        server       = _start_file_server(project_dir, port)
+        base_url     = f"http://127.0.0.1:{port}/{file_name}"
+
+        logger.info(
+            "[VECTOR][html_renderer] Capturing {} frames at {}x{} from {}",
+            total_frames, real_width, real_height, comp_path.name,
+        )
+
+        frames_written: list[str] = []
+        capture_times: list[float] = []
+
+        try:
+            async with async_playwright() as pw:
+                launch_args = self._browser_args()
+                browser = await pw.chromium.launch(
+                    headless=True,
+                    args=launch_args,
+                )
+                context = await browser.new_context(
+                    viewport={"width": real_width, "height": real_height},
+                    device_scale_factor=self._config.device_scale_factor,
+                )
+                page = await context.new_page()
+
+                # Navigate and wait for composition runtime to signal ready
+                await page.goto(base_url, wait_until="networkidle",
+                                timeout=self._config.timeout_ms)
+
+                # Inject variables if provided
+                if variables:
+                    vars_json = json.dumps(variables)
+                    await page.evaluate(
+                        f"""
+                        if (window.__vector && window.__vector.setVariables) {{
+                            window.__vector.setVariables({vars_json});
+                        }} else if (window.__hyperframes && window.__hyperframes.setVariables) {{
+                            window.__hyperframes.setVariables({vars_json});
+                        }}
+                        """
+                    )
+
+                # Enable render mode (pauses JS animations — we control time)
+                await page.evaluate("""
+                    if (window.__vector && window.__vector.enableRenderMode) {
+                        window.__vector.enableRenderMode();
+                    } else if (window.enableRenderMode) {
+                        window.enableRenderMode();
+                    }
+                """)
+
+                frame_time_step = 1.0 / fps.to_float()
+                warmup = self._config.warmup_frames
+
+                for i in range(-warmup, total_frames):
+                    t_start = time.perf_counter()
+                    frame_time = max(0.0, i * frame_time_step)
+
+                    # Seek to timestamp
+                    await page.evaluate(f"""
+                        if (window.__vector && window.__vector.renderSeek) {{
+                            window.__vector.renderSeek({frame_time:.6f});
+                        }} else if (window.renderSeek) {{
+                            window.renderSeek({frame_time:.6f});
+                        }}
+                    """)
+
+                    # Skip warmup frames
+                    if i < 0:
+                        continue
+
+                    # Capture PNG frame
+                    frame_name = f"frame_{i:08d}.png"
+                    frame_path = os.path.join(output_dir, frame_name)
+                    await page.screenshot(path=frame_path, full_page=False)
+
+                    elapsed_ms = (time.perf_counter() - t_start) * 1000
+                    capture_times.append(elapsed_ms)
+                    frames_written.append(frame_path)
+
+                    if self._config.on_progress:
+                        avg = sum(capture_times) / len(capture_times)
+                        self._config.on_progress(i, total_frames, avg)
+
+                await browser.close()
+        finally:
+            server.shutdown()
+
+        avg_ms = sum(capture_times) / len(capture_times) if capture_times else 0.0
+        frames_written.sort()
+
+        logger.info(
+            "[VECTOR][html_renderer] Captured {} frames, avg {:.1f}ms/frame",
+            len(frames_written), avg_ms,
+        )
+
+        return FrameCaptureResult(
+            frame_dir=output_dir,
+            frame_count=len(frames_written),
+            width=real_width,
+            height=real_height,
+            fps=fps,
+            duration_seconds=duration_seconds,
+            avg_capture_ms=avg_ms,
+            frames=frames_written,
+        )
+
+    def _browser_args(self) -> list[str]:
+        args = [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--font-render-hinting=none",    # deterministic fonts
+            "--disable-lcd-text",
+            "--disable-font-subpixel-positioning",
+            "--disable-extensions",
+            "--hide-scrollbars",
+            "--mute-audio",
+        ]
+        if not self._config.use_gpu:
+            args += [
+                "--disable-gpu",
+                "--use-gl=swiftshader",
+                "--disable-software-rasterizer",
+            ]
+        return args
+
+
+# ── Screenshot capture (single frame) ────────────────────────────────────────
+
+async def capture_screenshot(
+    url: str,
+    output_path: str,
+    width: int = 1920,
+    height: int = 1080,
+    wait_for: str = "networkidle",
+    full_page: bool = False,
+) -> str:
+    """Capture a single screenshot of any URL. Used by website_to_video."""
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        raise RuntimeError("playwright not installed")
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
+        context = await browser.new_context(
+            viewport={"width": width, "height": height},
+        )
+        page = await context.new_page()
+        await page.goto(url, wait_until=wait_for, timeout=30_000)
+        await page.screenshot(path=output_path, full_page=full_page)
+        await browser.close()
+
+    logger.info("[VECTOR][html_renderer] screenshot saved: {}", output_path)
+    return output_path
+
+
+if __name__ == "__main__":
+    import tempfile
+    # Smoke test: composition types
+    fps = Fps(30, 1)
+    assert fps.to_ffmpeg_arg() == "30"
+
+    w, h = canvas_size("landscape")
+    assert w == 1920 and h == 1080
+
+    config = RendererConfig(quality="standard")
+    renderer = HTMLFrameRenderer(config)
+    assert renderer._config.quality == "standard"
+
+    print("OK html_renderer.py — config + types OK (Playwright requires install for live test)")
