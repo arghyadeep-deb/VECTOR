@@ -11,16 +11,18 @@ Modules:
 """
 __version__ = "1.0.0"
 
-from core.seo.gsc_client import GSCClient
+from core.seo.gsc_client import GSCClient, URLInspector
 from core.seo.pagespeed_client import PageSpeedClient
 from core.seo.broken_link_checker import BrokenLinkChecker
-from core.seo.cms_connector import CMSConnector
+from core.seo.cms_connector import CMSConnector, push_strapi_seo_meta
 from core.seo.portfolio import SEOPortfolio
 
 __all__ = [
     "GSCClient",
+    "URLInspector",
     "PageSpeedClient",
     "BrokenLinkChecker",
     "CMSConnector",
+    "push_strapi_seo_meta",
     "SEOPortfolio",
 ]
