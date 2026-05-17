@@ -10,6 +10,21 @@ from loguru import logger
 from core.config import CONFIG
 
 
+def _capture_loop_error(exc: Exception, context: str, district: str = "") -> None:
+    """Send loop errors to Sentry + log via loguru. Never raises."""
+    try:
+        from core.openhuman.telemetry.sentry_bridge import init_sentry
+        s = init_sentry()
+        s.capture_exception(exc, context={
+            "loop_context": context,
+            "district": district,
+            "component": "autonomous_loop",
+        })
+    except Exception:
+        pass
+    logger.error("[VECTOR][{}] {}: {}", context, type(exc).__name__, exc)
+
+
 class AutonomousLoop:
     """
     RULE 2 — THE LOOP NEVER STOPS.
