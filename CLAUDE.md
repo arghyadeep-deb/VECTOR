@@ -19,3 +19,17 @@
 @import brain/VECTOR/Architecture.md
 @import brain/VECTOR/Roadmap.md
 @import .claude/rules/brain_index.md
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles mapped to VECTOR's labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo. `CONTEXT.md` at root + `docs/adr/` (6 ADRs). See `docs/agents/domain.md`.
