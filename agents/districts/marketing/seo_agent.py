@@ -215,21 +215,36 @@ class SEOAgent(AgentBase):
             ps    = sections.get("pagespeed", {})
             links = sections.get("broken_links", {})
 
+            # Position bucket insight (from show_gsc.py absorption)
+            buckets = gsc.get("position_buckets", {})
+            bucket_insight = buckets.get("insight", "") if buckets else ""
+            bucket_counts  = buckets.get("counts", {}) if buckets else {}
+
+            # CrUX real-user data (from show_pagespeed.py absorption)
+            crux = ps.get("crux", {})
+            crux_overall = crux.get("overall", "unknown") if crux else "unknown"
+            crux_lcp     = crux.get("lcp", {}).get("rating", "unknown") if crux else "unknown"
+
             summary_data = {
-                "gsc_summary":    gsc.get("summary", gsc.get("error", "no data")),
-                "mobile_score":   ps.get("scores", {}).get("mobile", "unknown"),
-                "desktop_score":  ps.get("scores", {}).get("desktop", "unknown"),
-                "broken_links":   links.get("broken_count", 0),
-                "top_opportunity": (gsc.get("opportunities") or [{}])[0] if gsc.get("opportunities") else {},
+                "gsc_summary":       gsc.get("summary", gsc.get("error", "no data")),
+                "mobile_score":      ps.get("scores", {}).get("mobile", "unknown"),
+                "mobile_label":      ps.get("scores", {}).get("mobile_label", ""),
+                "desktop_score":     ps.get("scores", {}).get("desktop", "unknown"),
+                "crux_overall":      crux_overall,   # FAST/AVERAGE/SLOW from real users
+                "crux_lcp":          crux_lcp,       # LCP rating from real users
+                "broken_links":      links.get("broken_count", 0),
+                "top_opportunity":   (gsc.get("opportunities") or [{}])[0] if gsc.get("opportunities") else {},
+                "position_buckets":  bucket_counts,  # {1-3, 4-10, 11-20, 21+}
+                "ranking_insight":   bucket_insight,
             }
 
             prompt = (
                 f"SEO audit summary for: {site}\n\n"
-                f"Data: {str(summary_data)[:1000]}\n\n"
+                f"Data: {str(summary_data)[:1200]}\n\n"
                 "Write a concise 3-bullet executive summary with:\n"
-                "1. Current performance state\n"
-                "2. Top issue to fix this week\n"
-                "3. Biggest growth opportunity\n"
+                "1. Current performance state (include CrUX real-user rating if available)\n"
+                "2. Top issue to fix this week (consider position bucket distribution)\n"
+                "3. Biggest growth opportunity (CTR opportunities, page-2 keyword wins)\n"
             )
             return chat(
                 model=CONFIG["models"]["focus"],
