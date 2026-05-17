@@ -10,10 +10,32 @@ from loguru import logger
 from core.config import CONFIG
 
 
+def _scan_incoming(text: str, context: str = "") -> bool:
+    """Scan incoming text for prompt injection. Returns True if clean."""
+    try:
+        from core.security.prompt_injection import scan_text
+        result = scan_text(text, context)
+        if not result.clean:
+            logger.warning("[VECTOR][autonomous_loop] prompt injection blocked in {}: {}", context, result)
+            return False
+    except Exception:
+        pass
+    return True
+
+
+def _get_loop_guard():
+    """Get or create a LoopGuardState for the current task."""
+    try:
+        from core.loop.loop_guard import LoopGuardState
+        return LoopGuardState(task_id="autonomous_loop")
+    except Exception:
+        return None
+
+
 def _capture_loop_error(exc: Exception, context: str, district: str = "") -> None:
     """Send loop errors to Sentry + log via loguru. Never raises."""
     try:
-        from core.openhuman.telemetry.sentry_bridge import init_sentry
+        from core.engine.telemetry.sentry_bridge import init_sentry
         s = init_sentry()
         s.capture_exception(exc, context={
             "loop_context": context,
