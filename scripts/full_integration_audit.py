@@ -149,8 +149,8 @@ print("\n=== VECTOR WIRING (coding_assistant) ===")
 gov = Path("core/city/governor.py").read_text(encoding="utf-8")
 check("Governor routes search_replace", "search_replace" in gov,
       "NOT in governor — coding_assistant tools not routed")
-check("Governor routes bash tool", "bash_tool" in gov or "execute_bash" in gov,
-      "NOT in governor — bash tool not routed")
+check("Governor routes bash tool", "bash_execute" in gov or "bash_tool" in gov,
+      "NOT in governor — bash_execute not routed")
 
 # coding district uses coding_assistant
 coding_hub = Path("agents/districts/coding")
