@@ -16,6 +16,7 @@ from .uploader import Uploader
 from .video_merger import VideoMerger
 from .voice_generator import VoiceGenerator
 from .comfyui_adapter import ComfyUIAdapter
+from .media_studio_agent import MediaStudioAgent
 
 __all__ = [
     "ScriptGenerator",
@@ -25,6 +26,7 @@ __all__ = [
     "VideoMerger",
     "VoiceGenerator",
     "ComfyUIAdapter",
+    "MediaStudioAgent",
 ]
 
 logger.info("[VECTOR][content] Content district loaded")
