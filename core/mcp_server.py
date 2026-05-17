@@ -352,6 +352,7 @@ def _make_server():
     _add_guidance_tools(mcp)
     _add_kanban_tools(mcp)
     _add_email_tools(mcp)
+    _add_research_tools(mcp)
     return mcp
 
 
