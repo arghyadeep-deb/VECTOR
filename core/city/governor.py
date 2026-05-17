@@ -450,6 +450,16 @@ class Governor:
         district = task.get("district") or self.route_task(task_type)
 
         logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
+        # OTel: open a trace span for this dispatch
+        try:
+            from core.openhuman.telemetry.otel_bridge import get_telemetry
+            _tel = get_telemetry()
+            _span_ctx = _tel.span(f"governor.dispatch.{district}",
+                                  {"task_type": task_type, "district": district, "task_id": task_id})
+            _span_ctx.__enter__()
+        except Exception:
+            _span_ctx = None
+
         self._active_tasks[task_id] = {
             "task": task,
             "district": district,
