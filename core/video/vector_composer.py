@@ -382,6 +382,176 @@ class CompositionTemplate:
         Path(output_path).write_text(html, encoding="utf-8")
         return output_path
 
+    @staticmethod
+    def youtube_video(
+        title: str,
+        sections: list[dict],
+        channel_name: str = "VECTOR AI",
+        niche: str = "AI",
+        output_path: str = "youtube_video.html",
+    ) -> str:
+        """
+        Branded YouTube video composition template.
+        sections = [{"heading": str, "body": str, "duration": float}, ...]
+        Each section is shown for its duration seconds sequentially.
+        Total duration = 3s intro + sum(section durations) + 5s outro
+        """
+        NICHE_COLORS = {
+            "AI":      ("#020A14", "#00D4FF", "#0066CC"),
+            "finance": ("#021008", "#00FF88", "#007A44"),
+            "tech":    ("#07020A", "#C084FC", "#6D28D9"),
+            "health":  ("#020A06", "#34D399", "#059669"),
+        }
+        bg, accent, btn = NICHE_COLORS.get(niche, NICHE_COLORS["AI"])
+
+        # Build timed section HTML with data-start/data-duration
+        intro_dur = 3.0
+        current_time = intro_dur
+        sections_html = ""
+        for i, sec in enumerate(sections):
+            dur = float(sec.get("duration", 8.0))
+            heading = sec.get("heading", "")
+            body = sec.get("body", "")
+            sections_html += f"""
+  <div data-start="{current_time:.2f}" data-duration="{dur:.2f}" class="section" id="sec{i}"
+       style="visibility:hidden">
+    <div class="sec-num">{i+1:02d}</div>
+    <div class="sec-heading">{heading}</div>
+    <div class="sec-body">{body}</div>
+  </div>"""
+            current_time += dur
+
+        outro_start = current_time
+        total_dur = current_time + 5.0
+
+        safe_title = title.replace('"', '&quot;')
+
+        html = f"""<!DOCTYPE html>
+<html data-composition-variables='[]'>
+<head>
+<meta charset="utf-8">
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{
+    width:1920px; height:1080px; overflow:hidden;
+    background:{bg}; color:#e5e5e5;
+    font-family:'Inter',-apple-system,sans-serif;
+    position:relative;
+  }}
+  /* ── Persistent brand bar ── */
+  .brand-bar {{
+    position:absolute; bottom:0; left:0; right:0;
+    height:6px; background:{accent};
+  }}
+  .channel-tag {{
+    position:absolute; top:40px; right:60px;
+    font-size:22px; color:rgba(229,229,229,0.4);
+    letter-spacing:0.1em; text-transform:uppercase;
+  }}
+  /* ── Intro card (0 – 3s) ── */
+  .intro {{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    animation: fadeOut 0.6s ease-in {intro_dur - 0.6:.2f}s forwards;
+  }}
+  .intro-title {{
+    font-size:88px; font-weight:300; color:{accent};
+    letter-spacing:-0.03em; text-align:center;
+    animation: slideUp 0.7s ease-out forwards;
+  }}
+  .intro-channel {{
+    font-size:28px; color:rgba(229,229,229,0.5);
+    margin-top:20px;
+    animation: slideUp 0.7s ease-out 0.2s both;
+  }}
+  /* ── Content sections ── */
+  .section {{
+    position:absolute; inset:0;
+    display:flex; align-items:center; padding:120px;
+  }}
+  .sec-num {{
+    font-size:180px; font-weight:800; color:rgba(229,229,229,0.04);
+    position:absolute; right:80px; bottom:-20px;
+    line-height:1; user-select:none;
+  }}
+  .sec-heading {{
+    font-size:68px; font-weight:300; color:{accent};
+    line-height:1.2; letter-spacing:-0.02em;
+    margin-bottom:32px;
+  }}
+  .sec-body {{
+    font-size:34px; color:rgba(229,229,229,0.75);
+    line-height:1.65; max-width:1300px;
+  }}
+  .section > div:not(.sec-num) {{ display:flex; flex-direction:column; }}
+  /* ── Outro ── */
+  .outro {{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    visibility:hidden;
+  }}
+  .sub-btn {{
+    background:{btn}; color:#fff;
+    font-size:36px; font-weight:600; padding:22px 60px;
+    border-radius:50px; margin-top:32px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }}
+  @keyframes slideUp {{
+    from {{ opacity:0; transform:translateY(24px); }}
+    to   {{ opacity:1; transform:translateY(0); }}
+  }}
+  @keyframes fadeOut {{
+    to {{ opacity:0; pointer-events:none; }}
+  }}
+  @keyframes pulse {{
+    0%,100% {{ transform:scale(1); }}
+    50%     {{ transform:scale(1.04); }}
+  }}
+</style>
+</head>
+<body>
+  <!-- Intro -->
+  <div class="intro" data-start="0" data-duration="{intro_dur:.1f}" id="intro">
+    <div class="intro-title" id="vid-title">{safe_title}</div>
+    <div class="intro-channel">{channel_name}</div>
+  </div>
+
+  <!-- Sections -->
+  {sections_html}
+
+  <!-- Outro -->
+  <div class="outro" data-start="{outro_start:.2f}" data-duration="5" id="outro">
+    <div class="intro-title" style="font-size:56px">If this helped, subscribe!</div>
+    <div class="sub-btn">SUBSCRIBE</div>
+  </div>
+
+  <div class="brand-bar"></div>
+  <div class="channel-tag">{channel_name}</div>
+
+<script>
+  window.__timelines = window.__timelines || {{}};
+  window.__vector = {{
+    enableRenderMode() {{}},
+    renderSeek(t) {{
+      document.querySelectorAll('[data-start]').forEach(el => {{
+        var s = parseFloat(el.getAttribute('data-start') || 0);
+        var d = parseFloat(el.getAttribute('data-duration') || 0);
+        el.style.visibility = (t >= s && t < s + d) ? 'visible' : 'hidden';
+      }});
+    }},
+    setVariables(v) {{
+      if (v.title) document.getElementById('vid-title').textContent = v.title;
+    }},
+    getVariables() {{ return {{}}; }},
+  }};
+</script>
+</body>
+</html>"""
+        Path(output_path).write_text(html, encoding="utf-8")
+        return output_path
+
 
 # ── Convenience render functions ──────────────────────────────────────────────
 
