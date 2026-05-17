@@ -188,14 +188,10 @@ class HTMLFrameRenderer:
                     t_start = time.perf_counter()
                     frame_time = max(0.0, i * frame_time_step)
 
-                    # Seek to timestamp
-                    await page.evaluate(f"""
-                        if (window.__vector && window.__vector.renderSeek) {{
-                            window.__vector.renderSeek({frame_time:.6f});
-                        }} else if (window.renderSeek) {{
-                            window.renderSeek({frame_time:.6f});
-                        }}
-                    """)
+                    # Seek all animation engines to this frame timestamp
+                    await page.evaluate(
+                        f"window.__vector && window.__vector.renderSeek({frame_time:.6f})"
+                    )
 
                     # Skip warmup frames
                     if i < 0:
