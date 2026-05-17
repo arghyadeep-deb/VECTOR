@@ -190,23 +190,36 @@ class CacheTracker:
 if __name__ == "__main__":
     tracker = CacheTracker()
 
+    # Turn 1: baseline
     msgs1 = [{"role": "user", "content": "Hello"}]
     assert tracker.record_request(msgs1) is None
 
+    # Turn 2: normal growth — no violation
     msgs2 = [
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi!"},
-        {"role": "user", "content": "How are you?"},
     ]
     assert tracker.record_request(msgs2) is None
 
-    msgs3 = [
+    # Turn 3: prefix changed (first message modified) — violation
+    msgs3_modified = [
         {"role": "user", "content": "Hello MODIFIED"},
         {"role": "assistant", "content": "Hi!"},
+        {"role": "user", "content": "new turn"},
     ]
-    v = tracker.record_request(msgs3)
-    assert v is not None and "Prefix modified" in v.reason
+    v = tracker.record_request(msgs3_modified)
+    assert v is not None, "Expected violation"
+    assert "Prefix modified" in v.reason, f"Unexpected: {v.reason}"
 
+    # Test messages removed
+    tracker2 = CacheTracker()
+    tracker2.record_request([{"role": "user", "content": "A"},
+                              {"role": "assistant", "content": "B"},
+                              {"role": "user", "content": "C"}])
+    v2 = tracker2.record_request([{"role": "user", "content": "A"}])
+    assert v2 is not None and "Messages removed" in v2.reason
+
+    # Reset clears state
     tracker.reset()
     assert tracker.record_request(msgs1) is None
 
