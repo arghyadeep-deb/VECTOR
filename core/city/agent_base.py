@@ -20,6 +20,13 @@ class AgentBase:
         self.personality_traits = {}
         self.created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self.last_active = self.created_at
+        # ── Role system — load specialist role by name/district ──────────────
+        self.role = self._load_role(name, district)
+        if self.role:
+            logger.debug(
+                "[VECTOR][city] {} loaded role={} tier={}",
+                name, self.role.name, self.role.tier,
+            )
         # ── Vectorcode-backed LLM caller (auto-loads .md system prompt) ──────
         self._district_llm = self._make_district_llm()
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
