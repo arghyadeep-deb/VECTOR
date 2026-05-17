@@ -12,6 +12,8 @@
 @import .claude/rules/models.md
 @import .claude/rules/commands.md
 @import .claude/rules/critical_rules.md
+@import .claude/rules/memory.md
+@import .claude/rules/testing.md
 @import .claude/rules/phase_status.md
 @import .claude/rules/tools.md
 
