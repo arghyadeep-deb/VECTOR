@@ -1,6 +1,5 @@
 """
 VECTOR HTML Frame Renderer
-Ported from hyperframes engine/frameCapture.ts + services/browserManager.ts
 
 Captures an HTML composition as a sequence of PNG frames using Playwright.
 Pipeline:
@@ -78,7 +77,7 @@ class FrameCaptureResult:
 
 @dataclass
 class RendererConfig:
-    """Maps to hyperframes engine RenderConfig."""
+    """VECTOR Video render configuration."""
     quality: RenderQuality = "standard"
     use_gpu: bool = False
     device_scale_factor: int = 1  # >1 = supersampling for 4K
@@ -92,8 +91,7 @@ class RendererConfig:
 class HTMLFrameRenderer:
     """
     Captures an HTML composition as PNG frames using Playwright.
-    Equivalent to hyperframes engine/services/frameCapture.ts
-    """
+        """
 
     def __init__(self, config: Optional[RendererConfig] = None) -> None:
         self._config = config or RendererConfig()
@@ -165,8 +163,8 @@ class HTMLFrameRenderer:
                         f"""
                         if (window.__vector && window.__vector.setVariables) {{
                             window.__vector.setVariables({vars_json});
-                        }} else if (window.__hyperframes && window.__hyperframes.setVariables) {{
-                            window.__hyperframes.setVariables({vars_json});
+                        }} else if (window.__vector_unused && window.__vector_unused.setVariables) {{
+                            window.__vector_unused.setVariables({vars_json});
                         }}
                         """
                     )
