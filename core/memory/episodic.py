@@ -184,6 +184,21 @@ class EpisodicMemory:
                     (id, event_type, content, tags, source, timestamp, context_snapshot)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (event_id, event_type, content, tags_json or '', source, timestamp, context_json or ''))
+            # ── MemoryTree ingestion — build hierarchical Source→Topic→Chunk ──
+            try:
+                from core.engine.memory_tree.tree_builder import MemoryTree
+                _tree = MemoryTree()
+                _tree.ingest(
+                    source_kind="episodic",
+                    source_id=source,
+                    content=content,
+                    topic=event_type,
+                    tags=tags or [],
+                    score=0.8,
+                )
+            except Exception:
+                pass  # tree is supplemental — never block episodic store
+
             return event_id
         except Exception as e:
             logger.error(f"Store failed: {e}")
