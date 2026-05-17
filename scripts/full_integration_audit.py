@@ -90,7 +90,7 @@ except Exception as e:
 
 # skills parser
 try:
-    from core.coding_assistant.core.skills.parser import parse_skill
+    from core.coding_assistant.core.skills.parser import parse_skill_markdown
     from core.coding_assistant.core.skills.models import Skill
     check("skills parser importable", True)
 except Exception as e:
