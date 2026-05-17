@@ -250,9 +250,8 @@ if __name__ == "__main__":
         {"role": "tool", "content": "DEBUG 2024-01-01 found result\n" * 20 + "Final answer: 42"},
     ]
     juice = TokenJuice()
-    compressed, stats = juice.compress(msgs)
-    assert stats.char_reduction_pct > 0
+    compressed, stats = juice.compress(msgs, preserve_last_n=0)
+    assert stats.char_reduction_pct > 0, f"Expected reduction, got {stats.char_reduction_pct}"
     assert len(compressed) <= len(msgs)
-    # boilerplate stripped
-    assert "Certainly" not in compressed[1]["content"]
+    assert "Certainly" not in compressed[0]["content"], "Boilerplate should be stripped"
     print(f"OK token_juice/compressor.py — {stats.char_reduction_pct:.0f}% reduction")
