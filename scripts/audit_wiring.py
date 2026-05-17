@@ -72,9 +72,9 @@ with open("core/city/governor.py", encoding="utf-8") as f: src = f.read()
 assert "from core.metering.rate_limiter import get_rate_limiter" in src
 assert "rate_limited" in src
 assert "from core.security.taint_tracker import get_taint_tracker" in src
-assert "TaintLabel.USER_INPUT" in src
+assert "tag_user" in src        # tags content as USER_INPUT
 assert "TaintSink.SHELL_EXEC" in src
-ok("Governor.dispatch(): GCRA rate check + USER_INPUT taint + SHELL_EXEC sink check")
+ok("Governor.dispatch(): GCRA rate check + tag_user() taint + SHELL_EXEC sink check")
 print()
 
 print("GROUP 7 -- Scraper tags EXTERNAL_NETWORK")
