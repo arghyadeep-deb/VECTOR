@@ -364,9 +364,10 @@ class GSCClient:
         page_rows  = data.get("page_rows", [])
         query_rows = data.get("query_rows", [])
 
-        top_pages   = _top_pages(page_rows)
-        top_queries = _top_queries(query_rows)
+        top_pages     = _top_pages(page_rows)
+        top_queries   = _top_queries(query_rows)
         opportunities = _opportunities(top_pages)
+        pos_buckets   = _position_buckets(query_rows)
 
         total_clicks = sum(r.get("clicks", 0) for r in page_rows)
         total_imps   = sum(r.get("impressions", 0) for r in page_rows)
@@ -386,9 +387,10 @@ class GSCClient:
                 "avg_position": avg_pos,
                 "total_pages": len(top_pages),
             },
-            "top_pages":   top_pages,
-            "top_queries": top_queries,
-            "opportunities": opportunities,
+            "top_pages":       top_pages,
+            "top_queries":     top_queries,
+            "opportunities":   opportunities,
+            "position_buckets": pos_buckets,   # query ranking distribution (1-3, 4-10, 11-20, 21+)
         }
 
     async def fetch_and_analyze(self, site: str, days: int = 28) -> dict:
