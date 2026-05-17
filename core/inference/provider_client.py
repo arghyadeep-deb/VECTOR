@@ -120,7 +120,7 @@ class ProviderClient:
             try:
                 from core.engine.providers.model_router import ModelRouter
                 _router = ModelRouter()
-                route = _router.route(tier)
+                route = _router.resolve(tier)
                 model = route.model
             except Exception:
                 pass
