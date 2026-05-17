@@ -1,4 +1,6 @@
 annotated-doc==0.0.4
+# ── VECTOR Coding Assistant (core/coding_assistant/) ─────────────────────────
+tomli_w>=1.0.0             # TOML writer — used by coding assistant config system
 # ── VECTOR Research Engine (core/research_engine/) ───────────────────────────
 sqlalchemy>=2.0.0          # settings + research history DB
 alembic>=1.13.0            # DB migrations for research engine
