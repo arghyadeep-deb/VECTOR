@@ -805,6 +805,55 @@ class AutonomousLoop:
             return_exceptions=True,
         )
 
+    async def ambient_scheduler_loop(self) -> None:
+        """
+        AmbientScheduler: polls for due directives every 60s and dispatches them.
+        Directives are persistent tasks added by agents or the owner that should
+        run at a specific time (e.g. 'research LLM papers at 22:00').
+        RULE 2 — never dies.
+        """
+        logger.info("[VECTOR][autonomous_loop] ambient_scheduler_loop starting — 60s poll")
+        while self._running:
+            try:
+                await asyncio.sleep(60)
+                if not self._running:
+                    break
+                from core.jcode.ambient_scheduler import AmbientScheduler, AmbientStatus
+                sched = AmbientScheduler()
+                due = sched.take_due_items()
+                if due:
+                    sched.set_status(AmbientStatus.RUNNING, detail=f"{len(due)} item(s) processing")
+                    for item in due:
+                        context = item.context if hasattr(item, "context") else str(item.get("context", ""))
+                        logger.info("[VECTOR][ambient] firing due item: {}", context[:80])
+                        # Dispatch to governor as a think task
+                        try:
+                            from core.city.governor import Governor
+                            gov = Governor()
+                            await gov.dispatch({
+                                "type": "think",
+                                "params": {"content": context, "source": "ambient_scheduler"},
+                            })
+                        except Exception as dispatch_err:
+                            logger.warning("[VECTOR][ambient] dispatch failed: {}", dispatch_err)
+                    sched.set_status(AmbientStatus.IDLE)
+
+                # Also fire pending directives
+                directives = sched.take_pending_directives()
+                for d in directives:
+                    text = d.get("text", "")
+                    if text:
+                        logger.info("[VECTOR][ambient] directive: {}", text[:80])
+                        self._get_memory().store(
+                            event_type="ambient_directive",
+                            content=text,
+                            tags=["ambient", "directive"],
+                            source="ambient_scheduler",
+                        )
+            except Exception as e:
+                _capture_loop_error(e, "ambient_scheduler_loop")
+                await asyncio.sleep(60)
+
     async def hypothesis_loop(self) -> None:
         """
         VECTOR Gap 5 — HypothesisEngine: proactive insight generation.
