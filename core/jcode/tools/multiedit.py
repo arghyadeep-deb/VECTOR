@@ -144,4 +144,4 @@ if __name__ == "__main__":
     content = Path(tmp).read_text()
     assert "x = 42" in content and "z = 99" in content
     os.unlink(tmp)
-    print("✅ multiedit.py OK")
+    print("OK multiedit.py")
