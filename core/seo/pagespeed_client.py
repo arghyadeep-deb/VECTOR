@@ -64,6 +64,66 @@ def _run_psi(url: str, strategy: str = "mobile", api_key: str | None = None) -> 
         raise RuntimeError(f"PSI API {e.code}: {body}")
 
 
+def _score_indicator(score: int | None) -> str:
+    """Map Lighthouse 0-100 score to a human label. Ported from show_pagespeed.py."""
+    if score is None:
+        return "N/A"
+    if score >= 90:
+        return "Good"
+    if score >= 50:
+        return "Needs Work"
+    return "Poor"
+
+
+def _extract_crux(psi_data: dict) -> dict:
+    """
+    Extract CrUX (Chrome User Experience Report) data from PSI response.
+    Ported from show_pagespeed.py — parses the loadingExperience key.
+
+    CrUX = real user measurements from actual Chrome users in the field.
+    This is DIFFERENT from Lighthouse synthetic scores (which run in a lab).
+    CrUX data is more reliable for diagnosing what real users actually experience.
+
+    Returns dict with lcp, fid, cls, fcp ratings (FAST/AVERAGE/SLOW) + percentiles.
+    Returns empty dict if CrUX data is unavailable (no field data for this URL).
+    """
+    exp = psi_data.get("loadingExperience", {})
+    if not exp:
+        return {"available": False, "reason": "no_field_data"}
+
+    overall = exp.get("overall_category", "unknown")
+    metrics_raw = exp.get("metrics", {})
+    crux: dict = {"available": True, "overall": overall}
+
+    METRIC_MAP = [
+        ("LARGEST_CONTENTFUL_PAINT_MS",    "lcp",  "ms"),
+        ("FIRST_INPUT_DELAY_MS",           "fid",  "ms"),
+        ("CUMULATIVE_LAYOUT_SHIFT_SCORE",  "cls",  "score"),
+        ("FIRST_CONTENTFUL_PAINT_MS",      "fcp",  "ms"),
+        ("INTERACTION_TO_NEXT_PAINT",      "inp",  "ms"),
+        ("EXPERIMENTAL_TIME_TO_FIRST_BYTE","ttfb", "ms"),
+    ]
+    for api_key, label, unit in METRIC_MAP:
+        m = metrics_raw.get(api_key, {})
+        if not m:
+            continue
+        crux[label] = {
+            "rating":     m.get("category", "unknown"),   # FAST / AVERAGE / SLOW
+            "percentile": m.get("percentile"),             # e.g. 2400 (ms at 75th pct)
+            "unit":       unit,
+        }
+        # Distribution histogram (Good/Needs Improvement/Poor proportions)
+        dist = m.get("distributions", [])
+        if dist:
+            crux[label]["distribution"] = {
+                "good":          round((dist[0].get("proportion", 0) if len(dist) > 0 else 0) * 100, 1),
+                "needs_improve": round((dist[1].get("proportion", 0) if len(dist) > 1 else 0) * 100, 1),
+                "poor":          round((dist[2].get("proportion", 0) if len(dist) > 2 else 0) * 100, 1),
+            }
+
+    return crux
+
+
 def _extract_metrics(psi_data: dict) -> dict:
     """Extract Core Web Vitals and score from PSI response."""
     cats = psi_data.get("lighthouseResult", {}).get("categories", {})
