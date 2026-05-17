@@ -156,6 +156,82 @@ def _query_performance(
 
 # ── Analysis helpers ───────────────────────────────────────────────────────────
 
+def _position_buckets(query_rows: list[dict]) -> dict:
+    """
+    Group queries by average rank position into 4 bands.
+    Ported from show_gsc.py — surfaces at a glance where the easy wins are.
+
+    Bands:
+      1-3   : Top 3 (already winning — protect these)
+      4-10  : Page 1 lower (push to top 3 — biggest ROI)
+      11-20 : Page 2 near-miss (easy wins with content/link updates)
+      21+   : Buried (major work needed)
+    """
+    bands: dict[str, list[dict]] = {"1-3": [], "4-10": [], "11-20": [], "21+": []}
+
+    for row in query_rows:
+        # Aggregate by query first
+        pass
+
+    # Build per-query aggregates
+    queries: dict[str, dict] = {}
+    for row in query_rows:
+        q = row["keys"][0] if row.get("keys") else ""
+        if q not in queries:
+            queries[q] = {"query": q, "clicks": 0, "impressions": 0,
+                          "position_sum": 0, "imp_sum": 0}
+        queries[q]["clicks"] += row.get("clicks", 0)
+        queries[q]["impressions"] += row.get("impressions", 0)
+        imp = row.get("impressions", 1) or 1
+        queries[q]["position_sum"] += row.get("position", 0) * imp
+        queries[q]["imp_sum"] += imp
+
+    for q_data in queries.values():
+        avg_pos = q_data["position_sum"] / max(q_data["imp_sum"], 1)
+        entry = {
+            "query": q_data["query"],
+            "clicks": q_data["clicks"],
+            "impressions": q_data["impressions"],
+            "position": round(avg_pos, 1),
+        }
+        if avg_pos <= 3:
+            bands["1-3"].append(entry)
+        elif avg_pos <= 10:
+            bands["4-10"].append(entry)
+        elif avg_pos <= 20:
+            bands["11-20"].append(entry)
+        else:
+            bands["21+"].append(entry)
+
+    # Sort each band by impressions descending, keep top 10
+    for band in bands:
+        bands[band].sort(key=lambda x: x["impressions"], reverse=True)
+
+    return {
+        "counts": {band: len(entries) for band, entries in bands.items()},
+        "top_queries": {band: entries[:10] for band, entries in bands.items()},
+        "insight": _bucket_insight(
+            {band: len(entries) for band, entries in bands.items()}
+        ),
+    }
+
+
+def _bucket_insight(counts: dict[str, int]) -> str:
+    """Generate a one-line insight from position bucket counts."""
+    total = sum(counts.values()) or 1
+    page2_pct = round(counts.get("11-20", 0) / total * 100)
+    buried_pct = round(counts.get("21+", 0) / total * 100)
+    top3_pct   = round(counts.get("1-3", 0) / total * 100)
+
+    if buried_pct > 60:
+        return f"{buried_pct}% of keywords buried (pos 21+) — major content and authority gaps"
+    if page2_pct > 40:
+        return f"{page2_pct}% on page 2 — high potential for quick wins with content updates"
+    if top3_pct > 50:
+        return f"{top3_pct}% ranking top 3 — strong position, focus on defending and expanding"
+    return f"Mixed: {counts.get('1-3',0)} top-3, {counts.get('4-10',0)} page-1, {counts.get('11-20',0)} page-2, {counts.get('21+',0)} buried"
+
+
 def _classify_page(url: str) -> str:
     for group, pattern in PAGE_GROUPS:
         if re.search(pattern, url, re.IGNORECASE):
