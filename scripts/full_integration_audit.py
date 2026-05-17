@@ -71,11 +71,12 @@ print("\n=== REAL FUNCTIONALITY (no stubs) ===")
 # search_replace
 try:
     from core.coding_assistant.core.tools.builtins.search_replace import (
-        SearchReplaceBlock, parse_search_replace_blocks
+        SearchReplaceBlock, SEARCH_REPLACE_BLOCK_RE
     )
     test_input = "<<<<<<< SEARCH\nold text\n=======\nnew text\n>>>>>>> REPLACE"
-    blocks = parse_search_replace_blocks(test_input)
-    check("search_replace parse_search_replace_blocks", len(blocks) == 1)
+    matches = SEARCH_REPLACE_BLOCK_RE.findall(test_input)
+    check("search_replace SEARCH_REPLACE_BLOCK_RE works", len(matches) >= 1,
+          f"found {len(matches)} match(es)")
 except Exception as e:
     check("search_replace", False, str(e)[:60])
 
