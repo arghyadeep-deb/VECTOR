@@ -210,4 +210,4 @@ if __name__ == "__main__":
     tracker.reset()
     assert tracker.record_request(msgs1) is None
 
-    print("✅ cache_tracker.py OK")
+    print("OK cache_tracker.py")
