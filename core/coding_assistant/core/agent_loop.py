@@ -16,7 +16,10 @@ import time
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
-from opentelemetry import trace
+try:
+    from opentelemetry import trace
+except ImportError:
+    trace = None  # type: ignore[assignment]
 from pydantic import BaseModel
 
 from core.coding_assistant.cli.terminal_detect import detect_terminal
