@@ -20,4 +20,5 @@ from __future__ import annotations
 from pathlib import Path
 
 VECTOR_CA_ROOT = Path(__file__).parent
+VIBE_ROOT = VECTOR_CA_ROOT  # alias — internal modules import VIBE_ROOT from here
 __version__ = "2.9.6"
