@@ -400,6 +400,70 @@ def compress_trajectory(
 
 
 # ---------------------------------------------------------------------------
+# Auto-recovery on context limit (ported from high-performance agent harness)
+# ---------------------------------------------------------------------------
+
+_CONTEXT_LIMIT_SIGNALS = (
+    "context length",
+    "context window",
+    "maximum context",
+    "max context",
+    "token limit",
+    "too many tokens",
+    "prompt is too long",
+    "input is too long",
+    "request too large",
+    "length limit",
+    "maximum tokens",
+)
+
+
+def is_context_limit_error(error: str) -> bool:
+    """Return True if the error string signals a provider context-limit rejection."""
+    lower = error.lower()
+    if any(sig in lower for sig in _CONTEXT_LIMIT_SIGNALS):
+        return True
+    return "exceeded" in lower and "token" in lower
+
+
+def auto_compact_on_context_limit(
+    messages: list[dict],
+    error: str,
+    target_tokens: int = 32000,
+    aggressive: bool = True,
+) -> tuple[list[dict], bool]:
+    """
+    Emergency compaction when the provider returns a context-limit error.
+
+    Call this when an LLM request fails, check is_context_limit_error(error)
+    first, then pass messages + error here. Returns (compacted_messages, was_applied).
+
+    If aggressive=True, uses a tighter budget (50% of target) to create headroom.
+    Ported from agent/compaction.rs try_auto_compact_after_context_limit().
+    """
+    if not is_context_limit_error(error):
+        return messages, False
+
+    effective_target = (target_tokens // 2) if aggressive else target_tokens
+    original_count = len(messages)
+    compacted = compress_trajectory(messages, target_tokens=effective_target)
+
+    if len(compacted) < original_count:
+        logger.warning(
+            "[VECTOR][trajectory_compressor] context-limit auto-recovery: "
+            "{} → {} messages (target={})",
+            original_count, len(compacted), effective_target,
+        )
+        return compacted, True
+
+    logger.warning(
+        "[VECTOR][trajectory_compressor] context-limit detected but compaction "
+        "could not reduce message count (already minimal)"
+    )
+    return messages, False
+
+
+# ---------------------------------------------------------------------------
 # Smoke test
 # ---------------------------------------------------------------------------
 
