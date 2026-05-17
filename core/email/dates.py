@@ -1,8 +1,11 @@
 import sys
+import platform
 from pathlib import Path
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+_IS_WINDOWS = platform.system() == "Windows"
 
 
 def _safe_parse(date_str: str | None) -> datetime | None:
@@ -23,6 +26,18 @@ def _safe_parse(date_str: str | None) -> datetime | None:
     return None
 
 
+def _day(dt: datetime) -> str:
+    """Return day-of-month without leading zero, cross-platform."""
+    return str(dt.day)
+
+
+def _time12(dt: datetime) -> str:
+    """Return 12-hour time like '3:42 PM', cross-platform."""
+    h = dt.hour % 12 or 12
+    ampm = "AM" if dt.hour < 12 else "PM"
+    return f"{h}:{dt.minute:02d} {ampm}"
+
+
 def format_list_date(date_str: str) -> str:
     """Email list rows: today → '3:42 PM', this year → 'Apr 15', older → 'Apr 15, 2024'."""
     date = _safe_parse(date_str)
@@ -30,10 +45,11 @@ def format_list_date(date_str: str) -> str:
         return date_str
     now = datetime.now(timezone.utc) if date.tzinfo else datetime.now()
     if date.date() == now.date():
-        return date.strftime("%-I:%M %p").lstrip("0") if hasattr(date, "strftime") else date.strftime("%I:%M %p")
+        return _time12(date)
+    month = date.strftime("%b")
     if date.year == now.year:
-        return date.strftime("%b %-d")
-    return date.strftime("%b %-d, %Y")
+        return f"{month} {_day(date)}"
+    return f"{month} {_day(date)}, {date.year}"
 
 
 def format_detail_date(date_str: str) -> str:
@@ -41,7 +57,9 @@ def format_detail_date(date_str: str) -> str:
     date = _safe_parse(date_str)
     if not date:
         return date_str
-    return date.strftime("%a, %b %-d, %I:%M %p").replace(" 0", " ")
+    weekday = date.strftime("%a")
+    month = date.strftime("%b")
+    return f"{weekday}, {month} {_day(date)}, {_time12(date)}"
 
 
 def format_short_date(date_str: str) -> str:
@@ -49,7 +67,7 @@ def format_short_date(date_str: str) -> str:
     date = _safe_parse(date_str)
     if not date:
         return date_str
-    return date.strftime("%I:%M %p").lstrip("0")
+    return _time12(date)
 
 
 def format_quoted_date(date_str: str | None) -> str:
@@ -59,7 +77,9 @@ def format_quoted_date(date_str: str | None) -> str:
     date = _safe_parse(date_str)
     if not date:
         return date_str
-    return date.strftime("%a, %b %-d, %Y, %I:%M %p").replace(" 0", " ")
+    weekday = date.strftime("%a")
+    month = date.strftime("%b")
+    return f"{weekday}, {month} {_day(date)}, {date.year}, {_time12(date)}"
 
 
 if __name__ == "__main__":
