@@ -148,7 +148,7 @@ class CacheTracker:
                 actual_hash=self._hash_label(prefix_hash),
                 reason=(
                     f"Prefix modified: first {previous_count} messages changed "
-                    f"(hash {self._hash_label(previous_hash)} → {self._hash_label(prefix_hash)})"
+                    f"(hash {self._hash_label(previous_hash)} -> {self._hash_label(prefix_hash)})"
                 ),
             )
             self._update_state(current_hash, current_count)
