@@ -331,7 +331,7 @@ class AutonomousLoop:
                 await self._think_tick()
                 await asyncio.sleep(10)
             except Exception as e:
-                logger.error(f"[VECTOR][think] tick error: {e}")
+                _capture_loop_error(e, "think_loop")
                 await asyncio.sleep(5)
 
     async def _think_tick(self):
