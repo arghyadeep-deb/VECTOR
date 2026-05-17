@@ -206,6 +206,9 @@ class VectorSettings(BaseSettings):
     ELEVENLABS_KEY: SecretStr = SecretStr("")
     CONTENT_NICHE: str = "AI"
     VIDEO_UPLOAD_DELAY_MINUTES: int = 30
+    MUAPI_API_KEY: SecretStr = SecretStr("")
+    WAN2GP_URL: str = ""
+    PAGESPEED_API_KEY: SecretStr = SecretStr("")
 
     # CORS — overridable via env var as a JSON array
     ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: [
