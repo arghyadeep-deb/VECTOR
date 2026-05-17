@@ -26,6 +26,8 @@ __all__ = [
     "drop_turns",
     "stitch_turns",
     "validate",
+    "is_context_limit_error",
+    "auto_compact_on_context_limit",
 ]
 
 # ---------------------------------------------------------------------------
