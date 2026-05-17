@@ -212,7 +212,7 @@ class AutonomousLoop:
                     if asyncio.iscoroutine(result):
                         await result
             except Exception as e:
-                logger.error(f"[VECTOR][scheduler_loop] tick error: {e}")
+                _capture_loop_error(e, "scheduler_loop")
             # Also fire VECTOR-native cron jobs directly (TaskScheduler is
             # prompt-based; function-based jobs fire via this mechanism)
             try:
