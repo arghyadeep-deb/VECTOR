@@ -542,7 +542,7 @@ class AutonomousLoop:
                 + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
             )
         except Exception as e:
-            logger.error(f"[VECTOR][act] _act_on failed: {e}")
+            _capture_loop_error(e, "act_loop", district=str(getattr(action, 'district', '')))
 
     def _get_recent_feedback(self, action_type: str) -> float | None:
         """Check episodic memory for recent user feedback on this action type. Returns 0.0-1.0 or None."""
