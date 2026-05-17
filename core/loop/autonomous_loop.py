@@ -770,6 +770,27 @@ class AutonomousLoop:
         except Exception:
             self._daemon_mgr = None
 
+        # ── AmbientScheduler: recover any crashed sessions from prior run ──────
+        try:
+            from core.jcode.session_persistence import SessionPersistence
+            _store = SessionPersistence()
+            crashed = _store.recover_crashed_sessions()
+            if crashed:
+                logger.warning(
+                    "[VECTOR][autonomous_loop] {} crashed session(s) recovered — "
+                    "context available in ~/.vector_ca/sessions/",
+                    len(crashed),
+                )
+            # Register this run as a new persisted session
+            self._session = _store.create(
+                model=CONFIG.get("models", {}).get("focus", "vector-focus"),
+                working_dir=str(Path(__file__).parent.parent.parent),
+            )
+            logger.info("[VECTOR][autonomous_loop] session persisted: {}", self._session.id[:8])
+        except Exception as e:
+            logger.debug("[VECTOR][autonomous_loop] session persistence skipped: {}", e)
+            self._session = None
+
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
@@ -779,7 +800,8 @@ class AutonomousLoop:
             self.phone_loop(),
             self.vectorcode_loop(),
             self.scheduler_loop(),
-            self.hypothesis_loop(),      # VECTOR Gap 5 — proactive insights every 4h
+            self.ambient_scheduler_loop(),  # AmbientScheduler: fires due directives
+            self.hypothesis_loop(),         # VECTOR Gap 5 — proactive insights every 4h
             return_exceptions=True,
         )
 
