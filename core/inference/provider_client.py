@@ -275,7 +275,26 @@ class ProviderClient:
         content = choice["message"].get("content") or ""
         usage = data.get("usage", {})
 
-        return CompletionResult(
+        # ── ToolDispatcher: parse structured tool_calls from response ──────────
+        # NativeDispatcher handles OpenAI/Ollama tool_call format;
+        # falls back to XmlDispatcher for <tool_call> tags in raw text.
+        tool_calls_parsed: list = []
+        if tools:
+            try:
+                from core.engine.tools.dispatcher import NativeDispatcher
+                _dispatcher = NativeDispatcher()
+                clean_text, tool_calls_parsed = _dispatcher.parse_response(content, raw_response=data)
+                if tool_calls_parsed:
+                    content = clean_text
+                    logger.debug(
+                        "[VECTOR][provider_client] tool_dispatcher parsed {} call(s): {}",
+                        len(tool_calls_parsed),
+                        [tc.name for tc in tool_calls_parsed],
+                    )
+            except Exception:
+                pass
+
+        result = CompletionResult(
             content=content,
             model=model,
             provider=prov.slug,
@@ -283,6 +302,10 @@ class ProviderClient:
             output_tokens=usage.get("completion_tokens", 0),
             finish_reason=choice.get("finish_reason", "stop"),
         )
+        # Attach parsed tool calls for callers that need them
+        if tool_calls_parsed:
+            result._tool_calls = tool_calls_parsed  # type: ignore[attr-defined]
+        return result
 
     async def _call_anthropic(
         self,
