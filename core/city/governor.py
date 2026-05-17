@@ -537,6 +537,12 @@ class Governor:
             result = {"status": "error", "error": str(e)}
         finally:
             self._active_tasks.pop(task_id, None)
+            # Close OTel span
+            if _span_ctx is not None:
+                try:
+                    _span_ctx.__exit__(None, None, None)
+                except Exception:
+                    pass
 
         return {**result, "task_id": task_id, "district": district}
 
