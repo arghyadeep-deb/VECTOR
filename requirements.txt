@@ -121,6 +121,7 @@ numpy==2.4.4
 oauthlib==3.3.1
 ollama==0.6.2
 onnxruntime==1.25.1
+rembg>=2.0.57
 openai-whisper==20250625
 opencv-python==4.13.0.92
 opentelemetry-api==1.41.1
@@ -227,3 +228,20 @@ yarl==1.23.0
 yt-dlp==2026.3.17
 zipp==3.23.1
 zstandard==0.25.0
+
+pywebview>=4.4.1
+aiofiles>=23.2.1
+
+# core/scraper/ — VECTOR Web Scraper (adaptive, stealth, spider framework)
+curl_cffi>=0.15.0
+playwright==1.59.0
+patchright==1.59.1
+browserforge>=1.2.4
+mcp>=1.27.0
+markdownify>=1.2.0
+msgspec>=0.21.1
+protego>=0.6.0
+apify-fingerprint-datapoints>=0.13.0
+tld>=0.13.2
+w3lib>=2.4.1
+cssselect>=1.4.0
