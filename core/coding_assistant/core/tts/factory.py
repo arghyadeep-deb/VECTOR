@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from core.coding_assistant.core.config import TTSClient, TTSModelConfig, TTSProviderConfig
 from core.coding_assistant.core.tts.tts_client_port import TTSClientPort
-from core.coding_assistant.core.tts import MistralTTSClient  # stub pointing to Kokoro
+
+
+class MistralTTSClient(TTSClientPort):
+    """Stub — Mistral cloud TTS removed. Use VECTOR's local Kokoro at core/voice/tts.py."""
+    async def synthesize(self, text: str, **kwargs) -> object:
+        raise NotImplementedError("Use VECTOR's Kokoro TTS via core/voice/tts.py")
+
 
 TTS_CLIENT_MAP: dict[TTSClient, type[TTSClientPort]] = {
     TTSClient.MISTRAL: MistralTTSClient,
@@ -12,4 +18,6 @@ TTS_CLIENT_MAP: dict[TTSClient, type[TTSClientPort]] = {
 def make_tts_client(
     provider: TTSProviderConfig, model: TTSModelConfig
 ) -> TTSClientPort:
-    return TTS_CLIENT_MAP[provider.client](provider=provider, model=model)
+    return TTS_CLIENT_MAP.get(provider.client, MistralTTSClient)(
+        provider=provider, model=model
+    )
