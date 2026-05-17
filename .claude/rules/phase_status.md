@@ -1,6 +1,16 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-16 after full production-grade audit
+> Last updated: 2026-05-17 after Phase 3 repo absorptions + full module expansion
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+---
+
+## Absorbed Repos — Session 2026-05-17 ✅ ALL COMPLETE
+
+| Repo | What was absorbed | Python Location | Status |
+|------|-------------------|-----------------|--------|
+| jcode (Rust) | CacheTracker, multiedit, apply_patch, AmbientScheduler, SessionPersistence, trajectory auto-compact | `core/jcode/` | ✅ |
+| openhuman (Rust+TS) | MemoryTree, TokenJuice, 16 agent roles, ParallelResearcher, OAuthRegistry+Server, VectorTelemetry, VectorSentry, OFP P2P, SubagentRunner, ReliableProvider, ModelRouter, ToolDispatcher, ChannelRuntime, JARVIS dashboard, ElevenLabsTTS | `core/engine/` + `dashboard/` | ✅ |
+| openfang (Rust) | MerkleAuditChain, BudgetMeter, GCRARateLimiter, PromptInjectionScanner, SSRFGuard, TaintTracker, KnowledgeGraph, LoopGuard, SessionRepair, 9 Autonomous Hands, VectorSandbox, OFPNode P2P, PeerDiscovery, VectorMigrator, 27 LLM providers, 5 new channel adapters | `core/audit/` + `core/metering/` + `core/security/` + `core/network/` + `core/sandbox/` + `core/migration/` + `core/inference/` + `agents/hands/` + `vectorcode/src/channels/adapters/` | ✅ |
 
 ---
 
