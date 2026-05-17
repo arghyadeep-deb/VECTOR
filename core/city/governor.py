@@ -531,15 +531,16 @@ class Governor:
             try:
                 from core.security.taint_tracker import get_taint_tracker, TaintLabel, TaintSink
                 tt = get_taint_tracker()
-                tainted = tt.taint(task_content, TaintLabel.USER_INPUT)
+                tainted = tt.tag_user(task_content)
                 # Check before shell/network sinks
-                if task_type in ("bash", "shell", "exec", "run_code", "web_fetch", "scrape"):
-                    violations = tt.check_sink(tainted, TaintSink.SHELL_EXEC if "exec" in task_type else TaintSink.NET_FETCH)
-                    if violations:
-                        logger.warning(
-                            "[VECTOR][governor] taint violation task={} violations={}",
-                            task_id, [str(v) for v in violations],
-                        )
+                if task_type in ("bash", "shell", "exec", "run_code"):
+                    v = tt.check_sink(tainted, TaintSink.SHELL_EXEC)
+                    if v:
+                        logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
+                elif task_type in ("web_fetch", "scrape", "crawl"):
+                    v = tt.check_sink(tainted, TaintSink.NET_FETCH)
+                    if v:
+                        logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
             except Exception:
                 pass
 
