@@ -203,6 +203,6 @@ if __name__ == "__main__":
     async def _smoke():
         agent = DeepResearcher()
         # Lightweight test — just checks imports and init work
-        print(f"[OK] DeepResearcher initialized | HP={agent.hp}")
+        print(f"[OK] DeepResearcher initialized | HP={agent.health_points}")
         print("deep_researcher.py OK")
     asyncio.run(_smoke())
