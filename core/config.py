@@ -200,6 +200,12 @@ class VectorSettings(BaseSettings):
     KIIT_USERNAME: str = ""
     KIIT_PASSWORD: SecretStr = SecretStr("")
     GOOGLE_CREDENTIALS_PATH: str = ""
+    YOUTUBE_CHANNEL_ID: str = ""
+    INSTAGRAM_ACCESS_TOKEN: SecretStr = SecretStr("")
+    INSTAGRAM_ACCOUNT_ID: str = ""
+    ELEVENLABS_KEY: SecretStr = SecretStr("")
+    CONTENT_NICHE: str = "AI"
+    VIDEO_UPLOAD_DELAY_MINUTES: int = 30
 
     # CORS — overridable via env var as a JSON array
     ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: [
