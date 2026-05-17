@@ -61,6 +61,37 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "session_persist": "memory_curator",
     "recover_session": "memory_curator",
     "session_recovery": "memory_curator",
+    # core/audit/ — Merkle audit chain
+    "audit_log": "governance",
+    "audit_verify": "governance",
+    "audit_search": "governance",
+    "audit_tail": "governance",
+    # core/metering/ — budget + rate limiting
+    "budget_check": "governance",
+    "budget_status": "governance",
+    "rate_check": "governance",
+    "budget_record": "governance",
+    # core/security/ — injection, SSRF, taint
+    "scan_prompt": "security",
+    "ssrf_check": "security",
+    "taint_check": "security",
+    "security_scan": "security",
+    "check_url": "security",
+    # core/memory/knowledge_graph.py
+    "knowledge_add": "memory_curator",
+    "knowledge_query": "memory_curator",
+    "knowledge_relate": "memory_curator",
+    "entity_add": "memory_curator",
+    "relation_add": "memory_curator",
+    # core/loop/loop_guard.py
+    "loop_status": "governance",
+    "session_repair": "governance",
+    # agents/hands/ — autonomous hands
+    "hand_run": "governance",
+    "hand_status": "governance",
+    "hand_enable": "governance",
+    "hand_disable": "governance",
+    "hand_list": "governance",
     "calendar": "time_calendar",
     "schedule": "time_calendar",
     "deadline": "time_calendar",
@@ -452,7 +483,7 @@ class Governor:
         logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
         # OTel: open a trace span for this dispatch
         try:
-            from core.openhuman.telemetry.otel_bridge import get_telemetry
+            from core.engine.telemetry.otel_bridge import get_telemetry
             _tel = get_telemetry()
             _span_ctx = _tel.span(f"governor.dispatch.{district}",
                                   {"task_type": task_type, "district": district, "task_id": task_id})
@@ -525,7 +556,7 @@ class Governor:
             logger.error(f"[VECTOR][governor] dispatch error {task_id}: {e}")
             # Sentry: capture with district + task context
             try:
-                from core.openhuman.telemetry.sentry_bridge import init_sentry
+                from core.engine.telemetry.sentry_bridge import init_sentry
                 init_sentry().capture_exception(e, context={
                     "task_id": task_id, "task_type": task_type,
                     "district": district, "component": "governor.dispatch",
