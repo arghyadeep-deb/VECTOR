@@ -284,6 +284,138 @@ class SEOPortfolio:
         logger.info("[VECTOR][seo_portfolio] goal added: {} for {}", goal_id, site_id)
         return goal_id
 
+    # ── Follow-up system (score_feedback + hydrate + record + followups_due) ────
+
+    def schedule_followup(
+        self,
+        site_id: str,
+        action_id: str,
+        due_at: str,
+        primary_metric: str = "organic_clicks_28d",
+        primary_direction: str = "higher_better",
+        success_threshold_pct: float = 0.1,
+        notes: str = "",
+    ) -> str:
+        """Schedule a follow-up check for an action. Returns item_id."""
+        import uuid
+        item_id = str(uuid.uuid4())[:12]
+        item = {
+            "item_id": item_id,
+            "site_id": site_id,
+            "action_id": action_id,
+            "due_at": due_at,
+            "primary_metric": primary_metric,
+            "primary_direction": primary_direction,
+            "success_threshold_pct": success_threshold_pct,
+            "notes": notes,
+            "status": "pending",
+            "created_at": _now(),
+            "baseline_metrics": {},
+            "observed_metrics": {},
+        }
+        schedule = _load(self._schedule_path, {"upcoming": []})
+        schedule.setdefault("upcoming", []).append(item)
+        _save(self._schedule_path, schedule)
+
+        # Also write to site queue
+        site_dir = self._root / "sites" / site_id / "queue"
+        site_dir.mkdir(parents=True, exist_ok=True)
+        _save(site_dir / f"{item_id}.json", item)
+
+        logger.info("[VECTOR][seo_portfolio] followup scheduled: {} due={}", item_id, due_at)
+        return item_id
+
+    def get_due_followups(self, as_of: str | None = None) -> list[dict]:
+        """Return all follow-up items that are due now (or by as_of timestamp)."""
+        from datetime import datetime, timezone
+        cutoff_str = as_of or _now()
+        cutoff = datetime.fromisoformat(cutoff_str.replace("Z", "+00:00"))
+
+        schedule = _load(self._schedule_path, {"upcoming": []})
+        due = []
+        for item in schedule.get("upcoming", []):
+            if item.get("status") in ("done", "processed"):
+                continue
+            due_at_str = item.get("due_at", "")
+            if not due_at_str:
+                continue
+            try:
+                due_at = datetime.fromisoformat(due_at_str.replace("Z", "+00:00"))
+                if due_at <= cutoff:
+                    due.append(item)
+            except ValueError:
+                pass
+        return due
+
+    def record_followup_metrics(
+        self,
+        item_id: str,
+        site_id: str,
+        observed_metrics: dict[str, float],
+        baseline_metrics: dict[str, float] | None = None,
+    ) -> None:
+        """Record observed metrics for a follow-up item."""
+        site_queue = self._root / "sites" / site_id / "queue"
+        item_path  = site_queue / f"{item_id}.json"
+        if not item_path.exists():
+            logger.warning("[VECTOR][seo_portfolio] followup not found: {}", item_id)
+            return
+        item = _load(item_path, {})
+        item["observed_metrics"] = {**item.get("observed_metrics", {}), **observed_metrics}
+        if baseline_metrics:
+            item["baseline_metrics"] = {**item.get("baseline_metrics", {}), **baseline_metrics}
+        item["updated_at"] = _now()
+        _save(item_path, item)
+
+        # Update schedule entry
+        schedule = _load(self._schedule_path, {"upcoming": []})
+        for entry in schedule.get("upcoming", []):
+            if entry.get("item_id") == item_id:
+                entry.update(item)
+                break
+        _save(self._schedule_path, schedule)
+
+    def score_followup(self, item: dict) -> dict:
+        """
+        Score a follow-up outcome from before/after metrics.
+        Returns {outcome: 'success'|'regression'|'inconclusive', primary_change, details}.
+        """
+        baseline = item.get("baseline_metrics") or {}
+        observed = item.get("observed_metrics") or {}
+        primary_metric = item.get("primary_metric")
+        primary_direction = item.get("primary_direction", "higher_better")
+        threshold = float(item.get("success_threshold_pct", 0.1))
+
+        if not primary_metric or primary_metric not in baseline or primary_metric not in observed:
+            return {"outcome": "inconclusive", "reason": f"missing data for {primary_metric}"}
+
+        before = float(baseline[primary_metric])
+        after  = float(observed[primary_metric])
+
+        if before == 0:
+            raw_change = 1.0 if after > 0 else 0.0
+        else:
+            raw_change = (after - before) / abs(before)
+
+        # For "lower_better" metrics (e.g. CPC, bounce rate), invert direction
+        primary_change = -raw_change if primary_direction == "lower_better" else raw_change
+
+        if primary_change >= threshold:
+            outcome = "success"
+        elif primary_change <= -threshold:
+            outcome = "regression"
+        else:
+            outcome = "inconclusive"
+
+        return {
+            "outcome": outcome,
+            "primary_metric": primary_metric,
+            "before": before,
+            "after": after,
+            "primary_change_pct": round(primary_change * 100, 1),
+            "threshold_pct": round(threshold * 100, 1),
+        }
+
     def portfolio_summary(self) -> dict:
         rankings = self.rank_sites()
         return {
