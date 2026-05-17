@@ -174,29 +174,44 @@ class PageSpeedClient:
             logger.debug("[VECTOR][pagespeed] no API key — using free tier (rate limited)")
 
     def analyze_url(self, url: str) -> dict:
-        """Analyze a single URL on both mobile and desktop."""
+        """
+        Analyze a single URL on both mobile and desktop.
+        Returns Lighthouse synthetic scores + CrUX real-user data.
+        """
         with ThreadPoolExecutor(max_workers=2) as pool:
             mob_fut = pool.submit(_run_psi, url, "mobile",  self._api_key)
             dsk_fut = pool.submit(_run_psi, url, "desktop", self._api_key)
             try:
-                mobile  = _extract_metrics(mob_fut.result())
-                desktop = _extract_metrics(dsk_fut.result())
+                mob_raw = mob_fut.result()
+                dsk_raw = dsk_fut.result()
+                mobile  = _extract_metrics(mob_raw)
+                desktop = _extract_metrics(dsk_raw)
+                # CrUX comes from mobile response (mobile is the primary signal for Google)
+                crux = _extract_crux(mob_raw)
             except Exception as e:
                 logger.warning("[VECTOR][pagespeed] PSI failed for {}: {}", url, e)
                 return {"url": url, "error": str(e)}
 
+        mobile_label  = _score_indicator(mobile["performance_score"])
+        desktop_label = _score_indicator(desktop["performance_score"])
+        crux_label    = crux.get("overall", "unknown")
+
         logger.info(
-            "[VECTOR][pagespeed] {} mobile={} desktop={}",
-            url[:60], mobile["performance_score"], desktop["performance_score"],
+            "[VECTOR][pagespeed] {} mobile={} ({}) desktop={} ({}) crux={}",
+            url[:60], mobile["performance_score"], mobile_label,
+            desktop["performance_score"], desktop_label, crux_label,
         )
         return {
             "url": url,
             "scores": {
-                "mobile":  mobile["performance_score"],
-                "desktop": desktop["performance_score"],
+                "mobile":       mobile["performance_score"],
+                "mobile_label": mobile_label,
+                "desktop":      desktop["performance_score"],
+                "desktop_label":desktop_label,
             },
             "mobile":  mobile,
             "desktop": desktop,
+            "crux":    crux,   # real user data: lcp/fid/cls/fcp FAST/AVERAGE/SLOW ratings
         }
 
     def analyze_urls(self, urls: list[str], max_workers: int = 3) -> list[dict]:
