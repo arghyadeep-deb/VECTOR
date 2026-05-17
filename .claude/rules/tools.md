@@ -38,6 +38,41 @@ Skills in `~/.claude/skills/`:
 
 ---
 
+## PLUGIN 7 — MATTPOCOCK ENGINEERING SKILLS (msitarzewski/skills)
+
+17 skills installed in `~/.claude/skills/`. Use these for daily engineering work:
+
+### Engineering
+| Situation | Skill |
+|-----------|-------|
+| Hard bug / performance regression | `/diagnose` — 6-phase debug loop (better than systematic-debugging for complex bugs) |
+| Stress-test a plan with domain docs | `/grill-with-docs` — grilling + updates CONTEXT.md + ADRs |
+| Rescue a messy codebase | `/improve-codebase-architecture` — deepening analysis, run weekly |
+| Throwaway prototype (logic or UI) | `/prototype` — terminal app or UI variants |
+| Issue tracker / domain setup | `/setup-matt-pocock-skills` — run once per repo |
+| TDD red-green-refactor | `/tdd` — vertical slices, deeper than test-driven-development |
+| Break PRD into GitHub issues | `/to-issues` — vertical slice decomposition |
+| Turn conversation into PRD | `/to-prd` — synthesizes context into a GitHub issue |
+| Triage incoming issues | `/triage` — state machine triage loop |
+| Explain unfamiliar code in context | `/zoom-out` — big-picture perspective |
+
+### Productivity
+| Situation | Skill |
+|-----------|-------|
+| Stress-test your own plan | `/grill-me` — relentless one-question-at-a-time interview |
+| Compact conversation for next agent | `/handoff` — cross-agent handoff doc |
+| Cut token usage 75% | `/caveman` — drops filler, keeps accuracy |
+| Create a new Claude Code skill | `/write-a-skill` |
+
+### Misc
+| Situation | Skill |
+|-----------|-------|
+| Block dangerous git in a new repo | `/git-guardrails-claude-code` |
+| Set up Husky pre-commit hooks | `/setup-pre-commit` |
+| Search/create VECTOR Obsidian notes | `/obsidian-vault` — vault path: V.E.C.T.O.R. Brain\ |
+
+---
+
 ## PLUGIN 2 — CODE REVIEW (official plugin)
 
 `/code-review <PR#>` — use when any VECTOR district or feature branch is complete.
