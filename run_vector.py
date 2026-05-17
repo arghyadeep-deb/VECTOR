@@ -15,6 +15,22 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from loguru import logger
 
+# ── Telemetry init (Sentry + OpenTelemetry) — must happen before anything else ──
+def _init_telemetry() -> None:
+    try:
+        from core.openhuman.telemetry.sentry_bridge import init_sentry
+        from core.openhuman.telemetry.otel_bridge import get_telemetry
+        sentry = init_sentry()
+        sentry.set_user("arghyadeep-deb", "arghyadeep")
+        sentry.set_tag("component", "run_vector")
+        sentry.set_tag("phase", "1")
+        tel = get_telemetry()
+        logger.info("[VECTOR][telemetry] Sentry active={} OTEL active={}", sentry.is_active, tel._otel_available)
+    except Exception as e:
+        logger.debug("[VECTOR][telemetry] init skipped: {}", e)
+
+_init_telemetry()
+
 
 CORE_DISTRICTS = (
     ("governance-001", "GovernorCouncil", "governance"),
