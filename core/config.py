@@ -285,6 +285,13 @@ CONFIG: dict = {
         "instagram_access_token": _s.INSTAGRAM_ACCESS_TOKEN.get_secret_value(),
         "instagram_account_id": _s.INSTAGRAM_ACCOUNT_ID,
         "elevenlabs_key": _s.ELEVENLABS_KEY.get_secret_value(),
+        "muapi_api_key": _s.MUAPI_API_KEY.get_secret_value(),
+        "pagespeed_api_key": _s.PAGESPEED_API_KEY.get_secret_value(),
+    },
+    "media": {
+        "wan2gp_url": _s.WAN2GP_URL,
+        "use_lipsync_avatar": False,
+        "portrait_image": "",   # set to a portrait photo path to enable lipsync avatar
     },
     "content_niche": _s.CONTENT_NICHE,
     "video_upload_delay_minutes": _s.VIDEO_UPLOAD_DELAY_MINUTES,
