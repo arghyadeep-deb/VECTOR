@@ -12,10 +12,6 @@ from typing import Any, cast, override
 from uuid import uuid4
 
 try:
-    # Verify this is the ACP (Agent Communication Protocol) package, not an unrelated one
-    import acp as _acp_check
-    if not hasattr(_acp_check, 'PROTOCOL_VERSION') and not hasattr(_acp_check, 'Agent'):
-        raise ImportError("Installed 'acp' package is not the ACP protocol implementation")
     from acp import (
         PROTOCOL_VERSION,
         Agent as AcpAgent,
@@ -73,7 +69,6 @@ try:
     _ACP_AVAILABLE = True
 except (ImportError, AttributeError):
     # acp (Agent Communication Protocol) package not installed or wrong version
-    # Install: pip install agentclientprotocol (or the specific version used by this module)
     _ACP_AVAILABLE = False
     PROTOCOL_VERSION = "unknown"
     AcpAgent = Client = InitializeResponse = LoadSessionResponse = None
