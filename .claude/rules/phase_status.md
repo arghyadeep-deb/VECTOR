@@ -31,7 +31,8 @@
 | Red team agent (Gap 2) | `core/brain/red_team_agent.py` | ✅ Adversarial review before RED actions |
 | Hypothesis engine (Gap 5) | `core/brain/hypothesis_engine.py` | ✅ Proactive insights every 4h |
 | Synthesis bridge (Gap 1) | `core/brain/synthesis_bridge.py` | ✅ Cross-domain pattern detection every 30min |
-| Ollama safe (RULE 11) | `core/inference/ollama_safe.py` | ✅ All LLM calls gated, warm pool, AirLLM fallback |
+| Ollama safe (RULE 11 updated) | `core/inference/ollama_safe.py` + `core/inference/provider_client.py` | ✅ Ollama primary; 27 cloud providers via API keys (RULE 11 updated 2026-05-17) |
+| Provider registry (27 providers) | `core/inference/llm_providers.py` | ✅ Anthropic, Gemini, OpenAI, Groq, DeepSeek, Mistral, OpenRouter, Together, Fireworks, Perplexity, Cohere, Azure, Cloudflare, vLLM, HF, Replicate, Anyscale, Cerebras, SambaNova, NVIDIA, Moonshot, Zhipu, Baidu, Yi, LMStudio, Ollama + 1 more |
 
 **VECTOR Gaps not yet built (architecture.md marks these Year 2):**
 | Gap | Module | Notes |
