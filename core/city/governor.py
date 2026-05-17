@@ -509,8 +509,41 @@ class Governor:
 
         logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
 
-        # Prompt injection scan on task content
+        # ── Rate limit check (GCRA per district, 500 tokens/min) ────────────────
+        try:
+            from core.metering.rate_limiter import get_rate_limiter
+            rl = get_rate_limiter()
+            allowed, wait_ms = rl.check(f"district_{district}", "tool_call")
+            if not allowed:
+                logger.warning(
+                    "[VECTOR][governor] rate limit hit district={} wait={:.0f}ms",
+                    district, wait_ms,
+                )
+                if wait_ms > 10_000:
+                    return {"status": "rate_limited", "wait_ms": wait_ms,
+                            "district": district, "task_id": task_id}
+        except Exception:
+            pass
+
+        # ── Taint tracking — tag and check user-supplied content ──────────────
         task_content = str(task.get("params", {}).get("content", ""))
+        if task_content:
+            try:
+                from core.security.taint_tracker import get_taint_tracker, TaintLabel, TaintSink
+                tt = get_taint_tracker()
+                tainted = tt.taint(task_content, TaintLabel.USER_INPUT)
+                # Check before shell/network sinks
+                if task_type in ("bash", "shell", "exec", "run_code", "web_fetch", "scrape"):
+                    violations = tt.check_sink(tainted, TaintSink.SHELL_EXEC if "exec" in task_type else TaintSink.NET_FETCH)
+                    if violations:
+                        logger.warning(
+                            "[VECTOR][governor] taint violation task={} violations={}",
+                            task_id, [str(v) for v in violations],
+                        )
+            except Exception:
+                pass
+
+        # ── Prompt injection scan ─────────────────────────────────────────────
         if task_content:
             try:
                 from core.security.prompt_injection import scan_text
@@ -523,7 +556,7 @@ class Governor:
             except Exception:
                 pass
 
-        # Budget check before dispatch (non-blocking — just warns)
+        # ── Budget check before dispatch (non-blocking — just warns) ──────────
         try:
             from core.metering.budget_meter import get_budget_meter
             meter = get_budget_meter()
