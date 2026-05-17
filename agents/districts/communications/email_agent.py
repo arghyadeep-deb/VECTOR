@@ -115,20 +115,49 @@ class EmailAgent(AgentBase):
         return [dict(r) for r in rows]
 
     def search_emails(self, query: str, folder: str | None = None) -> list[dict]:
-        """Search emails by subject and body text."""
-        conn = self._conn()
+        """Search emails using Gmail-style query syntax (from:, to:, subject:, is:, has:, etc.)."""
+        parsed = parse_search_query(query)
+        folder = folder or parsed.folder
+        conditions: list[str] = []
+        params: list = []
+
         if folder:
-            rows = conn.execute(
-                "SELECT id,subject,sender,recipient,date,read,thread_id,folder_id FROM emails "
-                "WHERE folder_id=? AND (subject LIKE ? OR body LIKE ?) ORDER BY date DESC LIMIT 50",
-                (folder, f"%{query}%", f"%{query}%")
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT id,subject,sender,recipient,date,read,thread_id,folder_id FROM emails "
-                "WHERE subject LIKE ? OR body LIKE ? ORDER BY date DESC LIMIT 50",
-                (f"%{query}%", f"%{query}%")
-            ).fetchall()
+            conditions.append("folder_id = ?")
+            params.append(folder)
+        if parsed.from_addr:
+            conditions.append("sender LIKE ?")
+            params.append(f"%{parsed.from_addr}%")
+        if parsed.to_addr:
+            conditions.append("recipient LIKE ?")
+            params.append(f"%{parsed.to_addr}%")
+        if parsed.subject:
+            conditions.append("subject LIKE ?")
+            params.append(f"%{parsed.subject}%")
+        if parsed.is_read is not None:
+            conditions.append("read = ?")
+            params.append(1 if parsed.is_read else 0)
+        if parsed.is_starred is not None:
+            conditions.append("starred = ?")
+            params.append(1 if parsed.is_starred else 0)
+        if parsed.has_attachment:
+            conditions.append("id IN (SELECT DISTINCT email_id FROM attachments)")
+        if parsed.date_start:
+            conditions.append("date >= ?")
+            params.append(parsed.date_start)
+        if parsed.date_end:
+            conditions.append("date <= ?")
+            params.append(parsed.date_end)
+        if parsed.query:
+            conditions.append("(subject LIKE ? OR body LIKE ?)")
+            params.extend([f"%{parsed.query}%", f"%{parsed.query}%"])
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        conn = self._conn()
+        rows = conn.execute(
+            f"SELECT id,subject,sender,recipient,date,read,starred,thread_id,folder_id "
+            f"FROM emails {where} ORDER BY date DESC LIMIT 50",
+            params,
+        ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
 
