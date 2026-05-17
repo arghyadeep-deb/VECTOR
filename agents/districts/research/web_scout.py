@@ -37,7 +37,29 @@ class WebScout(AgentBase):
     # ── Search ─────────────────────────────────────────────────────────────────
 
     async def search(self, query: str, max_results: int = 5) -> list[dict]:
-        """DuckDuckGo search — no API key required. Returns list of {title, url, snippet}."""
+        """
+        Multi-source parallel search (DuckDuckGo + Wikipedia + ArXiv).
+        Falls back to single-source DuckDuckGo if parallel researcher unavailable.
+        """
+        try:
+            from core.engine.research.parallel_researcher import ParallelResearcher
+            researcher = ParallelResearcher()
+            report = await researcher.research(query, mode="fast", max_per_source=max_results)
+            if report.results:
+                results = [
+                    {"title": r.title, "url": r.url, "snippet": r.snippet}
+                    for r in report.results[:max_results]
+                    if r.url
+                ]
+                logger.info(
+                    "[VECTOR][web_scout] parallel search '{}' → {} results ({} sources)",
+                    query, len(results), len({r.source for r in report.results}),
+                )
+                return results
+        except Exception as e:
+            logger.debug("[VECTOR][web_scout] parallel researcher unavailable: {} — falling back", e)
+
+        # Fallback: single-source DuckDuckGo
         try:
             import httpx
             encoded = query.replace(" ", "+")
@@ -46,10 +68,10 @@ class WebScout(AgentBase):
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 r = await client.get(url, headers=headers)
             results = self._parse_ddg_html(r.text, max_results)
-            logger.info(f"[VECTOR][web_scout] search '{query}' → {len(results)} results")
+            logger.info("[VECTOR][web_scout] search '{}' → {} results (ddg)", query, len(results))
             return results
         except Exception as e:
-            logger.warning(f"[VECTOR][web_scout] search failed: {e}")
+            logger.warning("[VECTOR][web_scout] search failed: {}", e)
             return []
 
     def _parse_ddg_html(self, html: str, limit: int) -> list[dict]:
