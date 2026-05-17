@@ -164,27 +164,22 @@ class HTMLFrameRenderer:
                 await page.goto(base_url, wait_until="networkidle",
                                 timeout=self._config.timeout_ms)
 
+                # Inject VECTOR runtime (GSAP/anime.js/CSS/WAAPI adapters + renderSeek)
+                if _RUNTIME_JS:
+                    await page.evaluate(_RUNTIME_JS)
+                    logger.debug("[VECTOR][html_renderer] runtime injected ({} chars)", len(_RUNTIME_JS))
+
                 # Inject variables if provided
                 if variables:
                     vars_json = json.dumps(variables)
                     await page.evaluate(
-                        f"""
-                        if (window.__vector && window.__vector.setVariables) {{
-                            window.__vector.setVariables({vars_json});
-                        }} else if (window.__vector_unused && window.__vector_unused.setVariables) {{
-                            window.__vector_unused.setVariables({vars_json});
-                        }}
-                        """
+                        f"window.__vector && window.__vector.setVariables({vars_json})"
                     )
 
-                # Enable render mode (pauses JS animations — we control time)
-                await page.evaluate("""
-                    if (window.__vector && window.__vector.enableRenderMode) {
-                        window.__vector.enableRenderMode();
-                    } else if (window.enableRenderMode) {
-                        window.enableRenderMode();
-                    }
-                """)
+                # Enable render mode: pauses all animation engines, enables deterministic seeking
+                await page.evaluate(
+                    "window.__vector && window.__vector.enableRenderMode()"
+                )
 
                 frame_time_step = 1.0 / fps.to_float()
                 warmup = self._config.warmup_frames
