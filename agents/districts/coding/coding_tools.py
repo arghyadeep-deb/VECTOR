@@ -216,6 +216,40 @@ def check_cache_violation(messages: list[dict], tracker=None):
         return None
 
 
+async def run_code_safely(
+    code: str,
+    timeout: float = 30.0,
+    language: str = "python",
+) -> dict:
+    """
+    Execute user-provided code in VectorSandbox (isolated subprocess, no API keys).
+    Returns {success, stdout, stderr, exit_code, elapsed_secs}.
+    Used by coding district agents to safely run generated code snippets.
+    """
+    try:
+        from core.sandbox.vector_sandbox import VectorSandbox, SandboxConfig
+        sandbox = VectorSandbox(SandboxConfig(timeout_secs=timeout))
+        if language == "python":
+            result = await sandbox.run_python(code, timeout=timeout)
+        else:
+            result = await sandbox.run_shell(code, timeout=timeout)
+        logger.info(
+            "[VECTOR][coding_tools] sandbox run: success={} elapsed={:.2f}s",
+            result.success, result.elapsed_secs,
+        )
+        return {
+            "success": result.success,
+            "stdout":  result.stdout,
+            "stderr":  result.stderr,
+            "exit_code": result.exit_code,
+            "elapsed_secs": result.elapsed_secs,
+            "timed_out": result.timed_out,
+        }
+    except Exception as e:
+        logger.warning("[VECTOR][coding_tools] sandbox unavailable: {} — skipping", e)
+        return {"success": False, "stdout": "", "stderr": str(e), "exit_code": -1, "elapsed_secs": 0}
+
+
 if __name__ == "__main__":
     # Smoke tests
     import tempfile, os
