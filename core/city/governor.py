@@ -513,6 +513,15 @@ class Governor:
 
         except Exception as e:
             logger.error(f"[VECTOR][governor] dispatch error {task_id}: {e}")
+            # Sentry: capture with district + task context
+            try:
+                from core.openhuman.telemetry.sentry_bridge import init_sentry
+                init_sentry().capture_exception(e, context={
+                    "task_id": task_id, "task_type": task_type,
+                    "district": district, "component": "governor.dispatch",
+                })
+            except Exception:
+                pass
             if agent is not None:
                 agent.deduct_points(30, "exception_during_task")
             result = {"status": "error", "error": str(e)}
