@@ -228,7 +228,10 @@ def _resolved_user_message_id(client_message_id: str | None) -> str:
     return str(uuid4())
 
 
-class VibeAcpAgentLoop(AcpAgent):
+_AcpAgentBase = AcpAgent if _ACP_AVAILABLE else object
+
+
+class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
     client: Client
 
     def __init__(self) -> None:
