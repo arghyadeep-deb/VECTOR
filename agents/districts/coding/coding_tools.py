@@ -191,8 +191,8 @@ if __name__ == "__main__":
     print("OK  parse_search_replace_blocks")
 
     # grep
-    result = grep_code("def.*grep_code", "agents/districts/coding/coding_tools.py")
-    assert result["count"] > 0
+    result = grep_code("def grep_code", "agents/districts/coding")
+    assert result["count"] > 0, f"grep found nothing: {result}"
     print(f"OK  grep_code ({result['engine']}): {result['count']} match(es)")
 
     # read/write
