@@ -194,7 +194,7 @@ print("\n=== MISSING DEPENDENCIES ===")
 deps_to_check = [
     ("sqlalchemy", "research_engine settings DB"),
     ("alembic", "research_engine migrations"),
-    ("beautifulsoup4", "HTML parsing"),
+    ("bs4", "HTML parsing (beautifulsoup4)"),
     ("langchain_ollama", "Ollama LangChain"),
     ("langchain_community", "DuckDuckGo search"),
     ("arxiv", "ArXiv search engine"),
