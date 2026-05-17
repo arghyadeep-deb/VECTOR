@@ -18,8 +18,8 @@ from loguru import logger
 # ── Telemetry init (Sentry + OpenTelemetry) — must happen before anything else ──
 def _init_telemetry() -> None:
     try:
-        from core.openhuman.telemetry.sentry_bridge import init_sentry
-        from core.openhuman.telemetry.otel_bridge import get_telemetry
+        from core.engine.telemetry.sentry_bridge import init_sentry
+        from core.engine.telemetry.otel_bridge import get_telemetry
         sentry = init_sentry()
         sentry.set_user("arghyadeep-deb", "arghyadeep")
         sentry.set_tag("component", "run_vector")
@@ -550,10 +550,37 @@ async def smoke_test() -> dict:
     }
 
 
+async def _start_background_services() -> None:
+    """Start lightweight background services that augment VECTOR's capabilities."""
+    import asyncio
+
+    # OAuth server (port 51201) — provides token exchange for 119 integrations
+    try:
+        from core.engine.oauth.server import create_oauth_app
+        import uvicorn
+        oauth_app = create_oauth_app()
+        config = uvicorn.Config(oauth_app, host="127.0.0.1", port=51201, log_level="warning")
+        server = uvicorn.Server(config)
+        asyncio.create_task(server.serve())
+        logger.info("[VECTOR][startup] OAuth server started at http://127.0.0.1:51201")
+    except Exception as e:
+        logger.debug("[VECTOR][startup] OAuth server skipped: {}", e)
+
+    # Channel runtime — wires inbound messages → governor dispatch
+    try:
+        from core.engine.channels.runtime import ChannelRuntime
+        _runtime = ChannelRuntime(max_in_flight=5)
+        asyncio.create_task(_runtime.start())
+        logger.info("[VECTOR][startup] ChannelRuntime dispatch loop started")
+    except Exception as e:
+        logger.debug("[VECTOR][startup] ChannelRuntime skipped: {}", e)
+
+
 async def run_loop() -> None:
     """Start the autonomous loop. This is intended to run until interrupted."""
     preflight_checks()
     bootstrap_agents()
+    await _start_background_services()
     from core.loop.autonomous_loop import AutonomousLoop
 
     await AutonomousLoop().run_forever()
