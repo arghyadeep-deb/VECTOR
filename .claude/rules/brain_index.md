@@ -65,6 +65,11 @@ All agents are at `brain/.claude/agents/`. Read before using as a subagent conte
 - `ads-copy-writer.md`, `ads-creative-strategist.md` — ad copy and creative direction
 - `ads-format-adapter.md`, `ads-visual-designer.md` — asset format validation and visual creation
 
+## Claude Code Skills — VectorCode Intelligence (live in brain — read on-demand)
+Brain skills at `brain/.claude/skills/`. VectorCode code intelligence skills:
+- `vc-explore/` — semantic code search (vc_search), dependency graph queries (vc_graph_query), impact analysis (vc_impact), call flow (vc_flow), symbol lookup (vc_symbol)
+- `vc-manage/` — codebase indexing (vc_index), incremental updates (vc_update), file watching (vc_watch), health checks (vc_health), project listing (vc_projects)
+
 ## Claude Code Skills — Paid Ads (live in brain — read on-demand)
 Brain skills at `brain/.claude/skills/`. Ads skills:
 - `ads/` — main orchestrator, routes all /ads commands (audit, landing, creative, math, plan, etc.)
