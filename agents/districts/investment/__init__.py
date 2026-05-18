@@ -16,6 +16,7 @@ from .sentiment_bot import SentimentBot
 from .trading_conductor_agent import TradingConductorAgent
 from .fincept_agent import FinceptAgent
 from .autohedge_agent import AutoHedgeAgent
+from .vibe_trading_agent import VibeTradingAgent
 
 __all__ = [
     "StockAnalyst",
@@ -24,6 +25,7 @@ __all__ = [
     "TradingConductorAgent",
     "FinceptAgent",
     "AutoHedgeAgent",
+    "VibeTradingAgent",
     "SentimentBot",
 ]
 
