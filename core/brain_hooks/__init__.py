@@ -2,7 +2,7 @@
 VECTOR Brain Hooks — core/brain_hooks
 
 TypeScript lifecycle hooks for VECTOR's Obsidian Brain vault.
-Absorbed from the obsidian-mind vault template and adapted for VECTOR.
+TypeScript lifecycle hooks for VECTOR's Obsidian Brain vault.
 
 Provides:
 - SessionStart hook: inject ~2K tokens of context (North Star, tasks, vault listing)
