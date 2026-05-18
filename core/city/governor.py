@@ -166,6 +166,14 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "geopolitics_analysis": "investment",
     "quant_backtest":       "investment",
     "launch_terminal":      "investment",
+    # VECTOR Hedge — autonomous multi-agent hedge fund pipeline
+    "hedge_run":            "investment",
+    "hedge_trade":          "investment",
+    "solana_order":         "investment",
+    "solana_execute":       "investment",
+    "solana_holdings":      "investment",
+    "token_search":         "investment",
+    "token_price":          "investment",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
