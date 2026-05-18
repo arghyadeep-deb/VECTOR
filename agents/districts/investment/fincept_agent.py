@@ -230,9 +230,21 @@ class FinceptAgent(AgentBase):
                             "ticker": ticker, "result": result}
 
                 elif atype in ("fairness", "fairness_opinion"):
-                    from core.fincept.Analytics.corporateFinance.fairness_opinion import FairnessOpinionAnalyzer
-                    analyzer = FairnessOpinionAnalyzer()
-                    result = analyzer.analyze(ticker=ticker, data=d)
+                    from core.fincept.Analytics.corporateFinance.fairness_opinion import (
+                        FairnessOpinionFramework, ValuationRange, ValuationMethod,
+                    )
+                    framework = FairnessOpinionFramework(
+                        target_name=ticker or d.get("target", "Target Co"),
+                        offer_price=d.get("offer_price", 100.0),
+                    )
+                    valuation = ValuationRange(
+                        method=ValuationMethod.DCF,
+                        low=d.get("val_low", 90.0),
+                        high=d.get("val_high", 120.0),
+                        midpoint=d.get("val_mid", 105.0),
+                    )
+                    framework.add_valuation(valuation)
+                    result = framework.generate_opinion()
                     return {"status": "ok", "analysis_type": "fairness_opinion",
                             "ticker": ticker, "result": result}
 
