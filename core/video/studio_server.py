@@ -296,6 +296,178 @@ async def content_status() -> JSONResponse:
     })
 
 
+# ── Generative Studio API ─────────────────────────────────────────────────────
+
+_media_history: list[dict] = []
+
+
+@app.post("/api/media/generate")
+async def media_generate(body: dict) -> JSONResponse:
+    """Dispatch a media generation task (image, video, lipsync, animate)."""
+    try:
+        from core.media.generative_studio import GenerativeStudio
+        studio = GenerativeStudio()
+        result = await studio.generate({"params": body})
+        if "error" in result:
+            return JSONResponse({"error": result["error"]}, status_code=400)
+        import time, uuid
+        entry = {**result, "id": str(uuid.uuid4()), "action": body.get("action", ""),
+                 "created_at": __import__("datetime").datetime.utcnow().isoformat()}
+        _media_history.insert(0, entry)
+        if len(_media_history) > 50:
+            _media_history.pop()
+        return JSONResponse(entry)
+    except Exception as e:
+        logger.error("[VECTOR][studio_server] media_generate error: {}", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/media/history")
+async def media_history() -> JSONResponse:
+    """Recent generation results (in-memory, last 50)."""
+    return JSONResponse(_media_history[:20])
+
+
+@app.get("/api/media/balance")
+async def media_balance() -> JSONResponse:
+    """Muapi.ai credit balance."""
+    try:
+        from core.media.muapi_client import MuapiClient
+        client = MuapiClient()
+        balance = await client.get_balance()
+        await client.close()
+        return JSONResponse({"balance": balance, "configured": bool(client._api_key)})
+    except Exception as e:
+        return JSONResponse({"balance": 0.0, "configured": False, "error": str(e)})
+
+
+@app.get("/api/media/models")
+async def media_models() -> JSONResponse:
+    """Model catalog grouped by category."""
+    from core.media.models import list_by_category
+    return JSONResponse({
+        cat: [{"id": m.id, "name": m.name, "category": m.category,
+               "aspect_ratios": m.aspect_ratios, "max_images": m.max_images}
+              for m in list_by_category(cat)]
+        for cat in ("t2i", "i2i", "t2v", "i2v", "lipsync", "v2v")
+    })
+
+
+@app.get("/api/media/status")
+async def media_status() -> JSONResponse:
+    """Backend availability: Muapi + Wan2GP + local sd.cpp."""
+    try:
+        from core.media.generative_studio import GenerativeStudio
+        studio = GenerativeStudio()
+        return JSONResponse(await studio.status())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Workflow API ───────────────────────────────────────────────────────────────
+
+_workflows: dict[str, dict] = {}
+
+
+@app.get("/api/workflows")
+async def list_workflows() -> JSONResponse:
+    return JSONResponse(list(_workflows.values()))
+
+
+@app.get("/api/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str) -> JSONResponse:
+    wf = _workflows.get(workflow_id)
+    if not wf:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return JSONResponse(wf)
+
+
+@app.post("/api/workflows")
+async def create_workflow(body: dict) -> JSONResponse:
+    import uuid, datetime
+    wf_id = str(uuid.uuid4())[:8]
+    now = datetime.datetime.utcnow().isoformat()
+    wf = {**body, "id": wf_id, "created_at": now, "updated_at": now}
+    _workflows[wf_id] = wf
+    return JSONResponse(wf)
+
+
+@app.put("/api/workflows/{workflow_id}")
+async def update_workflow(workflow_id: str, body: dict) -> JSONResponse:
+    import datetime
+    wf = _workflows.get(workflow_id)
+    if not wf:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    updated = {**wf, **body, "id": workflow_id, "updated_at": datetime.datetime.utcnow().isoformat()}
+    _workflows[workflow_id] = updated
+    return JSONResponse(updated)
+
+
+@app.post("/api/workflows/{workflow_id}/run")
+async def run_workflow(workflow_id: str) -> JSONResponse:
+    """Execute a workflow sequentially — each node feeds into the next."""
+    wf = _workflows.get(workflow_id)
+    if not wf:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    try:
+        from core.media.generative_studio import GenerativeStudio
+        studio = GenerativeStudio()
+        nodes = wf.get("nodes", [])
+        edges = wf.get("edges", [])
+
+        # Topological order: nodes without incoming edges first
+        has_incoming = {e["target"] for e in edges}
+        ordered = [n for n in nodes if n["id"] not in has_incoming]
+        ordered += [n for n in nodes if n["id"] in has_incoming]
+
+        results = []
+        node_outputs: dict[str, str] = {}  # node_id → output URL
+
+        for node in ordered:
+            nid = node["id"]
+            ntype = node["type"]
+            params = node.get("params", {})
+
+            # Resolve inputs from connected source node
+            src_edge = next((e for e in edges if e["target"] == nid), None)
+            upstream_url = node_outputs.get(src_edge["source"], "") if src_edge else ""
+
+            try:
+                if ntype == "text_input":
+                    node_outputs[nid] = params.get("text", "")
+                    results.append({"node_id": nid, "status": "done", "url": ""})
+                elif ntype == "image_gen":
+                    prompt = params.get("text") or upstream_url or params.get("prompt", "")
+                    r = await studio.generate_image(prompt, model=params.get("model", "flux-dev"))
+                    url = r.get("url") or r.get("image_path") or ""
+                    node_outputs[nid] = url
+                    results.append({"node_id": nid, "status": "done", "url": url})
+                elif ntype == "video_gen":
+                    prompt = params.get("text") or upstream_url or params.get("prompt", "")
+                    r = await studio.generate_video(prompt, model=params.get("model", "kling-v3"))
+                    url = r.get("url") or ""
+                    node_outputs[nid] = url
+                    results.append({"node_id": nid, "status": "done", "url": url})
+                elif ntype == "lipsync":
+                    portrait = params.get("portrait", "")
+                    audio = upstream_url or params.get("audio", "")
+                    r = await studio.lipsync(portrait, audio, model=params.get("model", "infinite-talk"))
+                    url = r.get("url") or ""
+                    node_outputs[nid] = url
+                    results.append({"node_id": nid, "status": "done", "url": url})
+                elif ntype == "output":
+                    results.append({"node_id": nid, "status": "done", "url": upstream_url})
+                else:
+                    results.append({"node_id": nid, "status": "done", "url": ""})
+            except Exception as node_err:
+                results.append({"node_id": nid, "status": "error", "error": str(node_err)})
+
+        return JSONResponse({"workflow_id": workflow_id, "results": results})
+    except Exception as e:
+        logger.error("[VECTOR][studio_server] workflow run error: {}", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def start_studio_server(
