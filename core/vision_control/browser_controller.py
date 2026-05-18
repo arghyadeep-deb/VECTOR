@@ -27,7 +27,8 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.vision_control.action_parser import action_parser
-from core.vision_control.vision_operator import ACTION_SPACE, GUIStatus
+from core.vision_control.vision_operator import ACTION_SPACE
+from core.vision_control.gui_agent import GUIStatus
 from loguru import logger
 
 _BROWSER_SYSTEM_PROMPT = """You are VECTOR's browser automation agent. You control a web browser to complete tasks.
