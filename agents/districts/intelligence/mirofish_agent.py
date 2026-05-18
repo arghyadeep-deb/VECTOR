@@ -333,6 +333,104 @@ class MiroFishAgent(AgentBase):
             ],
         }
 
+    async def run_simulation(
+        self,
+        profiles_path: str,
+        simulation_config: dict | None = None,
+        platform: str = "twitter",
+        total_rounds: int = 10,
+        max_concurrent: int = 5,
+    ) -> dict:
+        """
+        Run a full social simulation using VECTOR's own engine (no camel-oasis needed).
+        Agents make LLM-driven decisions each round; all actions logged to SQLite.
+
+        profiles_path: path to twitter_profiles.csv or reddit_profiles.json
+        simulation_config: dict matching simulation_config.json schema (optional)
+        platform: "twitter" or "reddit"
+        total_rounds: number of simulation rounds (10 = ~5h simulated)
+        max_concurrent: max simultaneous LLM calls
+
+        After this, call simulation_report with the returned db_path.
+        """
+        logger.info("[VECTOR][mirofish] run_simulation: {} {} rounds on {}",
+                    profiles_path[:50], total_rounds, platform)
+        loop = asyncio.get_event_loop()
+
+        async def _run():
+            try:
+                import os
+                from app.services.vector_simulation_engine import VectorSocialSimEngine
+
+                cfg = self._cfg()
+                sim_dir = Path(cfg.get("simulations_dir",
+                    Path.home() / ".vector" / "mirofish" / "simulations"))
+                sim_id = str(uuid.uuid4())[:8]
+                run_dir = sim_dir / f"{platform}_{sim_id}"
+                run_dir.mkdir(parents=True, exist_ok=True)
+
+                db_path = str(run_dir / f"{platform}_simulation.db")
+                config  = simulation_config or {
+                    "simulation_id": sim_id,
+                    "time_config": {
+                        "total_simulation_hours": 72,
+                        "minutes_per_round": 30,
+                        "agents_per_hour_min": 3,
+                        "agents_per_hour_max": min(8, total_rounds),
+                        "peak_hours": [9, 10, 11, 14, 15, 20, 21, 22],
+                        "off_peak_hours": [0, 1, 2, 3, 4, 5],
+                        "peak_activity_multiplier": 1.5,
+                        "off_peak_activity_multiplier": 0.3,
+                    },
+                    "event_config": {"initial_posts": []},
+                    "agent_configs": [],
+                }
+
+                engine = VectorSocialSimEngine(
+                    config=config,
+                    db_path=db_path,
+                    llm_client=self._llm_client(),
+                    platform=platform,
+                )
+
+                if platform == "twitter":
+                    n = engine.load_twitter_profiles(profiles_path)
+                else:
+                    n = engine.load_reddit_profiles(profiles_path)
+
+                if n == 0:
+                    return {"status": "error", "error": "No profiles loaded from path"}
+
+                def _progress(rnd, total, summary):
+                    logger.info("[VECTOR][mirofish] round {}/{} hour={} active={}",
+                                rnd, total, summary.get("simulated_hour"),
+                                summary.get("active_agents"))
+
+                result = await engine.run_simulation(
+                    total_rounds=total_rounds,
+                    max_concurrent=max_concurrent,
+                    progress_callback=_progress,
+                )
+                result["simulation_id"] = sim_id
+                result["run_dir"] = str(run_dir)
+                return result
+
+            except Exception as e:
+                logger.warning("[VECTOR][mirofish] run_simulation error: {}", e)
+                return {"status": "error", "error": str(e)}
+
+        result = await _run()
+        if result.get("status") == "completed":
+            self.award_points(50, f"simulation completed: {total_rounds} rounds")
+            self._memory.store(
+                event_type="social_simulation",
+                content=f"MiroFishAgent {platform} sim: {total_rounds} rounds "
+                        f"-> {result.get('action_counts', {})}",
+                tags=["intelligence", "simulation", platform],
+                source="mirofish_agent",
+            )
+        return result
+
     # ── AgentBase interface ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
