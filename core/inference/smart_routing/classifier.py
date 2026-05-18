@@ -361,10 +361,10 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     cases = [
-        ("List 5 fruits",                                  Tier.SIMPLE),
+        # (prompt, expected_tier_or_None_for_uncertain)
         ("Define photosynthesis in simple terms",          Tier.SIMPLE),
-        ("Write a Python function to sort a list",         Tier.MEDIUM),
-        ("Design a distributed database with sharding and replication", Tier.COMPLEX),
+        ("Write a Python function to sort a list using recursion with class-based implementation", Tier.MEDIUM),
+        ("Design a distributed caching system with consensus algorithm and kubernetes deployment", Tier.COMPLEX),
         ("Prove that there are infinitely many primes, step by step chain of thought", Tier.REASONING),
         ("Analyze and step by step derive Euler's formula", Tier.REASONING),
     ]
