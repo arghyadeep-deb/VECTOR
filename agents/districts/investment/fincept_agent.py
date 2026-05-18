@@ -205,11 +205,19 @@ class FinceptAgent(AgentBase):
                             "ticker": ticker, "result": result}
 
                 elif atype in ("startup", "startup_valuation"):
-                    from core.fincept.Analytics.corporateFinance.startup_valuation import StartupValuation
-                    model = StartupValuation(
-                        company_name=ticker or d.get("company", "Startup"),
-                    )
-                    result = model.calculate_valuation(data=d)
+                    # Use Berkus/VC method depending on data available
+                    from core.fincept.Analytics.corporateFinance.startup_valuation import VCMethod, BerkusMethod
+                    if d.get("revenue_multiple"):
+                        model = VCMethod(
+                            company_name=ticker or d.get("company", "Startup"),
+                            projected_revenue=d.get("projected_revenue", 1_000_000),
+                            revenue_multiple=d.get("revenue_multiple", 3.0),
+                            investment_amount=d.get("investment", 500_000),
+                            expected_roi=d.get("roi", 10),
+                        )
+                    else:
+                        model = BerkusMethod(company_name=ticker or d.get("company", "Startup"))
+                    result = model.calculate()
                     return {"status": "ok", "analysis_type": "startup_valuation",
                             "ticker": ticker, "result": result}
 
