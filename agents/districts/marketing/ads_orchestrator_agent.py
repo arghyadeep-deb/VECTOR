@@ -329,7 +329,7 @@ if __name__ == "__main__":
         result = await agent.run({"type": "ads_math", "params": {
             "metrics": {"budget": 5000, "clicks": 2500, "conversions": 75, "revenue": 22500, "margin": 0.35}
         }})
-        print("✅ AdsOrchestratorAgent OK" if result["status"] == "ok" else f"❌ FAILED: {result}")
+        print("OK: AdsOrchestratorAgent" if result["status"] == "ok" else f"FAILED: {result}")
         print(result.get("calculations", result))
 
     asyncio.run(_test())
