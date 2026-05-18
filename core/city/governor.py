@@ -181,6 +181,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "vt_swarm":             "investment",
     "vt_skills":            "investment",
     "vt_export":            "investment",
+    # VECTOR ML Engineer — HF ecosystem: papers, jobs, datasets, hub, GitHub
+    "ml_research":          "coding",
+    "hf_train":             "coding",
+    "hf_dataset":           "coding",
+    "hf_hub":               "coding",
+    "github_ml":            "coding",
+    "ml_plan":              "coding",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
