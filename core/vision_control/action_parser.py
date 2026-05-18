@@ -88,9 +88,11 @@ def _parse_action_str(action_str: str) -> dict | None:
     try:
         # Normalize special box formats
         action_str = re.sub(r"<\|box_start\|>|<\|box_end\|>", "", action_str)
-        action_str = re.sub(r"(?<!start_|end_)point=", "start_box=", action_str)
+        # Order matters: replace qualified forms first so standalone point= doesn't double-replace
         action_str = action_str.replace("start_point=", "start_box=")
         action_str = action_str.replace("end_point=", "end_box=")
+        # Replace bare point= (not already prefixed) → start_box=
+        action_str = re.sub(r"\bpoint=", "start_box=", action_str)
 
         m = re.match(r"^(\w+)\((.*)\)$", action_str.strip(), re.DOTALL)
         if not m:
