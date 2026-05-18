@@ -138,6 +138,7 @@
   ],
 
   "buildPresets": [
+    { "name": "win-mingw",        "configurePreset": "win-mingw"        },
     { "name": "win-release",     "configurePreset": "win-release"     },
     { "name": "win-debug",       "configurePreset": "win-debug"       },
     { "name": "win-fast",        "configurePreset": "win-fast"        },
