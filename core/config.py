@@ -407,6 +407,18 @@ CONFIG: dict = {
         "sandbox_enabled":   False,
         "sessions_dir":      str(Path.home() / ".vector" / "ml_intern" / "sessions"),
     },
+    "mirofish": {
+        "llm_api_key":          os.environ.get("LLM_API_KEY", os.environ.get("OPENAI_API_KEY", "")),
+        "llm_base_url":         os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1"),
+        "llm_model_name":       os.environ.get("LLM_MODEL_NAME", "gpt-4.1"),
+        "llm_boost_api_key":    os.environ.get("LLM_BOOST_API_KEY", ""),
+        "llm_boost_base_url":   os.environ.get("LLM_BOOST_BASE_URL", ""),
+        "llm_boost_model_name": os.environ.get("LLM_BOOST_MODEL_NAME", ""),
+        "zep_api_key":          os.environ.get("ZEP_API_KEY", ""),
+        "uploads_dir":          str(Path.home() / ".vector" / "mirofish" / "uploads"),
+        "reports_dir":          str(Path.home() / ".vector" / "mirofish" / "reports"),
+        "simulations_dir":      str(Path.home() / ".vector" / "mirofish" / "simulations"),
+    },
     "smart_routing": {
         "enabled":        True,
         "default_profile": "auto",    # free | eco | auto | premium
