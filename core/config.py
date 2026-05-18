@@ -344,6 +344,14 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "smart_routing": {
+        "enabled":        True,
+        "default_profile": "auto",    # free | eco | auto | premium
+        "proxy_port":     8402,
+        "cache_ttl_sec":  30,
+        "compress_min_chars": 2000,   # min message size to trigger compression
+        "confidence_threshold": 0.70, # below this → LLM classifier fallback
+    },
     "code_conductor": {
         "max_files":       20,        # max files for orchestrator to read per task
         "similarity_threshold": 0.8,  # git eval hunk match threshold
