@@ -42,7 +42,8 @@
         "CMAKE_PREFIX_PATH": "C:/Qt/6.8.3/mingw_64",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "ninja"
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "OPENSSL_ROOT_DIR": "C:/Users/Arghyadeep/scoop/apps/openssl/current"
       }
     },
 
