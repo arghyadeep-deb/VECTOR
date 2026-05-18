@@ -155,6 +155,10 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "project": "projects",
     "deadline_check": "projects",
     "progress": "projects",
+    # Trading intelligence (multi-agent investment analysis)
+    "investment_analysis":  "investment",
+    "trading_analysis":     "investment",
+    "market_research":      "investment",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
