@@ -394,6 +394,19 @@ CONFIG: dict = {
         "skills_user_dir":     str(Path.home() / ".vector" / "vibe_trading" / "skills"),
         "enable_shell_tools":  False,
     },
+    "ml_intern": {
+        "hf_token":          os.environ.get("HF_TOKEN", ""),
+        "github_token":      os.environ.get("GITHUB_TOKEN", ""),
+        "slack_bot_token":   os.environ.get("SLACK_BOT_TOKEN", ""),
+        "slack_channel_id":  os.environ.get("SLACK_CHANNEL_ID", ""),
+        "model_name":        os.environ.get("ML_INTERN_MODEL", "anthropic/claude-opus-4-6"),
+        "yolo_mode":         False,
+        "reasoning_effort":  "high",
+        "save_sessions":     True,
+        "tool_runtime":      "local",
+        "sandbox_enabled":   False,
+        "sessions_dir":      str(Path.home() / ".vector" / "ml_intern" / "sessions"),
+    },
     "smart_routing": {
         "enabled":        True,
         "default_profile": "auto",    # free | eco | auto | premium
