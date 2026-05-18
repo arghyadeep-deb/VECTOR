@@ -344,6 +344,14 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "fincept": {
+        "terminal_binary": str(Path.home() / ".vector" / "fincept" / "FinceptTerminal.exe"),
+        "alpha_vantage_key": os.environ.get("ALPHA_VANTAGE_KEY", ""),
+        "fred_api_key":      os.environ.get("FRED_API_KEY", ""),
+        "polygon_key":       os.environ.get("POLYGON_API_KEY", ""),
+        "edgar_api_key":     os.environ.get("EDGAR_API_KEY", ""),
+        "data_cache_dir":    str(Path.home() / ".vector" / "fincept" / "cache"),
+    },
     "trading": {
         "llm_provider":        "openai",
         "deep_think_llm":      "gpt-5.4",
