@@ -59,6 +59,7 @@ All agents are at `brain/.claude/agents/`. Read before using as a subagent conte
 - `addy-code-reviewer.md`, `obra-code-reviewer.md` — code review
 - `performance-optimizer.md`, `refactor-cleaner.md`, `security-auditor.md` — quality
 - `silent-failure-hunter.md`, `test-engineer.md` — testing + failure detection
+- `vc-codebase-explorer.md` — deep codebase exploration via VectorCode Intelligence (vc_search, vc_impact, vc_flow, vc_graph)
 - `ads-audit-google.md`, `ads-audit-meta.md`, `ads-audit-creative.md` — paid ads platform auditors
 - `ads-audit-tracking.md`, `ads-audit-budget.md`, `ads-audit-compliance.md` — ads audit specialists
 - `ads-copy-writer.md`, `ads-creative-strategist.md` — ad copy and creative direction
