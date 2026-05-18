@@ -364,7 +364,7 @@ if __name__ == "__main__":
         # (prompt, expected_tier_or_None_for_uncertain)
         ("Define photosynthesis in simple terms",          Tier.SIMPLE),
         ("Write a Python function to sort a list using recursion with class-based implementation", Tier.MEDIUM),
-        ("Design and implement a fault-tolerant distributed key-value store with Raft consensus, horizontal sharding, and automatic leader election. Analyze CAP theorem trade-offs and partition tolerance strategies with technical benchmarks.", Tier.COMPLEX),
+        ("Implement a distributed key-value store in Python with Raft consensus, horizontal sharding, and automatic leader election across microservices with kubernetes deployment.", Tier.COMPLEX),
         ("Prove that there are infinitely many primes, step by step chain of thought", Tier.REASONING),
         ("Analyze and step by step derive Euler's formula", Tier.REASONING),
     ]
