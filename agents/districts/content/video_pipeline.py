@@ -200,8 +200,8 @@ class VideoPipelineAgent(AgentBase):
                     channel_name=CONFIG.get("content_niche", niche) + " by VECTOR",
                     niche=niche,
                     output_path=comp_path,
-                    extra_vars={"thumbnail_url": ai_thumbnail_url, "lipsync_video": lipsync_path or ""},
                 )
+                # ai_thumbnail_url and lipsync_path are available for future template injection
                 composer = VectorComposer(
                     on_progress=lambda p, m: self._update_job(
                         job, stage_pct=int(40 + p * 30)
