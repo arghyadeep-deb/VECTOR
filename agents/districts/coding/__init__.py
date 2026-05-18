@@ -14,10 +14,11 @@ from .test_writer import TestWriter
 from .bug_hunter import BugHunter
 from .gui_automation_agent import GUIAutomationAgent
 from .code_conductor_agent import CodeConductorAgent
+from .ml_intern_agent import MLInternAgent
 
 logger.info("[VECTOR] coding district loaded")
 
-__all__ = ["ArchitectBot", "CodeReviewer", "GitBot", "TestWriter", "BugHunter", "GUIAutomationAgent", "CodeConductorAgent"]
+__all__ = ["ArchitectBot", "CodeReviewer", "GitBot", "TestWriter", "BugHunter", "GUIAutomationAgent", "CodeConductorAgent", "MLInternAgent"]
 
 
 def get_agent(name: str):
