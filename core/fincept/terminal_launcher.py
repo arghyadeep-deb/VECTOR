@@ -48,6 +48,14 @@ _PLATFORM_BINARY = {
     "darwin": "FinceptTerminal",
 }
 
+# Fallback search order for pre-built binaries (MinGW build, VECTOR user dir)
+_WIN_BINARY_FALLBACKS = [
+    Path("C:/fincept-build/win-mingw/FinceptTerminal.exe"),
+    Path.home() / ".vector" / "fincept" / "FinceptTerminal.exe",
+]
+# Qt DLLs dir for MinGW build — needed in PATH when launching
+_WIN_QT_MINGW_BIN = Path("C:/Qt/6.8.3/mingw_64/bin")
+
 
 class FinceptTerminalLauncher:
     """Manages the C++/Qt6 VECTOR Financial Terminal binary."""
