@@ -361,11 +361,11 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     cases = [
-        ("What is 2+2?",                          Tier.SIMPLE),
-        ("Translate 'hello' to French",           Tier.SIMPLE),
-        ("Implement a binary search tree in Python", Tier.MEDIUM),
-        ("Design a distributed caching system",   Tier.COMPLEX),
-        ("Prove by induction that sum 1..n = n(n+1)/2", Tier.REASONING),
+        ("List 5 fruits",                                  Tier.SIMPLE),
+        ("Define photosynthesis in simple terms",          Tier.SIMPLE),
+        ("Write a Python function to sort a list",         Tier.MEDIUM),
+        ("Design a distributed database with sharding and replication", Tier.COMPLEX),
+        ("Prove that there are infinitely many primes, step by step chain of thought", Tier.REASONING),
         ("Analyze and step by step derive Euler's formula", Tier.REASONING),
     ]
 
