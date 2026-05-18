@@ -170,6 +170,16 @@ class AirLLMConfig(BaseModel):
     max_gpu_memory_gb: float = Field(11.0, ge=1.0, le=24.0)
 
 
+class AdsConfig(BaseModel):
+    scripts_path: str = "core/ads/scripts"
+    references_path: str = "core/ads/references"
+    templates_path: str = "core/ads/templates"
+    image_provider_order: list[str] = Field(default_factory=lambda: ["gemini", "openai", "stability", "replicate"])
+    pdf_output_dir: str = "output/ads_reports"
+    screenshot_dir: str = "output/ads_screenshots"
+    max_concurrent_audits: int = Field(6, ge=1, le=10)
+
+
 # ── Main settings (reads from .env) ───────────────────────────────────────────
 
 class VectorSettings(BaseSettings):
