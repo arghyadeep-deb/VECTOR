@@ -195,6 +195,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "generate_personas":    "intelligence",
     "simulation_report":    "intelligence",
     "agent_interview":      "intelligence",
+    "run_simulation":       "intelligence",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
