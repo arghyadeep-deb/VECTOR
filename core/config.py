@@ -370,6 +370,18 @@ CONFIG: dict = {
         "cache_dir":           str(Path.home() / ".vector" / "trading" / "cache"),
         "memory_log_path":     str(Path.home() / ".vector" / "trading" / "memory" / "trading_memory.md"),
     },
+    "autohedge": {
+        "openai_api_key":       os.environ.get("OPENAI_API_KEY", ""),
+        "exa_api_key":          os.environ.get("EXA_API_KEY", ""),
+        "jupiter_api_key":      os.environ.get("JUPITER_API_KEY", ""),
+        "solana_private_key":   os.environ.get("SOLANA_PRIVATE_KEY", ""),
+        "massive_api_key":      os.environ.get("MASSIVE_API_KEY", ""),
+        "director_model":       "gpt-4.1",
+        "fast_model":           "gpt-4o-mini",
+        "output_dir":           str(Path.home() / ".vector" / "autohedge" / "outputs"),
+        "logs_dir":             str(Path.home() / ".vector" / "autohedge" / "logs"),
+        "live_trading":         False,      # set True + SOLANA_PRIVATE_KEY to enable execution
+    },
     "smart_routing": {
         "enabled":        True,
         "default_profile": "auto",    # free | eco | auto | premium
