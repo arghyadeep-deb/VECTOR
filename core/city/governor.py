@@ -174,6 +174,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "solana_holdings":      "investment",
     "token_search":         "investment",
     "token_price":          "investment",
+    # VECTOR Quant Research — 9-engine backtest, shadow account, 29 swarm presets, 74 skills
+    "vt_research":          "investment",
+    "vt_backtest":          "investment",
+    "shadow_account":       "investment",
+    "vt_swarm":             "investment",
+    "vt_skills":            "investment",
+    "vt_export":            "investment",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
