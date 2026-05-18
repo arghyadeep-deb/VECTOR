@@ -69,7 +69,21 @@ class FinceptTerminalLauncher:
 
     @property
     def is_built(self) -> bool:
-        return self._bin_path.exists()
+        if self._bin_path.exists():
+            return True
+        if self._platform == "win32":
+            return any(p.exists() for p in _WIN_BINARY_FALLBACKS)
+        return False
+
+    def _resolved_bin_path(self) -> Path:
+        """Return the first existing binary path (canonical > fallbacks)."""
+        if self._bin_path.exists():
+            return self._bin_path
+        if self._platform == "win32":
+            for p in _WIN_BINARY_FALLBACKS:
+                if p.exists():
+                    return p
+        return self._bin_path
 
     @property
     def is_running(self) -> bool:
