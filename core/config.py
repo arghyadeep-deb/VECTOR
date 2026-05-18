@@ -462,6 +462,20 @@ CONFIG: dict = {
     "task_queue": {
         "max_concurrent": 8,
     },
+    "ads": {
+        "scripts_path":          _s.ads.scripts_path,
+        "references_path":       _s.ads.references_path,
+        "templates_path":        _s.ads.templates_path,
+        "image_provider_order":  _s.ads.image_provider_order,
+        "pdf_output_dir":        _s.ads.pdf_output_dir,
+        "screenshot_dir":        _s.ads.screenshot_dir,
+        "max_concurrent_audits": _s.ads.max_concurrent_audits,
+        "gemini_key":            os.environ.get("GEMINI_API_KEY", ""),
+        "openai_key":            os.environ.get("OPENAI_API_KEY", ""),
+        "stability_key":         os.environ.get("STABILITY_API_KEY", ""),
+        "replicate_key":         os.environ.get("REPLICATE_API_TOKEN", ""),
+        "pagespeed_key":         _s.PAGESPEED_API_KEY.get_secret_value(),
+    },
 }
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
