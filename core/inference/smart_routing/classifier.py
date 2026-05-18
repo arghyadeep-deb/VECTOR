@@ -208,12 +208,12 @@ DIMENSION_WEIGHTS: dict[str, float] = {
 
 # Tier boundaries for weighted score (roughly -1.0 to 1.0 range)
 TIER_BOUNDARIES = {
-    "simple_medium":    -0.2,
-    "medium_complex":    0.25,
-    "complex_reasoning": 0.6,
+    "simple_medium":    -0.15,
+    "medium_complex":    0.30,
+    "complex_reasoning": 0.60,
 }
-CONFIDENCE_STEEPNESS = 5.0
-CONFIDENCE_THRESHOLD = 0.70
+CONFIDENCE_STEEPNESS = 8.0
+CONFIDENCE_THRESHOLD = 0.55   # below this → LLM classifier fallback
 
 
 # ── Scorer functions ──────────────────────────────────────────────────────────
