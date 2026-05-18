@@ -8,10 +8,10 @@ Runs a full "rehearse the future" pipeline:
 
 Governor routes:
   social_simulate, build_ontology, build_graph, generate_personas,
-  simulation_report, agent_interview
+  simulation_report, agent_interview, run_simulation
 
 Requires: LLM_API_KEY (or OPENAI_API_KEY) for LLM calls.
-          ZEP_API_KEY for knowledge graph operations.
+          ZEP_API_KEY for knowledge graph operations (optional for simulation-only).
 """
 from __future__ import annotations
 
