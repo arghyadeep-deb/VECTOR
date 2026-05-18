@@ -344,6 +344,24 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "trading": {
+        "llm_provider":        "openai",
+        "deep_think_llm":      "gpt-5.4",
+        "quick_think_llm":     "gpt-5.4-mini",
+        "max_debate_rounds":   1,
+        "max_risk_rounds":     1,
+        "checkpoint_enabled":  False,
+        "output_language":     "English",
+        "data_vendors": {
+            "core_stock_apis":       "yfinance",
+            "technical_indicators":  "yfinance",
+            "fundamental_data":      "yfinance",
+            "news_data":             "yfinance",
+        },
+        "results_dir":         str(Path.home() / ".vector" / "trading" / "logs"),
+        "cache_dir":           str(Path.home() / ".vector" / "trading" / "cache"),
+        "memory_log_path":     str(Path.home() / ".vector" / "trading" / "memory" / "trading_memory.md"),
+    },
     "smart_routing": {
         "enabled":        True,
         "default_profile": "auto",    # free | eco | auto | premium
