@@ -475,6 +475,17 @@ CONFIG: dict = {
     "task_queue": {
         "max_concurrent": 8,
     },
+    "code_intel": {
+        "project_id":        _s.code_intel.project_id,
+        "qdrant_url":        _s.code_intel.qdrant_url,
+        "embedding_provider":_s.code_intel.embedding_provider,
+        "ollama_url":        _s.code_intel.ollama_url,
+        "embedding_model":   _s.code_intel.embedding_model,
+        "chunk_size":        _s.code_intel.chunk_size,
+        "chunk_overlap":     _s.code_intel.chunk_overlap,
+        "max_file_size_mb":  _s.code_intel.max_file_size_mb,
+        "dist_path":         _s.code_intel.dist_path,
+    },
     "ads": {
         "scripts_path":          _s.ads.scripts_path,
         "references_path":       _s.ads.references_path,
