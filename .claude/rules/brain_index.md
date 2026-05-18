@@ -59,6 +59,29 @@ All agents are at `brain/.claude/agents/`. Read before using as a subagent conte
 - `addy-code-reviewer.md`, `obra-code-reviewer.md` — code review
 - `performance-optimizer.md`, `refactor-cleaner.md`, `security-auditor.md` — quality
 - `silent-failure-hunter.md`, `test-engineer.md` — testing + failure detection
+- `ads-audit-google.md`, `ads-audit-meta.md`, `ads-audit-creative.md` — paid ads platform auditors
+- `ads-audit-tracking.md`, `ads-audit-budget.md`, `ads-audit-compliance.md` — ads audit specialists
+- `ads-copy-writer.md`, `ads-creative-strategist.md` — ad copy and creative direction
+- `ads-format-adapter.md`, `ads-visual-designer.md` — asset format validation and visual creation
+
+## Claude Code Skills — Paid Ads (live in brain — read on-demand)
+Brain skills at `brain/.claude/skills/`. Ads skills:
+- `ads/` — main orchestrator, routes all /ads commands (audit, landing, creative, math, plan, etc.)
+- `ads-audit/` — multi-platform audit orchestrator, spawns 6 parallel agents
+- `ads-google/` — Google Ads deep analysis (80 checks, GAQL, Smart Bidding)
+- `ads-meta/` — Meta/Facebook Ads analysis (50 checks, Pixel, CAPI, Andromeda)
+- `ads-youtube/`, `ads-linkedin/`, `ads-tiktok/`, `ads-microsoft/`, `ads-apple/` — per-platform
+- `ads-creative/` — cross-platform creative quality audit
+- `ads-landing/` — landing page analysis (Core Web Vitals, conversion signals)
+- `ads-budget/` — budget allocation and bidding strategy
+- `ads-plan/` — strategic planning (11 industry templates: SaaS, E-commerce, B2B, etc.)
+- `ads-competitor/` — competitor ad research
+- `ads-math/` — PPC financial calculator (CPA, ROAS, break-even, LTV:CAC)
+- `ads-test/` — A/B test design (hypothesis, sample size, statistical significance)
+- `ads-dna/` — brand DNA extraction from websites
+- `ads-create/` — campaign concept and brief generation
+- `ads-generate/` — AI image generation (Gemini→OpenAI→Stability→Replicate fallback)
+- `ads-photoshoot/` — product photography in 5 styles
 
 ## Claude Code Commands (live in brain — read on-demand)
 Brain commands at `brain/.claude/commands/`. Key ones:
