@@ -155,6 +155,11 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "project": "projects",
     "deadline_check": "projects",
     "progress": "projects",
+    # Stealth browser (anti-detection research)
+    "stealth_scrape":     "research",
+    "stealth_search":     "research",
+    "youtube_transcript": "research",
+    "stealth_snapshot":   "research",
     # Vision control (VLM-driven GUI automation)
     "gui_task":        "coding",
     "vision_control":  "coding",
