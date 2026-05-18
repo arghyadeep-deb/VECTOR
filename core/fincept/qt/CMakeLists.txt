@@ -45,6 +45,16 @@ if(WIN32 AND NOT MINGW)
     set(CMAKE_RC_FLAGS_MINSIZEREL "" CACHE STRING "" FORCE)
 endif()
 
+# MinGW/windres: app.rc has no #include directives, so preprocessing is unnecessary.
+# windres spawns cc1 with the -I flags but can't quote paths containing spaces,
+# causing "fatal error: Codebase/...: No such file or directory". Strip <INCLUDES>
+# from the RC compile rule to bypass the broken preprocessing entirely.
+if(MINGW)
+    set(CMAKE_RC_COMPILE_OBJECT
+        "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -o <OBJECT> <SOURCE>"
+        CACHE STRING "" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
