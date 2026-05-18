@@ -382,6 +382,18 @@ CONFIG: dict = {
         "logs_dir":             str(Path.home() / ".vector" / "autohedge" / "logs"),
         "live_trading":         False,      # set True + SOLANA_PRIVATE_KEY to enable execution
     },
+    "vibe_trading": {
+        "langchain_provider":  os.environ.get("LANGCHAIN_PROVIDER", "openai"),
+        "langchain_model":     os.environ.get("LANGCHAIN_MODEL", "gpt-4.1"),
+        "tushare_token":       os.environ.get("TUSHARE_TOKEN", ""),
+        "ccxt_exchange":       os.environ.get("CCXT_EXCHANGE", "binance"),
+        "token_threshold":     int(os.environ.get("TOKEN_THRESHOLD", "40000")),
+        "workspace_dir":       str(Path.home() / ".vector" / "vibe_trading" / "workspace"),
+        "memory_dir":          str(Path.home() / ".vector" / "vibe_trading" / "memory"),
+        "runs_dir":            str(Path.home() / ".vector" / "vibe_trading" / "runs"),
+        "skills_user_dir":     str(Path.home() / ".vector" / "vibe_trading" / "skills"),
+        "enable_shell_tools":  False,
+    },
     "smart_routing": {
         "enabled":        True,
         "default_profile": "auto",    # free | eco | auto | premium
