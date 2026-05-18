@@ -155,6 +155,11 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "project": "projects",
     "deadline_check": "projects",
     "progress": "projects",
+    # Code conductor (multi-agent coding orchestrator)
+    "code_conduct":         "coding",
+    "code_map":             "coding",
+    "code_accuracy_test":   "coding",
+    "str_replace":          "coding",
     # Stealth browser (anti-detection research)
     "stealth_scrape":     "research",
     "stealth_search":     "research",
