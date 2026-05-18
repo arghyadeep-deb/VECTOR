@@ -344,6 +344,11 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "vision_control": {
+        "max_loop":  25,
+        "factors":   [1000, 1000],   # coordinate normalization (VLM outputs 0-1000 range)
+        "loop_interval_sec": 0.5,
+    },
     "comfyui": {
         "url": os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188"),
         "output_dir": os.environ.get("COMFYUI_OUTPUT_DIR", "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/ComfyUI/output"),
