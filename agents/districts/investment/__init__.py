@@ -13,11 +13,13 @@ from .stock_analyst import StockAnalyst
 from .fundamentals_bot import FundamentalsBot
 from .technical_bot import TechnicalBot
 from .sentiment_bot import SentimentBot
+from .trading_conductor_agent import TradingConductorAgent
 
 __all__ = [
     "StockAnalyst",
     "FundamentalsBot",
     "TechnicalBot",
+    "TradingConductorAgent",
     "SentimentBot",
 ]
 
