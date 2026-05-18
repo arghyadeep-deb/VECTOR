@@ -249,6 +249,7 @@ class VectorSettings(BaseSettings):
     karpathy: KarpathyConfig = Field(default_factory=KarpathyConfig)
     airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
     vectorcode: VectorCodeConfig = Field(default_factory=VectorCodeConfig)
+    ads: AdsConfig = Field(default_factory=AdsConfig)
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
