@@ -155,6 +155,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "project": "projects",
     "deadline_check": "projects",
     "progress": "projects",
+    # Vision control (VLM-driven GUI automation)
+    "gui_task":        "coding",
+    "vision_control":  "coding",
+    "desktop_task":    "coding",
+    "click_screen":    "coding",
+    "browser_task":    "coding",
+    "web_task":        "coding",
     "image": "content",
     "generate_image": "content",
     "generate_i2i": "content",
