@@ -12,7 +12,21 @@ from .code_reviewer import CodeReviewer
 from .git_bot import GitBot
 from .test_writer import TestWriter
 from .bug_hunter import BugHunter
+from .gui_automation_agent import GUIAutomationAgent
 
 logger.info("[VECTOR] coding district loaded")
 
-__all__ = ["ArchitectBot", "CodeReviewer", "GitBot", "TestWriter", "BugHunter"]
+__all__ = ["ArchitectBot", "CodeReviewer", "GitBot", "TestWriter", "BugHunter", "GUIAutomationAgent"]
+
+
+def get_agent(name: str):
+    agents = {
+        "ArchitectBot":       ArchitectBot,
+        "CodeReviewer":       CodeReviewer,
+        "GitBot":             GitBot,
+        "TestWriter":         TestWriter,
+        "BugHunter":          BugHunter,
+        "GUIAutomationAgent": GUIAutomationAgent,
+        "gui_automation":     GUIAutomationAgent,
+    }
+    return agents.get(name)
