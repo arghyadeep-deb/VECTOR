@@ -151,12 +151,18 @@ class FinceptTerminalLauncher:
             logger.info("[VECTOR][terminal] already running (PID={})", self._proc.pid)
             return True
 
-        logger.info("[VECTOR][terminal] launching {}", self._bin_path)
+        bin_path = self._resolved_bin_path()
+        logger.info("[VECTOR][terminal] launching {}", bin_path)
         try:
+            env = os.environ.copy()
+            # Ensure Qt MinGW DLLs are in PATH when running the MinGW build
+            if self._platform == "win32" and _WIN_QT_MINGW_BIN.exists():
+                env["PATH"] = str(_WIN_QT_MINGW_BIN) + os.pathsep + env.get("PATH", "")
             self._proc = subprocess.Popen(
-                [str(self._bin_path)],
-                cwd=str(self._bin_path.parent),
+                [str(bin_path)],
+                cwd=str(bin_path.parent),
                 start_new_session=detached,
+                env=env,
             )
             logger.info("[VECTOR][terminal] launched PID={}", self._proc.pid)
             return True
