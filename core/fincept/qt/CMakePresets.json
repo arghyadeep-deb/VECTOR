@@ -31,6 +31,22 @@
     },
 
     {
+      "name": "win-mingw",
+      "displayName": "Windows Release (MinGW GCC, Qt 6.8.3 mingw_64) — VECTOR build",
+      "description": "Builds with MinGW-w64 GCC (no admin required). Uses Qt 6.8.3 mingw_64 libraries installed via aqtinstall.",
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.8.3/mingw_64",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja"
+      }
+    },
+
+    {
       "name": "win-release",
       "displayName": "Windows Release (MSVC 2022, Qt 6.8.3)",
       "description": "Pinned Release build for Windows x64. Defaults to fast incremental link; opt into LTO with -DFINCEPT_ENABLE_LTO=ON for ship builds.",
