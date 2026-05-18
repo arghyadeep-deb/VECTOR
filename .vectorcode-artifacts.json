@@ -1,0 +1,19 @@
+{
+  "artifacts": [
+    {
+      "name": "architecture",
+      "path": "brain/VECTOR/Architecture.md",
+      "description": "VECTOR autonomous loop architecture, coroutines, session hydration, memory schema, voice pipeline, council, HP system"
+    },
+    {
+      "name": "roadmap",
+      "path": "brain/VECTOR/Roadmap.md",
+      "description": "VECTOR 50-day build plan, phase breakdown, Karpathy track"
+    },
+    {
+      "name": "districts",
+      "path": ".claude/rules/districts.md",
+      "description": "All 25 VECTOR districts — Phase 1/2/3 breakdown, agent lists"
+    }
+  ]
+}
