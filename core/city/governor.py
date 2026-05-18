@@ -159,6 +159,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "investment_analysis":  "investment",
     "trading_analysis":     "investment",
     "market_research":      "investment",
+    # Fincept financial intelligence suite
+    "investor_analysis":    "investment",
+    "corporate_finance":    "investment",
+    "alpha_discovery":      "investment",
+    "geopolitics_analysis": "investment",
+    "quant_backtest":       "investment",
+    "launch_terminal":      "investment",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
