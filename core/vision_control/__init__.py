@@ -15,7 +15,8 @@ Usage:
 """
 __version__ = "1.0.0"
 
-from core.vision_control.action_parser import action_parser, ACTION_SPACE  # noqa: F401
+from core.vision_control.action_parser import action_parser  # noqa: F401
+from core.vision_control.vision_operator import ACTION_SPACE  # noqa: F401
 from core.vision_control.vision_operator import VisionOperator
 from core.vision_control.gui_agent import GUIAgent, GUIStatus
 from core.vision_control.browser_controller import BrowserController
