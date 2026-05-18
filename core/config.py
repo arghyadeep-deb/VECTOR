@@ -344,6 +344,12 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "stealth_browser": {
+        "port":       9377,
+        "api_key":    os.environ.get("STEALTH_BROWSER_API_KEY", ""),
+        "admin_key":  os.environ.get("STEALTH_BROWSER_ADMIN_KEY", ""),
+        "timeout_sec": 30,
+    },
     "vision_control": {
         "max_loop":  25,
         "factors":   [1000, 1000],   # coordinate normalization (VLM outputs 0-1000 range)
