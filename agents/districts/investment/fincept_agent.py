@@ -180,27 +180,49 @@ class FinceptAgent(AgentBase):
 
                 elif atype == "lbo":
                     from core.fincept.Analytics.corporateFinance.lbo.lbo_model import LBOModel
-                    model = LBOModel(
-                        company_name=ticker or d.get("company", "Target"),
-                        acquisition_price=d.get("acquisition_price", 100_000_000),
-                        debt_pct=d.get("debt_pct", 0.65),
-                        equity_pct=d.get("equity_pct", 0.35),
-                    )
-                    returns = model.calculate_returns(
-                        exit_multiple=d.get("exit_multiple", 10),
-                        holding_period=d.get("holding_period", 5),
-                        ebitda_growth=d.get("ebitda_growth", 0.05),
-                    )
+                    target_data = {
+                        "company_name": ticker or d.get("company", "Target"),
+                        "revenue": d.get("revenue", 100_000_000),
+                        "ebitda": d.get("ebitda", 20_000_000),
+                        "ebitda_margin": d.get("ebitda_margin", 0.20),
+                    }
+                    transaction = {
+                        "acquisition_price": d.get("acquisition_price", 200_000_000),
+                        "debt_pct": d.get("debt_pct", 0.65),
+                        "equity_pct": d.get("equity_pct", 0.35),
+                        "exit_multiple": d.get("exit_multiple", 10),
+                        "holding_period": d.get("holding_period", 5),
+                    }
+                    model = LBOModel(target_data=target_data, transaction_assumptions=transaction)
+                    result = model.build_complete_model()
                     return {"status": "ok", "analysis_type": "lbo",
-                            "ticker": ticker, "returns": returns}
+                            "ticker": ticker, "result": result}
 
                 elif atype in ("merger", "m&a"):
                     from core.fincept.Analytics.corporateFinance.merger_models.merger_model import MergerModel
-                    model = MergerModel(
-                        acquirer_name=d.get("acquirer", "Acquirer"),
-                        target_name=ticker or d.get("target", "Target"),
-                    )
-                    result = model.run_analysis(data=d)
+                    acquirer_data = {
+                        "name": d.get("acquirer", "Acquirer"),
+                        "revenue": d.get("acquirer_revenue", 500_000_000),
+                        "ebitda": d.get("acquirer_ebitda", 100_000_000),
+                        "shares_outstanding": d.get("acquirer_shares", 10_000_000),
+                        "stock_price": d.get("acquirer_price", 50.0),
+                    }
+                    target_data = {
+                        "name": ticker or d.get("target", "Target"),
+                        "revenue": d.get("target_revenue", 100_000_000),
+                        "ebitda": d.get("target_ebitda", 20_000_000),
+                        "shares_outstanding": d.get("target_shares", 5_000_000),
+                        "stock_price": d.get("target_price", 30.0),
+                    }
+                    deal_terms = {
+                        "offer_price": d.get("offer_price", 40.0),
+                        "deal_type": d.get("deal_type", "cash"),
+                        "synergies": d.get("synergies", 10_000_000),
+                    }
+                    model = MergerModel(acquirer_data=acquirer_data,
+                                        target_data=target_data,
+                                        deal_terms=deal_terms)
+                    result = model.run_analysis() if hasattr(model, "run_analysis") else str(model)
                     return {"status": "ok", "analysis_type": "merger",
                             "ticker": ticker, "result": result}
 
