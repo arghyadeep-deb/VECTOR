@@ -344,6 +344,10 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
+    "code_conductor": {
+        "max_files":       20,        # max files for orchestrator to read per task
+        "similarity_threshold": 0.8,  # git eval hunk match threshold
+    },
     "stealth_browser": {
         "port":       9377,
         "api_key":    os.environ.get("STEALTH_BROWSER_API_KEY", ""),
