@@ -29,5 +29,7 @@ def get_agent(name: str):
         "BugHunter":          BugHunter,
         "GUIAutomationAgent": GUIAutomationAgent,
         "gui_automation":     GUIAutomationAgent,
+        "CodeConductorAgent": CodeConductorAgent,
+        "code_conductor":     CodeConductorAgent,
     }
     return agents.get(name)
