@@ -473,6 +473,14 @@ class MiroFishAgent(AgentBase):
                 message=p.get("message", p.get("query", "")),
                 graph_id=p.get("graph_id"),
             )
+        elif action == "run_simulation":
+            return await self.run_simulation(
+                profiles_path=p.get("profiles_path", ""),
+                simulation_config=p.get("simulation_config"),
+                platform=p.get("platform", "twitter"),
+                total_rounds=p.get("total_rounds", 10),
+                max_concurrent=p.get("max_concurrent", 5),
+            )
         return {"status": "error", "error": f"unknown action: {action}"}
 
     async def run_forever(self) -> None:
