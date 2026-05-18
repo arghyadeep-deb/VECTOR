@@ -170,6 +170,18 @@ class AirLLMConfig(BaseModel):
     max_gpu_memory_gb: float = Field(11.0, ge=1.0, le=24.0)
 
 
+class CodeIntelConfig(BaseModel):
+    project_id: str = "vector-codebase-main"
+    qdrant_url: str = "http://127.0.0.1:6333"
+    embedding_provider: str = "ollama"
+    ollama_url: str = "http://127.0.0.1:11434"
+    embedding_model: str = "nomic-embed-text"
+    chunk_size: int = Field(100, ge=10, le=500)
+    chunk_overlap: int = Field(10, ge=0, le=50)
+    max_file_size_mb: float = Field(5.0, ge=0.1, le=50.0)
+    dist_path: str = "vectorcode/code_intel/dist/index.js"
+
+
 class AdsConfig(BaseModel):
     scripts_path: str = "core/ads/scripts"
     references_path: str = "core/ads/references"
