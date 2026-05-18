@@ -33,8 +33,9 @@
     {
       "name": "win-mingw",
       "displayName": "Windows Release (MinGW GCC, Qt 6.8.3 mingw_64) — VECTOR build",
-      "description": "Builds with MinGW-w64 GCC (no admin required). Uses Qt 6.8.3 mingw_64 libraries installed via aqtinstall.",
+      "description": "Builds with MinGW-w64 GCC (no admin required). Uses Qt 6.8.3 mingw_64 libraries installed via aqtinstall. Build dir is outside the space-containing source path to avoid windres quoting bugs.",
       "inherits": "base",
+      "binaryDir": "C:/fincept-build/win-mingw",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "architecture": { "value": "x64", "strategy": "external" },
       "cacheVariables": {
