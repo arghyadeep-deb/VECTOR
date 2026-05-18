@@ -262,6 +262,7 @@ class VectorSettings(BaseSettings):
     airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
     vectorcode: VectorCodeConfig = Field(default_factory=VectorCodeConfig)
     ads: AdsConfig = Field(default_factory=AdsConfig)
+    code_intel: CodeIntelConfig = Field(default_factory=CodeIntelConfig)
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
