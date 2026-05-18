@@ -7,6 +7,11 @@ HTTP/SSE:  python core/mcp_server.py --transport sse --port 9000
 
 RULE 11: All Ollama calls go through ollama_safe, never direct.
 RULE 3:  All write/execute actions gate through permission_gateway.
+
+MCP Client (outbound):
+  To consume EXTERNAL MCP servers from VECTOR's Python code, use:
+    from core.mcp.client import MCPClient
+  This is the opposite direction — VECTOR as MCP consumer, not server.
 """
 import sys
 import asyncio
