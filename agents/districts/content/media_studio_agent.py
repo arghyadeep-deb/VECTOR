@@ -113,7 +113,7 @@ class MediaStudioAgent(AgentBase):
         wan2gp = await self._studio._wan2gp.list_models()
         return {
             "cloud_models": [{"id": m.id, "name": m.name, "category": m.category} for m in models],
-            "local_models": [{"id": m.id, "name": m.name, "downloaded": m.get("downloaded", False)} for m in self._studio._local.list_models()],
+            "local_models": self._studio._local.list_models(),
             "wan2gp_models": wan2gp,
         }
 
