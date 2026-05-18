@@ -188,6 +188,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "hf_hub":               "coding",
     "github_ml":            "coding",
     "ml_plan":              "coding",
+    # VECTOR Social Sim — swarm intelligence, social simulation, knowledge graphs
+    "social_simulate":      "intelligence",
+    "build_ontology":       "intelligence",
+    "build_graph":          "intelligence",
+    "generate_personas":    "intelligence",
+    "simulation_report":    "intelligence",
+    "agent_interview":      "intelligence",
     # Code conductor (multi-agent coding orchestrator)
     "code_conduct":         "coding",
     "code_map":             "coding",
