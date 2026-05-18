@@ -214,10 +214,32 @@ class WebScout(AgentBase):
 
         return {"query": query, "results": results, "summary": summary}
 
+    async def stealth_search(self, query: str, engine: str = "google") -> dict:
+        """
+        Search using anti-detection browser (bypasses Google/Cloudflare bot detection).
+        Falls back to regular DuckDuckGo search if stealth server not running.
+        """
+        try:
+            from core.stealth_browser.client import StealthBrowserClient
+            async with StealthBrowserClient() as client:
+                if not await client.is_healthy():
+                    logger.debug("[VECTOR][web_scout] stealth server not running — using regular search")
+                    results = await self.search(query)
+                    return {"query": query, "engine": "duckduckgo", "results": results, "fallback": True}
+                result = await client.search(query, engine=engine)
+                return result
+        except Exception as e:
+            logger.warning("[VECTOR][web_scout] stealth_search failed: {} — falling back", e)
+            results = await self.search(query)
+            return {"query": query, "engine": "duckduckgo", "results": results, "fallback": True}
+
     # ── Loop ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        action = p.get("action", "search")
+        if action == "stealth_search":
+            return await self.stealth_search(p.get("query", ""), p.get("engine", "google"))
         results = await self.search(p.get("query", "VECTOR AI"))
         return {"status": "ok", "results": results}
 
