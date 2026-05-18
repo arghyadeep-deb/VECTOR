@@ -14,6 +14,7 @@ from .fundamentals_bot import FundamentalsBot
 from .technical_bot import TechnicalBot
 from .sentiment_bot import SentimentBot
 from .trading_conductor_agent import TradingConductorAgent
+from .fincept_agent import FinceptAgent
 
 __all__ = [
     "StockAnalyst",
