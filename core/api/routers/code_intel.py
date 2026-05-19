@@ -36,43 +36,50 @@ def _run_intel(task_type: str, params: dict) -> dict:
 
 # ── Request models ────────────────────────────────────────────────────────────
 
-class SearchRequest(BaseModel):
+class _PathMixin(BaseModel):
+    @field_validator("project_path", "file_path", "file", mode="before", check_fields=False)
+    @classmethod
+    def _confine_to_codebase(cls, v: str) -> str:
+        return _safe_path(v) if v else v
+
+
+class SearchRequest(_PathMixin):
     query: str
     project_path: str = _PROJECT_PATH
     limit: int = 10
     language: str | None = None
     file_filter: str | None = None
 
-class IndexRequest(BaseModel):
+class IndexRequest(_PathMixin):
     project_path: str = _PROJECT_PATH
     extra_extensions: list[str] = []
 
-class GraphQueryRequest(BaseModel):
+class GraphQueryRequest(_PathMixin):
     project_path: str = _PROJECT_PATH
     file_path: str = ""
 
-class ImpactRequest(BaseModel):
+class ImpactRequest(_PathMixin):
     target: str
     project_path: str = _PROJECT_PATH
     depth: int = 3
 
-class FlowRequest(BaseModel):
+class FlowRequest(_PathMixin):
     entrypoint: str
     project_path: str = _PROJECT_PATH
     file: str | None = None
     depth: int = 5
 
-class SymbolRequest(BaseModel):
+class SymbolRequest(_PathMixin):
     name: str
     project_path: str = _PROJECT_PATH
     file: str | None = None
 
-class ContextSearchRequest(BaseModel):
+class ContextSearchRequest(_PathMixin):
     query: str
     project_path: str = _PROJECT_PATH
     limit: int = 5
 
-class WatchRequest(BaseModel):
+class WatchRequest(_PathMixin):
     project_path: str = _PROJECT_PATH
     action: str = "start"
 
