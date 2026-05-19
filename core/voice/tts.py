@@ -19,6 +19,7 @@ class VoiceTTS:
         self._kokoro = None
         self._pyttsx3 = None
         self._kokoro_ok = False
+        self._speaking = False  # barge-in flag
         self._model_dir = Path(CONFIG.get("voice", {}).get("kokoro_model_dir", "./models/kokoro"))
         self._speed = CONFIG.get("voice", {}).get("kokoro_speed", 0.85)
         self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
