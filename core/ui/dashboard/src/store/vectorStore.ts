@@ -4,7 +4,21 @@ import type { MemoryEvent, StatusResponse, AgentData, SystemMetrics, GoalsRespon
 export interface PanelEntry { id: string; type: 'mortality' | 'district' | 'decision'; districtName?: string }
 interface ConnectionError { failed: boolean; lastError: string; retryCount: number }
 
+export type AppMode = 'JARVIS_MODE' | 'DASHBOARD_MODE'
+
+export interface ContentWindowEntry {
+  id: string
+  type: 'text' | 'camera' | 'map' | 'chart'
+  title: string
+  content?: string
+  position?: { x: number; y: number }
+}
+
 export interface VectorState {
+  mode: AppMode
+  bootDone: boolean
+  contentWindows: ContentWindowEntry[]
+  orbInCorner: boolean
   connected: boolean; status: StatusResponse | null; agents: AgentData[]; events: MemoryEvent[]; error: string | null
   activePanels: PanelEntry[]; connectionErrors: Record<string, ConnectionError>; lastUpdated: number
   quickResult: { title: string; lines: string[] } | null
