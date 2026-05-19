@@ -11,12 +11,34 @@ export default function VoiceInput({ onResult }: Props) {
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const ws = useRef<WebSocket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const rafRef = useRef<number>(0)
   const setVoiceState = useVectorStore((s) => s.setVoiceState)
+  const setAudioLevel = useVectorStore((s) => s.setAudioLevel)
 
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
+
+      // Wire real microphone amplitude to the store for VoiceWaveform
+      const audioCtx = new AudioContext()
+      audioCtxRef.current = audioCtx
+      const src = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      src.connect(analyser)
+      analyserRef.current = analyser
+      const buf = new Float32Array(analyser.frequencyBinCount)
+      const tick = () => {
+        analyser.getFloatTimeDomainData(buf)
+        const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length)
+        setAudioLevel(Math.min(1, rms * 8))
+        rafRef.current = requestAnimationFrame(tick)
+      }
+      rafRef.current = requestAnimationFrame(tick)
+
       const mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
       mediaRecorder.current = mr
 
