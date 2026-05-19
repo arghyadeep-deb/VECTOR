@@ -172,7 +172,7 @@ class ContentCreator(AgentBase, SkillMixin):
             f"Don't just summarize — transform for the new medium."
         )
         try:
-            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=30.0)
+            return self._chat(prompt, timeout=30.0)
         except Exception as e:
             logger.warning("[VECTOR][content_creator] repurpose LLM failed: {}", e)
             return f"[Repurposed from {source_format} to {target_format}]\n\n{original[:300]}..."
