@@ -118,6 +118,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [mode])
 
+  // Fist-hold-3s gesture → FORTRESS_MODE (track consecutive fist frames from GestureOverlay)
+  const fistStartRef = useRef<number | null>(null)
+  // CommandInput calls setMode via voice detection — we wire it in CommandInput
+
   // Apply/remove data-jarvis on <html> so CSS can suppress bg effects in orb mode
   useEffect(() => {
     document.documentElement.setAttribute('data-jarvis', mode === 'JARVIS_MODE' ? 'true' : 'false')
