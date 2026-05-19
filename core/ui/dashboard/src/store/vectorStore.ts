@@ -223,6 +223,15 @@ export const useVectorStore = create<VectorState>()((set) => ({
   research: null,
   migration: null,
 
+  setMode: (m) => set({ mode: m }),
+  setBootDone: (v) => set({ bootDone: v }),
+  addContentWindow: (w) => set((s) => ({ contentWindows: [...s.contentWindows, w], orbInCorner: true })),
+  removeContentWindow: (id) => set((s) => {
+    const remaining = s.contentWindows.filter(w => w.id !== id)
+    return { contentWindows: remaining, orbInCorner: remaining.length > 0 }
+  }),
+  clearContentWindows: () => set({ contentWindows: [], orbInCorner: false }),
+  setOrbInCorner: (v) => set({ orbInCorner: v }),
   setShowGlobe: (v) => set({ showGlobe: v }),
   setConnected: (v) => set({ connected: v }),
   setStatus: (s) => set({ status: s, lastUpdated: Date.now() }),
