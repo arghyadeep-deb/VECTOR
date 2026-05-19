@@ -92,14 +92,8 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
             {w.content}
           </div>
         )}
-        {w.type === 'camera' && (
-          <div style={{ textAlign: 'center', color: 'rgba(0,207,255,0.4)', fontFamily: "'Orbitron', sans-serif", fontSize: 10 }}>
-            CAMERA STREAM ACTIVE
-          </div>
-        )}
-        {w.type === 'map' && (
-          <div id={`map-container-${w.id}`} style={{ width: '100%', height: 300 }} />
-        )}
+        {w.type === 'camera' && <CameraView windowId={w.id} />}
+        {w.type === 'map' && <MapView />}
       </div>
     </div>
   )
