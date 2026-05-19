@@ -95,7 +95,7 @@ export default function App() {
     { id: 'network', worldX: -1598, worldY: -292, component: <NetworkPanel />, title: 'Network' },
     { id: 'audit', worldX: -988, worldY: -765, component: <AuditPanel />, title: 'Audit' },
     { id: 'metering', worldX: 0, worldY: -945, component: <MeteringPanel />, title: 'Metering' },
-    { id: 'jupyter', worldX: 988, worldY: -765, component: <JupyterPanel />, title: 'Jupyter' },
+    { id: 'jupyter', worldX: 988, worldY: -765, component: <JupyterPanel />, title: 'Harness' },
     { id: 'sandbox', worldX: 1598, worldY: -292, component: <SandboxPanel />, title: 'Sandbox' },
     /* Ring 4 (rf=2.35, rX=2256, rY=1269, 10 panels, offset 36°) */
     { id: 'sensing', worldX: 1825, worldY: 746, component: <SensingPanel />, title: 'Sensing' },
