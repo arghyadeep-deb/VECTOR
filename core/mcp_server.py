@@ -104,6 +104,38 @@ def _make_server():
             "Use marketing_cli(tool_name, input_data) to call any CLI tool."
         )
 
+    # ── Intelligence tools (VectorIntel / Shadowbroker) ─────────────────────
+
+    @mcp.tool
+    def intelligence_query(
+        action: str,
+        lat: float = 0.0,
+        lon: float = 0.0,
+        radius_km: int = 500,
+        label: str = "",
+    ) -> str:
+        """
+        Query VECTOR's real-time global intelligence platform (Shadowbroker).
+        action: flights | vessels | satellites | cctv | conflicts | fires |
+                outages | summary | report | news_near | place_pin
+        lat/lon: required for news_near, report, place_pin; optional filter for flights/vessels
+        label:   required for place_pin
+        Requires VectorIntel server running: cd Shadowbroker-main && docker-compose up -d
+        """
+        import asyncio
+        from districts.intelligence.vectorintel_agent import VectorIntelAgent
+        agent = VectorIntelAgent()
+        if not agent._available:
+            return "VectorIntel offline. Start: cd Shadowbroker-main && docker-compose up -d"
+        task = {
+            "type": action,
+            "params": {"lat": lat, "lon": lon, "radius_km": radius_km, "label": label},
+        }
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(agent.run(task))
+        loop.close()
+        return result.get("message", str(result))
+
     # ── Memory tools ──────────────────────────────────────────────────────────
 
     @mcp.tool
