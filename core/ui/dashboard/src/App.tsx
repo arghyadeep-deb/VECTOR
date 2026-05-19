@@ -69,6 +69,9 @@ import type { PanelPlacement } from './components/InfiniteCanvas'
 export default function App() {
   const [focusedPanel, setFocusedPanel] = useState<string | null>(null)
   const cameraRef = useRef<{ focusOn: (x: number, y: number, zoom?: number) => void; reset: () => void } | null>(null)
+  const mode = useVectorStore((s) => s.mode)
+  const setMode = useVectorStore((s) => s.setMode)
+  const bootDone = useVectorStore((s) => s.bootDone)
 
   const panels: PanelPlacement[] = [
     /* Ring 1 (rf=0.80, rX=768, rY=432, 8 panels) */
