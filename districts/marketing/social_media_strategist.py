@@ -34,16 +34,18 @@ _OWNER = {
 }
 
 
-class SocialMediaStrategist(AgentBase):
+class SocialMediaStrategist(AgentBase, SkillMixin):
     """
     Cross-platform social media strategy and content generation.
     LinkedIn posts, Twitter threads, weekly content calendars, GitHub README sections.
+    Augmented with: social, content-strategy, copywriting skill prompts.
     """
 
     def __init__(self):
         super().__init__(agent_id="social_media_strategist_001",
                          name="SocialMediaStrategist", district="marketing")
         self._memory: EpisodicMemory | None = None
+        self._skill_prompt = load_skill("social", "content-strategy", "copywriting")
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][social] initialized")
 
