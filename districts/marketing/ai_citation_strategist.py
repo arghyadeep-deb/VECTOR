@@ -42,11 +42,12 @@ _CITATION_SIGNALS = [
 ]
 
 
-class AICitationStrategist(AgentBase):
+class AICitationStrategist(AgentBase, SkillMixin):
     """
     Answer Engine Optimization (AEO) + Agentic Search Optimization (GEO).
     Gets VECTOR cited in LLM answers. Audits entity clarity, generates
     citation-optimized content, assesses WebMCP task completion readiness.
+    Augmented with: ai-seo, schema skill prompts.
     """
 
     def __init__(self):
@@ -54,6 +55,7 @@ class AICitationStrategist(AgentBase):
                          name="AICitationStrategist", district="marketing")
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
+        self._skill_prompt = load_skill("ai-seo", "schema")
         logger.info("[VECTOR][ai_citation] initialized")
 
     def _get_memory(self):
