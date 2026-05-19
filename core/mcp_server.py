@@ -70,8 +70,13 @@ def _make_server():
         """
         import subprocess
         import json as _json
+        import re as _re
+        if not _re.fullmatch(r"[a-zA-Z0-9_-]+", tool_name):
+            return f"Invalid tool name '{tool_name}'. Only alphanumeric, hyphens, underscores allowed."
         cli_dir = Path(__file__).parent.parent / "districts" / "marketing" / "tools" / "clis"
-        script = cli_dir / f"{tool_name}.js"
+        script = (cli_dir / f"{tool_name}.js").resolve()
+        if not str(script).startswith(str(cli_dir.resolve())):
+            return f"Access denied: tool path outside CLI directory."
         if not script.exists():
             available = sorted(f.stem for f in cli_dir.glob("*.js"))
             return f"Tool '{tool_name}' not found. Available ({len(available)}): {', '.join(available)}"
