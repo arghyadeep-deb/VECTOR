@@ -56,6 +56,54 @@ def _make_server():
         ),
     )
 
+    # ── Marketing CLI tools ───────────────────────────────────────────────────
+
+    @mcp.tool
+    def marketing_cli(tool_name: str, input_data: str = "{}") -> str:
+        """
+        Run any of 60+ live marketing API CLI tools.
+        tool_name: ga4 | google-ads | meta-ads | ahrefs | semrush | klaviyo | hubspot |
+                   apollo | clearbit | g2 | exa | buffer | mailchimp | amplitude |
+                   hotjar | optimizely | intercom | stripe | paddle | typeform | ...
+        input_data: JSON string of tool-specific parameters
+        Returns tool output or error message.
+        """
+        import subprocess
+        import json as _json
+        cli_dir = Path(__file__).parent.parent / "districts" / "marketing" / "tools" / "clis"
+        script = cli_dir / f"{tool_name}.js"
+        if not script.exists():
+            available = sorted(f.stem for f in cli_dir.glob("*.js"))
+            return f"Tool '{tool_name}' not found. Available ({len(available)}): {', '.join(available)}"
+        try:
+            parsed = _json.loads(input_data) if input_data else {}
+            result = subprocess.run(
+                ["node", str(script)],
+                input=_json.dumps(parsed),
+                capture_output=True, text=True, timeout=30,
+                cwd=str(cli_dir),
+            )
+            out = result.stdout.strip() or result.stderr.strip() or "No output"
+            logger.info(f"[VECTOR][mcp] marketing_cli {tool_name} → {len(out)} chars")
+            return out
+        except subprocess.TimeoutExpired:
+            return f"CLI tool '{tool_name}' timed out after 30s"
+        except Exception as e:
+            return f"CLI error for '{tool_name}': {e}"
+
+    @mcp.tool
+    def list_marketing_tools() -> str:
+        """List all available marketing CLI tools grouped by category."""
+        cli_dir = Path(__file__).parent.parent / "districts" / "marketing" / "tools" / "clis"
+        tools = sorted(f.stem for f in cli_dir.glob("*.js"))
+        skills_dir = Path(__file__).parent.parent / "districts" / "marketing" / "skills"
+        skills = sorted(d.name for d in skills_dir.iterdir() if d.is_dir())
+        return (
+            f"Marketing CLI tools ({len(tools)}): {', '.join(tools)}\n\n"
+            f"Expert skill prompts ({len(skills)}): {', '.join(skills)}\n\n"
+            "Use marketing_cli(tool_name, input_data) to call any CLI tool."
+        )
+
     # ── Memory tools ──────────────────────────────────────────────────────────
 
     @mcp.tool
@@ -120,7 +168,7 @@ def _make_server():
     def search_web(query: str, max_results: int = 5) -> str:
         """Search the web for information using VECTOR's WebScout agent."""
         try:
-            from agents.districts.research.web_scout import WebScout
+            from districts.research.web_scout import WebScout
             scout = WebScout()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(scout.search(query, max_results=max_results))
@@ -134,7 +182,7 @@ def _make_server():
     def mine_reddit(subreddit: str = "LocalLLaMA", limit: int = 10) -> str:
         """Get hot posts from a subreddit via VECTOR's RedditMiner (no OAuth needed)."""
         try:
-            from agents.districts.research.reddit_miner import RedditMiner
+            from districts.research.reddit_miner import RedditMiner
             miner = RedditMiner()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(miner.mine_subreddit(subreddit, limit=limit))
@@ -149,7 +197,7 @@ def _make_server():
     def read_paper(url: str) -> str:
         """Fetch and summarise an ArXiv paper or research URL using VECTOR's PaperReader."""
         try:
-            from agents.districts.research.paper_reader import PaperReader
+            from districts.research.paper_reader import PaperReader
             reader = PaperReader()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(reader.read(url))
@@ -168,7 +216,7 @@ def _make_server():
         stakes: 'high' or 'critical'. Requires 700+ HP gate. Max 10 sessions/week.
         """
         try:
-            from agents.districts.governance.llm_council import LLMCouncil
+            from districts.governance.llm_council import LLMCouncil
             council = LLMCouncil()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(
@@ -188,7 +236,7 @@ def _make_server():
     def review_code(file_path: str) -> str:
         """Run VECTOR's CodeReviewer on a Python file and return the review report."""
         try:
-            from agents.districts.coding.code_reviewer import CodeReviewer
+            from districts.coding.code_reviewer import CodeReviewer
             reviewer = CodeReviewer()
             path = Path(file_path)
             if not path.exists():
@@ -205,7 +253,7 @@ def _make_server():
     def git_status() -> str:
         """Get the current git status of the VECTOR codebase."""
         try:
-            from agents.districts.coding.git_bot import GitBot
+            from districts.coding.git_bot import GitBot
             bot = GitBot()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(bot.get_status())
@@ -224,7 +272,7 @@ def _make_server():
         topic: what you're typing today (e.g. 'bigram LM', 'attention forward pass').
         """
         try:
-            from agents.districts.karpathy_lab.code_typer import CodeTyper
+            from districts.karpathy_lab.code_typer import CodeTyper
             typer = CodeTyper()
             result = typer.start_session(topic=topic, file_path=file_path or None)
             return str(result)
@@ -236,7 +284,7 @@ def _make_server():
     def karpathy_streak() -> str:
         """Check current Karpathy daily coding streak (RULE 12: 30 min/day)."""
         try:
-            from agents.districts.karpathy_lab.code_typer import CodeTyper
+            from districts.karpathy_lab.code_typer import CodeTyper
             typer = CodeTyper()
             streak = typer.get_streak()
             today = typer.get_today_summary()
@@ -290,7 +338,7 @@ def _make_server():
     def find_public_api(query: str, category: str = "", free_only: bool = True) -> str:
         """Search the public-apis catalog (1000+ free APIs) to find data sources for any topic."""
         try:
-            from integrations.public_apis_catalog import search_apis, get_stats
+            from districts.research.api_catalog import search_apis, get_stats
             results = search_apis(query, category=category, free_only=free_only, limit=10)
             if not results:
                 stats = get_stats()
@@ -310,7 +358,7 @@ def _make_server():
     def openmythos_check() -> str:
         """Check if OpenMythos training environment is ready."""
         try:
-            from integrations.openmythos.trainer import check_setup
+            from core.training.openmythos.trainer import check_setup
             import json
             result = check_setup()
             return json.dumps(result, indent=2)
@@ -321,7 +369,7 @@ def _make_server():
     def openmythos_export(min_reward: float = 0.7) -> str:
         """Export VECTOR's high-reward reasoning chains as OpenMythos training data."""
         try:
-            from integrations.openmythos.trainer import export_training_data
+            from core.training.openmythos.trainer import export_training_data
             path = export_training_data(min_reward=min_reward)
             if path:
                 return f"Exported training data to: {path}"
@@ -336,7 +384,7 @@ def _make_server():
         Requires: torch, peft, datasets. RTX 5070 Ti: ~1-2 hours.
         """
         try:
-            from integrations.openmythos.trainer import export_training_data, train, create_modelfile
+            from core.training.openmythos.trainer import export_training_data, train, create_modelfile
             data_path = export_training_data()
             if not data_path:
                 return "No training data. Run VECTOR longer first."
@@ -768,7 +816,7 @@ def _add_claims_tools(mcp) -> None:
 
         @mcp.tool
         async def release_task(issue_id: str, agent_id: str) -> str:
-            """Release a task claim — makes it available for other agents.districts."""
+            """Release a task claim — makes it available for other districts."""
             return _json.dumps(_release(issue_id, agent_id))
 
         @mcp.tool
@@ -788,7 +836,7 @@ def _add_claims_tools(mcp) -> None:
 
         @mcp.tool
         async def rebalance_agent_load(agent_ids: str) -> str:
-            """Rebalance task load across agents.districts. Pass comma-separated agent IDs."""
+            """Rebalance task load across districts. Pass comma-separated agent IDs."""
             ids = [a.strip() for a in agent_ids.split(",") if a.strip()]
             return _json.dumps(_rebalance(ids))
 
@@ -903,7 +951,7 @@ def _add_email_tools(mcp) -> None:
     import json as _json
 
     try:
-        from agents.districts.communications.email_agent import EmailAgent
+        from districts.communications.email_agent import EmailAgent
         _email_agent = EmailAgent()
 
         @mcp.tool
@@ -1066,7 +1114,7 @@ def _add_research_tools(mcp) -> None:
     import json as _json
 
     try:
-        from agents.districts.research.research_api import (
+        from districts.research.research_api import (
             quick_research as _qr,
             generate_report as _gr,
             research_papers as _rp,
