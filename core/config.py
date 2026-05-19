@@ -277,6 +277,16 @@ except Exception as _cfg_err:
 
 # ── CONFIG dict — same structure as before, 100% backward compatible ──────────
 
+class _Redacted(str):
+    """String subclass whose repr redacts the value — prevents accidental secret leaks in logs."""
+    def __repr__(self) -> str:
+        return f"***({len(self)}chars)***"
+
+
+def _secret(value: str) -> "_Redacted":
+    return _Redacted(value)
+
+
 CONFIG: dict = {
     "owner_name": "Arghyadeep",
     "system_name": "VECTOR",
@@ -374,13 +384,13 @@ CONFIG: dict = {
         "vector_write_folders": ["Daily", "Reflections", "Council", "Agent HP", "Research", "Interviews", "Journals", "Reviews", "Health", "Finance", "Projects"],
         "personal_write_folders": ["00 Notes", "01 Journals", "02 Projects", "03 Reviews", "04 Skills", "wiki"],
     },
-    "fincept": {
-        "terminal_binary": str(Path.home() / ".vector" / "fincept" / "FinceptTerminal.exe"),
+    "vector_finagent": {
+        "terminal_binary": str(Path.home() / ".vector" / "vector_finagent" / "FinceptTerminal.exe"),
         "alpha_vantage_key": os.environ.get("ALPHA_VANTAGE_KEY", ""),
         "fred_api_key":      os.environ.get("FRED_API_KEY", ""),
         "polygon_key":       os.environ.get("POLYGON_API_KEY", ""),
         "edgar_api_key":     os.environ.get("EDGAR_API_KEY", ""),
-        "data_cache_dir":    str(Path.home() / ".vector" / "fincept" / "cache"),
+        "data_cache_dir":    str(Path.home() / ".vector" / "vector_finagent" / "cache"),
     },
     "trading": {
         "llm_provider":        "openai",
@@ -400,7 +410,7 @@ CONFIG: dict = {
         "cache_dir":           str(Path.home() / ".vector" / "trading" / "cache"),
         "memory_log_path":     str(Path.home() / ".vector" / "trading" / "memory" / "trading_memory.md"),
     },
-    "autohedge": {
+    "vector_hedgebot": {
         "openai_api_key":       os.environ.get("OPENAI_API_KEY", ""),
         "exa_api_key":          os.environ.get("EXA_API_KEY", ""),
         "jupiter_api_key":      os.environ.get("JUPITER_API_KEY", ""),
@@ -408,23 +418,23 @@ CONFIG: dict = {
         "massive_api_key":      os.environ.get("MASSIVE_API_KEY", ""),
         "director_model":       os.environ.get("AUTOHEDGE_DIRECTOR_MODEL", "vector-reasoning"),
         "fast_model":           os.environ.get("AUTOHEDGE_FAST_MODEL", "vector-focus"),
-        "output_dir":           str(Path.home() / ".vector" / "autohedge" / "outputs"),
-        "logs_dir":             str(Path.home() / ".vector" / "autohedge" / "logs"),
+        "output_dir":           str(Path.home() / ".vector" / "vector_hedgebot" / "outputs"),
+        "logs_dir":             str(Path.home() / ".vector" / "vector_hedgebot" / "logs"),
         "live_trading":         False,      # set True + SOLANA_PRIVATE_KEY to enable execution
     },
-    "vibe_trading": {
+    "vector_backtest": {
         "langchain_provider":  os.environ.get("LANGCHAIN_PROVIDER", "openai"),
         "langchain_model":     os.environ.get("LANGCHAIN_MODEL", "gpt-4.1"),
         "tushare_token":       os.environ.get("TUSHARE_TOKEN", ""),
         "ccxt_exchange":       os.environ.get("CCXT_EXCHANGE", "binance"),
         "token_threshold":     int(os.environ.get("TOKEN_THRESHOLD", "40000")),
-        "workspace_dir":       str(Path.home() / ".vector" / "vibe_trading" / "workspace"),
-        "memory_dir":          str(Path.home() / ".vector" / "vibe_trading" / "memory"),
-        "runs_dir":            str(Path.home() / ".vector" / "vibe_trading" / "runs"),
-        "skills_user_dir":     str(Path.home() / ".vector" / "vibe_trading" / "skills"),
+        "workspace_dir":       str(Path.home() / ".vector" / "vector_backtest" / "workspace"),
+        "memory_dir":          str(Path.home() / ".vector" / "vector_backtest" / "memory"),
+        "runs_dir":            str(Path.home() / ".vector" / "vector_backtest" / "runs"),
+        "skills_user_dir":     str(Path.home() / ".vector" / "vector_backtest" / "skills"),
         "enable_shell_tools":  False,
     },
-    "ml_intern": {
+    "vector_mlops": {
         "hf_token":          os.environ.get("HF_TOKEN", ""),
         "github_token":      os.environ.get("GITHUB_TOKEN", ""),
         "slack_bot_token":   os.environ.get("SLACK_BOT_TOKEN", ""),
@@ -435,9 +445,9 @@ CONFIG: dict = {
         "save_sessions":     True,
         "tool_runtime":      "local",
         "sandbox_enabled":   False,
-        "sessions_dir":      str(Path.home() / ".vector" / "ml_intern" / "sessions"),
+        "sessions_dir":      str(Path.home() / ".vector" / "vector_mlops" / "sessions"),
     },
-    "mirofish": {
+    "vector_social_sim": {
         "llm_api_key":          os.environ.get("LLM_API_KEY", os.environ.get("OPENAI_API_KEY", "")),
         "llm_base_url":         os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1"),
         "llm_model_name":       os.environ.get("LLM_MODEL_NAME", "gpt-4.1"),
@@ -445,9 +455,9 @@ CONFIG: dict = {
         "llm_boost_base_url":   os.environ.get("LLM_BOOST_BASE_URL", ""),
         "llm_boost_model_name": os.environ.get("LLM_BOOST_MODEL_NAME", ""),
         "zep_api_key":          os.environ.get("ZEP_API_KEY", ""),
-        "uploads_dir":          str(Path.home() / ".vector" / "mirofish" / "uploads"),
-        "reports_dir":          str(Path.home() / ".vector" / "mirofish" / "reports"),
-        "simulations_dir":      str(Path.home() / ".vector" / "mirofish" / "simulations"),
+        "uploads_dir":          str(Path.home() / ".vector" / "vector_social_sim" / "uploads"),
+        "reports_dir":          str(Path.home() / ".vector" / "vector_social_sim" / "reports"),
+        "simulations_dir":      str(Path.home() / ".vector" / "vector_social_sim" / "simulations"),
     },
     "smart_routing": {
         "enabled":        True,
