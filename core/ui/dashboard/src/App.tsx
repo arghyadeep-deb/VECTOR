@@ -153,6 +153,17 @@ export default function App() {
       <AmbientTheme />
       <DataPoller />
 
+      {/* Sharp processing border — 2px solid cyan line on viewport edges, only while processing */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        border: '2px solid #00CFFF',
+        pointerEvents: 'none',
+        zIndex: 9000,
+        opacity: processing ? 1 : 0,
+        transition: 'opacity 0.1s ease',
+      }} />
+
       {/* Mode toggle button — always visible after boot */}
       {bootDone && (
         <button
