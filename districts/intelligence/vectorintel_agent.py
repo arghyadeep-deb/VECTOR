@@ -101,7 +101,7 @@ class VectorIntelAgent(AgentBase):
         except Exception as e:
             logger.warning(
                 "[VECTOR][intel] VectorIntel unavailable: {}. "
-                "Start: run tools\start_shadowbroker.bat from VECTOR Codebase root", e
+                "Start: run tools/start_shadowbroker.bat from VECTOR Codebase root", e
             )
             self._available = False
 
@@ -184,7 +184,7 @@ class VectorIntelAgent(AgentBase):
             self._check_availability()
             if not self._available:
                 return {
-                    "message": "VectorIntel platform offline. Start: run tools\start_shadowbroker.bat from VECTOR Codebase root",
+                    "message": "VectorIntel platform offline. Start: run tools/start_shadowbroker.bat from VECTOR Codebase root",
                     "available": False,
                 }
 
