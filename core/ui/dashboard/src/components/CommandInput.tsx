@@ -4,6 +4,23 @@ import { api } from '../lib/api'
 import { sendMessage, onTokenReceived, onDoneReceived, onErrorReceived } from '../lib/websocket'
 import VoiceInput from './VoiceInput'
 
+// Auto-detect widget type from user command and open appropriate ContentWindow
+const WIDGET_TRIGGERS: Record<string, string[]> = {
+  camera: ['camera', 'webcam', 'show desk', 'overhead', 'what do you see', 'turn on camera'],
+  map: ['location', 'map', 'where am i', 'show location', 'coordinates', 'global view', 'show map', 'my location'],
+}
+
+function _openAutoWidget(cmd: string, response: string, addFn: (w: any) => void) {
+  const lower = cmd.toLowerCase()
+  for (const [type, keywords] of Object.entries(WIDGET_TRIGGERS)) {
+    if (keywords.some(k => lower.includes(k))) {
+      addFn({ id: `auto-${type}-${Date.now()}`, type, title: type === 'camera' ? 'CAMERA FEED' : 'LOCATION LOCK' })
+      return
+    }
+  }
+  addFn({ id: `resp-${Date.now()}`, type: 'text', title: cmd.slice(0, 32), content: response })
+}
+
 const PANEL_ALIASES: Record<string, string[]> = {
   telemetry: ['telemetry', 'tele', 'system info', 'system information'],
   systemMetrics: ['metrics', 'system metrics', 'performance', 'system monitor'],
