@@ -112,7 +112,7 @@ class MetaAdsAgent(AgentBase, SkillMixin):
             result = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
-                    {"role": "system", "content": hydration},
+                    {"role": "system", "content": self._with_skill_system(hydration)},
                     {"role": "user", "content": prompt},
                 ],
                 timeout=45.0,
@@ -248,7 +248,7 @@ class MetaAdsAgent(AgentBase, SkillMixin):
             result = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
-                    {"role": "system", "content": hydration},
+                    {"role": "system", "content": self._with_skill_system(hydration)},
                     {"role": "user", "content": prompt},
                 ],
                 timeout=30.0,
