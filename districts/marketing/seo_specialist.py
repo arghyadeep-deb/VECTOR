@@ -125,11 +125,7 @@ class SEOSpecialist(AgentBase, SkillMixin):
                 f'"questions": ["5 question keywords (how/what/why/best)"], '
                 f'"intent": {{"informational": [], "commercial": [], "navigational": []}}}}'
             )
-            response = chat(
-                model=self._model,
-                messages=[{"role": "user", "content": prompt}],
-                timeout=25.0,
-            )
+            response = self._chat(prompt, timeout=25.0)
             import json as _json
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
