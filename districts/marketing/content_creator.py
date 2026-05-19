@@ -90,7 +90,7 @@ class ContentCreator(AgentBase, SkillMixin):
             f"Be specific, use code examples where relevant, avoid fluff."
         )
         try:
-            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=40.0)
+            return self._chat(prompt, timeout=40.0)
         except Exception as e:
             logger.warning("[VECTOR][content_creator] blog LLM failed: {}", e)
             return (
