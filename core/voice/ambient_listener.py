@@ -159,11 +159,16 @@ class AmbientListener:
         # Seed conversation history from recent episodic memory (bridges chat↔voice silo)
         if not self._conversation_history:
             try:
-                from core.memory.episodic import EpisodicMemory
-                mem = EpisodicMemory()
-                recent = mem.recent(limit=6)
-                for entry in reversed(recent):
-                    content = entry.get("content", "")
+                from core.memory.episodic import get_temp_cursor
+                with get_temp_cursor() as cursor:
+                    cursor.execute(
+                        """SELECT content FROM episodic_memory
+                           WHERE event_type IN ('voice_interaction','chat_message','command')
+                           ORDER BY timestamp DESC LIMIT 6""",
+                    )
+                    rows = cursor.fetchall()
+                for row in reversed(rows):
+                    content = row[0] if isinstance(row, (list, tuple)) else row.get("content", "")
                     if "\nVECTOR:" in content:
                         user_part = content.split("\nVECTOR:")[0].replace("User:", "").strip()
                         vec_part = content.split("\nVECTOR:")[1].strip()
