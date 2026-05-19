@@ -54,3 +54,17 @@ brain/
 
 # Reference-only clones (kept out of the main repo)
 github/
+
+# Runtime-generated agent workspace
+agent_workspace/
+
+# Generated graph output
+graphify-out/
+
+# Node subpackage artifacts
+vectorcode/node_modules/
+vectorcode/code_intel/node_modules/
+vectorcode/code_intel/dist/
+
+# One-time install logs
+aqtinstall.log
