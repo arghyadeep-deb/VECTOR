@@ -49,12 +49,6 @@ export default function BootSequence() {
 
   if (bootDone) return null
 
-  const borderGlow = phase === 'border_faint'
-    ? 'inset 0 0 60px rgba(0,207,255,0.3)'
-    : phase === 'border_bright' || phase === 'scanline' || phase === 'orb_in'
-    ? 'inset 0 0 100px rgba(0,207,255,0.6), inset 0 0 200px rgba(0,207,255,0.2)'
-    : 'none'
-
   return (
     <>
       {/* Full-screen black overlay — fades out in orb_in phase */}
@@ -66,8 +60,18 @@ export default function BootSequence() {
         opacity: phase === 'orb_in' ? 0 : 1,
         transition: phase === 'orb_in' ? 'opacity 0.6s ease' : 'none',
         pointerEvents: phase === 'orb_in' ? 'none' : 'all',
-        boxShadow: borderGlow,
       }} />
+
+      {/* Sharp border — only during border_bright and scanline phases (not gradient, just a line) */}
+      {(phase === 'border_bright' || phase === 'scanline') && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          border: '2px solid #00CFFF',
+          zIndex: 9999,
+          pointerEvents: 'none',
+        }} />
+      )}
 
       {/* Scan line */}
       {(phase === 'scanline') && (
