@@ -124,6 +124,7 @@ export default function CommandInput() {
       setResp(full)
       setStreaming(false)
       setSending(false)
+      setProcessing(false)
       setProgress(0)
       if (lastCmdRef.current) {
         pushHistory(lastCmdRef.current, full)
