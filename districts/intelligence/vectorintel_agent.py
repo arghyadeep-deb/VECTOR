@@ -119,31 +119,48 @@ class VectorIntelAgent(AgentBase):
         return d
 
     # ── Convenience wrappers (used by API router) ─────────────────────────────
+    # Use direct /api/data/snapshot/{layer} REST calls — no HMAC auth needed for local access.
+
+    async def _snapshot(self, layer: str, params: dict | None = None) -> dict:
+        """GET /api/data/snapshot/{layer} — works without HMAC secret for local connections."""
+        try:
+            import httpx
+            url = f"{_VECTORINTEL_HOST}/api/data/snapshot/{layer}"
+            async with httpx.AsyncClient(timeout=10.0) as c:
+                r = await c.get(url, params=params or {})
+                r.raise_for_status()
+                return r.json()
+        except Exception as e:
+            return {"error": str(e), "layer": layer}
 
     async def get_flights(self, lat=None, lon=None, radius_km: int = 500) -> dict:
-        params = {}
-        if lat and lon:
-            params = {"lat": lat, "lon": lon, "radius": radius_km}
-        return await self._sb.get_layer_slice(["military_flights", "commercial_flights",
-                                               "tracked_flights", "private_jets"], **params)
+        params = {"lat": lat, "lon": lon, "radius": radius_km} if lat and lon else {}
+        results = {}
+        for layer in ("military_flights", "commercial_flights", "tracked_flights", "private_jets"):
+            results[layer] = await self._snapshot(layer, params)
+        return results
 
     async def get_vessels(self, lat=None, lon=None, radius_km: int = 500) -> dict:
-        return await self._sb.get_layer_slice(["ships"])
+        params = {"lat": lat, "lon": lon, "radius": radius_km} if lat and lon else {}
+        return await self._snapshot("ships", params)
 
     async def get_conflicts(self) -> dict:
-        return await self._sb.get_layer_slice(["gdelt", "liveuamap", "crowdthreat"])
+        results = {}
+        for layer in ("gdelt", "liveuamap", "crowdthreat"):
+            results[layer] = await self._snapshot(layer)
+        return results
 
     async def get_outages(self) -> dict:
-        return await self._sb.get_layer_slice(["internet_outages"])
+        return await self._snapshot("internet_outages")
 
     async def get_fires(self) -> dict:
-        return await self._sb.get_layer_slice(["firms_fires"])
+        return await self._snapshot("firms_fires")
 
     async def get_satellites(self) -> dict:
-        return await self._sb.get_layer_slice(["satellites"])
+        return await self._snapshot("satellites")
 
     async def get_cctv(self) -> dict:
-        return await self._sb.get_layer_slice(["cctv"])
+        return await self._snapshot("cctv")
 
     async def get_news_near(self, lat: float, lon: float, radius_km: int = 100) -> dict:
         return await self._sb.get_news_near(lat=lat, lng=lon, radius=radius_km)
@@ -155,7 +172,14 @@ class VectorIntelAgent(AgentBase):
         return await self._sb.get_summary()
 
     async def get_all(self) -> dict:
-        return await self._sb.get_telemetry()
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as c:
+                r = await c.get(f"{_VECTORINTEL_HOST}/api/data/all")
+                r.raise_for_status()
+                return r.json()
+        except Exception as e:
+            return {"error": str(e)}
 
     async def place_pin(self, lat: float, lon: float, label: str,
                         category: str = "intel", color: str = "cyan") -> dict:
