@@ -65,13 +65,16 @@ _usage_lock = threading.Lock()
 _session_usage: list[TokenUsage] = []
 
 # Approximate pricing (USD per 1M tokens) — update when you add paid providers
+# Approximate pricing per 1M tokens (USD). Values are estimates — override via
+# CONFIG["llm_pricing"] dict. Kept here only for budget tracking; never used for billing.
 _PRICING: dict[str, dict[str, float]] = {
-    "ollama":      {"input": 0.0, "output": 0.0},
-    "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
+    **CONFIG.get("llm_pricing", {}),   # user overrides take priority
+    "ollama":           {"input": 0.0,  "output": 0.0},
+    "gemini-1.5-flash": {"input": 0.075,"output": 0.30},
     "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
     "claude-haiku-4-5": {"input": 0.80, "output": 4.0},
-    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
-    "default":     {"input": 1.0, "output": 3.0},
+    "claude-sonnet-4-6":{"input": 3.0,  "output": 15.0},
+    "default":          {"input": 1.0,  "output": 3.0},
 }
 
 
