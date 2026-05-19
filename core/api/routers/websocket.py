@@ -298,48 +298,23 @@ class WSCommandResponse(BaseModel):
 @router.post("/command", response_model=WSCommandResponse)
 async def ws_command_http(request: WSCommandRequest):
     """HTTP endpoint for command execution (alternative to WS command)."""
-    from core.intelligence.context_engine import ContextEngine
-    from core.intelligence.goal_system import GoalSystem
-    from core.intelligence.decision_engine import DecisionEngine
-    from core.governance.permission_gateway import PermissionGateway
-    from core.governance.council import Council
+    from core.loop.context_engine import ContextEngine
+    from core.brain.goal_system import GoalSystem
+    from core.loop.decision_engine import DecisionEngine, Candidate
+    from core.loop.permission_gateway import PermissionGateway
+    from core.city.governor import GovernorCouncil
     from core.memory.episodic import EpisodicMemory
     import httpx
 
     try:
-        # Context → Goals → Decision → Permission → Council → Execute
-        ctx = ContextEngine()
-        context_data = await ctx.gather_context(user_query=request.text)
+        # Route through the full intelligence pipeline via governor
+        governor = GovernorCouncil()
+        task = {"type": "answer_question", "params": {"query": request.text, "source": "ws_http"}}
+        result = await governor.dispatch(task)
+        response_text = result.get("response") or result.get("output") or str(result.get("status", "executed"))
 
-        goals = GoalSystem()
-        goal_plan = await goals.plan(user_query=request.text, context=context_data)
-
-        decision = DecisionEngine()
-        choice = await decision.decide(goal_plan.actions, context_data)
-
-        perm = PermissionGateway()
-        result = await perm.check(choice.winner, context_data)
-
-        if not result.approved:
-            return WSCommandResponse(response=f"Permission denied: {result.reason}", success=False)
-
-        council = Council()
-        session = await council.convene(
-            question=f"Execute: {request.text}",
-            stakes=result.level.value if hasattr(result.level, 'value') else "medium"
-        )
-
-        # Execute the action (simulated)
-        ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(
-                f"{ollama_host}/api/generate",
-                json={"model": "llama3.2:latest", "prompt": request.text, "stream": False}
-            )
-            if r.status_code == 200:
-                response_text = r.json().get("response", "executed")
-            else:
-                response_text = f"executed: {request.text}"
+        if result.get("status") == "error":
+            return WSCommandResponse(response=result.get("error", "command failed"), success=False)
 
         # Store in memory
         try:
