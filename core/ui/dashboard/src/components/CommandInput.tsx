@@ -488,8 +488,8 @@ export default function CommandInput() {
         </div>
       )}
 
-      {/* Quick result */}
-      {quickResult && (
+      {/* Quick result — dashboard mode only */}
+      {quickResult && appMode === 'DASHBOARD_MODE' && (
         <div style={{ borderTop: '1px solid rgba(0,207,255,0.05)', padding: '6px 14px', position: 'relative' }}>
           <button onClick={() => setQuickResult(null)} style={{ position: 'absolute', top: 4, right: 8, background: 'transparent', border: 'none', color: '#3388aa', cursor: 'pointer', fontFamily: "'Orbitron', sans-serif", fontSize: 8 }}>✕</button>
           <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 8, color: '#3388aa', letterSpacing: '0.1em', marginBottom: 4 }}>{quickResult.title}</div>
