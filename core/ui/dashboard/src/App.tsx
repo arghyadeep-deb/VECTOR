@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import AmbientTheme from './components/AmbientTheme'
 import VectorScene from './three/VectorScene'
 import BackgroundCanvas from './components/BackgroundCanvas'
@@ -10,11 +11,7 @@ import DistrictsPanel from './components/DistrictsPanel'
 import QuickActions from './components/QuickActions'
 import VectorOverlay from './components/VectorOverlay'
 import Decorations from './components/Decorations'
-import ArcReactor from './components/ArcReactor'
-import CentralHologram from './components/CentralHologram'
-import DecorativeRing from './components/DecorativeRing'
-import NeuralPathways from './components/NeuralPathways'
-import CommunicationTraces from './components/CommunicationTraces'
+import ReactorGroup from './components/ReactorGroup'
 import CoreStatusPanel from './components/CoreStatusPanel'
 import CompassPanel from './components/CompassPanel'
 import VoiceWaveform from './components/VoiceWaveform'
@@ -23,60 +20,159 @@ import SystemMetricsPanel from './components/SystemMetricsPanel'
 import VectorCodePanel from './components/VectorCodePanel'
 import DailyInfoPanel from './components/DailyInfoPanel'
 import ModelSwitcher from './components/ModelSwitcher'
-import { Z } from './lib/zIndex'
+import NudgeToast from './components/NudgeToast'
+import SecurityPanel from './components/SecurityPanel'
+import GoalsPanel from './components/GoalsPanel'
+import CouncilPanel from './components/CouncilPanel'
+import TasksPanel from './components/TasksPanel'
+import MemoryPanel from './components/MemoryPanel'
+import HealthPanel from './components/HealthPanel'
+import TrainingPanel from './components/TrainingPanel'
+import LoopPanel from './components/LoopPanel'
+import SchedulerPanel from './components/SchedulerPanel'
+import InferencePanel from './components/InferencePanel'
+import EmailPanel from './components/EmailPanel'
+import ChannelsPanel from './components/ChannelsPanel'
+import ProvidersPanel from './components/ProvidersPanel'
+import ToolsPanel from './components/ToolsPanel'
+import NetworkPanel from './components/NetworkPanel'
+import AuditPanel from './components/AuditPanel'
+import MeteringPanel from './components/MeteringPanel'
+import JupyterPanel from './components/JupyterPanel'
+import SandboxPanel from './components/SandboxPanel'
+import SensingPanel from './components/SensingPanel'
+import MediaPanel from './components/MediaPanel'
+import MiningPanel from './components/MiningPanel'
+import MCPPanel from './components/MCPPanel'
+import VideoPanel from './components/VideoPanel'
+import ScraperPanel from './components/ScraperPanel'
+import SEOPanel from './components/SEOPanel'
+import OAuthPanel from './components/OAuthPanel'
+import ResearchPanel from './components/ResearchPanel'
+import MigrationPanel from './components/MigrationPanel'
+import {
+  BrainPanel, CityPanel, ControlPanel, FinanceDistrictPanel, DesignPanel,
+  AnalyticsPanel, PrivacyPanel, CodingDistrictPanel, QADistrictPanel,
+  ProjectsDistrictPanel, LearningPanel, InterviewPanel, LanguagesPanel,
+  NewsPanel, PatternsPanel, ReflectionPanel, RelationshipsPanel, SkillsPanel,
+  StartupsPanel, KarpathyPanel, OpsPanel, ChiefPanel, CallsPanel,
+  AgencyPanel, DocumentationPanel, GovernancePanel,
+} from './components/DistrictPanels'
+import InfiniteCanvas from './components/InfiniteCanvas'
+import type { PanelPlacement } from './components/InfiniteCanvas'
 
 export default function App() {
+  const [focusedPanel, setFocusedPanel] = useState<string | null>(null)
+  const cameraRef = useRef<{ focusOn: (x: number, y: number, zoom?: number) => void; reset: () => void } | null>(null)
+
+  const panels: PanelPlacement[] = [
+    /* Ring 1 (rf=0.80, rX=768, rY=432, 8 panels) */
+    { id: 'telemetry', worldX: 768, worldY: 0, component: <TelemetryPanel />, title: 'Telemetry', fixed: true },
+    { id: 'systemMetrics', worldX: 543, worldY: 305, component: <SystemMetricsPanel />, title: 'Metrics', fixed: true },
+    { id: 'events', worldX: 0, worldY: 432, component: <CompactEventFeed />, title: 'Events' },
+    { id: 'compass', worldX: -543, worldY: 305, component: <CompassPanel />, title: 'Compass', fixed: true },
+    { id: 'modelSwitcher', worldX: -768, worldY: 0, component: <ModelSwitcher />, title: 'Model' },
+    { id: 'coreStatus', worldX: -543, worldY: -305, component: <CoreStatusPanel />, title: 'Core', fixed: true },
+    { id: 'dailyInfo', worldX: 0, worldY: -432, component: <DailyInfoPanel />, title: 'Briefing', fixed: true },
+    { id: 'vectorCode', worldX: 543, worldY: -305, component: <VectorCodePanel />, title: 'VectorCode' },
+    /* Ring 2 (rf=1.25, rX=1200, rY=675, 10 panels) */
+    { id: 'health', worldX: 971, worldY: 397, component: <HealthPanel />, title: 'Health', fixed: true },
+    { id: 'training', worldX: 371, worldY: 642, component: <TrainingPanel />, title: 'Training' },
+    { id: 'goals', worldX: -371, worldY: 642, component: <GoalsPanel />, title: 'Actions' },
+    { id: 'security', worldX: -971, worldY: 397, component: <SecurityPanel />, title: 'Security' },
+    { id: 'districts', worldX: -1200, worldY: 0, component: <DistrictsPanel />, title: 'Districts' },
+    { id: 'council', worldX: -971, worldY: -397, component: <CouncilPanel />, title: 'Council' },
+    { id: 'tasks', worldX: -371, worldY: -642, component: <TasksPanel />, title: 'Tasks' },
+    { id: 'memory', worldX: 371, worldY: -642, component: <MemoryPanel />, title: 'Memory' },
+    { id: 'loop', worldX: 971, worldY: -397, component: <LoopPanel />, title: 'Loop' },
+    { id: 'scheduler', worldX: 1200, worldY: 0, component: <SchedulerPanel />, title: 'Scheduler' },
+    /* Ring 3 (rf=1.75, rX=1680, rY=945, 10 panels, offset 18°) */
+    { id: 'inference', worldX: 1598, worldY: 292, component: <InferencePanel />, title: 'Inference' },
+    { id: 'email', worldX: 988, worldY: 765, component: <EmailPanel />, title: 'Email' },
+    { id: 'channels', worldX: 0, worldY: 945, component: <ChannelsPanel />, title: 'Channels' },
+    { id: 'providers', worldX: -988, worldY: 765, component: <ProvidersPanel />, title: 'Providers' },
+    { id: 'tools', worldX: -1598, worldY: 292, component: <ToolsPanel />, title: 'Tools' },
+    { id: 'network', worldX: -1598, worldY: -292, component: <NetworkPanel />, title: 'Network' },
+    { id: 'audit', worldX: -988, worldY: -765, component: <AuditPanel />, title: 'Audit' },
+    { id: 'metering', worldX: 0, worldY: -945, component: <MeteringPanel />, title: 'Metering' },
+    { id: 'jupyter', worldX: 988, worldY: -765, component: <JupyterPanel />, title: 'Jupyter' },
+    { id: 'sandbox', worldX: 1598, worldY: -292, component: <SandboxPanel />, title: 'Sandbox' },
+    /* Ring 4 (rf=2.35, rX=2256, rY=1269, 10 panels, offset 36°) */
+    { id: 'sensing', worldX: 1825, worldY: 746, component: <SensingPanel />, title: 'Sensing' },
+    { id: 'media', worldX: 697, worldY: 1207, component: <MediaPanel />, title: 'Media' },
+    { id: 'mining', worldX: -697, worldY: 1207, component: <MiningPanel />, title: 'Mining' },
+    { id: 'mcp', worldX: -1825, worldY: 746, component: <MCPPanel />, title: 'MCP' },
+    { id: 'video', worldX: -2256, worldY: 0, component: <VideoPanel />, title: 'Video' },
+    { id: 'scraper', worldX: -1825, worldY: -746, component: <ScraperPanel />, title: 'Scraper' },
+    { id: 'seo', worldX: -697, worldY: -1207, component: <SEOPanel />, title: 'SEO' },
+    { id: 'oauth', worldX: 697, worldY: -1207, component: <OAuthPanel />, title: 'OAuth' },
+    { id: 'research', worldX: 1825, worldY: -746, component: <ResearchPanel />, title: 'Research' },
+    { id: 'migration', worldX: 2256, worldY: 0, component: <MigrationPanel />, title: 'Migration' },
+  ]
+
   return (
     <>
-      <VectorScene />
-      <BackgroundCanvas />
-      <ArcReactor />
-      <CentralHologram />
-      <DecorativeRing />
-      <NeuralPathways />
-      <CommunicationTraces />
-      <Decorations />
       <AmbientTheme />
-
       <DataPoller />
+
+      {/* Reactor always fixed at screen center */}
+      <ReactorGroup />
+
+      <InfiniteCanvas
+        panels={panels}
+        focusedPanel={focusedPanel}
+        onFocusPanel={setFocusedPanel}
+        cameraRef={cameraRef}
+      >
+        <VectorScene />
+        <BackgroundCanvas />
+        <Decorations />
+      </InfiniteCanvas>
+
+      {/* Fixed overlays on top */}
       <TopBar />
-
-      {/* LEFT: Telemetry + SystemMetrics + VectorCode stacked (top section) */}
-      <div style={{ position: 'fixed', left: 12, top: 52, width: 220, zIndex: Z.SIDEBARS, display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <div style={{ flex: '0 0 auto' }}><TelemetryPanel /></div>
-        <div style={{ flex: '0 0 auto' }}><SystemMetricsPanel /></div>
-        <div style={{ flex: '0 0 auto' }}><VectorCodePanel /></div>
-      </div>
-
-      {/* EVENT FEED: self-positions at left:239, top:45 */}
-      <CompactEventFeed />
-
-      {/* DAILY BRIEF: self-positions at bottom-left */}
-      <DailyInfoPanel />
-
-      {/* RIGHT OF CENTER: Compass → panels → CoreStatus, 5px left of Districts */}
-      <div style={{ position: 'fixed', right: 201, top: 52, bottom: 12, width: 160, zIndex: 30, display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <div style={{ flex: '0 0 auto' }}><CompassPanel /></div>
-        <div style={{ flex: '0 0 auto' }}><ModelSwitcher /></div>
-        <div style={{ flex: '0 0 auto', marginTop: 'auto' }}><CoreStatusPanel /></div>
-      </div>
-
-      {/* RIGHT: Districts (full height) */}
-      <DistrictsPanel />
-
-      {/* BOTTOM CENTER: Command terminal */}
-      <div style={{
-        position: 'fixed', left: '50%', transform: 'translateX(-50%)',
-        bottom: 80, width: 520, maxWidth: '90vw',
-        zIndex: Z.COMMAND_INPUT, pointerEvents: 'auto',
-      }}>
-        <CommandInput />
-      </div>
-
       <QuickActions />
       <VectorOverlay />
       <VoiceWaveform />
+
+      {/* Fixed HUD panels — always visible regardless of scroll/zoom */}
+      <div style={{ position: 'fixed', top: 52, left: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('compass')}>
+        <CompassPanel />
+      </div>
+      <div style={{ position: 'fixed', top: 52, right: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('telemetry')}>
+        <TelemetryPanel />
+      </div>
+      <div style={{ position: 'fixed', bottom: 50, right: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('systemMetrics')}>
+        <SystemMetricsPanel />
+      </div>
+      <div style={{ position: 'fixed', bottom: 50, right: 200, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('coreStatus')}>
+        <CoreStatusPanel />
+      </div>
+      <div style={{ position: 'fixed', bottom: 32, left: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('dailyInfo')}>
+        <DailyInfoPanel />
+      </div>
+      <div style={{ position: 'fixed', bottom: 50, left: 200, width: 180, zIndex: 45, cursor: 'pointer' }}
+        onClick={() => setFocusedPanel('health')}>
+        <HealthPanel />
+      </div>
+
       <FloatingPanelManager />
+      <NudgeToast />
+
+      {/* Fixed command terminal at bottom — leave side margins for HUD panels */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: 'min(960px, calc(100vw - 220px))', zIndex: 100,
+        borderTop: '1px solid rgba(0,212,255,0.12)',
+        boxShadow: '0 -4px 30px rgba(0,0,0,0.5)',
+      }}>
+        <CommandInput />
+      </div>
     </>
   )
 }
