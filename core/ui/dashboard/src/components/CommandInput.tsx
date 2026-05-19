@@ -10,8 +10,25 @@ const WIDGET_TRIGGERS: Record<string, string[]> = {
   map: ['location', 'map', 'where am i', 'show location', 'coordinates', 'global view', 'show map', 'my location'],
 }
 
-function _openAutoWidget(cmd: string, response: string, addFn: (w: any) => void) {
+const FORTRESS_TRIGGERS = ['fortress mode', 'war room', 'deep analysis', 'initiate deep', 'heavy mode', 'fortress']
+const STAND_DOWN_TRIGGERS = ['stand down', 'return to idle', 'exit fortress', 'close fortress', 'back to normal']
+
+function _openAutoWidget(cmd: string, response: string, addFn: (w: any) => void, setModeFn?: (m: any) => void, currentMode?: string) {
   const lower = cmd.toLowerCase()
+
+  // FORTRESS MODE voice trigger
+  if (setModeFn && FORTRESS_TRIGGERS.some(t => lower.includes(t))) {
+    setModeFn('FORTRESS_MODE')
+    return
+  }
+  // Stand down from FORTRESS
+  if (setModeFn && currentMode === 'FORTRESS_MODE' && STAND_DOWN_TRIGGERS.some(t => lower.includes(t))) {
+    setModeFn('JARVIS_MODE')
+    return
+  }
+
+  if (currentMode !== 'JARVIS_MODE') return
+
   for (const [type, keywords] of Object.entries(WIDGET_TRIGGERS)) {
     if (keywords.some(k => lower.includes(k))) {
       addFn({ id: `auto-${type}-${Date.now()}`, type, title: type === 'camera' ? 'CAMERA FEED' : 'LOCATION LOCK' })
@@ -146,14 +163,7 @@ export default function CommandInput() {
       if (lastCmdRef.current) {
         pushHistory(lastCmdRef.current, full)
         if (appModeRef.current === 'JARVIS_MODE') {
-          const lower = lastCmdRef.current.toLowerCase()
-          if (lower.includes('camera') || lower.includes('webcam') || lower.includes('show desk')) {
-            addContentWindowRef.current({ id: `cam-${Date.now()}`, type: 'camera', title: 'CAMERA FEED' })
-          } else if (lower.includes('location') || lower.includes('map') || lower.includes('where am i')) {
-            addContentWindowRef.current({ id: `map-${Date.now()}`, type: 'map', title: 'LOCATION LOCK' })
-          } else {
-            addContentWindowRef.current({ id: `resp-${Date.now()}`, type: 'text', title: lastCmdRef.current.slice(0, 30), content: full })
-          }
+          _openAutoWidget(lastCmdRef.current, full, addContentWindowRef.current)
         }
       }
     })
