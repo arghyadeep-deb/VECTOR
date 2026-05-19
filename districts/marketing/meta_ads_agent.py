@@ -72,6 +72,7 @@ class MetaAdsAgent(AgentBase, SkillMixin):
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
+        self._skill_prompt = load_skill("ads", "ad-creative", "analytics")
         logger.info("[VECTOR][meta_ads_agent] ready gen={} hp={}", generation, self.health_points)
 
     # ── Account audit ─────────────────────────────────────────────────────────
