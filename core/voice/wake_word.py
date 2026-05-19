@@ -7,11 +7,7 @@ import numpy as np
 from loguru import logger
 from core.config import CONFIG
 
-# Built-in openwakeword models that work without custom training.
-# "hey_vector" requires a custom-trained .onnx file (not available yet).
-# Using "alexa" as a working placeholder while custom model is trained.
-_BUILTIN_FALLBACK = "alexa"
-_KWS_PHRASES = ["vector", "hey vector", "okay vector"]  # for Whisper KWS path
+_KWS_PHRASES = ["vector", "hey vector", "okay vector", "hey vecto"]  # Whisper KWS phrases
 
 
 class WakeWordDetector:
