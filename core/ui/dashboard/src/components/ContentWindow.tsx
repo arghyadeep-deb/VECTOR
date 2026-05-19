@@ -29,17 +29,15 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
         transition: 'transform 0.4s ease, opacity 0.4s ease',
         overflow: 'hidden',
       }}>
-        {/* Minimal close */}
-        <button onClick={close} style={{
-          position: 'absolute', top: 12, right: 16, zIndex: 10,
-          background: 'rgba(0,10,20,0.8)',
-          border: '1px solid rgba(0,207,255,0.3)',
-          color: 'rgba(0,207,255,0.8)',
-          fontFamily: "'Orbitron', sans-serif", fontSize: 9,
-          padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.12em',
-        }}>
-          CLOSE
-        </button>
+        {/* Invisible close zone — top-right corner tap/click, no visible chrome (matches reference) */}
+        <div
+          onClick={close}
+          title="Click to close camera"
+          style={{
+            position: 'absolute', top: 0, right: 0, width: 60, height: 60,
+            zIndex: 10, cursor: 'pointer',
+          }}
+        />
         <CameraView windowId={w.id} />
       </div>
     )
