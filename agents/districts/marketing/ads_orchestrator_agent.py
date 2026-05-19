@@ -88,6 +88,8 @@ class AdsOrchestratorAgent(AgentBase):
             f"critical_issues (list), quick_wins (list), recommendations (list)."
         )
         response = await chat(prompt, model=self._model)
+        if not response or not response.strip():
+            raise RuntimeError(f"LLM returned empty response for {platform} audit — Ollama may be offline")
         return {"platform": platform, "audit": response}
 
     async def run(self, task: dict) -> dict:
