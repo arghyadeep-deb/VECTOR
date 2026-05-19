@@ -68,6 +68,16 @@ async def status_endpoint():
     except Exception:
         pass
 
+    # Surface TTS engine so UI can warn about Kokoro missing
+    try:
+        from core.voice.tts import VoiceTTS
+        _tts = VoiceTTS()
+        models_status["tts_engine"] = "kokoro" if _tts._kokoro_ok else "pyttsx3"
+        models_status["tts_kokoro_ok"] = _tts._kokoro_ok
+    except Exception:
+        models_status["tts_engine"] = "unknown"
+        models_status["tts_kokoro_ok"] = False
+
     return StatusResponse(
         loop_running=_loop_running,
         uptime_seconds=get_uptime_seconds(),
