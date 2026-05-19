@@ -276,8 +276,10 @@ def _make_server():
         """Run VECTOR's CodeReviewer on a Python file and return the review report."""
         try:
             from districts.coding.code_reviewer import CodeReviewer
-            reviewer = CodeReviewer()
-            path = Path(file_path)
+            _root = Path(__file__).parent.parent.resolve()
+            path = Path(file_path).resolve()
+            if not str(path).startswith(str(_root)):
+                return f"Access denied: '{file_path}' is outside the VECTOR codebase."
             if not path.exists():
                 return f"File not found: {file_path}"
             loop = asyncio.new_event_loop()
