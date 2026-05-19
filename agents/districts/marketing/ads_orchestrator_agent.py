@@ -148,6 +148,8 @@ class AdsOrchestratorAgent(AgentBase):
                     f"platform_compliance (pass/fail per spec), copy_score (0-100)."
                 )
                 response = await chat(prompt, model=self._model)
+                if not response or not response.strip():
+                    raise RuntimeError(f"LLM returned empty response for {task_type} — Ollama may be offline")
                 self.award_points(20, "creative_audit_done")
                 return {"status": "ok", "type": task_type, "audit": response}
 
