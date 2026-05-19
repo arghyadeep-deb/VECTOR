@@ -175,11 +175,23 @@ export default function CommandInput() {
     // Fallback: REST API — all logic handled by backend
     try {
       const d = await api.command(cmd)
-      setResp(d.response || 'No response')
+      const response = d.response || 'No response'
+      setResp(response)
       if (d.action_taken) setLastAction(d.action_taken)
       setProgress(100)
       setText('')
-      pushHistory(cmd, d.response || 'No response')
+      pushHistory(cmd, response)
+      // In JARVIS mode, open response as a content window
+      if (appMode === 'JARVIS_MODE') {
+        const lower = cmd.toLowerCase()
+        if (lower.includes('camera') || lower.includes('webcam') || lower.includes('show desk')) {
+          addContentWindow({ id: `cam-${Date.now()}`, type: 'camera', title: 'CAMERA FEED' })
+        } else if (lower.includes('location') || lower.includes('map') || lower.includes('where am i')) {
+          addContentWindow({ id: `map-${Date.now()}`, type: 'map', title: 'LOCATION LOCK' })
+        } else {
+          addContentWindow({ id: `resp-${Date.now()}`, type: 'text', title: cmd.slice(0, 30), content: response })
+        }
+      }
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
     }
