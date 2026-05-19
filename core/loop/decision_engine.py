@@ -52,12 +52,13 @@ class DecisionEngine:
              urgency(15%) + timing(10%) - cost(5%)
     """
 
-    W_GOAL = 0.30
-    W_CONF = 0.25
-    W_POLICY = 0.20
-    W_URGENCY = 0.15
-    W_TIMING = 0.10
-    W_COST = 0.05
+    # Scoring weights — override via CONFIG["decision_weights"] dict
+    W_GOAL    = CONFIG.get("decision_weights", {}).get("goal",    0.30)
+    W_CONF    = CONFIG.get("decision_weights", {}).get("conf",    0.25)
+    W_POLICY  = CONFIG.get("decision_weights", {}).get("policy",  0.20)
+    W_URGENCY = CONFIG.get("decision_weights", {}).get("urgency", 0.15)
+    W_TIMING  = CONFIG.get("decision_weights", {}).get("timing",  0.10)
+    W_COST    = CONFIG.get("decision_weights", {}).get("cost",    0.05)
 
     def __init__(self):
         self._policy = None
