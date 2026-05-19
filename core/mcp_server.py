@@ -116,10 +116,12 @@ def _make_server():
     ) -> str:
         """
         Query VECTOR's real-time global intelligence platform (Shadowbroker).
-        action: flights | vessels | satellites | cctv | conflicts | fires |
-                outages | summary | report | news_near | place_pin
-        lat/lon: required for news_near, report, place_pin; optional filter for flights/vessels
-        label:   required for place_pin
+        action: flights | vessels | satellites | cctv | sigint | conflicts | fires |
+                outages | earthquakes | markets | correlations | search | near_me |
+                news | report | summary | sar | satellite_image | geocode | pin |
+                analysis_zone | infonet | alert | brief
+        lat/lon: for near_me, news, pin, sar/near, satellite_image, brief
+        label:   for place_pin  |  pass query param via label for search
         Requires VectorIntel server running: cd Shadowbroker-main && docker-compose up -d
         """
         import asyncio
