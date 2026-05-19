@@ -4,7 +4,7 @@ import type { MemoryEvent, StatusResponse, AgentData, SystemMetrics, GoalsRespon
 export interface PanelEntry { id: string; type: 'mortality' | 'district' | 'decision'; districtName?: string }
 interface ConnectionError { failed: boolean; lastError: string; retryCount: number }
 
-export type AppMode = 'JARVIS_MODE' | 'DASHBOARD_MODE'
+export type AppMode = 'JARVIS_MODE' | 'DASHBOARD_MODE' | 'FORTRESS_MODE'
 
 export interface ContentWindowEntry {
   id: string
