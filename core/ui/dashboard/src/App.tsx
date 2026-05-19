@@ -148,8 +148,56 @@ export default function App() {
 
   return (
     <>
+      <BootSequence />
       <AmbientTheme />
       <DataPoller />
+
+      {/* Mode toggle button — always visible after boot */}
+      {bootDone && (
+        <button
+          onClick={() => setMode(mode === 'JARVIS_MODE' ? 'DASHBOARD_MODE' : 'JARVIS_MODE')}
+          style={{
+            position: 'fixed',
+            top: 10,
+            right: 10,
+            zIndex: 500,
+            background: 'rgba(0,10,20,0.9)',
+            border: `1px solid ${mode === 'JARVIS_MODE' ? 'rgba(0,207,255,0.5)' : 'rgba(0,207,255,0.2)'}`,
+            color: '#00CFFF',
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: 9,
+            letterSpacing: '0.15em',
+            padding: '5px 12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(10px)',
+            boxShadow: mode === 'JARVIS_MODE' ? '0 0 20px rgba(0,207,255,0.15)' : 'none',
+          }}
+        >
+          {mode === 'JARVIS_MODE' ? 'HUD' : 'JARVIS'}
+        </button>
+      )}
+
+      {/* JARVIS MODE — clean orb + content windows */}
+      {mode === 'JARVIS_MODE' && bootDone && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: -1 }} />
+          <VectorOrb />
+          <ContentWindowManager />
+          <GestureOverlay />
+          {/* Command input stays available */}
+          <div style={{
+            position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+            width: 'min(860px, calc(100vw - 40px))', zIndex: 100,
+            borderTop: '1px solid rgba(0,212,255,0.12)',
+            boxShadow: '0 -4px 30px rgba(0,0,0,0.5)',
+          }}>
+            <CommandInput />
+          </div>
+        </>
+      )}
+
+      {/* DASHBOARD MODE — full 64-panel infinite canvas */}
+      {mode === 'DASHBOARD_MODE' && (
 
       {/* Reactor always fixed at screen center */}
       <ReactorGroup />
