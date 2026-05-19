@@ -83,7 +83,7 @@ export default function VectorOrb() {
 
   return (
     <>
-      <div style={containerStyle}>
+      <div style={containerStyle} onClick={handleOrbClick} title="Click to open command input">
         <svg
           width={sz}
           height={sz}
