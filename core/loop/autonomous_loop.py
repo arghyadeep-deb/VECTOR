@@ -271,12 +271,6 @@ class AutonomousLoop:
             entries.append(("daily-video-generation", "0 22 * * *", job_generate_daily_video))
         except ImportError as e:
             logger.debug("[VECTOR][cron] video_pipeline unavailable: {}", e)
-        _entries_typed: list[tuple[str, str, Callable]] = [
-            ("daily-workflow-trigger",  "0 8 * * *",  job_trigger_workflow),
-            ("weekly-benchmark-suite",  "0 1 * * 0",  job_benchmark_suite),
-            ("weekly-recipe-sync",      "30 1 * * 0", job_recipe_sync),
-            ("daily-video-generation",  "0 22 * * *", job_generate_daily_video),
-        ]
         now = datetime.datetime.now(datetime.timezone.utc)
         for job_id, cron_expr, fn in entries:
             parsed = self._parse_cron_daily(cron_expr)
