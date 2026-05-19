@@ -223,18 +223,20 @@ export default function VectorOrb() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: orbInCorner ? 0 : 3,
+          gap: orbInCorner ? 0 : 2,
           pointerEvents: 'none',
+          overflow: 'hidden',
         }}>
           <span style={{
             fontFamily: "'Orbitron', sans-serif",
-            fontSize: orbInCorner ? 8 : 15,
+            fontSize: orbInCorner ? 7 : 11,
             fontWeight: 700,
             color: '#ffffff',
-            letterSpacing: '0.2em',
-            textShadow: '0 0 16px rgba(0,207,255,0.9), 0 0 32px rgba(0,207,255,0.4)',
+            letterSpacing: '0.08em',
+            textShadow: '0 0 14px rgba(0,207,255,0.9), 0 0 28px rgba(0,207,255,0.4)',
             transition: 'font-size 0.6s ease',
             lineHeight: 1,
+            whiteSpace: 'nowrap',
           }}>
             VECTOR
           </span>
