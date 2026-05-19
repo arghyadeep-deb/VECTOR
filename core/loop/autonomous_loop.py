@@ -374,6 +374,19 @@ class AutonomousLoop:
         """Evaluate goals → 4 candidates → decision → act. RULE 1: hydrate first."""
         from core.loop.decision_engine import Candidate
 
+        # Voice intent takes priority — act immediately, skip goal evaluation this tick
+        pending = getattr(self, "_pending_voice", None)
+        if pending:
+            self._pending_voice = None
+            logger.info("[VECTOR][think] voice intent dispatched: {}", pending.get("intent"))
+            await self._act({
+                "type":       pending.get("intent", "respond"),
+                "params":     pending.get("params", {}),
+                "source":     "voice",
+                "confidence": pending.get("confidence", 0.8),
+            })
+            return
+
         # RULE 1 — world state snapshot before any reasoning
         # Run in thread — get_world_state() calls ScreenObserver.observe() (blocking OCR)
         world_state = await asyncio.to_thread(self._get_context().get_world_state)
