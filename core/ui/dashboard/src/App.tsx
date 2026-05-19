@@ -257,6 +257,7 @@ export default function App() {
       }}>
         <CommandInput />
       </div>
+      </>)}
     </>
   )
 }
