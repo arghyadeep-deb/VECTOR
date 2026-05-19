@@ -199,6 +199,7 @@ export const useVectorStore = create<VectorState>()((set) => ({
   connectionErrors: {},
   lastUpdated: 0,
   quickResult: null,
+  audioLevel: 0,
   systemMetrics: null,
   goals: null,
   security: null,
