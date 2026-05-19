@@ -94,15 +94,21 @@ class AgentBase:
             return ""
 
     def _calculate_model(self) -> str:
-        if self.health_points >= 800:
+        # HP tier thresholds — override via CONFIG["hp_tiers"] dict
+        tiers = CONFIG.get("hp_tiers", {})
+        t_elite  = tiers.get("elite",    800)
+        t_strong  = tiers.get("strong",  600)
+        t_healthy = tiers.get("healthy", 400)
+        t_weak    = tiers.get("weak",    200)
+        if self.health_points >= t_elite:
             return CONFIG['models']['cloud_coder']
-        elif 600 <= self.health_points < 800:
+        elif t_strong <= self.health_points < t_elite:
             return CONFIG['models']['cloud_orchestrator']
-        elif 400 <= self.health_points < 600:
+        elif t_healthy <= self.health_points < t_strong:
             return CONFIG['models']['focus']
-        elif 200 <= self.health_points < 400:
+        elif t_weak <= self.health_points < t_healthy:
             return CONFIG['models']['reasoning']
-        elif 1 <= self.health_points < 200:
+        elif 1 <= self.health_points < t_weak:
             return CONFIG['models']['ambient']
         else:
             return None
