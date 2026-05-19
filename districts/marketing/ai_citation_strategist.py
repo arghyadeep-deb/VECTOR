@@ -176,7 +176,7 @@ class AICitationStrategist(AgentBase, SkillMixin):
             f'"timeline_weeks": 8}}'
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            response = self._chat(prompt, timeout=25.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 result = json.loads(match.group())
@@ -244,7 +244,7 @@ class AICitationStrategist(AgentBase, SkillMixin):
                     f"Provide actionable gap analysis in 3-5 points."
                 )
                 try:
-                    analysis = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+                    analysis = self._chat(prompt, timeout=20.0)
                 except Exception:
                     analysis = "LLM unavailable — check entity authority, backlinks, and content depth vs competitors."
                 self.award_points(20, "competitor_analysis_done")
