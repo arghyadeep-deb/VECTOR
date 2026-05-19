@@ -257,7 +257,7 @@ class AutonomousLoop:
     async def _fire_vnative_cron_jobs(self) -> None:
         """Check and fire VECTOR-native cron job entries at their scheduled times."""
         from core.loop.cron_jobs import job_trigger_workflow, job_benchmark_suite, job_recipe_sync
-        from agents.districts.content.video_pipeline import job_generate_daily_video
+        from districts.content.video_pipeline import job_generate_daily_video
         entries: list[tuple[str, str, Callable]] = [
             ("daily-workflow-trigger",  "0 8 * * *",  job_trigger_workflow),
             ("weekly-benchmark-suite",  "0 1 * * 0",  job_benchmark_suite),
@@ -566,7 +566,7 @@ class AutonomousLoop:
                 + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
             )
         except Exception as e:
-            _capture_loop_error(e, "act_loop", district=str(getattr(action, 'district', '')))
+            _capture_loop_error(e, "act_loop", district=str(getattr(winner, 'district', '') if 'winner' in dir() else ''))
 
     def _get_recent_feedback(self, action_type: str) -> float | None:
         """Check episodic memory for recent user feedback on this action type. Returns 0.0-1.0 or None."""
@@ -624,7 +624,7 @@ class AutonomousLoop:
     async def _reflect_tick(self) -> None:
         logger.info("[VECTOR][reflect] 2AM reflection starting...")
         try:
-            from agents.districts.reflection.daily_reviewer import DailyReviewer
+            from districts.reflection.daily_reviewer import DailyReviewer
             reviewer = DailyReviewer()
             ok = await reviewer.review()
             logger.info(f"[VECTOR][reflect] DailyReviewer done — ok={ok}")
