@@ -197,7 +197,7 @@ export default function App() {
       )}
 
       {/* DASHBOARD MODE — full 64-panel infinite canvas */}
-      {mode === 'DASHBOARD_MODE' && (
+      {mode === 'DASHBOARD_MODE' && (<>
 
       {/* Reactor always fixed at screen center */}
       <ReactorGroup />
