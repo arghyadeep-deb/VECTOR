@@ -78,6 +78,13 @@ class ShellExecTool(BaseTool):
         )
 
     def execute(self, **params: Any) -> ToolResult:
+        import os as _os
+        if not _os.environ.get("VECTOR_ALLOW_SHELL_EXEC"):
+            return ToolResult(
+                tool_name="shell_exec",
+                content="Shell execution is disabled. Set VECTOR_ALLOW_SHELL_EXEC=true to enable.",
+                success=False,
+            )
         command = params.get("command", "")
         if not command:
             return ToolResult(
