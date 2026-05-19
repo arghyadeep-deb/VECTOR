@@ -17,6 +17,7 @@ export interface ContentWindowEntry {
 export interface VectorState {
   mode: AppMode
   bootDone: boolean
+  processing: boolean
   contentWindows: ContentWindowEntry[]
   orbInCorner: boolean
   connected: boolean; status: StatusResponse | null; agents: AgentData[]; events: MemoryEvent[]; error: string | null
