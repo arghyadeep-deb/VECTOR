@@ -89,43 +89,66 @@ async def gesture_ws(ws: WebSocket):
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = hands.process(frame_rgb)
 
-            payload: dict = {"hand_visible": False, "gesture": "", "confidence": 0.0, "fingertip_x": 0.5, "fingertip_y": 0.5}
+            payload: dict = {
+                "hand_visible": False, "gesture": "", "confidence": 0.0,
+                "fingertip_x": 0.5, "fingertip_y": 0.5,
+                "hand_count": 0, "hands": [],
+            }
 
             if results.multi_hand_landmarks:
-                lm = results.multi_hand_landmarks[0].landmark
+                payload["hand_count"] = len(results.multi_hand_landmarks)
                 payload["hand_visible"] = True
 
-                payload["fingertip_x"] = lm[8].x
-                payload["fingertip_y"] = lm[8].y
+                for idx, hand_lm in enumerate(results.multi_hand_landmarks):
+                    lm = hand_lm.landmark
+                    gesture, confidence = _classify_gesture(lm)
 
-                gesture, confidence = _classify_gesture(lm)
+                    # Swipe detection on the primary (first) hand
+                    if idx == 0:
+                        wrist_x = lm[0].x
+                        wrist_y = lm[0].y
+                        swipe_x_history.append(wrist_x)
+                        swipe_y_history.append(wrist_y)
+                        if len(swipe_x_history) > 8:
+                            swipe_x_history.pop(0)
+                            swipe_y_history.pop(0)
+                        if len(swipe_x_history) >= 6:
+                            dx = swipe_x_history[-1] - swipe_x_history[0]
+                            dy = swipe_y_history[-1] - swipe_y_history[0]
+                            if abs(dx) > abs(dy) and abs(dx) > 0.15:
+                                gesture = "swipe_left" if dx < 0 else "swipe_right"
+                                confidence = 0.85
+                                swipe_x_history.clear()
+                                swipe_y_history.clear()
+                            elif abs(dy) > abs(dx) and abs(dy) > 0.15:
+                                gesture = "swipe_up" if dy < 0 else "swipe_down"
+                                confidence = 0.82
+                                swipe_x_history.clear()
+                                swipe_y_history.clear()
 
-                # Track wrist position for 4-direction swipe detection
-                wrist_x = lm[0].x
-                wrist_y = lm[0].y
-                swipe_x_history.append(wrist_x)
-                swipe_y_history.append(wrist_y)
-                if len(swipe_x_history) > 8:
-                    swipe_x_history.pop(0)
-                    swipe_y_history.pop(0)
+                    payload["hands"].append({
+                        "index":       idx,
+                        "gesture":     gesture,
+                        "confidence":  confidence,
+                        "fingertip_x": lm[8].x,
+                        "fingertip_y": lm[8].y,
+                        "wrist_x":     lm[0].x,
+                        "wrist_y":     lm[0].y,
+                    })
 
-                if len(swipe_x_history) >= 6:
-                    dx = swipe_x_history[-1] - swipe_x_history[0]
-                    dy = swipe_y_history[-1] - swipe_y_history[0]
-                    # Prefer dominant axis
-                    if abs(dx) > abs(dy) and abs(dx) > 0.15:
-                        gesture = "swipe_left" if dx < 0 else "swipe_right"
-                        confidence = 0.85
-                        swipe_x_history.clear()
-                        swipe_y_history.clear()
-                    elif abs(dy) > abs(dx) and abs(dy) > 0.15:
-                        gesture = "swipe_up" if dy < 0 else "swipe_down"
-                        confidence = 0.82
-                        swipe_x_history.clear()
-                        swipe_y_history.clear()
+                # Inter-hand distance for two-hand gestures (zoom, clap, bilateral)
+                if len(payload["hands"]) == 2:
+                    h0, h1 = payload["hands"]
+                    dx = h0["wrist_x"] - h1["wrist_x"]
+                    dy = h0["wrist_y"] - h1["wrist_y"]
+                    payload["hand_distance"] = round((dx ** 2 + dy ** 2) ** 0.5, 4)
 
-                payload["gesture"] = gesture
-                payload["confidence"] = confidence
+                # Back-compat: flat fields from primary hand
+                primary = payload["hands"][0]
+                payload["gesture"]     = primary["gesture"]
+                payload["confidence"]  = primary["confidence"]
+                payload["fingertip_x"] = primary["fingertip_x"]
+                payload["fingertip_y"] = primary["fingertip_y"]
             else:
                 swipe_x_history.clear()
                 swipe_y_history.clear()
