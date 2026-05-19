@@ -66,6 +66,21 @@ class VoiceTTS:
         except Exception as e:
             logger.error(f"[VECTOR][tts] pyttsx3 init failed: {e}")
 
+    def stop_speaking(self) -> None:
+        """Interrupt TTS mid-playback (barge-in support)."""
+        self._speaking = False
+        try:
+            import sounddevice as sd
+            sd.stop()
+            logger.debug("[VECTOR][tts] Playback interrupted (barge-in)")
+        except Exception as e:
+            logger.debug(f"[VECTOR][tts] stop_speaking: {e}")
+        try:
+            if self._pyttsx3 is not None:
+                self._pyttsx3.stop()
+        except Exception:
+            pass
+
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
             return
