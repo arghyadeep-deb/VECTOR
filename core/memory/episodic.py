@@ -201,8 +201,8 @@ class EpisodicMemory:
 
             return event_id
         except Exception as e:
-            logger.error(f"Store failed: {e}")
-            return ""
+            logger.error(f"[VECTOR][episodic] store() failed — event lost: {e}")
+            raise RuntimeError(f"Episodic store failed: {e}") from e
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
         """Recall events using FTS5 full-text search (falls back to LIKE if FTS5 unavailable)."""
