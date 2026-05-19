@@ -256,6 +256,7 @@ export const useVectorStore = create<VectorState>()((set) => ({
   closePanel: (id) => set((state) => ({ activePanels: state.activePanels.filter((p) => p.id !== id) })),
   reportError: (endpoint, error) => set((state) => ({ connectionErrors: { ...state.connectionErrors, [endpoint]: { failed: true, lastError: error, retryCount: (state.connectionErrors[endpoint]?.retryCount ?? 0) + 1 } } })),
   clearError: (endpoint) => set((state) => { const n = { ...state.connectionErrors }; delete n[endpoint]; return { connectionErrors: n } }),
+  setAudioLevel: (level) => set({ audioLevel: level }),
   setQuickResult: (r) => set({ quickResult: r }),
   setSystemMetrics: (m) => set({ systemMetrics: m }),
   setGoals: (g) => set({ goals: g }),
