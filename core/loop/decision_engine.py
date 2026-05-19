@@ -140,13 +140,17 @@ class DecisionEngine:
             state[2] = candidate.timing_score
             state[3] = candidate.goal_alignment if hasattr(candidate, "goal_alignment") else 0.5
             state[4] = min(1.0, candidate.estimated_cost_inr / 10.0)
-            # Map action_type to index for the policy
-            _ACTION_TYPES = ["answer_question", "set_reminder", "search_web", "commit_code",
-                              "send_message_routine", "create_calendar_event", "download_file",
-                              "send_email", "delete_files", "execute_code", "push_github",
-                              "deploy_production", "send_message_important", "financial_transaction",
-                              "read_calendar", "play_music", "take_screenshot", "check_weather",
-                              "review_code", "write_note"]
+            # Map action_type to index — derive from governor's live task map so new districts are included
+            try:
+                from core.city.governor import DISTRICT_TASK_MAP
+                _ACTION_TYPES = sorted(set(DISTRICT_TASK_MAP.keys()))
+            except Exception:
+                _ACTION_TYPES = ["answer_question", "set_reminder", "search_web", "commit_code",
+                                  "send_message_routine", "create_calendar_event", "download_file",
+                                  "send_email", "delete_files", "execute_code", "push_github",
+                                  "deploy_production", "send_message_important", "financial_transaction",
+                                  "read_calendar", "play_music", "take_screenshot", "check_weather",
+                                  "review_code", "write_note"]
             try:
                 action_idx = _ACTION_TYPES.index(candidate.action_type)
                 state[5] = action_idx / len(_ACTION_TYPES)
