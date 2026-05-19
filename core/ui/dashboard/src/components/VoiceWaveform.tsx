@@ -43,7 +43,12 @@ export default function VoiceWaveform() {
   useEffect(() => {
     ampRef.current = ampByState[voiceState] ?? 0.35
     speedRef.current = speedByState[voiceState] ?? 1.0
+    voiceStateRef.current = voiceState
   }, [voiceState])
+
+  useEffect(() => {
+    audioLevelRef.current = audioLevel
+  }, [audioLevel])
 
   useEffect(() => {
     const cvs = canvasRef.current
