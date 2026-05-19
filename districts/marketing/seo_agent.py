@@ -43,6 +43,7 @@ class SEOAgent(AgentBase, SkillMixin):
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
+        self._skill_prompt = load_skill("seo-audit", "analytics")
         logger.info("[VECTOR][seo_agent] ready gen={} hp={}", generation, self.health_points)
 
     # ── Full audit pipeline ───────────────────────────────────────────────────
