@@ -199,6 +199,7 @@ export default function CommandInput() {
       const d = await api.command(cmd)
       const response = d.response || 'No response'
       setResp(response)
+      setProcessing(false)
       if (d.action_taken) setLastAction(d.action_taken)
       setProgress(100)
       setText('')
