@@ -58,6 +58,7 @@ export interface VectorState {
   migration: MigrationData | null
   setMode: (m: AppMode) => void
   setBootDone: (v: boolean) => void
+  setProcessing: (v: boolean) => void
   addContentWindow: (w: ContentWindowEntry) => void
   removeContentWindow: (id: string) => void
   clearContentWindows: () => void
