@@ -176,7 +176,7 @@ def create_app() -> FastAPI:
         websocket, tasks, vectorcode, nudge, loop, scheduler, inference, email, channels,
         providers, tools, network, audit, metering, jcode, sandbox, sensing, media,
         mining, mcp, video_composer, scraper, seo, oauth, research, migration,
-        ads, code_intel, investment, simulation,
+        ads, code_intel, investment, simulation, intelligence,
         # New district routers
         health, finance, design, analytics, privacy, coding_extended, qa, projects,
         learning, interview, languages, news, patterns, reflection, relationships,
