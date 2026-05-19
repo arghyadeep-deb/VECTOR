@@ -234,6 +234,7 @@ export const useVectorStore = create<VectorState>()((set) => ({
   setMode: (m) => set({ mode: m }),
   setBootDone: (v) => set({ bootDone: v }),
   setProcessing: (v) => set({ processing: v }),
+  setVoiceState: (v) => set({ voiceState: v }),
   addContentWindow: (w) => set((s) => ({ contentWindows: [...s.contentWindows, w], orbInCorner: true })),
   removeContentWindow: (id) => set((s) => {
     const remaining = s.contentWindows.filter(w => w.id !== id)
