@@ -14,6 +14,8 @@ export default function GestureOverlay() {
   const removeContentWindow = useVectorStore((s) => s.removeContentWindow)
   const contentWindows = useVectorStore((s) => s.contentWindows)
   const clearContentWindows = useVectorStore((s) => s.clearContentWindows)
+  const scrollToPanel = useVectorStore((s) => s.scrollToPanel)
+  const [lastDismissed, setLastDismissed] = useState<typeof contentWindows[0] | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const [dot, setDot] = useState<{ x: number; y: number } | null>(null)
