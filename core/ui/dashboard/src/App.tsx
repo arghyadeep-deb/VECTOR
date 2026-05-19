@@ -201,14 +201,27 @@ export default function App() {
       {mode === 'DASHBOARD_MODE' && <AmbientTheme />}
       <DataPoller />
 
-      {/* Processing border — 2px solid cyan, only while processing */}
+      {/* Input border — glows on user input only (speaking/typing), not during VECTOR output */}
       <div style={{
         position: 'fixed', inset: 0,
         border: '2px solid #00CFFF',
         pointerEvents: 'none', zIndex: 9002,
-        opacity: processing ? 1 : 0,
+        opacity: borderActive ? 1 : 0,
         transition: 'opacity 0.1s ease',
       }} />
+
+      {/* Wake state grid — appears when voice session is active (reference: faint square boxes) */}
+      {mode === 'JARVIS_MODE' && bootDone && voiceState !== 'idle' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none',
+          backgroundImage: `
+            repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(0,207,255,0.035) 59px, rgba(0,207,255,0.035) 60px),
+            repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(0,207,255,0.035) 59px, rgba(0,207,255,0.035) 60px)
+          `,
+          opacity: 1,
+          animation: 'fadeInGrid 0.8s ease',
+        }} />
+      )}
 
       {/* Permanent subtle edge glow — always on in JARVIS_MODE (matches reference) */}
       {mode === 'JARVIS_MODE' && bootDone && (
