@@ -144,6 +144,7 @@ export default function CommandInput() {
       setResp(`ERROR: ${err}`)
       setStreaming(false)
       setSending(false)
+      setProcessing(false)
       setProgress(0)
     })
     return () => { unsubToken(); unsubDone(); unsubError() }
