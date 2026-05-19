@@ -73,6 +73,7 @@ export interface VectorState {
   addEvent: (e: MemoryEvent) => void; setEvents: (e: MemoryEvent[]) => void; setError: (e: string | null) => void
   openPanel: (entry: PanelEntry) => void; closePanel: (id: string) => void
   reportError: (endpoint: string, error: string) => void; clearError: (endpoint: string) => void
+  setAudioLevel: (level: number) => void
   setQuickResult: (r: { title: string; lines: string[] } | null) => void
   setSystemMetrics: (m: SystemMetrics | null) => void
   setGoals: (g: GoalsResponse | null) => void
