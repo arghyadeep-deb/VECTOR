@@ -5,17 +5,28 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from loguru import logger
 
 router = APIRouter(prefix="/code-intel", tags=["code-intel"])
 
 _PROJECT_PATH = str(Path(__file__).parent.parent.parent.parent)
+_PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
+
+
+def _safe_path(v: str) -> str:
+    """Reject paths that escape the VECTOR codebase root."""
+    if not v:
+        return v
+    resolved = Path(v).resolve()
+    if not str(resolved).startswith(str(_PROJECT_ROOT)):
+        raise ValueError(f"Path '{v}' is outside the VECTOR codebase — access denied.")
+    return v
 
 
 def _run_intel(task_type: str, params: dict) -> dict:
     import asyncio
-    from agents.districts.coding.code_intel_agent import CodeIntelAgent
+    from districts.coding.code_intel_agent import CodeIntelAgent
     agent = CodeIntelAgent()
     loop = asyncio.new_event_loop()
     result = loop.run_until_complete(agent.run({"type": task_type, "params": params}))
