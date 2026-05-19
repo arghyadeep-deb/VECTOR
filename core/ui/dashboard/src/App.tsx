@@ -257,15 +257,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Star background: full opacity in DASHBOARD_MODE, very faint in JARVIS_MODE */}
-      {bootDone && (
+      {/* FORTRESS MODE — secret heavy-work HUD */}
+      {mode === 'FORTRESS_MODE' && bootDone && <FortressMode />}
+
+      {/* Star background: full opacity in DASHBOARD_MODE, very faint in JARVIS_MODE, hidden in FORTRESS */}
+      {bootDone && mode !== 'FORTRESS_MODE' && (
         <div style={{ opacity: mode === 'JARVIS_MODE' ? 0.15 : 1, pointerEvents: 'none' }}>
           <BackgroundCanvas />
         </div>
       )}
 
-      {/* Always active after boot — both modes */}
-      {bootDone && <GestureOverlay />}
+      {/* Always active after boot — all modes */}
+      {bootDone && <GestureOverlay />
       {bootDone && <ContentWindowManager />}
 
       {mode === 'JARVIS_MODE' && bootDone && (
