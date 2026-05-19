@@ -26,8 +26,9 @@ from loguru import logger
 from core.config import CONFIG
 
 # ── AirLLM fallback path (large 70B+ models only) ───────────────────────────
-_AIRLLM_REPO = Path(__file__).parent.parent.parent.parent / "GitHub/lyogavin_airllm/repo"
-if _AIRLLM_REPO.exists():
+_airllm_env = os.environ.get("AIRLLM_REPO_PATH", "")
+_AIRLLM_REPO = Path(_airllm_env) if _airllm_env else None
+if _AIRLLM_REPO and _AIRLLM_REPO.exists():
     sys.path.insert(0, str(_AIRLLM_REPO))
 
 # Models that need AirLLM layer-streaming because they don't fit in VRAM directly.
