@@ -513,6 +513,82 @@ def bootstrap_agents() -> int:
     return created
 
 
+def bulk_register_python_districts(registry=None) -> int:
+    """Auto-register all Python AgentBase subclasses in districts/ not yet in the registry.
+
+    Scans every .py file directly inside districts/{district}/ (depth=2),
+    imports it, finds AgentBase subclasses, and registers any that aren't
+    already in the registry. Skips __init__.py and __main__.py.
+    """
+    import importlib.util
+    from core.city.agent_registry import get_registry
+    from core.city.agent_base import AgentBase
+
+    if registry is None:
+        registry = get_registry()
+
+    districts_root = Path(__file__).parent / "districts"
+    registered = 0
+    skipped_dup = 0
+    failed = 0
+
+    for py_file in sorted(districts_root.rglob("*.py")):
+        rel = py_file.relative_to(districts_root)
+        # Only district-level files: districts/{district}/{file}.py
+        if len(rel.parts) != 2:
+            continue
+        if py_file.name.startswith("__"):
+            continue
+
+        district_name = rel.parts[0]
+        module_name = f"districts.{district_name}.{py_file.stem}"
+
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        except Exception as e:
+            logger.debug(f"[bootstrap] skip {module_name}: {e}")
+            failed += 1
+            continue
+
+        # Find AgentBase subclasses in this module
+        for attr_name in dir(module):
+            try:
+                obj = getattr(module, attr_name)
+                if (
+                    isinstance(obj, type)
+                    and issubclass(obj, AgentBase)
+                    and obj is not AgentBase
+                    and obj.__module__ == module_name
+                ):
+                    # Generate a deterministic ID from class name
+                    agent_id = f"{attr_name.lower()}_auto_001"
+                    if registry.get(agent_id):
+                        skipped_dup += 1
+                        continue
+                    try:
+                        agent = obj()
+                        if registry.get(agent.id):
+                            skipped_dup += 1
+                            continue
+                        registry.register(agent)
+                        registered += 1
+                    except Exception as e:
+                        logger.debug(f"[bootstrap] {attr_name} instantiation failed: {e}")
+                        failed += 1
+            except Exception:
+                continue
+
+    logger.info(
+        "[bootstrap] Python auto-register: {} agents, {} dupes skipped, {} failed",
+        registered, skipped_dup, failed,
+    )
+    return registered
+
+
 def bulk_register_md_districts(registry=None) -> int:
     """Register every .md agent file in districts/ as a live PromptAgent citizen.
 
