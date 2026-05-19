@@ -268,7 +268,7 @@ export default function App() {
       )}
 
       {/* Always active after boot — all modes */}
-      {bootDone && <GestureOverlay />
+      {bootDone && <GestureOverlay />}
       {bootDone && <ContentWindowManager />}
 
       {mode === 'JARVIS_MODE' && bootDone && (
