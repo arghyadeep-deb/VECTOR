@@ -82,6 +82,7 @@ class HypothesisEngine:
                     return result
 
                 except Exception as e:
+                    logger.error(f"[VECTOR][hypothesis_engine] test_hypothesis failed: {e}")
                     return {"error": str(e)}
 
         return {"error": f"Hypothesis {hypothesis_id} not found"}
