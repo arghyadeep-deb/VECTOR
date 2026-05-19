@@ -451,8 +451,8 @@ export default function CommandInput() {
         </div>
       )}
 
-      {/* Feedback row — only shown after a completed action */}
-      {lastAction && !streaming && !feedbackSent && (
+      {/* Feedback row — only shown after a completed action in dashboard mode */}
+      {lastAction && !streaming && !feedbackSent && appMode === 'DASHBOARD_MODE' && (
         <div style={{
           padding: '4px 14px 8px', borderTop: '1px solid rgba(0,212,255,0.04)',
           display: 'flex', alignItems: 'center', gap: 6,
