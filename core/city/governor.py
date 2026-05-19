@@ -720,8 +720,8 @@ class Governor:
                         f"[VECTOR][governor] prompt injection blocked task {task_id}: {scan_result}"
                     )
                     return {"status": "blocked", "reason": "prompt_injection", "task_id": task_id, "district": district}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("[VECTOR][governor] prompt_injection scan crashed task={}: {}", task_id, e)
 
         # ── Budget check before dispatch (non-blocking — just warns) ──────────
         try:
