@@ -258,7 +258,7 @@ export default function VectorOrb() {
           position: 'fixed',
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, calc(-50% + 130px))',
+          transform: 'translate(-50%, calc(-50% + 72px))',
           textAlign: 'center',
           zIndex: 199,
           pointerEvents: 'none',
