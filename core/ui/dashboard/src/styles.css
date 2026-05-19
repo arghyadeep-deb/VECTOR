@@ -144,6 +144,11 @@ html[data-jarvis="true"] #root::after {
   50%       { opacity: 0.45; }
 }
 
+@keyframes fadeInGrid {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @keyframes scanline-drift {
   0%   { background-position: 0 0; }
   100% { background-position: 0 100px; }
