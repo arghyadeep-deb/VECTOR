@@ -17,7 +17,7 @@ class PolicyMemory:
     Online averaging: new_avg = (old_avg * n + reward) / (n + 1)
     """
 
-    DEFAULT_SCORE = 0.5
+    DEFAULT_SCORE = float(CONFIG.get("policy_default_score", 0.5))
 
     def __init__(self):
         self._mem = None
