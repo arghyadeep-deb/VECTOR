@@ -165,9 +165,7 @@ export default function CommandInput() {
       setProgress(0)
       if (lastCmdRef.current) {
         pushHistory(lastCmdRef.current, full)
-        if (appModeRef.current === 'JARVIS_MODE') {
-          _openAutoWidget(lastCmdRef.current, full, addContentWindowRef.current)
-        }
+        _openAutoWidget(lastCmdRef.current, full, addContentWindowRef.current, setModeRef.current, appModeRef.current)
       }
     })
     const unsubError = onErrorReceived((err) => {
