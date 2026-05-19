@@ -72,6 +72,7 @@ export default function App() {
   const mode = useVectorStore((s) => s.mode)
   const setMode = useVectorStore((s) => s.setMode)
   const bootDone = useVectorStore((s) => s.bootDone)
+  const processing = useVectorStore((s) => s.processing)
 
   const panels: PanelPlacement[] = [
     /* Ring 1 (rf=0.80, rX=768, rY=432, 8 panels) */
