@@ -206,14 +206,7 @@ export default function CommandInput() {
       pushHistory(cmd, response)
       // In JARVIS mode, open response as a content window
       if (appMode === 'JARVIS_MODE') {
-        const lower = cmd.toLowerCase()
-        if (lower.includes('camera') || lower.includes('webcam') || lower.includes('show desk')) {
-          addContentWindow({ id: `cam-${Date.now()}`, type: 'camera', title: 'CAMERA FEED' })
-        } else if (lower.includes('location') || lower.includes('map') || lower.includes('where am i')) {
-          addContentWindow({ id: `map-${Date.now()}`, type: 'map', title: 'LOCATION LOCK' })
-        } else {
-          addContentWindow({ id: `resp-${Date.now()}`, type: 'text', title: cmd.slice(0, 30), content: response })
-        }
+        _openAutoWidget(cmd, response, addContentWindowRef.current)
       }
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
