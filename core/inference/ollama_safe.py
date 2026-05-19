@@ -16,6 +16,7 @@ To make warm-pool actually parallel, the Ollama daemon also needs:
 """
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
