@@ -208,6 +208,10 @@ def create_app() -> FastAPI:
     app.include_router(oauth.router)
     app.include_router(research.router)
     app.include_router(migration.router)
+    app.include_router(ads.router)
+    app.include_router(code_intel.router)
+    app.include_router(investment.router)
+    app.include_router(simulation.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:
