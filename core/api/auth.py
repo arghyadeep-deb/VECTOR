@@ -30,6 +30,7 @@ def verify_api_key(
     Raises HTTPException 401 only if key IS configured AND invalid.
     """
     if not _API_KEY:
+        logger.warning("[VECTOR][auth] API authentication DISABLED — set VECTOR_API_KEY env var to enable")
         return True
 
     if credentials is None:
