@@ -14,6 +14,11 @@ _KOKORO_VOICE_MAP = {
 _KOKORO_UNSUPPORTED = {"bn", "as"}  # gTTS fallback for regional languages
 
 
+# LRU cache for gTTS audio: maps (text, lang) → raw MP3 bytes
+_GTTS_CACHE: dict[tuple[str, str], bytes] = {}
+_GTTS_CACHE_MAX = 50
+
+
 class VoiceTTS:
     def __init__(self):
         self._kokoro = None
