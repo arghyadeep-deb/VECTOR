@@ -32,16 +32,18 @@ _OWNER_CONTEXT = {
 }
 
 
-class SEOSpecialist(AgentBase):
+class SEOSpecialist(AgentBase, SkillMixin):
     """
     Technical SEO + content optimization specialist.
     Audits pages, researches keywords, optimizes content, detects cannibalization.
+    Augmented with: seo-audit, ai-seo, content-strategy skill prompts.
     """
 
     def __init__(self):
         super().__init__(agent_id="seo_specialist_001", name="SEOSpecialist", district="marketing")
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
+        self._skill_prompt = load_skill("seo-audit", "ai-seo", "content-strategy")
         logger.info("[VECTOR][seo] initialized")
 
     def _get_memory(self):
