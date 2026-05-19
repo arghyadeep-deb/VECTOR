@@ -121,6 +121,75 @@ export interface SystemMetrics {
   uptime_seconds: number
 }
 
+export interface SecurityStatus {
+  threat_level: string
+  active_scans: number
+  anomalies_found: number
+  processes?: Array<{ name: string; cpu: number; mem: number; status: string }>
+  audit_log?: Array<{ timestamp: string; action_type: string; level: string; approved: boolean }>
+}
+
+export interface CouncilSession {
+  session_id: string
+  decision: string
+  confidence: number
+  members?: string[]
+  timestamp?: string
+}
+
+export interface TaskSummary {
+  queued: number
+  running: number
+  completed: number
+  failed: number
+  tasks?: Array<{ id: string; name: string; status: string; district: string; priority: string; created_at: string }>
+}
+
+export interface LoopStatus { running: boolean; tick_count: number; uptime_seconds: number; guard_violations: any[]; task_queue_depth: number }
+export interface SchedulerData { total: number; active: number; jobs: any[] }
+export interface InferenceStats { total_models: number; loaded_models: number; model_list: string[]; status: string }
+export interface EmailData { total: number; unread: number; recent: Array<{id: string; subject: string; sender: string; date: string; read: number}> }
+export interface ChannelsData { active_channels: string[]; recent_messages: number; status: string }
+export interface ProvidersData { routes: Record<string, string>; active_providers: string[] }
+export interface ToolsRegistry { total_tools: number; scopes: string[]; permission_levels: Record<string, number> }
+export interface NetworkData { total_peers: number; peers: Array<{node_id: string; host: string; port: number; last_seen: number}> }
+export interface TokenJuiceData { compression_ratio: number; tokens_saved: number; total_processed: number }
+export interface ConfigData { ollama_host: string; log_level: string; vector_version: string; districts: string[] }
+
+export interface AuditData { total: number; verified: boolean; entries: Array<{sequence: number; timestamp: string; action: string; agent_id: string; district: string}> }
+export interface MeteringData { total_spent: number; budget_limit: number; usage_pct: number; period: string }
+export interface JupyterData { active_sessions: number; sessions_dir: string }
+export interface SandboxData { docker_available: boolean; status: string }
+export interface SensingData { fatigue_score: number; energy_level: string; system_load: {cpu_percent: number; ram_percent: number}; camera_available: boolean }
+export interface MediaData { total_models: number; categories: Record<string, number>; models: string[] }
+export interface MiningData { shares_submitted: number; shares_accepted: number; blocks_found: number; errors: number; running: boolean }
+export interface MCPData { fastmcp_available: boolean; vc_mcp_available: boolean; status: string }
+export interface VideoData { total_compositions: number; compositions: string[] }
+export interface ScraperData { fetcher_types: string[]; stealth_available: boolean; dynamic_available: boolean }
+export interface SEOData { pagespeed_configured: boolean; gsc_configured: boolean; tools: string[] }
+export interface OAuthData { total_integrations: number; categories: Record<string, number>; available: number }
+export interface ResearchData { modes: string[]; llm_available: boolean }
+export interface MigrationData { sources: string[]; total_sources: number }
+
+export interface HealthData {
+  status: string
+  checks: Record<string, string>
+  timestamp: string
+  version: string
+}
+
+export interface TrainingData {
+  entries: Array<{ id: string; timestamp: string; content: string; source: string }>
+  count: number
+  status: string
+}
+
+export interface NudgeData {
+  text: string
+  rule: string
+  timestamp: string
+}
+
 export interface CommandResponse {
   response: string
   action_taken?: string | null
@@ -172,6 +241,36 @@ export const api = {
     if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
     return r.json()
   },
+
+  securityStatus: () => get<SecurityStatus>('/security/status'),
+  tasks: () => get<TaskSummary>('/tasks/'),
+  councilHistory: (limit = 5) => get<{ sessions: CouncilSession[] }>(`/memory/council/history?limit=${limit}`),
+  nudge: () => get<{ text: string; rule: string; timestamp: string }>('/nudge/latest'),
+  health: () => get<HealthData>('/status/health'),
+  trainingData: (limit = 10) => get<TrainingData>(`/memory/training-data?limit=${limit}`),
+  loopStatus: () => get<LoopStatus>('/loop/status'),
+  schedulerJobs: () => get<SchedulerData>('/scheduler/jobs'),
+  inferenceStats: () => get<InferenceStats>('/inference/stats'),
+  emailRecent: () => get<EmailData>('/email/recent'),
+  channelsStatus: () => get<ChannelsData>('/channels/status'),
+  providerRoutes: () => get<ProvidersData>('/providers/routes'),
+  toolsRegistry: () => get<ToolsRegistry>('/tools/registry'),
+  networkPeers: () => get<NetworkData>('/network/peers'),
+
+  auditRecent: (limit = 10) => get<AuditData>(`/audit/recent?limit=${limit}`),
+  meteringStatus: () => get<MeteringData>('/metering/status'),
+  jupyterSessions: () => get<JupyterData>('/vector-harness/sessions'),
+  sandboxStatus: () => get<SandboxData>('/sandbox/status'),
+  sensingStatus: () => get<SensingData>('/sensing/status'),
+  mediaModels: () => get<MediaData>('/media/models'),
+  miningStatus: () => get<MiningData>('/mining/status'),
+  mcpStatus: () => get<MCPData>('/mcp/status'),
+  videoCompositions: () => get<VideoData>('/video/compositions'),
+  scraperStatus: () => get<ScraperData>('/scraper/status'),
+  seoStatus: () => get<SEOData>('/seo/status'),
+  oauthIntegrations: () => get<OAuthData>('/oauth/integrations'),
+  researchStatus: () => get<ResearchData>('/research/status'),
+  migrationSources: () => get<MigrationData>('/migration/sources'),
 
   // Award/deduct HP — backend validates and applies
   agentAward: (agent_id: string, points: number, reason: string) =>
