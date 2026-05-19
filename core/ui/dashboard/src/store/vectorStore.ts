@@ -55,6 +55,12 @@ export interface VectorState {
   oauth: OAuthData | null
   research: ResearchData | null
   migration: MigrationData | null
+  setMode: (m: AppMode) => void
+  setBootDone: (v: boolean) => void
+  addContentWindow: (w: ContentWindowEntry) => void
+  removeContentWindow: (id: string) => void
+  clearContentWindows: () => void
+  setOrbInCorner: (v: boolean) => void
   setShowGlobe: (v: boolean) => void
   setConnected: (v: boolean) => void; setStatus: (s: StatusResponse | null) => void; setAgents: (a: AgentData[]) => void
   addEvent: (e: MemoryEvent) => void; setEvents: (e: MemoryEvent[]) => void; setError: (e: string | null) => void
