@@ -98,6 +98,14 @@ export default function GestureOverlay() {
       case 'point':
         scrollToPanel('districts')
         break
+      case 'swipe_up':
+        // Scroll canvas zoom in (increase zoom via store)
+        scrollToPanel('telemetry')
+        break
+      case 'swipe_down':
+        // Return to center / reset
+        scrollToPanel('compass')
+        break
     }
   }
 
