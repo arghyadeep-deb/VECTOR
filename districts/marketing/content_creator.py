@@ -31,16 +31,18 @@ _REPURPOSE_MAP = {
 }
 
 
-class ContentCreator(AgentBase):
+class ContentCreator(AgentBase, SkillMixin):
     """
     Multi-format content creation and repurposing specialist.
     Editorial calendars, blog posts, newsletters, content briefs.
+    Augmented with: copywriting, content-strategy skill prompts.
     """
 
     def __init__(self):
         super().__init__(agent_id="content_creator_001", name="ContentCreator", district="marketing")
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
+        self._skill_prompt = load_skill("copywriting", "content-strategy")
         logger.info("[VECTOR][content_creator] initialized")
 
     def _get_memory(self):
