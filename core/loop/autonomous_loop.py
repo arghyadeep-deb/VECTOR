@@ -256,9 +256,22 @@ class AutonomousLoop:
 
     async def _fire_vnative_cron_jobs(self) -> None:
         """Check and fire VECTOR-native cron job entries at their scheduled times."""
-        from core.loop.cron_jobs import job_trigger_workflow, job_benchmark_suite, job_recipe_sync
-        from districts.content.video_pipeline import job_generate_daily_video
-        entries: list[tuple[str, str, Callable]] = [
+        entries: list[tuple[str, str, Callable]] = []
+        try:
+            from core.loop.cron_jobs import job_trigger_workflow, job_benchmark_suite, job_recipe_sync
+            entries += [
+                ("daily-workflow-trigger",  "0 8 * * *",  job_trigger_workflow),
+                ("weekly-benchmark-suite",  "0 1 * * 0",  job_benchmark_suite),
+                ("weekly-recipe-sync",      "30 1 * * 0", job_recipe_sync),
+            ]
+        except ImportError as e:
+            logger.debug("[VECTOR][cron] cron_jobs module unavailable: {}", e)
+        try:
+            from districts.content.video_pipeline import job_generate_daily_video
+            entries.append(("daily-video-generation", "0 22 * * *", job_generate_daily_video))
+        except ImportError as e:
+            logger.debug("[VECTOR][cron] video_pipeline unavailable: {}", e)
+        _entries_typed: list[tuple[str, str, Callable]] = [
             ("daily-workflow-trigger",  "0 8 * * *",  job_trigger_workflow),
             ("weekly-benchmark-suite",  "0 1 * * 0",  job_benchmark_suite),
             ("weekly-recipe-sync",      "30 1 * * 0", job_recipe_sync),
