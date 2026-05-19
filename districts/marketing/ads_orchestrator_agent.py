@@ -28,16 +28,18 @@ _ADS_REFERENCES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / 
 _ADS_TEMPLATES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "templates"
 
 
-class AdsOrchestratorAgent(AgentBase):
+class AdsOrchestratorAgent(AgentBase, SkillMixin):
     """
     Multi-platform ads intelligence agent.
     Handles audits, creative generation, landing page analysis, PPC math, and reporting.
+    Augmented with: ads, ad-creative, cro skill prompts.
     """
 
     def __init__(self):
         super().__init__(agent_id="ads_orchestrator_001", name="AdsOrchestratorAgent", district="marketing")
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
+        self._skill_prompt = load_skill("ads", "ad-creative", "cro")
         logger.info("[VECTOR][ads] initialized")
 
     def _get_memory(self) -> EpisodicMemory:
