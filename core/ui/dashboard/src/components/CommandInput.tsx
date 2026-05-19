@@ -118,7 +118,23 @@ export default function CommandInput() {
       setStreaming(false)
       setSending(false)
       setProgress(0)
-      if (lastCmdRef.current) pushHistory(lastCmdRef.current, full)
+      if (lastCmdRef.current) {
+        pushHistory(lastCmdRef.current, full)
+        // In JARVIS mode open content window for streamed responses too
+        const storeState = (window as any).__vectorStore
+        const isJarvis = storeState?.getState?.()?.mode === 'JARVIS_MODE'
+        if (isJarvis) {
+          const lower = lastCmdRef.current.toLowerCase()
+          const addWin = storeState.getState().addContentWindow
+          if (lower.includes('camera') || lower.includes('webcam')) {
+            addWin({ id: `cam-${Date.now()}`, type: 'camera', title: 'CAMERA FEED' })
+          } else if (lower.includes('location') || lower.includes('map')) {
+            addWin({ id: `map-${Date.now()}`, type: 'map', title: 'LOCATION LOCK' })
+          } else {
+            addWin({ id: `resp-${Date.now()}`, type: 'text', title: lastCmdRef.current.slice(0, 30), content: full })
+          }
+        }
+      }
     })
     const unsubError = onErrorReceived((err) => {
       setResp(`ERROR: ${err}`)
