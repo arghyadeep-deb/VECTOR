@@ -171,7 +171,20 @@ def create_app() -> FastAPI:
         return {"csrf_token": generate_csrf_token()}
 
     # Include routers
-    from core.api.routers import a2a, commands, council, agents, status, voice, voice_ws, memory, security, websocket, tasks, vectorcode, nudge, loop, scheduler, inference, email, channels, providers, tools, network, audit, metering, jcode, sandbox, sensing, media, mining, mcp, video_composer, scraper, seo, oauth, research, migration, ads, code_intel, investment, simulation
+    from core.api.routers import (
+        a2a, commands, council, agents, status, voice, voice_ws, memory, security,
+        websocket, tasks, vectorcode, nudge, loop, scheduler, inference, email, channels,
+        providers, tools, network, audit, metering, jcode, sandbox, sensing, media,
+        mining, mcp, video_composer, scraper, seo, oauth, research, migration,
+        ads, code_intel, investment, simulation,
+        # New district routers
+        health, finance, design, analytics, privacy, coding_extended, qa, projects,
+        learning, interview, languages, news, patterns, reflection, relationships,
+        skills, startups, karpathy, ops, chief, calls, agency, documentation,
+        governance_extended,
+        # Core infrastructure routers
+        brain, city, control,
+    )
     app.include_router(a2a.router)
     app.include_router(commands.router)
     app.include_router(council.router)
