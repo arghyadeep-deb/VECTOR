@@ -53,11 +53,12 @@ META_BENCHMARKS = {
 }
 
 
-class MetaAdsAgent(AgentBase):
+class MetaAdsAgent(AgentBase, SkillMixin):
     """
     VECTOR's Meta Ads specialist.
     Diagnoses ROAS, creative fatigue, audience overlap, learning phase issues.
     Generates ad copy and audience strategy recommendations.
+    Augmented with: ads, ad-creative, analytics skill prompts.
     """
 
     def __init__(self, generation: int = 1, ghost: dict | None = None) -> None:
