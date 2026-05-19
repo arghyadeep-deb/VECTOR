@@ -67,7 +67,7 @@ class ContextEngine:
     def _get_deadline_mgr(self):
         if self._deadline_mgr is None:
             try:
-                from agents.districts.time_calendar.deadline_manager import DeadlineManager
+                from districts.time_calendar.deadline_manager import DeadlineManager
                 self._deadline_mgr = DeadlineManager()
             except Exception:
                 pass
@@ -76,7 +76,7 @@ class ContextEngine:
     def _get_expense_tracker(self):
         if self._expense_tracker is None:
             try:
-                from agents.districts.finance.expense_tracker import ExpenseTracker
+                from districts.finance.expense_tracker import ExpenseTracker
                 self._expense_tracker = ExpenseTracker()
             except Exception:
                 pass
@@ -85,7 +85,7 @@ class ContextEngine:
     def _get_kiit_scraper(self):
         if self._kiit_scraper is None:
             try:
-                from agents.districts.time_calendar.kiit_scraper import KIITScraper
+                from districts.time_calendar.kiit_scraper import KIITScraper
                 self._kiit_scraper = KIITScraper()
             except Exception:
                 pass
@@ -94,7 +94,7 @@ class ContextEngine:
     def _get_comms_hub(self):
         if self._comms_hub is None:
             try:
-                from agents.districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
+                from districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
                 self._comms_hub = _VCCommsHub()
             except Exception:
                 pass
@@ -211,7 +211,7 @@ class ContextEngine:
             "health": health_snapshot,
             "screen_activity": screen_activity,
             # Extended fields
-            "location": "home (Legion Pro 5)",
+            "location": CONFIG.get("location", "home"),
             "calendar": calendar_upcoming,
             "finance": finance_summary,
             "academic": academic_info,
