@@ -287,7 +287,8 @@ class AutonomousLoop:
                         result = fn()
                         if asyncio.iscoroutine(result):
                             result = await result
-                        logger.info(f"[VECTOR][cron] {job_id} → {result.get('status', '?')}")
+                        status = result.get('status', '?') if isinstance(result, dict) else str(result)[:40]
+                        logger.info(f"[VECTOR][cron] {job_id} done: {status}")
                     except Exception as e:
                         logger.error(f"[VECTOR][cron] {job_id} failed: {e}")
 
