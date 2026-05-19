@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useVectorStore, ContentWindowEntry } from '../store/vectorStore'
+import CameraView from './CameraView'
+import MapView from './MapView'
 
 function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
   const removeContentWindow = useVectorStore((s) => s.removeContentWindow)
