@@ -184,6 +184,8 @@ def create_app() -> FastAPI:
         governance_extended,
         # Core infrastructure routers
         brain, city, control,
+        # JARVIS feature routers
+        camera, location, gesture,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
