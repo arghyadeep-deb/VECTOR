@@ -74,6 +74,45 @@ export default function App() {
   const bootDone = useVectorStore((s) => s.bootDone)
   const processing = useVectorStore((s) => s.processing)
 
+  // Terminal auto-hide in JARVIS_MODE
+  const [terminalVisible, setTerminalVisible] = useState(false)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showTerminal = () => {
+    setTerminalVisible(true)
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    hideTimerRef.current = setTimeout(() => setTerminalVisible(false), 8000)
+  }
+
+  // Show terminal on any keydown in JARVIS_MODE
+  useEffect(() => {
+    if (mode !== 'JARVIS_MODE') return
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'h') {
+        setMode('DASHBOARD_MODE')
+        return
+      }
+      showTerminal()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [mode])
+
+  // Reset terminal when switching mode
+  useEffect(() => {
+    if (mode === 'DASHBOARD_MODE') setTerminalVisible(false)
+  }, [mode])
+
+  // Ctrl+H in dashboard mode to return to orb
+  useEffect(() => {
+    if (mode !== 'DASHBOARD_MODE') return
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'h') setMode('JARVIS_MODE')
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [mode])
+
   // Apply/remove data-jarvis on <html> so CSS can suppress bg effects in orb mode
   useEffect(() => {
     document.documentElement.setAttribute('data-jarvis', mode === 'JARVIS_MODE' ? 'true' : 'false')
@@ -158,40 +197,49 @@ export default function App() {
       {mode === 'DASHBOARD_MODE' && <AmbientTheme />}
       <DataPoller />
 
-      {/* Sharp processing border — 2px solid cyan line on viewport edges, only while processing */}
+      {/* Processing border — 2px solid cyan, only while processing */}
       <div style={{
-        position: 'fixed',
-        inset: 0,
+        position: 'fixed', inset: 0,
         border: '2px solid #00CFFF',
-        pointerEvents: 'none',
-        zIndex: 9000,
+        pointerEvents: 'none', zIndex: 9002,
         opacity: processing ? 1 : 0,
         transition: 'opacity 0.1s ease',
       }} />
 
-      {/* Mode toggle button — always visible after boot */}
+      {/* Permanent subtle edge glow — always on in JARVIS_MODE (matches reference) */}
+      {mode === 'JARVIS_MODE' && bootDone && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          border: '1px solid rgba(0,207,255,0.12)',
+          boxShadow: 'inset 0 0 40px rgba(0,207,255,0.04)',
+          pointerEvents: 'none', zIndex: 9001,
+        }} />
+      )}
+
+      {/* Minimal mode toggle — barely visible ≡ icon, Ctrl+H shortcut */}
       {bootDone && (
-        <button
+        <div
           onClick={() => setMode(mode === 'JARVIS_MODE' ? 'DASHBOARD_MODE' : 'JARVIS_MODE')}
+          title={mode === 'JARVIS_MODE' ? 'Ctrl+H: Switch to HUD' : 'Ctrl+H: Switch to Orb'}
           style={{
-            position: 'fixed',
-            top: 10,
-            right: 10,
-            zIndex: 500,
-            background: 'rgba(0,10,20,0.9)',
-            border: `1px solid ${mode === 'JARVIS_MODE' ? 'rgba(0,207,255,0.5)' : 'rgba(0,207,255,0.2)'}`,
-            color: '#00CFFF',
-            fontFamily: "'Orbitron', sans-serif",
-            fontSize: 9,
-            letterSpacing: '0.15em',
-            padding: '5px 12px',
-            cursor: 'pointer',
-            backdropFilter: 'blur(10px)',
-            boxShadow: mode === 'JARVIS_MODE' ? '0 0 20px rgba(0,207,255,0.15)' : 'none',
+            position: 'fixed', top: 8, right: 10, zIndex: 500,
+            cursor: 'pointer', opacity: 0.18,
+            fontFamily: "'Orbitron', sans-serif", fontSize: 11,
+            color: '#00CFFF', padding: '3px 6px',
+            transition: 'opacity 0.2s',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.18')}
         >
-          {mode === 'JARVIS_MODE' ? 'HUD' : 'ORB'}
-        </button>
+          ≡
+        </div>
+      )}
+
+      {/* Star background: full opacity in DASHBOARD_MODE, very faint in JARVIS_MODE */}
+      {bootDone && (
+        <div style={{ opacity: mode === 'JARVIS_MODE' ? 0.15 : 1, pointerEvents: 'none' }}>
+          <BackgroundCanvas />
+        </div>
       )}
 
       {/* Always active after boot — both modes */}
@@ -202,15 +250,34 @@ export default function App() {
         <>
           <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: -1 }} />
           <VectorOrb />
-          {/* Command input stays available */}
+
+          {/* Terminal — hidden by default, shown on keypress, auto-hides after 8s */}
           <div style={{
             position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
             width: 'min(860px, calc(100vw - 40px))', zIndex: 100,
-            borderTop: '1px solid rgba(0,212,255,0.12)',
-            boxShadow: '0 -4px 30px rgba(0,0,0,0.5)',
-          }}>
+            borderTop: '1px solid rgba(0,212,255,0.10)',
+            boxShadow: '0 -4px 30px rgba(0,0,0,0.6)',
+            opacity: terminalVisible ? 1 : 0,
+            pointerEvents: terminalVisible ? 'auto' : 'none',
+            transition: 'opacity 0.3s ease',
+          }}
+          onMouseMove={showTerminal}
+          >
             <CommandInput />
           </div>
+
+          {/* Hint when terminal hidden */}
+          {!terminalVisible && (
+            <div style={{
+              position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+              color: 'rgba(0,207,255,0.18)', letterSpacing: '0.22em',
+              pointerEvents: 'none', animation: 'v-pulse 2.5s ease-in-out infinite',
+              zIndex: 99,
+            }}>
+              _ press any key
+            </div>
+          )}
         </>
       )}
 
@@ -227,7 +294,6 @@ export default function App() {
         cameraRef={cameraRef}
       >
         <VectorScene />
-        <BackgroundCanvas />
         <Decorations />
       </InfiniteCanvas>
 
