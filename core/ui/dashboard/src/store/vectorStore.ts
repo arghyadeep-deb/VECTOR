@@ -176,6 +176,10 @@ const PANEL_POSITIONS: Record<string, { worldX: number; worldY: number }> = {
 }
 
 export const useVectorStore = create<VectorState>()((set) => ({
+  mode: 'JARVIS_MODE',
+  bootDone: false,
+  contentWindows: [],
+  orbInCorner: false,
   connected: false,
   status: null,
   agents: [],
