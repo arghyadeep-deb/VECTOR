@@ -26,7 +26,7 @@ export default function VectorOrb() {
       )
     }
     tick()
-    const id = setInterval(tick, 1000)
+    const id = setInterval(tick, 60000)  // update every minute (HH:MM format)
     return () => clearInterval(id)
   }, [])
 
