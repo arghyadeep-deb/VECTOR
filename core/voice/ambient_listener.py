@@ -156,6 +156,26 @@ class AmbientListener:
         self._last_speech_time = time.time()
         logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) — session open")
 
+        # Seed conversation history from recent episodic memory (bridges chat↔voice silo)
+        if not self._conversation_history:
+            try:
+                from core.memory.episodic import EpisodicMemory
+                mem = EpisodicMemory()
+                recent = mem.recent(limit=6)
+                for entry in reversed(recent):
+                    content = entry.get("content", "")
+                    if "\nVECTOR:" in content:
+                        user_part = content.split("\nVECTOR:")[0].replace("User:", "").strip()
+                        vec_part = content.split("\nVECTOR:")[1].strip()
+                        if user_part:
+                            self._conversation_history.append({"role": "user", "content": user_part})
+                        if vec_part:
+                            self._conversation_history.append({"role": "assistant", "content": vec_part})
+                if self._conversation_history:
+                    logger.debug(f"[VECTOR][voice] Seeded {len(self._conversation_history)} turns from episodic memory")
+            except Exception as e:
+                logger.debug(f"[VECTOR][voice] History seed failed: {e}")
+
         try:
             while self._session_active:
                 # Timeout check
