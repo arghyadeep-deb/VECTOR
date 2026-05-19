@@ -256,6 +256,9 @@ def create_app() -> FastAPI:
     app.include_router(brain.router)
     app.include_router(city.router)
     app.include_router(control.router)
+    app.include_router(camera.router)
+    app.include_router(location.router)
+    app.include_router(gesture.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:
