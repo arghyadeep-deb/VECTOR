@@ -113,7 +113,7 @@ def bootstrap_agents() -> int:
 
     # ── VectorCode bridge ─────────────────────────────────────────────────────
     try:
-        from integrations.vectorcode_bridge import get_bridge as _get_vc_bridge
+        from districts.coding.vectorcode_bridge import get_bridge as _get_vc_bridge
         _vc = _get_vc_bridge()
         if _vc.is_available():
             logger.info("[bootstrap] VectorCode bridge ready")
@@ -350,6 +350,13 @@ def bootstrap_agents() -> int:
         created += _reg(BehaviorAnalyst())
     except Exception as e:
         logger.warning(f"[bootstrap] BehaviorAnalyst: {e}")
+
+    # ── Intelligence (VectorIntel / Shadowbroker) ────────────────────────────
+    try:
+        from districts.intelligence.vectorintel_agent import VectorIntelAgent
+        created += _reg(VectorIntelAgent())
+    except Exception as e:
+        logger.warning(f"[bootstrap] VectorIntelAgent: {e}")
 
     # ── News & Trends ─────────────────────────────────────────────────────────
     try:
@@ -623,7 +630,7 @@ def bulk_register_md_districts(registry=None) -> int:
         # Derive district from the immediate parent folder of the .md file
         district_name = md_file.parent.name
 
-        # Skip .md files nested deep inside tool sub-packages (e.g. districts/investment/fincept/docs/*.md)
+        # Skip .md files nested deep inside tool sub-packages (e.g. districts/investment/vector_finagent/docs/*.md)
         # Only register .md files that sit directly inside a district folder (depth = districts/{district}/*.md)
         try:
             rel = md_file.relative_to(districts_root)
