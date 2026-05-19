@@ -217,6 +217,7 @@ export default function CommandInput() {
       }
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
+      setProcessing(false)
     }
     setSending(false)
     setProgress(0)
