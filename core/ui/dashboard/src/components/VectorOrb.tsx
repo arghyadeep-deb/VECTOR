@@ -257,7 +257,7 @@ export default function VectorOrb() {
         }}>
           <span style={{
             fontFamily: "'Orbitron', sans-serif",
-            fontSize: orbInCorner ? 7 : 11,
+            fontSize: orbInCorner ? 7 : 13,
             fontWeight: 700,
             color: '#ffffff',
             letterSpacing: '0.08em',
