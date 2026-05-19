@@ -95,14 +95,24 @@ class VoiceTTS:
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
         try:
+            import time
             import sounddevice as sd
             import numpy as np
             voice = _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
             samples, sample_rate = self._kokoro.create(text, voice=voice, speed=self._speed)
-            logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}...' voice={voice}")
+            logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}' voice={voice}")
+            self._speaking = True
             sd.play(samples.astype(np.float32), samplerate=sample_rate)
-            sd.wait()
+            # Poll until playback done OR barge-in requested
+            while sd.get_stream().active:
+                if not self._speaking:
+                    sd.stop()
+                    logger.debug("[VECTOR][tts] Kokoro playback cut by barge-in")
+                    return
+                time.sleep(0.05)
+            self._speaking = False
         except Exception as e:
+            self._speaking = False
             logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} — falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
