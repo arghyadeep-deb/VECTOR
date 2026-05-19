@@ -22,31 +22,27 @@ class WakeWordDetector:
         self._init_model()
 
     def _init_model(self):
-        # Stage 1: try openwakeword with the configured phrase
+        # Try openwakeword with the custom-trained "hey_vector" model only.
+        # If not available, use Whisper KWS so the user can say "Hey Vector" naturally.
+        # Do NOT fall back to "alexa" — wrong brand, wrong phrase.
         try:
             import openwakeword
             from openwakeword.model import Model
-            openwakeword.utils.download_models()
-            try:
-                self._model = Model(wakeword_models=[self._wake_phrase], inference_framework="onnx")
-                self._active_model_name = self._wake_phrase
-                logger.info(f"[VECTOR][wake] openWakeWord ready (phrase='{self._wake_phrase}')")
-                return
-            except Exception:
-                pass  # custom model not available — fall through to built-in
+            self._model = Model(wakeword_models=[self._wake_phrase], inference_framework="onnx")
+            self._active_model_name = self._wake_phrase
+            logger.info(f"[VECTOR][wake] openWakeWord ready (phrase='{self._wake_phrase}')")
+            return
+        except Exception:
+            pass
 
-            # Stage 2: try built-in "alexa" as placeholder
-            self._model = Model(wakeword_models=[_BUILTIN_FALLBACK], inference_framework="onnx")
-            self._active_model_name = _BUILTIN_FALLBACK
-            logger.info(
-                f"[VECTOR][wake] Custom wake word '{self._wake_phrase}' not found. "
-                f"Using built-in '{_BUILTIN_FALLBACK}' as placeholder. "
-                f"Train a custom model: https://github.com/dscripka/openWakeWord#training"
-            )
-        except Exception as e:
-            logger.warning(f"[VECTOR][wake] openWakeWord unavailable: {e} — using Whisper KWS fallback")
-            self._model = None
-            self._use_whisper_kws = True
+        # Custom model not available — Whisper KWS: user can say "Hey Vector" or "Vector"
+        logger.info(
+            f"[VECTOR][wake] Custom model '{self._wake_phrase}.onnx' not found. "
+            f"Using Whisper keyword detection. Say 'Hey Vector' or 'Vector' to activate. "
+            f"To train custom wake word: https://github.com/dscripka/openWakeWord#training"
+        )
+        self._model = None
+        self._use_whisper_kws = True
 
     def is_wake_word(self, audio_frame: np.ndarray) -> bool:
         """Per-frame check — only used in the openwakeword path."""
