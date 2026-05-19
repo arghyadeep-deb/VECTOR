@@ -172,7 +172,7 @@ def _make_server():
             council = LLMCouncil()
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(
-                council.convene(question=question, stakes=stakes, requester_hp=800)
+                council.convene(question=question, stakes=stakes)
             )
             loop.close()
             verdict = result.get("verdict", "No verdict produced.")
