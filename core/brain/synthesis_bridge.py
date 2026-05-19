@@ -53,7 +53,7 @@ class SynthesisBridge:
 
         except Exception as e:
             logger.error(f"[VECTOR][synthesis_bridge] Synthesis failed: {e}")
-            return f"Synthesis failed: {e}"
+            return None
 
     def quick_merge(self, texts: list[str], max_len: int = 500) -> str:
         """Quick merge without LLM — concatenate and truncate."""
