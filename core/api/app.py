@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import asyncio
 import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -81,12 +82,32 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] Ollama check failed: {e}")
 
+    # Start nudge engine cron
+    nudge_task = None
+    try:
+        from core.loop.nudge_engine import nudge_engine
+
+        async def _nudge_cron():
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    await nudge_engine.tick()
+                except Exception as e:
+                    logger.debug(f"[VECTOR][nudge] tick error: {e}")
+
+        nudge_task = asyncio.create_task(_nudge_cron())
+        logger.info("[VECTOR][api] Nudge engine cron started (30s interval)")
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] Nudge engine failed to start: {e}")
+
     logger.info("[VECTOR][api] V.E.C.T.O.R. API ready")
 
     yield  # ── APP RUNS HERE ──
 
     # ── SHUTDOWN ──
     logger.info("[VECTOR][api] Shutting down...")
+    if nudge_task is not None:
+        nudge_task.cancel()
     for key in ["episodic_memory"]:
         obj = getattr(app.state, key, None)
         if obj and hasattr(obj, "conn"):
@@ -150,20 +171,43 @@ def create_app() -> FastAPI:
         return {"csrf_token": generate_csrf_token()}
 
     # Include routers
-    from core.api.routers import a2a, commands, council, agents, status, voice, memory, security, websocket, tasks, vectorcode, claims
+    from core.api.routers import a2a, commands, council, agents, status, voice, voice_ws, memory, security, websocket, tasks, vectorcode, nudge, loop, scheduler, inference, email, channels, providers, tools, network, audit, metering, jcode, sandbox, sensing, media, mining, mcp, video_composer, scraper, seo, oauth, research, migration, ads, code_intel, investment, simulation
     app.include_router(a2a.router)
     app.include_router(commands.router)
     app.include_router(council.router)
-    app.include_router(agents.districts.router)
-    app.include_router(agents.districts.router_singular)
+    app.include_router(agents.router)
+    app.include_router(agents.router_singular)
     app.include_router(status.router)
     app.include_router(voice.router)
+    app.include_router(voice_ws.router)
     app.include_router(memory.router)
     app.include_router(security.router)
     app.include_router(websocket.router)
     app.include_router(tasks.router)
     app.include_router(vectorcode.router)
-    app.include_router(claims.router)
+    app.include_router(nudge.router)
+    app.include_router(loop.router)
+    app.include_router(scheduler.router)
+    app.include_router(inference.router)
+    app.include_router(email.router)
+    app.include_router(channels.router)
+    app.include_router(providers.router)
+    app.include_router(tools.router)
+    app.include_router(network.router)
+    app.include_router(audit.router)
+    app.include_router(metering.router)
+    app.include_router(jcode.router)
+    app.include_router(sandbox.router)
+    app.include_router(sensing.router)
+    app.include_router(media.router)
+    app.include_router(mining.router)
+    app.include_router(mcp.router)
+    app.include_router(video_composer.router)
+    app.include_router(scraper.router)
+    app.include_router(seo.router)
+    app.include_router(oauth.router)
+    app.include_router(research.router)
+    app.include_router(migration.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:
