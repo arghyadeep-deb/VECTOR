@@ -5,8 +5,18 @@ export default function VectorOrb() {
   const orbInCorner = useVectorStore((s) => s.orbInCorner)
   const status = useVectorStore((s) => s.status)
   const voiceState = useVectorStore((s) => s.voiceState)
+  const setVoiceState = useVectorStore((s) => s.setVoiceState)
   const [time, setTime] = useState('')
   const [pulse, setPulse] = useState(false)
+
+  // Click: focus the command input so user can type or use voice
+  const handleOrbClick = () => {
+    const input = document.querySelector('input[placeholder]') as HTMLInputElement | null
+    if (input) {
+      input.focus()
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
 
   useEffect(() => {
     const tick = () => {
@@ -120,17 +130,18 @@ export default function VectorOrb() {
             style={{ transition: 'opacity 0.4s ease' }}
           />
 
-          {/* ── Rotating bright arc */}
-          <g style={{ animation: 'orbArcSpin 3s linear infinite', transformOrigin: `${cx}px ${cy}px` }}>
+          {/* ── Rotating bright arc — speed driven by voiceState */}
+          <g style={{ animation: `orbArcSpin ${arcSpinDuration} linear infinite`, transformOrigin: `${cx}px ${cy}px` }}>
             <circle
               cx={cx} cy={cy} r={R}
               fill="none"
-              stroke="#00EFFF"
-              strokeWidth={orbInCorner ? 2.5 : 3.5}
+              stroke={isListening ? '#00FFFF' : '#00EFFF'}
+              strokeWidth={orbInCorner ? 2.5 : (isListening ? 4.5 : 3.5)}
               strokeDasharray={`${arcLen} ${gapLen}`}
               strokeLinecap="round"
-              opacity={0.95}
+              opacity={arcOpacity}
               filter="url(#arcGlow)"
+              style={{ transition: 'stroke-width 0.4s ease' }}
             />
           </g>
 
