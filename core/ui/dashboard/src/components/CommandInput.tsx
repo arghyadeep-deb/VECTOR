@@ -179,6 +179,7 @@ export default function CommandInput() {
 
     lastCmdRef.current = cmd
     setSending(true)
+    setProcessing(true)
     setResp('')
     setProgress(5)
     setLastAction(null)
