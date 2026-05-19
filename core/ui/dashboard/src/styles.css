@@ -121,6 +121,20 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.35); }
 
+/* ── JARVIS/ORB Mode — pure black, no grid/vignette/scanlines ──────────────── */
+
+html[data-jarvis="true"],
+html[data-jarvis="true"] body,
+html[data-jarvis="true"] #root {
+  background: #000 !important;
+  background-image: none !important;
+}
+
+html[data-jarvis="true"] #root::before,
+html[data-jarvis="true"] #root::after {
+  display: none !important;
+}
+
 ::selection { background: rgba(0,212,255,0.22); color: #ffffff; }
 
 /* ── Animations ────────────────────────────────────────────────────────────── */
