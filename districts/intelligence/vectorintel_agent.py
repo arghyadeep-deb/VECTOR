@@ -1,63 +1,57 @@
-"""VECTOR Intel Bridge — connects to the VectorIntel surveillance platform.
+"""VECTOR Intel Bridge — connects to the VectorIntel / Shadowbroker surveillance platform.
 
-VectorIntel is VECTOR's real-time global intelligence layer:
-- 5,000+ tracked aircraft (commercial + military)
-- 25,000+ AIS maritime vessels
+VectorIntel is VECTOR's real-time global intelligence layer powered by Shadowbroker:
+- 5,000+ tracked aircraft (commercial + military + private jets)
+- 25,000+ AIS maritime vessels, yacht alerts, carrier group tracking
 - 2,000+ satellites (recon, SAR, SIGINT, nav)
 - 11,000+ CCTV cameras globally
-- Ukraine frontline, conflict events, GDELT news
-- Internet outages, critical infrastructure
-- NASA fire hotspots, earthquakes, environmental
-- SAR ground-change detection via Sentinel-1/Copernicus
-- US Navy carrier position estimation via GDELT scraping
+- GDELT conflict events, Ukraine frontline (LiveUAMap), CrowdThreat
+- NASA FIRMS fires, earthquakes, wastewater pathogen monitoring
+- SAR satellite imagery (Sentinel-1/Copernicus — floods, deformation, damage)
+- GPS jamming detection, SIGINT/radio intercepts
+- Unusual Whales prediction markets, NUFORC UAP sightings
+- InfoNet mesh network, encrypted DMs, Meshtastic radio, dead drops
+- AI correlation engine, analysis zones, intelligence briefings
+- Alert dispatch to Discord/Telegram (20 branded signature types)
 
-Setup: Run VectorIntel server on port 8002 alongside VECTOR on 8000.
+Setup: Run VectorIntel server on port 8000 (or 8002 if running alongside VECTOR on 8000).
   cd C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\GitHub\\Shadowbroker-main
   docker-compose up -d  OR  python backend/main.py
 
-Then set env: VECTORINTEL_HOST=http://127.0.0.1:8002
-              VECTORINTEL_SECRET=your_hmac_secret_here
+Env vars:
+  VECTORINTEL_HOST=http://127.0.0.1:8002      (Shadowbroker backend URL)
+  VECTORINTEL_SECRET=your_hmac_secret_here     (from Shadowbroker "Connect OpenClaw" modal)
+  TELEGRAM_BOT_TOKEN=...                       (for intelligence alerts)
+  TELEGRAM_CHAT_ID=...
+  SHADOWBROKER_DISCORD_WEBHOOK=...             (for Discord alerts)
 """
 
 import sys
-import hashlib
-import hmac
-import json
 import os
-import time
 import uuid
 import asyncio
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
-from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
-_VECTORINTEL_HOST = os.environ.get("VECTORINTEL_HOST", "http://127.0.0.1:8002")
+_VECTORINTEL_HOST   = os.environ.get("VECTORINTEL_HOST", "http://127.0.0.1:8002")
 _VECTORINTEL_SECRET = os.environ.get("VECTORINTEL_SECRET", "")
+_SKILL_PATH         = Path(__file__).parent / "shadowbroker" / "SKILL.md"
 
 
-def _sign_request(method: str, path: str, body: bytes = b"") -> dict:
-    """Generate HMAC-SHA256 authentication headers for VectorIntel API."""
-    timestamp = str(int(time.time()))
-    nonce = hashlib.sha256(f"{timestamp}{path}".encode()).hexdigest()[:16]
-    body_hash = hashlib.sha256(body).hexdigest()
-    msg = f"{method}|{path}|{timestamp}|{nonce}|{body_hash}"
-    sig = hmac.new(_VECTORINTEL_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
-    return {
-        "X-SB-Timestamp": timestamp,
-        "X-SB-Nonce": nonce,
-        "X-SB-Signature": sig,
-        "Content-Type": "application/json",
-    }
+def _load_skill() -> str:
+    if _SKILL_PATH.exists():
+        return _SKILL_PATH.read_text(encoding="utf-8")
+    return ""
 
 
 class VectorIntelAgent(AgentBase):
     """
-    Intelligence agent that queries VECTOR's global surveillance platform.
-    Can track aircraft, vessels, satellites, monitor conflicts, query CCTV.
-    Requires VectorIntel server running on VECTORINTEL_HOST.
+    Intelligence agent that queries VECTOR's global surveillance platform (Shadowbroker).
+    Delegates all API calls to ShadowBrokerClient from the absorbed SDK.
+    Requires VectorIntel/Shadowbroker server running on VECTORINTEL_HOST.
     """
 
     def __init__(self):
@@ -66,130 +60,113 @@ class VectorIntelAgent(AgentBase):
             name="VectorIntelAgent",
             district="intelligence",
         )
-        self._available = False
+        self._skill_prompt = _load_skill()
+        self._available    = False
+        self._sb           = None
+        self._init_client()
+
+    def _init_client(self):
+        """Create ShadowBrokerClient and check availability."""
+        try:
+            from districts.intelligence.shadowbroker.sb_query import ShadowBrokerClient
+            self._sb = ShadowBrokerClient(
+                base_url=_VECTORINTEL_HOST,
+                hmac_secret=_VECTORINTEL_SECRET,
+            )
+        except ImportError as e:
+            logger.warning(f"[VECTOR][intel] ShadowBrokerClient import failed: {e}")
         self._check_availability()
 
     def _check_availability(self):
+        """Quick sync check — tries /api/ai/summary to confirm server is up."""
+        if self._sb is None:
+            self._available = False
+            return
         try:
             import httpx
-            path = "/api/data/all"
-            r = httpx.get(
-                f"{_VECTORINTEL_HOST}{path}",
-                headers=_sign_request("GET", path),
-                timeout=3.0,
-            )
-            self._available = r.status_code < 400
+            # Use the client's own signing logic via a direct GET to summary
+            path = "/api/ai/summary"
+            # Lightweight HEAD-equivalent: get summary with 2s timeout
+            r = httpx.get(f"{_VECTORINTEL_HOST}{path}", timeout=2.0)
+            self._available = r.status_code < 500
             if self._available:
-                logger.info("[VECTOR][intel] VectorIntel platform connected")
+                logger.info("[VECTOR][intel] VectorIntel platform connected at {}", _VECTORINTEL_HOST)
             else:
-                logger.warning(f"[VECTOR][intel] VectorIntel returned {r.status_code}")
+                logger.warning("[VECTOR][intel] VectorIntel returned {}", r.status_code)
         except Exception as e:
             logger.warning(
-                f"[VECTOR][intel] VectorIntel unavailable: {e}. "
-                "Start server: cd Shadowbroker-main && docker-compose up -d"
+                "[VECTOR][intel] VectorIntel unavailable: {}. "
+                "Start: cd Shadowbroker-main && docker-compose up -d", e
             )
             self._available = False
 
-    async def _query(self, endpoint: str, params: dict | None = None) -> dict:
-        """Make authenticated GET request to VectorIntel."""
-        try:
-            import httpx
-            path = f"/api{endpoint}"
-            headers = _sign_request("GET", path)
-            url = f"{_VECTORINTEL_HOST}{path}"
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get(url, headers=headers, params=params or {})
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            return {"error": str(e), "available": self._available}
+    def _get_alerts(self):
+        """Build AlertDispatcher from env config."""
+        from districts.intelligence.shadowbroker.sb_alerts import AlertDispatcher
+        d = AlertDispatcher()
+        tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        tg_chat  = os.environ.get("TELEGRAM_CHAT_ID", "")
+        discord  = os.environ.get("SHADOWBROKER_DISCORD_WEBHOOK", "")
+        if tg_token and tg_chat:
+            d.add_telegram(tg_token, tg_chat)
+        if discord:
+            d.add_discord(discord)
+        return d
 
-    # ── Data layer methods ────────────────────────────────────────────────────
+    # ── Convenience wrappers (used by API router) ─────────────────────────────
 
-    async def get_flights(self, lat: float | None = None, lon: float | None = None, radius_km: int = 500) -> dict:
-        """Get current aircraft in the air, optionally near a location."""
+    async def get_flights(self, lat=None, lon=None, radius_km: int = 500) -> dict:
         params = {}
         if lat and lon:
             params = {"lat": lat, "lon": lon, "radius": radius_km}
-        return await self._query("/data/snapshot/flights", params)
+        return await self._sb.get_layer_slice(["military_flights", "commercial_flights",
+                                               "tracked_flights", "private_jets"], **params)
 
-    async def get_vessels(self, lat: float | None = None, lon: float | None = None, radius_km: int = 500) -> dict:
-        """Get AIS maritime vessels."""
-        params = {}
-        if lat and lon:
-            params = {"lat": lat, "lon": lon, "radius": radius_km}
-        return await self._query("/data/snapshot/vessels", params)
+    async def get_vessels(self, lat=None, lon=None, radius_km: int = 500) -> dict:
+        return await self._sb.get_layer_slice(["ships"])
 
     async def get_conflicts(self) -> dict:
-        """Get current conflict events from GDELT + Ukraine frontline."""
-        return await self._query("/data/snapshot/conflicts")
+        return await self._sb.get_layer_slice(["gdelt", "liveuamap", "crowdthreat"])
 
     async def get_outages(self) -> dict:
-        """Get current global internet outages (Georgia Tech IODA)."""
-        return await self._query("/data/snapshot/outages")
+        return await self._sb.get_layer_slice(["internet_outages"])
 
     async def get_fires(self) -> dict:
-        """Get NASA FIRMS active fire hotspots."""
-        return await self._query("/data/snapshot/fires")
+        return await self._sb.get_layer_slice(["firms_fires"])
 
     async def get_satellites(self) -> dict:
-        """Get active satellites with current positions."""
-        return await self._query("/data/snapshot/satellites")
+        return await self._sb.get_layer_slice(["satellites"])
 
     async def get_cctv(self) -> dict:
-        """Get the global CCTV camera index."""
-        return await self._query("/data/snapshot/cctv")
+        return await self._sb.get_layer_slice(["cctv"])
 
     async def get_news_near(self, lat: float, lon: float, radius_km: int = 100) -> dict:
-        """Get breaking news/events near a lat/lon via Shadowbroker AI layer."""
-        return await self._query("/ai/news-near", {"lat": lat, "lon": lon, "radius": radius_km})
+        return await self._sb.get_news_near(lat=lat, lng=lon, radius=radius_km)
 
-    async def get_report(self, lat: float, lon: float) -> dict:
-        """Get a full intelligence report for a location."""
-        return await self._query("/ai/report", {"lat": lat, "lon": lon})
+    async def get_report(self, lat: float = 0.0, lon: float = 0.0) -> dict:
+        return await self._sb.get_report()
 
     async def get_summary(self) -> dict:
-        """Get a global situation summary across all layers."""
-        return await self._query("/ai/summary")
+        return await self._sb.get_summary()
 
     async def get_all(self) -> dict:
-        """Returns all 35+ data layers in one call — use sparingly (large payload)."""
-        return await self._query("/data/all")
+        return await self._sb.get_telemetry()
 
-    # ── Write methods ─────────────────────────────────────────────────────────
-
-    async def place_pin(self, lat: float, lon: float, label: str, category: str = "intel", color: str = "cyan") -> dict:
-        """Place an intelligence pin on the VectorIntel map."""
-        try:
-            import httpx
-            path = "/api/ai/pins"
-            body = json.dumps({
-                "lat": lat, "lon": lon,
-                "label": label,
-                "category": category,
-                "color": color,
-            }).encode()
-            headers = _sign_request("POST", path, body)
-            async with httpx.AsyncClient(timeout=15.0) as c:
-                r = await c.post(f"{_VECTORINTEL_HOST}{path}", headers=headers, content=body)
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            return {"error": str(e)}
+    async def place_pin(self, lat: float, lon: float, label: str,
+                        category: str = "intel", color: str = "cyan") -> dict:
+        return await self._sb.place_pin(lat=lat, lng=lon, label=label, category=category)
 
     async def place_pins_batch(self, pins: list[dict]) -> dict:
-        """Place multiple pins at once via /api/ai/pins/batch."""
-        try:
-            import httpx
-            path = "/api/ai/pins/batch"
-            body = json.dumps({"pins": pins}).encode()
-            headers = _sign_request("POST", path, body)
-            async with httpx.AsyncClient(timeout=20.0) as c:
-                r = await c.post(f"{_VECTORINTEL_HOST}{path}", headers=headers, content=body)
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            return {"error": str(e)}
+        return await self._sb.place_pins_batch(pins)
+
+    # ── Intel alert dispatch ──────────────────────────────────────────────────
+
+    async def send_intel_alert(self, sig_type: str, message: str) -> dict:
+        alerts = self._get_alerts()
+        if not alerts.channels:
+            return {"ok": False, "message": "No alert channels configured. Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or SHADOWBROKER_DISCORD_WEBHOOK."}
+        results = await alerts.send(sig_type, message)
+        return {"ok": True, "delivered": results}
 
     # ── AgentBase dispatch ────────────────────────────────────────────────────
 
@@ -206,65 +183,205 @@ class VectorIntelAgent(AgentBase):
                     "available": False,
                 }
 
+        sb = self._sb
+
+        # ── Aviation ─────────────────────────────────────────────────────────
         if "flight" in action or "aircraft" in action or "plane" in action:
-            data = await self.get_flights(**{k: v for k, v in params.items() if k in ("lat", "lon", "radius_km")})
-            count = len(data.get("features", []) if isinstance(data, dict) else [])
-            return {"message": f"VectorIntel tracking {count} aircraft currently in the air.", "data": data}
+            if params.get("callsign") or params.get("query"):
+                q = params.get("callsign") or params.get("query")
+                data = await sb.send_command("find_flights", {"query": q, "compact": True})
+                return {"message": f"Flight search for '{q}'.", "data": data}
+            data = await self.get_flights(params.get("lat"), params.get("lon"),
+                                          int(params.get("radius_km", 500)))
+            return {"message": "Live aircraft tracking retrieved.", "data": data}
 
+        # ── Maritime ──────────────────────────────────────────────────────────
         elif "vessel" in action or "maritime" in action or "ship" in action:
-            data = await self.get_vessels(**{k: v for k, v in params.items() if k in ("lat", "lon", "radius_km")})
-            return {"message": "VectorIntel maritime feed retrieved.", "data": data}
+            if params.get("query"):
+                data = await sb.send_command("find_ships", {"query": params["query"], "compact": True})
+                return {"message": f"Ship search for '{params['query']}'.", "data": data}
+            data = await self.get_vessels()
+            return {"message": "AIS maritime feed retrieved.", "data": data}
 
-        elif "conflict" in action or "war" in action or "frontline" in action:
-            data = await self.get_conflicts()
-            return {"message": "VectorIntel conflict intelligence retrieved.", "data": data}
-
-        elif "outage" in action or "internet" in action:
-            data = await self.get_outages()
-            return {"message": "VectorIntel internet outage map retrieved.", "data": data}
-
-        elif "fire" in action or "wildfire" in action:
-            data = await self.get_fires()
-            return {"message": "VectorIntel NASA FIRMS fire data retrieved.", "data": data}
-
+        # ── Satellites ────────────────────────────────────────────────────────
         elif "satellite" in action:
             data = await self.get_satellites()
-            return {"message": "VectorIntel satellite positions retrieved.", "data": data}
+            return {"message": "Satellite positions retrieved.", "data": data}
 
+        # ── Conflicts / geopolitics ───────────────────────────────────────────
+        elif "conflict" in action or "war" in action or "frontline" in action:
+            data = await self.get_conflicts()
+            return {"message": "Conflict intelligence retrieved (GDELT + LiveUAMap + CrowdThreat).", "data": data}
+
+        # ── Internet outages ──────────────────────────────────────────────────
+        elif "outage" in action or "internet" in action:
+            data = await self.get_outages()
+            return {"message": "Internet outage map retrieved.", "data": data}
+
+        # ── Fires ─────────────────────────────────────────────────────────────
+        elif "fire" in action or "wildfire" in action:
+            data = await self.get_fires()
+            return {"message": "NASA FIRMS fire hotspots retrieved.", "data": data}
+
+        # ── CCTV ──────────────────────────────────────────────────────────────
         elif "cctv" in action or "camera" in action or "surveillance" in action:
             data = await self.get_cctv()
-            return {"message": "VectorIntel CCTV camera index retrieved.", "data": data}
+            return {"message": "CCTV camera index retrieved.", "data": data}
 
+        # ── SIGINT / radio ────────────────────────────────────────────────────
+        elif "sigint" in action or "radio" in action or "jamming" in action:
+            data = await sb.get_layer_slice(["sigint", "kiwisdr", "gps_jamming"])
+            return {"message": "SIGINT and RF intelligence retrieved.", "data": data}
+
+        # ── Earthquakes / seismic ─────────────────────────────────────────────
+        elif "earthquake" in action or "seismic" in action:
+            data = await sb.get_layer_slice(["earthquakes"])
+            return {"message": "Seismic activity retrieved.", "data": data}
+
+        # ── Prediction markets / finance ──────────────────────────────────────
+        elif "market" in action or "prediction" in action or "unusual_whales" in action:
+            data = await sb.get_prediction_markets()
+            return {"message": "Prediction markets data retrieved.", "data": data}
+
+        # ── Correlations ──────────────────────────────────────────────────────
+        elif "correlation" in action:
+            data = await sb.get_correlations()
+            return {"message": "Cross-layer correlations retrieved.", "data": data}
+
+        # ── Cross-layer search ────────────────────────────────────────────────
+        elif "search" in action:
+            q = params.get("query", "")
+            data = await sb.send_command("search_telemetry", {"query": q, "compact": True})
+            return {"message": f"Cross-layer search: '{q}'.", "data": data}
+
+        # ── Proximity scan (everything near a location) ───────────────────────
+        elif "near_me" in action or "near me" in action or "proximity" in action:
+            lat = float(params.get("lat", 0))
+            lon = float(params.get("lon", 0))
+            radius = float(params.get("radius_miles", 100))
+            data = await sb.get_near_me(lat, lon, radius)
+            return {"message": f"Full proximity scan within {radius} miles.", "data": data}
+
+        # ── News / GDELT near location ────────────────────────────────────────
         elif "news" in action or "events near" in action:
             lat = float(params.get("lat", 0))
             lon = float(params.get("lon", 0))
             data = await self.get_news_near(lat, lon, int(params.get("radius_km", 100)))
-            return {"message": "Breaking intelligence near location.", "data": data}
+            return {"message": "News and GDELT events near location.", "data": data}
 
+        # ── Intel report ──────────────────────────────────────────────────────
         elif "report" in action or "intel report" in action:
-            lat = float(params.get("lat", 0))
-            lon = float(params.get("lon", 0))
-            data = await self.get_report(lat, lon)
-            return {"message": "Intelligence report generated.", "data": data}
+            data = await self.get_report()
+            return {"message": "Full intelligence report generated.", "data": data}
 
+        # ── Global summary ────────────────────────────────────────────────────
         elif "summary" in action or "global" in action:
             data = await self.get_summary()
             return {"message": "Global situation summary.", "data": data}
 
+        # ── SAR / satellite imagery ───────────────────────────────────────────
+        elif "sar" in action:
+            sub = params.get("sub", "status")
+            if sub == "status":
+                data = await sb.sar_status()
+            elif sub == "anomalies":
+                data = {"anomalies": await sb.sar_anomalies_recent()}
+            elif sub == "near":
+                data = {"near": await sb.sar_anomalies_near(
+                    lat=float(params.get("lat", 0)),
+                    lng=float(params.get("lon", 0)),
+                    radius_km=int(params.get("radius_km", 50)),
+                )}
+            else:
+                data = await sb.sar_status()
+            return {"message": "SAR satellite intelligence.", "data": data}
+
+        # ── Satellite imagery (Sentinel-2 optical) ────────────────────────────
+        elif "satellite_image" in action or "imagery" in action:
+            lat = float(params.get("lat", 0))
+            lon = float(params.get("lon", 0))
+            data = await sb.get_satellite_images(lat=lat, lng=lon, count=3)
+            return {"message": f"Sentinel-2 imagery for {lat:.4f}, {lon:.4f}.", "data": data}
+
+        # ── Geocode ───────────────────────────────────────────────────────────
+        elif "geocode" in action:
+            q = params.get("query", "")
+            data = await sb.geocode(q)
+            return {"message": f"Geocoded: {q}", "data": data}
+
+        # ── Pin placement ─────────────────────────────────────────────────────
         elif "pin" in action or "mark" in action:
             lat = float(params.get("lat", 0))
             lon = float(params.get("lon", 0))
             label = params.get("label", "VECTOR MARK")
-            result = await self.place_pin(lat, lon, label,
-                                          params.get("category", "intel"),
-                                          params.get("color", "cyan"))
-            return {"message": f"Intelligence pin placed at {lat:.4f}, {lon:.4f}: {label}", "data": result}
+            category = params.get("category", "research")
+            data = await sb.place_pin(
+                lat=lat, lng=lon, label=label, category=category,
+                source="VECTOR", confidence=0.9,
+            )
+            return {"message": f"Pin placed at {lat:.4f}, {lon:.4f}: {label}", "data": data}
+
+        # ── Analysis zones ────────────────────────────────────────────────────
+        elif "analysis_zone" in action or "zone" in action:
+            sub = params.get("sub", "list")
+            if sub == "list":
+                data = await sb.list_analysis_zones()
+            elif sub == "place":
+                data = await sb.place_analysis_zone(
+                    lat=float(params.get("lat", 0)),
+                    lng=float(params.get("lon", 0)),
+                    title=params.get("title", "VECTOR Assessment"),
+                    body=params.get("body", ""),
+                    category=params.get("category", "analysis"),
+                    severity=params.get("severity", "medium"),
+                )
+            elif sub == "clear":
+                data = await sb.clear_analysis_zones()
+            else:
+                data = await sb.list_analysis_zones()
+            return {"message": "Analysis zones.", "data": data}
+
+        # ── InfoNet mesh network ──────────────────────────────────────────────
+        elif "infonet" in action or "mesh" in action:
+            sub = params.get("sub", "read")
+            if sub == "read":
+                data = await sb.read_infonet()
+            elif sub == "post":
+                data = await sb.post_to_infonet(params.get("message", ""))
+            elif sub == "mesh_listen":
+                data = await sb.listen_mesh(params.get("region", "US"))
+            elif sub == "mesh_send":
+                data = await sb.send_mesh(params.get("region", "US"), params.get("message", ""))
+            else:
+                data = await sb.read_infonet()
+            return {"message": "InfoNet / mesh network.", "data": data}
+
+        # ── Alert dispatch ────────────────────────────────────────────────────
+        elif "alert" in action:
+            return await self.send_intel_alert(
+                sig_type=params.get("sig_type", "intel"),
+                message=params.get("message", ""),
+            )
+
+        # ── Morning/evening briefing ──────────────────────────────────────────
+        elif "brief" in action or "briefing" in action or "digest" in action:
+            from districts.intelligence.shadowbroker.sb_briefing import format_near_me_digest
+            lat = float(params.get("lat", 0))
+            lon = float(params.get("lon", 0))
+            brief = await format_near_me_digest(sb, lat, lon, radius=params.get("radius_miles", 100))
+            return {"message": brief}
 
         else:
             return {
-                "message": "VectorIntel capabilities: flights, vessels, satellites, cctv, conflicts, outages, fires, summary, report, news_near, place_pin",
+                "message": (
+                    "VectorIntel capabilities: flights, vessels, satellites, cctv, sigint, "
+                    "conflicts, outages, fires, earthquakes, markets, correlations, "
+                    "search, near_me, news, report, summary, sar, satellite_image, geocode, "
+                    "pin, analysis_zone, infonet, alert, brief"
+                ),
                 "available": self._available,
                 "host": _VECTORINTEL_HOST,
+                "skill_loaded": bool(self._skill_prompt),
             }
 
 
@@ -273,9 +390,10 @@ if __name__ == "__main__":
 
     async def _smoke():
         agent = VectorIntelAgent()
-        print(f"VectorIntel available: {agent._available}")
-        result = await agent.run({"type": "status"})
-        print(result["message"])
+        print(f"VectorIntelAgent available: {agent._available}")
+        print(f"SKILL.md loaded: {len(agent._skill_prompt)} chars")
+        result = await agent.run({"type": "status", "params": {}})
+        print(result["message"][:100])
         print("OK vectorintel_agent.py")
 
     asyncio.run(_smoke())
