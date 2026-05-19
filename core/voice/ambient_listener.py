@@ -117,11 +117,11 @@ class AmbientListener:
         return None
 
     async def _wake_and_handle(self) -> None:
-        """Background task: wait for wake word, then handle voice input."""
+        """Background task: wait for wake word, route to correct mode, then handle."""
         try:
-            detected = await self._wake.listen_for_wake()
-            if detected:
-                await self.handle_voice_input()
+            mode = await self._wake.listen_for_wake()  # returns mode string or None
+            if mode:
+                await self.handle_voice_input(mode=mode)
         except Exception as e:
             logger.error(f"[VECTOR][voice] _wake_and_handle error: {e}")
 
