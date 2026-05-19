@@ -68,6 +68,12 @@ class SkillMixin:
         messages.append({"role": "user", "content": prompt})
         return messages
 
+    def _with_skill_system(self, hydration: str) -> str:
+        """Prepend skill prompt to an existing hydration/system string."""
+        if self._skill_prompt:
+            return f"{self._skill_prompt}\n\n---\n\n{hydration}"
+        return hydration
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
