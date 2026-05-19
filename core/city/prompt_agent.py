@@ -1,7 +1,7 @@
 """
-PromptAgent — base class for .md-driven VECTOR district agents.districts.
+PromptAgent — base class for .md-driven VECTOR district districts.
 
-Loads a vectorcode/agents/districts/*.md file, parses its system prompt and frontmatter,
+Loads a vectorcode/districts/*.md file, parses its system prompt and frontmatter,
 and wraps it as a full VECTOR AgentBase citizen (HP, EpisodicMemory, governor routing).
 
 LLM calls route through vectorcode_llm.chat() — local Ollama first, cloud fallback.
@@ -27,8 +27,8 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.config import CONFIG
 
-# Location of all agent .md prompts — colocated with Python agents in districts
-_AGENTS_DIR = Path(__file__).parent.parent.parent / "agents" / "districts"
+# Location of all agent .md prompts — districts/ at codebase root
+_AGENTS_DIR = Path(__file__).parent.parent.parent / "districts"
 
 
 def _parse_md(path: Path) -> tuple[dict, str]:
