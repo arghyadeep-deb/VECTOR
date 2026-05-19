@@ -49,10 +49,10 @@ export default function VectorOrb() {
   const ringOpacity = isListening ? 0.55 : isVoiceProcessing ? 0.4 : 0.28
   const arcOpacity = isListening ? 1.0 : isSpeaking ? 0.85 : 0.95
 
-  const sz = orbInCorner ? 72 : 150
+  const sz = orbInCorner ? 90 : 150
   const cx = sz / 2
   const cy = sz / 2
-  const R = orbInCorner ? 27 : 60      // main ring radius
+  const R = orbInCorner ? 34 : 60      // main ring radius
   const C = 2 * Math.PI * R            // circumference
 
   // Arc: ~110° bright; shorter when speaking (flicker effect)
