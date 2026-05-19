@@ -98,24 +98,26 @@ export default function VectorOrb() {
             </filter>
           </defs>
 
-          {/* ── Outer halo ring (very faint) */}
+          {/* ── Outer halo ring — reacts to voice state */}
           <circle
             cx={cx} cy={cy}
             r={R + (orbInCorner ? 7 : 18)}
             fill="none"
-            stroke="#00CFFF"
+            stroke={isListening ? '#00FFFF' : '#00CFFF'}
             strokeWidth={orbInCorner ? 8 : 22}
-            opacity={0.04}
+            opacity={haloOpacity}
             filter="url(#haloGlow)"
+            style={{ transition: 'opacity 0.4s ease' }}
           />
 
           {/* ── Base ring — dim, full 360° */}
           <circle
             cx={cx} cy={cy} r={R}
             fill="none"
-            stroke="#00CFFF"
+            stroke={isListening ? '#00FFFF' : '#00CFFF'}
             strokeWidth={orbInCorner ? 1.5 : 2}
-            opacity={0.28}
+            opacity={ringOpacity}
+            style={{ transition: 'opacity 0.4s ease' }}
           />
 
           {/* ── Rotating bright arc */}
