@@ -99,6 +99,14 @@ class CodeIntelAgent(AgentBase):
             self._memory = EpisodicMemory()
         return self._memory
 
+    def _check_mcp_result(self, result: dict, task_type: str, hp: int, reason: str) -> dict | None:
+        """If result contains an error key, deduct HP and return an error response.
+        Returns None when result is clean (caller should proceed to award HP)."""
+        if result.get("error"):
+            self.deduct_points(30, f"{task_type}_mcp_error")
+            return {"status": "error", "type": task_type, "error": result["error"]}
+        return None
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "vc_search")
         params = task.get("params", {})
