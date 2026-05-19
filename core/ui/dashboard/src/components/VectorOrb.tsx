@@ -140,8 +140,7 @@ export default function VectorOrb() {
             />
           </g>
 
-          {/* ── Inner radial glow fill */}
-          <circle cx={cx} cy={cy} r={R - 4} fill="url(#innerFill)" />
+          {/* Inner fill intentionally removed — ring floats in pure black space */}
 
           {/* ── Cardinal tick marks — N / E / S / W */}
           {!orbInCorner && [0, 90, 180, 270].map((deg) => {
