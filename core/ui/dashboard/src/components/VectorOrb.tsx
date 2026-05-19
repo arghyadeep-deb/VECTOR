@@ -4,6 +4,7 @@ import { useVectorStore } from '../store/vectorStore'
 export default function VectorOrb() {
   const orbInCorner = useVectorStore((s) => s.orbInCorner)
   const status = useVectorStore((s) => s.status)
+  const voiceState = useVectorStore((s) => s.voiceState)
   const [time, setTime] = useState('')
   const [pulse, setPulse] = useState(false)
 
@@ -28,14 +29,24 @@ export default function VectorOrb() {
   }, [])
 
   const isOnline = status?.loop_running ?? false
+  // voiceState drives animation speed and glow intensity
+  const isListening = voiceState === 'listening'
+  const isSpeaking = voiceState === 'speaking'
+  const isVoiceProcessing = voiceState === 'processing'
+
+  const arcSpinDuration = isListening ? '1.2s' : isSpeaking ? '2s' : '3s'
+  const haloOpacity = isListening ? 0.12 : isSpeaking ? 0.10 : 0.04
+  const ringOpacity = isListening ? 0.55 : isVoiceProcessing ? 0.4 : 0.28
+  const arcOpacity = isListening ? 1.0 : isSpeaking ? 0.85 : 0.95
+
   const sz = orbInCorner ? 80 : 220
   const cx = sz / 2
   const cy = sz / 2
   const R = orbInCorner ? 30 : 90      // main ring radius
   const C = 2 * Math.PI * R            // circumference
 
-  // Arc: ~110° bright, rest dim
-  const arcLen = C * 0.31
+  // Arc: ~110° bright; shorter when speaking (flicker effect)
+  const arcLen = isSpeaking ? C * 0.18 : C * 0.31
   const gapLen = C - arcLen
 
   const containerStyle: React.CSSProperties = orbInCorner
