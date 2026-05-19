@@ -66,7 +66,7 @@ def start_vectorcode_gateway() -> None:
     """Launch VectorCode gateway. Non-blocking."""
     global _vc_bridge
     try:
-        from integrations.vectorcode_bridge import VectorCodeBridge
+        from districts.coding.vectorcode_bridge import VectorCodeBridge
         _vc_bridge = VectorCodeBridge()
         _vc_bridge.start_mcp_server(port=9001)
         logger.info("[VECTOR][comms] VectorCode gateway started on port 9001")
@@ -82,4 +82,4 @@ if __name__ == "__main__":
     start_vectorcode_gateway()
     port = int(os.environ.get("PORT", 8001))
     logger.info(f"[VECTOR][comms] starting on :{port}")
-    uvicorn.run("service:app", host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run("service:app", host=os.environ.get("BIND_HOST", "0.0.0.0"), port=port, log_level="info")
