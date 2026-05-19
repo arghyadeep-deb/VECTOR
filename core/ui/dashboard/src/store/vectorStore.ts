@@ -14,10 +14,13 @@ export interface ContentWindowEntry {
   position?: { x: number; y: number }
 }
 
+export type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
+
 export interface VectorState {
   mode: AppMode
   bootDone: boolean
   processing: boolean
+  voiceState: VoiceState
   contentWindows: ContentWindowEntry[]
   orbInCorner: boolean
   connected: boolean; status: StatusResponse | null; agents: AgentData[]; events: MemoryEvent[]; error: string | null
