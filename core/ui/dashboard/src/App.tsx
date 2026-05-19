@@ -173,7 +173,7 @@ export default function App() {
             boxShadow: mode === 'JARVIS_MODE' ? '0 0 20px rgba(0,207,255,0.15)' : 'none',
           }}
         >
-          {mode === 'JARVIS_MODE' ? 'HUD' : 'JARVIS'}
+          {mode === 'JARVIS_MODE' ? 'HUD' : 'ORB'}
         </button>
       )}
 
