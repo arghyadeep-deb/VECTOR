@@ -100,21 +100,31 @@ class VoiceTTS:
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
         try:
+            import re
             import time
             import sounddevice as sd
             import numpy as np
             voice = _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
-            samples, sample_rate = self._kokoro.create(text, voice=voice, speed=self._speed)
-            logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}' voice={voice}")
+            # Split into sentences so playback starts on the first sentence
+            # while subsequent sentences are still generating
+            sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+            if not sentences:
+                sentences = [text]
             self._speaking = True
-            sd.play(samples.astype(np.float32), samplerate=sample_rate)
-            # Poll until playback done OR barge-in requested
-            while sd.get_stream().active:
+            logger.info("[VECTOR][tts] Kokoro streaming {} sentence(s) voice={}", len(sentences), voice)
+            for sentence in sentences:
                 if not self._speaking:
-                    sd.stop()
-                    logger.debug("[VECTOR][tts] Kokoro playback cut by barge-in")
-                    return
-                time.sleep(0.05)
+                    break
+                samples, sample_rate = self._kokoro.create(sentence, voice=voice, speed=self._speed)
+                if not self._speaking:
+                    break
+                sd.play(samples.astype(np.float32), samplerate=sample_rate)
+                while sd.get_stream().active:
+                    if not self._speaking:
+                        sd.stop()
+                        logger.debug("[VECTOR][tts] Kokoro cut by barge-in")
+                        return
+                    time.sleep(0.05)
             self._speaking = False
         except Exception as e:
             self._speaking = False
