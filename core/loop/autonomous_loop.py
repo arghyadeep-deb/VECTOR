@@ -18,8 +18,8 @@ def _scan_incoming(text: str, context: str = "") -> bool:
         if not result.clean:
             logger.warning("[VECTOR][autonomous_loop] prompt injection blocked in {}: {}", context, result)
             return False
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("[VECTOR][autonomous_loop] prompt_injection scan failed ({}): {}", context, e)
     return True
 
 
