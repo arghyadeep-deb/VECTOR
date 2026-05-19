@@ -175,4 +175,4 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     port = int(os.environ.get("PORT", 8000))
     logger.info(f"[VECTOR][brain_server] starting on :{port}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", reload=False)
+    uvicorn.run("main:app", host=os.environ.get("BIND_HOST", "0.0.0.0"), port=port, log_level="info", reload=False)
