@@ -46,7 +46,7 @@ export default function VectorOrb() {
 
   const arcSpinDuration = isListening ? '1.2s' : isSpeaking ? '2s' : '3s'
   const haloOpacity = isListening ? 0.12 : isSpeaking ? 0.10 : 0.04
-  const ringOpacity = isListening ? 0.55 : isVoiceProcessing ? 0.4 : 0.28
+  const ringOpacity = isListening ? 0.60 : isVoiceProcessing ? 0.48 : 0.38
   const arcOpacity = isListening ? 1.0 : isSpeaking ? 0.85 : 0.95
 
   const sz = orbInCorner ? 90 : 150
