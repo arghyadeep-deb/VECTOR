@@ -73,6 +73,10 @@ export default function App() {
   const setMode = useVectorStore((s) => s.setMode)
   const bootDone = useVectorStore((s) => s.bootDone)
   const processing = useVectorStore((s) => s.processing)
+  const voiceState = useVectorStore((s) => s.voiceState)
+
+  // Border glows on INPUT (user speaking/typing), NOT during VECTOR output/speaking
+  const borderActive = (processing || voiceState === 'listening') && voiceState !== 'speaking'
 
   // Terminal auto-hide in JARVIS_MODE
   const [terminalVisible, setTerminalVisible] = useState(false)
