@@ -119,48 +119,53 @@ class VectorIntelAgent(AgentBase):
         return d
 
     # ── Convenience wrappers (used by API router) ─────────────────────────────
-    # Use direct /api/data/snapshot/{layer} REST calls — no HMAC auth needed for local access.
+    # fast tier (/api/live-data/fast):  flights, ships, sats, SIGINT, CCTV, GPS jamming
+    # slow tier (/api/live-data/slow):  GDELT, news, earthquakes, prediction markets, fires
 
-    async def _snapshot(self, layer: str, params: dict | None = None) -> dict:
-        """GET /api/data/snapshot/{layer} — works without HMAC secret for local connections."""
+    async def _fast(self) -> dict:
+        """Fetch all fast-tier layers (flights, ships, satellites, CCTV, SIGINT)."""
         try:
-            import httpx
-            url = f"{_VECTORINTEL_HOST}/api/data/snapshot/{layer}"
-            async with httpx.AsyncClient(timeout=10.0) as c:
-                r = await c.get(url, params=params or {})
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            return {"error": str(e), "layer": layer}
+            r = await self._sb._get("/api/live-data/fast")
+            return r.json() if r.status_code < 400 else {}
+        except Exception:
+            return {}
+
+    async def _slow(self) -> dict:
+        """Fetch all slow-tier layers (GDELT, news, earthquakes, markets, fires)."""
+        try:
+            r = await self._sb._get("/api/live-data/slow")
+            return r.json() if r.status_code < 400 else {}
+        except Exception:
+            return {}
 
     async def get_flights(self, lat=None, lon=None, radius_km: int = 500) -> dict:
-        params = {"lat": lat, "lon": lon, "radius": radius_km} if lat and lon else {}
-        results = {}
-        for layer in ("military_flights", "commercial_flights", "tracked_flights", "private_jets"):
-            results[layer] = await self._snapshot(layer, params)
-        return results
+        data = await self._fast()
+        return {k: data.get(k, []) for k in
+                ("military_flights", "commercial_flights", "tracked_flights", "private_jets")}
 
     async def get_vessels(self, lat=None, lon=None, radius_km: int = 500) -> dict:
-        params = {"lat": lat, "lon": lon, "radius": radius_km} if lat and lon else {}
-        return await self._snapshot("ships", params)
+        data = await self._fast()
+        return {"ships": data.get("ships", [])}
 
     async def get_conflicts(self) -> dict:
-        results = {}
-        for layer in ("gdelt", "liveuamap", "crowdthreat"):
-            results[layer] = await self._snapshot(layer)
-        return results
+        data = await self._slow()
+        return {k: data.get(k, []) for k in ("gdelt", "liveuamap", "crowdthreat")}
 
     async def get_outages(self) -> dict:
-        return await self._snapshot("internet_outages")
+        data = await self._slow()
+        return {"internet_outages": data.get("internet_outages", [])}
 
     async def get_fires(self) -> dict:
-        return await self._snapshot("firms_fires")
+        data = await self._slow()
+        return {"firms_fires": data.get("firms_fires", [])}
 
     async def get_satellites(self) -> dict:
-        return await self._snapshot("satellites")
+        data = await self._fast()
+        return {"satellites": data.get("satellites", [])}
 
     async def get_cctv(self) -> dict:
-        return await self._snapshot("cctv")
+        data = await self._fast()
+        return {"cctv": data.get("cctv", [])}
 
     async def get_news_near(self, lat: float, lon: float, radius_km: int = 100) -> dict:
         return await self._sb.get_news_near(lat=lat, lng=lon, radius=radius_km)
@@ -172,14 +177,9 @@ class VectorIntelAgent(AgentBase):
         return await self._sb.get_summary()
 
     async def get_all(self) -> dict:
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=15.0) as c:
-                r = await c.get(f"{_VECTORINTEL_HOST}/api/data/all")
-                r.raise_for_status()
-                return r.json()
-        except Exception as e:
-            return {"error": str(e)}
+        fast = await self._fast()
+        slow = await self._slow()
+        return {**fast, **slow}
 
     async def place_pin(self, lat: float, lon: float, label: str,
                         category: str = "intel", color: str = "cyan") -> dict:
