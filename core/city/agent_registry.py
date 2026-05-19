@@ -178,7 +178,7 @@ class AgentRegistry:
             data["agent_id"] = agent_id
             data["status"] = agent.get_status() if hasattr(agent, "get_status") else "unknown"
             data["is_alive"] = bool(getattr(agent, "health_points", 0) > 0)
-            agents.districts.append(data)
+            agents.append(data)
         return agents
 
     def count_by_district(self) -> dict[str, int]:
