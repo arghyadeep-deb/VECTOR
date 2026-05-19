@@ -1,14 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-interface MapViewProps {
-  lat?: number
-  lon?: number
-  city?: string
-}
+interface LocationData { lat: number; lon: number; city: string }
 
-export default function MapView({ lat = 20.2961, lon = 85.8245, city = 'Bhubaneswar' }: MapViewProps) {
+export default function MapView() {
   const mapRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
+  const [loc, setLoc] = useState<LocationData>({ lat: 20.3549, lon: 85.8193, city: 'Bhubaneswar' })
+
+  useEffect(() => {
+    fetch('/location/current')
+      .then(r => r.json())
+      .then((d: LocationData) => setLoc(d))
+      .catch(() => {})
+  }, [])
+
+  const { lat, lon, city } = loc
 
   useEffect(() => {
     if (initialized.current || !mapRef.current) return
