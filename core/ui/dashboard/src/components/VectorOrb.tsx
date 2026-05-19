@@ -22,7 +22,7 @@ export default function VectorOrb() {
     const tick = () => {
       const now = new Date()
       setTime(
-        `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`
+        `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
       )
     }
     tick()
