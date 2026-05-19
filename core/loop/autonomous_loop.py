@@ -69,6 +69,7 @@ class AutonomousLoop:
         self._hypothesis_engine = None
         self._gateway = None
         self._cron_last_run: dict[str, datetime.datetime] = {}
+        self._pending_voice: dict | None = None
         logger.info("[VECTOR][autonomous_loop] initialized")
 
     def _get_context(self):
