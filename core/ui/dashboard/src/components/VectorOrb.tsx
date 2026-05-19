@@ -85,12 +85,6 @@ export default function VectorOrb() {
                 <feMergeNode in="blur" />
               </feMerge>
             </filter>
-            {/* Radial gradient for inner fill */}
-            <radialGradient id="innerFill" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#00CFFF" stopOpacity={pulse ? 0.18 : 0.08} />
-              <stop offset="60%" stopColor="#00CFFF" stopOpacity={pulse ? 0.06 : 0.02} />
-              <stop offset="100%" stopColor="#00CFFF" stopOpacity="0" />
-            </radialGradient>
           </defs>
 
           {/* ── Outer halo ring (very faint) */}
