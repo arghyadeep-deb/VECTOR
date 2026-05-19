@@ -213,6 +213,34 @@ export default function VectorOrb() {
               />
             </g>
           )}
+
+          {/* ── Rotating diamond marks — appear during output/speaking (matches reference 8e5f) */}
+          {!orbInCorner && (isSpeaking || isListening) && (
+            <g style={{
+              animation: `orbArcSpin ${isSpeaking ? '4s' : '7s'} linear infinite`,
+              transformOrigin: `${cx}px ${cy}px`,
+            }}>
+              {[45, 135, 225, 315].map((deg) => {
+                const rad = (deg - 90) * Math.PI / 180
+                const dr = R + 13
+                const dx = cx + dr * Math.cos(rad)
+                const dy = cy + dr * Math.sin(rad)
+                return (
+                  <rect
+                    key={deg}
+                    x={dx - 3.5} y={dy - 3.5}
+                    width={7} height={7}
+                    fill="rgba(0,207,255,0.12)"
+                    stroke="#00CFFF"
+                    strokeWidth={1.2}
+                    opacity={isSpeaking ? 0.85 : 0.55}
+                    transform={`rotate(45, ${dx}, ${dy})`}
+                    filter="url(#arcGlow)"
+                  />
+                )
+              })}
+            </g>
+          )}
         </svg>
 
         {/* ── Center label */}
