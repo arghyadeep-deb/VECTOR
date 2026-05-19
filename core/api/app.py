@@ -227,6 +227,7 @@ def create_app() -> FastAPI:
     app.include_router(code_intel.router)
     app.include_router(investment.router)
     app.include_router(simulation.router)
+    app.include_router(intelligence.router)
     # District routers
     app.include_router(health.router)
     app.include_router(finance.router)
