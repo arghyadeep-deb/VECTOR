@@ -268,17 +268,7 @@ export default function VectorOrb() {
           }}>
             VECTOR
           </span>
-          {!orbInCorner && (
-            <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 9,
-              color: 'rgba(0,207,255,0.55)',
-              letterSpacing: '0.12em',
-              marginTop: 2,
-            }}>
-              {isOnline ? 'ONLINE' : 'OFFLINE'}
-            </span>
-          )}
+          {/* Status text removed — reference shows name only inside orb */}
         </div>
       </div>
 
