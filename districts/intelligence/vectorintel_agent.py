@@ -62,8 +62,8 @@ class VectorIntelAgent(AgentBase):
 
     def __init__(self):
         super().__init__(
+            agent_id=str(uuid.uuid4()),
             name="VectorIntelAgent",
-            role="intelligence_analyst",
             district="intelligence",
         )
         self._available = False
