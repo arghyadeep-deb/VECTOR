@@ -62,6 +62,7 @@ export interface VectorState {
   setMode: (m: AppMode) => void
   setBootDone: (v: boolean) => void
   setProcessing: (v: boolean) => void
+  setVoiceState: (v: VoiceState) => void
   addContentWindow: (w: ContentWindowEntry) => void
   removeContentWindow: (id: string) => void
   clearContentWindows: () => void
