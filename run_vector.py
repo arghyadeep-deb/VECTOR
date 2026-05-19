@@ -503,6 +503,9 @@ def bootstrap_agents() -> int:
     except Exception as e:
         logger.debug(f"[bootstrap] vc_system unavailable: {e}")
 
+    # ── Python agent bulk registration — district Python agents not yet registered ──
+    created += bulk_register_python_districts(registry)
+
     # ── PromptAgent bulk registration — all .md-defined agents across districts/ ──
     created += bulk_register_md_districts(registry)
 
