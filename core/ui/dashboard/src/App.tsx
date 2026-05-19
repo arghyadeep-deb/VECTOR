@@ -155,7 +155,7 @@ export default function App() {
   return (
     <>
       <BootSequence />
-      <AmbientTheme />
+      {mode === 'DASHBOARD_MODE' && <AmbientTheme />}
       <DataPoller />
 
       {/* Sharp processing border — 2px solid cyan line on viewport edges, only while processing */}
