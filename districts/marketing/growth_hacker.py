@@ -124,7 +124,7 @@ class GrowthHacker(AgentBase, SkillMixin):
             f'"target_30d": "realistic 30-day target"}} '
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            response = self._chat(prompt, timeout=20.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 return json.loads(match.group())
