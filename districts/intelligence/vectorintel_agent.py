@@ -14,9 +14,10 @@ VectorIntel is VECTOR's real-time global intelligence layer powered by Shadowbro
 - AI correlation engine, analysis zones, intelligence briefings
 - Alert dispatch to Discord/Telegram (20 branded signature types)
 
-Setup: Run VectorIntel server on port 8000 (or 8002 if running alongside VECTOR on 8000).
-  cd C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\GitHub\\Shadowbroker-main
-  docker-compose up -d  OR  python backend/main.py
+Setup: Run VectorIntel server on port 8002 (VECTOR runs on 8000).
+  Option A (Windows): tools\start_shadowbroker.bat  (from V.E.C.T.O.R. Codebase root)
+  Option B (Linux):   tools/start_shadowbroker.sh
+  Option C (manual):  cd districts/intelligence/shadowbroker_server && PORT=8002 python main.py
 
 Env vars:
   VECTORINTEL_HOST=http://127.0.0.1:8002      (Shadowbroker backend URL)
