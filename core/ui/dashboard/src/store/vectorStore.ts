@@ -26,6 +26,7 @@ export interface VectorState {
   connected: boolean; status: StatusResponse | null; agents: AgentData[]; events: MemoryEvent[]; error: string | null
   activePanels: PanelEntry[]; connectionErrors: Record<string, ConnectionError>; lastUpdated: number
   quickResult: { title: string; lines: string[] } | null
+  audioLevel: number
   systemMetrics: SystemMetrics | null
   goals: GoalsResponse | null
   security: SecurityStatus | null
