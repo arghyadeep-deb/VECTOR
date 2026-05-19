@@ -284,6 +284,11 @@ CONFIG: dict = {
     "env": _s.VECTOR_ENV,
     "debug": _s.VECTOR_DEBUG,
     "location": os.environ.get("VECTOR_LOCATION", "home"),
+    "search_response_limit": int(os.environ.get("VECTOR_SEARCH_LIMIT", "500")),
+    "policy_default_score": float(os.environ.get("VECTOR_POLICY_DEFAULT", "0.5")),
+    "decision_weights": {},     # override keys: goal, conf, policy, urgency, timing, cost
+    "hp_tiers": {},             # override keys: elite, strong, healthy, weak
+    "llm_pricing": {},          # override per-model pricing for budget tracking
     "vault_path": Path(_s.VECTOR_VAULT_PATH),
     "db_path": _BASE_DIR / "vector_memory.db",
     "ollama_host": _s.OLLAMA_HOST,
