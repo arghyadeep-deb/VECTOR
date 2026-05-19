@@ -352,6 +352,10 @@ class AutonomousLoop:
                     result["confidence"] = max(0.0, min(1.0, float(result["confidence"])))
                 except (TypeError, ValueError):
                     result["confidence"] = 0.0
+            # Feed actionable voice results into the think→act pipeline
+            if result.get("actionable"):
+                self._pending_voice = result
+                logger.debug("[VECTOR][observe] voice intent queued: {}", result.get("intent"))
 
     # ─── Think ────────────────────────────────────────────────────────────────
 
@@ -464,7 +468,7 @@ class AutonomousLoop:
                     if not allowed:
                         logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' blocked by gateway: {reason}")
                         return
-                from integrations.vectorcode_bridge import get_bridge
+                from districts.coding.vectorcode_bridge import get_bridge
                 bridge = get_bridge()
                 if bridge.is_available():
                     vc_result = await bridge.run_task(
@@ -723,7 +727,7 @@ class AutonomousLoop:
         """Start VectorCode MCP server at startup. Restarts if it crashes."""
         logger.info("[VECTOR][vectorcode] loop starting")
         try:
-            from integrations.vectorcode_bridge import get_bridge
+            from districts.coding.vectorcode_bridge import get_bridge
             bridge = get_bridge()
             if not bridge.is_available():
                 logger.warning("[VECTOR][vectorcode] VectorCode not available — skipping MCP server")
