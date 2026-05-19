@@ -4,6 +4,67 @@ import { api } from '../lib/api'
 import { sendMessage, onTokenReceived, onDoneReceived, onErrorReceived } from '../lib/websocket'
 import VoiceInput from './VoiceInput'
 
+const PANEL_ALIASES: Record<string, string[]> = {
+  telemetry: ['telemetry', 'tele', 'system info', 'system information'],
+  systemMetrics: ['metrics', 'system metrics', 'performance', 'system monitor'],
+  events: ['events', 'event feed', 'activity', 'recent events', 'log'],
+  compass: ['compass', 'direction', 'heading', 'navigation'],
+  modelSwitcher: ['model', 'models', 'model switcher', 'ai model'],
+  coreStatus: ['core', 'core status', 'system status', 'vitals'],
+  dailyInfo: ['daily', 'weather', 'briefing', 'daily briefing', 'forecast'],
+  vectorCode: ['vectorcode', 'vector code', 'vc', 'code'],
+  districts: ['districts', 'agents', 'district', 'agent list'],
+  security: ['security', 'threats', 'threat', 'scans', 'threat level'],
+  goals: ['goals', 'actions', 'action', 'objectives', 'tasks'],
+  council: ['council', 'council sessions', 'deliberation'],
+  tasks: ['task queue', 'task status', 'jobs', 'job queue'],
+  memory: ['memory', 'memory stats', 'episodes', 'models'],
+  command: ['command', 'terminal', 'console', 'command terminal'],
+  health: ['health', 'health check', 'system health', 'status check'],
+  training: ['training', 'training data', 'training entries', 'ml data'],
+  loop: ['loop', 'main loop', 'loop status', 'autonomous loop'],
+  scheduler: ['scheduler', 'scheduled tasks', 'cron', 'jobs'],
+  inference: ['inference', 'llm', 'model inference', 'ai stats'],
+  email: ['email', 'inbox', 'messages', 'mail'],
+  channels: ['channels', 'channel status', 'communications'],
+  providers: ['providers', 'ai providers', 'model routes', 'routing'],
+  tools: ['tools', 'tool registry', 'available tools', 'functions'],
+  network: ['network', 'peers', 'peer discovery', 'nodes'],
+  audit: ['audit', 'audit trail', 'audit log', 'merkle chain'],
+  metering: ['metering', 'budget', 'cost', 'spending'],
+  jupyter: ['jupyter', 'jupyter sessions', 'notebook', 'code sessions'],
+  sandbox: ['sandbox', 'container', 'docker', 'sandbox execution'],
+  sensing: ['sensing', 'sensors', 'health monitor', 'fatigue'],
+  media: ['media', 'models', 'image generation', 'generative'],
+  mining: ['mining', 'pearl', 'shares', 'mining status'],
+  mcp: ['mcp', 'mcp server', 'tools server'],
+  video: ['video', 'composer', 'video composition', 'studio'],
+  scraper: ['scraper', 'web scraper', 'fetcher', 'crawler'],
+  seo: ['seo', 'pagespeed', 'seo tools', 'performance'],
+  oauth: ['oauth', 'integrations', 'oauth providers', 'api keys'],
+  research: ['research', 'research engine', 'parallel search'],
+  migration: ['migration', 'import', 'agent migration'],
+}
+
+function parseScrollCommand(text: string): string | null {
+  const lower = text.toLowerCase().trim()
+  const patterns = [
+    /^(?:scroll to|go to|show|open|navigate to|focus on|zoom to)\s+(.+?)$/i,
+    /^(?:show me|take me to|switch to)\s+(.+?)$/i,
+    /^where\s+is\s+(.+?)$/i,
+  ]
+  for (const p of patterns) {
+    const m = lower.match(p)
+    if (m) {
+      const target = m[1].trim().replace(/\s+panel$/, '')
+      for (const [id, aliases] of Object.entries(PANEL_ALIASES)) {
+        if (aliases.some((a) => target === a || target.startsWith(a))) return id
+      }
+    }
+  }
+  return null
+}
+
 interface HistoryEntry { cmd: string; resp: string; ts: number }
 
 const HISTORY_KEY = 'vector_cmd_history'
@@ -35,6 +96,8 @@ export default function CommandInput() {
   const quickResult = useVectorStore((s) => s.quickResult)
   const setQuickResult = useVectorStore((s) => s.setQuickResult)
   const goalsLen = useVectorStore((s) => s.goals?.immediate_actions?.length ?? 0)
+  const appMode = useVectorStore((s) => s.mode)
+  const addContentWindow = useVectorStore((s) => s.addContentWindow)
 
   const pushHistory = useCallback((cmd: string, resp: string) => {
     setHistory((prev) => {
@@ -74,8 +137,27 @@ export default function CommandInput() {
 
   const lastCmdRef = useRef('')
 
+  const scrollToPanel = useVectorStore((s) => s.scrollToPanel)
+
   const executeCommand = useCallback(async (cmd: string) => {
     if (!cmd.trim() || sending) return
+
+    // Check for scroll commands first (handled locally)
+    const scrollId = parseScrollCommand(cmd)
+    if (scrollId) {
+      scrollToPanel(scrollId)
+      setResp(`Scrolling to ${scrollId}...`)
+      setText('')
+      const labels: Record<string, string> = {
+        telemetry: 'Telemetry', systemMetrics: 'System Metrics', events: 'Event Feed',
+        compass: 'Compass', modelSwitcher: 'Model Switcher', coreStatus: 'Core Status',
+        dailyInfo: 'Daily Briefing', vectorCode: 'VectorCode', districts: 'Districts',
+        command: 'Command Terminal',
+      }
+      pushHistory(cmd, `Navigated to ${labels[scrollId] || scrollId}`)
+      return
+    }
+
     lastCmdRef.current = cmd
     setSending(true)
     setResp('')
