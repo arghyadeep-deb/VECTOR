@@ -164,7 +164,11 @@ class AmbientListener:
                     self._session_active = False
                     break
 
-                # 1. Transcribe
+                # 1. Barge-in: stop any ongoing TTS before recording new input
+                if self._tts:
+                    self._tts.stop_speaking()
+
+                # 2. Transcribe
                 text = ""
                 if self._stt:
                     duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
