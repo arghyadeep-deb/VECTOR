@@ -60,8 +60,16 @@ async def status_endpoint():
     except Exception:
         pass
 
+    _loop_running = False
+    try:
+        from core.loop.autonomous_loop import AutonomousLoop
+        _loop = AutonomousLoop()
+        _loop_running = getattr(_loop, "_running", False)
+    except Exception:
+        pass
+
     return StatusResponse(
-        loop_running=True,
+        loop_running=_loop_running,
         uptime_seconds=get_uptime_seconds(),
         models=models_status,
         memory=memory_stats,
