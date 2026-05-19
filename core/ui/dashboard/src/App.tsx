@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useVectorStore } from './store/vectorStore'
 import VectorOrb from './components/VectorOrb'
 import BootSequence from './components/BootSequence'
@@ -73,6 +73,11 @@ export default function App() {
   const setMode = useVectorStore((s) => s.setMode)
   const bootDone = useVectorStore((s) => s.bootDone)
   const processing = useVectorStore((s) => s.processing)
+
+  // Apply/remove data-jarvis on <html> so CSS can suppress bg effects in orb mode
+  useEffect(() => {
+    document.documentElement.setAttribute('data-jarvis', mode === 'JARVIS_MODE' ? 'true' : 'false')
+  }, [mode])
 
   const panels: PanelPlacement[] = [
     /* Ring 1 (rf=0.80, rX=768, rY=432, 8 panels) */
