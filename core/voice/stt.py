@@ -82,22 +82,55 @@ class WhisperSTT:
             logger.error(f"[VECTOR][stt:whisper] Transcription failed: {e}")
             return ""
 
+    def record_until_silence(
+        self,
+        sample_rate: int | None = None,
+        silence_rms: float = 0.01,
+        post_silence_s: float = 0.6,
+        max_s: float = 8.0,
+    ) -> "np.ndarray":
+        """VAD recording: stream 100ms chunks, stop 600ms after speech ends. Max 8s."""
+        import queue as _q
+        import numpy as np
+        import sounddevice as sd
+        sr = sample_rate or CONFIG.get("voice", {}).get("sample_rate", 16000)
+        chunk = int(sr * 0.1)
+        q: _q.Queue = _q.Queue()
+        frames: list = []
+        speech_started = False
+        silence_frames = 0
+        max_frames = int(max_s / 0.1)
+        silence_threshold = int(post_silence_s / 0.1)
+
+        def _cb(indata, *_):
+            q.put(indata.copy())
+
+        logger.info("[VECTOR][stt:whisper] VAD recording (max {}s)...", max_s)
+        with sd.InputStream(samplerate=sr, channels=1, dtype="float32",
+                            blocksize=chunk, callback=_cb):
+            while len(frames) < max_frames:
+                frame = q.get().flatten()
+                frames.append(frame)
+                rms = float(np.sqrt(np.mean(frame ** 2)))
+                if rms > silence_rms:
+                    speech_started = True
+                    silence_frames = 0
+                elif speech_started:
+                    silence_frames += 1
+                    if silence_frames >= silence_threshold:
+                        break
+
+        audio = np.concatenate(frames) if frames else np.zeros(chunk, dtype="float32")
+        logger.info("[VECTOR][stt:whisper] VAD captured {}s", round(len(audio) / sr, 1))
+        return audio
+
     def record_and_transcribe(self, duration_sec: float | None = None) -> str:
+        """Record with VAD (dynamic end-of-speech), falling back to fixed duration."""
         try:
-            import sounddevice as sd
-            duration_sec = duration_sec or CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
+            import numpy as np
             sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
-            logger.info(f"[VECTOR][stt:whisper] Recording {duration_sec}s @ {sample_rate}Hz")
-            audio = sd.rec(
-                int(duration_sec * sample_rate),
-                samplerate=sample_rate,
-                channels=1,
-                dtype="float32",
-            )
-            sd.wait()
-            flat = audio.flatten()
-            flat = _trim_trailing_silence(flat, sample_rate)
-            return self.transcribe(flat, sample_rate)
+            audio = self.record_until_silence(sample_rate=sample_rate)
+            return self.transcribe(audio, sample_rate)
         except Exception as e:
             logger.error(f"[VECTOR][stt:whisper] Record failed: {e}")
             return ""
