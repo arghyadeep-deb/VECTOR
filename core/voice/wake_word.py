@@ -58,13 +58,23 @@ class WakeWordDetector:
             logger.error(f"[VECTOR][wake] is_wake_word error: {e}")
             return False
 
-    async def listen_for_wake(self) -> bool:
-        """Block until wake word/phrase detected. Returns True when triggered."""
+    # Maps detected phrase → conversation mode
+    _PHRASE_MODES = {
+        "vector think": "deep_think",
+        "vector private": "private",
+        "hey vector": "conversation",
+        "okay vector": "conversation",
+        "hey vecto": "conversation",
+        "vector": "conversation",
+    }
+
+    async def listen_for_wake(self) -> str | None:
+        """Block until wake word/phrase detected. Returns the mode string or None on error."""
         if self._use_whisper_kws:
             return await self._listen_whisper_kws()
         return await self._listen_openwakeword()
 
-    async def _listen_openwakeword(self) -> bool:
+    async def _listen_openwakeword(self) -> str | None:
         """Frame-by-frame openwakeword detection."""
         try:
             import sounddevice as sd
@@ -79,20 +89,20 @@ class WakeWordDetector:
                     frame, _ = await asyncio.to_thread(stream.read, self._frame_size)
                     if self.is_wake_word(frame.flatten()):
                         logger.info("[VECTOR][wake] Wake word detected!")
-                        return True
+                        return "conversation"
                     await asyncio.sleep(0)
         except Exception as e:
             logger.error(f"[VECTOR][wake] _listen_openwakeword error: {e}")
-            return False
+            return None
 
-    async def _listen_whisper_kws(self) -> bool:
-        """Whisper-based keyword spotting: record 2s chunks, transcribe, look for wake phrase."""
+    async def _listen_whisper_kws(self) -> str | None:
+        """Whisper KWS: record 2s chunks, transcribe, detect phrase and map to mode."""
         try:
             import sounddevice as sd
             from core.voice.stt import WhisperSTT
             stt = WhisperSTT()
             chunk_sec = 2.0
-            logger.info(f"[VECTOR][wake] Whisper KWS listening for {_KWS_PHRASES}...")
+            logger.info(f"[VECTOR][wake] Whisper KWS — say 'Hey Vector', 'Vector Think', or 'Vector Private'")
             while True:
                 audio = await asyncio.to_thread(
                     sd.rec,
@@ -103,22 +113,23 @@ class WakeWordDetector:
                 )
                 await asyncio.to_thread(sd.wait)
                 audio_flat = audio.flatten()
-                # Only transcribe if there's actual audio (not silence)
                 rms = float(np.sqrt(np.mean(audio_flat ** 2)))
                 if rms < 0.004:
                     await asyncio.sleep(0.1)
                     continue
                 try:
-                    text = stt.transcribe(audio_flat, self._sample_rate)
-                    if text and any(p in text.lower() for p in _KWS_PHRASES):
-                        logger.info(f"[VECTOR][wake] KWS triggered: '{text}'")
-                        return True
+                    text = stt.transcribe(audio_flat, self._sample_rate).lower().strip()
+                    if text:
+                        for phrase, mode in self._PHRASE_MODES.items():
+                            if phrase in text:
+                                logger.info(f"[VECTOR][wake] KWS triggered: '{text}' → mode={mode}")
+                                return mode
                 except Exception:
                     pass
                 await asyncio.sleep(0.05)
         except Exception as e:
             logger.error(f"[VECTOR][wake] _listen_whisper_kws error: {e}")
-            return False
+            return None
 
 
 if __name__ == "__main__":
