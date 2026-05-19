@@ -57,11 +57,12 @@ INDUSTRY_BENCHMARKS = {
 }
 
 
-class GoogleAdsAgent(AgentBase):
+class GoogleAdsAgent(AgentBase, SkillMixin):
     """
     VECTOR's Google Ads specialist.
     Audits accounts, analyzes performance, generates copy, and diagnoses quality issues.
     Uses LLM reasoning with embedded policy rules + Google Ads API when credentials set.
+    Augmented with: ads, analytics skill prompts.
     """
 
     def __init__(self, generation: int = 1, ghost: dict | None = None) -> None:
@@ -75,6 +76,7 @@ class GoogleAdsAgent(AgentBase):
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
+        self._skill_prompt = load_skill("ads", "analytics")
         logger.info("[VECTOR][google_ads_agent] ready gen={} hp={}", generation, self.health_points)
 
     # ── Account audit ─────────────────────────────────────────────────────────
