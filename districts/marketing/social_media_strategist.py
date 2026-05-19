@@ -67,7 +67,7 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
             f"Keep under 1300 characters. Be genuine, not salesy."
         )
         try:
-            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            return self._chat(prompt, timeout=25.0)
         except Exception as e:
             logger.warning("[VECTOR][social] LinkedIn LLM failed: {}", e)
             return (
@@ -87,7 +87,7 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
             f"Return as JSON array of strings: [\"tweet1\", \"tweet2\", ...]"
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            response = self._chat(prompt, timeout=25.0)
             match = re.search(r"\[.*\]", response, re.DOTALL)
             if match:
                 tweets = json.loads(match.group())
@@ -148,7 +148,7 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
             f"\"score\": 1-10, \"best_time_to_repost\": \"day/time\"}}"
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            response = self._chat(prompt, timeout=20.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 return json.loads(match.group())
