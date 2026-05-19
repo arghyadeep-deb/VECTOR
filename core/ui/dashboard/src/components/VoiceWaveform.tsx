@@ -36,6 +36,8 @@ export default function VoiceWaveform() {
 
   const ampRef = useRef(ampByState[voiceState] ?? 0.35)
   const speedRef = useRef(speedByState[voiceState] ?? 1.0)
+  const voiceStateRef = useRef(voiceState)
+  const audioLevelRef = useRef(audioLevel)
 
   // Update refs without restarting canvas loop
   useEffect(() => {
