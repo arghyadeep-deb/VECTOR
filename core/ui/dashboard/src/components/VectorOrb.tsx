@@ -185,17 +185,17 @@ export default function VectorOrb() {
             )
           })}
 
-          {/* ── Diagonal short ticks at 45° — smaller */}
+          {/* ── Diagonal short ticks at 45° — clearly visible markers */}
           {!orbInCorner && [45, 135, 225, 315].map((deg) => {
             const rad = (deg - 90) * Math.PI / 180
             const inner = R + 4
-            const outer = R + 9
+            const outer = R + 10
             return (
               <line
                 key={deg}
                 x1={cx + inner * Math.cos(rad)} y1={cy + inner * Math.sin(rad)}
                 x2={cx + outer * Math.cos(rad)} y2={cy + outer * Math.sin(rad)}
-                stroke="#00CFFF" strokeWidth={1} opacity={0.3}
+                stroke="#00CFFF" strokeWidth={1.5} opacity={0.55}
               />
             )
           })}
