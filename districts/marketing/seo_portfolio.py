@@ -47,6 +47,7 @@ class SEOPortfolioAgent(AgentBase, SkillMixin):
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
+        self._skill_prompt = load_skill("seo-audit", "ai-seo")
         logger.info("[VECTOR][seo_portfolio] ready gen={} hp={}", generation, self.health_points)
 
     def _get_portfolio(self):
