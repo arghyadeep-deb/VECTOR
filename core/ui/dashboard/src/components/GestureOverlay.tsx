@@ -68,7 +68,15 @@ export default function GestureOverlay() {
     switch (g) {
       case 'swipe_left':
         if (contentWindows.length > 0) {
-          removeContentWindow(contentWindows[contentWindows.length - 1].id)
+          const last = contentWindows[contentWindows.length - 1]
+          setLastDismissed(last)
+          removeContentWindow(last.id)
+        }
+        break
+      case 'swipe_right':
+        if (lastDismissed) {
+          addContentWindow({ ...lastDismissed, id: `restored-${Date.now()}` })
+          setLastDismissed(null)
         }
         break
       case 'fist':
@@ -78,9 +86,17 @@ export default function GestureOverlay() {
         addContentWindow({
           id: `gesture-${Date.now()}`,
           type: 'text',
-          title: 'GESTURE ACTIVATED',
-          content: 'Open palm detected. Say a command or use gestures to open panels.',
+          title: 'GESTURE INPUT',
+          content: 'Open palm detected. Speak a command or type in the terminal.',
         })
+        break
+      case 'pinch':
+        if (contentWindows.length > 1) {
+          contentWindows.slice(1).forEach(w => removeContentWindow(w.id))
+        }
+        break
+      case 'point':
+        scrollToPanel('districts')
         break
     }
   }
