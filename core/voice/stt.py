@@ -76,7 +76,9 @@ class WhisperSTT:
                 dtype="float32",
             )
             sd.wait()
-            return self.transcribe(audio.flatten(), sample_rate)
+            flat = audio.flatten()
+            flat = _trim_trailing_silence(flat, sample_rate)
+            return self.transcribe(flat, sample_rate)
         except Exception as e:
             logger.error(f"[VECTOR][stt:whisper] Record failed: {e}")
             return ""
