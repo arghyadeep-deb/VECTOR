@@ -68,6 +68,10 @@ class VectorIntelAgent(AgentBase):
     def _init_client(self):
         """Create ShadowBrokerClient and check availability."""
         try:
+            # Ensure SDK dir is on path so bare imports (from sb_signatures import sig) work
+            _sdk = str(Path(__file__).parent / "shadowbroker")
+            if _sdk not in sys.path:
+                sys.path.insert(0, _sdk)
             from districts.intelligence.shadowbroker.sb_query import ShadowBrokerClient
             self._sb = ShadowBrokerClient(
                 base_url=_VECTORINTEL_HOST,
