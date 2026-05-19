@@ -90,9 +90,8 @@ class VectorIntelAgent(AgentBase):
         try:
             import httpx
             # Use the client's own signing logic via a direct GET to summary
-            path = "/api/ai/summary"
-            # Lightweight HEAD-equivalent: get summary with 2s timeout
-            r = httpx.get(f"{_VECTORINTEL_HOST}{path}", timeout=2.0)
+            path = "/api/health"
+            r = httpx.get(f"{_VECTORINTEL_HOST}{path}", timeout=5.0)
             self._available = r.status_code < 500
             if self._available:
                 logger.info("[VECTOR][intel] VectorIntel platform connected at {}", _VECTORINTEL_HOST)
