@@ -183,9 +183,9 @@ class CodeIntelConfig(BaseModel):
 
 
 class AdsConfig(BaseModel):
-    scripts_path: str = "core/ads/scripts"
-    references_path: str = "core/ads/references"
-    templates_path: str = "core/ads/templates"
+    scripts_path: str = "districts/marketing/ads/scripts"
+    references_path: str = "districts/marketing/ads/references"
+    templates_path: str = "districts/marketing/ads/templates"
     image_provider_order: list[str] = Field(default_factory=lambda: ["gemini", "openai", "stability", "replicate"])
     pdf_output_dir: str = "output/ads_reports"
     screenshot_dir: str = "output/ads_screenshots"
@@ -283,6 +283,7 @@ CONFIG: dict = {
     "version": "1.0.0",
     "env": _s.VECTOR_ENV,
     "debug": _s.VECTOR_DEBUG,
+    "location": os.environ.get("VECTOR_LOCATION", "home"),
     "vault_path": Path(_s.VECTOR_VAULT_PATH),
     "db_path": _BASE_DIR / "vector_memory.db",
     "ollama_host": _s.OLLAMA_HOST,
@@ -378,8 +379,8 @@ CONFIG: dict = {
     },
     "trading": {
         "llm_provider":        "openai",
-        "deep_think_llm":      "gpt-5.4",
-        "quick_think_llm":     "gpt-5.4-mini",
+        "deep_think_llm":      os.environ.get("DEEP_THINK_LLM", "vector-reasoning"),
+        "quick_think_llm":     os.environ.get("QUICK_THINK_LLM", "vector-focus"),
         "max_debate_rounds":   1,
         "max_risk_rounds":     1,
         "checkpoint_enabled":  False,
@@ -400,8 +401,8 @@ CONFIG: dict = {
         "jupiter_api_key":      os.environ.get("JUPITER_API_KEY", ""),
         "solana_private_key":   os.environ.get("SOLANA_PRIVATE_KEY", ""),
         "massive_api_key":      os.environ.get("MASSIVE_API_KEY", ""),
-        "director_model":       "gpt-4.1",
-        "fast_model":           "gpt-4o-mini",
+        "director_model":       os.environ.get("AUTOHEDGE_DIRECTOR_MODEL", "vector-reasoning"),
+        "fast_model":           os.environ.get("AUTOHEDGE_FAST_MODEL", "vector-focus"),
         "output_dir":           str(Path.home() / ".vector" / "autohedge" / "outputs"),
         "logs_dir":             str(Path.home() / ".vector" / "autohedge" / "logs"),
         "live_trading":         False,      # set True + SOLANA_PRIVATE_KEY to enable execution
@@ -468,7 +469,7 @@ CONFIG: dict = {
     },
     "comfyui": {
         "url": os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188"),
-        "output_dir": os.environ.get("COMFYUI_OUTPUT_DIR", "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/ComfyUI/output"),
+        "output_dir": os.environ.get("COMFYUI_OUTPUT_DIR", str(Path.home() / ".vector" / "comfyui" / "output")),
         "timeout": 120.0,
         "poll_interval": 1.5,
     },
