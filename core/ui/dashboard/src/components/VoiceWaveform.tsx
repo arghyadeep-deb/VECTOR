@@ -11,6 +11,7 @@ export default function VoiceWaveform() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const status = useVectorStore((s) => s.status)
   const voiceState = useVectorStore((s) => s.voiceState)
+  const audioLevel = useVectorStore((s) => s.audioLevel)
   const isOnline = !!status
 
   // Kokoro warning from status models field
