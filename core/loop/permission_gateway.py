@@ -235,7 +235,8 @@ class PermissionGateway:
                         "https://duckduckgo.com/",
                         params={"q": query, "format": "json"},
                     )
-                    result["response"] = r.text[:500]
+                    _limit = CONFIG.get("search_response_limit", 500)
+                    result["response"] = r.text[:_limit]
             elif action.action_type == "play_music":
                 result["status"] = "ok"
                 result["played"] = action.params.get("track", "default playlist")
