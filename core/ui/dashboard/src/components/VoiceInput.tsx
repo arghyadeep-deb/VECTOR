@@ -11,6 +11,7 @@ export default function VoiceInput({ onResult }: Props) {
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const ws = useRef<WebSocket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const setVoiceState = useVectorStore((s) => s.setVoiceState)
 
   const startRecording = useCallback(async () => {
     try {
@@ -35,36 +36,46 @@ export default function VoiceInput({ onResult }: Props) {
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'end' }))
           }
+          setVoiceState('processing')
         }
 
         mr.start()
         setRecording(true)
+        setVoiceState('listening')
       }
 
       socket.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data)
           if (msg.type === 'transcript') {
+            setVoiceState('processing')
             onResult(msg.text, '')
           } else if (msg.type === 'response') {
+            setVoiceState('speaking')
             onResult('', msg.text)
           } else if (msg.type === 'audio') {
-            // Audio response received — could play via AudioContext
+            setVoiceState('speaking')
           } else if (msg.type === 'done') {
+            setVoiceState('idle')
             socket.close()
           } else if (msg.type === 'error') {
+            setVoiceState('idle')
             onResult('', `Voice error: ${msg.text}`)
           }
         } catch { /* ignore parse errors */ }
       }
 
       socket.onerror = () => {
+        setVoiceState('idle')
         onResult('', 'WebSocket connection failed')
       }
+
+      socket.onclose = () => setVoiceState('idle')
     } catch {
+      setVoiceState('idle')
       onResult('', 'Microphone access denied')
     }
-  }, [onResult])
+  }, [onResult, setVoiceState])
 
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
@@ -74,7 +85,8 @@ export default function VoiceInput({ onResult }: Props) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
     setRecording(false)
-  }, [])
+    setVoiceState('processing')
+  }, [setVoiceState])
 
   const toggle = useCallback(() => {
     if (recording) stopRecording()
