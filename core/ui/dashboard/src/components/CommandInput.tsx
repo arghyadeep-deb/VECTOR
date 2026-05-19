@@ -232,10 +232,8 @@ export default function CommandInput() {
       setProgress(100)
       setText('')
       pushHistory(cmd, response)
-      // In JARVIS mode, open response as a content window
-      if (appMode === 'JARVIS_MODE') {
-        _openAutoWidget(cmd, response, addContentWindowRef.current)
-      }
+      // Auto-open widget or trigger special modes
+      _openAutoWidget(cmd, response, addContentWindowRef.current, setModeRef.current, appMode)
     } catch (e: any) {
       setResp(`ERROR: ${e.message}`)
       setProcessing(false)
