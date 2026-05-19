@@ -106,9 +106,15 @@ export default function VoiceInput({ onResult }: Props) {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
+    // Teardown Web Audio analyser
+    cancelAnimationFrame(rafRef.current)
+    audioCtxRef.current?.close()
+    audioCtxRef.current = null
+    analyserRef.current = null
+    setAudioLevel(0)
     setRecording(false)
     setVoiceState('processing')
-  }, [setVoiceState])
+  }, [setVoiceState, setAudioLevel])
 
   const toggle = useCallback(() => {
     if (recording) stopRecording()
