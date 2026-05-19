@@ -99,13 +99,13 @@ class PromptAgent(AgentBase):
     def _load_definition(self) -> tuple[dict, str]:
         """Load and parse the .md definition file."""
         if not self._md_path.exists():
-            logger.warning("[VECTOR][prompt_agent] .md not found: {}", self._md_path)
-            return {}, "You are a helpful VECTOR AI assistant."
+            logger.warning("[VECTOR][prompt_agent] .md not found: {} — agent has no personality", self._md_path)
+            return {}, f"You are a VECTOR AI assistant. Your definition file ({self._md_path.name}) is missing."
         try:
             return _parse_md(self._md_path)
         except Exception as e:
             logger.error("[VECTOR][prompt_agent] failed to parse {}: {}", self._md_path.name, e)
-            return {}, "You are a helpful VECTOR AI assistant."
+            return {}, f"You are a VECTOR AI assistant. Your definition file ({self._md_path.name}) failed to parse: {e}"
 
     def _get_memory(self) -> EpisodicMemory:
         if self._memory is None:
