@@ -53,7 +53,7 @@ WARM_POOL: list[str] = [
 
 # Default keep_alive sent on every chat call — keeps models resident even
 # after a long idle window. Set to 30m to match the Ollama daemon env var.
-DEFAULT_KEEP_ALIVE = "30m"
+DEFAULT_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
 # Absorbed OJ model catalog (supplementary — logs available models)
 try:
