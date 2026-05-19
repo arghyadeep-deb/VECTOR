@@ -19,7 +19,7 @@ Message types:
   BROADCAST          — send to all known peers
   SUBSCRIBE          — subscribe to events from a peer
 
-Ported from the agent OS openfang-wire OFP P2P protocol.
+Ported from the agent OS agent OS P2P protocol.
 """
 from __future__ import annotations
 
@@ -188,7 +188,7 @@ class OFPNode:
     def __init__(
         self,
         node_id: str | None = None,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = DEFAULT_PORT,
         secret: bytes | None = None,
         capabilities: list[str] | None = None,
