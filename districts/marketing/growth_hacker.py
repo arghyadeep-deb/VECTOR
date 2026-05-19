@@ -157,7 +157,7 @@ class GrowthHacker(AgentBase, SkillMixin):
             f'"risks": ["top 2 risks"]}}'
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            response = self._chat(prompt, timeout=25.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 result = json.loads(match.group())
