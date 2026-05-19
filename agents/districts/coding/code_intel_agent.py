@@ -124,6 +124,8 @@ class CodeIntelAgent(AgentBase):
                     "languageFilter": params.get("language"),
                     "minScore": params.get("min_score", 0.0),
                 })
+                if err := self._check_mcp_result(result, task_type, 15, "code_search_done"):
+                    return err
                 self.award_points(15, "code_search_done")
                 self._get_memory().store(
                     content=f"Code search: {query}",
@@ -138,12 +140,16 @@ class CodeIntelAgent(AgentBase):
                     "projectPath": project_path,
                     "extraExtensions": params.get("extra_extensions", []),
                 }, timeout=300)
+                if err := self._check_mcp_result(result, task_type, 30, "codebase_indexed"):
+                    return err
                 self.award_points(30, "codebase_indexed")
                 return {"status": "ok", "type": task_type, "result": result}
 
             # ── Incremental update ────────────────────────────────────────────
             elif task_type == "vc_update":
                 result = _mcp_call("vc_update", {"projectPath": project_path}, timeout=120)
+                if err := self._check_mcp_result(result, task_type, 20, "codebase_updated"):
+                    return err
                 self.award_points(20, "codebase_updated")
                 return {"status": "ok", "type": task_type, "result": result}
 
@@ -153,6 +159,8 @@ class CodeIntelAgent(AgentBase):
                     "projectPath": project_path,
                     "extraExtensions": params.get("extra_extensions", []),
                 }, timeout=180)
+                if err := self._check_mcp_result(result, task_type, 25, "dependency_graph_built"):
+                    return err
                 self.award_points(25, "dependency_graph_built")
                 return {"status": "ok", "type": task_type, "result": result}
 
@@ -161,11 +169,15 @@ class CodeIntelAgent(AgentBase):
                     "projectPath": project_path,
                     "filePath": params.get("file_path", ""),
                 })
+                if err := self._check_mcp_result(result, task_type, 15, "graph_query_done"):
+                    return err
                 self.award_points(15, "graph_query_done")
                 return {"status": "ok", "type": task_type, "result": result}
 
             elif task_type == "vc_graph_circular":
                 result = _mcp_call("vc_graph_circular", {"projectPath": project_path})
+                if err := self._check_mcp_result(result, task_type, 15, "circular_deps_checked"):
+                    return err
                 self.award_points(15, "circular_deps_checked")
                 return {"status": "ok", "type": task_type, "circular_deps": result}
 
@@ -176,6 +188,8 @@ class CodeIntelAgent(AgentBase):
                     "target": params.get("target", ""),
                     "depth": params.get("depth", 3),
                 })
+                if err := self._check_mcp_result(result, task_type, 25, "impact_analysis_done"):
+                    return err
                 self.award_points(25, "impact_analysis_done")
                 self._get_memory().store(
                     content=f"Impact analysis: {params.get('target', '')}",
@@ -192,6 +206,8 @@ class CodeIntelAgent(AgentBase):
                     "file": params.get("file"),
                     "depth": params.get("depth", 5),
                 })
+                if err := self._check_mcp_result(result, task_type, 20, "call_flow_traced"):
+                    return err
                 self.award_points(20, "call_flow_traced")
                 return {"status": "ok", "type": task_type, "flow": result}
 
@@ -202,6 +218,8 @@ class CodeIntelAgent(AgentBase):
                     "name": params.get("name", ""),
                     "file": params.get("file"),
                 })
+                if err := self._check_mcp_result(result, task_type, 15, "symbol_lookup_done"):
+                    return err
                 self.award_points(15, "symbol_lookup_done")
                 return {"status": "ok", "type": task_type, "symbol": result}
 
@@ -212,6 +230,8 @@ class CodeIntelAgent(AgentBase):
                     "query": params.get("query"),
                     "limit": params.get("limit", 20),
                 })
+                if err := self._check_mcp_result(result, task_type, 15, "symbols_listed"):
+                    return err
                 self.award_points(15, "symbols_listed")
                 return {"status": "ok", "type": task_type, "symbols": result}
 
@@ -222,12 +242,16 @@ class CodeIntelAgent(AgentBase):
                     "projectPath": project_path,
                     "action": action,
                 })
+                if err := self._check_mcp_result(result, task_type, 10, "watcher_configured"):
+                    return err
                 self.award_points(10, "watcher_configured")
                 return {"status": "ok", "type": task_type, "watcher": result}
 
             # ── Context artifacts ─────────────────────────────────────────────
             elif task_type in ("vc_context", "code_context", "context_artifacts"):
                 result = _mcp_call("vc_context", {"projectPath": project_path})
+                if err := self._check_mcp_result(result, task_type, 10, "context_artifacts_listed"):
+                    return err
                 self.award_points(10, "context_artifacts_listed")
                 return {"status": "ok", "type": task_type, "artifacts": result}
 
@@ -237,6 +261,8 @@ class CodeIntelAgent(AgentBase):
                     "projectPath": project_path,
                     "limit": params.get("limit", 5),
                 })
+                if err := self._check_mcp_result(result, task_type, 15, "context_search_done"):
+                    return err
                 self.award_points(15, "context_search_done")
                 return {"status": "ok", "type": task_type, "results": result}
 
@@ -247,20 +273,28 @@ class CodeIntelAgent(AgentBase):
                     "mode": params.get("mode", "html"),
                     "open": params.get("open", False),
                 })
+                if err := self._check_mcp_result(result, task_type, 20, "graph_visualized"):
+                    return err
                 self.award_points(20, "graph_visualized")
                 return {"status": "ok", "type": task_type, "visualization": result}
 
-            # ── Status & health ───────────────────────────────────────────────
+            # ── Status & health (read-only — no HP involved) ──────────────────
             elif task_type in ("vc_status", "code_status"):
                 result = _mcp_call("vc_status", {"projectPath": project_path})
+                if err := self._check_mcp_result(result, task_type, 0, ""):
+                    return err
                 return {"status": "ok", "type": task_type, "index_status": result}
 
             elif task_type in ("vc_health", "code_health", "codebase_health"):
                 result = _mcp_call("vc_health", {})
+                if err := self._check_mcp_result(result, task_type, 0, ""):
+                    return err
                 return {"status": "ok", "type": task_type, "health": result}
 
             elif task_type in ("vc_projects", "code_projects"):
                 result = _mcp_call("vc_projects", {})
+                if err := self._check_mcp_result(result, task_type, 0, ""):
+                    return err
                 return {"status": "ok", "type": task_type, "projects": result}
 
             else:
