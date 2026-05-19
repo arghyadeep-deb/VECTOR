@@ -195,12 +195,14 @@ export default function App() {
       )}
 
       {/* JARVIS MODE — clean orb + content windows */}
+      {/* GestureOverlay active in BOTH modes after boot */}
+      {bootDone && <GestureOverlay />}
+
       {mode === 'JARVIS_MODE' && bootDone && (
         <>
           <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: -1 }} />
           <VectorOrb />
           <ContentWindowManager />
-          <GestureOverlay />
           {/* Command input stays available */}
           <div style={{
             position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
