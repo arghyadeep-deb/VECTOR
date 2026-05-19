@@ -185,6 +185,7 @@ export const useVectorStore = create<VectorState>()((set) => ({
   mode: 'JARVIS_MODE',
   bootDone: false,
   processing: false,
+  voiceState: 'idle' as VoiceState,
   contentWindows: [],
   orbInCorner: false,
   connected: false,
