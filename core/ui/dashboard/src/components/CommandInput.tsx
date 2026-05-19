@@ -428,8 +428,8 @@ export default function CommandInput() {
         </div>
       )}
 
-      {/* Response area */}
-      {resp && (
+      {/* Response area — hidden in JARVIS_MODE (response shown in ContentWindow instead) */}
+      {resp && appMode === 'DASHBOARD_MODE' && (
         <div style={{
           padding: '8px 14px 10px',
           fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
