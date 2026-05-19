@@ -131,14 +131,17 @@ export default function CommandInput() {
   const setQuickResult = useVectorStore((s) => s.setQuickResult)
   const goalsLen = useVectorStore((s) => s.goals?.immediate_actions?.length ?? 0)
   const appMode = useVectorStore((s) => s.mode)
+  const setMode = useVectorStore((s) => s.setMode)
   const addContentWindow = useVectorStore((s) => s.addContentWindow)
   const setProcessing = useVectorStore((s) => s.setProcessing)
   const appModeRef = useRef(appMode)
   const addContentWindowRef = useRef(addContentWindow)
   const setProcessingRef = useRef(setProcessing)
+  const setModeRef = useRef(setMode)
   useEffect(() => { appModeRef.current = appMode }, [appMode])
   useEffect(() => { addContentWindowRef.current = addContentWindow }, [addContentWindow])
   useEffect(() => { setProcessingRef.current = setProcessing }, [setProcessing])
+  useEffect(() => { setModeRef.current = setMode }, [setMode])
 
   const pushHistory = useCallback((cmd: string, resp: string) => {
     setHistory((prev) => {
