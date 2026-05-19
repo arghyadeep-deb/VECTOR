@@ -25,6 +25,25 @@ from loguru import logger
 from core.config import CONFIG
 
 
+def _trim_trailing_silence(audio: np.ndarray, sample_rate: int, silence_rms: float = 0.008) -> np.ndarray:
+    """Trim trailing silence from a recording to reduce Whisper latency.
+    Finds the last frame with RMS above threshold and keeps 0.5s of padding after it.
+    """
+    frame_len = int(sample_rate * 0.1)  # 100ms frames
+    if len(audio) <= frame_len:
+        return audio
+    last_active = 0
+    for i in range(0, len(audio) - frame_len, frame_len):
+        if np.sqrt(np.mean(audio[i: i + frame_len] ** 2)) > silence_rms:
+            last_active = i
+    keep_until = min(last_active + int(sample_rate * 0.5), len(audio))
+    keep_until = max(keep_until, int(sample_rate * 1.0))  # always keep at least 1s
+    trimmed = audio[:keep_until]
+    if len(trimmed) < len(audio):
+        logger.debug(f"[VECTOR][stt] Silence-trimmed {len(audio)/sample_rate:.1f}s → {len(trimmed)/sample_rate:.1f}s")
+    return trimmed
+
+
 # ── Whisper (local, default) ─────────────────────────────────────────────────
 
 
