@@ -123,24 +123,44 @@ class VoiceTTS:
 
     def _speak_gtts(self, text: str, lang: str) -> None:
         try:
-            from gtts import gTTS
+            import io
             import tempfile
             import os
+
             try:
                 from playsound import playsound
             except ImportError:
                 logger.warning("[VECTOR][tts] playsound not installed, skipping gTTS audio playback")
                 return
-            
-            logger.info(f"[VECTOR][tts] gTTS speaking '{text[:40]}' in {lang}")
-            tts = gTTS(text=text, lang=lang)
+
+            cache_key = (text, lang)
+            if cache_key in _GTTS_CACHE:
+                # Cache hit — no HTTP call needed
+                mp3_bytes = _GTTS_CACHE[cache_key]
+                logger.debug(f"[VECTOR][tts] gTTS cache hit for '{text[:30]}'")
+            else:
+                from gtts import gTTS
+                logger.info(f"[VECTOR][tts] gTTS fetching '{text[:40]}' in {lang}")
+                buf = io.BytesIO()
+                gTTS(text=text, lang=lang).write_to_fp(buf)
+                mp3_bytes = buf.getvalue()
+                # Evict oldest entry if cache full
+                if len(_GTTS_CACHE) >= _GTTS_CACHE_MAX:
+                    oldest = next(iter(_GTTS_CACHE))
+                    del _GTTS_CACHE[oldest]
+                _GTTS_CACHE[cache_key] = mp3_bytes
+
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+            temp_file.write(mp3_bytes)
             temp_file.close()
-            tts.save(temp_file.name)
             playsound(temp_file.name)
-            os.unlink(temp_file.name)
+            try:
+                os.unlink(temp_file.name)
+            except Exception:
+                pass
         except Exception as e:
-            logger.error(f"[VECTOR][tts] gTTS speak failed: {e}")
+            logger.error(f"[VECTOR][tts] gTTS speak failed: {e} — falling back to pyttsx3")
+            self._speak_pyttsx3(text)
 
     def _speak_pyttsx3(self, text: str) -> None:
         try:
