@@ -78,7 +78,8 @@ async def gesture_ws(ws: WebSocket):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         cap.set(cv2.CAP_PROP_FPS, 15)
 
-        swipe_history: list[float] = []
+        swipe_x_history: list[float] = []
+        swipe_y_history: list[float] = []
 
         while True:
             ret, frame = cap.read()
@@ -94,28 +95,40 @@ async def gesture_ws(ws: WebSocket):
                 lm = results.multi_hand_landmarks[0].landmark
                 payload["hand_visible"] = True
 
-                # Index fingertip position (normalized)
                 payload["fingertip_x"] = lm[8].x
                 payload["fingertip_y"] = lm[8].y
 
                 gesture, confidence = _classify_gesture(lm)
 
-                # Swipe detection: track wrist x movement
+                # Track wrist position for 4-direction swipe detection
                 wrist_x = lm[0].x
-                swipe_history.append(wrist_x)
-                if len(swipe_history) > 8:
-                    swipe_history.pop(0)
-                if len(swipe_history) >= 6:
-                    delta = swipe_history[-1] - swipe_history[0]
-                    if abs(delta) > 0.15:
-                        gesture = "swipe_left" if delta < 0 else "swipe_right"
+                wrist_y = lm[0].y
+                swipe_x_history.append(wrist_x)
+                swipe_y_history.append(wrist_y)
+                if len(swipe_x_history) > 8:
+                    swipe_x_history.pop(0)
+                    swipe_y_history.pop(0)
+
+                if len(swipe_x_history) >= 6:
+                    dx = swipe_x_history[-1] - swipe_x_history[0]
+                    dy = swipe_y_history[-1] - swipe_y_history[0]
+                    # Prefer dominant axis
+                    if abs(dx) > abs(dy) and abs(dx) > 0.15:
+                        gesture = "swipe_left" if dx < 0 else "swipe_right"
                         confidence = 0.85
-                        swipe_history.clear()
+                        swipe_x_history.clear()
+                        swipe_y_history.clear()
+                    elif abs(dy) > abs(dx) and abs(dy) > 0.15:
+                        gesture = "swipe_up" if dy < 0 else "swipe_down"
+                        confidence = 0.82
+                        swipe_x_history.clear()
+                        swipe_y_history.clear()
 
                 payload["gesture"] = gesture
                 payload["confidence"] = confidence
             else:
-                swipe_history.clear()
+                swipe_x_history.clear()
+                swipe_y_history.clear()
 
             await ws.send_text(json.dumps(payload))
             await asyncio.sleep(1 / 15)
