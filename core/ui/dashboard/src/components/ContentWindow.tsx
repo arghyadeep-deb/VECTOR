@@ -16,11 +16,40 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
     setTimeout(() => removeContentWindow(w.id), 400)
   }
 
-  // Staggered positioning: first window top-left area, second bottom-right area
+  // Camera fills the entire screen — orb stays visible in corner
+  if (w.type === 'camera') {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 185,
+        background: '#000',
+        transform: visible ? 'scale(1)' : 'scale(0.97)',
+        opacity: visible ? 1 : 0,
+        transition: 'transform 0.4s ease, opacity 0.4s ease',
+        overflow: 'hidden',
+      }}>
+        {/* Minimal close */}
+        <button onClick={close} style={{
+          position: 'absolute', top: 12, right: 16, zIndex: 10,
+          background: 'rgba(0,10,20,0.8)',
+          border: '1px solid rgba(0,207,255,0.3)',
+          color: 'rgba(0,207,255,0.8)',
+          fontFamily: "'Orbitron', sans-serif", fontSize: 9,
+          padding: '3px 10px', cursor: 'pointer', letterSpacing: '0.12em',
+        }}>
+          CLOSE
+        </button>
+        <CameraView windowId={w.id} />
+      </div>
+    )
+  }
+
+  // Staggered layout matching reference: large main + small secondary + small tertiary
   const positions: React.CSSProperties[] = [
-    { top: 60, left: 16, width: '55vw', maxHeight: '65vh' },
-    { bottom: 110, right: 110, width: '32vw', maxHeight: '40vh' },
-    { top: 60, right: 16, width: '30vw', maxHeight: '50vh' },
+    { top: 40, left: 0, width: '70vw', maxHeight: '75vh' },
+    { bottom: 60, right: 0, width: '32vw', maxHeight: '38vh' },
+    { top: 40, right: 0, width: '30vw', maxHeight: '45vh' },
   ]
   const pos = positions[index % positions.length]
 
@@ -29,70 +58,58 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
       position: 'fixed',
       ...pos,
       zIndex: 190,
-      background: 'rgba(2, 10, 20, 0.94)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid rgba(0,207,255,0.25)',
-      boxShadow: '0 0 40px rgba(0,207,255,0.08), inset 0 0 40px rgba(0,207,255,0.03)',
-      transform: visible ? 'translateY(0)' : 'translateY(-30px)',
+      background: 'rgba(2, 8, 18, 0.92)',
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+      border: '1px solid rgba(0,207,255,0.18)',
+      boxShadow: '0 0 40px rgba(0,207,255,0.06)',
+      transform: visible ? 'translateY(0)' : 'translateY(-24px)',
       opacity: visible ? 1 : 0,
       transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
       overflow: 'hidden',
     }}>
-      {/* Corner brackets */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 16, height: 16, borderTop: '2px solid rgba(0,207,255,0.6)', borderLeft: '2px solid rgba(0,207,255,0.6)' }} />
-      <div style={{ position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderTop: '2px solid rgba(0,207,255,0.6)', borderRight: '2px solid rgba(0,207,255,0.6)' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: 16, height: 16, borderBottom: '2px solid rgba(0,207,255,0.6)', borderLeft: '2px solid rgba(0,207,255,0.6)' }} />
-      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 16, height: 16, borderBottom: '2px solid rgba(0,207,255,0.6)', borderRight: '2px solid rgba(0,207,255,0.6)' }} />
-
-      {/* Header */}
+      {/* Header — minimal, matches reference */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '6px 12px',
-        borderBottom: '1px solid rgba(0,207,255,0.12)',
-        background: 'rgba(0,207,255,0.04)',
+        padding: '5px 12px',
+        borderBottom: '1px solid rgba(0,207,255,0.08)',
+        background: 'rgba(0,207,255,0.03)',
       }}>
         <span style={{
           fontFamily: "'Orbitron', sans-serif",
-          fontSize: 10,
-          color: '#00CFFF',
-          letterSpacing: '0.15em',
+          fontSize: 9,
+          color: 'rgba(0,207,255,0.65)',
+          letterSpacing: '0.18em',
         }}>
           {w.title.toUpperCase()}
         </span>
-        <button
-          onClick={close}
-          style={{
-            background: 'none',
-            border: '1px solid rgba(0,207,255,0.3)',
-            color: 'rgba(0,207,255,0.7)',
-            fontFamily: "'Orbitron', sans-serif",
-            fontSize: 9,
-            padding: '1px 6px',
-            cursor: 'pointer',
-            letterSpacing: '0.1em',
-          }}
-        >
-          CLOSE
+        <button onClick={close} style={{
+          background: 'none', border: 'none',
+          color: 'rgba(0,207,255,0.4)',
+          fontFamily: "'Orbitron', sans-serif", fontSize: 9,
+          padding: '0 4px', cursor: 'pointer', letterSpacing: '0.08em',
+        }}>
+          ✕
         </button>
       </div>
 
       {/* Content */}
-      <div style={{ padding: 12, overflow: 'auto', maxHeight: 'calc(100% - 36px)' }}>
+      <div style={{ padding: '10px 14px', overflow: 'auto', maxHeight: 'calc(100% - 30px)' }}>
         {w.type === 'text' && (
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 13,
-            color: '#c8e8ff',
-            lineHeight: 1.7,
+            color: '#c0ddf0',
+            lineHeight: 1.75,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}>
-            <span style={{ color: '#00CFFF', fontFamily: "'Orbitron', sans-serif", fontSize: 10 }}>VECTOR: </span>
+            <span style={{ color: '#00CFFF', fontFamily: "'Orbitron', sans-serif", fontSize: 9, letterSpacing: '0.1em' }}>
+              VECTOR{' '}
+            </span>
             {w.content}
           </div>
         )}
-        {w.type === 'camera' && <CameraView windowId={w.id} />}
         {w.type === 'map' && <MapView />}
       </div>
     </div>
