@@ -69,8 +69,12 @@ export default function VoiceWaveform() {
         const wave1 = Math.sin(t * 0.04 * speed + i * 0.35) * 0.45
         const wave2 = Math.sin(t * 0.07 * speed + i * 0.6) * 0.25
         const wave3 = Math.sin(t * 0.12 * speed + i * 0.9) * 0.15
-        const base = (wave1 + wave2 + wave3 + 0.85) * (1 - distCenter * 0.4)
-        const barH = Math.max(2, base * H * amp)
+        const procBase = (wave1 + wave2 + wave3 + 0.85) * (1 - distCenter * 0.4)
+        // Listening: use real mic amplitude; other states use procedural sine
+        const realAmp = voiceState === 'listening' && audioLevel > 0
+          ? audioLevel * (0.7 + 0.3 * Math.abs(Math.sin(t * 0.1 + i * 0.5)))
+          : procBase * amp
+        const barH = Math.max(2, realAmp * H)
 
         const x = startX + i * (BAR_W + GAP)
         const y = (h - barH) / 2
