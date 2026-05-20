@@ -143,7 +143,7 @@ export default function ReactorGroup() {
         position: 'fixed', inset: 0, zIndex: Z.ARC_REACTOR, overflow: 'visible',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transform: `translate(${tx}px, ${ty}px)`,
-        transition: isDragging.current ? 'none' : 'transform 0.3s ease',
+        transition: isDragging ? 'none' : 'transform 0.3s ease',
       }}>
         <div style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
           <div style={{
