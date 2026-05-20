@@ -143,6 +143,10 @@ export default function CommandInput({ focusTrigger = 0 }: { focusTrigger?: numb
   useEffect(() => { setProcessingRef.current = setProcessing }, [setProcessing])
   useEffect(() => { setModeRef.current = setMode }, [setMode])
 
+  useEffect(() => {
+    if (focusTrigger > 0) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [focusTrigger])
+
   const pushHistory = useCallback((cmd: string, resp: string) => {
     setHistory((prev) => {
       const next = [{ cmd, resp, ts: Date.now() }, ...prev].slice(0, MAX_HISTORY)
