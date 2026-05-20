@@ -67,7 +67,7 @@ export default function App() {
         <div style={{
           position: 'fixed', bottom: 0, left: '50%',
           transform: 'translateX(-50%)',
-          width: 'min(900px, calc(100vw - 440px))',
+          width: 'min(700px, calc(100vw - 80px))',
           zIndex: 100,
         }}>
           <CommandInput />
