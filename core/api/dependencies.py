@@ -49,7 +49,14 @@ _locator = ServiceLocator()
 
 
 def _lazy_get_or_create(request: Request, key: str, factory):
-    """Get service from singleton or create it lazily."""
+    """Get service from app.state first, then ServiceLocator, then create lazily."""
+    # Check app.state first — avoids duplicate singletons when lifespan already created them
+    if request is not None:
+        app_val = getattr(getattr(request, "app", None), "state", None)
+        if app_val is not None:
+            val = getattr(app_val, key, None)
+            if val is not None:
+                return val
     try:
         return _locator.get(key)
     except KeyError:
