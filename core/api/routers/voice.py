@@ -61,7 +61,7 @@ async def voice_endpoint(audio: UploadFile = File(...)):
         listener = await asyncio.to_thread(_load_ambient_listener)
         ctx = await asyncio.to_thread(_load_context_engine)
         hydration = ctx.session_hydration_prompt()
-        intent = await listener._classify_intent(transcript, hydration)
+        intent = await listener._classify_intent(transcript, hydration, conversation_history=[])
 
         # Step 4: Execute through permission gateway
         from core.loop.permission_gateway import PermissionGateway, Action
@@ -145,6 +145,22 @@ async def voice_status():
             "listener_status": "offline",
             "error": str(e)
         }
+
+@router.post("/speak")
+async def voice_speak(body: dict):
+    """Speak text through TTS (used by nudge engine)."""
+    text = body.get("text", "")
+    if not text:
+        return {"status": "no_text"}
+    try:
+        from core.voice.tts import VoiceTTS
+        tts = VoiceTTS()
+        import asyncio
+        await asyncio.to_thread(tts.speak, text)
+        return {"status": "spoken"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
