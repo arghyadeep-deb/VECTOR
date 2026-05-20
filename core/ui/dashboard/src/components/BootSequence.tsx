@@ -64,7 +64,7 @@ export default function BootSequence() {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: '#000',
+      position: 'fixed', inset: 0, background: '#0a0e1a',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 9999,
     }}>
