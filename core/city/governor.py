@@ -144,7 +144,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "search_arxiv": "research",
     "search_web": "research",
     "daily_digest": "research",
-    "news": "research",
     "find": "research",
     # core/scraper/ — VECTOR web scraper (adaptive, stealth, spider)
     "scrape": "research",
