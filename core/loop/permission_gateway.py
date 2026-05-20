@@ -212,10 +212,8 @@ class PermissionGateway:
                 return True, f'{action.proposed_by} has {required}'
             return False, f'{action.proposed_by} lacks {required}'
         except Exception as e:
-            # Any capability error fails open (allow) — we don't want to block
-            # the autonomous loop because of a missing OJ submodule.
-            logger.debug(f'[VECTOR][gateway] capability check error: {e}')
-            return True, f'capability check skipped ({e})'
+            logger.warning(f'[VECTOR][gateway] capability check error — failing closed: {e}')
+            return False, f'capability check failed ({e})'
 
     async def _execute_action(self, action: Action) -> dict:
         logger.info(f"[VECTOR][gateway] Executing {action.action_type}")
@@ -296,7 +294,7 @@ class PermissionGateway:
             elif action.action_type in ("code_task", "code_review_vc", "code_generate",
                                         "code_fix", "code_debug", "run_tests"):
                 try:
-                    from integrations.vectorcode_bridge import get_bridge
+                    from districts.coding.vectorcode_bridge import get_bridge
                     bridge = get_bridge()
                     if bridge.is_available():
                         vc_result = await bridge.run_task(
@@ -313,6 +311,50 @@ class PermissionGateway:
                     logger.warning(f"[VECTOR][gateway] VectorCode action failed: {_vc_err}")
                     result["status"] = "ok"
                     result["note"] = f"VectorCode error: {_vc_err}"
+            elif action.action_type in ("widget_open", "widget_close", "widget_show_location",
+                                        "music_play", "music_pause", "music_next", "music_prev",
+                                        "open_panel"):
+                # JARVIS dashboard UI events. Effects are local to the dashboard,
+                # delivered via the /ws broadcast channel. The gateway's job here
+                # is just to confirm + emit a structured payload the dashboard
+                # subscribes to. No real-world side-effect.
+                payload = {
+                    "type": "ui_event",
+                    "action_type": action.action_type,
+                    "params": action.params,
+                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                }
+                try:
+                    from core.api.routers.websocket import broadcast_event  # type: ignore
+                    await broadcast_event(payload)
+                    result["broadcast"] = True
+                except Exception as _bc_err:
+                    logger.debug(f"[VECTOR][gateway] ui_event broadcast skipped: {_bc_err}")
+                    result["broadcast"] = False
+                # Friendly message for TTS
+                if action.action_type == "widget_open":
+                    result["message"] = f"Opening the {action.params.get('id', 'requested')} widget."
+                elif action.action_type == "widget_close":
+                    target = action.params.get("id", "")
+                    result["message"] = "Closing all widgets." if target == "all" else f"Closing the {target} widget."
+                elif action.action_type == "widget_show_location":
+                    q = action.params.get("query", "")
+                    result["message"] = f"Showing {q} on the map." if q else "Map ready."
+                elif action.action_type == "music_play":
+                    result["message"] = "Resuming playback."
+                elif action.action_type == "music_pause":
+                    result["message"] = "Pausing music."
+                elif action.action_type == "music_next":
+                    result["message"] = "Skipping to the next track."
+                elif action.action_type == "music_prev":
+                    result["message"] = "Going back a track."
+                elif action.action_type == "open_panel":
+                    result["message"] = f"Opening the {action.params.get('panel', 'requested')} panel."
+                result["status"] = "ok"
+            elif action.action_type == "respond":
+                # Conversational reply — no side effect; just echo the message back.
+                result["status"] = "ok"
+                result["message"] = action.params.get("message", "Standing by, sir.")
             else:
                 result["status"] = "ok"
                 result["note"] = "action acknowledged"
