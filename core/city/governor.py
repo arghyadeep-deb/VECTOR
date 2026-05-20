@@ -190,7 +190,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     # Trading intelligence (multi-agent investment analysis)
     "investment_analysis":  "investment",
     "trading_analysis":     "investment",
-    "market_research":      "investment",
+    "equity_research":      "investment",
     # Fincept financial intelligence suite
     "investor_analysis":    "investment",
     "corporate_finance":    "investment",
