@@ -1,85 +1,140 @@
-"""
-V.E.C.T.O.R. SemanticMemory.
-Concept embeddings and knowledge graph via Ollama + ChromaDB.
-"""
+"""V.E.C.T.O.R. SemanticMemory — persistent SQLite-backed concept store."""
 import sys
+import json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from loguru import logger
-import uuid
-from datetime import datetime
 
-from core.config import CONFIG
-from core.memory.episodic import EpisodicMemory
+from loguru import logger
+from datetime import datetime
 
 
 class SemanticMemory:
-    """Stores conceptual knowledge with embeddings. Uses Ollama + ChromaDB."""
+    """Persistent concept knowledge store backed by the shared SQLite semantic_memory table."""
 
     def __init__(self):
-        self._ollama_host = CONFIG["ollama_host"]
-        self._embed_model = CONFIG["models"]["embed"]
-        self._episodic = EpisodicMemory()
-        self._concepts: dict[str, dict] = {}
-        logger.info("[VECTOR][semantic] SemanticMemory initialized")
+        from core.memory.episodic import get_db_connection
+        self._get_conn = get_db_connection
+        logger.info("[VECTOR][semantic] SemanticMemory initialized (SQLite)")
 
-    async def add_concept(self, concept: str, definition: str, tags: list[str] | None = None) -> dict:
-        """Add a concept to the semantic store."""
-        entry = {
-            "id": str(uuid.uuid4()),
-            "concept": concept,
+    # ── Write ─────────────────────────────────────────────────────────────────
+
+    async def add_concept(self, concept: str, definition: str,
+                          tags: list[str] | None = None,
+                          category: str = "concept",
+                          confidence: float = 0.8) -> dict:
+        """Store a concept. Upserts by key."""
+        value = json.dumps({
             "definition": definition,
             "tags": tags or [],
-            "created_at": datetime.utcnow().isoformat(),
-            "access_count": 0,
-        }
-        self._concepts[concept] = entry
-        logger.info(f"[VECTOR][semantic] Added concept: {concept}")
-        return entry
+        })
+        now = datetime.utcnow().isoformat()
+        try:
+            conn = self._get_conn()
+            conn.execute(
+                """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(key) DO UPDATE SET
+                       value=excluded.value, category=excluded.category,
+                       confidence=excluded.confidence, updated_at=excluded.updated_at""",
+                (concept, value, category, confidence, now),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] add_concept failed: {e}")
+        logger.info(f"[VECTOR][semantic] stored: {concept}")
+        return {"concept": concept, "definition": definition, "tags": tags or []}
+
+    def store(self, key: str, value: str, category: str = "fact",
+              confidence: float = 0.8) -> None:
+        """Low-level key-value store into semantic_memory."""
+        now = datetime.utcnow().isoformat()
+        try:
+            conn = self._get_conn()
+            conn.execute(
+                """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(key) DO UPDATE SET
+                       value=excluded.value, confidence=excluded.confidence,
+                       updated_at=excluded.updated_at""",
+                (key, value, category, confidence, now),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] store failed: {e}")
+
+    # ── Read ──────────────────────────────────────────────────────────────────
 
     def get_concept(self, concept: str) -> dict | None:
-        """Retrieve a concept."""
-        if concept in self._concepts:
-            self._concepts[concept]["access_count"] += 1
-            return self._concepts[concept]
-        return None
+        """Retrieve a concept by name."""
+        try:
+            conn = self._get_conn()
+            row = conn.execute(
+                "SELECT key, value, category, confidence FROM semantic_memory WHERE key = ?",
+                (concept,),
+            ).fetchone()
+            if not row:
+                return None
+            payload = json.loads(row[1]) if row[1].startswith("{") else {"definition": row[1]}
+            return {"concept": row[0], **payload, "category": row[2], "confidence": row[3]}
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] get_concept failed: {e}")
+            return None
+
+    def get(self, key: str) -> str | None:
+        """Low-level get by key."""
+        try:
+            conn = self._get_conn()
+            row = conn.execute(
+                "SELECT value FROM semantic_memory WHERE key = ?", (key,)
+            ).fetchone()
+            return row[0] if row else None
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] get failed: {e}")
+            return None
 
     def search_concepts(self, query: str, limit: int = 10) -> list[dict]:
-        """Simple keyword search across concepts."""
-        q = query.lower()
-        results = [
-            c for c in self._concepts.values()
-            if q in c["concept"].lower() or q in c["definition"].lower()
-        ]
-        return sorted(results, key=lambda x: x["access_count"], reverse=True)[:limit]
+        """Keyword search across all stored concepts."""
+        try:
+            conn = self._get_conn()
+            rows = conn.execute(
+                """SELECT key, value, category, confidence FROM semantic_memory
+                   WHERE key LIKE ? OR value LIKE ?
+                   ORDER BY confidence DESC LIMIT ?""",
+                (f"%{query}%", f"%{query}%", limit),
+            ).fetchall()
+            results = []
+            for row in rows:
+                payload = json.loads(row[1]) if row[1].startswith("{") else {"definition": row[1]}
+                results.append({"concept": row[0], **payload, "category": row[2], "confidence": row[3]})
+            return results
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] search_concepts failed: {e}")
+            return []
 
     def link_concepts(self, concept_a: str, concept_b: str, relation: str) -> dict:
-        """Create a relation between two concepts."""
-        if concept_a not in self._concepts or concept_b not in self._concepts:
-            return {"status": "error", "detail": "Concept not found"}
-        link = {
-            "from": concept_a,
-            "to": concept_b,
-            "relation": relation,
-            "created_at": datetime.utcnow().isoformat(),
-        }
-        if "links" not in self._concepts[concept_a]:
-            self._concepts[concept_a]["links"] = []
-        self._concepts[concept_a]["links"].append(link)
+        """Store a relation link between two concepts."""
+        link_key = f"link:{concept_a}:{relation}:{concept_b}"
+        self.store(link_key, json.dumps({"from": concept_a, "to": concept_b, "relation": relation}),
+                   category="link", confidence=1.0)
         logger.info(f"[VECTOR][semantic] Linked {concept_a} --[{relation}]--> {concept_b}")
-        return link
+        return {"from": concept_a, "to": concept_b, "relation": relation}
 
     def get_related(self, concept: str) -> list[dict]:
-        """Get all concepts related to this one."""
-        if concept not in self._concepts:
-            return []
-        return self._concepts[concept].get("links", [])
+        """Get all concepts linked to this one."""
+        return self.search_concepts(f"link:{concept}:")
 
 
 if __name__ == "__main__":
-    sm = SemanticMemory()
-    import asyncio
-    async def test():
-        await sm.add_concept("V.E.C.T.O.R.", "Virtual Entity for Cognitive Tasks and Operational Reasoning", ["AI", "agent"])
-        print(sm.get_concept("V.E.C.T.O.R."))
-    asyncio.run(test())
+    import asyncio, sys
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    async def _smoke():
+        sm = SemanticMemory()
+        await sm.add_concept("VECTOR", "Virtual Entity for Cognitive Tasks and Operational Reasoning", ["AI", "agent"])
+        result = sm.get_concept("VECTOR")
+        assert result is not None, "get_concept failed"
+        results = sm.search_concepts("VECTOR")
+        assert len(results) > 0, "search_concepts failed"
+        print(f"OK semantic.py — concept stored and retrieved: {result['concept']}")
+
+    asyncio.run(_smoke())
