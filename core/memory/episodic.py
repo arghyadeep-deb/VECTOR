@@ -196,8 +196,8 @@ class EpisodicMemory:
                     tags=tags or [],
                     score=0.8,
                 )
-            except Exception:
-                pass  # tree is supplemental — never block episodic store
+            except Exception as _tree_err:
+                logger.debug(f"[VECTOR][episodic] MemoryTree ingestion skipped: {_tree_err}")
 
             return event_id
         except Exception as e:
