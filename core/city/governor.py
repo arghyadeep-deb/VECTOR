@@ -442,7 +442,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "customer_support":     "support",
     "executive_summary":    "support",
     "qa_test":              "testing",
-    "accessibility":        "testing",
+    "manual_test":          "testing",
     "performance_bench":    "testing",
     "reality_check":        "testing",
     # 8 previously unreachable districts — now mapped
