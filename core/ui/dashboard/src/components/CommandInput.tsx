@@ -448,7 +448,7 @@ export default function CommandInput() {
       )}
 
       {/* Response area — hidden in ORB_MODE (response shown in ContentWindow instead) */}
-      {resp && appMode === 'DASHBOARD_MODE' && (
+      {false && resp && (
         <div style={{
           padding: '8px 14px 10px',
           fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
