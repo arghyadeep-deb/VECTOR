@@ -46,7 +46,7 @@ export default function GestureOverlay() {
               if (data.gesture !== lastGestureRef.current || now - gestureTimeRef.current > 1500) {
                 lastGestureRef.current = data.gesture
                 gestureTimeRef.current = now
-                handleGesture(data.gesture)
+                handleGestureRef.current?.(data.gesture)
               }
             }
           } catch { /* ignore malformed */ }
