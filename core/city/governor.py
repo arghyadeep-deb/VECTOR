@@ -589,7 +589,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "synthesize_feedback": "personal_growth",
     # projects additions
     "experiment": "projects",
-    "ab_test": "projects",
     "hypothesis": "projects",
     # marketing district (new)
     "seo": "marketing",
