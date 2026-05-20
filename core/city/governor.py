@@ -557,7 +557,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "academic_search": "research",
     "find_papers": "research",
     "literature_review": "research",
-    "market_research": "research",
+    "academic_research": "research",
     "deep_dive": "research",
     # email intelligence + email agent (agentic-inbox)
     "email_brief": "communications",
