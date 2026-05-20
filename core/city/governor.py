@@ -438,7 +438,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "idea_validate":        "startups",
     "competitor_spy":       "startups",
     "strategy_brief":       "strategy",
-    "executive_brief":      "strategy",
+    "strategy_executive":   "strategy",
     "customer_support":     "support",
     "executive_summary":    "support",
     "qa_test":              "testing",
