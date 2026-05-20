@@ -286,9 +286,10 @@ export default function CommandInput() {
 
   return (
     <div className="corner-bracket" style={{
-      background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(16px)',
-      border: '1px solid rgba(0,212,255,0.12)',
-      boxShadow: '0 0 40px rgba(0,212,255,0.04), inset 0 0 20px rgba(0,212,255,0.02)',
+      background: 'rgba(0,8,20,0.9)',
+      borderTop: '1px solid rgba(0,207,255,0.15)',
+      borderLeft: 'none', borderRight: 'none', borderBottom: 'none',
+      boxShadow: '0 -8px 30px rgba(0,0,0,0.5)',
     }}>
       {/* Header */}
       <div style={{
