@@ -135,7 +135,7 @@ export default function ReactorGroup() {
       onMouseLeave={handleMouseUp}
       style={{
         position: 'fixed', inset: 0, zIndex: Z.ARC_REACTOR, overflow: 'visible',
-        pointerEvents: 'none', cursor: isDragging.current ? 'grabbing' : 'grab',
+        pointerEvents: 'all', cursor: isDragging ? 'grabbing' : 'grab',
       }}
     >
       {/* ── ARC REACTOR ── */}
