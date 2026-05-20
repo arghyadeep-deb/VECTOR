@@ -119,15 +119,15 @@ html, body, #root {
 
 /* ── JARVIS/ORB Mode — pure black, no grid/vignette/scanlines ──────────────── */
 
-html[data-jarvis="true"],
-html[data-jarvis="true"] body,
-html[data-jarvis="true"] #root {
-  background: #000 !important;
+html[data-orb="true"],
+html[data-orb="true"] body,
+html[data-orb="true"] #root {
+  background: #0a0e1a !important;
   background-image: none !important;
 }
 
-html[data-jarvis="true"] #root::before,
-html[data-jarvis="true"] #root::after {
+html[data-orb="true"] #root::before,
+html[data-orb="true"] #root::after {
   display: none !important;
 }
 
