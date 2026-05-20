@@ -274,7 +274,7 @@ class EvolutionEngine:
         Returns
         -------
         list[str]
-            IDs of culled agents.districts.
+            IDs of culled districts.
         """
         if self._registry is None:
             logger.warning("[VECTOR][evolution] cull_bottom: no registry attached")
@@ -403,25 +403,18 @@ class EvolutionEngine:
             logger.error(f"[VECTOR][evolution] _record_birth failed: {e}")
 
     def _persist_agent_history(self, agent) -> None:
-        """Write a row to agent_history (mirrors AgentRegistry._persist_ghost)."""
+        """Delegate to AgentRegistry._persist_ghost to avoid duplicate logic."""
         try:
-            from core.memory.episodic import get_db_connection
-            conn = get_db_connection()
-            conn.execute(
-                "INSERT OR REPLACE INTO agent_history "
-                "(agent_id, agent_name, district, generation, final_hp, ghost_memory, died_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    getattr(agent, "id", str(uuid.uuid4())),
-                    getattr(agent, "name", "unknown"),
-                    getattr(agent, "district", "unknown"),
-                    getattr(agent, "generation", 1),
-                    getattr(agent, "health_points", 0),
-                    json.dumps(getattr(agent, "ghost_memory", {})),
-                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                ),
-            )
-            conn.commit()
+            from core.city.agent_registry import get_registry
+            ghost = {
+                "agent_id":    getattr(agent, "id", str(uuid.uuid4())),
+                "agent_name":  getattr(agent, "name", "unknown"),
+                "district":    getattr(agent, "district", "unknown"),
+                "generation":  getattr(agent, "generation", 1),
+                "final_hp":    getattr(agent, "health_points", 0),
+                "ghost_memory": getattr(agent, "ghost_memory", {}),
+            }
+            get_registry()._persist_ghost(ghost)
         except Exception as e:
             logger.error(f"[VECTOR][evolution] _persist_agent_history failed: {e}")
 
