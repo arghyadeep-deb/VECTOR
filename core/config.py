@@ -64,6 +64,10 @@ class PermissionConfig(BaseModel):
         "deadline_check", "progress",
         # VectorCode read-only actions
         "code_review_vc", "code_status", "read_code", "analyze_code",
+        # JARVIS UI events — purely local dashboard side effects, no real-world impact
+        "respond", "open_panel",
+        "widget_open", "widget_close", "widget_show_location",
+        "music_play", "music_pause", "music_next", "music_prev",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
@@ -101,6 +105,9 @@ class CostConfig(BaseModel):
 
 class VoiceConfig(BaseModel):
     whisper_model: str = "large-v3"
+    stt_engine: str = "whisper"
+    device: str = "cuda"
+    compute_type: str = "float16"
     kokoro_model_dir: str = str(Path(__file__).parent.parent / "models" / "kokoro")
     kokoro_speed: float = Field(0.85, ge=0.1, le=3.0)
     wake_threshold: float = Field(0.5, ge=0.0, le=1.0)
