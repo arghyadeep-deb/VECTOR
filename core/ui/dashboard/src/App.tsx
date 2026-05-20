@@ -17,16 +17,31 @@ export default function App() {
   const bootDone = useVectorStore((s) => s.bootDone)
   useVectorWS()
 
-  // Keyboard shortcut: F key → FORTRESS_MODE toggle
   const setMode = useVectorStore((s) => s.setMode)
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [focusTrigger, setFocusTrigger] = useState(0)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ctrl+Enter — toggle terminal
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault()
+        setShowTerminal((v) => {
+          if (!v) setFocusTrigger((n) => n + 1)
+          return !v
+        })
+        return
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'Escape' && mode === 'FORTRESS_MODE') setMode('ORB_MODE')
+      // Escape — close terminal or exit FORTRESS_MODE
+      if (e.key === 'Escape') {
+        if (showTerminal) { setShowTerminal(false); return }
+        if (mode === 'FORTRESS_MODE') setMode('ORB_MODE')
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [mode, setMode])
+  }, [mode, setMode, showTerminal])
 
   if (!bootDone) return <BootSequence />
 
