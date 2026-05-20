@@ -163,11 +163,13 @@ class VoiceTTS:
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
             temp_file.write(mp3_bytes)
             temp_file.close()
-            playsound(temp_file.name)
             try:
-                os.unlink(temp_file.name)
-            except Exception:
-                pass
+                playsound(temp_file.name)
+            finally:
+                try:
+                    os.unlink(temp_file.name)
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"[VECTOR][tts] gTTS speak failed: {e} — falling back to pyttsx3")
             self._speak_pyttsx3(text)
