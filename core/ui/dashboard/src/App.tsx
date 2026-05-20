@@ -33,7 +33,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{
-        background: '#000',
+        background: '#0a0e1a',
         width: '100vw',
         height: '100vh',
         overflow: 'hidden',
