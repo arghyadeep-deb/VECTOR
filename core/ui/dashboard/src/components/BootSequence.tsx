@@ -27,9 +27,10 @@ export default function BootSequence() {
     // Animate scan line from top to bottom over 1.5s (starting at t=1100)
     let scanStart: number | null = null
     let rafId: number
+    const phaseRef = { current: phase }
     const animateScan = (ts: number) => {
-      if (phase !== 'scanline' && scanY === 0) {
-        rafId = requestAnimationFrame(animateScan)
+      if (phaseRef.current !== 'scanline') {
+        cancelAnimationFrame(rafId)
         return
       }
       if (!scanStart) scanStart = ts
