@@ -467,7 +467,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "sales_outreach":       "sales",
     "strategic_plan":       "strategy",
     "strategic_brief":      "strategy",
-    "competitive_analysis": "strategy",
+    "strategic_competitive": "strategy",
     "customer_service":     "support",
     "support_ticket":       "support",
     "help_desk":            "support",
