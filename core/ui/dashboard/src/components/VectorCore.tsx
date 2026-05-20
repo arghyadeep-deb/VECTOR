@@ -4,211 +4,167 @@ import { useVectorStore } from '../store/vectorStore'
 const CX = 350
 const CY = 350
 const CYAN = '#00CFFF'
+const RING_R = 110
+const FACE_R = 106
+const CIRC = Math.round(2 * Math.PI * RING_R) // 691
 
-// Tick marks for ring 3
-function Ticks({ r, count, opacity }: { r: number; count: number; opacity: number }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => {
-        const angle = (i / count) * Math.PI * 2 - Math.PI / 2
-        const len = i % 4 === 0 ? 10 : 5
-        const x1 = CX + (r - len) * Math.cos(angle)
-        const y1 = CY + (r - len) * Math.sin(angle)
-        const x2 = CX + r * Math.cos(angle)
-        const y2 = CY + r * Math.sin(angle)
-        return (
-          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={CYAN} strokeWidth={i % 4 === 0 ? 1.5 : 0.8} opacity={opacity} />
-        )
-      })}
-    </>
-  )
+const GLOW_OPACITY: Record<string, number> = {
+  idle: 0.28, listening: 0.65, processing: 0.42, speaking: 0.52,
 }
 
-// Segmented arc ring for ring 4
-function SegmentedRing({ r, segments, gapDeg, opacity }: { r: number; segments: number; gapDeg: number; opacity: number }) {
-  const gap = (gapDeg * Math.PI) / 180
-  const segAngle = (Math.PI * 2 - segments * gap) / segments
-  const arcs: string[] = []
-  for (let i = 0; i < segments; i++) {
-    const startAngle = i * (segAngle + gap) - Math.PI / 2
-    const endAngle = startAngle + segAngle
-    const x1 = CX + r * Math.cos(startAngle)
-    const y1 = CY + r * Math.sin(startAngle)
-    const x2 = CX + r * Math.cos(endAngle)
-    const y2 = CY + r * Math.sin(endAngle)
-    arcs.push(`M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`)
-  }
-  return (
-    <>
-      {arcs.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke={CYAN} strokeWidth={1.5} opacity={opacity} />
-      ))}
-    </>
-  )
+const CENTER_TEXT: Record<string, string> = {
+  idle: 'VECTOR', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING',
 }
 
-// Cardinal marker squares on ring 6
-function CardinalMarkers({ r, opacity }: { r: number; opacity: number }) {
-  return (
-    <>
-      {[0, 90, 180, 270].map((deg, i) => {
-        const angle = (deg * Math.PI) / 180 - Math.PI / 2
-        const mx = CX + r * Math.cos(angle)
-        const my = CY + r * Math.sin(angle)
-        return (
-          <rect key={i} x={mx - 4} y={my - 4} width={8} height={8}
-            fill={CYAN} opacity={opacity} transform={`rotate(45 ${mx} ${my})`} />
-        )
-      })}
-    </>
-  )
+const HOTSPOT_DUR: Record<string, string> = {
+  idle: '8s', listening: '12s', processing: '6s', speaking: '4s',
 }
+
+const DIAMONDS = [45, 135, 225, 315].map((deg) => {
+  const a = (deg * Math.PI) / 180
+  return { cx: CX + 118 * Math.cos(a), cy: CY + 118 * Math.sin(a) }
+})
+
+const ARC77_CIRC = Math.round(2 * Math.PI * 77)
+const ARC69_CIRC = Math.round(2 * Math.PI * 69)
 
 export default function VectorCore() {
   const voiceState = useVectorStore((s) => s.voiceState)
+  const orbInCorner = useVectorStore((s) => s.orbInCorner)
   const svgRef = useRef<SVGSVGElement>(null)
 
-  // Glow intensity by voice state
-  const glowMap: Record<string, number> = { idle: 0.45, listening: 1.0, processing: 0.7, speaking: 0.85 }
-  const glow = glowMap[voiceState] ?? 0.45
+  const glowOpacity = GLOW_OPACITY[voiceState] ?? 0.28
+  const centerText = CENTER_TEXT[voiceState] ?? 'VECTOR'
+  const hotspotDur = HOTSPOT_DUR[voiceState] ?? '8s'
 
-  // Center text by voice state
-  const textMap: Record<string, string> = { idle: 'VECTOR', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }
-  const centerText = textMap[voiceState] ?? 'VECTOR'
-
-  // Animate dots for processing
-  const dotRef = useRef(0)
-  const dotState = useRef('')
   useEffect(() => {
-    if (voiceState !== 'processing') { dotState.current = ''; return }
+    if (voiceState !== 'processing') return
+    const el = svgRef.current?.querySelector('#vc-center-text')
+    if (!el) return
+    let count = 0
     const id = setInterval(() => {
-      dotRef.current = (dotRef.current + 1) % 4
-      const svg = svgRef.current
-      if (svg) {
-        const el = svg.querySelector('#center-text')
-        if (el) el.textContent = 'PROCESSING' + '.'.repeat(dotRef.current)
-      }
+      count = (count + 1) % 4
+      el.textContent = 'PROCESSING' + '.'.repeat(count)
     }, 400)
     return () => clearInterval(id)
   }, [voiceState])
 
-  const coreOpacity = voiceState === 'listening' ? 1 : 0.85
-  const ringBaseOpacity = glow
+  const scaledSize = Math.round(700 * 0.36) // 252
+  const containerTransform = orbInCorner
+    ? `translate(calc(100vw - ${scaledSize}px - 24px), calc(100vh - ${scaledSize}px - 24px)) scale(0.36)`
+    : `translate(calc(50vw - 350px), calc(50vh - 350px)) scale(1)`
 
   return (
     <div style={{
       position: 'fixed',
-      top: '50%', left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: 700, height: 700,
+      left: 0,
+      top: 0,
+      width: 700,
+      height: 700,
+      transform: containerTransform,
+      transformOrigin: '0px 0px',
+      transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
       pointerEvents: 'none',
       zIndex: 10,
     }}>
-      <svg ref={svgRef} width={700} height={700} style={{ overflow: 'visible', filter: `drop-shadow(0 0 ${Math.round(glow * 16)}px ${CYAN}44)` }}>
+      <style>{`
+        @keyframes vc-hotspot  { from{stroke-dashoffset:0} to{stroke-dashoffset:-${CIRC}} }
+        @keyframes vc-inner1   { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+        @keyframes vc-inner2   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes vc-diamond-pulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
+      `}</style>
+      <svg ref={svgRef} width={700} height={700} style={{ overflow: 'visible' }}>
         <defs>
-          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={CYAN} stopOpacity="1" />
-            <stop offset="60%" stopColor={CYAN} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={CYAN} stopOpacity="0" />
-          </radialGradient>
-          <filter id="blur-core">
-            <feGaussianBlur stdDeviation="6" />
+          <filter id="vc-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" />
           </filter>
-          <style>{`
-            @keyframes cw30  { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
-            @keyframes ccw20 { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
-            @keyframes cw45  { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
-            @keyframes ccw60 { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
-            @keyframes cw90  { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
-            @keyframes ccw120{ from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
-            @keyframes pulse { 0%,100%{opacity:0.9} 50%{opacity:0.4} }
-            @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.6} }
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-          `}</style>
         </defs>
 
-        {/* Outer ambient glow */}
-        <circle cx={CX} cy={CY} r={340} fill="none"
-          stroke={CYAN} strokeWidth={1} opacity={0.03} />
+        {/* Dark orb face */}
+        <circle cx={CX} cy={CY} r={FACE_R} fill="#05091a" />
 
-        {/* Ring 6 — outermost, very slow CCW (120s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'ccw120 120s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={320} fill="none" stroke={CYAN}
-            strokeWidth={0.8} opacity={ringBaseOpacity * 0.18} />
-          <CardinalMarkers r={320} opacity={ringBaseOpacity * 0.35} />
-        </g>
+        {/* Ambient glow ring (blurred) */}
+        <circle cx={CX} cy={CY} r={RING_R} fill="none"
+          stroke={CYAN} strokeWidth={10}
+          opacity={glowOpacity}
+          filter="url(#vc-glow)"
+          style={{ transition: 'opacity 0.5s ease' }}
+        />
 
-        {/* Ring 5 — square notches, slow CW (90s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'cw90 90s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={260} fill="none" stroke={CYAN}
-            strokeWidth={1} opacity={ringBaseOpacity * 0.22} strokeDasharray="2 6" />
-        </g>
+        {/* Main ring (crisp) */}
+        <circle cx={CX} cy={CY} r={RING_R} fill="none"
+          stroke={CYAN} strokeWidth={3.5} opacity={0.9}
+          style={{ filter: `drop-shadow(0 0 6px ${CYAN})` }}
+        />
 
-        {/* Ring 4 — segmented arcs, CCW (60s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'ccw60 60s linear infinite' }}>
-          <SegmentedRing r={205} segments={12} gapDeg={4} opacity={ringBaseOpacity * 0.35} />
-        </g>
-
-        {/* Ring 3 — tick marks, CW (45s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'cw45 45s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={155} fill="none" stroke={CYAN}
-            strokeWidth={1} opacity={ringBaseOpacity * 0.45} />
-          <Ticks r={155} count={48} opacity={ringBaseOpacity * 0.5} />
-        </g>
-
-        {/* Ring 2 — dashed, CCW (20s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'ccw20 20s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={110} fill="none" stroke={CYAN}
-            strokeWidth={1.5} strokeDasharray="8 4" opacity={ringBaseOpacity * 0.6} />
-        </g>
-
-        {/* Ring 1 — solid, slow CW (30s) */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'cw30 30s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={70} fill="none" stroke={CYAN}
-            strokeWidth={2} opacity={ringBaseOpacity * 0.75} />
-          {/* 4 notches on ring 1 */}
-          {[0, 90, 180, 270].map((deg, i) => {
-            const a = (deg * Math.PI) / 180 - Math.PI / 2
-            return (
-              <line key={i}
-                x1={CX + 64 * Math.cos(a)} y1={CY + 64 * Math.sin(a)}
-                x2={CX + 76 * Math.cos(a)} y2={CY + 76 * Math.sin(a)}
-                stroke={CYAN} strokeWidth={3} opacity={ringBaseOpacity} />
-            )
-          })}
-        </g>
-
-        {/* Core glow halo */}
-        <circle cx={CX} cy={CY} r={32} fill="url(#coreGlow)" opacity={coreOpacity * 0.6}
-          style={{ animation: voiceState === 'listening' ? 'pulse 1s ease-in-out infinite' : undefined }} />
-
-        {/* Core dot */}
-        <circle cx={CX} cy={CY} r={voiceState === 'listening' ? 14 : 10}
-          fill={CYAN} opacity={coreOpacity}
+        {/* Hotspot arc (traveling clockwise) */}
+        <circle cx={CX} cy={CY} r={RING_R} fill="none"
+          stroke={CYAN} strokeWidth={3.5}
+          strokeDasharray={`115 ${CIRC - 115}`}
+          strokeLinecap="round"
           style={{
-            filter: `drop-shadow(0 0 12px ${CYAN})`,
-            transition: 'r 0.3s ease',
-            animation: voiceState === 'listening' ? 'pulse 0.8s ease-in-out infinite' : undefined,
-          }} />
+            animation: `vc-hotspot ${hotspotDur} linear infinite`,
+            filter: `drop-shadow(0 0 10px ${CYAN})`,
+            transformOrigin: `${CX}px ${CY}px`,
+          }}
+        />
+
+        {/* Inner arc r=77 — 270° CCW 12s */}
+        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner1 12s linear infinite' }}>
+          <circle cx={CX} cy={CY} r={77} fill="none"
+            stroke={CYAN} strokeWidth={1.2}
+            strokeDasharray={`${Math.round(ARC77_CIRC * 0.75)} ${Math.round(ARC77_CIRC * 0.25)}`}
+            opacity={0.22}
+          />
+        </g>
+
+        {/* Inner arc r=69 — 90° CW 8s */}
+        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner2 8s linear infinite' }}>
+          <circle cx={CX} cy={CY} r={69} fill="none"
+            stroke={CYAN} strokeWidth={0.8}
+            strokeDasharray={`${Math.round(ARC69_CIRC * 0.25)} ${Math.round(ARC69_CIRC * 0.75)}`}
+            opacity={0.18}
+          />
+        </g>
+
+        {/* Diamond markers at 45°/135°/225°/315° */}
+        {DIAMONDS.map(({ cx, cy }, i) => (
+          <rect key={i}
+            x={cx - 3} y={cy - 3} width={6} height={6}
+            fill={CYAN}
+            transform={`rotate(45 ${cx} ${cy})`}
+            opacity={0.7}
+            style={{
+              animation: 'vc-diamond-pulse 3s ease-in-out infinite',
+              animationDelay: `${i * 0.5}s`,
+            }}
+          />
+        ))}
 
         {/* Center text */}
-        <text id="center-text" x={CX} y={CY + 42} textAnchor="middle"
-          fontFamily="'Orbitron', sans-serif" fontSize={voiceState === 'idle' ? 16 : 13}
-          fontWeight="400" letterSpacing="0.25em" fill={CYAN}
+        <text id="vc-center-text"
+          x={CX} y={CY + 6}
+          textAnchor="middle"
+          fontFamily="'Orbitron', sans-serif"
+          fontSize={voiceState === 'idle' ? 16 : 13}
+          fontWeight="400"
+          letterSpacing="0.25em"
+          fill={CYAN}
           opacity={voiceState === 'idle' ? 0.9 : 0.75}
-          style={{
-            animation: voiceState === 'listening' ? 'blink 1.2s ease-in-out infinite'
-              : voiceState === 'speaking' ? 'blink 0.6s ease-in-out infinite' : undefined,
-          }}>
+          style={{ filter: `drop-shadow(0 0 8px ${CYAN})` }}
+        >
           {centerText}
         </text>
 
-        {/* Sub-label */}
-        <text x={CX} y={CY + 58} textAnchor="middle"
-          fontFamily="'JetBrains Mono', monospace" fontSize={7}
-          letterSpacing="0.3em" fill={CYAN} opacity={0.25}>
-          AUTONOMOUS SYSTEM
+        <text x={CX} y={CY + 22}
+          textAnchor="middle"
+          fontFamily="'JetBrains Mono', monospace"
+          fontSize={7}
+          letterSpacing="0.3em"
+          fill={CYAN}
+          opacity={0.2}
+        >
+          AUTONOMOUS
         </text>
       </svg>
     </div>
