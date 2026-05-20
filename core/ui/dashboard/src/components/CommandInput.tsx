@@ -23,11 +23,11 @@ function _openAutoWidget(cmd: string, response: string, addFn: (w: any) => void,
   }
   // Stand down from FORTRESS
   if (setModeFn && currentMode === 'FORTRESS_MODE' && STAND_DOWN_TRIGGERS.some(t => lower.includes(t))) {
-    setModeFn('JARVIS_MODE')
+    setModeFn('ORB_MODE')
     return
   }
 
-  if (currentMode !== 'JARVIS_MODE') return
+  if (!currentMode) return
 
   for (const [type, keywords] of Object.entries(WIDGET_TRIGGERS)) {
     if (keywords.some(k => lower.includes(k))) {
@@ -447,7 +447,7 @@ export default function CommandInput() {
         </div>
       )}
 
-      {/* Response area — hidden in JARVIS_MODE (response shown in ContentWindow instead) */}
+      {/* Response area — hidden in ORB_MODE (response shown in ContentWindow instead) */}
       {resp && appMode === 'DASHBOARD_MODE' && (
         <div style={{
           padding: '8px 14px 10px',
