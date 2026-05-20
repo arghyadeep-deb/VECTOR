@@ -62,7 +62,6 @@ export default function GestureOverlay() {
   }, [])
 
   const handleGesture = (g: string) => {
-    handleGestureRef.current = handleGesture  // keep ref current
     setGesture(g)
     setGestureFlash(true)
     setTimeout(() => setGestureFlash(false), 800)
