@@ -206,7 +206,7 @@ class PermissionGateway:
                 # Some absorbed implementations expose has_capability instead
                 granted = getattr(registry, 'has_capability', None)
             if not callable(granted):
-                return True, 'capability registry has no check method'
+                return False, 'capability registry has no check method — failing closed'
 
             if granted(action.proposed_by, required):
                 return True, f'{action.proposed_by} has {required}'
