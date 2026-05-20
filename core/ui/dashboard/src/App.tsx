@@ -78,14 +78,15 @@ export default function App() {
         {/* Voice waveform indicator — subtle, near the core */}
         <VoiceWaveform />
 
-        {/* Command terminal — always at bottom, always visible */}
+        {/* Command terminal — Ctrl+Enter to show/hide, Escape to close */}
         <div style={{
           position: 'fixed', bottom: 0, left: '50%',
-          transform: 'translateX(-50%)',
+          transform: `translateX(-50%) translateY(${showTerminal ? '0%' : '110%'})`,
+          transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
           width: 'min(700px, calc(100vw - 80px))',
           zIndex: 100,
         }}>
-          <CommandInput />
+          <CommandInput focusTrigger={focusTrigger} />
         </div>
       </div>
     </ErrorBoundary>
