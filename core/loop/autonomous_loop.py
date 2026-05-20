@@ -324,10 +324,16 @@ class AutonomousLoop:
         """Observe world state every 0.5s. Never crashes."""
         interval = CONFIG["loop"]["observe_interval_sec"]
         logger.info(f"[VECTOR][observe] started — {interval}s interval")
+        guard = _get_loop_guard()
         while self._running:
             try:
                 await self._observe_tick()
                 self._tick_count += 1
+                if guard:
+                    guard.tick()
+                    if guard.is_terminated:
+                        logger.warning("[VECTOR][observe] LoopGuard terminated — resetting")
+                        guard.reset()
             except Exception as e:
                 _capture_loop_error(e, "observe_loop")
             await asyncio.sleep(interval)
