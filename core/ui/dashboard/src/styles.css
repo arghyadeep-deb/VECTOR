@@ -213,6 +213,11 @@ html[data-orb="true"] #root::after {
   50%       { opacity: 0.3; }
 }
 
+@keyframes vc-hotspot      { from{stroke-dashoffset:0} to{stroke-dashoffset:-691} }
+@keyframes vc-diamond-pulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
+@keyframes vc-inner1       { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+@keyframes vc-inner2       { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
 /* ── Typography ────────────────────────────────────────────────────────────── */
 
 .font-orbitron  { font-family: 'Orbitron', sans-serif; }
