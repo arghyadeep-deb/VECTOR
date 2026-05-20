@@ -70,15 +70,11 @@ html, body, #root {
 /* ── HUD Grid Background ───────────────────────────────────────────────────── */
 
 #root {
+  background-color: #0a0e1a;
   background-image:
-    /* Fine dot grid */
-    radial-gradient(circle, rgba(0,212,255,0.06) 1px, transparent 1px),
-    /* Coarse grid lines */
-    repeating-linear-gradient(90deg, transparent, transparent 59px, var(--theme-grid) 59px, var(--theme-grid) 60px),
-    repeating-linear-gradient(0deg,  transparent, transparent 59px, var(--theme-grid) 59px, var(--theme-grid) 60px),
-    /* Radial vignette */
-    radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0,30,60,0.0) 0%, rgba(2,8,16,0.6) 100%);
-  background-size: 20px 20px, 60px 60px, 60px 60px, 100% 100%;
+    radial-gradient(circle, rgba(0,207,255,0.13) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0,30,60,0) 0%, rgba(2,8,16,0.5) 100%);
+  background-size: 28px 28px, 100% 100%;
 }
 
 /* ── Scan Lines ────────────────────────────────────────────────────────────── */
