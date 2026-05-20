@@ -181,7 +181,7 @@ class PermissionGateway:
                 CapabilityRegistry,
             )
         except Exception:
-            return True, 'no capability layer'
+            return False, 'no capability layer — failing closed'
 
         try:
             mapping = {
