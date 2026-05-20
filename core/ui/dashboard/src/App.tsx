@@ -69,7 +69,14 @@ export default function App() {
         <VoiceWaveform />
 
         {/* Command terminal — always at bottom, always visible */}
-        <CommandInput />
+        <div style={{
+          position: 'fixed', bottom: 0, left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(900px, calc(100vw - 440px))',
+          zIndex: 100,
+        }}>
+          <CommandInput />
+        </div>
       </div>
     </ErrorBoundary>
   )
