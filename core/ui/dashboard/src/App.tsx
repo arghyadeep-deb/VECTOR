@@ -46,18 +46,14 @@ export default function App() {
         {/* Always-on gesture tracking (laptop cam) */}
         <GestureOverlay />
 
-        {/* Top status bar */}
-        <VectorTopBar />
-
         {/* FORTRESS_MODE — full-screen secret operations overlay */}
         {mode === 'FORTRESS_MODE' && <FortressMode />}
 
-        {/* ORB_MODE — main JARVIS ring interface */}
+        {/* ORB_MODE — single ring orb interface */}
         {mode !== 'FORTRESS_MODE' && (
           <>
-            <VectorHUD side="left" />
+            <HUDFrame />
             <VectorCore />
-            <VectorHUD side="right" />
           </>
         )}
 
