@@ -23,6 +23,7 @@ export default function GestureOverlay() {
   const [gestureFlash, setGestureFlash] = useState(false)
   const lastGestureRef = useRef<string>('')
   const gestureTimeRef = useRef<number>(0)
+  const handleGestureRef = useRef<((g: string) => void) | null>(null)
 
   useEffect(() => {
     const tryConnect = () => {
@@ -65,7 +66,41 @@ export default function GestureOverlay() {
     setGestureFlash(true)
     setTimeout(() => setGestureFlash(false), 800)
 
+    // Reference mapping (huwprosser):
+    //   open_palm    → wake from locked screen + reset inactivity timer
+    //   pinch        → drag the widget under the cursor (synth pointer events)
+    //   fist         → close the most recently opened widget (NOT clear all)
+    //   swipe_left   → dismiss most-recent widget
+    //   swipe_right  → restore last-dismissed widget
+    //   point        → cursor hover (no-op here; cursor is already drawn)
+    //   swipe_up/down→ navigate the canvas
     switch (g) {
+      case 'open_palm':
+        // Wake the locked screen + log presence (no widget spam)
+        window.dispatchEvent(new Event('vector:wake'))
+        break
+      case 'pinch':
+        // Synthesize pointer-down at the current cursor position so any
+        // draggable widget (react-grid-layout, framer-motion, etc.) receives
+        // a normal drag-start. Released on next non-pinch frame.
+        if (dot) {
+          const evDown = new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true,
+            clientX: dot.x, clientY: dot.y,
+            pointerType: 'touch', isPrimary: true,
+          })
+          const target = document.elementFromPoint(dot.x, dot.y)
+          if (target) target.dispatchEvent(evDown)
+          window.dispatchEvent(new CustomEvent('vector:pinch', { detail: dot }))
+        }
+        break
+      case 'fist':
+        // Close the most recently opened widget — NOT all of them.
+        if (contentWindows.length > 0) {
+          const top = contentWindows[contentWindows.length - 1]
+          removeContentWindow(top.id)
+        }
+        break
       case 'swipe_left':
         if (contentWindows.length > 0) {
           const last = contentWindows[contentWindows.length - 1]
@@ -79,35 +114,32 @@ export default function GestureOverlay() {
           setLastDismissed(null)
         }
         break
-      case 'fist':
-        clearContentWindows()
-        break
-      case 'open_palm':
-        addContentWindow({
-          id: `gesture-${Date.now()}`,
-          type: 'text',
-          title: 'GESTURE INPUT',
-          content: 'Open palm detected. Speak a command or type in the terminal.',
-        })
-        break
-      case 'pinch':
-        if (contentWindows.length > 1) {
-          contentWindows.slice(1).forEach(w => removeContentWindow(w.id))
-        }
-        break
       case 'point':
-        scrollToPanel('districts')
+        // Cursor hover only — cursor dot already follows fingertip
         break
       case 'swipe_up':
-        // Scroll canvas zoom in (increase zoom via store)
         scrollToPanel('telemetry')
         break
       case 'swipe_down':
-        // Return to center / reset
         scrollToPanel('compass')
         break
     }
   }
+
+  // Release synthetic pointer when the gesture changes away from pinch.
+  useEffect(() => {
+    if (!dot) return
+    if (gesture && gesture !== 'pinch' && lastGestureRef.current === 'pinch') {
+      const evUp = new PointerEvent('pointerup', {
+        bubbles: true, cancelable: true,
+        clientX: dot.x, clientY: dot.y,
+        pointerType: 'touch', isPrimary: true,
+      })
+      const target = document.elementFromPoint(dot.x, dot.y)
+      if (target) target.dispatchEvent(evUp)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gesture])
 
   if (!dot && !gestureFlash) return null
 
