@@ -125,6 +125,8 @@ export default function GestureOverlay() {
         break
     }
   }
+  // Keep ref pointing at the latest handleGesture — fixes stale closure in WebSocket onmessage
+  handleGestureRef.current = handleGesture
 
   // Release synthetic pointer when the gesture changes away from pinch.
   useEffect(() => {
