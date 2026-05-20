@@ -102,14 +102,15 @@ export default function ReactorGroup() {
   }, [goalsLen])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    isDragging.current = true
+    isDraggingRef.current = true
+    setIsDragging(true)
     dragStart.current = { x: e.clientX, y: e.clientY }
     offsetStart.current = { ...offset }
     e.stopPropagation()
   }, [offset])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging.current) return
+    if (!isDraggingRef.current) return
     const next = {
       x: offsetStart.current.x + (e.clientX - dragStart.current.x),
       y: offsetStart.current.y + (e.clientY - dragStart.current.y),
@@ -119,7 +120,8 @@ export default function ReactorGroup() {
   }, [])
 
   const handleMouseUp = useCallback(() => {
-    isDragging.current = false
+    isDraggingRef.current = false
+    setIsDragging(false)
   }, [])
 
   const cx = 400, cy = 200
