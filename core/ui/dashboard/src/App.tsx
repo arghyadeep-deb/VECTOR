@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useVectorStore } from './store/vectorStore'
+import { useVectorWS } from './hooks/useVectorWS'
 import VectorOrb from './components/VectorOrb'
 import BootSequence from './components/BootSequence'
 import ContentWindowManager from './components/ContentWindow'
@@ -10,6 +11,10 @@ import VectorScene from './three/VectorScene'
 import BackgroundCanvas from './components/BackgroundCanvas'
 import DataPoller from './components/DataPoller'
 import TopBar from './components/TopBar'
+import VectorFrame from './components/JarvisFrame'
+import StockTicker from './components/StockTicker'
+import NewsTicker from './components/NewsTicker'
+import LockedScreen, { useInactivityLock } from './components/LockedScreen'
 import TelemetryPanel from './components/TelemetryPanel'
 import CompactEventFeed from './components/CompactEventFeed'
 import CommandInput from './components/CommandInput'
@@ -76,10 +81,17 @@ export default function App() {
   const processing = useVectorStore((s) => s.processing)
   const voiceState = useVectorStore((s) => s.voiceState)
 
+  // Subscribe to /ws — drives orb FSM (orb_state events) and widget UI
+  // (ui_event broadcasts from the multi-intent voice parser).
+  useVectorWS()
+
+  // Returns true after 60s of no FSM/widget/input activity.
+  const locked = useInactivityLock()
+
   // Border glows on INPUT (user speaking/typing), NOT during VECTOR output/speaking
   const borderActive = (processing || voiceState === 'listening') && voiceState !== 'speaking'
 
-  // Terminal auto-hide in JARVIS_MODE
+  // Terminal auto-hide in ORB mode
   const [terminalVisible, setTerminalVisible] = useState(false)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -89,7 +101,7 @@ export default function App() {
     hideTimerRef.current = setTimeout(() => setTerminalVisible(false), 8000)
   }
 
-  // Show terminal on any keydown in JARVIS_MODE
+  // Show terminal on any keydown in ORB mode
   useEffect(() => {
     if (mode !== 'JARVIS_MODE') return
     const handler = (e: KeyboardEvent) => {
@@ -203,6 +215,10 @@ export default function App() {
   return (
     <>
       <BootSequence />
+      {locked && bootDone && <LockedScreen />}
+      <VectorFrame />
+      <StockTicker />
+      <NewsTicker />
       {mode === 'DASHBOARD_MODE' && <AmbientTheme />}
       <DataPoller />
 
@@ -242,7 +258,7 @@ export default function App() {
       {bootDone && (
         <div
           onClick={() => setMode(mode === 'JARVIS_MODE' ? 'DASHBOARD_MODE' : 'JARVIS_MODE')}
-          title={mode === 'JARVIS_MODE' ? 'Ctrl+H: Switch to HUD' : 'Ctrl+H: Switch to Orb'}
+          title={mode === 'JARVIS_MODE' ? 'Ctrl+H: Switch to HUD mode' : 'Ctrl+H: Switch to Orb mode'}
           style={{
             position: 'fixed', top: 8, right: 10, zIndex: 500,
             cursor: 'pointer', opacity: 0.18,
@@ -328,31 +344,7 @@ export default function App() {
       <VectorOverlay />
       <VoiceWaveform />
 
-      {/* Fixed HUD panels — always visible regardless of scroll/zoom */}
-      <div style={{ position: 'fixed', top: 52, left: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('compass')}>
-        <CompassPanel />
-      </div>
-      <div style={{ position: 'fixed', top: 52, right: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('telemetry')}>
-        <TelemetryPanel />
-      </div>
-      <div style={{ position: 'fixed', bottom: 50, right: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('systemMetrics')}>
-        <SystemMetricsPanel />
-      </div>
-      <div style={{ position: 'fixed', bottom: 50, right: 200, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('coreStatus')}>
-        <CoreStatusPanel />
-      </div>
-      <div style={{ position: 'fixed', bottom: 32, left: 10, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('dailyInfo')}>
-        <DailyInfoPanel />
-      </div>
-      <div style={{ position: 'fixed', bottom: 50, left: 200, width: 180, zIndex: 45, cursor: 'pointer' }}
-        onClick={() => setFocusedPanel('health')}>
-        <HealthPanel />
-      </div>
+      {/* HUD panels rendered inside InfiniteCanvas with fixed:true — no second mount here */}
 
       <FloatingPanelManager />
       <NudgeToast />
