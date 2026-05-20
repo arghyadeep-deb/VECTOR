@@ -444,7 +444,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "qa_test":              "testing",
     "manual_test":          "testing",
     "performance_bench":    "testing",
-    "reality_check":        "testing",
+    "test_coverage":        "testing",
     # 8 previously unreachable districts — now mapped
     "engineering_role":     "engineering",
     "software_architect":   "engineering",
