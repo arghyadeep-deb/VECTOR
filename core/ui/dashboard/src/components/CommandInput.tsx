@@ -115,7 +115,7 @@ function saveHistory(entries: HistoryEntry[]) {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY))) } catch { /* quota exceeded */ }
 }
 
-export default function CommandInput() {
+export default function CommandInput({ focusTrigger = 0 }: { focusTrigger?: number }) {
   const [text, setText] = useState('')
   const [resp, setResp] = useState('')
   const [sending, setSending] = useState(false)
