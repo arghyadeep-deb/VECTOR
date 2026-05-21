@@ -1234,6 +1234,10 @@ class AutonomousLoop:
             self.hypothesis_loop(),
             self.predict_cycle(),
             self.degradation_monitor(),
+            self.wearable_poll_cycle(),
+            self.health_analysis_cycle(),
+            self.emergency_detection_cycle(),
+            self.research_loop(),
             return_exceptions=True,
         )
 
