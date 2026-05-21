@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections import deque
 from typing import Any, Callable
 
 from loguru import logger
@@ -12,7 +13,7 @@ from core.event_bus.types import Event, EventType
 
 class AsyncEventBus(EventBus):
 
-    def __init__(self, max_queue_size: int = 1000) -> None:
+    def __init__(self, max_queue_size: int = 1000, dlq_maxlen: int = 100) -> None:
         self._queues: dict[EventType, asyncio.Queue] = {}
         self._subscribers: dict[str, Subscription] = {}
         self._tasks: dict[str, asyncio.Task] = {}
@@ -20,6 +21,10 @@ class AsyncEventBus(EventBus):
         self._max_queue_size = max_queue_size
         self._events_published = 0
         self._events_delivered = 0
+        self._events_dropped = 0
+        self._dead_letters: dict[str, deque] = {}
+        self._dlq_maxlen = dlq_maxlen
+        self._throttle_warning_pct = 0.9
         self._started = False
 
     async def start(self) -> None:
@@ -47,10 +52,29 @@ class AsyncEventBus(EventBus):
             ]
             for sub in matching:
                 queue = self._get_or_create_queue(sub.id, sub.event_type)
+                qsize = queue.qsize()
+                if qsize >= int(self._max_queue_size * self._throttle_warning_pct):
+                    logger.warning("[AsyncEventBus] subscriber {} queue at {}% capacity ({}/{}), event_type={}",
+                                   sub.id[:8], int(qsize / self._max_queue_size * 100), qsize, self._max_queue_size, event.event_type)
                 try:
                     queue.put_nowait(event)
                 except asyncio.QueueFull:
-                    logger.warning("[AsyncEventBus] queue full for subscriber {} dropping event {}", sub.id[:8], event.event_type)
+                    # Push oldest event to DLQ
+                    dlq_key = f"{sub.id}:{sub.event_type.value if sub.event_type else '*'}"
+                    if dlq_key not in self._dead_letters:
+                        self._dead_letters[dlq_key] = deque(maxlen=self._dlq_maxlen)
+                    try:
+                        dropped = queue.get_nowait()
+                        self._dead_letters[dlq_key].append(dropped)
+                    except asyncio.QueueEmpty:
+                        pass
+                    # Retry the new event
+                    try:
+                        queue.put_nowait(event)
+                    except asyncio.QueueFull:
+                        self._events_dropped += 1
+                        logger.warning("[AsyncEventBus] subscriber {} queue full, event {} dropped (total dropped={})",
+                                       sub.id[:8], event.event_type, self._events_dropped)
         logger.debug("[AsyncEventBus] published {} to {} subscriber(s)", event.event_type, len(matching))
 
     def _get_or_create_queue(self, sub_id: str, event_type: EventType | None) -> asyncio.Queue:
@@ -101,9 +125,15 @@ class AsyncEventBus(EventBus):
     def get_stats(self) -> dict[str, Any]:
         return {
             "subscribers": len(self._subscribers),
-            "events_published": self._events_published,
-            "events_delivered": self._events_delivered,
+            "total_published": self._events_published,
+            "total_delivered": self._events_delivered,
+            "total_dropped": self._events_dropped,
             "queues": len(self._queues),
+            "dead_letters": sum(len(dq) for dq in self._dead_letters.values()),
+            "queue_depths": {
+                k.rsplit(":", 1)[-1]: q.qsize()
+                for k, q in self._queues.items()
+            },
         }
 
 

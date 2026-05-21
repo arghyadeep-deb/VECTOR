@@ -89,16 +89,28 @@ class AutonomousLoop:
             self._worker_pool = WorkerPool(max_workers=10)
         return self._event_bus
 
-    def _fanout_handler(self, event) -> dict | None:
-        """Callback for event bus: fan-out to subscribed agents + auto-dispatch downstream tasks."""
+    async def _fanout_handler(self, event) -> None:
+        """Fan-out event to subscribed agents with gather + timeout, then trigger downstream tasks."""
         try:
             from core.city.agent_registry import get_registry
             from core.event_bus.wiring import get_downstream_tasks
             registry = get_registry()
             et = event.event_type.value if event.event_type else ""
-            for agent in registry.get_all_agents():
-                if et in agent.subscribed_events:
-                    asyncio.create_task(agent.handle_event(event.__dict__ if hasattr(event, '__dict__') else {"event_type": et}))
+            targets = [
+                agent for agent in registry.get_all_agents()
+                if et in agent.subscribed_events
+            ]
+            if targets:
+                coros = [
+                    self._dispatch_event_to_agent(agent, event)
+                    for agent in targets
+                ]
+                results = await asyncio.gather(*coros, return_exceptions=True)
+                for agent, result in zip(targets, results):
+                    if isinstance(result, asyncio.TimeoutError):
+                        logger.warning("[VECTOR][event_fanout] {} timeout on {}", agent.name, et)
+                    elif isinstance(result, Exception):
+                        logger.warning("[VECTOR][event_fanout] {} failed on {}: {}", agent.name, et, result)
             if event.event_type:
                 governor = self._get_governor()
                 for district, task_type, params_template in get_downstream_tasks(event.event_type):
@@ -107,7 +119,19 @@ class AutonomousLoop:
                     asyncio.create_task(governor.dispatch(task))
         except Exception as e:
             logger.debug("[VECTOR][autonomous_loop] fan-out handler error: {}", e)
-        return None
+
+    async def _dispatch_event_to_agent(self, agent, event) -> None:
+        """Dispatch a single event to a single agent with timeout."""
+        event_data = event.__dict__ if hasattr(event, '__dict__') else {"event_type": event.event_type.value if event.event_type else ""}
+        try:
+            await asyncio.wait_for(
+                agent.handle_event(event_data),
+                timeout=5.0
+            )
+        except asyncio.TimeoutError:
+            raise
+        except Exception:
+            raise
 
     def _get_context(self):
         if self._context_engine is None:
