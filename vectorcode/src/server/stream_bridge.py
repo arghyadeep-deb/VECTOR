@@ -14,7 +14,7 @@ from typing import AsyncGenerator
 
 from fastapi.responses import StreamingResponse
 
-from vectorcode.src.vc_agents._stubs import AgentContext, BaseAgent
+from vectorcode.src.vc_agents._abc import AgentContext, BaseAgent
 from vectorcode.src.vc_core.events import Event, EventBus, EventType
 from vectorcode.src.server.models import (
     ChatCompletionChunk,

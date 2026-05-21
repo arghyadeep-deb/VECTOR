@@ -177,7 +177,7 @@ def _ensure_registries_populated() -> None:
     if not ChannelRegistry.keys():
         for mod_name in list(sys.modules):
             if mod_name.startswith("vector.channels.") and not mod_name.endswith(
-                "_stubs"
+                "_abc"
             ):
                 try:
                     importlib.reload(sys.modules[mod_name])
@@ -188,7 +188,7 @@ def _ensure_registries_populated() -> None:
         for mod_name in list(sys.modules):
             if (
                 mod_name.startswith("vector.tools.")
-                and not mod_name.endswith("_stubs")
+                and not mod_name.endswith("_abc")
                 and not mod_name.endswith("agent_tools")
             ):
                 try:
@@ -1145,10 +1145,10 @@ async def _stream_managed_agent(
                         else:
                             # Try to use ToolExecutor if tools are configured
                             from vectorcode.src.vc_core.registry import ToolRegistry
-                            from vectorcode.src.vc_tools._stubs import (
+                            from vectorcode.src.vc_tools._abc import (
                                 ToolCall as StubToolCall,
                             )
-                            from vectorcode.src.vc_tools._stubs import (
+                            from vectorcode.src.vc_tools._abc import (
                                 ToolExecutor,
                             )
 

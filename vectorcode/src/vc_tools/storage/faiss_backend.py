@@ -24,7 +24,7 @@ except ImportError as _faiss_exc:
 
 from vectorcode.src.vc_core.events import EventType, get_event_bus
 from vectorcode.src.vc_core.registry import MemoryRegistry
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.embeddings import (
     Embedder,
     SentenceTransformerEmbedder,

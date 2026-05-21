@@ -30,7 +30,7 @@ import logging
 import threading
 from typing import Dict, List, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector
+from vectorcode.src.connectors._abc import BaseConnector
 from vectorcode.src.connectors.sync_engine import SyncEngine
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class SyncScheduler:
         Parameters
         ----------
         connector:
-            Any :class:`~vector.connectors._stubs.BaseConnector` instance.
+            Any :class:`~vector.connectors._abc.BaseConnector` instance.
             Only connected connectors are synced during each cycle.
         """
         self._connectors.append(connector)

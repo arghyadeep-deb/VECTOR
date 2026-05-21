@@ -25,7 +25,7 @@ import threading
 from typing import Any, Optional
 
 from vectorcode.src.core.registry import ToolRegistry
-from vectorcode.src.tools._stubs import BaseTool, ToolResult, ToolSpec
+from vectorcode.src.tools._abc import BaseTool, ToolResult, ToolSpec
 
 # NOTE: We use a module-level (process-wide) variable rather than a
 # threading.local, because ToolExecutor dispatches each tool call onto a

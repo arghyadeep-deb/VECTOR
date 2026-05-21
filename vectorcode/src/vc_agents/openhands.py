@@ -14,10 +14,10 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, BaseAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, BaseAgent
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.registry import AgentRegistry
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 
 @AgentRegistry.register("openhands")
 class OpenHandsAgent(BaseAgent):

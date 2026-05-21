@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.types import Message, TelemetryRecord
-from vectorcode.src.vc_engine._stubs import InferenceEngine, StreamChunk
+from vectorcode.src.vc_engine._abc import InferenceEngine, StreamChunk
 from core.telemetry.gpu_monitor import GpuSample
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 
 """ABC for tool implementations and the ToolExecutor dispatch engine.
 
-Follows the same registry pattern as ``engine/_stubs.py`` and ``memory/_stubs.py``.
+Follows the same registry pattern as ``engine/_abc.py`` and ``memory/_abc.py``.
 Each tool is registered via ``@ToolRegistry.register("name")`` and implements
 ``BaseTool`` with a ``spec`` property and ``execute()`` method.
 """

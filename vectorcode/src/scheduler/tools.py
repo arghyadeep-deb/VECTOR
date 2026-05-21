@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from vectorcode.src.core.registry import ToolRegistry
 from vectorcode.src.core.types import ToolResult
-from vectorcode.src.tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.tools._abc import BaseTool, ToolSpec
 
 
 @ToolRegistry.register("schedule_task")

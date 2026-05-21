@@ -11,7 +11,7 @@ from typing import Any, List
 
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_mcp.client import MCPClient
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 class MCPToolAdapter(BaseTool):
     """Wraps a single MCP-hosted tool as a native BaseTool.

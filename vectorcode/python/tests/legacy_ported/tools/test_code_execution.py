@@ -373,7 +373,7 @@ except ValueError as e:
 
 
 class TestStubSchemaDrift(unittest.TestCase):
-    """Verify that _TOOL_STUBS in code_execution_tool.py stay in sync with
+    """Verify that _TOOL_abc in code_execution_tool.py stay in sync with
     the real tool schemas registered in tools/registry.py.
 
     If a tool gains a new parameter but the sandbox stub isn't updated,
@@ -386,18 +386,18 @@ class TestStubSchemaDrift(unittest.TestCase):
     # Parameters intentionally blocked in the sandbox
     _BLOCKED_TERMINAL_PARAMS = {"background", "pty", "notify_on_complete", "watch_patterns"}
 
-    def test_stubs_cover_all_schema_params(self):
+    def test_abc_cover_all_schema_params(self):
         """Every user-facing parameter in the real schema must appear in the
-        corresponding _TOOL_STUBS entry."""
+        corresponding _TOOL_abc entry."""
         import re
-        from tools.code_execution_tool import _TOOL_STUBS
+        from tools.code_execution_tool import _TOOL_abc
 
         # Import the registry and trigger tool registration
         from tools.registry import registry
         import tools.file_tools  # noqa: F401 - registers read_file, write_file, patch, search_files
         import tools.web_tools  # noqa: F401 - registers web_search, web_extract
 
-        for tool_name, (func_name, sig, doc, args_expr) in _TOOL_STUBS.items():
+        for tool_name, (func_name, sig, doc, args_expr) in _TOOL_abc.items():
             entry = registry._tools.get(tool_name)
             if not entry:
                 # Tool might not be registered yet (e.g., terminal uses a
@@ -417,17 +417,17 @@ class TestStubSchemaDrift(unittest.TestCase):
             self.assertEqual(
                 missing, set(),
                 f"Stub for '{tool_name}' is missing parameters that exist in "
-                f"the real schema: {missing}. Update _TOOL_STUBS in "
+                f"the real schema: {missing}. Update _TOOL_abc in "
                 f"code_execution_tool.py to include them."
             )
 
-    def test_stubs_pass_all_params_to_rpc(self):
+    def test_abc_pass_all_params_to_rpc(self):
         """The args_dict_expr in each stub must include every parameter from
         the signature, so that all params are actually sent over RPC."""
         import re
-        from tools.code_execution_tool import _TOOL_STUBS
+        from tools.code_execution_tool import _TOOL_abc
 
-        for tool_name, (func_name, sig, doc, args_expr) in _TOOL_STUBS.items():
+        for tool_name, (func_name, sig, doc, args_expr) in _TOOL_abc.items():
             stub_params = set(re.findall(r'(\w+)\s*:', sig))
             # Check that each param name appears in the args dict expression
             for param in stub_params:
@@ -440,8 +440,8 @@ class TestStubSchemaDrift(unittest.TestCase):
 
     def test_search_files_target_uses_current_values(self):
         """search_files stub should use 'content'/'files', not old 'grep'/'find'."""
-        from tools.code_execution_tool import _TOOL_STUBS
-        _, sig, doc, _ = _TOOL_STUBS["search_files"]
+        from tools.code_execution_tool import _TOOL_abc
+        _, sig, doc, _ = _TOOL_abc["search_files"]
         self.assertIn('"content"', sig,
                       "search_files stub should default target to 'content', not 'grep'")
         self.assertNotIn('"grep"', sig,

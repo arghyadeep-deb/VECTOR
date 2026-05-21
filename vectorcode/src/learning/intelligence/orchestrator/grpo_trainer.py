@@ -36,7 +36,7 @@ except ImportError:
     F = None  # type: ignore[assignment]
 
 from vectorcode.src.vc_core.registry import LearningRegistry
-from vectorcode.src.learning._stubs import IntelligenceLearningPolicy
+from vectorcode.src.learning._abc import IntelligenceLearningPolicy
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from vectorcode.src.vc_agents._stubs import BaseAgent
+    from vectorcode.src.vc_agents._abc import BaseAgent
     from vectorcode.src.vc_agents.executor import AgentExecutor
     from vectorcode.src.vc_agents.manager import AgentManager
     from vectorcode.src.vc_agents.scheduler import AgentScheduler

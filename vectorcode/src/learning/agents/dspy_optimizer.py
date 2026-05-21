@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 
 from vectorcode.src.vc_core.config import DSPyOptimizerConfig
 from vectorcode.src.vc_core.registry import LearningRegistry
-from vectorcode.src.learning._stubs import AgentLearningPolicy
+from vectorcode.src.learning._abc import AgentLearningPolicy
 
 logger = logging.getLogger(__name__)
 

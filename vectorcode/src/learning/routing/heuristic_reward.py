@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vectorcode.src.learning._stubs import RewardFunction, RoutingContext
+from vectorcode.src.learning._abc import RewardFunction, RoutingContext
 
 class HeuristicRewardFunction(RewardFunction):
     """Computes a scalar reward based on latency, cost, and token efficiency.

@@ -14,7 +14,7 @@ from typing import Any, List, Optional, Tuple
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 # ---------------------------------------------------------------------------
 # SQL validation helpers

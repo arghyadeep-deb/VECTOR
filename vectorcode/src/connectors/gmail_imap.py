@@ -21,11 +21,11 @@ from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from typing import Iterator, List, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 
-from core.mining._stubs import MiningStats
+from core.mining._abc import MiningStats
 
 log = logging.getLogger(__name__)
 

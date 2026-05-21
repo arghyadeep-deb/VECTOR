@@ -17,8 +17,8 @@ from typing import Any, List, Optional
 from vectorcode.src.connectors.store import KnowledgeStore
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_engine._abc import InferenceEngine
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 _DEFAULT_MAX_CHUNKS = 200
 _DEFAULT_BATCH_SIZE = 20

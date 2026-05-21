@@ -18,7 +18,7 @@ from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import (
     GOOGLE_ALL_SCOPES,
     build_google_auth_url,
@@ -30,7 +30,7 @@ from vectorcode.src.connectors.oauth import (
 )
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants

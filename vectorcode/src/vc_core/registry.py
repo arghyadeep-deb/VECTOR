@@ -14,9 +14,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Tuple, Type, TypeVar
 
 if TYPE_CHECKING:
-    from vectorcode.src.vc_agents._stubs import BaseAgent
-    from vectorcode.src.vc_engine._stubs import InferenceEngine
-    from vectorcode.src.vc_tools.storage._stubs import MemoryBackend
+    from vectorcode.src.vc_agents._abc import BaseAgent
+    from vectorcode.src.vc_engine._abc import InferenceEngine
+    from vectorcode.src.vc_tools.storage._abc import MemoryBackend
 
 T = TypeVar("T")
 
@@ -145,7 +145,7 @@ class MinerRegistry(RegistryBase[Any]):
     """Registry for Pearl mining provider implementations.
 
     Each provider implements the ``MiningProvider`` ABC defined in
-    ``vector.mining._stubs``. Registry keys are short lowercase strings
+    ``vector.mining._abc``. Registry keys are short lowercase strings
     such as ``"vllm-pearl"`` (CUDA + Hopper) and (future) ``"mlx-pearl"``,
     ``"llamacpp-pearl-metal"``, ``"ollama-pearl"``.
     """

@@ -8,7 +8,7 @@ import textwrap
 import threading
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.channels._stubs import (
+from vectorcode.src.channels._abc import (
     BaseChannel,
     ChannelHandler,
     ChannelMessage,

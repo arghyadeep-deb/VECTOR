@@ -16,7 +16,7 @@ from typing import Any, Dict, Iterator, Optional
 
 import httpx
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import load_tokens, resolve_google_credentials
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry

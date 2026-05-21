@@ -20,7 +20,7 @@ from vectorcode.src.vc_core.types import ToolCall
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.events import EventBus
-    from vectorcode.src.vc_security._stubs import BaseScanner
+    from vectorcode.src.vc_security._abc import BaseScanner
 
 logger = logging.getLogger(__name__)
 

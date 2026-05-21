@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.channels._stubs import (
+from vectorcode.src.channels._abc import (
     BaseChannel,
     ChannelHandler,
     ChannelMessage,

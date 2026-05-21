@@ -18,7 +18,7 @@ from rich.table import Table
 from vectorcode.src.core.config import load_config
 
 if TYPE_CHECKING:
-    from vectorcode.src.bench._stubs import BenchmarkResult
+    from vectorcode.src.bench._abc import BenchmarkResult
 from vectorcode.src.engine import get_engine
 
 logger = logging.getLogger(__name__)
@@ -210,7 +210,7 @@ def run(
 
     # Import and register benchmarks
     from vectorcode.src.bench import ensure_registered
-    from vectorcode.src.bench._stubs import BenchmarkSuite
+    from vectorcode.src.bench._abc import BenchmarkSuite
     from vectorcode.src.core.registry import BenchmarkRegistry
 
     ensure_registered()

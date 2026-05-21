@@ -16,7 +16,7 @@ import httpx
 
 from vectorcode.src.core.config import HardwareInfo
 from vectorcode.src.mining._models import get_pearl_model_spec, pearl_variant_for_base_model
-from vectorcode.src.mining._stubs import MiningCapabilities
+from vectorcode.src.mining._abc import MiningCapabilities
 
 # ---------------------------------------------------------------------------
 # Constants for the v1 vllm-pearl provider

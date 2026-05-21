@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 
 from vectorcode.src.vc_core.types import Message
 from vectorcode.src.vc_engine._base import InferenceEngine
-from vectorcode.src.vc_engine._stubs import StreamChunk
+from vectorcode.src.vc_engine._abc import StreamChunk
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from vectorcode.src.skills.executor import SkillExecutor, SkillResult
 from vectorcode.src.skills.loader import discover_skills
 from vectorcode.src.skills.tool_adapter import SkillTool
 from vectorcode.src.skills.types import SkillManifest
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
 
 class SkillManager:
     """Coordinate skill discovery, resolution, catalog generation, and execution.

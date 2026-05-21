@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult, BenchmarkSuite
+from vectorcode.src.bench._abc import BaseBenchmark, BenchmarkResult, BenchmarkSuite
 from vectorcode.src.vc_core.registry import BenchmarkRegistry
 
 def ensure_registered() -> None:

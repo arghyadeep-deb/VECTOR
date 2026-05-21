@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.comms._stubs import BaseChannel, ChannelStatus
+from vectorcode.src.comms._abc import BaseChannel, ChannelStatus
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.server.session_store import SessionStore
 

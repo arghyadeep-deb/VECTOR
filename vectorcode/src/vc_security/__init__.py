@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from vectorcode.src.vc_core.events import EventBus
-from vectorcode.src.vc_security._stubs import BaseScanner
+from vectorcode.src.vc_security._abc import BaseScanner
 from vectorcode.src.vc_security.audit import AuditLogger
 from vectorcode.src.vc_security.file_policy import (
     DEFAULT_SENSITIVE_PATTERNS,

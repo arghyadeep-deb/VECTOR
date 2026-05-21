@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from vectorcode.src.vc_core.events import EventType, get_event_bus
 from vectorcode.src.vc_core.registry import MemoryRegistry
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 
 def _check_fts5(conn: sqlite3.Connection) -> bool:
     """Return True if the SQLite build includes FTS5."""

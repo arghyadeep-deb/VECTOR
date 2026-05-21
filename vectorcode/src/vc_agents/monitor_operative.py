@@ -24,7 +24,7 @@ import logging
 import re
 from typing import Any, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
@@ -32,8 +32,8 @@ from vectorcode.src.vc_agents.prompt_loader import (
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall, ToolResult, _message_to_dict
-from vectorcode.src.vc_engine._stubs import InferenceEngine
-from vectorcode.src.vc_tools._stubs import BaseTool
+from vectorcode.src.vc_engine._abc import InferenceEngine
+from vectorcode.src.vc_tools._abc import BaseTool
 
 logger = logging.getLogger(__name__)
 
@@ -502,7 +502,7 @@ class MonitorOperativeAgent(ToolUsingAgent):
         """Build a text description of available tools for the system prompt."""
         if not self._tools:
             return ""
-        from vectorcode.src.vc_tools._stubs import build_tool_descriptions
+        from vectorcode.src.vc_tools._abc import build_tool_descriptions
 
         return build_tool_descriptions(self._tools)
 

@@ -5,7 +5,7 @@
 
 """Data source connectors for Deep Research."""
 
-from vectorcode.src.connectors._stubs import (
+from vectorcode.src.connectors._abc import (
     Attachment,
     BaseConnector,
     Document,

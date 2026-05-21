@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.types import Message
-from vectorcode.src.vc_engine._stubs import InferenceEngine, StreamChunk
-from vectorcode.src.vc_security._stubs import BaseScanner
+from vectorcode.src.vc_engine._abc import InferenceEngine, StreamChunk
+from vectorcode.src.vc_security._abc import BaseScanner
 from vectorcode.src.vc_security.scanner import PIIScanner, SecretScanner
 from vectorcode.src.vc_security.types import RedactionMode, ScanResult
 

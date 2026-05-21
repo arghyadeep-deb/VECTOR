@@ -13,10 +13,10 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-from vectorcode.src.connectors._stubs import Document
+from vectorcode.src.connectors._abc import Document
 from vectorcode.src.vc_core.registry import ConnectorRegistry, ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 # ---------------------------------------------------------------------------
 # Section definitions: ordered list of (section_name, connector_ids)

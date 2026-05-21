@@ -83,7 +83,7 @@ def check_sandbox_requirements() -> bool:
 
 # Per-tool stub templates: (function_name, signature, docstring, args_dict_expr)
 # The args_dict_expr builds the JSON payload sent over the RPC socket.
-_TOOL_STUBS = {
+_TOOL_abc = {
     "web_search": (
         "web_search",
         "query: str, limit: int = 5",
@@ -146,9 +146,9 @@ def generate_vector_tools_module(enabled_tools: List[str],
     stub_functions = []
     export_names = []
     for tool_name in tools_to_generate:
-        if tool_name not in _TOOL_STUBS:
+        if tool_name not in _TOOL_abc:
             continue
-        func_name, sig, doc, args_expr = _TOOL_STUBS[tool_name]
+        func_name, sig, doc, args_expr = _TOOL_abc[tool_name]
         stub_functions.append(
             f"def {func_name}({sig}):\n"
             f"    {doc}\n"

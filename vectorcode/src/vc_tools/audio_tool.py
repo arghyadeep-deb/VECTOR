@@ -13,7 +13,7 @@ from typing import Any
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 _SUPPORTED_FORMATS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm"}
 _MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB

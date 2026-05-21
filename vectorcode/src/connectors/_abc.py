@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional
 
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 @dataclass(slots=True)
 class Attachment:

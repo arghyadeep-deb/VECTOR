@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from vectorcode.src.vc_agents._stubs import (
+from vectorcode.src.vc_agents._abc import (
     AgentContext,
     AgentResult,
     BaseAgent,

@@ -11,7 +11,7 @@ import os
 from typing import List, Optional
 
 from vectorcode.src.vc_core.registry import SpeechRegistry
-from vectorcode.src.speech._stubs import SpeechBackend, TranscriptionResult
+from vectorcode.src.speech._abc import SpeechBackend, TranscriptionResult
 
 try:
     from deepgram import DeepgramClient, PrerecordedOptions

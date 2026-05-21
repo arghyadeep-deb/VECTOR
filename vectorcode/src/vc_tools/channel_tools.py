@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from vectorcode.src.channels._stubs import BaseChannel
+from vectorcode.src.channels._abc import BaseChannel
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 @ToolRegistry.register("channel_send")
 class ChannelSendTool(BaseTool):

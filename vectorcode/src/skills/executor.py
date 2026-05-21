@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.types import ToolCall, ToolResult
 from vectorcode.src.skills.types import SkillManifest
-from vectorcode.src.vc_tools._stubs import ToolExecutor
+from vectorcode.src.vc_tools._abc import ToolExecutor
 
 @dataclass(slots=True)
 class SkillResult:

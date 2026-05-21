@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 
 from vectorcode.src.vc_core.config import SFTConfig
 from vectorcode.src.vc_core.registry import LearningRegistry
-from vectorcode.src.learning._stubs import IntelligenceLearningPolicy
+from vectorcode.src.learning._abc import IntelligenceLearningPolicy
 
 logger = logging.getLogger(__name__)
 

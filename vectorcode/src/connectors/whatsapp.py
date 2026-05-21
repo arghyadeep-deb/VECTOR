@@ -15,7 +15,7 @@ Export line format::
     1/15/24, 10:31 AM - Bob: Good thanks! Working on the project.
 
 Each .txt file in the configured directory is parsed and yielded as a
-single :class:`~vector.connectors._stubs.Document` with ``doc_type``
+single :class:`~vector.connectors._abc.Document` with ``doc_type``
 ``"message"`` and the message lines joined as content.
 """
 
@@ -28,9 +28,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class WhatsAppConnector(BaseConnector):
     WhatsApp allows exporting individual chats as plain-text files via
     *Chat → More → Export Chat*.  Point this connector at the directory
     containing those files (one file per chat) and it will parse each file
-    into a :class:`~vector.connectors._stubs.Document`.
+    into a :class:`~vector.connectors._abc.Document`.
 
     Parameters
     ----------

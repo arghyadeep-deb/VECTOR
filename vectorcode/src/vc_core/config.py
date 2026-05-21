@@ -26,10 +26,10 @@ if TYPE_CHECKING:
     # Only used by type-checkers (mypy/pyright) for the ``VectorConfig.mining``
     # field annotation. The runtime import is deferred inside
     # ``_parse_mining_section()`` to break the import cycle:
-    # ``mining/_stubs.py`` imports ``HardwareInfo`` from this module at its
+    # ``mining/_abc.py`` imports ``HardwareInfo`` from this module at its
     # top level.
     try:
-        from vector.mining._stubs import MiningConfig
+        from vector.mining._abc import MiningConfig
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
@@ -1477,12 +1477,12 @@ def _parse_mining_section(data: dict) -> Optional["MiningConfig"]:
     if "mining" not in data:
         return None
 
-    # Lazy runtime import to break the import cycle: ``mining/_stubs.py``
+    # Lazy runtime import to break the import cycle: ``mining/_abc.py``
     # imports ``HardwareInfo`` from this module at its top level. By the
     # time ``_parse_mining_section`` is called, ``core.config`` is already
     # fully initialized in ``sys.modules``, so the cycle is harmless.
     try:
-        from vector.mining._stubs import MiningConfig, PoolTarget, SoloTarget
+        from vector.mining._abc import MiningConfig, PoolTarget, SoloTarget
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

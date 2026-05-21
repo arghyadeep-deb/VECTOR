@@ -189,7 +189,7 @@ def serve(
                 if getattr(agent_cls, "accepts_tools", False):
                     import vectorcode.src.tools  # noqa: F401  # trigger registration
                     from vectorcode.src.core.registry import ToolRegistry
-                    from vectorcode.src.tools._stubs import BaseTool
+                    from vectorcode.src.tools._abc import BaseTool
 
                     _DEFAULT_TOOLS = {"think", "calculator", "web_search"}
                     configured = config.agent.tools
@@ -267,7 +267,7 @@ def serve(
                     if getattr(_ch_cls, "accepts_tools", False):
                         import vectorcode.src.tools
                         from vectorcode.src.core.registry import ToolRegistry
-                        from vectorcode.src.tools._stubs import BaseTool
+                        from vectorcode.src.tools._abc import BaseTool
 
                         _DEFAULT_TOOLS = {"think", "calculator", "web_search"}
                         configured = config.agent.tools

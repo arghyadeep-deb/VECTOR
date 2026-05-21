@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, BaseAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, BaseAgent
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.types import StepType, Trace, TraceStep
 from vectorcode.src.vc_traces.store import TraceStore

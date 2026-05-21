@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from vectorcode.src.vc_core.registry import MemoryRegistry
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.embeddings import Embedder, OllamaEmbedder
 
 logger = logging.getLogger(__name__)

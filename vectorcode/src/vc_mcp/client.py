@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 from vectorcode.src.vc_mcp.protocol import MCPError, MCPRequest, MCPResponse
 from vectorcode.src.vc_mcp.transport import MCPTransport
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 class MCPClient:
     """Client that communicates with an MCP server via a transport.

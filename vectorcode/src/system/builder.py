@@ -7,9 +7,9 @@ from typing import Any, List, Optional
 
 from vectorcode.src.vc_core.config import VectorConfig, load_config
 from vectorcode.src.vc_core.events import EventBus, get_event_bus
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 from vectorcode.src.system.core import VectorSystem
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
 
 logger = logging.getLogger(__name__)
 

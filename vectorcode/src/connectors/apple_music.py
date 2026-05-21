@@ -22,7 +22,7 @@ import sys
 from datetime import datetime
 from typing import Iterator, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.registry import ConnectorRegistry
 
 logger = logging.getLogger(__name__)

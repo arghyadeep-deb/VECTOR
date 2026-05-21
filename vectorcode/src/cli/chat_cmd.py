@@ -93,7 +93,7 @@ def chat(
                     if tool_names_list:
                         import vectorcode.src.tools  # noqa: F401 -- trigger registration
                         from vectorcode.src.vc_core.registry import ToolRegistry
-                        from vectorcode.src.tools._stubs import BaseTool
+                        from vectorcode.src.tools._abc import BaseTool
 
                         tool_instances = []
                         for tname in tool_names_list:

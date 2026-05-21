@@ -11,7 +11,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from vectorcode.src.vc_agents._stubs import AgentResult
+from vectorcode.src.vc_agents._abc import AgentResult
 from vectorcode.src.vc_agents.errors import (
     AgentTickError,
     EscalateError,
@@ -362,7 +362,7 @@ class AgentExecutor:
             )
 
         # Build AgentContext with memory results from FTS5 backend
-        from vectorcode.src.vc_agents._stubs import AgentContext
+        from vectorcode.src.vc_agents._abc import AgentContext
 
         agent_ctx = AgentContext()
         memory_results = []

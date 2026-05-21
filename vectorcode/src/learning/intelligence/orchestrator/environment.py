@@ -6,7 +6,7 @@
 """RL environment for orchestrator training.
 
 Adapted from IPW's ``environment.py``.  Uses VectorCode's
-:class:`~vector.tools._stubs.ToolExecutor` for real tool dispatch
+:class:`~vector.tools._abc.ToolExecutor` for real tool dispatch
 (as opposed to IPW's cached-telemetry approach), making it suitable for
 both training and evaluation.
 """
@@ -22,7 +22,7 @@ from vectorcode.src.learning.intelligence.orchestrator.types import (
     OrchestratorAction,
     OrchestratorObservation,
 )
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
 
 class OrchestratorEnvironment:
     """RL environment that executes tools via VectorCode ``ToolExecutor``.

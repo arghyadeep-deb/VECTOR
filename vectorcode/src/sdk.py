@@ -451,7 +451,7 @@ class VectorAgent:
     ) -> Dict[str, Any]:
         """Run an agent and return the result dict."""
         import vectorcode.src.agents  # noqa: F401
-        from vectorcode.src.agents._stubs import AgentContext
+        from vectorcode.src.agents._abc import AgentContext
         from vectorcode.src.core.registry import AgentRegistry
 
         if not AgentRegistry.contains(agent_name):

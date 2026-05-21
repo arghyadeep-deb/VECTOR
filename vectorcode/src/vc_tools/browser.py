@@ -12,7 +12,7 @@ from typing import Any
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 class _BrowserSession:
     """Manages a shared Playwright browser session (lazy init)."""

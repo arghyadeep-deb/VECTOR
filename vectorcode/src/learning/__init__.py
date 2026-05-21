@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from vectorcode.src.learning._stubs import (
+from vectorcode.src.learning._abc import (
     QueryAnalyzer,
     RewardFunction,
     RouterPolicy,

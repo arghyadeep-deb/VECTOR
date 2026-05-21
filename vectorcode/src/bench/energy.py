@@ -12,10 +12,10 @@ import time
 from typing import Any, List, Optional
 
 from vectorcode.src.bench._stats import compute_stats
-from vectorcode.src.bench._stubs import BaseBenchmark, BenchmarkResult
+from vectorcode.src.bench._abc import BaseBenchmark, BenchmarkResult
 from vectorcode.src.vc_core.registry import BenchmarkRegistry
 from vectorcode.src.vc_core.types import Message, Role
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 
 logger = logging.getLogger(__name__)
 

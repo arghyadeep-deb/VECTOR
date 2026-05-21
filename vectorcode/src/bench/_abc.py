@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 
 @dataclass(slots=True)
 class BenchmarkResult:

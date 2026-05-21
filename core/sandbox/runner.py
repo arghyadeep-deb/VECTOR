@@ -20,7 +20,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 try:
-    from vectorcode.src.vc_districts._stubs import AgentContext, AgentResult, BaseAgent
+    from vectorcode.src.vc_districts._abc import AgentContext, AgentResult, BaseAgent
 except ImportError:
     AgentContext = AgentResult = BaseAgent = None
 try:
@@ -32,7 +32,7 @@ try:
 except ImportError:
     ToolResult = None
 try:
-    from vectorcode.src.vc_engine._stubs import InferenceEngine
+    from vectorcode.src.vc_engine._abc import InferenceEngine
 except ImportError:
     InferenceEngine = None
 

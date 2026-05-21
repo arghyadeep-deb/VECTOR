@@ -17,7 +17,7 @@ from typing import Any, Optional
 from vectorcode.src.connectors.store import KnowledgeStore
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 _MAX_ROWS = 50
 

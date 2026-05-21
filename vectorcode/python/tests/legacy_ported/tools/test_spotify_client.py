@@ -22,7 +22,7 @@ class _FakeResponse:
         return self._payload
 
 
-class _StubSpotifyClient:
+class _abcpotifyClient:
     def __init__(self, payload):
         self.payload = payload
 
@@ -152,7 +152,7 @@ def test_spotify_playback_get_currently_playing_returns_explanatory_empty_result
     monkeypatch.setattr(
         spotify_tool,
         "_spotify_client",
-        lambda: _StubSpotifyClient({
+        lambda: _abcpotifyClient({
             "status_code": 204,
             "empty": True,
             "message": "Spotify is not currently playing anything. Start playback in Spotify and try again.",

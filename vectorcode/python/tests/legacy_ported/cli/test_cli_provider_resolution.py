@@ -39,7 +39,7 @@ def _restore_cli_and_tool_modules():
         sys.modules.update(original_modules)
 
 
-def _install_prompt_toolkit_stubs():
+def _install_prompt_toolkit_abc():
     class _Dummy:
         def __init__(self, *args, **kwargs):
             pass
@@ -119,7 +119,7 @@ def _import_cli():
     try:
         importlib.import_module("prompt_toolkit")
     except ModuleNotFoundError:
-        _install_prompt_toolkit_stubs()
+        _install_prompt_toolkit_abc()
     return importlib.import_module("cli")
 
 

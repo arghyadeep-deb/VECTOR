@@ -144,7 +144,7 @@ def _run_agent(
     """Instantiate and run an agent, returning the AgentResult."""
     # Import agents to trigger registration
     import vectorcode.src.agents  # noqa: F401
-    from vectorcode.src.agents._stubs import AgentContext
+    from vectorcode.src.agents._abc import AgentContext
     from vectorcode.src.core.registry import AgentRegistry
 
     if not AgentRegistry.contains(agent_name):

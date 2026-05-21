@@ -71,7 +71,7 @@ def injection_result_from_json(json_str: str) -> object:
 
 
 def retrieval_results_from_json(json_str: str) -> list:
-    from vectorcode.src.tools.storage._stubs import RetrievalResult
+    from vectorcode.src.tools.storage._abc import RetrievalResult
     items = json.loads(json_str)
     results: List[RetrievalResult] = []
     for item in items:

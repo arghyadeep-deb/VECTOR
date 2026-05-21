@@ -233,7 +233,7 @@ def _handle_agent(
     complexity_info=None,
 ) -> ChatCompletionResponse:
     """Run through agent."""
-    from vectorcode.src.vc_agents._stubs import AgentContext
+    from vectorcode.src.vc_agents._abc import AgentContext
 
     # Build context from prior messages
     ctx = AgentContext()

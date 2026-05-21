@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from vectorcode.src.connectors.store import KnowledgeStore
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 if TYPE_CHECKING:
     from vectorcode.src.connectors.retriever import TwoStageRetriever

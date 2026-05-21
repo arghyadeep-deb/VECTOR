@@ -20,7 +20,7 @@ from vectorcode.src.vc_core.config import HardwareInfo
 from vectorcode.src.vc_core.registry import MinerRegistry
 
 from . import _install
-from ._constants import (
+from .constants import (
     CPU_PEARL_DEFAULT_K,
     CPU_PEARL_DEFAULT_M,
     CPU_PEARL_DEFAULT_N,
@@ -31,7 +31,7 @@ from ._constants import (
     SIDECAR_PATH,
 )
 from ._pearl_subprocess import PearlSubprocessLauncher
-from ._stubs import (
+from ._abc import (
     MiningCapabilities,
     MiningConfig,
     MiningProvider,

@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.digest_store import DigestArtifact, DigestStore
 from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall

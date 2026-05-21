@@ -17,12 +17,12 @@ import json
 import logging
 from typing import Any, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall, ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
-from vectorcode.src.vc_tools._stubs import BaseTool
+from vectorcode.src.vc_engine._abc import InferenceEngine
+from vectorcode.src.vc_tools._abc import BaseTool
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,7 @@ def _make_real_cli(**kwargs):
         "terminal": {"env_type": "local"},
     }
     clean_env = {"LLM_MODEL": "", "VECTOR_MAX_ITERATIONS": ""}
-    prompt_toolkit_stubs = {
+    prompt_toolkit_abc = {
         "prompt_toolkit": MagicMock(),
         "prompt_toolkit.history": MagicMock(),
         "prompt_toolkit.styles": MagicMock(),
@@ -36,7 +36,7 @@ def _make_real_cli(**kwargs):
         "prompt_toolkit.completion": MagicMock(),
         "prompt_toolkit.formatted_text": MagicMock(),
     }
-    with patch.dict(sys.modules, prompt_toolkit_stubs), patch.dict(
+    with patch.dict(sys.modules, prompt_toolkit_abc), patch.dict(
         "os.environ", clean_env, clear=False
     ):
         import cli as cli_mod

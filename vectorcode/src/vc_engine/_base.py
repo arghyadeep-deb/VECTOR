@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from typing import Any, Dict, List
 
 from vectorcode.src.vc_core.types import Message
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 
 class EngineConnectionError(Exception):
     """Raised when an engine is unreachable."""

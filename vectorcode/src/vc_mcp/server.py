@@ -18,7 +18,7 @@ from vectorcode.src.vc_mcp.protocol import (
     MCPRequest,
     MCPResponse,
 )
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
 
 logger = logging.getLogger(__name__)
 

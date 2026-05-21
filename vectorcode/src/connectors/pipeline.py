@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Optional
 
-from vectorcode.src.connectors._stubs import Attachment, Document
+from vectorcode.src.connectors._abc import Attachment, Document
 from vectorcode.src.connectors.chunker import SemanticChunker
 from vectorcode.src.connectors.store import KnowledgeStore
 

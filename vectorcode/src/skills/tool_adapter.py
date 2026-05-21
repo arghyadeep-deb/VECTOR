@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.skills.executor import SkillExecutor
 from vectorcode.src.skills.types import SkillManifest
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 

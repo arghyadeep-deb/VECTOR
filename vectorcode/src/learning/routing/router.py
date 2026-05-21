@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from vectorcode.src.vc_core.registry import ModelRegistry
 from vectorcode.src.vc_core.types import RoutingContext
-from vectorcode.src.learning._stubs import QueryAnalyzer, RouterPolicy
+from vectorcode.src.learning._abc import QueryAnalyzer, RouterPolicy
 
 logger = logging.getLogger(__name__)
 

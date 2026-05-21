@@ -12,7 +12,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.comms._stubs import (
+from vectorcode.src.comms._abc import (
     BaseChannel,
     ChannelHandler,
     ChannelMessage,

@@ -24,7 +24,7 @@ from vectorcode.src.vc_engine._base import (
     estimate_prompt_tokens,
     messages_to_dicts,
 )
-from vectorcode.src.vc_engine._stubs import StreamChunk
+from vectorcode.src.vc_engine._abc import StreamChunk
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class OllamaEngine(InferenceEngine):
         # Apply structured output / JSON mode
         response_format = kwargs.get("response_format")
         if response_format is not None:
-            from vectorcode.src.vc_engine._stubs import ResponseFormat
+            from vectorcode.src.vc_engine._abc import ResponseFormat
 
             if isinstance(response_format, ResponseFormat):
                 payload["format"] = "json"

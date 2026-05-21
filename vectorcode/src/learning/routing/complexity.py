@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from vectorcode.src.vc_core.types import RoutingContext
-from vectorcode.src.learning._stubs import QueryAnalyzer
+from vectorcode.src.learning._abc import QueryAnalyzer
 
 # ---------------------------------------------------------------------------
 # Signal patterns

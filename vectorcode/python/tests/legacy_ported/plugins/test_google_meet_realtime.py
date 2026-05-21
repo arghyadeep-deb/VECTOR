@@ -225,7 +225,7 @@ def test_connect_raises_clean_error_when_websockets_missing(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-class _StubSession:
+class _abcession:
     def __init__(self):
         self.spoken: list[str] = []
 
@@ -244,7 +244,7 @@ def test_speaker_run_until_stopped_processes_queue(tmp_path):
         + json.dumps({"id": "b", "text": "hello two"}) + "\n"
     )
 
-    stub = _StubSession()
+    stub = _abcession()
     speaker = RealtimeSpeaker(stub, queue_path=queue, processed_path=processed)
 
     # Stop once the queue is empty.
@@ -270,7 +270,7 @@ def test_speaker_exits_immediately_when_stop_fn_true(tmp_path):
     queue = tmp_path / "q.jsonl"
     queue.write_text(json.dumps({"id": "x", "text": "never spoken"}) + "\n")
 
-    stub = _StubSession()
+    stub = _abcession()
     speaker = RealtimeSpeaker(stub, queue_path=queue)
     speaker.run_until_stopped(lambda: True, poll_interval=0.01)
     assert stub.spoken == []
@@ -282,7 +282,7 @@ def test_speaker_drops_line_without_processed_path_when_none(tmp_path):
     queue = tmp_path / "q.jsonl"
     queue.write_text(json.dumps({"id": "only", "text": "once"}) + "\n")
 
-    stub = _StubSession()
+    stub = _abcession()
     speaker = RealtimeSpeaker(stub, queue_path=queue, processed_path=None)
 
     def _stop():

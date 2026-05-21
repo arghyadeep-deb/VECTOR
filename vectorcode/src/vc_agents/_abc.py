@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 from vectorcode.src.vc_core.config import load_config
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.types import Conversation, Message, Role, ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 
 @dataclass(slots=True)
 class AgentContext:
@@ -316,7 +316,7 @@ class ToolUsingAgent(BaseAgent):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        from vectorcode.src.vc_tools._stubs import ToolExecutor
+        from vectorcode.src.vc_tools._abc import ToolExecutor
 
         self._tools = tools or []
         # Plan 2B I3: store optimized few-shot examples for agents to inject

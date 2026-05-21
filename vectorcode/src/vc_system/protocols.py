@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING, Any, List, Optional, Protocol
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.config import VectorConfig
     from vectorcode.src.vc_core.events import EventBus
-    from vectorcode.src.vc_engine._stubs import InferenceEngine
+    from vectorcode.src.vc_engine._abc import InferenceEngine
     from vectorcode.src.vc_security.capabilities import CapabilityPolicy
     from vectorcode.src.vc_sessions.session import SessionStore
-    from vectorcode.src.vc_tools._stubs import BaseTool
-    from vectorcode.src.vc_tools.storage._stubs import MemoryBackend
+    from vectorcode.src.vc_tools._abc import BaseTool
+    from vectorcode.src.vc_tools.storage._abc import MemoryBackend
     from vectorcode.src.vc_traces.collector import TraceCollector
     from vectorcode.src.vc_traces.store import TraceStore
 

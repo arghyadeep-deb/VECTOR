@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Iterator, Optional
 
-from vectorcode.src.connectors._stubs import Document
+from vectorcode.src.connectors._abc import Document
 from vectorcode.src.connectors.gmail_imap import GmailIMAPConnector
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry

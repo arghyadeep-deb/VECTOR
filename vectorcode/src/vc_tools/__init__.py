@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor, ToolSpec
 
 # Import built-in tools to trigger @ToolRegistry.register() decorators.
 # Each is wrapped in try/except so the package loads even before the

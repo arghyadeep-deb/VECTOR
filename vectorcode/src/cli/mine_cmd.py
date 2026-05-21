@@ -39,7 +39,7 @@ from vectorcode.src.mining._models import (
     iter_pearl_model_specs,
     pearl_variant_for_base_model,
 )
-from vectorcode.src.mining._stubs import Sidecar
+from vectorcode.src.mining._abc import Sidecar
 from vectorcode.src.mining.vllm_pearl import ensure_registered as ensure_vllm_registered
 
 def _detect_hardware() -> HardwareInfo:

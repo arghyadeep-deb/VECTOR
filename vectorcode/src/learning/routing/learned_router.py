@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from vectorcode.src.vc_core.registry import RouterPolicyRegistry
 from vectorcode.src.vc_core.types import RoutingContext
-from vectorcode.src.learning._stubs import RouterPolicy
+from vectorcode.src.learning._abc import RouterPolicy
 from vectorcode.src.learning.routing._utils import classify_query
 
 logger = logging.getLogger(__name__)

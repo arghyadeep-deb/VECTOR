@@ -11,7 +11,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from vectorcode.src.vc_core.types import Message, Role
-from vectorcode.src.vc_tools._stubs import BaseTool
+from vectorcode.src.vc_tools._abc import BaseTool
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_system.protocols import OrchestratorDeps
@@ -126,7 +126,7 @@ class QueryOrchestrator:
         prior_messages=None,
     ) -> Dict[str, Any]:
         """Run through an agent."""
-        from vectorcode.src.vc_agents._stubs import AgentContext
+        from vectorcode.src.vc_agents._abc import AgentContext
         from vectorcode.src.vc_core.events import EventType
         from vectorcode.src.vc_core.registry import AgentRegistry
 

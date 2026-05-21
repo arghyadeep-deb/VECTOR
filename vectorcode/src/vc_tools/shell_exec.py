@@ -14,7 +14,7 @@ from typing import Any, List
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 # Maximum output size per stream (100 KB)
 _MAX_OUTPUT_BYTES = 102_400

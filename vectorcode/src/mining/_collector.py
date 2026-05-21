@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 
 from vectorcode.src.mining._metrics import parse_gateway_metrics
-from vectorcode.src.mining._stubs import MiningStats, Sidecar
+from vectorcode.src.mining._abc import MiningStats, Sidecar
 
 log = logging.getLogger(__name__)
 

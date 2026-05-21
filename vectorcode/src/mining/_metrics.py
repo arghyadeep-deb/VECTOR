@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 
-from vectorcode.src.mining._stubs import MiningStats
+from vectorcode.src.mining._abc import MiningStats
 
 log = logging.getLogger(__name__)
 

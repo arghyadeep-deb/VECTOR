@@ -13,7 +13,7 @@ from typing import Any
 
 from vectorcode.src.vc_core.registry import ToolRegistry, TTSRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 @ToolRegistry.register("text_to_speech")
 class TextToSpeechTool(BaseTool):

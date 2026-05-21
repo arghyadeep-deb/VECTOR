@@ -13,7 +13,7 @@ import httpx
 
 from vectorcode.src.vc_core.config import HardwareInfo
 from vectorcode.src.vc_core.registry import MinerRegistry
-from core.mining._constants import (
+from core.mining.constants import (
     DEFAULT_GATEWAY_METRICS_PORT,
     DEFAULT_GATEWAY_RPC_PORT,
     DEFAULT_PEARL_MODEL,
@@ -24,7 +24,7 @@ from core.mining._constants import (
 from core.mining._discovery import detect_for_engine_model
 from core.mining._docker import PearlDockerLauncher
 from core.mining._metrics import parse_gateway_metrics, parse_vllm_metrics
-from core.mining._stubs import (
+from core.mining._abc import (
     MiningCapabilities,
     MiningConfig,
     MiningProvider,

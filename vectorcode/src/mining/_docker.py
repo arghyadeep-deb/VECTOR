@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from vectorcode.src.mining._stubs import MiningConfig
+    from vectorcode.src.mining._abc import MiningConfig
 
 from vectorcode.src.mining._constants import (
     PEARL_CACHE_DIR,

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.config import VectorConfig
-    from vectorcode.src.speech._stubs import SpeechBackend
+    from vectorcode.src.speech._abc import SpeechBackend
 
 # Priority order: local first, then cloud
 DISCOVERY_ORDER = [

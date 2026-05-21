@@ -22,7 +22,7 @@ from vectorcode.src.vc_engine._base import (
     InferenceEngine,
     messages_to_dicts,
 )
-from vectorcode.src.vc_engine._stubs import StreamChunk
+from vectorcode.src.vc_engine._abc import StreamChunk
 
 # Pricing per million tokens (input, output)
 PRICING: Dict[str, tuple[float, float]] = {
@@ -463,7 +463,7 @@ class CloudEngine(InferenceEngine):
 
         # Apply structured output / JSON mode
         if response_format is not None:
-            from vectorcode.src.vc_engine._stubs import ResponseFormat
+            from vectorcode.src.vc_engine._abc import ResponseFormat
 
             if isinstance(response_format, ResponseFormat):
                 if response_format.type == "json_schema" and response_format.schema:
@@ -546,7 +546,7 @@ class CloudEngine(InferenceEngine):
         # Apply structured output via Anthropic's tool_choice pattern
         response_format = kwargs.pop("response_format", None)
         if response_format is not None:
-            from vectorcode.src.vc_engine._stubs import ResponseFormat
+            from vectorcode.src.vc_engine._abc import ResponseFormat
 
             if isinstance(response_format, ResponseFormat):
                 json_tool = {
@@ -693,7 +693,7 @@ class CloudEngine(InferenceEngine):
         # Apply structured output / JSON mode for Google
         response_format = kwargs.pop("response_format", None)
         if response_format is not None:
-            from vectorcode.src.vc_engine._stubs import ResponseFormat
+            from vectorcode.src.vc_engine._abc import ResponseFormat
 
             if isinstance(response_format, ResponseFormat):
                 config.response_mime_type = "application/json"

@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from vectorcode.src.vc_core.events import EventType, get_event_bus
 from vectorcode.src.vc_core.types import Message, Role
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 
 @dataclass(slots=True)
 class ContextConfig:

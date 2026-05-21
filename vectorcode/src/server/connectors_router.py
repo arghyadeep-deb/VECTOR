@@ -35,7 +35,7 @@ def _ensure_connectors_registered() -> None:
         for mod_name in list(sys.modules):
             if (
                 mod_name.startswith("vector.connectors.")
-                and not mod_name.endswith("_stubs")
+                and not mod_name.endswith("_abc")
                 and not mod_name.endswith("pipeline")
                 and not mod_name.endswith("store")
                 and not mod_name.endswith("chunker")

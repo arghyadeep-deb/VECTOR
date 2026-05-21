@@ -11,8 +11,8 @@ from typing import Any, Optional
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_engine._abc import InferenceEngine
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 @ToolRegistry.register("llm")
 class LLMTool(BaseTool):

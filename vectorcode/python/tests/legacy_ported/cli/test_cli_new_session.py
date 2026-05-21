@@ -90,7 +90,7 @@ def _make_cli(env_overrides=None, config_overrides=None, **kwargs):
     clean_env = {"LLM_MODEL": "", "VECTOR_MAX_ITERATIONS": ""}
     if env_overrides:
         clean_env.update(env_overrides)
-    prompt_toolkit_stubs = {
+    prompt_toolkit_abc = {
         "prompt_toolkit": MagicMock(),
         "prompt_toolkit.history": MagicMock(),
         "prompt_toolkit.styles": MagicMock(),
@@ -107,7 +107,7 @@ def _make_cli(env_overrides=None, config_overrides=None, **kwargs):
         "prompt_toolkit.formatted_text": MagicMock(),
         "prompt_toolkit.auto_suggest": MagicMock(),
     }
-    with patch.dict(sys.modules, prompt_toolkit_stubs), patch.dict(
+    with patch.dict(sys.modules, prompt_toolkit_abc), patch.dict(
         "os.environ", clean_env, clear=False
     ):
         import cli as _cli_mod

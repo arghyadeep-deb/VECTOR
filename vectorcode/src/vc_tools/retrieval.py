@@ -11,8 +11,8 @@ from typing import Any, Optional
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend
 from vectorcode.src.vc_tools.storage.context import format_context
 
 @ToolRegistry.register("retrieval")

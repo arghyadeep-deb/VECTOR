@@ -25,7 +25,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
 from vectorcode.src.connectors.store import KnowledgeStore
-from vectorcode.src.vc_tools.storage._stubs import RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import RetrievalResult
 
 if TYPE_CHECKING:
     from vectorcode.src.connectors.embedding_store import EmbeddingStore

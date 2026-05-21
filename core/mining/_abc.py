@@ -1,4 +1,4 @@
-# src/vector/mining/_stubs.py
+# src/vector/mining/_abc.py
 """ABCs and dataclasses for the mining subsystem.
 
 See spec ``docs/design/2026-05-05-vllm-pearl-mining-integration-design.md``

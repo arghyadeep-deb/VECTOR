@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, List, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
@@ -22,8 +22,8 @@ from vectorcode.src.vc_agents.prompt_loader import (
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall, ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
-from vectorcode.src.vc_tools._stubs import BaseTool
+from vectorcode.src.vc_engine._abc import InferenceEngine
+from vectorcode.src.vc_tools._abc import BaseTool
 
 def _tc_name(tc: dict) -> str:
     """Extract tool call name from OpenAI or flat format."""

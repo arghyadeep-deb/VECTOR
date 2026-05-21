@@ -5,7 +5,7 @@
 
 """ChannelAgent — bridge between messaging channels and AI agents.
 
-Routes incoming :class:`~vector.channels._stubs.ChannelMessage` objects
+Routes incoming :class:`~vector.channels._abc.ChannelMessage` objects
 to an agent, classifies queries as "quick" or "deep", and delivers responses
 either inline or as a preview with an escalation link to a full report.
 """
@@ -17,7 +17,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
-from vectorcode.src.channels._stubs import BaseChannel, ChannelMessage
+from vectorcode.src.channels._abc import BaseChannel, ChannelMessage
 
 # ---------------------------------------------------------------------------
 # Query classifier
@@ -75,7 +75,7 @@ class ChannelAgent:
         A connected :class:`BaseChannel` instance.
     agent:
         Any object that exposes a ``run(input: str) -> AgentResult``-compatible
-        method (typically a :class:`~vector.agents._stubs.BaseAgent`
+        method (typically a :class:`~vector.agents._abc.BaseAgent`
         subclass).
     max_workers:
         Size of the background :class:`~concurrent.futures.ThreadPoolExecutor`.

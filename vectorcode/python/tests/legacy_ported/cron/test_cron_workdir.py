@@ -256,7 +256,7 @@ class TestRunJobTerminalCwd:
     """
 
     @staticmethod
-    def _install_stubs(monkeypatch, observed: dict):
+    def _install_abc(monkeypatch, observed: dict):
         """Patch enough of run_job's deps that it executes without real creds."""
         import os
         import sys
@@ -321,7 +321,7 @@ class TestRunJobTerminalCwd:
         monkeypatch.setenv("TERMINAL_CWD", "/original/cwd")
 
         observed: dict = {}
-        self._install_stubs(monkeypatch, observed)
+        self._install_abc(monkeypatch, observed)
 
         job = {
             "id": "abc",
@@ -359,7 +359,7 @@ class TestRunJobTerminalCwd:
         before = os.environ["TERMINAL_CWD"]
 
         observed: dict = {}
-        self._install_stubs(monkeypatch, observed)
+        self._install_abc(monkeypatch, observed)
 
         job = {
             "id": "xyz",

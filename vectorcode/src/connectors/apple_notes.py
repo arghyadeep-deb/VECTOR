@@ -35,9 +35,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector, Document, SyncStatus
+from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-from vectorcode.src.vc_tools._stubs import ToolSpec
+from vectorcode.src.vc_tools._abc import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants

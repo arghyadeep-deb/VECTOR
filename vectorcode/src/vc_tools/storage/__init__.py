@@ -36,7 +36,7 @@ try:
 except ImportError:
     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
-from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.chunking import Chunk, ChunkConfig, chunk_text
 from vectorcode.src.vc_tools.storage.context import ContextConfig, inject_context
 from vectorcode.src.vc_tools.storage.ingest import ingest_path, read_document

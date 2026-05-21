@@ -21,7 +21,7 @@ from vectorcode.src.vc_engine._base import (
     estimate_prompt_tokens,
     messages_to_dicts,
 )
-from vectorcode.src.vc_engine._stubs import StreamChunk
+from vectorcode.src.vc_engine._abc import StreamChunk
 
 logger = logging.getLogger(__name__)
 

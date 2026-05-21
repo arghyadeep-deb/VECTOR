@@ -15,14 +15,14 @@ from vectorcode.src.vc_core.config import HardwareInfo
 from vectorcode.src.vc_core.registry import MinerRegistry
 
 from . import _install
-from ._constants import (
+from .constants import (
     CPU_PEARL_DEFAULT_K,
     DEFAULT_GATEWAY_METRICS_PORT,
     DEFAULT_GATEWAY_RPC_PORT,
     DEFAULT_PEARLD_RPC_URL,
 )
 from ._pearl_subprocess import PearlSubprocessLauncher
-from ._stubs import MiningCapabilities, MiningConfig
+from ._abc import MiningCapabilities, MiningConfig
 from .cpu_pearl import CpuPearlProvider, _log_dir
 
 def _torch_mps_available() -> tuple[bool, str | None]:

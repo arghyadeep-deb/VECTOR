@@ -12,7 +12,7 @@ from typing import Any
 
 from vectorcode.src.a2a.client import A2AClient
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from typing import Any, List, Optional
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec
+from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 # Maximum file size to read (1 MB)
 _MAX_SIZE_BYTES = 1_048_576

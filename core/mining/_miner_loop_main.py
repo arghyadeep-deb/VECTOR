@@ -96,7 +96,7 @@ async def _open_gateway_connection(
 
 def _build_mining_config(pearl_mining_module: Any, *, k: int, rank: int) -> Any:
     """Build the upstream MiningConfiguration with default patterns."""
-    from ._constants import (
+    from .constants import (
         CPU_PEARL_DEFAULT_COLS_PATTERN,
         CPU_PEARL_DEFAULT_ROWS_PATTERN,
     )

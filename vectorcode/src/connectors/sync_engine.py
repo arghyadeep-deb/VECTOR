@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from vectorcode.src.connectors._stubs import BaseConnector
+from vectorcode.src.connectors._abc import BaseConnector
 from vectorcode.src.connectors.pipeline import IngestionPipeline
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 

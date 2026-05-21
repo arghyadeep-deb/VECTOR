@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from vectorcode.src.vc_agents._stubs import AgentContext, AgentResult, BaseAgent
+from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, BaseAgent
 from vectorcode.src.vc_core.registry import AgentRegistry
 
 @AgentRegistry.register("simple")

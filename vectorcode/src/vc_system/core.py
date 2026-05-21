@@ -14,25 +14,25 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from vectorcode.src.vc_core.config import VectorConfig
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.types import Message, Role
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+from vectorcode.src.vc_engine._abc import InferenceEngine
 from vectorcode.src.vc_system.bundles import (
     AgentRuntime,
     Observability,
     Scheduling,
     SecurityContext,
 )
-from vectorcode.src.vc_tools._stubs import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
 
 if TYPE_CHECKING:
-    from vectorcode.src.vc_agents._stubs import BaseAgent
+    from vectorcode.src.vc_agents._abc import BaseAgent
     from vectorcode.src.vc_agents.executor import AgentExecutor
     from vectorcode.src.vc_agents.manager import AgentManager
     from vectorcode.src.vc_agents.scheduler import AgentScheduler
     try:
-        from vector.channels._stubs import BaseChannel
+        from vector.channels._abc import BaseChannel
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
-    from vectorcode.src.learning._stubs import RouterPolicy
+    from vectorcode.src.learning._abc import RouterPolicy
     from vectorcode.src.learning.learning_orchestrator import LearningOrchestrator
     from vectorcode.src.vc_mcp.client import MCPClient
     from vectorcode.src.vc_mcp.server import MCPServer
@@ -45,11 +45,11 @@ if TYPE_CHECKING:
     from vectorcode.src.vc_security.capabilities import CapabilityPolicy
     from vectorcode.src.vc_sessions.session import SessionStore
     from vectorcode.src.vc_skills.manager import SkillManager
-    from vectorcode.src.speech._stubs import SpeechBackend
+    from vectorcode.src.speech._abc import SpeechBackend
     from vectorcode.src.vc_system.orchestrator import QueryOrchestrator
     from core.telemetry.gpu_monitor import GpuMonitor
     from core.telemetry.store import TelemetryStore
-    from vectorcode.src.vc_tools.storage._stubs import MemoryBackend
+    from vectorcode.src.vc_tools.storage._abc import MemoryBackend
     from vectorcode.src.vc_traces.collector import TraceCollector
     from vectorcode.src.vc_traces.store import TraceStore
     from vectorcode.src.workflow.engine import WorkflowEngine
@@ -203,7 +203,7 @@ class VectorSystem:
         Parameters
         ----------
         channel_bridge:
-            A connected :class:`~vector.channels._stubs.BaseChannel`
+            A connected :class:`~vector.channels._abc.BaseChannel`
             instance whose ``on_message`` method accepts a callable.
         """
         from vectorcode.src.vc_core.types import Message
