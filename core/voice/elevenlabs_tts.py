@@ -21,7 +21,7 @@ from core.config import CONFIG
 _API_KEY = CONFIG.get("elevenlabs_key", "")
 
 # VECTOR-personalized voice profile
-_VECTOR_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # Adam — deep, authoritative
+_VECTOR_VOICE_ID = CONFIG.get("api_keys", {}).get("elevenlabs_voice_id", os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB"))  # Adam — deep, authoritative
 _VECTOR_VOICE_SETTINGS = {
     "stability": 0.75,           # Consistent, professional
     "similarity_boost": 0.85,    # Close to voice character

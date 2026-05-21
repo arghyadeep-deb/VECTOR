@@ -365,6 +365,7 @@ class VectorSettings(BaseSettings):
     INSTAGRAM_ACCESS_TOKEN: SecretStr = SecretStr("")
     INSTAGRAM_ACCOUNT_ID: str = ""
     ELEVENLABS_KEY: SecretStr = SecretStr("")
+    ELEVENLABS_VOICE_ID: str = "pNInz6obpgDQGcFmaJgB"
     CONTENT_NICHE: str = "AI"
     VIDEO_UPLOAD_DELAY_MINUTES: int = 30
     MUAPI_API_KEY: SecretStr = SecretStr("")
@@ -501,6 +502,7 @@ CONFIG: dict = {
         "instagram_access_token": _secret(_s.INSTAGRAM_ACCESS_TOKEN.get_secret_value()),
         "instagram_account_id":   _s.INSTAGRAM_ACCOUNT_ID,
         "elevenlabs_key":         _secret(_s.ELEVENLABS_KEY.get_secret_value()),
+        "elevenlabs_voice_id":    _s.ELEVENLABS_VOICE_ID,
         "muapi_api_key":          _secret(_s.MUAPI_API_KEY.get_secret_value()),
         "pagespeed_api_key":      _secret(_s.PAGESPEED_API_KEY.get_secret_value()),
     },

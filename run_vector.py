@@ -79,8 +79,7 @@ def _asyncio_exception_handler(loop, context):
 try:
     loop = asyncio.get_running_loop()
 except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop_policy().get_event_loop()
 loop.set_exception_handler(_asyncio_exception_handler)
 
 
@@ -969,12 +968,11 @@ def ha_startup() -> bool:
             logger.warning("[VECTOR][ha] No token configured — HA disabled")
             return False
         connector = HAConnector(cfg)
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        ok = loop.run_until_complete(connector.connect())
-        loop.run_until_complete(connector.disconnect())
-        loop.close()
+        async def _probe() -> bool:
+            ok = await connector.connect()
+            await connector.disconnect()
+            return ok
+        ok = asyncio.run(_probe())
         if ok:
             logger.info("[VECTOR][ha] Home Assistant connection verified")
             return True
