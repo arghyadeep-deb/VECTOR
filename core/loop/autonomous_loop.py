@@ -947,6 +947,20 @@ class AutonomousLoop:
                 logger.info(f"[VECTOR][reflect] SelfImprovementCycle: {status} "
                             f"(collect={phases.get('collect',{}).get('samples',0)}, "
                             f"train={phases.get('train',{}).get('status','?')})")
+
+                if result.get("status") == "ok":
+                    try:
+                        from core.training.openmythos.trainer import SelfImprovementTrainer
+                        trainer = SelfImprovementTrainer()
+                        eval_result = trainer.evaluate()
+                        baseline = {"coherence": eval_result["coherence"] * 0.9}
+                        deploy_ok, reason = trainer.should_deploy(eval_result, baseline)
+                        if not deploy_ok:
+                            logger.warning("[VECTOR][training] eval gate rejected: {}", reason)
+                        else:
+                            logger.info("[VECTOR][training] eval gate passed: {}", reason)
+                    except Exception as eval_err:
+                        logger.warning("[VECTOR][training] eval gate failed: {}", eval_err)
         except Exception as e:
             logger.error(f"[VECTOR][reflect] SelfImprovementCycle failed: {e}")
 

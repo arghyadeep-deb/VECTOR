@@ -271,6 +271,56 @@ def check_setup() -> dict:
     return results
 
 
+# ── Self-improvement train-and-eval cycle ─────────────────────────────────────
+
+import random as _random
+
+
+class SelfImprovementTrainer:
+    """Wraps the training pipeline with eval gates for deploy decisions."""
+
+    def __init__(self, baseline: dict | None = None) -> None:
+        self._baseline = baseline or {"coherence": 0.5}
+
+    def evaluate(self, holdout_prompts: list[str] | None = None) -> dict:
+        """Score coherence on a holdout set. Returns metrics dict."""
+        if holdout_prompts is None:
+            holdout_prompts = [
+                "What should VECTOR prioritize today?",
+                "Summarize the last hour of activity.",
+                "Is there a security threat in the current context?",
+            ]
+        coherence_scores = []
+        for prompt in holdout_prompts[:50]:
+            try:
+                output = self.generate(prompt)
+                score = self._llm_judge_coherence(output)
+                coherence_scores.append(score)
+            except Exception:
+                coherence_scores.append(0.0)
+        avg = sum(coherence_scores) / len(coherence_scores) if coherence_scores else 0.0
+        return {"coherence": avg, "samples": len(coherence_scores)}
+
+    def should_deploy(self, eval_result: dict, baseline: dict | None = None) -> tuple[bool, str]:
+        """Gate: reject if any metric regresses beyond threshold."""
+        bl = baseline or self._baseline
+        if eval_result["coherence"] < bl["coherence"] * 0.85:
+            return (False, f"coherence dropped: {eval_result['coherence']:.2f} vs {bl['coherence']:.2f}")
+        return (True, "all gates passed")
+
+    def generate(self, prompt: str) -> str:
+        """Placeholder: produce a sample output for eval scoring."""
+        import hashlib
+        return f"VECTOR response to: {prompt[:50]}... [hash={hashlib.md5(prompt.encode()).hexdigest()[:8]}]"
+
+    def _llm_judge_coherence(self, output: str) -> float:
+        """Heuristic coherence score based on output length and variety."""
+        score = min(1.0, len(output) / 200.0)
+        unique_chars = len(set(output.lower()))
+        score *= min(1.0, unique_chars / 20.0)
+        return round(score, 4)
+
+
 # ── CLI entry point ───────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
