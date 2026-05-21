@@ -125,9 +125,9 @@ class AsyncEventBus(EventBus):
     def get_stats(self) -> dict[str, Any]:
         return {
             "subscribers": len(self._subscribers),
-            "total_published": self._events_published,
-            "total_delivered": self._events_delivered,
-            "total_dropped": self._events_dropped,
+            "events_published": self._events_published,
+            "events_delivered": self._events_delivered,
+            "events_dropped": self._events_dropped,
             "queues": len(self._queues),
             "dead_letters": sum(len(dq) for dq in self._dead_letters.values()),
             "queue_depths": {
