@@ -8,6 +8,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
+from core.event_bus.types import Event, EventType
+from core.event_bus.worker_pool import WorkerPool
+from core.resilience.graceful_degradation import GracefulDegradation, ServiceTier
+from core.resilience.hot_failover import HotFailover
 
 
 def _scan_incoming(text: str, context: str = "") -> bool:
@@ -43,7 +47,7 @@ def _capture_loop_error(exc: Exception, context: str, district: str = "") -> Non
             "component": "autonomous_loop",
         })
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     logger.error("[VECTOR][{}] {}: {}", context, type(exc).__name__, exc)
 
 
@@ -70,7 +74,40 @@ class AutonomousLoop:
         self._gateway = None
         self._cron_last_run: dict[str, datetime.datetime] = {}
         self._pending_voice: dict | None = None
+        self._degradation = GracefulDegradation()
+        self._failover = HotFailover(is_primary=True)
+        self._tier_before = self._degradation.current_tier
+        self._event_bus = None
+        self._worker_pool = None
         logger.info("[VECTOR][autonomous_loop] initialized")
+
+    async def _get_event_bus(self):
+        if self._event_bus is None:
+            from core.event_bus.bus import get_event_bus
+            self._event_bus = await get_event_bus()
+            from core.event_bus.worker_pool import WorkerPool
+            self._worker_pool = WorkerPool(max_workers=10)
+        return self._event_bus
+
+    def _fanout_handler(self, event) -> dict | None:
+        """Callback for event bus: fan-out to subscribed agents + auto-dispatch downstream tasks."""
+        try:
+            from core.city.agent_registry import get_registry
+            from core.event_bus.wiring import get_downstream_tasks
+            registry = get_registry()
+            et = event.event_type.value if event.event_type else ""
+            for agent in registry.get_all_agents():
+                if et in agent.subscribed_events:
+                    asyncio.create_task(agent.handle_event(event.__dict__ if hasattr(event, '__dict__') else {"event_type": et}))
+            if event.event_type:
+                governor = self._get_governor()
+                for district, task_type, params_template in get_downstream_tasks(event.event_type):
+                    params = {k: (v.format(event_type=et, event_data=str(getattr(event, 'data', {})))) for k, v in params_template.items()}
+                    task = {"type": task_type, "district": district, "params": params, "source_event": et}
+                    asyncio.create_task(governor.dispatch(task))
+        except Exception as e:
+            logger.debug("[VECTOR][autonomous_loop] fan-out handler error: {}", e)
+        return None
 
     def _get_context(self):
         if self._context_engine is None:
@@ -242,6 +279,51 @@ class AutonomousLoop:
                 await self._fire_vnative_cron_jobs()
             except Exception as e:
                 logger.error(f"[VECTOR][scheduler_loop] native cron error: {e}")
+            # Gap 4: drain retry queue — re-execute actions that previously failed
+            try:
+                from core.queue.retry_queue import RetryQueue
+                from core.loop.permission_gateway import Action
+                rq = RetryQueue.get()
+                for item in rq.pop_due(limit=5):
+                    try:
+                        gw = self._get_gateway()
+                        action = Action(
+                            action_type=item.action_type,
+                            params=item.params,
+                            proposed_by=item.proposed_by,
+                        )
+                        await gw.execute(action)
+                        logger.info(f"[VECTOR][retry] replayed {item.action_type} (attempt {item.attempt})")
+                    except Exception as retry_err:
+                        rq.requeue_or_dlq(item, str(retry_err))
+            except Exception as _rq_err:
+                logger.debug(f"[VECTOR][scheduler_loop] retry drain error: {_rq_err}")
+            # Phase 3E: Claims work-stealing — distribute tasks when queue > 5
+            try:
+                from core.loop.task_queue import TaskQueue
+                tq = TaskQueue.get()
+                summary = tq.summary() if hasattr(tq, 'summary') else {}
+                queued = summary.get("queued", 0) if isinstance(summary, dict) else 0
+                if queued > 5:
+                    from vectorcode.src.claims import ClaimService
+                    from core.city.agent_registry import get_registry
+                    cs = ClaimService()
+                    reg = get_registry()
+                    alive = reg.list_alive()
+                    if alive:
+                        # Register alive agents as claimants
+                        for agent in alive[:10]:
+                            try:
+                                cs.register_claimant(
+                                    agent_id=agent.id,
+                                    agent_type=agent.district,
+                                    capacity=1,
+                                )
+                            except Exception:
+                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.info(f"[VECTOR][claims] {queued} pending tasks → distributing to {len(alive)} agents")
+            except Exception as _cl_err:
+                logger.debug(f"[VECTOR][scheduler_loop] claims work-stealing skipped: {_cl_err}")
             await asyncio.sleep(30.0)
 
     def _parse_cron_daily(self, expr: str) -> tuple[int, int] | None:
@@ -318,6 +400,14 @@ class AutonomousLoop:
             logger.error(f"[VECTOR][autonomous_loop] workflow failed: {e}")
             return {"status": "failed", "reason": str(e)}
 
+    def _emit_crash_signal(self, exc: Exception) -> None:
+        try:
+            from districts.emergency.main import _emit
+            import asyncio
+            asyncio.create_task(_emit("system", "process_crash", True, "autonomous_loop", {"error": str(exc)[:200]}))
+        except Exception:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+
     # ─── Observe ──────────────────────────────────────────────────────────────
 
     async def observe_loop(self):
@@ -336,14 +426,18 @@ class AutonomousLoop:
                         guard.reset()
             except Exception as e:
                 _capture_loop_error(e, "observe_loop")
+                self._emit_crash_signal(e)
             await asyncio.sleep(interval)
 
     async def _observe_tick(self):
-        """Single observation tick. Validates ambient output before pipeline propagation."""
-        if self._ambient is None:
+        if self._degradation.current_tier <= ServiceTier.EMERGENCY:
+            return
+        if self._ambient is None and self._degradation.current_tier >= ServiceTier.DEGRADED:
             from core.voice.ambient_listener import AmbientListener
             self._ambient = AmbientListener()
-        result = await self._ambient.listen_tick()
+        result = None
+        if self._ambient:
+            result = await self._ambient.listen_tick()
         # FIX #8: Validate ambient listener output before it enters think→act pipeline
         if result is not None:
             if not isinstance(result, dict):
@@ -364,6 +458,30 @@ class AutonomousLoop:
                 self._pending_voice = result
                 logger.debug("[VECTOR][observe] voice intent queued: {}", result.get("intent"))
 
+    async def _publish_event(self, event_type: EventType, data: dict | None = None) -> None:
+        if self._event_bus is None:
+            return
+        try:
+            await self._event_bus.publish(Event(
+                event_type=event_type,
+                data=data or {},
+                source="autonomous_loop",
+            ))
+        except Exception as exc:
+            logger.debug("[VECTOR][autonomous_loop] event publish failed: {}", exc)
+        # Phase 3A: also publish to VectorCode MessageBus as parallel channel
+        try:
+            from vectorcode.src.message_bus import MessageBus
+            mb = MessageBus()
+            mb.publish(
+                channel=str(event_type.value if hasattr(event_type, 'value') else event_type),
+                content=data or {},
+                sender="autonomous_loop",
+                qos=1,
+            )
+        except Exception as _mb_err:
+            logger.debug("[VECTOR][autonomous_loop] vectorcode message_bus skipped: {}", _mb_err)
+
     # ─── Think ────────────────────────────────────────────────────────────────
 
     async def think_loop(self):
@@ -379,7 +497,9 @@ class AutonomousLoop:
 
     async def _think_tick(self):
         """Evaluate goals → 4 candidates → decision → act. RULE 1: hydrate first."""
+        from core.monitoring.perf_contracts import timed_ctx
         from core.loop.decision_engine import Candidate
+        _perf_ctx = timed_ctx("think_tick")
 
         # Voice intent takes priority — act immediately, skip goal evaluation this tick
         pending = getattr(self, "_pending_voice", None)
@@ -453,6 +573,11 @@ class AutonomousLoop:
 
         decision = await self._get_decision().evaluate(candidates)
         if decision.winner.total_score > 0.3:
+            await self._publish_event(EventType.DECISION_MADE, {
+                "action_type": decision.winner.action_type,
+                "score": decision.winner.total_score,
+                "goal_ids": decision.winner.goal_ids,
+            })
             await self._act_on(decision.winner)
         else:
             logger.debug(
@@ -476,6 +601,11 @@ class AutonomousLoop:
         RULE 3 — LLM zero direct access. All through gateway.
         RULE 7 — update_from_outcome() AFTER every action.
         """
+        await self._publish_event(EventType.AGENT_STATE_CHANGED, {
+            "action_type": winner.action_type,
+            "state": "acting",
+            "score": winner.total_score,
+        })
         # VectorCode routing — coding actions go through permission_gateway first, then bridge
         # RULE 3: LLM has ZERO direct access — gateway always gates, even for VectorCode tasks
         _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
@@ -504,6 +634,42 @@ class AutonomousLoop:
                     return
             except Exception as _vc_err:
                 logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} — falling through to governor")
+
+        # Gap 17: SwarmCoordinator — for multi-agent actions, coordinate via swarm
+        # before dispatching to the governor. Only activates when action_type
+        # suggests multi-agent work (research, analysis, complex coding).
+        _SWARM_ACTION_TYPES = {"research", "deep_research", "analyze", "code_task", "code_generate"}
+        if winner.action_type in _SWARM_ACTION_TYPES:
+            try:
+                from vectorcode.src.swarm import SwarmCoordinator, Topology
+                from core.city.agent_registry import get_registry
+                reg = get_registry()
+                alive_agents = [a for a in reg.list_all() if a.get("is_alive")]
+                if len(alive_agents) >= 3:
+                    swarm = SwarmCoordinator(topology=Topology.ADAPTIVE)
+                    for a in alive_agents[:8]:  # cap at 8 to avoid overhead
+                        swarm.register_agent(
+                            agent_id=a["id"],
+                            hp=a.get("health_points", 500),
+                            district=a.get("district", ""),
+                        )
+                    consensus = swarm.propose(
+                        action_type=winner.action_type,
+                        params=winner.params,
+                        proposer_id="autonomous_loop",
+                    )
+                    if consensus and not consensus.get("approved", True):
+                        logger.info(
+                            f"[VECTOR][swarm] action '{winner.action_type}' rejected by swarm "
+                            f"({consensus.get('reason', 'no consensus')})"
+                        )
+                        return
+                    logger.debug(f"[VECTOR][swarm] {winner.action_type} approved by swarm")
+            except Exception as _sw_err:
+                logger.debug(f"[VECTOR][swarm] coordination skipped: {_sw_err}")
+
+        # Gap 17: Comms — broadcast action result to configured channels after execution.
+        # This is done post-execution (see _broadcast_result below).
 
         # ThreatDetector: scan action description before execution (guidance.py)
         action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
@@ -544,11 +710,28 @@ class AutonomousLoop:
                     logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
 
         try:
-            result = await self._get_governor().dispatch({
-                "type": winner.action_type,
-                "params": winner.params,
-                "source": "autonomous_loop",
-            })
+            # Phase 3B: check VectorCode Skills system before governor dispatch
+            # If a skill matches with confidence > 0.8, execute via skills and skip governor.
+            _skill_executed = False
+            try:
+                from vectorcode.src.skills.manager import SkillManager
+                sm = SkillManager()
+                skill = sm.match(action_type=winner.action_type, params=winner.params)
+                if skill and getattr(skill, 'confidence', 0) > 0.8:
+                    skill_result = await sm.execute(skill, winner.params)
+                    if skill_result and skill_result.get("status") != "error":
+                        result = skill_result
+                        _skill_executed = True
+                        logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{getattr(skill, 'name', '?')}'")
+            except Exception as _sk_err:
+                logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
+
+            if not _skill_executed:
+                result = await self._get_governor().dispatch({
+                    "type": winner.action_type,
+                    "params": winner.params,
+                    "source": "autonomous_loop",
+                })
 
             # Check for real user feedback in episodic memory (RULE 7 — real outcomes)
             user_feedback = self._get_recent_feedback(winner.action_type)
@@ -587,18 +770,69 @@ class AutonomousLoop:
                     reward=reward,
                 )
 
+            try:
+                from core.training.data_collector import DataCollector
+                import json
+                DataCollector().record(
+                    input_text=f"{winner.action_type}: {json.dumps(winner.params, default=str)}",
+                    output_text=json.dumps(result.get("data", {}), default=str),
+                    reward=reward,
+                    metadata={"source": "autonomous_loop", "goal_ids": winner.goal_ids}
+                )
+            except Exception:
+                pass
+
             self._capture_trace("act", {
                 "action": winner.action_type,
                 "result": result.get("status"),
                 "reward": reward,
                 "goal_ids": winner.goal_ids,
             })
+            if result.get("status") in ("ok", "executed"):
+                await self._publish_event(EventType.TASK_COMPLETED, {
+                    "action_type": winner.action_type,
+                    "reward": reward,
+                    "goal_ids": winner.goal_ids,
+                })
+            else:
+                await self._publish_event(EventType.TASK_FAILED, {
+                    "action_type": winner.action_type,
+                    "status": result.get("status"),
+                    "goal_ids": winner.goal_ids,
+                })
             logger.info(
                 f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
                 + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
             )
+            # Gap 17: Comms broadcast — notify configured channels when a significant
+            # action completes. Only fires for YELLOW/RED-tier actions to avoid spam.
+            _NOTIFY_ACTION_TYPES = {"send_message_routine", "commit_code", "create_calendar_event",
+                                    "send_email", "deploy_production", "financial_transaction"}
+            if winner.action_type in _NOTIFY_ACTION_TYPES and result.get("status") == "ok":
+                try:
+                    from vectorcode.src.comms.platform_adapters import PlatformAdapters
+                    adapters = PlatformAdapters()
+                    msg = result.get("message") or f"VECTOR completed: {winner.action_type}"
+                    await adapters.broadcast(msg, channels=["telegram", "discord"], priority="low")
+                except Exception as _comms_err:
+                    logger.debug(f"[VECTOR][comms] broadcast skipped: {_comms_err}")
         except Exception as e:
+            await self._publish_event(EventType.SYSTEM_ERROR, {
+                "action_type": getattr(winner, "action_type", "unknown"),
+                "error": str(e)[:200],
+            })
             _capture_loop_error(e, "act_loop", district=str(getattr(winner, 'district', '') if 'winner' in dir() else ''))
+            # Gap 4: push to retry queue instead of silently dropping
+            try:
+                from core.queue.retry_queue import RetryQueue
+                RetryQueue.get().push(
+                    action_type=getattr(winner, "action_type", "unknown"),
+                    params=getattr(winner, "params", {}),
+                    proposed_by="autonomous_loop",
+                    error=str(e)[:500],
+                )
+            except Exception as _rq_err:
+                logger.debug(f"[VECTOR][act] retry_queue push failed: {_rq_err}")
 
     def _get_recent_feedback(self, action_type: str) -> float | None:
         """Check episodic memory for recent user feedback on this action type. Returns 0.0-1.0 or None."""
@@ -614,7 +848,7 @@ class AutonomousLoop:
                 if reward is not None:
                     return float(reward)
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return None
 
     # ─── Reflect ──────────────────────────────────────────────────────────────
@@ -662,6 +896,22 @@ class AutonomousLoop:
             logger.info(f"[VECTOR][reflect] DailyReviewer done — ok={ok}")
         except Exception as e:
             logger.error(f"[VECTOR][reflect] DailyReviewer failed: {e}")
+
+        try:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if now.weekday() == 6:
+                from core.training.self_improvement_cycle import SelfImprovementCycle
+                cycle = SelfImprovementCycle()
+                result = await asyncio.to_thread(cycle.run_weekly)
+                status = result.get("status", "?")
+                phases = result.get("phases", {})
+                logger.info(f"[VECTOR][reflect] SelfImprovementCycle: {status} "
+                            f"(collect={phases.get('collect',{}).get('samples',0)}, "
+                            f"train={phases.get('train',{}).get('status','?')})")
+        except Exception as e:
+            logger.error(f"[VECTOR][reflect] SelfImprovementCycle failed: {e}")
+
+        try:
             # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
@@ -669,6 +919,8 @@ class AutonomousLoop:
                 tags=["reflect", "daily"],
                 source="autonomous_loop",
             )
+        except Exception:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # ─── Sync ─────────────────────────────────────────────────────────────────
 
@@ -707,6 +959,30 @@ class AutonomousLoop:
             async with httpx.AsyncClient(timeout=8.0) as c:
                 r = await c.post(f"{brain_url}/heartbeat", json=payload)
                 logger.info(f"[VECTOR][sync] heartbeat → brain server {r.status_code}")
+                # Gap 10: parse response body for commands[] from brain server
+                if r.status_code == 200:
+                    try:
+                        body = r.json()
+                        commands = body.get("commands") or []
+                        for cmd in commands:
+                            cmd_type = cmd.get("type", "")
+                            cmd_params = cmd.get("params", {})
+                            logger.info(f"[VECTOR][sync] remote command: {cmd_type} {cmd_params}")
+                            if cmd_type == "research":
+                                self._pending_voice.append(cmd_params.get("query", ""))
+                            elif cmd_type == "voice_broadcast":
+                                self._pending_voice.append(cmd_params.get("text", ""))
+                            elif cmd_type == "deploy":
+                                logger.warning(f"[VECTOR][sync] deploy command received — routing to permission gateway")
+                                from core.loop.permission_gateway import PermissionGateway, Action
+                                gw = PermissionGateway()
+                                await gw.execute(Action(
+                                    action_type="deploy_production",
+                                    params=cmd_params,
+                                    proposed_by="brain_server",
+                                ))
+                    except Exception as _parse_err:
+                        logger.debug(f"[VECTOR][sync] response parse failed: {_parse_err}")
         except Exception as e:
             logger.warning(f"[VECTOR][sync] heartbeat failed: {e}")
 
@@ -741,6 +1017,82 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][phone] loop unavailable: {e}")
 
+    # ─── Health monitoring cycles ────────────────────────────────────────────
+
+    async def wearable_poll_cycle(self) -> None:
+        cfg = CONFIG.get("health", {})
+        if not cfg.get("enabled", False):
+            return
+        interval = cfg.get("wearable_poll_interval_minutes", 15) * 60
+        logger.info(f"[VECTOR][health] wearable_poll_cycle started — {interval//60}min interval")
+        while self._running:
+            try:
+                from districts.health.wearable_connector import WearableConnector
+                from districts.health.metrics_store import MetricsStore
+                connector = WearableConnector()
+                store = MetricsStore()
+                results = await connector.poll_all()
+                for metrics in results:
+                    store.store_wearable(metrics.get("source", "unknown"), metrics)
+                logger.debug(f"[VECTOR][health] wearable poll: {len(results)} sources")
+            except Exception as e:
+                logger.warning(f"[VECTOR][health] wearable poll error: {e}")
+            for _ in range(interval):
+                if not self._running:
+                    return
+                await asyncio.sleep(1)
+
+    async def health_analysis_cycle(self) -> None:
+        cfg = CONFIG.get("health", {})
+        if not cfg.get("enabled", False):
+            return
+        interval = cfg.get("health_analysis_interval_minutes", 60) * 60
+        logger.info(f"[VECTOR][health] health_analysis_cycle started — {interval//60}min interval")
+        while self._running:
+            try:
+                from districts.health.trend_analyzer import TrendAnalyzer
+                from districts.health.metrics_store import MetricsStore
+                from districts.health.health_advisor import HealthAdvisor
+                store = MetricsStore()
+                analyzer = TrendAnalyzer(store=store)
+                analysis = analyzer.full_analysis(days=7)
+                for name, trend in analysis.get("trends", {}).items():
+                    store.store_trend(trend)
+                for name, anomalies in analysis.get("anomalies", {}).items():
+                    for a in anomalies:
+                        store.store_anomaly(a)
+                logger.info(f"[VECTOR][health] analysis complete: {len(analysis.get('trends', {}))} trends, {sum(len(v) for v in analysis.get('anomalies', {}).values())} anomalies")
+            except Exception as e:
+                logger.warning(f"[VECTOR][health] analysis error: {e}")
+            for _ in range(interval):
+                if not self._running:
+                    return
+                await asyncio.sleep(1)
+
+    async def emergency_detection_cycle(self) -> None:
+        cfg = CONFIG.get("health", {})
+        if not cfg.get("enabled", False):
+            return
+        interval = cfg.get("emergency_detection_interval_seconds", 60)
+        logger.info(f"[VECTOR][health] emergency_detection_cycle started — {interval}s interval")
+        while self._running:
+            try:
+                from districts.health.emergency_detector import HealthEmergencyDetector
+                from districts.health.metrics_store import MetricsStore
+                store = MetricsStore()
+                detector = HealthEmergencyDetector(store=store)
+                latest = store.get_latest_wearable()
+                if latest:
+                    events = detector.check(latest)
+                    if events:
+                        logger.warning(f"[VECTOR][health] {len(events)} emergency event(s) detected")
+            except Exception as e:
+                logger.warning(f"[VECTOR][health] emergency detection error: {e}")
+            for _ in range(interval):
+                if not self._running:
+                    return
+                await asyncio.sleep(1)
+
     # ─── VectorCode MCP server ────────────────────────────────────────────────
 
     async def vectorcode_loop(self) -> None:
@@ -757,12 +1109,33 @@ class AutonomousLoop:
                 from core.config import CONFIG
                 mcp_port = CONFIG.get("vectorcode", {}).get("mcp_port", 9001)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             proc = await bridge.start_mcp_server(port=mcp_port)
             if proc:
                 logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
         except Exception as e:
             logger.warning(f"[VECTOR][vectorcode] loop failed: {e}")
+
+    async def emergency_loop(self) -> None:
+        """Start Emergency Response System. Never crashes."""
+        logger.info("[VECTOR][emergency] loop starting")
+        try:
+            cfg = CONFIG.get("emergency", {})
+            if not cfg.get("enabled", False):
+                logger.info("[VECTOR][emergency] disabled in config")
+                return
+            from districts.emergency.main import EmergencyResponseSystem
+            self._emergency = EmergencyResponseSystem()
+            await self._emergency.start()
+            logger.info("[VECTOR][emergency] system online")
+            while self._running:
+                await asyncio.sleep(60)
+        except ImportError as e:
+            logger.warning("[VECTOR][emergency] unavailable: {}", e)
+        except asyncio.CancelledError:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except Exception as e:
+            logger.error(f"[VECTOR][emergency] loop crashed: {e}")
 
     # ─── Main entry ───────────────────────────────────────────────────────────
 
@@ -777,13 +1150,25 @@ class AutonomousLoop:
             f"[VECTOR][autonomous_loop] run_forever() at {self._start_time.isoformat()}"
         )
 
-        # Initialise background task queue — shares this event loop
         try:
             from core.loop.task_queue import TaskQueue
             TaskQueue.get()
             logger.info("[VECTOR][autonomous_loop] task_queue ready")
         except Exception as e:
             logger.warning(f"[VECTOR][autonomous_loop] task_queue init failed: {e}")
+
+        eb_cfg = CONFIG.get("event_bus", {})
+        if eb_cfg.get("enabled", True):
+            try:
+                from core.event_bus.bus import get_event_bus
+                self._event_bus = await get_event_bus(max_queue_size=eb_cfg.get("max_queue_size", 1000))
+                self._worker_pool = WorkerPool(
+                    max_workers=eb_cfg.get("worker_pool_size", 4),
+                    name="autonomous_loop"
+                )
+                logger.info("[VECTOR][autonomous_loop] event_bus + worker_pool ready")
+            except Exception as e:
+                logger.warning(f"[VECTOR][autonomous_loop] event_bus init failed: {e}")
 
         # Wire absorbed modules: traces, operators, daemon
         try:
@@ -801,6 +1186,19 @@ class AutonomousLoop:
             self._daemon_mgr = ServiceManager()
         except Exception:
             self._daemon_mgr = None
+
+        # ── Agent-to-Agent event fan-out handler ──────────────────────────
+        try:
+            from core.event_bus.base import Subscription
+            from core.event_bus.types import Event
+            from core.city.agent_registry import AgentRegistry
+            from core.loop.context_engine import ContextEngine
+            bus = await self._get_event_bus()
+            self._fanout_sub = bus.subscribe(None, self._fanout_handler)
+            logger.info("[VECTOR][autonomous_loop] event fan-out subscriber registered")
+        except Exception as e:
+            self._fanout_sub = None
+            logger.warning(f"[VECTOR][autonomous_loop] event fan-out init failed: {e}")
 
         # ── AmbientScheduler: recover any crashed sessions from prior run ──────
         try:
@@ -832,10 +1230,26 @@ class AutonomousLoop:
             self.phone_loop(),
             self.vectorcode_loop(),
             self.scheduler_loop(),
-            self.ambient_scheduler_loop(),  # AmbientScheduler: fires due directives
-            self.hypothesis_loop(),         # VECTOR Gap 5 — proactive insights every 4h
+            self.ambient_scheduler_loop(),
+            self.hypothesis_loop(),
+            self.predict_cycle(),
+            self.degradation_monitor(),
             return_exceptions=True,
         )
+
+    async def degradation_monitor(self) -> None:
+        logger.info("[VECTOR][degradation] monitor started — 30s check cycle")
+        while self._running:
+            try:
+                await asyncio.sleep(30)
+                old_tier = self._degradation.current_tier
+                await self._degradation.auto_degrade()
+                await self._degradation.auto_escalate()
+                new_tier = self._degradation.current_tier
+                if old_tier != new_tier:
+                    logger.warning("[VECTOR][degradation] tier changed: {} -> {}", old_tier.name, new_tier.name)
+            except Exception as e:
+                logger.debug("[VECTOR][degradation] monitor error: {}", e)
 
     async def ambient_scheduler_loop(self) -> None:
         """
@@ -923,7 +1337,103 @@ class AutonomousLoop:
                 break
             except Exception as e:
                 logger.error(f"[VECTOR][hypothesis] loop error: {e}")
-                await asyncio.sleep(300)  # back off 5min on error, then retry
+                await asyncio.sleep(300)
+
+    async def predict_cycle(self) -> None:
+        cfg = CONFIG.get("predictive_analytics", {})
+        if not cfg.get("enabled", False):
+            logger.info("[VECTOR][predict_cycle] disabled in config")
+            return
+        pred_interval = cfg.get("forecast_interval_minutes", 15)
+        sim_interval = cfg.get("simulation_interval_minutes", 60)
+        logger.info(
+            f"[VECTOR][predict_cycle] started — forecast every {pred_interval}min, sim every {sim_interval}min"
+        )
+        last_sim = datetime.datetime.now(datetime.timezone.utc)
+        while self._running:
+            try:
+                forecast_start = datetime.datetime.now(datetime.timezone.utc)
+                from districts.predictive_analytics.time_series_forecaster import TimeSeriesForecaster
+                from districts.predictive_analytics.anomaly_predictor import AnomalyPredictor
+                from districts.predictive_analytics.strategy_recommender import StrategyRecommender
+                from districts.predictive_analytics.prediction_store import PredictionStore
+
+                tf = TimeSeriesForecaster()
+                ap = AnomalyPredictor()
+                sr = StrategyRecommender()
+                ps = PredictionStore()
+
+                predictions = tf.forecast_all()
+                for metric_name, forecast_result in predictions.items():
+                    forecast_id = ps.store_forecast(forecast_result)
+                    if forecast_result.values:
+                        anomalies = ap.analyze(forecast_result, forecast_result.values)
+                        for anomaly in anomalies:
+                            ps.store_anomaly(anomaly)
+
+                all_anomalies = []
+                for _metric, forecast_result in predictions.items():
+                    if forecast_result.values:
+                        all_anomalies.extend(
+                            ap.analyze(forecast_result, forecast_result.values)
+                        )
+
+                elapsed = (datetime.datetime.now(datetime.timezone.utc) - forecast_start).total_seconds()
+                logger.info(f"[VECTOR][predict_cycle] forecast cycle: {len(predictions)} metrics in {elapsed:.1f}s")
+
+                simulations = []
+                now = datetime.datetime.now(datetime.timezone.utc)
+                sim_elapsed = (now - last_sim).total_seconds()
+                if sim_elapsed >= sim_interval * 60:
+                    last_sim = now
+                    from districts.predictive_analytics.causal_simulator import CausalSimulator
+                    cs = CausalSimulator()
+                    scenarios = cs.suggest_scenarios()
+                    for scenario in scenarios[:3]:
+                        sim_result = cs.run_monte_carlo(
+                            scenario["name"], scenario, iterations=500
+                        )
+                        simulations.append(sim_result)
+                        ps.store_simulation(sim_result)
+                    logger.info(f"[VECTOR][predict_cycle] simulation cycle: {len(simulations)} scenarios")
+
+                all_recs = sr.generate_all(predictions, all_anomalies, simulations)
+                for rec in all_recs:
+                    ps.store_recommendation(rec)
+
+                ps.prune_old_records(days=cfg.get("retention_days", 90))
+
+            except Exception as e:
+                _capture_loop_error(e, "predict_cycle")
+                logger.error(f"[VECTOR][predict_cycle] error: {e}")
+
+            await asyncio.sleep(pred_interval * 60)
+
+    async def research_loop(self) -> None:
+        """SPEC-10 scheduled research — fires at research_lab.schedule_interval_hours."""
+        cfg = CONFIG.get("research_lab", {})
+        if not cfg.get("enabled", False):
+            logger.info("[VECTOR][research] research_lab disabled — research_loop skipped")
+            return
+        interval = cfg.get("schedule_interval_hours", 6)
+        logger.info("[VECTOR][research] research_loop started — fires every {}h", interval)
+        while self._running:
+            try:
+                await asyncio.sleep(interval * 3600)
+                if not self._running:
+                    break
+                from core.research_engine.auto_research_agent import AutoResearchAgent
+                agent = AutoResearchAgent()
+                topics = ["recent advances in AI agents", "LLM benchmark performance trends"]
+                for topic in topics:
+                    logger.info("[VECTOR][research] running scheduled research on: {}", topic)
+                    report = agent.run_full_cycle(topic)
+                    logger.info("[VECTOR][research] report complete: {}", report.sections.get("title", "?") if report.sections else "?")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[VECTOR][research] loop error: {e}")
+                await asyncio.sleep(300)
 
     def stop(self) -> None:
         """Graceful stop for tests only. Never call in production."""

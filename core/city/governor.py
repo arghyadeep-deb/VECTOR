@@ -744,6 +744,23 @@ class Governor:
             self._memory = EpisodicMemory()
         return self._memory
 
+    async def _publish_district_event(self, district: str, task_type: str, task_id: str, result: dict) -> None:
+        try:
+            from core.event_bus.wiring import get_publish_event
+            from core.event_bus.types import Event
+            event_type = get_publish_event(district)
+            if event_type is None:
+                return
+            from core.event_bus.bus import get_event_bus as _get_bus
+            bus = await _get_bus()
+            await bus.publish(Event(
+                event_type=event_type,
+                data={"district": district, "task_type": task_type, "task_id": task_id, "result": result},
+                source=f"governor.{district}",
+            ))
+        except Exception as e:
+            logger.debug("[VECTOR][governor] publish event failed: {}", e)
+
     def route_task(self, task_type: str) -> str:
         """Determine which district should handle this task type.
         First tries keyword matching (fast, free). Falls back to LLM classification."""
@@ -848,7 +865,7 @@ class Governor:
                     return {"status": "rate_limited", "wait_ms": wait_ms,
                             "district": district, "task_id": task_id}
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # ── Taint tracking — tag and check user-supplied content ──────────────
         task_content = str(task.get("params", {}).get("content", ""))
@@ -867,7 +884,7 @@ class Governor:
                     if v:
                         logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # ── Prompt injection scan ─────────────────────────────────────────────
         if task_content:
@@ -890,7 +907,7 @@ class Governor:
             if not allowed:
                 logger.warning(f"[VECTOR][governor] budget warning for {district}: {budget_reason}")
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Audit log — record dispatch
         try:
@@ -965,6 +982,7 @@ class Governor:
             if agent is not None:
                 if result.get("status") == "ok":
                     agent.award_points(50, "task_completed_by_governor")
+                    await self._publish_district_event(district, task_type, task_id, result)
                 elif result.get("status") in ("error", "failed"):
                     agent.deduct_points(30, "task_failed_by_governor")
 
@@ -985,7 +1003,7 @@ class Governor:
                     "district": district, "component": "governor.dispatch",
                 })
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             if agent is not None:
                 agent.deduct_points(30, "exception_during_task")
             result = {"status": "error", "error": str(e)}
@@ -996,7 +1014,7 @@ class Governor:
                 try:
                     _span_ctx.__exit__(None, None, None)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return {**result, "task_id": task_id, "district": district}
 

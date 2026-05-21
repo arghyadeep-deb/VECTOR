@@ -26,6 +26,36 @@ from loguru import logger
 # ── Job implementations ──────────────────────────────────────────────────────
 
 
+async def job_audit_verify(*, _ctx: dict | None = None) -> dict:
+    """Daily 3:05 AM audit chain verification (Phase 1E)."""
+    try:
+        from core.audit.merkle_chain import get_audit_chain
+        chain = get_audit_chain()
+        result = chain.verify()
+        if not result.valid:
+            logger.warning(
+                f"[VECTOR][cron] AUDIT CHAIN BROKEN at seq={result.broken_at}: {result.reason}"
+            )
+            try:
+                from core.event_bus.bus import get_event_bus
+                from core.event_bus.types import Event, EventType
+                bus = await get_event_bus()
+                await bus.publish(Event(
+                    event_type=EventType.SECURITY_ALERT,
+                    data={"reason": "audit_chain_broken", "broken_at": result.broken_at,
+                          "detail": result.reason},
+                    source="cron.audit_verify",
+                ))
+            except Exception as _ev_err:
+                logger.debug(f"[VECTOR][cron] audit alert publish failed: {_ev_err}")
+            return {"status": "broken", "broken_at": result.broken_at, "reason": result.reason}
+        logger.info(f"[VECTOR][cron] audit chain OK — {result.total_entries} entries")
+        return {"status": "ok", "chain_length": result.total_entries}
+    except Exception as e:
+        logger.warning(f"[VECTOR][cron] audit verify failed: {e}")
+        return {"status": "error", "reason": str(e)}
+
+
 async def job_daily_eval(*, _ctx: dict | None = None) -> dict:
     """Daily benchmark: run the eval harness against the WARM_POOL models."""
     try:
@@ -52,7 +82,7 @@ async def job_daily_eval(*, _ctx: dict | None = None) -> dict:
 async def job_biometrics_pull(*, _ctx: dict | None = None) -> dict:
     """Daily biometrics pull from Apple Health / Oura / Strava."""
     try:
-        from agents.districts.health.biometrics_aggregator import BiometricsAggregator
+        from districts.health.biometrics_aggregator import BiometricsAggregator
         agent = BiometricsAggregator()
         return await agent.run({})
     except Exception as e:
@@ -64,7 +94,7 @@ async def job_daily_review(*, _ctx: dict | None = None) -> dict:
     """End-of-day daily reviewer + journal writer."""
     out: dict = {"daily_reviewer": "skipped", "journal_writer": "skipped"}
     try:
-        from agents.districts.reflection.daily_reviewer import DailyReviewer
+        from districts.reflection.daily_reviewer import DailyReviewer
         agent = DailyReviewer()
         r = await agent.run({})
         out["daily_reviewer"] = r.get("status", "ok") if isinstance(r, dict) else "ok"
@@ -72,7 +102,7 @@ async def job_daily_review(*, _ctx: dict | None = None) -> dict:
         logger.warning(f"[VECTOR][cron] daily_reviewer failed: {e}")
         out["daily_reviewer"] = f"error: {e}"
     try:
-        from agents.districts.reflection.journal_writer import JournalWriter
+        from districts.reflection.journal_writer import JournalWriter
         agent = JournalWriter()
         r = await agent.run({})
         out["journal_writer"] = r.get("status", "ok") if isinstance(r, dict) else "ok"
@@ -138,7 +168,7 @@ _MORNING_DIGEST_WORKFLOW: dict = {
 async def _run_morning_digest_fn(**kwargs: Any) -> dict:
     """Run the MorningDigestAgent and return a digest dict."""
     try:
-        from vectorcode.src.vc_agents.districts.morning_digest import MorningDigestAgent
+        from vectorcode.src.vc_districts.morning_digest import MorningDigestAgent
         agent = MorningDigestAgent()
         if hasattr(agent, "run"):
             result = agent.run()
@@ -182,7 +212,7 @@ async def job_trigger_workflow(*, _ctx: dict | None = None) -> dict:
 async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
     """Weekly growth analyst report (Sunday)."""
     try:
-        from agents.districts.reflection.growth_analyst import GrowthAnalyst
+        from districts.reflection.growth_analyst import GrowthAnalyst
         agent = GrowthAnalyst()
         return await agent.run({})
     except Exception as e:
@@ -206,6 +236,7 @@ def register_default_jobs(scheduler: Any) -> int:
     jobs: list[tuple[str, str, str, Callable]] = [
         # (job_id,                cadence,  cron,       fn)
         ("daily-eval-harness",    "daily",  "0 3 * * *", job_daily_eval),
+        ("daily-audit-verify",    "daily",  "5 3 * * *", job_audit_verify),  # Phase 1E
         ("daily-biometrics-pull", "daily",  "0 6 * * *", job_biometrics_pull),
         ("daily-review-journal",  "daily",  "30 22 * * *", job_daily_review),
         ("daily-workflow-trigger","daily",  "0 8 * * *", job_trigger_workflow),
