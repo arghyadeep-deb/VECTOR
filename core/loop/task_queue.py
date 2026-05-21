@@ -184,6 +184,9 @@ class TaskQueue:
         if task:
             task.progress = max(0.0, min(1.0, progress))
 
+    def list_queued(self) -> list[Task]:
+        return [t for t in self._tasks.values() if t.status == TaskStatus.QUEUED]
+
     def list_running(self) -> list[Task]:
         return [self._tasks[tid] for tid in self._running if tid in self._tasks]
 

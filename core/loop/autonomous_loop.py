@@ -298,32 +298,49 @@ class AutonomousLoop:
                         rq.requeue_or_dlq(item, str(retry_err))
             except Exception as _rq_err:
                 logger.debug(f"[VECTOR][scheduler_loop] retry drain error: {_rq_err}")
-            # Phase 3E: Claims work-stealing — distribute tasks when queue > 5
+            # Phase 3E: Work-stealing — match queued tasks to available agents
             try:
                 from core.loop.task_queue import TaskQueue
                 tq = TaskQueue.get()
-                summary = tq.summary() if hasattr(tq, 'summary') else {}
-                queued = summary.get("queued", 0) if isinstance(summary, dict) else 0
-                if queued > 5:
-                    from vectorcode.src.claims import ClaimService
+                queued_tasks = tq.list_queued()
+                if len(queued_tasks) > 5:
+                    from vectorcode.src.claims import ClaimService, Claimant
                     from core.city.agent_registry import get_registry
                     cs = ClaimService()
                     reg = get_registry()
                     alive = reg.list_alive()
                     if alive:
-                        # Register alive agents as claimants
-                        for agent in alive[:10]:
-                            try:
-                                cs.register_claimant(
-                                    agent_id=agent.id,
-                                    agent_type=agent.district,
-                                    capacity=1,
-                                )
-                            except Exception:
-                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-                        logger.info(f"[VECTOR][claims] {queued} pending tasks → distributing to {len(alive)} agents")
+                        claimants = [
+                            Claimant(
+                                id=a.id, type="agent", name=a.name,
+                                capabilities=[a.district],
+                                specializations=[a.district],
+                            )
+                            for a in alive[:10]
+                        ]
+                        assigned = 0
+                        for task in queued_tasks:
+                            best = cs.auto_assign(
+                                issue_id=task.id,
+                                available_agents=claimants,
+                                labels=[task.district] + task.tags,
+                            )
+                            if best:
+                                try:
+                                    cs.claim(
+                                        issue_id=task.id, claimant=best,
+                                        issue_title=task.name,
+                                        labels=[task.district] + task.tags,
+                                    )
+                                    assigned += 1
+                                except Exception:
+                                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.info(
+                            f"[VECTOR][claims] {len(queued_tasks)} queued → "
+                            f"{assigned} claimed by {len(alive)} agents"
+                        )
             except Exception as _cl_err:
-                logger.debug(f"[VECTOR][scheduler_loop] claims work-stealing skipped: {_cl_err}")
+                logger.debug(f"[VECTOR][scheduler_loop] work-stealing skipped: {_cl_err}")
             await asyncio.sleep(30.0)
 
     def _parse_cron_daily(self, expr: str) -> tuple[int, int] | None:
