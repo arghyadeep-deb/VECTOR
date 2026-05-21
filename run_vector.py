@@ -838,7 +838,6 @@ async def _start_background_services() -> None:
 async def run_loop() -> None:
     """Start the autonomous loop. This is intended to run until interrupted."""
     preflight_checks()
-    bootstrap_agents()
     await _start_background_services()
     from core.loop.autonomous_loop import AutonomousLoop
 
@@ -970,6 +969,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     logger.info(f"[VECTOR][launcher] mode={args.mode}")
+
+    # Bootstrap agents once, before mode dispatch
+    try:
+        bootstrap_agents()
+    except Exception as e:
+        logger.warning(f"[VECTOR][launcher] bootstrap failed: {e}")
 
     if args.ha:
         ha_startup()
