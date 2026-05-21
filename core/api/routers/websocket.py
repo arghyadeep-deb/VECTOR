@@ -152,6 +152,10 @@ async def _build_recent_events(limit: int = 5) -> dict:
 async def vector_ws(websocket: WebSocket):
     """Main WebSocket endpoint for dashboard real-time stream.
 
+    Authentication: requires ?token=Bearer <API_KEY> query param when
+    vector_api_key is configured. Unauthenticated connections are rejected
+    immediately before any data is sent.
+
     Message protocol:
         Client → Server:
             {"action": "ping"}           → heartbeat
@@ -165,6 +169,11 @@ async def vector_ws(websocket: WebSocket):
             {"type": "response", ...}    → command response
             {"type": "error",   ...}     → error message
     """
+    try:
+        require_auth(websocket)
+    except HTTPException:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
     await manager.connect(websocket)
     try:
         # Send initial status burst
