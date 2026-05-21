@@ -196,7 +196,17 @@ class OFPNode:
         self.node_id = node_id or f"vector-{secrets.token_hex(4)}"
         self.host = host
         self.port = port
-        self._secret = secret or os.getenv("VECTOR_OFP_SECRET", "vector-default-secret").encode()
+        _secret_env = os.getenv("VECTOR_OFP_SECRET")
+        if secret:
+            self._secret = secret
+        elif _secret_env:
+            self._secret = _secret_env.encode()
+        else:
+            logger.warning(
+                "[VECTOR][ofp] Using DEFAULT shared secret — "
+                "set VECTOR_OFP_SECRET env var for production"
+            )
+            self._secret = b"vector-default-secret"
         self.capabilities = capabilities or []
         self._peers: dict[str, PeerInfo] = {}
         self._seen_nonces: set[str] = set()
