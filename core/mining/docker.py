@@ -2,7 +2,7 @@
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 
-"""GPU Docker container orchestration -- reusable for sandboxed agents.districts.
+"""GPU Docker container orchestration -- reusable for sandboxed districts.
 
 Extracted from VectorCode's Pearl mining subsystem. The ``PearlDockerLauncher``
 manages the full lifecycle of a GPU-enabled Docker container: image acquisition
@@ -38,11 +38,10 @@ _SECRET_LOG_PATTERNS = (
     (re.compile(r'("PEARLD_RPC_PASSWORD"\s*:\s*")[^"]+(")'), r"\1[REDACTED]\2"),
 )
 
+from core.errors import ConfigurationError
+
 class ImageAcquisitionError(RuntimeError):
     """Raised when an image can be neither found, pulled, nor built."""
-
-class ConfigurationError(RuntimeError):
-    """Raised when required env vars or config fields are missing."""
 
 class ImageNotFound(Exception):
     """Fallback image-not-found error when Docker SDK is not installed."""
@@ -89,7 +88,7 @@ class PearlDockerLauncher:
             self._client.images.get(tag)
             return tag
         except image_not_found:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         pull_error: str | None = None
         try:
@@ -283,11 +282,11 @@ class PearlDockerLauncher:
         try:
             container.stop(timeout=timeout)
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             container.remove()
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         self._container = None
 
     def is_running(self) -> bool:

@@ -35,12 +35,14 @@ _SECRET_LOG_PATTERNS = (
 )
 
 
+try:
+    from core.errors import ConfigurationError
+except ImportError:
+    class ConfigurationError(RuntimeError):
+        """Raised when required env vars or config fields are missing."""
+
 class ImageAcquisitionError(RuntimeError):
     """Raised when an image can be neither found, pulled, nor built."""
-
-
-class ConfigurationError(RuntimeError):
-    """Raised when required env vars or config fields are missing."""
 
 
 class ImageNotFound(Exception):
@@ -93,7 +95,7 @@ class PearlDockerLauncher:
             self._client.images.get(tag)
             return tag
         except image_not_found:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         pull_error: str | None = None
         try:

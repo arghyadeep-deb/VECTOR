@@ -180,7 +180,8 @@ if os.path.exists(studio_dir):
                 with open(os.path.join(root, fname), encoding="utf-8") as fh: content = fh.read()
                 hits = len(re.findall(r"hyperframes", content, re.IGNORECASE))
                 if hits: remaining += hits
-            except Exception: pass
+            except Exception as e:
+                print(f"[audit] read skipped {os.path.join(root, fname)}: {e}")
     if remaining == 0:
         ok("Zero hyperframes refs in dashboard/src/studio/ (all rebranded)")
     else:

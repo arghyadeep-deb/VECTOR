@@ -32,6 +32,57 @@ def _init_telemetry() -> None:
 _init_telemetry()
 
 
+# ── Global exception handlers — catch stray coroutine failures ────────────────
+def _global_excepthook(exc_type, exc_value, exc_tb):
+    """Catch unhandled exceptions that escape all try/except blocks."""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+        return
+    logger.critical(
+        "[VECTOR][unhandled] {exc_type.__name__}: {exc_value}",
+        exc_type=exc_type, exc_value=exc_value,
+    )
+    try:
+        from core.engine.telemetry.sentry_bridge import init_sentry
+        init_sentry().capture_exception(exc_value)
+    except Exception:
+        pass
+
+sys.excepthook = _global_excepthook
+
+
+def _asyncio_exception_handler(loop, context):
+    """Catch unhandled exceptions in async tasks that weren't awaited."""
+    exc = context.get("exception")
+    msg = context.get("message", "")
+    future = context.get("future")
+    if exc:
+        logger.critical(
+            "[VECTOR][async-unhandled] {exc_type.__name__}: {exc} — {msg}",
+            exc_type=type(exc), exc=exc, msg=msg,
+        )
+        try:
+            from core.engine.telemetry.sentry_bridge import init_sentry
+            init_sentry().capture_exception(exc)
+        except Exception:
+            pass
+    elif future:
+        try:
+            future.exception()
+        except Exception as e:
+            logger.critical("[VECTOR][async-future] {exc_type.__name__}: {e}", exc_type=type(e), e=e)
+    else:
+        logger.critical("[VECTOR][async-unhandled] {msg}", msg=msg)
+
+
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+loop.set_exception_handler(_asyncio_exception_handler)
+
+
 CORE_DISTRICTS = (
     ("governance-001", "GovernorCouncil", "governance"),
     ("coding-001", "CodeDistrict", "coding"),
@@ -517,6 +568,14 @@ def bootstrap_agents() -> int:
     created += bulk_register_md_districts(registry)
 
     logger.info(f"[VECTOR][bootstrap] {created} agents registered across all districts")
+
+    # ── Agent-to-Agent event wiring — auto-subscribe by district name ─────
+    try:
+        from core.event_bus.wiring import auto_subscribe_all as _wire_events
+        _wire_events()
+    except Exception as e:
+        logger.warning(f"[bootstrap] event wiring skipped: {e}")
+
     return created
 
 
@@ -611,6 +670,21 @@ def bulk_register_md_districts(registry=None) -> int:
 
     districts_root = Path(__file__).parent / "districts"
 
+    # Districts with their own Swarm loader — skip .md bulk registration (swarm handles it)
+    SWARM_DISTRICTS = {
+        "engineering", "testing", "product", "coding", "qa", "research", "finance",
+        "security", "governance", "marketing", "specialized",
+        "sales", "design", "project_management", "support",
+        "spatial_computing", "academic", "game_development",
+        "paid_media", "communications", "documentation",
+        "data_analytics", "startups", "skills", "content",
+        "languages", "learning", "news_trends", "intelligence",
+        "pattern_detective", "personal_growth", "privacy",
+        "reflection", "relationships", "memory_curator",
+        "health", "projects", "time_calendar", "calls",
+        "agency", "investment", "interview_prep", "karpathy_lab",
+    }
+
     # Non-agent docs to skip explicitly
     SKIP_NAMES = {
         "readme.md", "__init__.md", "index.md",
@@ -624,6 +698,11 @@ def bulk_register_md_districts(registry=None) -> int:
 
     for md_file in sorted(districts_root.rglob("*.md")):
         if md_file.name.lower() in SKIP_NAMES:
+            skipped_doc += 1
+            continue
+
+        # Skip districts managed by their own Swarm loader
+        if md_file.parent.name in SWARM_DISTRICTS:
             skipped_doc += 1
             continue
 
@@ -838,6 +917,41 @@ def _ensure_ssl_cert():
         return None, None
 
 
+def ha_startup() -> bool:
+    """Initialize Home Assistant district connector if enabled in config."""
+    from core.config import CONFIG as _cfg
+    ha_cfg = _cfg.get("home_assistant", {})
+    if not ha_cfg.get("enabled", False):
+        logger.info("[VECTOR][ha] Home Assistant disabled (set HASS_TOKEN to enable)")
+        return False
+    try:
+        from districts.home_assistant.connector import HAConfig, HAConnector
+        cfg = HAConfig(
+            host=ha_cfg.get("host", "homeassistant.local"),
+            port=ha_cfg.get("port", 8123),
+            token=ha_cfg.get("token", ""),
+            use_ssl=ha_cfg.get("use_ssl", False),
+        )
+        if not cfg.token:
+            logger.warning("[VECTOR][ha] No token configured — HA disabled")
+            return False
+        connector = HAConnector(cfg)
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        ok = loop.run_until_complete(connector.connect())
+        loop.run_until_complete(connector.disconnect())
+        loop.close()
+        if ok:
+            logger.info("[VECTOR][ha] Home Assistant connection verified")
+            return True
+        logger.warning("[VECTOR][ha] Home Assistant connection failed")
+        return False
+    except Exception as e:
+        logger.warning(f"[VECTOR][ha] Startup failed: {e}")
+        return False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="VECTOR local launcher")
     parser.add_argument(
@@ -849,12 +963,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--ha", action="store_true", help="Enable Home Assistant district integration")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     logger.info(f"[VECTOR][launcher] mode={args.mode}")
+
+    if args.ha:
+        ha_startup()
 
     if args.mode == "api":
         run_api(args.host, args.port)

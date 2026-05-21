@@ -64,7 +64,7 @@ class PermissionConfig(BaseModel):
         "deadline_check", "progress",
         # VectorCode read-only actions
         "code_review_vc", "code_status", "read_code", "analyze_code",
-        # JARVIS UI events — purely local dashboard side effects, no real-world impact
+        # VECTOR UI events — purely local dashboard side effects, no real-world impact
         "respond", "open_panel",
         "widget_open", "widget_close", "widget_show_location",
         "music_play", "music_pause", "music_next", "music_prev",
@@ -103,6 +103,57 @@ class CostConfig(BaseModel):
         return self
 
 
+class PersonalityConfig(BaseModel):
+    enabled: bool = True
+    character_card_path: str = ""
+    character_version: str = "v1.0"
+    sentiment_method: str = "keyword"  # keyword | embedding | llm
+    consistency_threshold: float = Field(0.70, ge=0.0, le=1.0)
+    consistency_weights: dict[str, float] = Field(default_factory=lambda: {
+        "trait": 0.40, "rules": 0.35, "quirks": 0.15, "speech": 0.10,
+    })
+    learning_enabled: bool = True
+    personality_version: str = "1.0"
+
+
+class CircuitBreakerConfig(BaseModel):
+    failure_threshold: int = Field(5, ge=1, le=100)
+    recovery_timeout_sec: float = Field(30.0, ge=1.0, le=300.0)
+    half_open_max_retries: int = Field(3, ge=1, le=10)
+    success_threshold: int = Field(2, ge=1, le=10)
+
+
+class BulkheadConfig(BaseModel):
+    max_concurrent: int = Field(4, ge=1, le=32)
+    max_queue: int = Field(10, ge=1, le=100)
+    queue_timeout_sec: float = Field(30.0, ge=1.0, le=300.0)
+
+
+class FailoverConfig(BaseModel):
+    secondary_url: str = "http://127.0.0.1:8001"
+    heartbeat_interval_sec: float = Field(5.0, ge=1.0, le=60.0)
+    max_missed_heartbeats: int = Field(3, ge=1, le=10)
+
+
+class GracefulDegradationConfig(BaseModel):
+    cooldown_sec: float = Field(60.0, ge=10.0, le=600.0)
+    enabled: bool = True
+
+
+class ChaosConfig(BaseModel):
+    enabled: bool = False
+    schedule_interval_h: int = Field(24, ge=1, le=168)
+
+
+class ResilienceConfig(BaseModel):
+    enabled: bool = True
+    circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
+    bulkhead: BulkheadConfig = Field(default_factory=BulkheadConfig)
+    failover: FailoverConfig = Field(default_factory=FailoverConfig)
+    degradation: GracefulDegradationConfig = Field(default_factory=GracefulDegradationConfig)
+    chaos: ChaosConfig = Field(default_factory=ChaosConfig)
+
+
 class VoiceConfig(BaseModel):
     whisper_model: str = "large-v3"
     stt_engine: str = "whisper"
@@ -114,6 +165,12 @@ class VoiceConfig(BaseModel):
     record_duration_sec: float = Field(5.0, ge=1.0, le=120.0)
     sample_rate: int = Field(16000, ge=8000, le=96000)
     wake_phrase: str = "hey_vector"
+    vad_threshold: float = Field(0.02, ge=0.001, le=1.0)
+    vad_frame_ms: int = Field(30, ge=10, le=100)
+    silence_timeout_sec: float = Field(2.0, ge=0.1, le=30.0)
+    conversation_timeout_sec: int = Field(30, ge=5, le=300)
+    max_concurrent_sessions: int = Field(3, ge=1, le=10)
+    streaming_enabled: bool = True
 
 
 class SecurityCfg(BaseModel):
@@ -126,6 +183,19 @@ class SecurityCfg(BaseModel):
         "xmrig", "monero", "cpuminer",
     ])
     entropy_threshold: float = Field(7.5, ge=0.0, le=8.0)
+
+
+class SecurityConfig(BaseModel):
+    siem_enabled: bool = False
+    network_monitor_interval_sec: int = 30
+    log_aggregator_enabled: bool = True
+    detection_rules_enabled: bool = True
+    alert_manager_enabled: bool = True
+    incident_response_enabled: bool = True
+    pushover_enabled: bool = True
+    pushover_user_key: str = ""
+    pushover_api_token: str = ""
+    blocked_domains: list[str] = ["shell_command", "command_line", "python_script"]
 
 
 class ControlConfig(BaseModel):
@@ -177,6 +247,39 @@ class AirLLMConfig(BaseModel):
     max_gpu_memory_gb: float = Field(11.0, ge=1.0, le=24.0)
 
 
+class ResearchLabConfig(BaseModel):
+    enabled: bool = False
+    sandbox_backend: str = "subprocess"
+    max_concurrent_experiments: int = 2
+    schedule_interval_hours: int = 6
+    docker_image: str = "vector-experiment-runner:latest"
+    sandbox_enabled: bool = False
+
+
+class EventBusConfig(BaseModel):
+    enabled: bool = True
+    max_queue_size: int = 1000
+    worker_pool_size: int = 4
+
+
+class EmergencyConfig(BaseModel):
+    enabled: bool = False
+    detector_interval_sec: int = 5
+    pushover_enabled: bool = True
+    quiet_hours_start: int = 23
+    quiet_hours_end: int = 7
+    rate_limit_pushover_monthly: int = 10000
+
+
+class HealthConfig(BaseModel):
+    enabled: bool = False
+    wearable_poll_interval_minutes: int = 15
+    health_analysis_interval_minutes: int = 60
+    emergency_detection_interval_seconds: int = 60
+    pushover_enabled: bool = True
+    retention_days: int = 90
+
+
 class CodeIntelConfig(BaseModel):
     project_id: str = "vector-codebase-main"
     qdrant_url: str = "http://127.0.0.1:6333"
@@ -187,6 +290,35 @@ class CodeIntelConfig(BaseModel):
     chunk_overlap: int = Field(10, ge=0, le=50)
     max_file_size_mb: float = Field(5.0, ge=0.1, le=50.0)
     dist_path: str = "vectorcode/code_intel/dist/index.js"
+
+
+class TrainingConfig(BaseModel):
+    adapters_dir: str = "models/adapters"
+    models_dir: str = "models"
+    unsloth_enabled: bool = False
+    eval_results_dir: str = "data/evaluations"
+    self_improvement_enabled: bool = True
+    self_improvement_interval_hours: int = 168
+    distillation_enabled: bool = True
+    training_enabled: bool = False
+
+
+class PredictiveAnalyticsConfig(BaseModel):
+    enabled: bool = False
+    forecast_interval_minutes: int = 15
+    simulation_interval_minutes: int = 60
+    retention_days: int = 90
+    pushover_enabled: bool = True
+    max_metrics: int = 14
+
+
+class HomeAssistantConfig(BaseModel):
+    enabled: bool = False
+    host: str = "homeassistant.local"
+    port: int = 8123
+    token: str = ""
+    use_ssl: bool = False
+    rate_limit_per_sec: int = 10
 
 
 class AdsConfig(BaseModel):
@@ -210,7 +342,7 @@ class VectorSettings(BaseSettings):
 
     # Core — mapped from env var names
     VECTOR_ENV: str = "development"
-    VECTOR_DEBUG: bool = True
+    VECTOR_DEBUG: bool = False
     VECTOR_VAULT_PATH: str = "C:/Users/Arghyadeep/V.E.C.T.O.R Brain"
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
 
@@ -238,6 +370,8 @@ class VectorSettings(BaseSettings):
     MUAPI_API_KEY: SecretStr = SecretStr("")
     WAN2GP_URL: str = ""
     PAGESPEED_API_KEY: SecretStr = SecretStr("")
+    HASS_URL: str = ""
+    HASS_TOKEN: SecretStr = SecretStr("")
 
     # CORS — overridable via env var as a JSON array
     ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: [
@@ -258,8 +392,11 @@ class VectorSettings(BaseSettings):
     permission: PermissionConfig = Field(default_factory=PermissionConfig)
     council: CouncilConfig = Field(default_factory=CouncilConfig)
     cost: CostConfig = Field(default_factory=CostConfig)
+    personality: PersonalityConfig = Field(default_factory=PersonalityConfig)
+    resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     voice: VoiceConfig = Field(default_factory=VoiceConfig)
     security: SecurityCfg = Field(default_factory=SecurityCfg)
+    siem: SecurityConfig = Field(default_factory=SecurityConfig)
     control: ControlConfig = Field(default_factory=ControlConfig)
     sensing: SensingConfig = Field(default_factory=SensingConfig)
     coding: CodingConfig = Field(default_factory=CodingConfig)
@@ -268,8 +405,19 @@ class VectorSettings(BaseSettings):
     karpathy: KarpathyConfig = Field(default_factory=KarpathyConfig)
     airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
     vectorcode: VectorCodeConfig = Field(default_factory=VectorCodeConfig)
+    predictive_analytics: PredictiveAnalyticsConfig = Field(default_factory=PredictiveAnalyticsConfig)
     ads: AdsConfig = Field(default_factory=AdsConfig)
+    training: TrainingConfig = Field(default_factory=TrainingConfig)
+    emergency: EmergencyConfig = Field(default_factory=EmergencyConfig)
     code_intel: CodeIntelConfig = Field(default_factory=CodeIntelConfig)
+    event_bus: EventBusConfig = Field(default_factory=EventBusConfig)
+    health: HealthConfig = Field(default_factory=HealthConfig)
+    research_lab: ResearchLabConfig = Field(default_factory=ResearchLabConfig)
+    home_assistant: HomeAssistantConfig = Field(default_factory=lambda: HomeAssistantConfig(
+        enabled=bool(os.getenv("HASS_TOKEN")),
+        host=(os.getenv("HASS_URL") or "homeassistant.local").replace("http://", "").replace("https://", "").split(":")[0],
+        token=os.getenv("HASS_TOKEN", ""),
+    ))
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
@@ -349,8 +497,11 @@ CONFIG: dict = {
     "permission": _s.permission.model_dump(),
     "council": _s.council.model_dump(),
     "cost": _s.cost.model_dump(),
+    "personality": _s.personality.model_dump(),
+    "resilience": _s.resilience.model_dump(),
     "voice": _s.voice.model_dump(),
     "security": _s.security.model_dump(),
+    "siem": _s.siem.model_dump(),
     "control": _s.control.model_dump(),
     "sensing": _s.sensing.model_dump(),
     "coding": {
@@ -498,6 +649,25 @@ CONFIG: dict = {
     "task_queue": {
         "max_concurrent": 8,
     },
+    "training": _s.training.model_dump(),
+    "event_bus": _s.event_bus.model_dump(),
+    "research_lab": _s.research_lab.model_dump(),
+    "health": {
+        "enabled": _s.health.enabled,
+        "wearable_poll_interval_minutes": _s.health.wearable_poll_interval_minutes,
+        "health_analysis_interval_minutes": _s.health.health_analysis_interval_minutes,
+        "emergency_detection_interval_seconds": _s.health.emergency_detection_interval_seconds,
+        "pushover_enabled": _s.health.pushover_enabled,
+        "retention_days": _s.health.retention_days,
+    },
+    "emergency": {
+        "enabled": _s.emergency.enabled,
+        "detector_interval_sec": _s.emergency.detector_interval_sec,
+        "pushover_enabled": _s.emergency.pushover_enabled,
+        "quiet_hours_start": _s.emergency.quiet_hours_start,
+        "quiet_hours_end": _s.emergency.quiet_hours_end,
+        "rate_limit_pushover_monthly": _s.emergency.rate_limit_pushover_monthly,
+    },
     "code_intel": {
         "project_id":        _s.code_intel.project_id,
         "qdrant_url":        _s.code_intel.qdrant_url,
@@ -508,6 +678,14 @@ CONFIG: dict = {
         "chunk_overlap":     _s.code_intel.chunk_overlap,
         "max_file_size_mb":  _s.code_intel.max_file_size_mb,
         "dist_path":         _s.code_intel.dist_path,
+    },
+    "predictive_analytics": {
+        "enabled":                    _s.predictive_analytics.enabled,
+        "forecast_interval_minutes":  _s.predictive_analytics.forecast_interval_minutes,
+        "simulation_interval_minutes":_s.predictive_analytics.simulation_interval_minutes,
+        "retention_days":             _s.predictive_analytics.retention_days,
+        "pushover_enabled":           _s.predictive_analytics.pushover_enabled,
+        "max_metrics":                _s.predictive_analytics.max_metrics,
     },
     "ads": {
         "scripts_path":          _s.ads.scripts_path,
@@ -523,6 +701,7 @@ CONFIG: dict = {
         "replicate_key":         os.environ.get("REPLICATE_API_TOKEN", ""),
         "pagespeed_key":         _s.PAGESPEED_API_KEY.get_secret_value(),
     },
+    "home_assistant": _s.home_assistant.model_dump(),
 }
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

@@ -21,8 +21,11 @@ from pathlib import Path
 
 from vectorcode.src.vc_security.file_utils import secure_mkdir
 
-class ConfigurationError(RuntimeError):
-    """Raised when path configuration would violate isolation guarantees."""
+try:
+    from core.errors import ConfigurationError
+except ImportError:
+    class ConfigurationError(RuntimeError):
+        """Raised when path configuration would violate isolation guarantees."""
 
 def _find_source_root() -> Path | None:
     """Walk upward from this module to find the VectorCode source root.

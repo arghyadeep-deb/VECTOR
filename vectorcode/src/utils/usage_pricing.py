@@ -22,7 +22,9 @@ def record_usage(model: str, input_tokens: int, output_tokens: int, cost: float)
 def _load_usage() -> dict:
     if _USAGE_FILE.exists():
         try: return json.loads(_USAGE_FILE.read_text())
-        except Exception: pass
+        except Exception as e:
+            from loguru import logger
+            logger.debug("[VECTOR][usage] load usage file skipped: {}", e)
     return {"sessions": [], "total_cost": 0.0, "total_tokens": 0}
 
 

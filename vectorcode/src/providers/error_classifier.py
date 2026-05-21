@@ -275,7 +275,9 @@ def _extract_error_body(error):
         try:
             j = response.json()
             if isinstance(j, dict): return j
-        except Exception: pass
+        except Exception as e:
+            from loguru import logger
+            logger.debug("[VECTOR][error_classifier] response body extraction skipped: {}", e)
     return {}
 
 
