@@ -118,6 +118,7 @@ class TaskQueue:
         self._max_concurrent = max_workers
         # Terminal notification callback â€” set by chat.py when it starts
         self._terminal_notify: Callable[[str], None] | None = None
+        self._shutdown_flag = False
         logger.info(f"[VECTOR][task_queue] ready max_concurrent={max_workers}")
 
     # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -211,6 +212,18 @@ class TaskQueue:
     def set_terminal_notify(self, fn: Callable[[str], None]) -> None:
         """Register a callback for in-terminal task completion lines."""
         self._terminal_notify = fn
+
+    def cancel_all(self) -> None:
+        """Cancel all running tasks."""
+        for tid in list(self._aio_tasks.keys()):
+            self.cancel(tid)
+        logger.info("[VECTOR][task_queue] all tasks cancelled")
+
+    def shutdown(self, wait: bool = True) -> None:
+        """Release thread pool resources. Call during graceful shutdown."""
+        self.cancel_all()
+        self._thread_pool.shutdown(wait=wait)
+        logger.info("[VECTOR][task_queue] thread pool shut down")
 
     # â”€â”€ Internal runners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

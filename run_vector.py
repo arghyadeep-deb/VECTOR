@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import signal
 import sys
 from pathlib import Path
 
@@ -835,9 +836,42 @@ async def _start_background_services() -> None:
         logger.debug("[VECTOR][startup] ChannelRuntime skipped: {}", e)
 
 
+# ── Signal handlers for graceful shutdown ──────────────────────────────────────
+
+async def _shutdown(sig: signal.Signals | None = None) -> None:
+    """Graceful shutdown sequence."""
+    logger.warning("[VECTOR][lifecycle] shutdown requested (sig={}) — draining...", sig.name if sig else "manual")
+    from core.loop.task_queue import TaskQueue
+    TaskQueue.get().shutdown(wait=True)
+    from core.event_bus.bus import get_event_bus as _get_bus
+    try:
+        bus = _get_bus()
+        await bus.stop()
+    except Exception as _sve:
+        logger.debug("[VECTOR][lifecycle] bus stop: {}", _sve)
+    from core.memory.episodic import get_db_connection as _get_db
+    try:
+        _get_db().close()
+    except Exception as _sve:
+        logger.debug("[VECTOR][lifecycle] db close: {}", _sve)
+    try:
+        from loguru import logger as _lgr
+        _lgr.complete()
+    except Exception:
+        pass
+    logger.info("[VECTOR][lifecycle] shutdown complete")
+
+
+def _setup_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
+    """Register SIGINT/SIGTERM for graceful shutdown."""
+    for s in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(_shutdown(sig)))
+
+
 async def run_loop() -> None:
     """Start the autonomous loop. This is intended to run until interrupted."""
     preflight_checks()
+    _setup_signal_handlers(asyncio.get_running_loop())
     await _start_background_services()
     from core.loop.autonomous_loop import AutonomousLoop
 
