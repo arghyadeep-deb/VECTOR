@@ -19,10 +19,22 @@ import subprocess
 import uuid
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.vc_districts._stubs import AgentContext, AgentResult, BaseAgent
-from vectorcode.src.vc_core.events import EventBus
-from vectorcode.src.vc_core.types import ToolResult
-from vectorcode.src.vc_engine._stubs import InferenceEngine
+try:
+    from vectorcode.src.vc_districts._stubs import AgentContext, AgentResult, BaseAgent
+except ImportError:
+    AgentContext = AgentResult = BaseAgent = None
+try:
+    from vectorcode.src.vc_core.events import EventBus
+except ImportError:
+    EventBus = None
+try:
+    from vectorcode.src.vc_core.types import ToolResult
+except ImportError:
+    ToolResult = None
+try:
+    from vectorcode.src.vc_engine._stubs import InferenceEngine
+except ImportError:
+    InferenceEngine = None
 
 logger = logging.getLogger(__name__)
 
@@ -280,85 +292,85 @@ class ContainerRunner:
                 exc_info=True,
             )
 
-class SandboxedAgent(BaseAgent):
-    """Transparent wrapper that runs any BaseAgent in a container.
+if BaseAgent is not None:
 
-    Follows the ``GuardrailsEngine`` wrapper pattern — the wrapped
-    agent's configuration is serialized and sent to the container.
-    """
+    class SandboxedAgent(BaseAgent):
+        """Transparent wrapper that runs any BaseAgent in a container.
 
-    agent_id = "sandboxed"
-    accepts_tools = False
+        Follows the ``GuardrailsEngine`` wrapper pattern — the wrapped
+        agent's configuration is serialized and sent to the container.
+        """
 
-    def __init__(
-        self,
-        agent: BaseAgent,
-        runner: ContainerRunner,
-        *,
-        engine: Optional[InferenceEngine] = None,
-        model: str = "",
-        workspace: str = "",
-        mounts: Optional[List[str]] = None,
-        secrets: Optional[Dict[str, str]] = None,
-        bus: Optional[EventBus] = None,
-    ) -> None:
-        # Use the wrapped agent's engine/model for BaseAgent init
-        _engine = engine or getattr(agent, "_engine", None)
-        _model = model or getattr(agent, "_model", "")
-        super().__init__(
-            _engine,  # type: ignore[arg-type]
-            _model,
-            bus=bus,
-        )
-        self._wrapped_agent = agent
-        self._runner = runner
-        self._workspace = workspace
-        self._mounts = mounts or []
-        self._secrets = secrets or {}
+        agent_id = "sandboxed"
+        accepts_tools = False
 
-    def run(
-        self,
-        input: str,
-        context: Optional[AgentContext] = None,
-        **kwargs: Any,
-    ) -> AgentResult:
-        """Delegate execution to the container runner."""
-        self._emit_turn_start(input)
-
-        input_data = {
-            "prompt": input,
-            "agent_id": self._wrapped_agent.agent_id,
-            "model": getattr(self._wrapped_agent, "_model", ""),
-        }
-
-        result = self._runner.run(
-            input_data,
-            workspace=self._workspace,
-            mounts=self._mounts,
-            secrets=self._secrets,
-        )
-
-        content = result.get("content", "")
-        error = result.get("error", False)
-
-        # Parse tool results if present
-        raw_tools = result.get("tool_results", [])
-        tool_results = [
-            ToolResult(
-                tool_name=tr.get("tool_name", "unknown"),
-                content=tr.get("content", ""),
-                success=tr.get("success", True),
+        def __init__(
+            self,
+            agent: BaseAgent,
+            runner: ContainerRunner,
+            *,
+            engine: Optional[InferenceEngine] = None,
+            model: str = "",
+            workspace: str = "",
+            mounts: Optional[List[str]] = None,
+            secrets: Optional[Dict[str, str]] = None,
+            bus: Optional[EventBus] = None,
+        ) -> None:
+            _engine = engine or getattr(agent, "_engine", None)
+            _model = model or getattr(agent, "_model", "")
+            super().__init__(
+                _engine,  # type: ignore[arg-type]
+                _model,
+                bus=bus,
             )
-            for tr in raw_tools
-        ]
+            self._wrapped_agent = agent
+            self._runner = runner
+            self._workspace = workspace
+            self._mounts = mounts or []
+            self._secrets = secrets or {}
 
-        self._emit_turn_end(turns=1, error=error)
-        return AgentResult(
-            content=content,
-            tool_results=tool_results,
-            turns=1,
-            metadata=result.get("metadata", {}),
-        )
+        def run(
+            self,
+            input: str,
+            context: Optional[AgentContext] = None,
+            **kwargs: Any,
+        ) -> AgentResult:
+            """Delegate execution to the container runner."""
+            self._emit_turn_start(input)
+
+            input_data = {
+                "prompt": input,
+                "agent_id": self._wrapped_agent.agent_id,
+                "model": getattr(self._wrapped_agent, "_model", ""),
+            }
+
+            result = self._runner.run(
+                input_data,
+                workspace=self._workspace,
+                mounts=self._mounts,
+                secrets=self._secrets,
+            )
+
+            content = result.get("content", "")
+            error = result.get("error", False)
+
+            raw_tools = result.get("tool_results", [])
+            tool_results = [
+                ToolResult(
+                    tool_name=tr.get("tool_name", "unknown"),
+                    content=tr.get("content", ""),
+                    success=tr.get("success", True),
+                )
+                for tr in raw_tools
+            ]
+
+            self._emit_turn_end(turns=1, error=error)
+            return AgentResult(
+                content=content,
+                tool_results=tool_results,
+                turns=1,
+                metadata=result.get("metadata", {}),
+            )
 
 # Absorbed GPU Docker container launcher (optional — for sandboxed GPU agents)
 try:
@@ -366,4 +378,7 @@ try:
 except Exception:
     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
-__all__ = ["ContainerRunner", "SandboxedAgent"]
+if BaseAgent is not None:
+    __all__ = ["ContainerRunner", "SandboxedAgent"]
+else:
+    __all__ = ["ContainerRunner"]
