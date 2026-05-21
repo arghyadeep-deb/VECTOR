@@ -56,7 +56,7 @@ class SearXNGSearchEngine(BaseSearchEngine):
                     if isinstance(parsed, list):
                         return [str(item) for item in parsed]
                 except (json.JSONDecodeError, ValueError, RecursionError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
                 # Comma-separated fallback
                 return [
                     item.strip() for item in stripped.split(",") if item.strip()
@@ -306,7 +306,7 @@ class SearXNGSearchEngine(BaseSearchEngine):
                         result_elements = soup.select("article")
 
                     if not result_elements:
-                        logger.debug(
+                        logger.warning(
                             f"Classes found in HTML: {[c['class'] for c in soup.select('[class]') if 'class' in c.attrs][:10]}"
                         )
                         result_elements = soup.select('div[id^="result"]')
@@ -364,7 +364,7 @@ class SearXNGSearchEngine(BaseSearchEngine):
                         ):
                             url = str(title_element["href"])
 
-                        logger.debug(
+                        logger.warning(
                             f"Extracted result {idx}: title={title[:30]}..., url={url[:30]}..., content={content[:30]}..."
                         )
 
@@ -392,7 +392,7 @@ class SearXNGSearchEngine(BaseSearchEngine):
                                     )
                                 except (IndexError, AttributeError):
                                     pass  # Couldn't parse engine name
-                            logger.debug(
+                            logger.warning(
                                 f"Filtered invalid SearXNG result: title={title!r}, url={url!r}"
                             )
 

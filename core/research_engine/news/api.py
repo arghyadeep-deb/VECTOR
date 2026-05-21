@@ -244,7 +244,7 @@ def get_news_feed(
                         # Use database content
                         content = report_content_db
                         if content:
-                            logger.debug(
+                            logger.warning(
                                 f"Using database content for research {row['id']}"
                             )
 
@@ -258,7 +258,7 @@ def get_news_feed(
                                     summary = line.strip()
                                     break
                         else:
-                            logger.debug(
+                            logger.warning(
                                 f"No database content for research {row['id']}"
                             )
 
@@ -287,7 +287,7 @@ def get_news_feed(
                             not headline
                             or headline == "[No headline available]"
                         ):
-                            logger.debug(
+                            logger.warning(
                                 f"Skipping item without headline: {row['id']}"
                             )
                             continue
@@ -297,14 +297,14 @@ def get_news_feed(
                             ResearchStatus.IN_PROGRESS,
                             ResearchStatus.SUSPENDED,
                         ):
-                            logger.debug(
+                            logger.warning(
                                 f"Skipping incomplete item: {row['id']} (status: {row['status']})"
                             )
                             continue
 
                         # Skip items without content (neither file nor database)
                         if not content:
-                            logger.debug(
+                            logger.warning(
                                 f"Skipping item without content: {row['id']}"
                             )
                             continue
@@ -364,7 +364,7 @@ def get_news_feed(
                                                 }
                                             )
                                             link_count += 1
-                                            logger.debug(
+                                            logger.warning(
                                                 f"Found link: {title} - {url}"
                                             )
                                             if link_count >= 3:
@@ -500,7 +500,7 @@ def get_subscription_history(
             )
 
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
 
             # Convert to dict for response
             subscription_dict = {
@@ -658,7 +658,7 @@ def get_subscription(subscription_id: str) -> Optional[Dict[str, Any]]:
             )
 
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
 
             # Convert to API format matching the template expectations
             return {
@@ -782,7 +782,7 @@ def update_subscription(
                 .first()
             )
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
 
             # Update fields
             if "name" in data:
@@ -920,7 +920,7 @@ def create_subscription(
                     )
                 except (ImportError, AttributeError, TypeError):
                     # Fallback for when settings DB is not available (e.g., programmatic API usage)
-                    logger.debug(
+                    logger.warning(
                         "Settings manager not available, using default refresh_minutes"
                     )
                     refresh_minutes = 240  # Default to 4 hours
@@ -998,7 +998,7 @@ def delete_subscription(subscription_id: str) -> Dict[str, Any]:
                 _notify_scheduler_about_subscription_change("deleted")
 
                 return {"status": "success", "deleted": subscription_id}
-            raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
+            raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
     except NewsAPIException:
         # Re-raise our custom exceptions
         raise

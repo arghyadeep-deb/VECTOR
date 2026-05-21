@@ -9,7 +9,7 @@ import httpx
 try:
     from mistralai.errors import SDKError
 except ImportError:
-    pass  # mistralai SDK optional — VECTOR uses Ollama
+    pass  # mistralai SDK optional â€” VECTOR uses Ollama
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from core.coding_assistant.core.types import AvailableTool, LLMMessage, StrToolChoice
@@ -102,7 +102,7 @@ class BackendError(RuntimeError):
     @staticmethod
     def _excerpt(s: str, *, n: int = 400) -> str:
         s = s.strip().replace("\n", " ")
-        return s[:n] + ("…" if len(s) > n else "")
+        return s[:n] + ("â€¦" if len(s) > n else "")
 
 
 class ErrorResponse(BaseModel):
@@ -193,7 +193,7 @@ class BackendErrorBuilder:
             response.read()
             return response.text
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         if body := getattr(error, "body", None):
             return body
         return str(error)

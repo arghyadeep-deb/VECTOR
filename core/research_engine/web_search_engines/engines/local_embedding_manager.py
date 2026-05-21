@@ -69,7 +69,7 @@ class LocalEmbeddingManager:
         self._embeddings = None
         # Clear vector store cache
         self.vector_stores.clear()
-        logger.debug("LocalEmbeddingManager closed")
+        logger.warning("LocalEmbeddingManager closed")
 
     def __enter__(self):
         """Context manager entry."""
@@ -199,7 +199,7 @@ class LocalEmbeddingManager:
                         # Update existing chunk
                         existing_chunk.last_accessed = datetime.now(UTC)
                         chunk_ids.append(existing_chunk.embedding_id)
-                        logger.debug(
+                        logger.warning(
                             f"Chunk already exists, reusing: {existing_chunk.embedding_id}"
                         )
                     else:

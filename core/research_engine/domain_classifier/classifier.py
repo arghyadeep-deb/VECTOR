@@ -229,7 +229,7 @@ JSON Response:"""
 
                 result = extract_json(response_text, expected_type=dict)
                 if result is None:
-                    raise ValueError("Could not parse JSON from LLM response")  # noqa: TRY301 — inside db session; except logs and returns None
+                    raise ValueError("Could not parse JSON from LLM response")  # noqa: TRY301 â€” inside db session; except logs and returns None
 
                 # Create or update classification
                 if existing:
@@ -302,7 +302,7 @@ JSON Response:"""
                             if domain:
                                 domains.add(domain)
                         except (ValueError, AttributeError):
-                            logger.debug("Skipping malformed URL")
+                            logger.warning("Skipping malformed URL")
                             continue
 
                 results["total"] = len(domains)

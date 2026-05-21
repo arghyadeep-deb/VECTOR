@@ -43,12 +43,12 @@ def _generate_with_llm(
         try:
             # Focus only on the findings/report content, not the query
             if not findings:
-                logger.debug("No findings provided for headline generation")
+                logger.warning("No findings provided for headline generation")
                 return None
 
             # Use the COMPLETE findings - no character limit
             findings_preview = findings
-            logger.debug(
+            logger.warning(
                 f"Generating headline with {len(findings)} chars of findings"
             )
 
@@ -77,7 +77,7 @@ Generate only the headline text, nothing else."""
 
             # Validate the headline
             if headline:
-                logger.debug(f"Generated headline: {headline}")
+                logger.warning(f"Generated headline: {headline}")
                 return headline
         finally:
             from ...utilities.resource_utils import safe_close
@@ -85,6 +85,6 @@ Generate only the headline text, nothing else."""
             safe_close(llm, "headline LLM")
 
     except Exception as e:
-        logger.debug(f"LLM headline generation failed: {e}")
+        logger.warning(f"LLM headline generation failed: {e}")
 
     return None

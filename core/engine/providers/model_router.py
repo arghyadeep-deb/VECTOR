@@ -1,5 +1,5 @@
 """
-VECTOR Model Router — hint-based tier routing.
+VECTOR Model Router â€” hint-based tier routing.
 
 Ported from vector's providers/router.rs.
 
@@ -7,13 +7,13 @@ Maps abstract task tiers to the right local Ollama model.
 Integrates with VECTOR's existing model routing in models.md.
 
 Tiers (VECTOR-specific, Ollama-first):
-  reasoning     → deepseek-r1:14b  (chain-of-thought)
-  agentic       → vector-focus     (real-time default)
-  coding        → devstral:24b     (code specialist)
-  summarization → mistral-small3.1 (fast, low-latency)
-  multilingual  → vector-multilingual (HI/BN/AS/JA/EN)
-  deep          → gemma4:26b       (overnight/long context)
-  council       → vector-chairman  (high-stakes decisions)
+  reasoning     â†’ deepseek-r1:14b  (chain-of-thought)
+  agentic       â†’ vector-focus     (real-time default)
+  coding        â†’ devstral:24b     (code specialist)
+  summarization â†’ mistral-small3.1 (fast, low-latency)
+  multilingual  â†’ vector-multilingual (HI/BN/AS/JA/EN)
+  deep          â†’ gemma4:26b       (overnight/long context)
+  council       â†’ vector-chairman  (high-stakes decisions)
 """
 from __future__ import annotations
 
@@ -78,18 +78,18 @@ class ModelRouter:
     Routes task requests to the appropriate Ollama model.
 
     Resolution order (mirrors vector router.rs):
-      1. hint:<tier>  — direct tier lookup (e.g. "hint:coding")
-      2. Abstract tier names (e.g. "coding-v1" → coding tier)
+      1. hint:<tier>  â€” direct tier lookup (e.g. "hint:coding")
+      2. Abstract tier names (e.g. "coding-v1" â†’ coding tier)
       3. Exact model name passthrough (e.g. "qwen3:14b")
       4. Default (agentic tier)
 
     Usage:
         router = ModelRouter()
         route = router.resolve("coding-v1")
-        # → Route(model="devstral:24b", tier=ModelTier.CODING)
+        # â†’ Route(model="devstral:24b", tier=ModelTier.CODING)
 
         route = router.resolve("hint:reasoning")
-        # → Route(model="deepseek-r1:14b", tier=ModelTier.REASONING)
+        # â†’ Route(model="deepseek-r1:14b", tier=ModelTier.REASONING)
 
         router.override(ModelTier.CODING, "qwen3:14b")  # swap model
     """
@@ -129,7 +129,7 @@ class ModelRouter:
             tier = ModelTier(spec)
             return self._route_for_tier(tier)
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         # 4. Exact model passthrough (known Ollama model)
         if ":" in spec or "/" in spec or spec in self._routes.values():
@@ -141,13 +141,13 @@ class ModelRouter:
 
     def _route_for_tier(self, tier: ModelTier) -> Route:
         model = self._routes.get(tier, self._routes[self._default_tier])
-        logger.debug("[VECTOR][model_router] tier={} → model={}", tier.value, model)
+        logger.debug("[VECTOR][model_router] tier={} â†’ model={}", tier.value, model)
         return Route(model=model, base_url=self._base_url, tier=tier)
 
     def override(self, tier: ModelTier, model: str) -> None:
         """Override the model for a specific tier."""
         self._routes[tier] = model
-        logger.info("[VECTOR][model_router] override: {} → {}", tier.value, model)
+        logger.info("[VECTOR][model_router] override: {} â†’ {}", tier.value, model)
 
     def model_for(self, tier: ModelTier) -> str:
         return self._routes.get(tier, self._routes[self._default_tier])
@@ -194,4 +194,4 @@ if __name__ == "__main__":
     routes = r.all_routes()
     assert len(routes) == len(ModelTier)
 
-    print(f"OK model_router.py — {len(routes)} tiers, all routes verified")
+    print(f"OK model_router.py â€” {len(routes)} tiers, all routes verified")

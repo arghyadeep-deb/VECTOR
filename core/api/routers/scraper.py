@@ -1,4 +1,4 @@
-"""Scraper router — /scraper/status."""
+"""Scraper router â€” /scraper/status."""
 
 import sys
 from pathlib import Path
@@ -23,13 +23,13 @@ async def scraper_status():
             stealth_available = True
             fetcher_types.append("stealth")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         try:
             from core.scraper.fetchers.chrome import ChromeFetcher
             dynamic_available = True
             fetcher_types.append("dynamic")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     except Exception as e:
         logger.warning(f"[VECTOR][api][scraper] status failed: {e}")
 
@@ -41,4 +41,4 @@ async def scraper_status():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ scraper.py OK")
+    print("âœ… scraper.py OK")

@@ -102,7 +102,7 @@ def _read_clipboard() -> str | None:
         try:
             return reader()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     return None
 
 
@@ -112,7 +112,7 @@ def _copy_to_clipboard(text: str) -> None:
         try:
             to_clipboard(text)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         else:
             all_strategies_failed = False
             if _read_clipboard() == text:

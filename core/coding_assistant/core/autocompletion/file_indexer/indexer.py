@@ -111,7 +111,7 @@ class FileIndexer:
             try:
                 self.shutdown()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def _start_background_rebuild(self, root: Path) -> None:
         with self._rebuild_lock:  # one rebuild per root

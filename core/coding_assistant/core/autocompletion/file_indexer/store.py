@@ -170,7 +170,7 @@ class FileIndexStore:
                             self._walk_directory(path, rel_str, cancel_check)
                         )
         except (PermissionError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return results
 

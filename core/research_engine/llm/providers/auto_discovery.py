@@ -41,9 +41,9 @@ class ProviderInfo:
 
         # Add cloud/local indicator
         if self.is_cloud is True:
-            name_parts.append("☁️ Cloud")
+            name_parts.append("â˜ï¸ Cloud")
         elif self.is_cloud is False:
-            name_parts.append("💻 Local")
+            name_parts.append("ðŸ’» Local")
 
         return " ".join(name_parts)
 
@@ -101,7 +101,7 @@ class ProviderDiscovery:
                 continue
 
             module_name = file_path.stem
-            logger.debug(f"Processing module: {module_name} from {file_path}")
+            logger.warning(f"Processing module: {module_name} from {file_path}")
             try:
                 # Import the module from implementations subdirectory
                 module = importlib.import_module(
@@ -110,12 +110,12 @@ class ProviderDiscovery:
                 )
 
                 # Find all Provider classes (both OpenAICompatibleProvider and standalone)
-                logger.debug(
+                logger.warning(
                     f"Inspecting module {module_name} for Provider classes"
                 )
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     if inspect.isclass(obj):
-                        logger.debug(
+                        logger.warning(
                             f"  Found class: {name}, bases: {obj.__bases__}"
                         )
                     # Check if it's a Provider class (ends with "Provider" and has provider_name)
@@ -207,7 +207,7 @@ class ProviderDiscovery:
             if not provider_info.provider_class.is_available(
                 settings_snapshot=settings_snapshot
             ):
-                logger.debug(
+                logger.warning(
                     f"Provider {provider_info.provider_key} filtered out "
                     f"(not available)"
                 )

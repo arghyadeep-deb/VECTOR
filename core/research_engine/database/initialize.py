@@ -33,7 +33,7 @@ def initialize_database(
     logger.info(
         f"Initializing database with {len(existing_tables)} existing tables"
     )
-    logger.debug(
+    logger.warning(
         f"Base.metadata has {len(Base.metadata.tables)} tables defined"
     )
 
@@ -69,7 +69,7 @@ def _initialize_default_settings(db_session: Session) -> None:
 
         # Check if we need to update settings
         if settings_mgr.db_version_matches_package():
-            logger.debug("Settings version matches package, skipping update")
+            logger.warning("Settings version matches package, skipping update")
             return
 
         logger.info("Loading default settings into database")

@@ -88,7 +88,7 @@ class SearchResultsCollector:
                 r = dict(raw)  # shallow copy to avoid mutating engine output
                 r["index"] = str(start_idx + i + 1)
                 r["source_engine"] = engine_name
-                # Normalise URL key — citation handler expects "link"
+                # Normalise URL key â€” citation handler expects "link"
                 if "link" not in r and "url" in r:
                     r["link"] = r["url"]
                 self._results.append(r)
@@ -282,7 +282,7 @@ def _make_research_subtopic_tool(
             f"You are a focused research assistant. Today's date: {current_date}. "
             "Search thoroughly and return a concise factual summary. "
             "Reference sources by their [N] index numbers. "
-            "Do NOT ask clarifying questions — provide your findings directly."
+            "Do NOT ask clarifying questions â€” provide your findings directly."
         )
 
         def run_subagent(topic: str) -> str:
@@ -349,7 +349,7 @@ def _make_research_subtopic_tool(
                             f"Research on '{topic}' failed: {exc}"
                         )
             except TimeoutError:
-                # as_completed itself timed out — some futures didn't finish
+                # as_completed itself timed out â€” some futures didn't finish
                 for future, topic in futures.items():
                     if topic not in ordered_results:
                         logger.warning(
@@ -380,7 +380,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
     """Research strategy using LangGraph agents with parallel subagent support.
 
     The lead agent autonomously decides what to search, when to dig deeper
-    (via subagents), and when to synthesize — replacing the manual ReAct loop
+    (via subagents), and when to synthesize â€” replacing the manual ReAct loop
     in the MCP strategy.
     """
 
@@ -409,7 +409,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
         # tool factory closures so engines created per tool call inherit it.
         self.programmatic_mode = programmatic_mode
         # search.iterations (typically 1-5) controls pipeline strategies.
-        # For an agent, each "iteration" is one LLM→tool round-trip, so we
+        # For an agent, each "iteration" is one LLMâ†’tool round-trip, so we
         # need many more.  Treat any value below the agent minimum as "use
         # default" rather than clamping to a uselessly low number.
         self.max_iterations = (
@@ -461,7 +461,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
                     "SearchEngine", ""
                 ).lower()
         except Exception:
-            logger.debug("Could not extract engine name from class")
+            logger.warning("Could not extract engine name from class")
         return ""
 
     def _build_tools(self, overall_query: str = "") -> list:
@@ -568,12 +568,12 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
         if not tools:
             return self._error_result("No tools available")
 
-        # Build system prompt — fetch_line wording mirrors the active mode
+        # Build system prompt â€” fetch_line wording mirrors the active mode
         # so the agent isn't told to use a tool that doesn't exist.
         current_date = datetime.now(UTC).strftime("%Y-%m-%d")
         if self.fetch_mode == "disabled":
             fetch_line = (
-                "3. Rely on search snippets — full-page fetching is disabled "
+                "3. Rely on search snippets â€” full-page fetching is disabled "
                 "for this run.\n"
             )
         elif self.fetch_mode in ("summary_focus", "summary_focus_query"):
@@ -589,8 +589,8 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
             "This is NOT a chat conversation. Your only job is to research the "
             "given topic and produce a comprehensive, well-cited report.\n"
             "Do NOT ask clarifying questions, do NOT ask the user anything, "
-            "do NOT offer to help further — just research and report.\n"
-            "You MUST search the web before answering — never answer from memory alone.\n\n"
+            "do NOT offer to help further â€” just research and report.\n"
+            "You MUST search the web before answering â€” never answer from memory alone.\n\n"
             "Strategy:\n"
             "1. Start with web_search for initial exploration.\n"
             "2. For complex multi-faceted questions, use research_subtopic to "
@@ -602,7 +602,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
             "citing sources as [1], [2], etc.\n"
         )
 
-        # Create agent — may fail if model doesn't support tool calling
+        # Create agent â€” may fail if model doesn't support tool calling
         try:
             agent = create_agent(
                 model=self.model,
@@ -650,7 +650,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
                                         )
                                     )[:80]
                                     self._update_progress(
-                                        f'Tool: {tc["name"]} — "{preview}"',
+                                        f'Tool: {tc["name"]} â€” "{preview}"',
                                         min(85, progress),
                                         {
                                             "phase": "tool_call",
@@ -751,7 +751,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
         synthesized_content = final_answer
         documents: list = []
 
-        # Citation handling — only if we have results
+        # Citation handling â€” only if we have results
         if all_search_results:
             try:
                 citation_result = self.citation_handler.analyze_followup(

@@ -88,7 +88,7 @@ class TokenCountingCallback(BaseCallbackHandler):
         if prompts:
             total_chars = sum(len(prompt) for prompt in prompts)
             self.original_prompt_estimate = total_chars // 4
-            logger.debug(
+            logger.warning(
                 f"Estimated prompt tokens: {self.original_prompt_estimate} (from {total_chars} chars)"
             )
 
@@ -243,7 +243,7 @@ class TokenCountingCallback(BaseCallbackHandler):
             completion_tokens: Number of tokens generated (for total-context check).
             source: Which branch provided the data (for logging).
         """
-        logger.debug(
+        logger.warning(
             f"Context overflow check [{source}]: "
             f"prompt_eval_count={prompt_eval_count}, "
             f"completion_tokens={completion_tokens}, "
@@ -255,7 +255,7 @@ class TokenCountingCallback(BaseCallbackHandler):
 
         # Input-only overflow: prompt at >= 80% of context limit. Matches the
         # chart-warning threshold and PR #3840's deliberate choice (PR #3792
-        # lowered from 95% → 80%). The total-context branch below uses 95%
+        # lowered from 95% â†’ 80%). The total-context branch below uses 95%
         # because it's a stricter condition (input+output combined).
         if prompt_eval_count >= self.context_limit * 0.80:
             self.context_truncated = True
@@ -317,7 +317,7 @@ class TokenCountingCallback(BaseCallbackHandler):
                 f"truncation_ratio={self.truncation_ratio:.1%}"
             )
         else:
-            logger.debug(
+            logger.warning(
                 f"Context OK [{source}]: "
                 f"{prompt_eval_count}/{self.context_limit} "
                 f"({prompt_eval_count / self.context_limit:.1%})"
@@ -426,7 +426,7 @@ class TokenCountingCallback(BaseCallbackHandler):
         # confirmed truncation; we only fire here if it didn't. For hosted
         # providers the API typically rejects oversize prompts rather than
         # silently truncating, so this signal flags "would-overflow per our
-        # estimate" — not the same as actual truncation, hence the [estimated]
+        # estimate" â€” not the same as actual truncation, hence the [estimated]
         # tag in the log message.
         if not self.context_truncated and self.context_limit:
             # Input-only overflow: prompt estimate exceeds context limit
@@ -453,7 +453,7 @@ class TokenCountingCallback(BaseCallbackHandler):
             # Total-context overflow: input + output exceeds context limit.
             # The "[estimated-total-context]" tag below refers to the
             # *detection method* (post-loop fallback path that runs when
-            # _check_context_overflow couldn't fire), not the data source —
+            # _check_context_overflow couldn't fire), not the data source â€”
             # the prompt_tokens / completion_tokens here come from the
             # provider via response.llm_output.token_usage and are actual
             # counts, not character-based estimates.
@@ -632,7 +632,7 @@ class TokenCountingCallback(BaseCallbackHandler):
 
             username = flask_session.get("username")
             if not username:
-                logger.debug("No user session, skipping token metrics save")
+                logger.warning("No user session, skipping token metrics save")
                 return
 
             with get_user_db_session(username) as session:
@@ -654,7 +654,7 @@ class TokenCountingCallback(BaseCallbackHandler):
                         f"Token tracking - Search context: planned={search_engines_planned}, selected={search_engine_selected}, phase={research_phase}"
                     )
                 else:
-                    logger.debug(
+                    logger.warning(
                         f"Token tracking - No search engine context yet, phase={research_phase}"
                     )
 
@@ -663,7 +663,7 @@ class TokenCountingCallback(BaseCallbackHandler):
                     search_engines_planned = json.dumps(search_engines_planned)
 
                 # Log context overflow detection values before saving
-                logger.debug(
+                logger.warning(
                     f"Saving TokenUsage - context_limit: {self.context_limit}, "
                     f"context_truncated: {self.context_truncated}, "
                     f"tokens_truncated: {self.tokens_truncated}, "
@@ -891,7 +891,7 @@ class TokenCounter:
                 all_research_count = (
                     session.query(func.count(ResearchHistory.id)).scalar() or 0
                 )
-                logger.debug(
+                logger.warning(
                     f"Total ResearchHistory records in database: {all_research_count}"
                 )
 
@@ -906,13 +906,13 @@ class TokenCounter:
                     .all()
                 )
                 if sample_researches:
-                    logger.debug("Sample ResearchHistory records:")
+                    logger.warning("Sample ResearchHistory records:")
                     for r_id, r_created, r_mode in sample_researches:
-                        logger.debug(
+                        logger.warning(
                             f"  - ID: {r_id}, Created: {r_created}, Mode: {r_mode}"
                         )
                 else:
-                    logger.debug("No ResearchHistory records found in database")
+                    logger.warning("No ResearchHistory records found in database")
 
                 # Get time filter conditions for ResearchHistory query
                 start_time, end_time = None, None
@@ -939,13 +939,13 @@ class TokenCounter:
                 # Apply mode filter if specified
                 mode_filter = research_mode if research_mode != "all" else None
                 if mode_filter:
-                    logger.debug(f"Applying mode filter: {mode_filter}")
+                    logger.warning(f"Applying mode filter: {mode_filter}")
                     research_query = research_query.filter(
                         ResearchHistory.mode == mode_filter
                     )
 
                 total_researches = research_query.scalar() or 0
-                logger.debug(
+                logger.warning(
                     f"Final filtered research count: {total_researches}"
                 )
 
@@ -956,7 +956,7 @@ class TokenCounter:
                     ).scalar()
                     or 0
                 )
-                logger.debug(
+                logger.warning(
                     f"Distinct research_ids in TokenUsage: {token_research_count}"
                 )
 
@@ -1134,7 +1134,7 @@ class TokenCounter:
                     RateLimitAttempt.error_type == "RateLimitError",
                 ).count()
 
-                logger.debug(
+                logger.warning(
                     f"Rate limit attempts in database: total={total_attempts}, successful={successful_attempts}"
                 )
 
@@ -1265,7 +1265,7 @@ class TokenCounter:
 
                     engine_stats.append(engine_stat)
 
-                logger.debug(
+                logger.warning(
                     f"Tracked engines: {tracked_engines}, engine_stats: {engine_stats}"
                 )
 
@@ -1328,7 +1328,7 @@ class TokenCounter:
                     },
                 }
 
-                logger.debug(
+                logger.warning(
                     f"Returning from _get_metrics_from_encrypted_db - total_researches: {result['total_researches']}"
                 )
                 return result

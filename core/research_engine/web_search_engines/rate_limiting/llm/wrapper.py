@@ -92,7 +92,7 @@ def create_rate_limited_llm_wrapper(base_llm, provider: Optional[str] = None):
                 "none",
             ]
             if normalize_provider(self.provider) in local_providers:
-                logger.debug(
+                logger.warning(
                     f"Skipping rate limiting for local provider: {self.provider}"
                 )
                 return True
@@ -104,7 +104,7 @@ def create_rate_limited_llm_wrapper(base_llm, provider: Optional[str] = None):
                     local in base_url
                     for local in ["localhost", "127.0.0.1", "0.0.0.0"]
                 ):
-                    logger.debug(
+                    logger.warning(
                         f"Skipping rate limiting for local URL: {base_url}"
                     )
                     return True
@@ -205,7 +205,7 @@ def create_rate_limited_llm_wrapper(base_llm, provider: Optional[str] = None):
 
                 _close_base_llm(self.base_llm)
             except Exception:
-                logger.debug(
+                logger.warning(
                     "best-effort cleanup of HTTP clients on shutdown",
                     exc_info=True,
                 )

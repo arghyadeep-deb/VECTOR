@@ -124,7 +124,7 @@ class SearchCache:
                 )
                 session.commit()
                 if deleted > 0:
-                    logger.debug(f"Cleaned up {deleted} expired cache entries")
+                    logger.warning(f"Cleaned up {deleted} expired cache entries")
         except Exception:
             logger.exception("Failed to cleanup expired cache entries")
 
@@ -164,7 +164,7 @@ class SearchCache:
             entry = self._memory_cache[query_hash]
             if entry["expires_at"] > current_time:
                 self._access_times[query_hash] = current_time
-                logger.debug(f"Cache hit (memory) for query: {query[:50]}...")
+                logger.warning(f"Cache hit (memory) for query: {query[:50]}...")
                 return entry["results"]
             # Expired, remove from memory
             self._memory_cache.pop(query_hash, None)
@@ -198,7 +198,7 @@ class SearchCache:
                     self._access_times[query_hash] = current_time
                     self._evict_lru_memory()
 
-                    logger.debug(
+                    logger.warning(
                         f"Cache hit (database) for query: {query[:50]}..."
                     )
                     return results
@@ -206,7 +206,7 @@ class SearchCache:
         except Exception:
             logger.exception("Failed to retrieve from search cache")
 
-        logger.debug(f"Cache miss for query: {query[:50]}...")
+        logger.warning(f"Cache miss for query: {query[:50]}...")
         return None
 
     def put(
@@ -276,7 +276,7 @@ class SearchCache:
             self._access_times[query_hash] = current_time
             self._evict_lru_memory()
 
-            logger.debug(f"Cached results for query: {query[:50]}...")
+            logger.warning(f"Cached results for query: {query[:50]}...")
             return True
 
         except Exception:
@@ -366,7 +366,7 @@ class SearchCache:
                 fetch_event.set()  # Signal completion
                 return results
 
-            logger.debug(
+            logger.warning(
                 f"Fetching results for query: {query[:50]}... (stampede protected)"
             )
 
@@ -424,7 +424,7 @@ class SearchCache:
                 )
                 session.commit()
 
-            logger.debug(f"Invalidated cache for query: {query[:50]}...")
+            logger.warning(f"Invalidated cache for query: {query[:50]}...")
             return deleted > 0
 
         except Exception:
@@ -458,7 +458,7 @@ class SearchCache:
         if hasattr(self, "engine") and self.engine:
             try:
                 self.engine.dispose()
-                logger.debug("SearchCache engine disposed")
+                logger.warning("SearchCache engine disposed")
             except Exception:
                 logger.exception("Error disposing SearchCache engine")
             finally:

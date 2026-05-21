@@ -69,9 +69,9 @@ def extract_json(
         if isinstance(result, (dict, list)):
             if expected_type is None or isinstance(result, expected_type):
                 return result
-            # Type mismatch — fall through to bracket extraction
+            # Type mismatch â€” fall through to bracket extraction
     except (json.JSONDecodeError, ValueError):
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
     # Step 2: Bracket extraction ordered by expected_type
     if expected_type is list:
@@ -93,7 +93,7 @@ def extract_json(
                 if expected_type is None or isinstance(result, expected_type):
                     return result
         except (json.JSONDecodeError, ValueError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         # Try cleaning LLM artifacts and retrying
         cleaned = _clean_llm_json_artifacts(extracted)
@@ -106,9 +106,9 @@ def extract_json(
                     ):
                         return result
             except (json.JSONDecodeError, ValueError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
-    logger.debug("No valid JSON found in text")
+    logger.warning("No valid JSON found in text")
     return None
 
 

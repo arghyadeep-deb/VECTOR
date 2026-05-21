@@ -62,7 +62,7 @@ class ResourceStatusTracker:
             self.engine = db_manager.open_user_database(username, password)
         except DatabaseInitializationError:
             # Surface init failures from the schedulers/library-init
-            # callers as a plain RuntimeError — they all wrap construction
+            # callers as a plain RuntimeError â€” they all wrap construction
             # in try/except already, and propagating the typed exception
             # would couple every caller to encrypted_db's internals.
             logger.exception(
@@ -173,7 +173,7 @@ class ResourceStatusTracker:
         else:
             status.today_retry_count = 1
 
-        logger.debug(
+        logger.warning(
             f"[STATUS_TRACKER] Updated failure status for resource {resource_id}"
         )
 

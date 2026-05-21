@@ -8,12 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
-# Wire absorbed OJ speech backends (optional — gracefully no-ops if missing)
+# Wire absorbed OJ speech backends (optional â€” gracefully no-ops if missing)
 try:
-    import vectorcode.src.speech  # noqa: F401 — triggers backend registration
+    import vectorcode.src.speech  # noqa: F401 â€” triggers backend registration
     logger.info("[VECTOR][voice] speech backends available")
 except Exception:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 logger.info("[VECTOR] voice package loaded")
 

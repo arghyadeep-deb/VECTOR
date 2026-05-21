@@ -113,7 +113,7 @@ class BaseSubscription(ABC):
 
     def on_refresh_start(self) -> None:
         """Called when a refresh begins."""
-        logger.debug(f"Starting refresh for subscription {self.id}")
+        logger.warning(f"Starting refresh for subscription {self.id}")
         self.last_refreshed = utc_now()
 
     def on_refresh_success(self, results: Any) -> None:
@@ -126,7 +126,7 @@ class BaseSubscription(ABC):
         self.refresh_count += 1
         self.next_refresh = self._calculate_next_refresh()
         self.error_count = 0  # Reset error count on success
-        logger.debug(f"Subscription {self.id} refreshed successfully")
+        logger.warning(f"Subscription {self.id} refreshed successfully")
 
     def on_refresh_error(self, error: Exception) -> None:
         """
@@ -230,7 +230,7 @@ class BaseSubscription(ABC):
         self.storage.update_refresh_time(self.id, now, self.next_refresh)
         self.storage.increment_stats(self.id, results_count)
 
-        logger.debug(
+        logger.warning(
             f"Subscription {self.id} marked as refreshed with {results_count} results"
         )
 

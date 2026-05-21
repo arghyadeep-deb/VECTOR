@@ -78,7 +78,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
                 raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
     except json.JSONDecodeError:
         # Response is not JSON (likely CSV data), which is normal
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     return response_text
 

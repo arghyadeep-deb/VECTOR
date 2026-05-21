@@ -184,7 +184,7 @@ class RetryManager:
                         )
                         estimated_wait = retry_time - datetime.now(UTC)
                 except Exception as e:
-                    logger.debug(f"Error calculating wait time: {e}")
+                    logger.warning(f"Error calculating wait time: {e}")
 
             result = ResourceFilterResult(
                 resource_id=resource.id,

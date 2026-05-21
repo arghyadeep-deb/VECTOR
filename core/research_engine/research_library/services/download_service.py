@@ -613,7 +613,7 @@ class DownloadService:
 
             if existing_doc:
                 # Update existing document. Only replace document_hash when
-                # transitioning from FAILED — that's the placeholder hash from
+                # transitioning from FAILED â€” that's the placeholder hash from
                 # _record_failed_text_extraction. For any other prior state
                 # the hash is already a real content hash and clobbering it
                 # risks UNIQUE-constraint collisions (issue #3827).
@@ -824,8 +824,8 @@ class DownloadService:
             if not resource:
                 return False, "Resource not found"
 
-            # Handle library resources — content already in the database
-            # (local-only, no network — skip retry checks)
+            # Handle library resources â€” content already in the database
+            # (local-only, no network â€” skip retry checks)
             if resource.source_type == "library" or (
                 resource.url and resource.url.startswith("/library/document/")
             ):
@@ -890,7 +890,7 @@ class DownloadService:
     def _try_library_text_extraction(
         self, session, resource
     ) -> Tuple[bool, Optional[str]]:
-        """Handle library resources — content already exists in local database.
+        """Handle library resources â€” content already exists in local database.
 
         Returns:
             Tuple of (success, error_message). On success: (True, None).
@@ -954,7 +954,7 @@ class DownloadService:
                 f"Failed to extract text from library document {doc_id} PDF",
             )
 
-        # 5. Update Document directly (don't use _save_text_with_db — it
+        # 5. Update Document directly (don't use _save_text_with_db â€” it
         # queries by resource_id which mismatches for library docs)
         doc.text_content = text
         doc.character_count = len(text)
@@ -995,7 +995,7 @@ class DownloadService:
             return True, None
 
         # No text content or failed extraction
-        logger.debug(
+        logger.warning(
             f"Document exists but no valid text content: resource_id={resource_id}, extraction_method={existing_doc.extraction_method}"
         )
         return None  # Fall through to re-extraction
@@ -1120,7 +1120,7 @@ class DownloadService:
             )
             session.commit()
             logger.info(
-                f"✓ SUCCESS: Got text from {extraction_source.upper()} API for '{resource.title[:50]}...'"
+                f"âœ“ SUCCESS: Got text from {extraction_source.upper()} API for '{resource.title[:50]}...'"
             )
             return True, None
         except Exception as e:
@@ -1143,7 +1143,7 @@ class DownloadService:
         if not downloader:
             error_msg = "No compatible downloader found"
             logger.warning(
-                f"✗ FAILED: {error_msg} for '{resource.title[:50]}...'"
+                f"âœ— FAILED: {error_msg} for '{resource.title[:50]}...'"
             )
             self._record_failed_text_extraction(
                 session, resource, error=error_msg
@@ -1156,7 +1156,7 @@ class DownloadService:
         if not result.is_success or not result.content:
             error_msg = result.skip_reason or "Failed to download PDF"
             logger.warning(
-                f"✗ FAILED: Could not download PDF for '{resource.title[:50]}...' | Error: {error_msg}"
+                f"âœ— FAILED: Could not download PDF for '{resource.title[:50]}...' | Error: {error_msg}"
             )
             self._record_failed_text_extraction(
                 session, resource, error=f"PDF download failed: {error_msg}"
@@ -1187,7 +1187,7 @@ class DownloadService:
             )
             session.commit()
             logger.info(
-                f"✓ SUCCESS: Extracted text from '{resource.title[:50]}...'"
+                f"âœ“ SUCCESS: Extracted text from '{resource.title[:50]}...'"
             )
             return True, None
         except Exception as e:
@@ -1299,7 +1299,7 @@ class DownloadService:
                                 ):
                                     return pdf_response.content
         except Exception as e:
-            logger.debug(f"Europe PMC download failed: {e}")
+            logger.warning(f"Europe PMC download failed: {e}")
 
         return None
 
@@ -1311,7 +1311,7 @@ class DownloadService:
             time_since_last = current_time - self._last_pubmed_request
             if time_since_last < self._pubmed_delay:
                 sleep_time = self._pubmed_delay - time_since_last
-                logger.debug(
+                logger.warning(
                     f"Rate limiting: sleeping {sleep_time:.2f}s before PubMed request"
                 )
                 time.sleep(sleep_time)
@@ -1349,7 +1349,7 @@ class DownloadService:
                                 )
                                 return response.content
                     except Exception as e:
-                        logger.debug(f"Direct Europe PMC download failed: {e}")
+                        logger.warning(f"Direct Europe PMC download failed: {e}")
                         return None
 
             # If it's a regular PubMed URL, try to find PMC version
@@ -1453,11 +1453,11 @@ class DownloadService:
                                                                 response.content
                                                             )
                                                 except Exception as e:
-                                                    logger.debug(
+                                                    logger.warning(
                                                         f"Europe PMC download with PMC ID failed: {e}"
                                                     )
                     except Exception as e:
-                        logger.debug(
+                        logger.warning(
                             f"API lookup failed, trying webpage scraping: {e}"
                         )
 
@@ -1505,7 +1505,7 @@ class DownloadService:
                                             )
                                             return response.content
                                 except Exception as e:
-                                    logger.debug(
+                                    logger.warning(
                                         f"Europe PMC download failed: {e}"
                                     )
                             else:
@@ -1522,7 +1522,7 @@ class DownloadService:
                             )  # Max 5 seconds
                         raise
                     except Exception as e:
-                        logger.debug(f"Could not check for PMC version: {e}")
+                        logger.warning(f"Could not check for PMC version: {e}")
 
             return self._download_generic(url)
         except Exception:
@@ -1589,7 +1589,7 @@ class DownloadService:
 
             if doc:
                 # Update existing document with extracted text. Only replace
-                # document_hash when transitioning from FAILED — see issue
+                # document_hash when transitioning from FAILED â€” see issue
                 # #3827. PDF-bytes hashes set at creation must remain stable;
                 # text-content hashes collide far more often (identical
                 # extracted text from different PDFs).
@@ -1617,7 +1617,7 @@ class DownloadService:
                 else:
                     doc.extraction_quality = "low"
 
-                logger.debug(
+                logger.warning(
                     f"Updated document {doc.id} with extracted text ({word_count} words)"
                 )
             else:

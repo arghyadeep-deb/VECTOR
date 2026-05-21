@@ -124,9 +124,9 @@ class PaperlessSearchEngine(BaseSearchEngine):
         """
         url = urljoin(self.api_url or "", endpoint)
 
-        logger.debug(f"Making request to: {url}")
-        logger.debug(f"Request params: {params}")
-        logger.debug(
+        logger.warning(f"Making request to: {url}")
+        logger.warning(f"Request params: {params}")
+        logger.warning(
             f"Headers: {self.headers.keys() if self.headers else 'None'}"
         )
 
@@ -153,20 +153,20 @@ class PaperlessSearchEngine(BaseSearchEngine):
                     # Log first result details if available
                     if result.get("results"):
                         first = result["results"][0]
-                        logger.debug(
+                        logger.warning(
                             f"First result: id={first.get('id')}, title='{first.get('title', 'No title')[:50]}...'"
                         )
                         if "__search_hit__" in first:
-                            logger.debug(
+                            logger.warning(
                                 f"Has search hit data with score={first['__search_hit__'].get('score')}"
                             )
                 else:
-                    logger.debug(f"API response keys: {result.keys()}")
+                    logger.warning(f"API response keys: {result.keys()}")
 
             return result  # type: ignore[no-any-return]
         except requests.exceptions.RequestException:
             logger.exception("Error making request to Paperless-ngx")
-            logger.debug(f"Failed URL: {url}, params: {params}")
+            logger.warning(f"Failed URL: {url}, params: {params}")
             return {}
 
     def _expand_query_with_llm(self, query: str) -> str:
@@ -196,7 +196,7 @@ Include synonyms, plural forms, and technical terms.
 
 IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
 
-            logger.debug(
+            logger.warning(
                 f"Sending query expansion prompt to LLM for: '{query}'"
             )
             response = self.llm.invoke(prompt)
@@ -206,20 +206,20 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 else str(response)
             ).strip()
 
-            logger.debug(
+            logger.warning(
                 f"Raw LLM response (first 500 chars): {expanded[:500]}"
             )
 
             # Clean up the response - remove any explanatory text
             if "\n" in expanded:
                 expanded = expanded.split("\n")[0]
-                logger.debug("Took first line of LLM response")
+                logger.warning("Took first line of LLM response")
 
             # Always trust the LLM's expansion - it knows better than hard-coded rules
             logger.info(
                 f"LLM expanded query from '{query}' to {len(expanded)} chars with {expanded.count('OR')} ORs"
             )
-            logger.debug(
+            logger.warning(
                 f"Expanded query preview (first 200 chars): {expanded[:200]}..."
             )
             return expanded
@@ -260,7 +260,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 doc_id = doc.get("id")
                 if doc_id and doc_id not in all_results:
                     all_results[doc_id] = doc
-                    logger.debug(
+                    logger.warning(
                         f"Added doc {doc_id}: {doc.get('title', 'No title')}"
                     )
         else:
@@ -278,7 +278,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 logger.info(
                     f"Pass 2 - Using expanded query with {expanded_query.count('OR')} ORs"
                 )
-                logger.debug(
+                logger.warning(
                     f"Pass 2 - Full expanded query (first 500 chars): '{expanded_query[:500]}...'"
                 )
                 logger.info(
@@ -293,7 +293,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                         if doc_id and doc_id not in all_results:
                             all_results[doc_id] = doc
                             pass2_new += 1
-                            logger.debug(
+                            logger.warning(
                                 f"Pass 2 added new doc {doc_id}: {doc.get('title', 'No title')}"
                             )
                     logger.info(
@@ -322,7 +322,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
         # Log titles and scores of final results
         for i, doc in enumerate(final_results[:5], 1):  # Log first 5
             score = doc.get("__search_hit__", {}).get("score", 0)
-            logger.debug(
+            logger.warning(
                 f"Result {i}: '{doc.get('title', 'No title')}' (score={score})"
             )
 
@@ -390,7 +390,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
 
         # Build URL - use the web interface URL for user access
         url = f"{self.api_url}/documents/{doc_id}/details"
-        logger.debug(f"Generated URL for doc {doc_id}: {url}")
+        logger.warning(f"Generated URL for doc {doc_id}: {url}")
 
         # Extract snippet - prefer highlighted content from search
         snippet = ""
@@ -400,7 +400,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
 
         if "__search_hit__" in doc_data:
             search_hit = doc_data["__search_hit__"]
-            logger.debug(
+            logger.warning(
                 f"Found __search_hit__ data for doc {doc_id}: score={search_hit.get('score')}, rank={search_hit.get('rank')}"
             )
 
@@ -413,7 +413,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 )
 
                 if isinstance(highlights, list):
-                    logger.debug(
+                    logger.warning(
                         f"Highlights is list with {len(highlights)} items"
                     )
                     # IMPORTANT: Store highlights list for processing later
@@ -430,7 +430,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                     ]  # Single highlight as list
                     snippet = str(highlights)
 
-                logger.debug(
+                logger.warning(
                     f"Raw snippet before cleaning (first 200 chars): {snippet[:200]}"
                 )
 
@@ -439,7 +439,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 snippet = re.sub(r"</span>", "**", snippet)
                 snippet = re.sub(r"<[^>]+>", "", snippet)
 
-                logger.debug(
+                logger.warning(
                     f"Cleaned snippet (first 200 chars): {snippet[:200]}"
                 )
 
@@ -453,7 +453,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                         snippet[: self.MAX_SNIPPET_LENGTH].rsplit(" ", 1)[0]
                         + "..."
                     )
-                    logger.debug(
+                    logger.warning(
                         f"Truncated snippet to {self.MAX_SNIPPET_LENGTH} chars"
                     )
 
@@ -475,12 +475,12 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
             # Fallback to content preview if no highlights available
             content = doc_data.get("content", "")
             if content:
-                logger.debug(f"Document has content of length {len(content)}")
+                logger.warning(f"Document has content of length {len(content)}")
                 # Try to find context around query terms if possible
                 if query:
                     query_terms = query.lower().split()
                     content_lower = content.lower()
-                    logger.debug(
+                    logger.warning(
                         f"Searching for query terms in content: {query_terms}"
                     )
 
@@ -490,7 +490,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                         pos = content_lower.find(term)
                         if pos != -1 and (best_pos == -1 or pos < best_pos):
                             best_pos = pos
-                            logger.debug(
+                            logger.warning(
                                 f"Found term '{term}' at position {pos}"
                             )
 
@@ -545,7 +545,7 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
         correspondent = doc_data.get("correspondent_name", "")
         if correspondent:
             title_parts.append(f"{correspondent}.")
-            logger.debug(f"Added correspondent to title: {correspondent}")
+            logger.warning(f"Added correspondent to title: {correspondent}")
 
         # Add the document title
         title_parts.append(title)
@@ -554,14 +554,14 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
         doc_type = doc_data.get("document_type_name", "")
         if doc_type and doc_type not in ["Letter", "Other", "Document", ""]:
             title_parts.append(f"({doc_type})")
-            logger.debug(f"Added document type to title: {doc_type}")
+            logger.warning(f"Added document type to title: {doc_type}")
 
         # Add year from created date if available
         created_date = doc_data.get("created", "")
         if created_date and len(created_date) >= 4:
             year = created_date[:4]
             title_parts.append(year)
-            logger.debug(f"Added year to title: {year}")
+            logger.warning(f"Added year to title: {year}")
 
         # Format the enhanced title for display in sources list
         if title_parts:
@@ -646,8 +646,8 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
                 logger.info(
                     f"Processing document {idx + 1}: title='{item.get('title', 'No title')[:50]}...', url={item.get('url', 'No URL')}"
                 )
-                logger.debug(f"Document {idx + 1} keys: {item.keys()}")
-                logger.debug(
+                logger.warning(f"Document {idx + 1} keys: {item.keys()}")
+                logger.warning(
                     f"Document {idx + 1} has snippet of length: {len(item.get('snippet', ''))}"
                 )
 
@@ -787,5 +787,5 @@ IMPORTANT: Output ONLY the search query. No explanations, no additional text."""
             )
             return int(response.get("count", -1))
         except Exception:
-            logger.debug("Failed to fetch document count", exc_info=True)
+            logger.warning("Failed to fetch document count", exc_info=True)
             return -1

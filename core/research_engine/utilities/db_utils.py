@@ -78,7 +78,7 @@ def get_db_session(
             if user_session:
                 return user_session
     except Exception:
-        logger.debug(
+        logger.warning(
             "Flask context unavailable (CLI/background threads)", exc_info=True
         )
 
@@ -104,12 +104,12 @@ def get_settings_manager(
     """
     # Track whether we are borrowing a session we don't own (caller-provided
     # or Flask g.db_session).  Borrowed sessions must NOT be closed by
-    # SettingsManager — their owner is responsible for cleanup.
+    # SettingsManager â€” their owner is responsible for cleanup.
     borrowed_session = db_session is not None
 
     # Reuse the Flask request session if it belongs to the requested user.
     # This MUST happen before get_db_session() because that function is
-    # wrapped in @thread_specific_cache — the cache bypasses the function
+    # wrapped in @thread_specific_cache â€” the cache bypasses the function
     # body on subsequent calls, so any g.db_session check inside it only
     # fires once per thread.
     if db_session is None:
@@ -126,7 +126,7 @@ def get_settings_manager(
                         db_session = lazy_session
                         borrowed_session = True
         except Exception:
-            logger.debug("Could not reuse Flask request session", exc_info=True)
+            logger.warning("Could not reuse Flask request session", exc_info=True)
 
     if db_session is None and username is None and has_request_context():
         username = flask_session.get("username")
@@ -153,11 +153,11 @@ def get_settings_manager(
                         borrowed_session = True
                         logger.warning(
                             "get_db_session() returned g.db_session after "
-                            "direct g.db_session check failed — marking as "
+                            "direct g.db_session check failed â€” marking as "
                             "borrowed to prevent double-close"
                         )
                 except Exception:
-                    logger.debug(
+                    logger.warning(
                         "Could not verify session identity after "
                         "get_db_session()",
                         exc_info=True,
@@ -166,7 +166,7 @@ def get_settings_manager(
     # Import here to avoid circular imports
     from ..settings import SettingsManager
 
-    logger.debug(
+    logger.warning(
         "get_settings_manager: session_source={}, owned={}",
         "borrowed" if borrowed_session else ("new" if db_session else "None"),
         not borrowed_session,

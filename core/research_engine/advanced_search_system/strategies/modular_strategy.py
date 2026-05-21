@@ -423,7 +423,7 @@ class ModularStrategy(BaseSearchStrategy):
                         }
                     )
 
-                logger.info("🤖 LLM CONSTRAINT PROCESSING ACTIVATED")
+                logger.info("ðŸ¤– LLM CONSTRAINT PROCESSING ACTIVATED")
                 # LLM decomposition and combination
                 decomposed = await self.llm_processor.decompose_constraints_intelligently(
                     base_constraints
@@ -431,7 +431,7 @@ class ModularStrategy(BaseSearchStrategy):
 
                 # Pass existing base constraint queries to avoid duplication
                 existing_queries = [c.description for c in base_constraints]
-                logger.info("📋 BASE CONSTRAINT QUERIES:")
+                logger.info("ðŸ“‹ BASE CONSTRAINT QUERIES:")
                 for i, base_query in enumerate(existing_queries, 1):
                     logger.info(f"   BASE-{i:02d}: {base_query}")
 
@@ -441,7 +441,7 @@ class ModularStrategy(BaseSearchStrategy):
                     )
                 )
 
-                logger.info("🧠 LLM-GENERATED INTELLIGENT QUERIES:")
+                logger.info("ðŸ§  LLM-GENERATED INTELLIGENT QUERIES:")
                 logger.info("### START_LLM_QUERIES ###")  # Grep-friendly marker
                 for i, llm_query in enumerate(intelligent_combinations, 1):
                     logger.info(f"   LLM-{i:02d}: {llm_query}")
@@ -453,14 +453,14 @@ class ModularStrategy(BaseSearchStrategy):
                     [query] + intelligent_combinations
                 )  # Original query first, then LLM combinations
                 logger.info(
-                    f"🎯 Using original query + {len(intelligent_combinations)} targeted LLM search combinations (skipping broad base constraints)"
+                    f"ðŸŽ¯ Using original query + {len(intelligent_combinations)} targeted LLM search combinations (skipping broad base constraints)"
                 )
                 logger.info(
-                    f"📊 Optimized search strategies: {len(all_search_queries)} (original + {len(intelligent_combinations)} LLM queries)"
+                    f"ðŸ“Š Optimized search strategies: {len(all_search_queries)} (original + {len(intelligent_combinations)} LLM queries)"
                 )
             else:
                 logger.warning(
-                    "⚠️  LLM constraint processing is DISABLED - falling back to basic searches"
+                    "âš ï¸  LLM constraint processing is DISABLED - falling back to basic searches"
                 )
                 # Fallback to basic constraint searches
                 all_search_queries = [c.description for c in base_constraints]
@@ -471,7 +471,7 @@ class ModularStrategy(BaseSearchStrategy):
                     {
                         "phase": "candidate_exploration",
                         "progress": 25,
-                        "message": f"🔍 Exploring with {len(all_search_queries)} enhanced search strategies",
+                        "message": f"ðŸ” Exploring with {len(all_search_queries)} enhanced search strategies",
                     }
                 )
 
@@ -487,7 +487,7 @@ class ModularStrategy(BaseSearchStrategy):
             # Execute searches in parallel batches with decoupled evaluation
             batch_size = 8  # Optimized for parallel execution
             logger.info(
-                f"🚀 Starting enhanced exploration with {len(all_search_queries)} search queries (8 concurrent, decoupled evaluation)"
+                f"ðŸš€ Starting enhanced exploration with {len(all_search_queries)} search queries (8 concurrent, decoupled evaluation)"
             )
 
             # Start background candidate evaluation task
@@ -509,12 +509,12 @@ class ModularStrategy(BaseSearchStrategy):
                         {
                             "phase": "search_batch",
                             "progress": search_progress,
-                            "message": f"🔍 Executing search batch {i // batch_size + 1}",
+                            "message": f"ðŸ” Executing search batch {i // batch_size + 1}",
                         }
                     )
 
                 logger.info(
-                    f"📦 Processing batch {i // batch_size + 1}: {batch}"
+                    f"ðŸ“¦ Processing batch {i // batch_size + 1}: {batch}"
                 )
 
                 # Execute batch searches in parallel using ThreadPoolExecutor
@@ -539,7 +539,7 @@ class ModularStrategy(BaseSearchStrategy):
                             batch_results.append(result)
                         except Exception as e:
                             logger.exception(
-                                f"❌ Parallel search failed for '{query[:30]}...'"
+                                f"âŒ Parallel search failed for '{query[:30]}...'"
                             )
                             batch_results.append(e)
 
@@ -550,7 +550,7 @@ class ModularStrategy(BaseSearchStrategy):
                 for j, result in enumerate(batch_results):
                     if isinstance(result, Exception):
                         logger.exception(
-                            f"❌ Search failed: {batch[j]} - {result}"
+                            f"âŒ Search failed: {batch[j]} - {result}"
                         )
                         continue
 
@@ -559,7 +559,7 @@ class ModularStrategy(BaseSearchStrategy):
                     )
 
                     logger.info(
-                        f"🎯 Found {len(candidates)} candidates from query: '{batch[j][:50]}...'"
+                        f"ðŸŽ¯ Found {len(candidates)} candidates from query: '{batch[j][:50]}...'"
                     )
 
                     # QUEUE CANDIDATES for background evaluation (non-blocking)
@@ -578,7 +578,7 @@ class ModularStrategy(BaseSearchStrategy):
                 )
 
                 logger.info(
-                    f"📦 Batch {i // batch_size + 1}: queued {total_candidates} candidates for evaluation"
+                    f"ðŸ“¦ Batch {i // batch_size + 1}: queued {total_candidates} candidates for evaluation"
                 )
 
                 # CRITICAL: Yield control after each batch to allow background evaluation
@@ -600,7 +600,7 @@ class ModularStrategy(BaseSearchStrategy):
                 )  # 30s timeout
             except asyncio.TimeoutError:
                 logger.warning(
-                    "⚠️ Background evaluation timed out, using partial results"
+                    "âš ï¸ Background evaluation timed out, using partial results"
                 )
                 evaluation_task.cancel()
 
@@ -610,7 +610,7 @@ class ModularStrategy(BaseSearchStrategy):
             ]
 
             logger.info(
-                f"🏁 Search completed: {len(all_candidates)} total candidates, {high_confidence_count} high-confidence"
+                f"ðŸ Search completed: {len(all_candidates)} total candidates, {high_confidence_count} high-confidence"
             )
 
             # Phase 4: Final candidate evaluation (if immediate evaluation was disabled)
@@ -621,7 +621,7 @@ class ModularStrategy(BaseSearchStrategy):
                         {
                             "phase": "candidate_evaluation",
                             "progress": 80,
-                            "message": f"🔍 Evaluating {len(all_candidates)} candidates",
+                            "message": f"ðŸ” Evaluating {len(all_candidates)} candidates",
                         }
                     )
 
@@ -640,7 +640,7 @@ class ModularStrategy(BaseSearchStrategy):
 
                     except Exception:
                         logger.exception(
-                            f"💥 Error evaluating candidate {candidate.name}"
+                            f"ðŸ’¥ Error evaluating candidate {candidate.name}"
                         )
                         continue
 
@@ -650,7 +650,7 @@ class ModularStrategy(BaseSearchStrategy):
                     {
                         "phase": "result_selection",
                         "progress": 90,
-                        "message": "🏆 Selecting best result",
+                        "message": "ðŸ† Selecting best result",
                     }
                 )
 
@@ -678,17 +678,17 @@ class ModularStrategy(BaseSearchStrategy):
                     # Accept if score is above minimum threshold (20%)
                     if best_candidate.score >= 0.20:
                         logger.info(
-                            f"🎯 Accepting best available candidate (recovered from rejected): {best_candidate.name} with score {best_candidate.score:.2%}"
+                            f"ðŸŽ¯ Accepting best available candidate (recovered from rejected): {best_candidate.name} with score {best_candidate.score:.2%}"
                         )
                         evaluated_candidates = [best_candidate]
                     else:
                         logger.warning(
-                            f"❌ Best candidate {best_candidate.name} has too low score: {best_candidate.score:.2%}"
+                            f"âŒ Best candidate {best_candidate.name} has too low score: {best_candidate.score:.2%}"
                         )
 
                 if not evaluated_candidates:
                     logger.warning(
-                        "❌ No valid candidates found after evaluation"
+                        "âŒ No valid candidates found after evaluation"
                     )
                     return "No valid candidates found after evaluation", {
                         "strategy": "enhanced_modular",
@@ -709,7 +709,7 @@ class ModularStrategy(BaseSearchStrategy):
             best_candidate = evaluated_candidates[0]
 
             logger.info(
-                f"🏆 Best candidate: {best_candidate.name} with score {getattr(best_candidate, 'score', 0):.2%}"
+                f"ðŸ† Best candidate: {best_candidate.name} with score {getattr(best_candidate, 'score', 0):.2%}"
             )
 
             # Phase 6: Generate final answer
@@ -718,7 +718,7 @@ class ModularStrategy(BaseSearchStrategy):
                     {
                         "phase": "final_answer",
                         "progress": 95,
-                        "message": "📝 Generating final answer",
+                        "message": "ðŸ“ Generating final answer",
                     }
                 )
 
@@ -728,23 +728,23 @@ class ModularStrategy(BaseSearchStrategy):
 
             # Search Query Analysis Summary for easy analysis
             logger.info("=" * 80)
-            logger.info("🔍 SEARCH QUERY ANALYSIS SUMMARY")
+            logger.info("ðŸ” SEARCH QUERY ANALYSIS SUMMARY")
             logger.info("=" * 80)
             logger.info(
-                f"📊 TOTAL QUERIES GENERATED: {len(all_search_queries)}"
+                f"ðŸ“Š TOTAL QUERIES GENERATED: {len(all_search_queries)}"
             )
             logger.info(
-                f"📋 BASE CONSTRAINT QUERIES: {len(existing_queries) if 'existing_queries' in locals() else 0}"
+                f"ðŸ“‹ BASE CONSTRAINT QUERIES: {len(existing_queries) if 'existing_queries' in locals() else 0}"
             )
             logger.info(
-                f"🧠 LLM INTELLIGENT QUERIES: {len(intelligent_combinations) if 'intelligent_combinations' in locals() else 0}"
+                f"ðŸ§  LLM INTELLIGENT QUERIES: {len(intelligent_combinations) if 'intelligent_combinations' in locals() else 0}"
             )
 
             if (
                 "intelligent_combinations" in locals()
                 and intelligent_combinations
             ):
-                logger.info("\n🎯 SAMPLE LLM-GENERATED QUERIES (first 10):")
+                logger.info("\nðŸŽ¯ SAMPLE LLM-GENERATED QUERIES (first 10):")
                 for i, query in enumerate(intelligent_combinations[:10], 1):
                     logger.info(f"   SAMPLE-{i:02d}: {query}")
 
@@ -769,7 +769,7 @@ class ModularStrategy(BaseSearchStrategy):
             return answer, metadata
 
         except Exception:
-            logger.exception("💥 Error in enhanced modular search")
+            logger.exception("ðŸ’¥ Error in enhanced modular search")
             return "Search failed", {"error": "Search failed"}
 
     async def _generate_final_answer(
@@ -816,7 +816,7 @@ Provide a clear, factual answer that addresses the original question and explain
 
         cached_results = cache.get(cache_key, "modular_strategy")
         if cached_results is not None:
-            logger.debug(
+            logger.warning(
                 f"Using cached evidence for {candidate.name} - {constraint.value[:30]}..."
             )
             return cached_results
@@ -878,7 +878,7 @@ Provide a clear, factual answer that addresses the original question and explain
 
             # Build final query
             query = " ".join(query_parts)
-            logger.debug(f"Evidence search query: {query}")
+            logger.warning(f"Evidence search query: {query}")
 
             # Execute search using the appropriate method
             results = None
@@ -975,7 +975,7 @@ Provide a clear, factual answer that addresses the original question and explain
                         }
                     )
 
-            logger.debug(
+            logger.warning(
                 f"Gathered {len(evidence)} evidence items for {candidate.name} - {constraint.value[:50]}..."
             )
 
@@ -1000,7 +1000,7 @@ Provide a clear, factual answer that addresses the original question and explain
         rejected_candidates=None,
     ):
         """Background task to evaluate candidates without blocking search progress."""
-        logger.info("🔄 Started background candidate evaluation")
+        logger.info("ðŸ”„ Started background candidate evaluation")
 
         # Use provided rejected_candidates list or create new one
         if rejected_candidates is None:
@@ -1013,7 +1013,7 @@ Provide a clear, factual answer that addresses the original question and explain
 
                 # Check for completion sentinel
                 if candidate is None:
-                    logger.info("🏁 Background evaluation completed")
+                    logger.info("ðŸ Background evaluation completed")
                     break
 
                 # Evaluate candidate with LLM pre-screening
@@ -1040,8 +1040,8 @@ Provide a clear, factual answer that addresses the original question and explain
                         if (
                             should_reject and candidate.score < 0.5
                         ):  # Only early reject if score is also low
-                            logger.debug(
-                                f"⚡ Early rejected {candidate.name}: {reason} (score: {candidate.score:.2%})"
+                            logger.warning(
+                                f"âš¡ Early rejected {candidate.name}: {reason} (score: {candidate.score:.2%})"
                             )
                             # Store the candidate anyway for potential best candidate recovery
                             rejected_candidates.append(candidate)
@@ -1050,26 +1050,26 @@ Provide a clear, factual answer that addresses the original question and explain
                     if not result.should_reject:
                         results.append(candidate)
                         logger.info(
-                            f"✅ Accepted: {candidate.name} (score: {result.total_score:.2%})"
+                            f"âœ… Accepted: {candidate.name} (score: {result.total_score:.2%})"
                         )
 
                         # Check for excellent candidates
                         if result.total_score > 0.9:
                             logger.info(
-                                f"🏆 EXCELLENT: {candidate.name} with {result.total_score:.1%} score"
+                                f"ðŸ† EXCELLENT: {candidate.name} with {result.total_score:.1%} score"
                             )
                     else:
                         # Store rejected candidates with scores for potential recovery
                         rejected_candidates.append(candidate)
-                        logger.debug(
-                            f"❌ Rejected: {candidate.name} (score: {candidate.score:.2%})"
+                        logger.warning(
+                            f"âŒ Rejected: {candidate.name} (score: {candidate.score:.2%})"
                         )
 
                 except Exception:
-                    logger.exception(f"💥 Error evaluating {candidate.name}")
+                    logger.exception(f"ðŸ’¥ Error evaluating {candidate.name}")
 
             except Exception:
-                logger.exception("💥 Background evaluation error")
+                logger.exception("ðŸ’¥ Background evaluation error")
 
     def analyze_topic(self, query: str) -> Dict:
         """
@@ -1081,17 +1081,17 @@ Provide a clear, factual answer that addresses the original question and explain
             # Run the search asynchronously
             import asyncio
 
-            # Run async search — detect whether we're inside an event loop
+            # Run async search â€” detect whether we're inside an event loop
             try:
                 asyncio.get_running_loop()
-                # Inside a running loop — run in a thread to avoid nesting
+                # Inside a running loop â€” run in a thread to avoid nesting
                 with ThreadPoolExecutor() as executor:
                     future = executor.submit(
                         thread_cleanup(lambda: asyncio.run(self.search(query)))
                     )
                     answer, metadata = future.result()
             except RuntimeError:
-                # No running event loop — safe to use asyncio.run() directly
+                # No running event loop â€” safe to use asyncio.run() directly
                 answer, metadata = asyncio.run(self.search(query))
 
             return {

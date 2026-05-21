@@ -1,12 +1,12 @@
-"""Safe Ollama wrapper — parallel-aware, warm-pool aware.
+"""Safe Ollama wrapper â€” parallel-aware, warm-pool aware.
 
 Ollama defaults to OLLAMA_MAX_LOADED_MODELS=1 on GPU, which causes models to
 constantly load/unload as VECTOR's task router switches between coder, council,
 ambient, etc. This wrapper:
 
-  • Pins a small WARM_POOL so the highest-frequency models stay hot in VRAM
-  • Passes ``keep_alive`` on every request so models don't unload between calls
-  • Falls back to AirLLM only for the single 70B+ slot (large model fallback)
+  â€¢ Pins a small WARM_POOL so the highest-frequency models stay hot in VRAM
+  â€¢ Passes ``keep_alive`` on every request so models don't unload between calls
+  â€¢ Falls back to AirLLM only for the single 70B+ slot (large model fallback)
 
 To make warm-pool actually parallel, the Ollama daemon also needs:
   OLLAMA_MAX_LOADED_MODELS >= len(WARM_POOL)
@@ -28,19 +28,19 @@ from core.config import CONFIG
 from core.resilience.circuit_breaker import CircuitBreakerOpenError
 from core.breaker_registry import get_registry
 
-# ── AirLLM fallback path (large 70B+ models only) ───────────────────────────
+# â”€â”€ AirLLM fallback path (large 70B+ models only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _airllm_env = os.environ.get("AIRLLM_REPO_PATH", "")
 _AIRLLM_REPO = Path(_airllm_env) if _airllm_env else None
 if _AIRLLM_REPO and _AIRLLM_REPO.exists():
     sys.path.insert(0, str(_AIRLLM_REPO))
 
 # Models that need AirLLM layer-streaming because they don't fit in VRAM directly.
-# These should NEVER be in WARM_POOL — they're too big to stay resident.
+# These should NEVER be in WARM_POOL â€” they're too big to stay resident.
 _AIRLLM_MODELS = {
     "llama2-70b", "llama3-70b", "mixtral-8x7b", "falcon-40b", "codellama-70b",
 }
 
-# ── Warm pool: models always kept hot in VRAM ───────────────────────────────
+# â”€â”€ Warm pool: models always kept hot in VRAM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # These are pre-loaded at startup and stay resident via keep_alive.
 # Tuned for 12 GB VRAM (RTX 5070 mobile): vector-coder is the high-frequency
 # workhorse for district 4 (coding, reviews, GitBot); nomic-embed-text is hit
@@ -50,21 +50,21 @@ _AIRLLM_MODELS = {
 # When you upgrade to >24 GB VRAM, expand to:
 #   [ambient, fast, coder, embed, reasoning]
 WARM_POOL: list[str] = [
-    CONFIG["models"]["coder"],     # vector-coder    — district 4 baseline
-    CONFIG["models"]["embed"],     # nomic-embed-text — RAG embeddings
+    CONFIG["models"]["coder"],     # vector-coder    â€” district 4 baseline
+    CONFIG["models"]["embed"],     # nomic-embed-text â€” RAG embeddings
 ]
 
-# Default keep_alive sent on every chat call — keeps models resident even
+# Default keep_alive sent on every chat call â€” keeps models resident even
 # after a long idle window. Set to 30m to match the Ollama daemon env var.
 DEFAULT_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
-# Absorbed OJ model catalog (supplementary — logs available models)
+# Absorbed OJ model catalog (supplementary â€” logs available models)
 try:
     from vectorcode.src.intelligence import BUILTIN_MODELS, register_builtin_models
     register_builtin_models()
     logger.info(f"[VECTOR][ollama_safe] model catalog loaded ({len(BUILTIN_MODELS)} built-in)")
 except Exception:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 def _wrap_with_circuit_breaker(name: str, func, *args, **kwargs):
     import asyncio
@@ -170,7 +170,7 @@ def chat(
 
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
 
-    # Energy-aware path — captures wall time + GPU energy if telemetry is wired.
+    # Energy-aware path â€” captures wall time + GPU energy if telemetry is wired.
     _energy_monitor = _get_energy_monitor()
     _start = time.time()
     try:
@@ -194,7 +194,7 @@ def chat(
         return fallback
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} unavailable: {e}")
-        # Multi-backend fallback — try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
+        # Multi-backend fallback â€” try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
         # if ollama can't serve. This makes VECTOR resilient to a stopped daemon.
         fallback = _multi_backend_fallback(model, messages, timeout)
         if fallback:
@@ -252,14 +252,14 @@ def _airllm_chat(model: str, messages: list[dict]) -> str:
         return ""
 
 
-# ── Warm-pool startup ────────────────────────────────────────────────────────
+# â”€â”€ Warm-pool startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dict[str, bool]:
     """Pre-load each model into VRAM so the first real request is instant.
 
     Sends a tiny no-op chat with keep_alive set to pin the model resident.
-    Idempotent — already-warmed models in this process are skipped.
+    Idempotent â€” already-warmed models in this process are skipped.
 
     Returns a dict of {model_name: success_bool}.
     """
@@ -304,7 +304,7 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
             if available:
                 logger.info(f"[VECTOR][ollama_safe] catalog models available: {list(available)[:5]}")
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     return results
 
@@ -315,7 +315,7 @@ def warmed_models() -> set[str]:
         return set(_warmed)
 
 
-# ── Self-test ─────────────────────────────────────────────────────────────────
+# â”€â”€ Self-test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if __name__ == "__main__":
     logger.info(f"WARM_POOL: {WARM_POOL}")
     logger.info(f"AirLLM models: {_AIRLLM_MODELS}")
@@ -323,7 +323,7 @@ if __name__ == "__main__":
 
 
 
-# ── Energy + telemetry helpers ───────────────────────────────────────────────
+# â”€â”€ Energy + telemetry helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _energy_monitor_singleton: object | None = None
 _energy_monitor_init = False
@@ -332,7 +332,7 @@ _telemetry_init = False
 
 
 def _get_energy_monitor():
-    """Lazy singleton — returns the EnergyMonitor or None if telemetry isn't wired.
+    """Lazy singleton â€” returns the EnergyMonitor or None if telemetry isn't wired.
 
     Detection runs once. If the telemetry module isn't installed or the GPU
     can't be probed, returns None and silently skips energy capture.
@@ -379,7 +379,7 @@ def _get_telemetry_store():
 
 
 def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> None:
-    """Best-effort telemetry recording — never raises into the caller.
+    """Best-effort telemetry recording â€” never raises into the caller.
 
     Builds a TelemetryRecord dataclass and persists it via TelemetryStore.record().
     Captures: timestamp, model, latency, tokens, energy_joules, power_watts,
@@ -433,13 +433,13 @@ def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> N
         logger.debug(f"[VECTOR][telemetry] record failed: {exc}")
 
 
-# ── Multi-backend fallback (LiteLLM / Apple FM / Gemma C++) ──────────────────
+# â”€â”€ Multi-backend fallback (LiteLLM / Apple FM / Gemma C++) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) -> str:
     """When the local Ollama daemon is unavailable, try alternative engines
-    in order of preference: LiteLLM (OpenAI-compatible) → Apple Foundation
-    Models (macOS Sonoma+) → Gemma C++ binary.
+    in order of preference: LiteLLM (OpenAI-compatible) â†’ Apple Foundation
+    Models (macOS Sonoma+) â†’ Gemma C++ binary.
 
     Returns empty string if no fallback succeeds.
     """

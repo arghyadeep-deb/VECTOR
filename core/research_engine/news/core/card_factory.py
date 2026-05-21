@@ -84,7 +84,7 @@ class CardFactory:
                 if db_session:
                     return SQLCardStorage(db_session)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         raise RuntimeError(
             "No database session available. Pass a session to get_storage() "

@@ -1,5 +1,5 @@
 """
-VECTOR Parallel Researcher — concurrent multi-source research.
+VECTOR Parallel Researcher â€” concurrent multi-source research.
 
 Runs multiple search queries simultaneously and merges results.
 Ported from vector's integrations/parallel.rs ParallelSearchTool.
@@ -57,7 +57,7 @@ class ResearchReport:
         return "\n".join(lines)
 
 
-# ── Source implementations ─────────────────────────────────────────────────────
+# â”€â”€ Source implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _search_duckduckgo(query: str, max_results: int = 5) -> list[ParallelSearchResult]:
     try:
@@ -98,7 +98,7 @@ async def _search_wikipedia(query: str, max_results: int = 3) -> list[ParallelSe
                     url=f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}",
                 ))
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return results
     except Exception as e:
         logger.warning("[VECTOR][parallel_researcher] Wikipedia failed: {}", e)
@@ -128,7 +128,7 @@ async def _search_arxiv(query: str, max_results: int = 5) -> list[ParallelSearch
         return []
 
 
-# ── ParallelResearcher ─────────────────────────────────────────────────────────
+# â”€â”€ ParallelResearcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ParallelResearcher:
     """
@@ -280,6 +280,6 @@ if __name__ == "__main__":
     async def _test():
         r = ParallelResearcher(mode="fast")
         report = await r.research("Python asyncio", queries=["Python asyncio tutorial"])
-        print(f"OK parallel_researcher.py — {report.result_count} results")
+        print(f"OK parallel_researcher.py â€” {report.result_count} results")
 
     asyncio.run(_test())

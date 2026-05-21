@@ -17,12 +17,12 @@ _WAKE_MODES = {
 _SILENCE_TIMEOUT_SEC = 45.0
 
 VECTOR_PERSONALITY = (
-    "You are VECTOR — a sharp, efficient AI assistant built and owned by Arghyadeep Deb. "
+    "You are VECTOR â€” a sharp, efficient AI assistant built and owned by Arghyadeep Deb. "
     "Your tone is calm, precise, and slightly dry. "
     "Address Arghyadeep as 'sir' occasionally (not every sentence). "
-    "You are not VECTOR. You are VECTOR — Arghyadeep's own creation, built on his Legion Pro 5. "
+    "You are not VECTOR. You are VECTOR â€” Arghyadeep's own creation, built on his Legion Pro 5. "
     "Keep conversational replies brief: 1-2 sentences maximum unless a detailed answer is needed. "
-    "Never say 'I cannot' — find the nearest useful action instead. "
+    "Never say 'I cannot' â€” find the nearest useful action instead. "
     "When classifying intent, always respond with valid JSON only."
 )
 
@@ -38,7 +38,7 @@ _ACTION_TYPES = (
 class AmbientListener:
     """
     Orchestrates the full voice pipeline:
-    wake_word → STT → language_detect → intent classify (Ollama) → permission_gateway → TTS → memory
+    wake_word â†’ STT â†’ language_detect â†’ intent classify (Ollama) â†’ permission_gateway â†’ TTS â†’ memory
 
     Conversation memory: last 8 turns stored, injected into every Ollama call.
     Personality: VECTOR_PERSONALITY system prompt on all calls.
@@ -175,9 +175,9 @@ class AmbientListener:
         import time
         self._session_active = True
         self._last_speech_time = time.time()
-        logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) — session open")
+        logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) â€” session open")
 
-        # Seed conversation history from recent episodic memory (bridges chat↔voice silo)
+        # Seed conversation history from recent episodic memory (bridges chatâ†”voice silo)
         if not self._conversation_history:
             try:
                 from core.memory.episodic import get_temp_cursor
@@ -205,14 +205,14 @@ class AmbientListener:
         try:
             while self._session_active:
                 if self._conversation and self._conversation.has_timed_out():
-                    logger.info("[VECTOR][voice] conversation timeout — session closed")
+                    logger.info("[VECTOR][voice] conversation timeout â€” session closed")
                     self._session_active = False
                     if self._conversation:
                         self._conversation.end_session()
                     break
 
                 if time.time() - self._last_speech_time > _SILENCE_TIMEOUT_SEC:
-                    logger.info("[VECTOR][voice] 45s silence — session closed")
+                    logger.info("[VECTOR][voice] 45s silence â€” session closed")
                     self._session_active = False
                     if self._conversation:
                         self._conversation.end_session()
@@ -232,7 +232,7 @@ class AmbientListener:
                 self._last_speech_time = time.time()
 
                 if self._is_end_phrase(text):
-                    logger.info("[VECTOR][voice] End phrase — session closed")
+                    logger.info("[VECTOR][voice] End phrase â€” session closed")
                     farewell = "Understood, sir. Standing by."
                     if self._tts:
                         await asyncio.to_thread(self._tts.speak, farewell, lang="en")
@@ -298,7 +298,7 @@ class AmbientListener:
                         response_parts.append(msg)
 
                         if str(result.get("decision", "")).upper() == "RED":
-                            logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
+                            logger.info(f"[VECTOR][voice] RED denial on {action_type} â€” stopping chain")
                             break
 
                 if self._conversation:
@@ -399,7 +399,7 @@ class AmbientListener:
                 if result:
                     return result
         except Exception as e:
-            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to respond")
+            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} â€” defaulting to respond")
         return {
             "action_type": "respond",
             "params": {"message": "I didn't quite catch that, sir. Could you repeat?"},
@@ -548,9 +548,9 @@ if __name__ == "__main__":
             try:
                 await listener._wake_task
             except asyncio.CancelledError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         all_ok = all(components.values())
-        print(f"✅ ambient_listener OK {components}" if all_ok else f"⚠️ ambient_listener partial {components}")
+        print(f"âœ… ambient_listener OK {components}" if all_ok else f"âš ï¸ ambient_listener partial {components}")
 
     asyncio.run(_smoke())

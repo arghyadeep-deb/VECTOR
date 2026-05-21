@@ -1,11 +1,11 @@
 """
-VECTOR Ingestion Queue — async document pipeline feeding the Memory Tree.
+VECTOR Ingestion Queue â€” async document pipeline feeding the Memory Tree.
 
 Pipeline stages (from vector memory/ingestion/mod.rs):
-  1. Chunk      — split document into manageable pieces
-  2. Extract    — structured + heuristic entity/relation extraction
-  3. Aggregate  — dedup, alias resolution, normalization
-  4. Persist    — upsert to MemoryTree
+  1. Chunk      â€” split document into manageable pieces
+  2. Extract    â€” structured + heuristic entity/relation extraction
+  3. Aggregate  â€” dedup, alias resolution, normalization
+  4. Persist    â€” upsert to MemoryTree
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ class ExtractionResult:
 
 
 def _extract_entities(text: str) -> list[str]:
-    """Heuristic entity extraction — capitalized phrases and quoted strings."""
+    """Heuristic entity extraction â€” capitalized phrases and quoted strings."""
     entities = []
     # Quoted strings
     entities.extend(re.findall(r'"([^"]{3,50})"', text))
@@ -88,7 +88,7 @@ def _deduplicate(chunks: list[str]) -> list[str]:
 
 class IngestionQueue:
     """
-    Async ingestion queue — processes documents into MemoryTree.
+    Async ingestion queue â€” processes documents into MemoryTree.
 
     Usage:
         q = IngestionQueue(tree)
@@ -139,7 +139,7 @@ class IngestionQueue:
         return all_chunks
 
     async def run_forever(self, poll_interval: float = 2.0) -> None:
-        """Background worker — runs until cancelled."""
+        """Background worker â€” runs until cancelled."""
         logger.info("[VECTOR][ingestion_queue] background worker started")
         while True:
             try:
@@ -147,7 +147,7 @@ class IngestionQueue:
                 await self._process(job)
                 self._queue.task_done()
             except asyncio.TimeoutError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             except asyncio.CancelledError:
                 break
             except Exception as e:

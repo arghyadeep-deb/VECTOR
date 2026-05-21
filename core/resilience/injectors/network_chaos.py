@@ -1,4 +1,4 @@
-"""Network failure injector — blocks ports, adds latency, drops packets."""
+"""Network failure injector â€” blocks ports, adds latency, drops packets."""
 
 from __future__ import annotations
 
@@ -82,5 +82,5 @@ class NetworkChaosInjector(FailureInjector):
                     capture_output=True, timeout=5,
                 )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._target_port = None

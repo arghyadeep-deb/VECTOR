@@ -25,15 +25,15 @@ class NewspaperExtractor(BaseExtractor):
         try:
             from newspaper import Article, Config
         except ImportError:
-            logger.debug(
-                "newspaper4k not installed — skipping newspaper extraction"
+            logger.warning(
+                "newspaper4k not installed â€” skipping newspaper extraction"
             )
             return None
 
         try:
             # Disable image fetching to prevent SSRF: parse() calls
             # fetch_images() by default, which makes outbound requests
-            # for every <img src="..."> in the HTML — attacker-controlled
+            # for every <img src="..."> in the HTML â€” attacker-controlled
             # content could point these at internal services.
             cfg = Config()
             cfg.fetch_images = False
@@ -43,5 +43,5 @@ class NewspaperExtractor(BaseExtractor):
             text = article.text
             return text if text and text.strip() else None
         except Exception:
-            logger.debug("newspaper4k extraction failed", exc_info=True)
+            logger.warning("newspaper4k extraction failed", exc_info=True)
             return None

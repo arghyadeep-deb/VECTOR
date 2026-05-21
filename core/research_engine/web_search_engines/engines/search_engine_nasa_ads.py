@@ -92,7 +92,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
                     settings_snapshot=settings_snapshot,
                 )
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to read nasa_ads.api_key from settings snapshot",
                     exc_info=True,
                 )
@@ -144,7 +144,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
                 if year.isdigit():  # Only add if it's a valid year
                     filters.append(f"year:{year}-9999")
             except Exception:
-                logger.debug(
+                logger.warning(
                     "best-effort date parsing, invalid formats skipped",
                     exc_info=True,
                 )
@@ -184,7 +184,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
             self._last_wait_time = self.rate_tracker.apply_rate_limit(
                 self.engine_type
             )
-            logger.debug(
+            logger.warning(
                 f"Applied rate limit wait: {self._last_wait_time:.2f}s"
             )
 
@@ -203,7 +203,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
             if "X-RateLimit-Remaining" in response.headers:
                 remaining = response.headers.get("X-RateLimit-Remaining")
                 limit = response.headers.get("X-RateLimit-Limit", "unknown")
-                logger.debug(
+                logger.warning(
                     f"NASA ADS rate limit: {remaining}/{limit} requests remaining"
                 )
 
@@ -229,7 +229,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
             if response.status_code == 429:
                 # Rate limited
                 logger.warning("NASA ADS rate limit reached")
-                raise RateLimitError("NASA ADS rate limit exceeded")  # noqa: TRY301 — re-raised by except RateLimitError for base class retry
+                raise RateLimitError("NASA ADS rate limit exceeded")  # noqa: TRY301 â€” re-raised by except RateLimitError for base class retry
 
             if response.status_code == 401:
                 logger.error("NASA ADS API key is invalid or missing")
@@ -295,7 +295,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
             if len(authors) > 5:
                 authors_str += " et al."
 
-            # NASA ADS returns each name as "Last, First" — emit a
+            # NASA ADS returns each name as "Last, First" â€” emit a
             # structured CSL list so the citation normalizer doesn't have
             # to re-split the comma-joined display string above and
             # mangle the family/given pairing in the process.
@@ -354,7 +354,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
                 # and even matched a real OpenAlex source named "unknown"
                 # (Q1, h_index=5) in the reference DB.
                 "journal": None if journal == "unknown" else journal,
-                # ArXiv preprints have pub="arXiv e-prints" — set journal_ref
+                # ArXiv preprints have pub="arXiv e-prints" â€” set journal_ref
                 # to None so the filter's preprint-handling path activates
                 # instead of trying to score "arXiv e-prints" as a journal.
                 "journal_ref": (

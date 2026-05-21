@@ -248,7 +248,7 @@ class URLValidator:
                     for domain in URLValidator.TRUSTED_ACADEMIC_DOMAINS
                 )
         except Exception:
-            logger.debug(
+            logger.warning(
                 "URL parsing may fail on malformed input; treat as non-academic",
                 exc_info=True,
             )

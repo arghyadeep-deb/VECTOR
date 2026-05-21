@@ -34,7 +34,7 @@ class MiningCapabilities:
     estimated_hashrate: Optional[float] = None  # shares/sec, best-effort
 
 # ---------------------------------------------------------------------------
-# Submit-target tagged union (v2 seam -- see spec §8.5)
+# Submit-target tagged union (v2 seam -- see spec Â§8.5)
 # ---------------------------------------------------------------------------
 
 @dataclass(slots=True)
@@ -96,7 +96,7 @@ class MiningProvider(ABC):
 
     One provider per ``(hardware, engine, model)`` combo. All future
     hardware/engine paths (Apple Silicon, AMD, Ollama) implement this exact
-    contract. See spec §4.4.
+    contract. See spec Â§4.4.
     """
 
     provider_id: str  # set by subclass
@@ -124,7 +124,7 @@ class MiningProvider(ABC):
     def stats(self) -> MiningStats: ...
 
 # ---------------------------------------------------------------------------
-# Sidecar IO (see spec §5.3)
+# Sidecar IO (see spec Â§5.3)
 # ---------------------------------------------------------------------------
 
 class Sidecar:
@@ -144,7 +144,7 @@ class Sidecar:
             try:
                 os.unlink(tmp)
             except OSError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             raise
 
     @staticmethod
@@ -161,4 +161,4 @@ class Sidecar:
         try:
             path.unlink()
         except FileNotFoundError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)

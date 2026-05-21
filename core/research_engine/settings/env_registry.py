@@ -101,7 +101,7 @@ def is_rate_limiting_enabled() -> bool:
         (see ``rate_limiting.enabled`` setting and
         ``web_search_engines/rate_limiting/tracker.py``). It does NOT affect
         the Flask HTTP rate limiter governed by this function. Operators
-        routinely confuse the two — see issue #3905.
+        routinely confuse the two â€” see issue #3905.
 
     Note:
         This function intentionally does NOT check the CI environment.
@@ -116,11 +116,11 @@ def is_rate_limiting_enabled() -> bool:
     canonical_raw = os.environ.get("LDR_DISABLE_RATE_LIMITING")
     if canonical_raw is not None and canonical_raw != "":
         if canonical_raw.lower() in ("true", "1", "yes"):
-            logger.debug(
+            logger.warning(
                 "Rate limiting DISABLED due to LDR_DISABLE_RATE_LIMITING=true"
             )
             return False
-        logger.debug(
+        logger.warning(
             "Rate limiting ENABLED (LDR_DISABLE_RATE_LIMITING set non-truthy)"
         )
         return True
@@ -136,10 +136,10 @@ def is_rate_limiting_enabled() -> bool:
                 "be removed in a future release."
             )
             _legacy_disable_warned = True
-        logger.debug("Rate limiting DISABLED due to DISABLE_RATE_LIMITING=true")
+        logger.warning("Rate limiting DISABLED due to DISABLE_RATE_LIMITING=true")
         return False
 
-    logger.debug("Rate limiting ENABLED (default)")
+    logger.warning("Rate limiting ENABLED (default)")
     return True
 
 

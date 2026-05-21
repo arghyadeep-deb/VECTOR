@@ -1,4 +1,4 @@
-"""Resource exhaustion injector — CPU, RAM, disk pressure tests."""
+"""Resource exhaustion injector â€” CPU, RAM, disk pressure tests."""
 
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ class ResourceExhaustInjector(FailureInjector):
                 elif hasattr(alloc, "close"):
                     alloc.close()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._allocations.clear()
         import gc
         gc.collect()

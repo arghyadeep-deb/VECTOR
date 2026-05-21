@@ -21,17 +21,17 @@ def _cleanup(
         try:
             render_file.close()  # type: ignore[union-attr]
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     if render_fd is not None:
         try:
             os.dup2(render_fd, 2)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         finally:
             try:
                 os.close(render_fd)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
 @contextmanager
@@ -41,7 +41,7 @@ def stderr_guard() -> Generator[None]:
 
     Textual renders to ``sys.__stderr__`` (fd 2) and captures Python-level
     ``sys.stderr`` via ``contextlib.redirect_stderr``.  Native C code (e.g.
-    macOS ``libsystem_malloc``) that calls ``write(2, …)`` bypasses that
+    macOS ``libsystem_malloc``) that calls ``write(2, â€¦)`` bypasses that
     redirect and corrupts the TUI.
 
     This guard:
@@ -89,7 +89,7 @@ def stderr_guard() -> Generator[None]:
         try:
             render_file.flush()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         _cleanup(render_file, render_fd, saved_dunder, saved_stderr)
 

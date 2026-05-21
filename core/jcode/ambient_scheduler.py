@@ -27,7 +27,7 @@ from loguru import logger
 _AMBIENT_DIR = Path.home() / ".vector_ca" / "ambient"
 
 
-# ── Enums ──────────────────────────────────────────────────────────────────────
+# â”€â”€ Enums â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class Priority(str, Enum):
     LOW = "low"
@@ -53,7 +53,7 @@ class CycleStatus(str, Enum):
     INCOMPLETE = "incomplete"
 
 
-# ── ScheduleTarget ─────────────────────────────────────────────────────────────
+# â”€â”€ ScheduleTarget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class ScheduleTarget:
@@ -86,7 +86,7 @@ class ScheduleTarget:
         return {k: v for k, v in asdict(self).items() if v is not None}
 
 
-# ── ScheduledItem ──────────────────────────────────────────────────────────────
+# â”€â”€ ScheduledItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class ScheduledItem:
@@ -147,7 +147,7 @@ class ScheduledItem:
         )
 
 
-# ── AmbientState ──────────────────────────────────────────────────────────────
+# â”€â”€ AmbientState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class AmbientState:
@@ -190,7 +190,7 @@ class AmbientState:
         return obj
 
 
-# ── AmbientScheduler ──────────────────────────────────────────────────────────
+# â”€â”€ AmbientScheduler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AmbientScheduler:
     """
@@ -214,7 +214,7 @@ class AmbientScheduler:
         self._queue_file = self._dir / "queue.json"
         self._directives_file = self._dir / "directives.json"
 
-    # ── State ──────────────────────────────────────────────────────────────────
+    # â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def load_state(self) -> AmbientState:
         if self._state_file.exists():
@@ -237,9 +237,9 @@ class AmbientScheduler:
         if "next_wake" in kwargs:
             state.next_wake = datetime.fromisoformat(kwargs["next_wake"])
         self.save_state(state)
-        logger.info("[VECTOR][ambient] status → {}", status.value)
+        logger.info("[VECTOR][ambient] status â†’ {}", status.value)
 
-    # ── Directives ────────────────────────────────────────────────────────────
+    # â”€â”€ Directives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def add_directive(self, text: str, session_id: str = "") -> str:
         """Add a persistent directive. Returns directive id."""
@@ -268,13 +268,13 @@ class AmbientScheduler:
             try:
                 return json.loads(self._directives_file.read_text())
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return []
 
     def _save_directives(self, directives: list[dict]) -> None:
         self._directives_file.write_text(json.dumps(directives, indent=2))
 
-    # ── Queue ─────────────────────────────────────────────────────────────────
+    # â”€â”€ Queue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def schedule(
         self,
@@ -337,7 +337,7 @@ class AmbientScheduler:
             try:
                 return json.loads(self._queue_file.read_text())
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return []
 
     def _save_queue(self, queue: list[dict]) -> None:

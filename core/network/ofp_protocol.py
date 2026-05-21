@@ -1,5 +1,5 @@
 """
-VECTOR OFP — Open Federation Protocol for multi-device agent networking.
+VECTOR OFP â€” Open Federation Protocol for multi-device agent networking.
 
 Lets VECTOR instances on different machines (Legion Pro 5, cloud VM, phone)
 talk to each other and delegate tasks across the network.
@@ -11,13 +11,13 @@ Protocol:
   - JSON messages framed with 4-byte length prefix
 
 Message types:
-  PING / PONG        — health check
-  REGISTER           — announce this node to the network
-  TASK               — send a task to a remote VECTOR node
-  RESULT             — return task result
-  STATUS             — request node status
-  BROADCAST          — send to all known peers
-  SUBSCRIBE          — subscribe to events from a peer
+  PING / PONG        â€” health check
+  REGISTER           â€” announce this node to the network
+  TASK               â€” send a task to a remote VECTOR node
+  RESULT             â€” return task result
+  STATUS             â€” request node status
+  BROADCAST          â€” send to all known peers
+  SUBSCRIBE          â€” subscribe to events from a peer
 
 Ported from the agent OS agent OS P2P protocol.
 """
@@ -133,7 +133,7 @@ class OFPMessage:
         return cls(**d)
 
 
-# ── Frame encoding (4-byte length prefix + JSON body) ─────────────────────────
+# â”€â”€ Frame encoding (4-byte length prefix + JSON body) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _encode_frame(msg: OFPMessage) -> bytes:
     body = msg.to_json()
@@ -150,7 +150,7 @@ async def _read_frame(reader: asyncio.StreamReader) -> bytes:
     return await asyncio.wait_for(reader.readexactly(length), timeout=30.0)
 
 
-# ── OFPNode ────────────────────────────────────────────────────────────────────
+# â”€â”€ OFPNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 TaskHandler = Callable[[OFPMessage], Awaitable[dict]]
 
@@ -203,7 +203,7 @@ class OFPNode:
             self._secret = _secret_env.encode()
         else:
             logger.warning(
-                "[VECTOR][ofp] Using DEFAULT shared secret — "
+                "[VECTOR][ofp] Using DEFAULT shared secret â€” "
                 "set VECTOR_OFP_SECRET env var for production"
             )
             self._secret = b"vector-default-secret"
@@ -214,7 +214,7 @@ class OFPNode:
         self._server: asyncio.AbstractServer | None = None
         self._running = False
 
-    # ── Server ─────────────────────────────────────────────────────────────────
+    # â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def on_task(self, handler: TaskHandler) -> None:
         """Register a handler for incoming task messages."""
@@ -312,7 +312,7 @@ class OFPNode:
                 logger.debug("[VECTOR][ofp] unhandled message type: {}", msg.type)
                 return None
 
-    # ── Client methods ─────────────────────────────────────────────────────────
+    # â”€â”€ Client methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def send_task(
         self,
@@ -364,7 +364,7 @@ class OFPNode:
                 logger.info("[VECTOR][ofp] registered with {}:{}", peer_host, peer_port)
             return ok
         except Exception as e:
-            logger.warning("[VECTOR][ofp] registration failed {}:{} — {}", peer_host, peer_port, e)
+            logger.warning("[VECTOR][ofp] registration failed {}:{} â€” {}", peer_host, peer_port, e)
             return False
 
     async def ping(self, peer_host: str, peer_port: int) -> float | None:
@@ -389,10 +389,10 @@ class OFPNode:
                 await self._send_only(peer.host, peer.port, msg)
                 success += 1
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return success
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
+    # â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _make_message(self, msg_type: OFPMessageType, payload: dict) -> OFPMessage:
         msg = OFPMessage(type=msg_type, sender=self.node_id, payload=payload)
@@ -529,6 +529,6 @@ if __name__ == "__main__":
         await node_a.stop()
         await node_b.stop()
 
-        print("OK ofp_protocol.py — HMAC auth, replay protection, task delegation verified")
+        print("OK ofp_protocol.py â€” HMAC auth, replay protection, task delegation verified")
 
     asyncio.run(_test())

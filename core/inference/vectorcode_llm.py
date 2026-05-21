@@ -1,18 +1,18 @@
 """
-VectorCode LLM — unified multi-provider LLM router for VECTOR districts.
+VectorCode LLM â€” unified multi-provider LLM router for VECTOR districts.
 
 Wraps ollama_safe (local) and adds cloud provider tiers via vectorcode's
 adapter infrastructure. District agents import `chat()` from here instead of
 ollama_safe directly. When you add paid API keys, they register here and all
-district agents get them automatically — zero code changes needed in districts.
+district agents get them automatically â€” zero code changes needed in districts.
 
-Provider priority chain (always preserves Rule 11 — local first):
-  Tier 0 — local:      Ollama → AirLLM → LiteLLM → Gemma.cpp
-  Tier 1 — free cloud: Gemini API free tier (15 req/min, 1M tokens/day)
-  Tier 2 — paid cloud: Anthropic Claude API  [plug-in when keys added]
+Provider priority chain (always preserves Rule 11 â€” local first):
+  Tier 0 â€” local:      Ollama â†’ AirLLM â†’ LiteLLM â†’ Gemma.cpp
+  Tier 1 â€” free cloud: Gemini API free tier (15 req/min, 1M tokens/day)
+  Tier 2 â€” paid cloud: Anthropic Claude API  [plug-in when keys added]
                         OpenRouter (300+ models) [plug-in when keys added]
                         AWS Bedrock             [plug-in when keys added]
-  Tier 3 — fallback:   cached empty string (never crash)
+  Tier 3 â€” fallback:   cached empty string (never crash)
 
 Usage (drop-in replacement for ollama_safe.chat):
     from core.inference.vectorcode_llm import chat
@@ -81,12 +81,12 @@ def _sync_cb_call(name: str, fn, *args, **kwargs):
                 cb.state = CircuitState.OPEN
             raise
 
-# ── Provider tier enum ───────────────────────────────────────────────────────
+# â”€â”€ Provider tier enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ProviderName = Literal["ollama", "gemini", "anthropic", "openrouter", "bedrock", "auto"]
 
 
-# ── Token usage tracking (lightweight — no external dep) ─────────────────────
+# â”€â”€ Token usage tracking (lightweight â€” no external dep) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class TokenUsage:
@@ -103,13 +103,13 @@ class TokenUsage:
         return self.input_tokens + self.output_tokens
 
 
-# ── Per-session cost accumulator ─────────────────────────────────────────────
+# â”€â”€ Per-session cost accumulator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _usage_lock = threading.Lock()
 _session_usage: list[TokenUsage] = []
 
-# Approximate pricing (USD per 1M tokens) — update when you add paid providers
-# Approximate pricing per 1M tokens (USD). Values are estimates — override via
+# Approximate pricing (USD per 1M tokens) â€” update when you add paid providers
+# Approximate pricing per 1M tokens (USD). Values are estimates â€” override via
 # CONFIG["llm_pricing"] dict. Kept here only for budget tracking; never used for billing.
 _PRICING: dict[str, dict[str, float]] = {
     **CONFIG.get("llm_pricing", {}),   # user overrides take priority
@@ -170,7 +170,7 @@ def get_session_usage() -> dict:
     }
 
 
-# ── Rate limit state (per provider, in-memory) ───────────────────────────────
+# â”€â”€ Rate limit state (per provider, in-memory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class _RateState:
@@ -205,10 +205,10 @@ def _is_rate_limited(provider: str) -> bool:
     return True
 
 
-# ── Provider implementations ──────────────────────────────────────────────────
+# â”€â”€ Provider implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _try_ollama(model: str, messages: list[dict], timeout: float) -> str:
-    """Tier 0 — local Ollama (always free, always first). Delegates to ollama_safe."""
+    """Tier 0 â€” local Ollama (always free, always first). Delegates to ollama_safe."""
     from core.inference.ollama_safe import chat as _ollama_chat
     t0 = time.perf_counter()
     result = _ollama_chat(model=model, messages=messages, timeout=timeout)
@@ -219,7 +219,7 @@ def _try_ollama(model: str, messages: list[dict], timeout: float) -> str:
 
 
 def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
-    """Tier 1 — Gemini free API. Uses google-generativeai SDK or httpx fallback.
+    """Tier 1 â€” Gemini free API. Uses google-generativeai SDK or httpx fallback.
 
     Free tier: 15 req/min, 1M tokens/day for Flash models.
     Model selection: if model_hint looks local (vector-*), maps to gemini-2.0-flash.
@@ -233,7 +233,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
     if not api_key:
         return ""
 
-    # Map local model names → Gemini equivalents
+    # Map local model names â†’ Gemini equivalents
     gemini_model = _map_to_gemini_model(model_hint)
     prompt = _messages_to_text(messages)
     t0 = time.perf_counter()
@@ -270,7 +270,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
 
 
 def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str:
-    """Tier 2 — Anthropic Claude API (paid). Active when ANTHROPIC_API_KEY is set."""
+    """Tier 2 â€” Anthropic Claude API (paid). Active when ANTHROPIC_API_KEY is set."""
     if _is_rate_limited("anthropic"):
         return ""
     api_key = (
@@ -314,7 +314,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
 
 
 def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> str:
-    """Tier 2 — OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
+    """Tier 2 â€” OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
     if _is_rate_limited("openrouter"):
         return ""
     api_key = (
@@ -355,7 +355,7 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
         return ""
 
 
-# ── Model mapping helpers ─────────────────────────────────────────────────────
+# â”€â”€ Model mapping helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _GEMINI_MAP = {
     "vector-reasoning": "gemini-2.0-flash",
@@ -420,7 +420,7 @@ def _messages_to_text(messages: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-# ── Main chat function — drop-in for ollama_safe.chat() ──────────────────────
+# â”€â”€ Main chat function â€” drop-in for ollama_safe.chat() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def chat(
     model: str,
@@ -432,7 +432,7 @@ def chat(
 ) -> str:
     """Unified LLM call with multi-provider fallback.
 
-    Same signature as ollama_safe.chat() — drop-in replacement.
+    Same signature as ollama_safe.chat() â€” drop-in replacement.
 
     Args:
         model:       Ollama model tag OR cloud model ID (e.g. "claude-sonnet-4-6")
@@ -447,7 +447,7 @@ def chat(
     if not messages:
         return ""
 
-    # ── Forced provider ──────────────────────────────────────────────────────
+    # â”€â”€ Forced provider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if provider == "gemini":
         return _try_gemini(model, messages, timeout)
     if provider == "anthropic":
@@ -457,8 +457,8 @@ def chat(
     if provider == "ollama":
         return _try_ollama(model, messages, timeout)
 
-    # ── Auto chain: local first, cloud fallback ──────────────────────────────
-    # Tier 0 — local (always)
+    # â”€â”€ Auto chain: local first, cloud fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Tier 0 â€” local (always)
     result = _try_ollama(model, messages, timeout)
     if result:
         return result
@@ -467,19 +467,19 @@ def chat(
         logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
         return ""
 
-    logger.info(f"[VECTOR][vc_llm] local {model} unavailable — trying cloud providers")
+    logger.info(f"[VECTOR][vc_llm] local {model} unavailable â€” trying cloud providers")
 
-    # Tier 1 — Gemini free (no API key cost)
+    # Tier 1 â€” Gemini free (no API key cost)
     result = _try_gemini(model, messages, timeout)
     if result:
         return result
 
-    # Tier 2a — Anthropic paid
+    # Tier 2a â€” Anthropic paid
     result = _try_anthropic(model, messages, timeout)
     if result:
         return result
 
-    # Tier 2b — OpenRouter paid
+    # Tier 2b â€” OpenRouter paid
     result = _try_openrouter(model, messages, timeout)
     if result:
         return result
@@ -495,7 +495,7 @@ def chat_stream(
     *,
     provider: ProviderName = "auto",
 ):
-    """Streaming version — yields tokens. Falls back to non-streaming on cloud."""
+    """Streaming version â€” yields tokens. Falls back to non-streaming on cloud."""
     if provider == "auto" or provider == "ollama":
         # Try local streaming first
         from core.inference.ollama_safe import chat_stream as _ollama_stream
@@ -508,8 +508,8 @@ def chat_stream(
             if yielded:
                 return
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-    # Cloud providers — return as single token (no streaming)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+    # Cloud providers â€” return as single token (no streaming)
     result = chat(model, messages, timeout, provider=provider)
     if result:
         yield result

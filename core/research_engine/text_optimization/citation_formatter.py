@@ -57,12 +57,12 @@ class CitationFormatter:
     def __init__(self, mode: CitationMode = CitationMode.NUMBER_HYPERLINKS):
         self.mode = mode
         # Use negative lookbehind and lookahead to avoid matching already formatted citations
-        # Also match Unicode lenticular brackets 【】 (U+3010 and U+3011) that LLMs sometimes generate
+        # Also match Unicode lenticular brackets ã€ã€‘ (U+3010 and U+3011) that LLMs sometimes generate
         self.citation_pattern = re.compile(
-            r"(?<![\[【])[\[【](\d+)[\]】](?![\]】])"
+            r"(?<![\[ã€])[\[ã€](\d+)[\]ã€‘](?![\]ã€‘])"
         )
         self.comma_citation_pattern = re.compile(
-            r"[\[【](\d+(?:,\s*\d+)+)[\]】]"
+            r"[\[ã€](\d+(?:,\s*\d+)+)[\]ã€‘]"
         )
         # Also match "Source X" or "source X" patterns
         self.source_word_pattern = re.compile(r"\b[Ss]ource\s+(\d+)\b")
@@ -417,7 +417,7 @@ class CitationFormatter:
     def _parse_collections(self, sources_content: str) -> Dict[str, str]:
         """Extract ``{citation_num: collection_name}`` from a sources
         block. Returns an empty dict when no ``Collection:`` lines exist
-        — the absence of collection info is the common case (web URLs)
+        â€” the absence of collection info is the common case (web URLs)
         and must never raise."""
         collections: Dict[str, str] = {}
         for match in self._collection_line_pattern.finditer(sources_content):
@@ -438,7 +438,7 @@ class CitationFormatter:
         tag for library hits, the short URLClassifier tag for known
         academic sources (``arxiv``, ``pubmed``, ...), the cleaned
         domain otherwise, or ``local`` for empty/file URLs. ``N`` is
-        the original global citation number — labels never collide and
+        the original global citation number â€” labels never collide and
         the suffix always matches the bibliography ordering.
         """
         # Filter sources that have URLs, plus carry local entries through
@@ -451,7 +451,7 @@ class CitationFormatter:
         # ``Collection:`` lines. The caller already split this off in
         # ``format_document`` but didn't pass it through; reparse from
         # the original content via the existing helper to stay local.
-        # (Cheap — single regex scan over the sources block.)
+        # (Cheap â€” single regex scan over the sources block.)
         collections = self._collections_for_format
 
         def format_link(citation_num, data):
@@ -460,7 +460,7 @@ class CitationFormatter:
                 url, collection=collections.get(citation_num)
             )
             tag = f"{label}-{citation_num}"
-            # Only emit a hyperlink for http(s) URLs — local/file URLs are
+            # Only emit a hyperlink for http(s) URLs â€” local/file URLs are
             # rendered as plain bracketed tags so the markdown stays clean
             # and viewers don't try to navigate to a server-local path.
             return (
@@ -497,7 +497,7 @@ class CitationFormatter:
 
         Collection names are free-form strings (``"My Papers"``,
         ``"team/finance"``). Citations need a compact token that won't
-        break markdown — strip whitespace, lowercase, replace runs of
+        break markdown â€” strip whitespace, lowercase, replace runs of
         non-alphanumeric chars with a single hyphen, trim leading and
         trailing hyphens, and fall back to ``"local"`` if the result is
         empty. ``-N`` is appended downstream so we strip trailing
@@ -525,19 +525,19 @@ class CitationFormatter:
         """Return a short source tag for ``url``.
 
         Resolution order:
-        1. ``collection`` (when supplied) wins outright — RAG / library
+        1. ``collection`` (when supplied) wins outright â€” RAG / library
            hits surface their collection name as the citation tag
            (``mypapers``, ``personal-notes``, ...). The renderer in
            ``utilities/search_utilities.format_links_to_markdown``
            emits a ``Collection:`` line per source for library results,
            which the formatter parses back into this argument.
-        2. Empty URL or non-http(s) scheme (``file://``, ``local:``, ...) →
+        2. Empty URL or non-http(s) scheme (``file://``, ``local:``, ...) â†’
            ``"local"``. Uniform fallback when no collection name is
            available.
-        3. ``URLClassifier`` matches a known academic source → use the
+        3. ``URLClassifier`` matches a known academic source â†’ use the
            enum value (``arxiv``, ``pubmed``, ``pmc``, ``biorxiv``,
            ``medrxiv``, ``semantic_scholar``, ``doi``).
-        4. Otherwise → fall back to ``_extract_domain`` (e.g.
+        4. Otherwise â†’ fall back to ``_extract_domain`` (e.g.
            ``arxiv.org``, ``nytimes.com``).
         """
         if collection:
@@ -560,7 +560,7 @@ class CitationFormatter:
             return self._extract_domain(url)
 
         url_type = URLClassifier.classify(url)
-        # Generic HTML/PDF/INVALID → fall back to domain. Everything else
+        # Generic HTML/PDF/INVALID â†’ fall back to domain. Everything else
         # is a known academic source whose enum value is the short tag.
         if url_type in (URLType.HTML, URLType.PDF, URLType.INVALID):
             return self._extract_domain(url)
@@ -602,12 +602,12 @@ class QuartoExporter:
     """Export markdown documents to Quarto (.qmd) format."""
 
     def __init__(self):
-        # Also match Unicode lenticular brackets 【】 (U+3010 and U+3011) that LLMs sometimes generate
+        # Also match Unicode lenticular brackets ã€ã€‘ (U+3010 and U+3011) that LLMs sometimes generate
         self.citation_pattern = re.compile(
-            r"(?<![\[【])[\[【](\d+)[\]】](?![\]】])"
+            r"(?<![\[ã€])[\[ã€](\d+)[\]ã€‘](?![\]ã€‘])"
         )
         self.comma_citation_pattern = re.compile(
-            r"[\[【](\d+(?:,\s*\d+)+)[\]】]"
+            r"[\[ã€](\d+(?:,\s*\d+)+)[\]ã€‘]"
         )
 
     def export_to_quarto(self, content: str, title: str | None = None) -> str:
@@ -936,7 +936,7 @@ class RISExporter:
                     # Use domain as publisher
                     lines.append(f"PB  - {domain}")
             except (ValueError, AttributeError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         # Y1 - Year accessed (current year)
         from datetime import datetime, UTC
@@ -961,8 +961,8 @@ class LaTeXExporter:
     """Export markdown documents to LaTeX format."""
 
     def __init__(self):
-        # Also match Unicode lenticular brackets 【】 (U+3010 and U+3011) that LLMs sometimes generate
-        self.citation_pattern = re.compile(r"[\[【](\d+)[\]】]")
+        # Also match Unicode lenticular brackets ã€ã€‘ (U+3010 and U+3011) that LLMs sometimes generate
+        self.citation_pattern = re.compile(r"[\[ã€](\d+)[\]ã€‘]")
         self.heading_patterns = [
             (re.compile(r"^# (.+)$", re.MULTILINE), r"\\section{\1}"),
             (re.compile(r"^## (.+)$", re.MULTILINE), r"\\subsection{\1}"),

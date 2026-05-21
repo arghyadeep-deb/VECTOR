@@ -10,7 +10,7 @@ from core.config import CONFIG
 from core.email.dates import format_quoted_date
 
 
-# ── Sender Validation ──────────────────────────────────────────────────────────
+# â”€â”€ Sender Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SenderValidationError(ValueError):
     pass
@@ -34,7 +34,7 @@ def validate_sender(
     return {"to_str": to_str, "from_email": from_email, "from_domain": parts[1]}
 
 
-# ── Message ID ─────────────────────────────────────────────────────────────────
+# â”€â”€ Message ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def generate_message_id(from_domain: str) -> dict[str, str]:
     message_id = str(uuid.uuid4())
@@ -42,7 +42,7 @@ def generate_message_id(from_domain: str) -> dict[str, str]:
     return {"message_id": message_id, "outgoing_message_id": outgoing_message_id}
 
 
-# ── Threading ──────────────────────────────────────────────────────────────────
+# â”€â”€ Threading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def build_references_chain(original: dict[str, Any]) -> dict[str, Any]:
     original_msg_id = original.get("message_id") or original.get("id", "")
@@ -52,7 +52,7 @@ def build_references_chain(original: dict[str, Any]) -> dict[str, Any]:
         try:
             existing_refs = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     references = [r for r in [*existing_refs, original_msg_id] if r]
     thread_id = original.get("thread_id") or original.get("id", "")
     return {"original_msg_id": original_msg_id, "references": references, "thread_id": thread_id}
@@ -65,7 +65,7 @@ def build_threading_headers(original_msg_id: str, references: list[str]) -> dict
     return headers
 
 
-# ── HTML Utilities ─────────────────────────────────────────────────────────────
+# â”€â”€ HTML Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def escape_html(text: str) -> str:
     if not text:
@@ -109,7 +109,7 @@ def build_quoted_reply_block(original: dict[str, Any]) -> str:
     )
 
 
-# ── Convenience aliases ────────────────────────────────────────────────────────
+# â”€â”€ Convenience aliases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 format_email_date = format_quoted_date
 
@@ -119,4 +119,4 @@ if __name__ == "__main__":
     assert "@" in mid["outgoing_message_id"]
     assert escape_html("<script>") == "&lt;script&gt;"
     assert strip_html_to_text("<p>Hello <b>world</b></p>") == "Hello world"
-    print("✅ helpers.py OK")
+    print("âœ… helpers.py OK")

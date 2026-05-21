@@ -58,7 +58,7 @@ class CascadeHelper:
             )
 
         count = query.delete(synchronize_session=False)
-        logger.debug(
+        logger.warning(
             f"Deleted {count} chunks for document {document_id[:8]}..."
             + (f" in collection {collection_name}" if collection_name else "")
         )
@@ -84,7 +84,7 @@ class CascadeHelper:
             .filter_by(collection_name=collection_name)
             .delete(synchronize_session=False)
         )
-        logger.debug(f"Deleted {count} chunks for collection {collection_name}")
+        logger.warning(f"Deleted {count} chunks for collection {collection_name}")
         return count
 
     @staticmethod
@@ -131,7 +131,7 @@ class CascadeHelper:
         if blob:
             size = len(blob.pdf_binary) if blob.pdf_binary else 0
             session.delete(blob)
-            logger.debug(
+            logger.warning(
                 f"Deleted blob for document {document_id[:8]}... ({size} bytes)"
             )
             return size
@@ -159,7 +159,7 @@ class CascadeHelper:
             path = Path(file_path)
             if path.is_file():
                 path.unlink()
-                logger.debug(f"Deleted filesystem file: {file_path}")
+                logger.warning(f"Deleted filesystem file: {file_path}")
                 return True
         except Exception:
             logger.exception(f"Failed to delete filesystem file: {file_path}")
@@ -189,14 +189,14 @@ class CascadeHelper:
             faiss_file = path.with_suffix(".faiss")
             if faiss_file.is_file():
                 faiss_file.unlink()
-                logger.debug(f"Deleted FAISS index file: {faiss_file}")
+                logger.warning(f"Deleted FAISS index file: {faiss_file}")
                 deleted_any = True
 
             # Pickle file for metadata
             pkl_file = path.with_suffix(".pkl")
             if pkl_file.is_file():
                 pkl_file.unlink()
-                logger.debug(f"Deleted FAISS pkl file: {pkl_file}")
+                logger.warning(f"Deleted FAISS pkl file: {pkl_file}")
                 deleted_any = True
 
             return deleted_any
@@ -236,7 +236,7 @@ class CascadeHelper:
             session.delete(index)
             deleted_indices += 1
 
-        logger.debug(
+        logger.warning(
             f"Deleted {deleted_indices} RAGIndex records and {deleted_files} "
             f"FAISS files for collection {collection_name}"
         )
@@ -280,7 +280,7 @@ class CascadeHelper:
             if tracker:
                 tracker.is_downloaded = False  # type: ignore[assignment]
                 tracker.file_path = None  # type: ignore[assignment]
-                logger.debug(
+                logger.warning(
                     f"Updated DownloadTracker for document {document.id[:8]}..."
                 )
                 return True
@@ -410,6 +410,6 @@ class CascadeHelper:
         )
 
         if deleted:
-            logger.debug(f"Deleted document {document_id[:8]}... completely")
+            logger.warning(f"Deleted document {document_id[:8]}... completely")
 
         return deleted > 0

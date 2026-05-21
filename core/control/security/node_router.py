@@ -33,7 +33,7 @@ def get_local_ip() -> str:
 def check_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if TCP port is accepting connections on *host*.
 
-    Never raises — returns False on any error.
+    Never raises â€” returns False on any error.
     """
     try:
         with socket.create_connection((host, port), timeout=timeout) as _:
@@ -114,7 +114,7 @@ def _add_ips(text: str, target: list[str]) -> None:
                     socket.inet_pton(socket.AF_INET6, part)
                     target.append(part)
                 except OSError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -152,4 +152,4 @@ if __name__ == "__main__":
     else:
         logger.info(f"[VECTOR][node_router] DNS servers = {dns}")
 
-    print("✅ node_router.py OK" if ok else "❌ FAILED")
+    print("âœ… node_router.py OK" if ok else "âŒ FAILED")

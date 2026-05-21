@@ -127,7 +127,7 @@ class OllamaEmbeddingsProvider(BaseEmbeddingProvider):
             if response.status_code == 200:
                 return response.json().get("capabilities")  # type: ignore[no-any-return]
         except Exception:
-            logger.debug(f"Could not fetch capabilities for {model_name}")
+            logger.warning(f"Could not fetch capabilities for {model_name}")
         return None
 
     @classmethod
@@ -178,7 +178,7 @@ class OllamaEmbeddingsProvider(BaseEmbeddingProvider):
             if caps is not None:
                 is_embed = "embedding" in caps
             else:
-                # Older Ollama without capabilities — use name heuristic
+                # Older Ollama without capabilities â€” use name heuristic
                 is_embed = _name_looks_like_embedding(model_name)
 
             model["is_embedding"] = is_embed  # type: ignore[assignment]

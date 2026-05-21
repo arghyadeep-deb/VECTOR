@@ -47,15 +47,15 @@ def _capture_loop_error(exc: Exception, context: str, district: str = "") -> Non
             "component": "autonomous_loop",
         })
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     logger.error("[VECTOR][{}] {}: {}", context, type(exc).__name__, exc)
 
 
 class AutonomousLoop:
     """
-    RULE 2 — THE LOOP NEVER STOPS.
+    RULE 2 Ã¢â‚¬â€ THE LOOP NEVER STOPS.
     run_forever() never returns. Every coroutine catches ALL exceptions and restarts.
-    Loop: observe(0.5s) → think(event-driven) → act(permission-gated) → reflect(2AM) → sync(48h)
+    Loop: observe(0.5s) Ã¢â€ â€™ think(event-driven) Ã¢â€ â€™ act(permission-gated) Ã¢â€ â€™ reflect(2AM) Ã¢â€ â€™ sync(48h)
     """
 
     def __init__(self):
@@ -210,10 +210,10 @@ class AutonomousLoop:
             logger.debug(f"[VECTOR][guidance] threat scan error: {e}")
         return False
 
-    # ─── Scheduler + Workflow integrations (VectorCode-absorbed) ─────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Scheduler + Workflow integrations (VectorCode-absorbed) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     def _get_scheduler(self):
-        """Durable task scheduler — persistent state + retry semantics.
+        """Durable task scheduler Ã¢â‚¬â€ persistent state + retry semantics.
 
         Wraps core/scheduler/. Used by scheduler_loop() to fire scheduled
         tasks that must survive process restarts (vs the in-process timer
@@ -231,7 +231,7 @@ class AutonomousLoop:
 
     def _get_workflow_runner(self):
         """DAG workflow runner. Districts can trigger multi-step workflows
-        via runner.run(workflow_dict) — returns WorkflowResult.
+        via runner.run(workflow_dict) Ã¢â‚¬â€ returns WorkflowResult.
         """
         if getattr(self, "_workflow_runner", None) is None:
             try:
@@ -245,13 +245,13 @@ class AutonomousLoop:
 
     async def scheduler_loop(self):
         """Fire durable scheduled tasks every 30s. Never crashes."""
-        logger.info("[VECTOR][scheduler_loop] started — 30s tick")
-        # Operator manager wire (absorbed OJ — alternative task scheduler)
+        logger.info("[VECTOR][scheduler_loop] started Ã¢â‚¬â€ 30s tick")
+        # Operator manager wire (absorbed OJ Ã¢â‚¬â€ alternative task scheduler)
         if getattr(self, "_operator_mgr", None) is not None:
             logger.info("[VECTOR][scheduler_loop] OperatorManager available")
         scheduler = self._get_scheduler()
         if scheduler is None:
-            logger.info("[VECTOR][scheduler_loop] scheduler unavailable — loop disabled")
+            logger.info("[VECTOR][scheduler_loop] scheduler unavailable Ã¢â‚¬â€ loop disabled")
             return
         # Register default daily/weekly jobs on first init
         try:
@@ -279,7 +279,7 @@ class AutonomousLoop:
                 await self._fire_vnative_cron_jobs()
             except Exception as e:
                 logger.error(f"[VECTOR][scheduler_loop] native cron error: {e}")
-            # Gap 4: drain retry queue — re-execute actions that previously failed
+            # Gap 4: drain retry queue Ã¢â‚¬â€ re-execute actions that previously failed
             try:
                 from core.queue.retry_queue import RetryQueue
                 from core.loop.permission_gateway import Action
@@ -298,7 +298,7 @@ class AutonomousLoop:
                         rq.requeue_or_dlq(item, str(retry_err))
             except Exception as _rq_err:
                 logger.debug(f"[VECTOR][scheduler_loop] retry drain error: {_rq_err}")
-            # Phase 3E: Work-stealing — match queued tasks to available agents
+            # Phase 3E: Work-stealing Ã¢â‚¬â€ match queued tasks to available agents
             try:
                 from core.loop.task_queue import TaskQueue
                 tq = TaskQueue.get()
@@ -334,9 +334,9 @@ class AutonomousLoop:
                                     )
                                     assigned += 1
                                 except Exception:
-                                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
                         logger.info(
-                            f"[VECTOR][claims] {len(queued_tasks)} queued → "
+                            f"[VECTOR][claims] {len(queued_tasks)} queued Ã¢â€ â€™ "
                             f"{assigned} claimed by {len(alive)} agents"
                         )
             except Exception as _cl_err:
@@ -344,7 +344,7 @@ class AutonomousLoop:
             await asyncio.sleep(30.0)
 
     def _parse_cron_daily(self, expr: str) -> tuple[int, int] | None:
-        """Parse ``M H * * *`` → (hour, minute). Returns None if not daily."""
+        """Parse ``M H * * *`` Ã¢â€ â€™ (hour, minute). Returns None if not daily."""
         parts = expr.strip().split()
         if len(parts) == 5 and parts[2] == "*" and parts[3] == "*" \
                 and parts[4] == "*":
@@ -423,14 +423,14 @@ class AutonomousLoop:
             import asyncio
             asyncio.create_task(_emit("system", "process_crash", True, "autonomous_loop", {"error": str(exc)[:200]}))
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-    # ─── Observe ──────────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Observe Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def observe_loop(self):
         """Observe world state every 0.5s. Never crashes."""
         interval = CONFIG["loop"]["observe_interval_sec"]
-        logger.info(f"[VECTOR][observe] started — {interval}s interval")
+        logger.info(f"[VECTOR][observe] started Ã¢â‚¬â€ {interval}s interval")
         guard = _get_loop_guard()
         while self._running:
             try:
@@ -439,7 +439,7 @@ class AutonomousLoop:
                 if guard:
                     guard.tick()
                     if guard.is_terminated:
-                        logger.warning("[VECTOR][observe] LoopGuard terminated — resetting")
+                        logger.warning("[VECTOR][observe] LoopGuard terminated Ã¢â‚¬â€ resetting")
                         guard.reset()
             except Exception as e:
                 _capture_loop_error(e, "observe_loop")
@@ -455,10 +455,10 @@ class AutonomousLoop:
         result = None
         if self._ambient:
             result = await self._ambient.listen_tick()
-        # FIX #8: Validate ambient listener output before it enters think→act pipeline
+        # FIX #8: Validate ambient listener output before it enters thinkÃ¢â€ â€™act pipeline
         if result is not None:
             if not isinstance(result, dict):
-                logger.warning(f"[VECTOR][observe] Ambient returned non-dict: {type(result)} — discarding")
+                logger.warning(f"[VECTOR][observe] Ambient returned non-dict: {type(result)} Ã¢â‚¬â€ discarding")
                 return
             # Sanitize: ensure required fields exist and are correct types
             if "actionable" in result and not isinstance(result.get("actionable"), bool):
@@ -470,7 +470,7 @@ class AutonomousLoop:
                     result["confidence"] = max(0.0, min(1.0, float(result["confidence"])))
                 except (TypeError, ValueError):
                     result["confidence"] = 0.0
-            # Feed actionable voice results into the think→act pipeline
+            # Feed actionable voice results into the thinkÃ¢â€ â€™act pipeline
             if result.get("actionable"):
                 self._pending_voice = result
                 logger.debug("[VECTOR][observe] voice intent queued: {}", result.get("intent"))
@@ -499,11 +499,11 @@ class AutonomousLoop:
         except Exception as _mb_err:
             logger.debug("[VECTOR][autonomous_loop] vectorcode message_bus skipped: {}", _mb_err)
 
-    # ─── Think ────────────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Think Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def think_loop(self):
-        """Event-driven reasoning — 10s evaluation cycle. Never crashes."""
-        logger.info("[VECTOR][think] started — 10s evaluation cycle")
+        """Event-driven reasoning Ã¢â‚¬â€ 10s evaluation cycle. Never crashes."""
+        logger.info("[VECTOR][think] started Ã¢â‚¬â€ 10s evaluation cycle")
         while self._running:
             try:
                 await self._think_tick()
@@ -513,12 +513,12 @@ class AutonomousLoop:
                 await asyncio.sleep(5)
 
     async def _think_tick(self):
-        """Evaluate goals → 4 candidates → decision → act. RULE 1: hydrate first."""
+        """Evaluate goals Ã¢â€ â€™ 4 candidates Ã¢â€ â€™ decision Ã¢â€ â€™ act. RULE 1: hydrate first."""
         from core.monitoring.perf_contracts import timed_ctx
         from core.loop.decision_engine import Candidate
         _perf_ctx = timed_ctx("think_tick")
 
-        # Voice intent takes priority — act immediately, skip goal evaluation this tick
+        # Voice intent takes priority Ã¢â‚¬â€ act immediately, skip goal evaluation this tick
         pending = getattr(self, "_pending_voice", None)
         if pending:
             self._pending_voice = None
@@ -531,8 +531,8 @@ class AutonomousLoop:
             })
             return
 
-        # RULE 1 — world state snapshot before any reasoning
-        # Run in thread — get_world_state() calls ScreenObserver.observe() (blocking OCR)
+        # RULE 1 Ã¢â‚¬â€ world state snapshot before any reasoning
+        # Run in thread Ã¢â‚¬â€ get_world_state() calls ScreenObserver.observe() (blocking OCR)
         world_state = await asyncio.to_thread(self._get_context().get_world_state)
 
         actions = self._get_goals().generate_immediate_actions(limit=4)
@@ -599,32 +599,31 @@ class AutonomousLoop:
         else:
             logger.debug(
                 f"[VECTOR][decision] Winner '{decision.winner.action_type}' dropped: "
-                f"score={decision.winner.total_score:.3f} < 0.3 threshold — no action taken"
+                f"score={decision.winner.total_score:.3f} < 0.3 threshold Ã¢â‚¬â€ no action taken"
             )
 
-    # ─── Act ──────────────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Act Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     def _capture_trace(self, event: str, data: dict) -> None:
         """Feed trace data to the absorbed TraceCollector if available."""
         if getattr(self, "_trace_collector", None) is not None:
             try:
                 self._trace_collector.capture(event=event, **data)
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][loop] exception suppressed")
 
     async def _act_on(self, winner: "DecisionEngine.Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
-        RULE 3 — LLM zero direct access. All through gateway.
-        RULE 7 — update_from_outcome() AFTER every action.
+        RULE 3 Ã¢â‚¬â€ LLM zero direct access. All through gateway.
+        RULE 7 Ã¢â‚¬â€ update_from_outcome() AFTER every action.
         """
         await self._publish_event(EventType.AGENT_STATE_CHANGED, {
             "action_type": winner.action_type,
             "state": "acting",
             "score": winner.total_score,
         })
-        # VectorCode routing — coding actions go through permission_gateway first, then bridge
-        # RULE 3: LLM has ZERO direct access — gateway always gates, even for VectorCode tasks
+        # VectorCode routing Ã¢â‚¬â€ coding actions go through permission_gateway first, then bridge
+        # RULE 3: LLM has ZERO direct access Ã¢â‚¬â€ gateway always gates, even for VectorCode tasks
         _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
         if winner.action_type in _VC_ACTION_TYPES:
             try:
@@ -647,12 +646,12 @@ class AutonomousLoop:
                     sk = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
                     h = hashlib.sha256(sk.encode()).hexdigest()[:12]
                     pm.update_from_outcome(winner.action_type, h, reward)
-                    logger.info(f"[VECTOR][act] VectorCode {winner.action_type} → {vc_result.get('status')} reward={reward}")
+                    logger.info(f"[VECTOR][act] VectorCode {winner.action_type} Ã¢â€ â€™ {vc_result.get('status')} reward={reward}")
                     return
             except Exception as _vc_err:
-                logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} — falling through to governor")
+                logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} Ã¢â‚¬â€ falling through to governor")
 
-        # Gap 17: SwarmCoordinator — for multi-agent actions, coordinate via swarm
+        # Gap 17: SwarmCoordinator Ã¢â‚¬â€ for multi-agent actions, coordinate via swarm
         # before dispatching to the governor. Only activates when action_type
         # suggests multi-agent work (research, analysis, complex coding).
         _SWARM_ACTION_TYPES = {"research", "deep_research", "analyze", "code_task", "code_generate"}
@@ -685,7 +684,7 @@ class AutonomousLoop:
             except Exception as _sw_err:
                 logger.debug(f"[VECTOR][swarm] coordination skipped: {_sw_err}")
 
-        # Gap 17: Comms — broadcast action result to configured channels after execution.
+        # Gap 17: Comms Ã¢â‚¬â€ broadcast action result to configured channels after execution.
         # This is done post-execution (see _broadcast_result below).
 
         # ThreatDetector: scan action description before execution (guidance.py)
@@ -750,7 +749,7 @@ class AutonomousLoop:
                     "source": "autonomous_loop",
                 })
 
-            # Check for real user feedback in episodic memory (RULE 7 — real outcomes)
+            # Check for real user feedback in episodic memory (RULE 7 Ã¢â‚¬â€ real outcomes)
             user_feedback = self._get_recent_feedback(winner.action_type)
 
             # 5-factor RL reward (Architecture.md spec):
@@ -796,8 +795,7 @@ class AutonomousLoop:
                     reward=reward,
                     metadata={"source": "autonomous_loop", "goal_ids": winner.goal_ids}
                 )
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][loop] exception suppressed")
 
             self._capture_trace("act", {
                 "action": winner.action_type,
@@ -821,7 +819,7 @@ class AutonomousLoop:
                 f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
                 + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
             )
-            # Gap 17: Comms broadcast — notify configured channels when a significant
+            # Gap 17: Comms broadcast Ã¢â‚¬â€ notify configured channels when a significant
             # action completes. Only fires for YELLOW/RED-tier actions to avoid spam.
             _NOTIFY_ACTION_TYPES = {"send_message_routine", "commit_code", "create_calendar_event",
                                     "send_email", "deploy_production", "financial_transaction"}
@@ -865,14 +863,14 @@ class AutonomousLoop:
                 if reward is not None:
                     return float(reward)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return None
 
-    # ─── Reflect ──────────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Reflect Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def reflect_loop(self):
         """2AM daily reflection. Never crashes."""
-        logger.info("[VECTOR][reflect] started — fires at 2:00 AM daily")
+        logger.info("[VECTOR][reflect] started Ã¢â‚¬â€ fires at 2:00 AM daily")
         while self._running:
             try:
                 now = datetime.datetime.now(datetime.timezone.utc)
@@ -910,7 +908,7 @@ class AutonomousLoop:
             from districts.reflection.daily_reviewer import DailyReviewer
             reviewer = DailyReviewer()
             ok = await reviewer.review()
-            logger.info(f"[VECTOR][reflect] DailyReviewer done — ok={ok}")
+            logger.info(f"[VECTOR][reflect] DailyReviewer done Ã¢â‚¬â€ ok={ok}")
         except Exception as e:
             logger.error(f"[VECTOR][reflect] DailyReviewer failed: {e}")
 
@@ -932,19 +930,19 @@ class AutonomousLoop:
             # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
-                content=f"2AM reflection fallback — ticks={self._tick_count}",
+                content=f"2AM reflection fallback Ã¢â‚¬â€ ticks={self._tick_count}",
                 tags=["reflect", "daily"],
                 source="autonomous_loop",
             )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-    # ─── Sync ─────────────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Sync Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def sync_loop(self):
         """Cloud DB sync every 48h. Never crashes."""
         sync_hours = CONFIG["loop"]["db_sync_hours"]
-        logger.info(f"[VECTOR][sync] started — {sync_hours}h cloud sync interval")
+        logger.info(f"[VECTOR][sync] started Ã¢â‚¬â€ {sync_hours}h cloud sync interval")
         while self._running:
             try:
                 # Chunked sleep so stop() takes effect immediately
@@ -963,7 +961,7 @@ class AutonomousLoop:
 
     async def _sync_tick(self) -> None:
         """Push heartbeat to brain server (Fly.io) and log sync."""
-        logger.info("[VECTOR][sync] DB sync tick — pushing heartbeat to brain server")
+        logger.info("[VECTOR][sync] DB sync tick Ã¢â‚¬â€ pushing heartbeat to brain server")
         try:
             import httpx
             brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
@@ -975,7 +973,7 @@ class AutonomousLoop:
             }
             async with httpx.AsyncClient(timeout=8.0) as c:
                 r = await c.post(f"{brain_url}/heartbeat", json=payload)
-                logger.info(f"[VECTOR][sync] heartbeat → brain server {r.status_code}")
+                logger.info(f"[VECTOR][sync] heartbeat Ã¢â€ â€™ brain server {r.status_code}")
                 # Gap 10: parse response body for commands[] from brain server
                 if r.status_code == 200:
                     try:
@@ -990,7 +988,7 @@ class AutonomousLoop:
                             elif cmd_type == "voice_broadcast":
                                 self._pending_voice.append(cmd_params.get("text", ""))
                             elif cmd_type == "deploy":
-                                logger.warning(f"[VECTOR][sync] deploy command received — routing to permission gateway")
+                                logger.warning(f"[VECTOR][sync] deploy command received Ã¢â‚¬â€ routing to permission gateway")
                                 from core.loop.permission_gateway import PermissionGateway, Action
                                 gw = PermissionGateway()
                                 await gw.execute(Action(
@@ -1003,7 +1001,7 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][sync] heartbeat failed: {e}")
 
-    # ─── Obsidian vault watcher ───────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Obsidian vault watcher Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def obsidian_loop(self) -> None:
         """Start vault watcher + bulk ingest at startup. Never crashes."""
@@ -1023,7 +1021,7 @@ class AutonomousLoop:
         except Exception as e:
             logger.error(f"[VECTOR][obsidian] loop crashed: {e}")
 
-    # ─── Phone node poll ──────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Phone node poll Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def phone_loop(self) -> None:
         """Poll phone ambient server every 60s. Graceful if phone disconnected."""
@@ -1034,14 +1032,14 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][phone] loop unavailable: {e}")
 
-    # ─── Health monitoring cycles ────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Health monitoring cycles Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def wearable_poll_cycle(self) -> None:
         cfg = CONFIG.get("health", {})
         if not cfg.get("enabled", False):
             return
         interval = cfg.get("wearable_poll_interval_minutes", 15) * 60
-        logger.info(f"[VECTOR][health] wearable_poll_cycle started — {interval//60}min interval")
+        logger.info(f"[VECTOR][health] wearable_poll_cycle started Ã¢â‚¬â€ {interval//60}min interval")
         while self._running:
             try:
                 from districts.health.wearable_connector import WearableConnector
@@ -1064,7 +1062,7 @@ class AutonomousLoop:
         if not cfg.get("enabled", False):
             return
         interval = cfg.get("health_analysis_interval_minutes", 60) * 60
-        logger.info(f"[VECTOR][health] health_analysis_cycle started — {interval//60}min interval")
+        logger.info(f"[VECTOR][health] health_analysis_cycle started Ã¢â‚¬â€ {interval//60}min interval")
         while self._running:
             try:
                 from districts.health.trend_analyzer import TrendAnalyzer
@@ -1091,7 +1089,7 @@ class AutonomousLoop:
         if not cfg.get("enabled", False):
             return
         interval = cfg.get("emergency_detection_interval_seconds", 60)
-        logger.info(f"[VECTOR][health] emergency_detection_cycle started — {interval}s interval")
+        logger.info(f"[VECTOR][health] emergency_detection_cycle started Ã¢â‚¬â€ {interval}s interval")
         while self._running:
             try:
                 from districts.health.emergency_detector import HealthEmergencyDetector
@@ -1110,7 +1108,7 @@ class AutonomousLoop:
                     return
                 await asyncio.sleep(1)
 
-    # ─── VectorCode MCP server ────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ VectorCode MCP server Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def vectorcode_loop(self) -> None:
         """Start VectorCode MCP server at startup. Restarts if it crashes."""
@@ -1119,14 +1117,14 @@ class AutonomousLoop:
             from districts.coding.vectorcode_bridge import get_bridge
             bridge = get_bridge()
             if not bridge.is_available():
-                logger.warning("[VECTOR][vectorcode] VectorCode not available — skipping MCP server")
+                logger.warning("[VECTOR][vectorcode] VectorCode not available Ã¢â‚¬â€ skipping MCP server")
                 return
             mcp_port = 9001
             try:
                 from core.config import CONFIG
                 mcp_port = CONFIG.get("vectorcode", {}).get("mcp_port", 9001)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             proc = await bridge.start_mcp_server(port=mcp_port)
             if proc:
                 logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
@@ -1150,15 +1148,15 @@ class AutonomousLoop:
         except ImportError as e:
             logger.warning("[VECTOR][emergency] unavailable: {}", e)
         except asyncio.CancelledError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         except Exception as e:
             logger.error(f"[VECTOR][emergency] loop crashed: {e}")
 
-    # ─── Main entry ───────────────────────────────────────────────────────────
+    # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Main entry Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def run_forever(self) -> None:
         """
-        RULE 2 — Never returns in production.
+        RULE 2 Ã¢â‚¬â€ Never returns in production.
         return_exceptions=True ensures one crashed coroutine doesn't kill others.
         """
         self._running = True
@@ -1204,7 +1202,7 @@ class AutonomousLoop:
         except Exception:
             self._daemon_mgr = None
 
-        # ── Agent-to-Agent event fan-out handler ──────────────────────────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ Agent-to-Agent event fan-out handler Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         try:
             from core.event_bus.base import Subscription
             from core.event_bus.types import Event
@@ -1217,14 +1215,14 @@ class AutonomousLoop:
             self._fanout_sub = None
             logger.warning(f"[VECTOR][autonomous_loop] event fan-out init failed: {e}")
 
-        # ── AmbientScheduler: recover any crashed sessions from prior run ──────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ AmbientScheduler: recover any crashed sessions from prior run Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         try:
             from core.jcode.session_persistence import SessionPersistence
             _store = SessionPersistence()
             crashed = _store.recover_crashed_sessions()
             if crashed:
                 logger.warning(
-                    "[VECTOR][autonomous_loop] {} crashed session(s) recovered — "
+                    "[VECTOR][autonomous_loop] {} crashed session(s) recovered Ã¢â‚¬â€ "
                     "context available in ~/.vector_ca/sessions/",
                     len(crashed),
                 )
@@ -1259,7 +1257,7 @@ class AutonomousLoop:
         )
 
     async def degradation_monitor(self) -> None:
-        logger.info("[VECTOR][degradation] monitor started — 30s check cycle")
+        logger.info("[VECTOR][degradation] monitor started Ã¢â‚¬â€ 30s check cycle")
         while self._running:
             try:
                 await asyncio.sleep(30)
@@ -1277,9 +1275,9 @@ class AutonomousLoop:
         AmbientScheduler: polls for due directives every 60s and dispatches them.
         Directives are persistent tasks added by agents or the owner that should
         run at a specific time (e.g. 'research LLM papers at 22:00').
-        RULE 2 — never dies.
+        RULE 2 Ã¢â‚¬â€ never dies.
         """
-        logger.info("[VECTOR][autonomous_loop] ambient_scheduler_loop starting — 60s poll")
+        logger.info("[VECTOR][autonomous_loop] ambient_scheduler_loop starting Ã¢â‚¬â€ 60s poll")
         while self._running:
             try:
                 await asyncio.sleep(60)
@@ -1323,11 +1321,11 @@ class AutonomousLoop:
 
     async def hypothesis_loop(self) -> None:
         """
-        VECTOR Gap 5 — HypothesisEngine: proactive insight generation.
+        VECTOR Gap 5 Ã¢â‚¬â€ HypothesisEngine: proactive insight generation.
         Runs every 4 hours. Only surfaces insights with confidence > 0.85.
-        RULE 2 — never dies: all exceptions caught, loop always restarts.
+        RULE 2 Ã¢â‚¬â€ never dies: all exceptions caught, loop always restarts.
         """
-        logger.info("[VECTOR][autonomous_loop] hypothesis_loop starting — fires every 4h")
+        logger.info("[VECTOR][autonomous_loop] hypothesis_loop starting Ã¢â‚¬â€ fires every 4h")
         while self._running:
             try:
                 await asyncio.sleep(4 * 3600)
@@ -1368,7 +1366,7 @@ class AutonomousLoop:
         pred_interval = cfg.get("forecast_interval_minutes", 15)
         sim_interval = cfg.get("simulation_interval_minutes", 60)
         logger.info(
-            f"[VECTOR][predict_cycle] started — forecast every {pred_interval}min, sim every {sim_interval}min"
+            f"[VECTOR][predict_cycle] started Ã¢â‚¬â€ forecast every {pred_interval}min, sim every {sim_interval}min"
         )
         last_sim = datetime.datetime.now(datetime.timezone.utc)
         while self._running:
@@ -1431,13 +1429,13 @@ class AutonomousLoop:
             await asyncio.sleep(pred_interval * 60)
 
     async def research_loop(self) -> None:
-        """SPEC-10 scheduled research — fires at research_lab.schedule_interval_hours."""
+        """SPEC-10 scheduled research Ã¢â‚¬â€ fires at research_lab.schedule_interval_hours."""
         cfg = CONFIG.get("research_lab", {})
         if not cfg.get("enabled", False):
-            logger.info("[VECTOR][research] research_lab disabled — research_loop skipped")
+            logger.info("[VECTOR][research] research_lab disabled Ã¢â‚¬â€ research_loop skipped")
             return
         interval = cfg.get("schedule_interval_hours", 6)
-        logger.info("[VECTOR][research] research_loop started — fires every {}h", interval)
+        logger.info("[VECTOR][research] research_loop started Ã¢â‚¬â€ fires every {}h", interval)
         while self._running:
             try:
                 await asyncio.sleep(interval * 3600)
@@ -1484,6 +1482,6 @@ if __name__ == "__main__":
     ticks = asyncio.run(_smoke_test())
     ok = ticks >= 0
     print(
-        f"✅ autonomous_loop OK — {ticks} observe ticks in 2s, started+stopped cleanly"
-        if ok else "❌ FAILED"
+        f"Ã¢Å“â€¦ autonomous_loop OK Ã¢â‚¬â€ {ticks} observe ticks in 2s, started+stopped cleanly"
+        if ok else "Ã¢ÂÅ’ FAILED"
     )

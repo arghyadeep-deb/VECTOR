@@ -1,7 +1,7 @@
 """JabRef journal abbreviations data source.
 
 Downloads ~14 small CSV files from the JabRef GitHub repo and merges
-them into a single gzipped JSON mapping abbreviations → full names.
+them into a single gzipped JSON mapping abbreviations â†’ full names.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class JabRefSource(DataSource):
     )
     license = "CC0 1.0"
     license_url = "https://creativecommons.org/publicdomain/zero/1.0/"
-    description = "~66K journal abbreviation → full name mappings"
+    description = "~66K journal abbreviation â†’ full name mappings"
     filename = "jabref_abbreviations.json.gz"
     count_label = "abbreviations"
     auto_download = True  # ~0.5 MB total across 14 files
@@ -76,35 +76,35 @@ class JabRefSource(DataSource):
                         # Last-writer-wins across 14 source CSVs. Log the
                         # collision at debug level (one per file change,
                         # not per row) so operators can audit which
-                        # source resolves a given abbreviation — not a
+                        # source resolves a given abbreviation â€” not a
                         # warning, because collisions are expected.
                         if (
                             abbrev_lower in abbrev_to_full
                             and abbrev_to_full[abbrev_lower] != full_name
                         ):
-                            logger.debug(
+                            logger.warning(
                                 "jabref collision "
                                 f"[{filename}] {abbrev_lower!r}: "
-                                f"{abbrev_to_full[abbrev_lower]!r} → "
+                                f"{abbrev_to_full[abbrev_lower]!r} â†’ "
                                 f"{full_name!r}"
                             )
                         abbrev_to_full[abbrev_lower] = full_name
-                        # Also store without dots: "Phys Rev Lett" → same
+                        # Also store without dots: "Phys Rev Lett" â†’ same
                         no_dots = abbreviation.replace(".", "").strip().lower()
                         if no_dots != abbreviation.lower():
                             if (
                                 no_dots in abbrev_to_full
                                 and abbrev_to_full[no_dots] != full_name
                             ):
-                                logger.debug(
+                                logger.warning(
                                     "jabref collision (no-dots) "
                                     f"[{filename}] {no_dots!r}: "
-                                    f"{abbrev_to_full[no_dots]!r} → "
+                                    f"{abbrev_to_full[no_dots]!r} â†’ "
                                     f"{full_name!r}"
                                 )
                             abbrev_to_full[no_dots] = full_name
             except Exception:
-                # Preserve traceback — operators diagnosing partial
+                # Preserve traceback â€” operators diagnosing partial
                 # fetch failures need the exception type (timeout,
                 # SSRF block, decode error, etc.), not just the
                 # filename. The outer loop tolerates per-file

@@ -251,7 +251,7 @@ class ConstrainedSearchStrategy(EvidenceBasedStrategy):
                 change = len(current_candidates) - len(
                     self.stage_candidates.get(stage - 1, [])
                 )
-                change_str = f" (Δ{change:+d})" if stage > 0 else ""
+                change_str = f" (Î”{change:+d})" if stage > 0 else ""
 
                 self.progress_callback(
                     f"Stage {stage + 1} complete: {len(current_candidates)} candidates{change_str}. {candidate_names}{more}",
@@ -573,7 +573,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
             for line in extracted_text.strip().split("\n"):
                 name = line.strip()
                 # Remove common list markers and clean up
-                name = name.lstrip("- •·*0123456789.").strip()
+                name = name.lstrip("- â€¢Â·*0123456789.").strip()
 
                 # Skip empty lines or very short names
                 if not name or len(name) <= 2:
@@ -638,7 +638,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                 f"Extracted {len(candidates)} candidates for constraint: {constraint.description}"
             )
             if candidates:
-                logger.debug(
+                logger.warning(
                     f"Sample candidates: {[c.name for c in candidates[:5]]}"
                 )
 
@@ -664,7 +664,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
         candidate_lower = candidate.name.lower()
         # NOTE: constraint.value is always a str from ConstraintAnalyzer.
         # The truthiness guard handles empty strings correctly. Do NOT
-        # change to "is not None" — for hypothetical value=0, "0"
+        # change to "is not None" â€” for hypothetical value=0, "0"
         # would match nearly all content and inflate scores.
         value_lower = str(constraint.value).lower() if constraint.value else ""
         content_lower = content.lower()
@@ -799,9 +799,9 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                     self.progress_callback and i < 5
                 ):  # Report progress for top candidates
                     conf_emoji = (
-                        "✓"
+                        "âœ“"
                         if evidence.confidence >= self.evidence_threshold
-                        else "○"
+                        else "â—‹"
                     )
                     self.progress_callback(
                         f"{conf_emoji} {candidate.name} | {constraint.type.value}: {evidence.confidence:.0%}",
@@ -1010,7 +1010,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                     for group_name, group_items in grouped.items():
                         summary += f"  {group_name}: {len(group_items)} items\n"
                         for item in group_items[:3]:
-                            summary += f"    • {item.name}\n"
+                            summary += f"    â€¢ {item.name}\n"
                         if len(group_items) > 3:
                             summary += (
                                 f"    ... and {len(group_items) - 3} more\n"
@@ -1036,11 +1036,11 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                 if evidence:
                     conf_str = f"{evidence.confidence:.0%}"
                     summary += (
-                        f"  • {constraint.description[:40]}...: {conf_str}\n"
+                        f"  â€¢ {constraint.description[:40]}...: {conf_str}\n"
                     )
                 else:
                     summary += (
-                        f"  • {constraint.description[:40]}...: No evidence\n"
+                        f"  â€¢ {constraint.description[:40]}...: No evidence\n"
                     )
 
             summary += f"  Overall Score: {candidate.score:.2f}\n\n"
@@ -1225,20 +1225,20 @@ Return one {entity_type} name per line. Only include names that could satisfy th
 
         # Basic validation checks
         if not content or len(content) < 50:  # Too short to be meaningful
-            logger.debug(f"Content too short: {len(content)} characters")
+            logger.warning(f"Content too short: {len(content)} characters")
             return False
 
         if "Error" in content and len(content) < 100:
-            logger.debug(f"Error in results: {content[:100]}")
+            logger.warning(f"Error in results: {content[:100]}")
             return False
 
         if "No results found" in content:
-            logger.debug("No results found")
+            logger.warning("No results found")
             return False
 
         # NOTE: constraint.value is always a str from ConstraintAnalyzer
         # (constraint_analyzer.py:91). Do NOT change this to
-        # "is not None" — for hypothetical non-string falsy values
+        # "is not None" â€” for hypothetical non-string falsy values
         # like 0.0, that would reject content missing the literal
         # string "0.0". The truthiness guard correctly skips empty
         # values, falling through to the quality check below.
@@ -1262,7 +1262,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
 
                 # Require at least one term match
                 if relevance_ratio < 0.2:
-                    logger.debug(
+                    logger.warning(
                         f"Low relevance: {relevance_ratio:.0%} term matches"
                     )
                     return False
@@ -1275,7 +1275,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                 if isinstance(r, dict) and (r.get("title") or r.get("snippet"))
             )
             if valid_results < 1:
-                logger.debug("No valid search results with title/snippet")
+                logger.warning("No valid search results with title/snippet")
                 return False
 
         return True

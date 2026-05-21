@@ -1,5 +1,5 @@
 """
-VECTOR Channel Runtime — async message dispatch loop.
+VECTOR Channel Runtime â€” async message dispatch loop.
 
 Ported from vector's channels/runtime/dispatch.rs.
 
@@ -8,7 +8,7 @@ manages concurrency, injects memory context, fires typing indicators,
 and handles streaming responses back to the channel.
 
 Architecture:
-  ChannelMessage → ChannelRuntime.dispatch() → Agent → streaming reply → Channel.send()
+  ChannelMessage â†’ ChannelRuntime.dispatch() â†’ Agent â†’ streaming reply â†’ Channel.send()
 
 Integrates with VECTOR's existing vectorcode channel adapters.
 """
@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 
-# ── Message types ──────────────────────────────────────────────────────────────
+# â”€â”€ Message types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class ChannelMessage:
@@ -52,16 +52,16 @@ class SendMessage:
     channel: str = "cli"
 
 
-# ── Acknowledgment emoji (ported from dispatch.rs select_acknowledgment_reaction) ──
+# â”€â”€ Acknowledgment emoji (ported from dispatch.rs select_acknowledgment_reaction) â”€â”€
 
 _ACK_REACTIONS: dict[str, list[str]] = {
-    "gratitude": ["❤️", "🙏", "😊"],
-    "excitement": ["🔥", "🎉", "⚡"],
-    "crypto":     ["💯", "🚀", "💎"],
-    "technical":  ["🤓", "💻", "🛠️"],
-    "greeting":   ["👋", "😁", "🤗"],
-    "question":   ["🤔", "✍️", "🧠"],
-    "default":    ["👀", "✍️", "⚙️"],
+    "gratitude": ["â¤ï¸", "ðŸ™", "ðŸ˜Š"],
+    "excitement": ["ðŸ”¥", "ðŸŽ‰", "âš¡"],
+    "crypto":     ["ðŸ’¯", "ðŸš€", "ðŸ’Ž"],
+    "technical":  ["ðŸ¤“", "ðŸ’»", "ðŸ› ï¸"],
+    "greeting":   ["ðŸ‘‹", "ðŸ˜", "ðŸ¤—"],
+    "question":   ["ðŸ¤”", "âœï¸", "ðŸ§ "],
+    "default":    ["ðŸ‘€", "âœï¸", "âš™ï¸"],
 }
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
@@ -86,7 +86,7 @@ def select_ack_reaction(content: str) -> str:
     return reactions[hash(content) % len(reactions)]
 
 
-# ── Agent resolution ───────────────────────────────────────────────────────────
+# â”€â”€ Agent resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _resolve_agent(sender: str, channel: str, is_onboarded: bool) -> str:
     """Route to welcome agent for new users, orchestrator otherwise."""
@@ -107,10 +107,10 @@ def _build_context_block(msg: ChannelMessage) -> str:
     )
 
 
-# ── ChannelRuntime ─────────────────────────────────────────────────────────────
+# â”€â”€ ChannelRuntime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 AgentHandler = Callable[[str, str, str], Awaitable[str]]
-# (agent_name, system_prompt_hint, user_message) → response
+# (agent_name, system_prompt_hint, user_message) â†’ response
 
 
 class ChannelRuntime:
@@ -166,9 +166,9 @@ class ChannelRuntime:
                 tasks.add(t)
                 t.add_done_callback(lambda t: (tasks.discard(t), self._semaphore.release()))
         except asyncio.TimeoutError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         except asyncio.CancelledError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         finally:
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -227,7 +227,7 @@ class ChannelRuntime:
                 )
                 await self._reply(err_reply)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     @staticmethod
     async def _default_agent(agent: str, hint: str, message: str) -> str:
@@ -264,7 +264,7 @@ class ChannelRuntime:
 
     @staticmethod
     async def _default_reply(msg: SendMessage) -> None:
-        logger.info("[VECTOR][channel_runtime] reply → {}: {}", msg.recipient, msg.content[:80])
+        logger.info("[VECTOR][channel_runtime] reply â†’ {}: {}", msg.recipient, msg.content[:80])
 
 
 if __name__ == "__main__":
@@ -297,6 +297,6 @@ if __name__ == "__main__":
         assert select_ack_reaction("thanks so much") in _ACK_REACTIONS["gratitude"]
         assert select_ack_reaction("debug this error") in _ACK_REACTIONS["technical"]
 
-        print("OK channel_runtime.py — dispatch + ack selection verified")
+        print("OK channel_runtime.py â€” dispatch + ack selection verified")
 
     asyncio.run(_test())

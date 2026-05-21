@@ -33,16 +33,15 @@ from loguru import logger
 
 from core.video.composition_types import Fps, canvas_size, QUALITY_CRF, RenderQuality
 
-# ── Load inline runtime JS ────────────────────────────────────────────────────
+# â”€â”€ Load inline runtime JS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _RUNTIME_JS_PATH = Path(__file__).parent / "runtime" / "vector_runtime.js"
 _RUNTIME_JS: str = ""
 try:
     _RUNTIME_JS = _RUNTIME_JS_PATH.read_text(encoding="utf-8")
-except Exception:
-    pass  # runtime optional — compositions with window.__vector already set work fine
+except Exception: logger.debug("[VECTOR][video] exception suppressed")  # runtime optional â€” compositions with window.__vector already set work fine
 
 
-# ── Local file server ─────────────────────────────────────────────────────────
+# â”€â”€ Local file server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _SilentHandler(SimpleHTTPRequestHandler):
     def log_message(self, *_): pass
@@ -69,7 +68,7 @@ def _find_free_port(start: int = 51000) -> int:
     raise RuntimeError("No free port found in range 51000-52000")
 
 
-# ── Frame capture result ──────────────────────────────────────────────────────
+# â”€â”€ Frame capture result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class FrameCaptureResult:
@@ -94,7 +93,7 @@ class RendererConfig:
     on_progress: Optional[Callable[[int, int, float], None]] = None  # (frame, total, ms)
 
 
-# ── Playwright frame capture ──────────────────────────────────────────────────
+# â”€â”€ Playwright frame capture â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class HTMLFrameRenderer:
     """
@@ -254,7 +253,7 @@ class HTMLFrameRenderer:
         return args
 
 
-# ── Screenshot capture (single frame) ────────────────────────────────────────
+# â”€â”€ Screenshot capture (single frame) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def capture_screenshot(
     url: str,
@@ -297,4 +296,4 @@ if __name__ == "__main__":
     renderer = HTMLFrameRenderer(config)
     assert renderer._config.quality == "standard"
 
-    print("OK html_renderer.py — config + types OK (Playwright requires install for live test)")
+    print("OK html_renderer.py â€” config + types OK (Playwright requires install for live test)")

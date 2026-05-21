@@ -1,5 +1,5 @@
 """
-VECTOR Code Conductor — Agent Step Generator Pattern
+VECTOR Code Conductor â€” Agent Step Generator Pattern
 Python port of codebuff's handleSteps generator from agents/basher.ts
 and packages/agent-runtime/src/run-programmatic-step.ts.
 
@@ -8,7 +8,7 @@ Gives deterministic control over complex multi-step workflows.
 
 Pattern:
   async def my_steps(ctx):
-      # Tool call — executed immediately, result injected back
+      # Tool call â€” executed immediately, result injected back
       result = yield {"tool": "read_files", "input": {"paths": ["main.py"]}}
 
       # Let LLM analyze and decide next action
@@ -62,15 +62,15 @@ async def run_steps(
 
     Args:
         steps_fn: async generator function (the agent's handleSteps)
-        llm_call: async callable(messages: list) → str
-        tool_registry: dict of tool_name → async callable(input: dict) → dict
+        llm_call: async callable(messages: list) â†’ str
+        tool_registry: dict of tool_name â†’ async callable(input: dict) â†’ dict
         ctx: context passed to steps_fn
         max_steps: safety limit
 
     Generator yields:
-        {"tool": name, "input": {...}}  → tool executed, result sent back via .asend()
-        "STEP"                          → one LLM call, response sent back
-        "STEP_ALL"                      → LLM loop until no more tool calls in response
+        {"tool": name, "input": {...}}  â†’ tool executed, result sent back via .asend()
+        "STEP"                          â†’ one LLM call, response sent back
+        "STEP_ALL"                      â†’ LLM loop until no more tool calls in response
 
     Returns:
         List of StepResult objects
@@ -94,7 +94,7 @@ async def run_steps(
                 break
 
             if isinstance(yielded, dict) and "tool" in yielded:
-                # ── Tool call ─────────────────────────────────────────────────
+                # â”€â”€ Tool call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 tool_name = yielded["tool"]
                 tool_input = yielded.get("input", {})
                 result = StepResult(step_type="tool", tool_name=tool_name, tool_input=tool_input)
@@ -107,7 +107,7 @@ async def run_steps(
                         else:
                             tool_result = fn(**tool_input)
                         result.tool_result = tool_result
-                        logger.debug("[VECTOR][steps] tool {} → {}", tool_name, str(tool_result)[:80])
+                        logger.debug("[VECTOR][steps] tool {} â†’ {}", tool_name, str(tool_result)[:80])
                     except Exception as e:
                         result.error = str(e)
                         tool_result = {"error": str(e)}
@@ -119,7 +119,7 @@ async def run_steps(
                 last_value = tool_result
 
             elif yielded == "STEP":
-                # ── Single LLM step ───────────────────────────────────────────
+                # â”€â”€ Single LLM step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 result = StepResult(step_type="llm")
                 try:
                     if asyncio.iscoroutinefunction(llm_call):
@@ -135,7 +135,7 @@ async def run_steps(
                 last_value = result.llm_response
 
             elif yielded == "STEP_ALL":
-                # ── LLM loop until completion ─────────────────────────────────
+                # â”€â”€ LLM loop until completion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 for _ in range(20):  # safety limit on STEP_ALL
                     result = StepResult(step_type="llm")
                     try:
@@ -158,7 +158,7 @@ async def run_steps(
                 last_value = None
 
     except StopAsyncIteration:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     except Exception as e:
         logger.error("[VECTOR][steps] run_steps error: {}", e)
         results.append(StepResult(step_type="error", error=str(e)))
@@ -166,7 +166,7 @@ async def run_steps(
     return results
 
 
-# ── Pre-built step workflows ──────────────────────────────────────────────────
+# â”€â”€ Pre-built step workflows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def bash_steps(ctx: dict) -> AsyncGenerator:
     """
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         async def demo_steps(ctx: dict):
             result = yield {"tool": "echo", "input": {"msg": "hello"}}
             steps_log.append(f"tool_result: {result}")
-            # No LLM call — just tool
+            # No LLM call â€” just tool
 
         tool_reg = {"echo": lambda msg: {"echoed": msg}}
         dummy_llm = lambda msgs: "LLM response"
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         assert results[0].tool_result == {"echoed": "hello"}
         assert "tool_result: {'echoed': 'hello'}" in steps_log
 
-        print(f"OK agent_steps.py — generator pattern, tool injection, STEP/STEP_ALL signals")
+        print(f"OK agent_steps.py â€” generator pattern, tool injection, STEP/STEP_ALL signals")
         print(f"  {len(results)} steps executed")
 
     asyncio.run(_smoke())

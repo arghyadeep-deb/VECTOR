@@ -1,9 +1,9 @@
 """
-VECTOR SSRF Guard — blocks Server-Side Request Forgery attacks.
+VECTOR SSRF Guard â€” blocks Server-Side Request Forgery attacks.
 
 Prevents agents from making requests to:
   - Private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x)
-  - Link-local addresses (169.254.x — AWS/GCP metadata endpoints)
+  - Link-local addresses (169.254.x â€” AWS/GCP metadata endpoints)
   - IPv6 loopback and link-local
   - Cloud metadata services (169.254.169.254, metadata.google.internal)
   - Internal VECTOR services
@@ -39,7 +39,7 @@ class SSRFCheckResult:
         return f"SAFE: {self.url}" if self.safe else f"BLOCKED: {self.url} ({self.reason})"
 
 
-# ── Blocked patterns ───────────────────────────────────────────────────────────
+# â”€â”€ Blocked patterns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _PRIVATE_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
@@ -74,7 +74,7 @@ _BLOCKED_PORTS = frozenset({22, 23, 25, 110, 143, 3306, 5432, 6379, 27017})  # S
 
 class SSRFGuard:
     """
-    URL safety checker — blocks SSRF attacks before HTTP requests.
+    URL safety checker â€” blocks SSRF attacks before HTTP requests.
 
     Usage:
         guard = SSRFGuard()
@@ -145,7 +145,7 @@ class SSRFGuard:
                             reason=f"Private/reserved IP address: {host}"
                         )
             except ValueError:
-                pass  # hostname, not IP — continue
+                pass  # hostname, not IP â€” continue
 
         # 4. Port check
         port = parsed.port
@@ -163,7 +163,7 @@ class SSRFGuard:
                         for network in _PRIVATE_NETWORKS:
                             if ip in network:
                                 logger.warning(
-                                    "[VECTOR][ssrf] blocked DNS-resolved IP: {} → {}",
+                                    "[VECTOR][ssrf] blocked DNS-resolved IP: {} â†’ {}",
                                     host, ip_str,
                                 )
                                 return SSRFCheckResult(
@@ -171,9 +171,9 @@ class SSRFGuard:
                                     reason=f"DNS resolves to private IP: {ip_str}"
                                 )
                     except ValueError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             except OSError:
-                pass  # DNS failure — let request handle it
+                pass  # DNS failure â€” let request handle it
 
         return SSRFCheckResult(safe=True, url=url)
 
@@ -230,4 +230,4 @@ if __name__ == "__main__":
     safe, blocked = guard.filter_urls(urls)
     assert len(safe) == 2 and len(blocked) == 1
 
-    print("OK ssrf_guard.py — private IPs, metadata endpoints, scheme check all blocked")
+    print("OK ssrf_guard.py â€” private IPs, metadata endpoints, scheme check all blocked")

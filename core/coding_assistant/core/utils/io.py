@@ -37,7 +37,7 @@ def _encoding_from_best_match(raw: bytes) -> str | None:
 
 
 def _get_candidate_encodings(raw: bytes) -> Iterator[str]:
-    """Yield candidate encodings lazily — expensive detection runs only if needed."""
+    """Yield candidate encodings lazily â€” expensive detection runs only if needed."""
     seen: set[str] = set()
     yield "utf-8"
     if (bom := _encodings_from_bom(raw)) and bom not in seen:
@@ -61,7 +61,7 @@ def decode_safe(raw: bytes, *, raise_on_error: bool = False) -> ReadSafeResult:
         try:
             return ReadSafeResult(raw.decode(encoding), encoding)
         except (LookupError, UnicodeDecodeError, ValueError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     errors = "strict" if raise_on_error else "replace"
     return ReadSafeResult(raw.decode("utf-8", errors=errors), "utf-8")
 

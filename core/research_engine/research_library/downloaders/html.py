@@ -110,7 +110,7 @@ class HTMLDownloader(BaseDownloader):
 
     def _fetch_html(self, url: str) -> Optional[str]:
         """Fetch raw HTML content from URL."""
-        logger.debug(f"Static fetch: {url}")
+        logger.warning(f"Static fetch: {url}")
         domain = urlparse(url).netloc
         engine_type = f"html_download_{domain}"
 

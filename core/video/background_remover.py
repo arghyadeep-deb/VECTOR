@@ -5,14 +5,14 @@ AI-based background removal using ONNX runtime + OpenCV.
 Outputs transparent RGBA video/images for overlay compositing.
 
 Supported output formats:
-  .webm → VP9 with alpha (HTML5-native, ~1MB/4s @ 1080p)
-  .mov  → ProRes 4444 with alpha (editing round-trip)
-  .png  → single RGBA still
+  .webm â†’ VP9 with alpha (HTML5-native, ~1MB/4s @ 1080p)
+  .mov  â†’ ProRes 4444 with alpha (editing round-trip)
+  .png  â†’ single RGBA still
 
 Models (auto-downloaded):
-  u2net       — general purpose (best quality)
-  u2net_human — optimized for people (faster + better for portraits)
-  isnet-dis   — DIS (Highly Accurate Dichotomous Image Segmentation, newer)
+  u2net       â€” general purpose (best quality)
+  u2net_human â€” optimized for people (faster + better for portraits)
+  isnet-dis   â€” DIS (Highly Accurate Dichotomous Image Segmentation, newer)
 
 RTX 5070 Ti: uses CUDA execution provider for ~10x speedup.
 """
@@ -33,7 +33,7 @@ from core.video.video_encoder import find_ffmpeg, find_ffprobe, probe_duration, 
 from core.video.composition_types import BG_REMOVAL_CRF, BgRemovalQuality
 
 
-# ── ONNX model registry ───────────────────────────────────────────────────────
+# â”€â”€ ONNX model registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 MODEL_URLS: dict[str, str] = {
     "u2net":       "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
@@ -90,7 +90,7 @@ class BGSession:
         model_path = self._ensure_model()
         try:
             import onnxruntime as ort
-            # Prefer CUDA (RTX 5070 Ti) → CPU fallback
+            # Prefer CUDA (RTX 5070 Ti) â†’ CPU fallback
             providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
             self._session = ort.InferenceSession(str(model_path), providers=providers)
             active = self._session.get_providers()[0]
@@ -134,7 +134,7 @@ class BGSession:
         frame_rgb: np.ndarray,
         alpha: np.ndarray,
     ) -> np.ndarray:
-        """Combine RGB frame with alpha mask → RGBA uint8."""
+        """Combine RGB frame with alpha mask â†’ RGBA uint8."""
         alpha_u8 = (alpha * 255).astype(np.uint8)
         rgba = np.dstack([frame_rgb, alpha_u8])
         return rgba
@@ -155,7 +155,7 @@ class BGSession:
             logger.info("[VECTOR][bg_remover] using rembg models (auto-managed)")
             return model_path  # rembg handles its own models
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         logger.info("[VECTOR][bg_remover] downloading {} from {}", self._model_id, url)
         import httpx
@@ -191,7 +191,7 @@ class BackgroundRemover:
         input_path: str,
         output_path: str,
     ) -> RemoveResult:
-        """Remove background from a single image → PNG with alpha."""
+        """Remove background from a single image â†’ PNG with alpha."""
         import cv2
 
         # Try rembg shortcut first (simpler)
@@ -205,7 +205,7 @@ class BackgroundRemover:
             return RemoveResult(output_path=output_path, frames_processed=1,
                                 provider="rembg", format="png")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         frame_bgr = cv2.imread(input_path)
         if frame_bgr is None:
@@ -234,7 +234,7 @@ class BackgroundRemover:
         on_progress: Optional[Callable[[ProgressEvent], None]] = None,
     ) -> RemoveResult:
         """
-        Remove background from a video → WebM/MOV with alpha channel.
+        Remove background from a video â†’ WebM/MOV with alpha channel.
         Optionally also produce an inverse alpha background plate.
         """
         try:
@@ -246,7 +246,7 @@ class BackgroundRemover:
         try:
             return self._remove_video_rembg(input_path, output_path, bg_plate_path, on_progress)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return self._remove_video_manual(input_path, output_path, bg_plate_path, on_progress)
 
@@ -420,7 +420,7 @@ class BackgroundRemover:
         )
 
 
-# ── Quick API ─────────────────────────────────────────────────────────────────
+# â”€â”€ Quick API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def remove_background(
     input_path: str,
@@ -459,6 +459,6 @@ if __name__ == "__main__":
         import rembg  # type: ignore
         print("rembg available (will be used as primary backend)")
     except ImportError:
-        print("rembg NOT installed (pip install rembg) — will use manual ONNX")
+        print("rembg NOT installed (pip install rembg) â€” will use manual ONNX")
 
     print("OK background_remover.py")

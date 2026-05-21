@@ -143,7 +143,7 @@ def _get_key_from_password(
     Returns:
         The generated key.
     """
-    logger.debug(
+    logger.warning(
         f"Generating DB encryption key with {kdf_iterations} iterations..."
     )
 
@@ -162,7 +162,7 @@ def _get_key_from_password(
             f"({kdf_iterations} iterations)"
         )
     else:
-        logger.debug(
+        logger.warning(
             f"PBKDF2 key derivation took {elapsed_ms:.0f}ms "
             f"({kdf_iterations} iterations)"
         )
@@ -374,7 +374,7 @@ def apply_cipher_defaults_before_key(
     """
     settings = get_sqlcipher_settings()
 
-    logger.debug(
+    logger.warning(
         f"Applying cipher_default_* pragmas for new DB: settings={settings}"
     )
 
@@ -428,7 +428,7 @@ def apply_sqlcipher_pragmas(
     # cipher_memory_security is a runtime PRAGMA. ON zeroes SQLCipher buffers
     # and calls mlock() to prevent swap; OFF skips this. Defaulting to OFF
     # because the password already sits unprotected in Flask session, db_manager,
-    # and thread-local storage — mlock on SQLCipher's buffers alone doesn't help.
+    # and thread-local storage â€” mlock on SQLCipher's buffers alone doesn't help.
     # Users can opt in with LDR_DB_CONFIG_CIPHER_MEMORY_SECURITY=ON + IPC_LOCK.
     # Applied on every connection (not just creation) so env var overrides work.
     mem_security = get_env_setting("db_config.cipher_memory_security", "OFF")
@@ -450,7 +450,7 @@ def apply_performance_pragmas(cursor_or_conn: Any) -> None:
     cursor_or_conn.execute("PRAGMA temp_store = MEMORY")
     cursor_or_conn.execute("PRAGMA busy_timeout = 10000")  # 10 second timeout
 
-    # SQLite defaults foreign_keys to OFF — without this every
+    # SQLite defaults foreign_keys to OFF â€” without this every
     # ondelete="CASCADE"/"SET NULL" declared on an FK is inert,
     # including for raw-SQL DELETEs issued by Query.delete().
     cursor_or_conn.execute("PRAGMA foreign_keys = ON")
@@ -520,7 +520,7 @@ def get_sqlcipher_version(cursor_or_conn: Any) -> Optional[str]:
         result = cursor_or_conn.fetchone()
         return result[0] if result else None
     except Exception:
-        logger.debug("Could not query SQLCipher version", exc_info=True)
+        logger.warning("Could not query SQLCipher version", exc_info=True)
         return None
 
 
@@ -579,7 +579,7 @@ def create_sqlcipher_connection(
         elif password:
             set_sqlcipher_key(cursor, password, db_path=db_path)
         else:
-            raise ValueError("Either password or hex_key must be provided")  # noqa: TRY301 — except does connection cleanup before re-raise
+            raise ValueError("Either password or hex_key must be provided")  # noqa: TRY301 â€” except does connection cleanup before re-raise
 
         # Apply post-key pragmas (cipher_* for existing, kdf_iter for both)
         apply_sqlcipher_pragmas(cursor, creation_mode=creation_mode)
@@ -589,7 +589,7 @@ def create_sqlcipher_connection(
 
         # Verify connection works
         if not verify_sqlcipher_connection(cursor):
-            raise ValueError(  # noqa: TRY301 — except does connection cleanup before re-raise
+            raise ValueError(  # noqa: TRY301 â€” except does connection cleanup before re-raise
                 "Failed to establish encrypted database connection"
             )
 
@@ -602,5 +602,5 @@ def create_sqlcipher_connection(
         raise
 
 
-# Backwards compatibility alias — old name still importable
+# Backwards compatibility alias â€” old name still importable
 apply_cipher_settings_before_key = apply_cipher_defaults_before_key

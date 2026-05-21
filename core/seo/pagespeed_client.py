@@ -1,8 +1,8 @@
 """
-VECTOR PageSpeed Client — Core Web Vitals and performance analysis.
+VECTOR PageSpeed Client â€” Core Web Vitals and performance analysis.
 
 Calls Google PageSpeed Insights API to get LCP, CLS, FID, performance scores
-and optimization opportunities. No gcloud needed — uses PSI API key or free tier.
+and optimization opportunities. No gcloud needed â€” uses PSI API key or free tier.
 
 Usage:
     client = PageSpeedClient()
@@ -42,7 +42,7 @@ def _load_api_key() -> str | None:
                         if val:
                             return val
         except OSError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     return None
 
 
@@ -78,7 +78,7 @@ def _score_indicator(score: int | None) -> str:
 def _extract_crux(psi_data: dict) -> dict:
     """
     Extract CrUX (Chrome User Experience Report) data from PSI response.
-    Ported from show_pagespeed.py — parses the loadingExperience key.
+    Ported from show_pagespeed.py â€” parses the loadingExperience key.
 
     CrUX = real user measurements from actual Chrome users in the field.
     This is DIFFERENT from Lighthouse synthetic scores (which run in a lab).
@@ -171,7 +171,7 @@ class PageSpeedClient:
     def __init__(self) -> None:
         self._api_key = _load_api_key()
         if not self._api_key:
-            logger.debug("[VECTOR][pagespeed] no API key — using free tier (rate limited)")
+            logger.debug("[VECTOR][pagespeed] no API key â€” using free tier (rate limited)")
 
     def analyze_url(self, url: str) -> dict:
         """
@@ -235,4 +235,4 @@ class PageSpeedClient:
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     client = PageSpeedClient()
-    print(f"OK pagespeed_client.py — PageSpeedClient ready (api_key={'set' if client._api_key else 'free tier'})")
+    print(f"OK pagespeed_client.py â€” PageSpeedClient ready (api_key={'set' if client._api_key else 'free tier'})")

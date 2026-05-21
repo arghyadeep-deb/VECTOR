@@ -169,7 +169,7 @@ class NarratorManager:
         try:
             self._listeners.remove(listener)
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     async def close(self) -> None:
         self.cancel()

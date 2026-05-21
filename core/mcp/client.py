@@ -1,5 +1,5 @@
 """
-VECTOR MCP Client — Outbound MCP Consumer
+VECTOR MCP Client â€” Outbound MCP Consumer
 Python port of UI-TARS-desktop/packages/agent-infra/mcp-client/src/index.ts
 
 Allows VECTOR to CONNECT TO and USE external MCP servers.
@@ -9,8 +9,8 @@ Claude Desktop). This is the opposite: an MCP CLIENT that lets VECTOR consume
 tools from OTHER MCP servers (Claude Desktop plugins, community servers, etc.)
 
 Transports:
-  stdio — launch a local MCP server process (e.g. npx @modelcontextprotocol/server-filesystem)
-  http  — connect to a remote MCP server via HTTP/SSE
+  stdio â€” launch a local MCP server process (e.g. npx @modelcontextprotocol/server-filesystem)
+  http  â€” connect to a remote MCP server via HTTP/SSE
 
 Usage:
     client = MCPClient([
@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
-# ── MCP JSON-RPC protocol helpers ─────────────────────────────────────────────
+# â”€â”€ MCP JSON-RPC protocol helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_request(method: str, params: dict | None = None, req_id: int = 1) -> str:
     msg: dict = {"jsonrpc": "2.0", "id": req_id, "method": method}
@@ -52,7 +52,7 @@ def _parse_response(line: str) -> dict:
     return json.loads(line.strip())
 
 
-# ── Stdio transport ───────────────────────────────────────────────────────────
+# â”€â”€ Stdio transport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class StdioTransport:
     """Launches a local MCP server subprocess and communicates over stdin/stdout."""
@@ -68,7 +68,7 @@ class StdioTransport:
 
     def connect(self) -> None:
         cmd = self._cmd
-        # Windows: npx → npx.cmd
+        # Windows: npx â†’ npx.cmd
         if sys.platform == "win32" and self._cmd in ("npx", "node"):
             cmd = self._cmd + (".cmd" if self._cmd == "npx" else ".exe")
         self._proc = subprocess.Popen(
@@ -109,7 +109,7 @@ class StdioTransport:
             raise TimeoutError(f"MCP server did not respond to {method}")
 
 
-# ── HTTP transport ────────────────────────────────────────────────────────────
+# â”€â”€ HTTP transport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class HttpTransport:
     """Connects to a remote MCP server over HTTP."""
@@ -120,7 +120,7 @@ class HttpTransport:
         self._req_id  = 0
 
     def connect(self) -> None:
-        logger.debug("[VECTOR][mcp_client] http transport → {}", self._url)
+        logger.debug("[VECTOR][mcp_client] http transport â†’ {}", self._url)
 
     def disconnect(self) -> None:
         pass
@@ -139,11 +139,11 @@ class HttpTransport:
             return json.loads(resp.read().decode())
 
 
-# ── MCP Client ────────────────────────────────────────────────────────────────
+# â”€â”€ MCP Client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class MCPClient:
     """
-    VECTOR's outbound MCP client — connects to external MCP servers and calls their tools.
+    VECTOR's outbound MCP client â€” connects to external MCP servers and calls their tools.
 
     Server config dicts:
       Stdio: {"name": str, "transport": "stdio", "command": str, "args": list,
@@ -161,7 +161,7 @@ class MCPClient:
         self._debug     = debug
         self._timeout   = default_timeout
         self._transports: dict[str, StdioTransport | HttpTransport] = {}
-        self._tools_cache: dict[str, list[dict]] = {}  # server_name → tools
+        self._tools_cache: dict[str, list[dict]] = {}  # server_name â†’ tools
         self._connected  = False
 
     async def connect(self) -> None:
@@ -208,7 +208,7 @@ class MCPClient:
                 await loop.run_in_executor(None, transport.disconnect)
                 logger.debug("[VECTOR][mcp_client] disconnected from {}", name)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._transports.clear()
         self._tools_cache.clear()
         self._connected = False
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     async def _smoke():
-        # Init with no servers — should not crash
+        # Init with no servers â€” should not crash
         client = MCPClient(servers=[], debug=True)
         assert not client._connected
         await client.connect()
@@ -298,7 +298,7 @@ if __name__ == "__main__":
         tools = await client.list_tools()
         assert isinstance(tools, list)
         await client.disconnect()
-        print("OK mcp/client.py — MCPClient init, connect/disconnect, list_tools OK")
+        print("OK mcp/client.py â€” MCPClient init, connect/disconnect, list_tools OK")
         print(f"  transports={len(client._transports)} tools={len(tools)}")
         print(f"  Use: MCPClient([{{name: 'fs', transport: 'stdio', command: 'npx', args: [...]}}])")
 

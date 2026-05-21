@@ -16,7 +16,7 @@ class GoogleProvider(OpenAICompatibleProvider):
     provider_name = "Google Gemini"
     api_key_setting = "llm.google.api_key"
     default_base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
-    default_model = ""  # User must explicitly pick a model — no silent fallback
+    default_model = ""  # User must explicitly pick a model â€” no silent fallback
 
     # Metadata for auto-discovery
     provider_key = "GOOGLE"
@@ -44,7 +44,7 @@ class GoogleProvider(OpenAICompatibleProvider):
         so we use the native Gemini API endpoint instead.
         """
         if not api_key:
-            logger.debug("Google Gemini requires API key for listing models")
+            logger.warning("Google Gemini requires API key for listing models")
             return []
 
         try:

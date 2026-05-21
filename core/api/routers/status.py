@@ -1,4 +1,4 @@
-"""Status router — /status, /health."""
+"""Status router â€” /status, /health."""
 
 import sys
 import time
@@ -58,7 +58,7 @@ async def status_endpoint():
         if reflect_events:
             last_reflect = reflect_events[0].get("timestamp")
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
 
     _loop_running = False
     try:
@@ -66,7 +66,7 @@ async def status_endpoint():
         _loop = AutonomousLoop()
         _loop_running = getattr(_loop, "_running", False)
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
 
     # Surface TTS engine so UI can warn about Kokoro missing
     try:
@@ -124,7 +124,7 @@ async def system_metrics():
                 gpu_mem_percent = round(float(parts[1]) / float(parts[2]) * 100, 1) if float(parts[2]) > 0 else 0
                 gpu_temp_c = float(parts[3])
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
 
     return {
         "cpu_percent": cpu,
@@ -211,7 +211,7 @@ async def _check_ollama_models() -> dict:
 async def daily_info():
     """
     Daily briefing: weather, location, date, day summary.
-    Uses free public APIs — no auth required.
+    Uses free public APIs â€” no auth required.
     """
     import datetime as _dt
 
@@ -291,4 +291,4 @@ async def daily_info():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ status.py OK")
+    print("âœ… status.py OK")

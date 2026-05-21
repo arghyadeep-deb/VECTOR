@@ -250,7 +250,7 @@ class Spider(ABC):
             try:
                 signal.signal(signal.SIGINT, self._original_sigint_handler)
             except ValueError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     async def __run(self) -> CrawlResult:
         token = set_logger(self.logger)

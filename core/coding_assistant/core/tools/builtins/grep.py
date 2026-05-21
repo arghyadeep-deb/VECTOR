@@ -219,7 +219,7 @@ class Grep(
                 if line and not line.startswith("#"):
                     patterns.append(line)
         except OSError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return patterns
 

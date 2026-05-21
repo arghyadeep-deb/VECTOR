@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
                 try:
                     await nudge_engine.tick()
                 except Exception as e:
-                    logger.debug(f"[VECTOR][nudge] tick error: {e}")
+                    logger.warning(f"[VECTOR][nudge] tick error: {e}")
 
         nudge_task = asyncio.create_task(_nudge_cron())
         logger.info("[VECTOR][api] Nudge engine cron started (30s interval)")
@@ -113,8 +113,8 @@ async def lifespan(app: FastAPI):
         if obj and hasattr(obj, "conn"):
             try:
                 obj.conn.close()
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception as _conn_err:
+                logger.debug("[VECTOR][api] conn close failed: {}", _conn_err)
 
 
 def create_app() -> FastAPI:

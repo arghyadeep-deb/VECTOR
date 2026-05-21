@@ -157,7 +157,7 @@ class HarnessFilesManager:
                 if stripped:
                     docs.append((current, stripped))
             except (FileNotFoundError, OSError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             if current == stop:
                 break
             parent = current.parent
@@ -220,7 +220,7 @@ def init_harness_files_manager(*sources: FileSource) -> None:
 def get_harness_files_manager() -> HarnessFilesManager:
     if _manager is None:
         raise RuntimeError(
-            "HarnessFilesManager not initialized — call init_harness_files_manager() first"
+            "HarnessFilesManager not initialized â€” call init_harness_files_manager() first"
         )
     return _manager
 

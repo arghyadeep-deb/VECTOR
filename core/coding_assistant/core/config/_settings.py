@@ -11,17 +11,17 @@ from typing import Annotated, Any, Literal, get_args
 from urllib.parse import urljoin
 
 from dotenv import dotenv_values
-# [VECTOR] mistral SDK removed — stub SpeechOutputFormat as StrEnum (Pydantic-compatible)
+# [VECTOR] mistral SDK removed â€” stub SpeechOutputFormat as StrEnum (Pydantic-compatible)
 try:
     from mistralai.client.models import SpeechOutputFormat
 except ImportError:
     from enum import StrEnum as _StrEnum
     class SpeechOutputFormat(_StrEnum):  # type: ignore[no-redef]
-        """Stub — mistralai SDK not installed; VECTOR uses local Kokoro TTS."""
+        """Stub â€” mistralai SDK not installed; VECTOR uses local Kokoro TTS."""
         MP3 = "mp3"
         PCM = "pcm"
 
-# [VECTOR] OpenTelemetry exporter removed — stub constant
+# [VECTOR] OpenTelemetry exporter removed â€” stub constant
 DEFAULT_TRACES_EXPORT_PATH = "/v1/traces"
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.fields import FieldInfo
@@ -721,7 +721,7 @@ class VectorCAConfig(BaseSettings):
         try:
             return SystemPrompt[self.system_prompt_id.upper()].read()
         except KeyError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         raise MissingPromptFileError(
             self.system_prompt_id, *(str(d) for d in prompt_dirs)
@@ -746,7 +746,7 @@ class VectorCAConfig(BaseSettings):
             if active_provider.backend == Backend.MISTRAL:
                 return active_provider
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return next((p for p in self.providers if p.backend == Backend.MISTRAL), None)
 
     def get_provider_for_model(self, model: ModelConfig) -> ProviderConfig:
@@ -861,7 +861,7 @@ class VectorCAConfig(BaseSettings):
             if api_key_env and not os.getenv(api_key_env):
                 raise MissingAPIKeyError(api_key_env, provider.name)
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self
 
     @field_validator("tool_paths", mode="before")

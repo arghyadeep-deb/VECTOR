@@ -50,7 +50,7 @@ class SessionPasswordStore(CredentialStoreBase):
         self._store_credentials(
             key, {"username": username, "password": password}
         )
-        logger.debug(f"Stored session password for {username}")
+        logger.warning(f"Stored session password for {username}")
 
     def get_session_password(
         self, username: str, session_id: str
@@ -79,7 +79,7 @@ class SessionPasswordStore(CredentialStoreBase):
         """
         key = (username, session_id)
         self.clear_entry(key)
-        logger.debug(f"Cleared session password for {username}")
+        logger.warning(f"Cleared session password for {username}")
 
     def clear_all_for_user(self, username: str) -> None:
         """Remove all stored passwords for a user (idle connection cleanup)."""

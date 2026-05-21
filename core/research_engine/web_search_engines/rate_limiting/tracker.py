@@ -144,7 +144,7 @@ class AdaptiveRateLimitTracker:
         """Load estimates from database into memory."""
         # Skip database operations in programmatic mode
         if self.programmatic_mode:
-            logger.debug(
+            logger.warning(
                 "Skipping rate limit estimate loading in programmatic mode"
             )
             self._estimates_loaded = (
@@ -155,7 +155,7 @@ class AdaptiveRateLimitTracker:
         # During initialization, we don't have user context yet
         # Mark that we need to load estimates when user context becomes available
         self._estimates_loaded = False
-        logger.debug(
+        logger.warning(
             "Rate limit estimates will be loaded on-demand when user context is available"
         )
 
@@ -216,7 +216,7 @@ class AdaptiveRateLimitTracker:
                                 "confidence": decay,
                             }
 
-                        logger.debug(
+                        logger.warning(
                             f"Loaded estimate for {estimate.engine_type}: base={estimate.base_wait_seconds:.2f}s, confidence={decay:.2f}"
                         )
 
@@ -285,7 +285,7 @@ class AdaptiveRateLimitTracker:
         if random.random() < self.exploration_rate:
             # Explore: try a faster rate to see if API limits have relaxed
             wait_time = base_wait * random.uniform(0.5, 0.9)
-            logger.debug(
+            logger.warning(
                 f"Exploring faster rate for {engine_type}: {wait_time:.2f}s"
             )
         else:
@@ -315,7 +315,7 @@ class AdaptiveRateLimitTracker:
 
         wait_time = self.get_wait_time(engine_type)
         if wait_time > 0:
-            logger.debug(
+            logger.warning(
                 f"{engine_type} waiting {wait_time:.2f}s before request"
             )
             time.sleep(wait_time)
@@ -348,7 +348,7 @@ class AdaptiveRateLimitTracker:
             )
             return
 
-        logger.debug(
+        logger.warning(
             f"Recording rate limit outcome for {engine_type}: success={success}, wait_time={wait_time}s"
         )
         timestamp = time.time()
@@ -462,7 +462,7 @@ class AdaptiveRateLimitTracker:
 
         # Skip database operations in programmatic mode
         if self.programmatic_mode:
-            logger.debug(
+            logger.warning(
                 f"Skipping estimate persistence in programmatic mode for {engine_type}"
             )
         else:
@@ -519,7 +519,7 @@ class AdaptiveRateLimitTracker:
                 except Exception:
                     logger.exception("Failed to persist rate limit estimate")
             else:
-                logger.debug(
+                logger.warning(
                     "Skipping rate limit estimate save - no user context"
                 )
 
@@ -571,7 +571,7 @@ class AdaptiveRateLimitTracker:
         """
         # Skip database operations in CI mode
         if is_ci_environment():
-            logger.debug("Skipping database stats in CI mode")
+            logger.warning("Skipping database stats in CI mode")
             return self._get_in_memory_stats(engine_type)
 
         # Skip database operations in programmatic mode
@@ -643,14 +643,14 @@ class AdaptiveRateLimitTracker:
 
         # Skip database operations in programmatic mode
         if self.programmatic_mode:
-            logger.debug(
+            logger.warning(
                 f"Reset rate limit data for {engine_type} (memory only in programmatic mode)"
             )
             return
 
         # Skip database operations in CI mode
         if is_ci_environment():
-            logger.debug(
+            logger.warning(
                 f"Reset rate limit data for {engine_type} (memory only in CI mode)"
             )
             return
@@ -658,7 +658,7 @@ class AdaptiveRateLimitTracker:
         try:
             context = get_search_context()
             if not context:
-                logger.debug(
+                logger.warning(
                     f"Reset rate limit data for {engine_type} (memory only - no user context)"
                 )
                 return
@@ -666,7 +666,7 @@ class AdaptiveRateLimitTracker:
             username = context.get("username")
             password = context.get("user_password")
             if not username or not password:
-                logger.debug(
+                logger.warning(
                     f"Reset rate limit data for {engine_type} (memory only - no credentials)"
                 )
                 return
@@ -777,24 +777,24 @@ class AdaptiveRateLimitTracker:
 
         # Skip database operations in programmatic mode
         if self.programmatic_mode:
-            logger.debug("Skipping database cleanup in programmatic mode")
+            logger.warning("Skipping database cleanup in programmatic mode")
             return
 
         # Skip database operations in CI mode
         if is_ci_environment():
-            logger.debug("Skipping database cleanup in CI mode")
+            logger.warning("Skipping database cleanup in CI mode")
             return
 
         try:
             context = get_search_context()
             if not context:
-                logger.debug("Skipping database cleanup - no user context")
+                logger.warning("Skipping database cleanup - no user context")
                 return
 
             username = context.get("username")
             password = context.get("user_password")
             if not username or not password:
-                logger.debug("Skipping database cleanup - no credentials")
+                logger.warning("Skipping database cleanup - no credentials")
                 return
 
             db_imports = _get_db_imports()

@@ -98,7 +98,7 @@ class SearchSubscription(BaseSubscription):
         else:
             news_query = updated_query
 
-        logger.debug(f"Generated news query: {news_query}")
+        logger.warning(f"Generated news query: {news_query}")
         return news_query
 
     def _transform_to_news_query(self, query: str) -> str:

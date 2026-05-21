@@ -89,7 +89,7 @@ def thread_context() -> AppContext | None:
     except (TypeError, RuntimeError):
         # Context is not initialized (TypeError) or no request/app context
         # is active (RuntimeError). Don't change anything.
-        logger.debug(
+        logger.warning(
             "No active request context, skipping Flask g copy for child thread"
         )
 
@@ -97,7 +97,7 @@ def thread_context() -> AppContext | None:
         context = current_app.app_context()
     except RuntimeError:
         # Context is not initialized.
-        logger.debug("No current app context, not passing to thread.")
+        logger.warning("No current app context, not passing to thread.")
         return None
 
     with context:

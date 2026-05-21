@@ -168,7 +168,7 @@ class SearchReplace(
                 if self.config.create_backup:
                     await self._backup_file(file_path)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             await self._write_file(file_path, modified_content, decoded.encoding)
 
@@ -331,7 +331,7 @@ class SearchReplace(
 
         return (
             f"Closest fuzzy match (similarity {similarity_pct:.1f}%) "
-            f"at lines {best_match.start_line}–{best_match.end_line}:\n"
+            f"at lines {best_match.start_line}â€“{best_match.end_line}:\n"
             f"```diff\n{diff}\n```"
         )
 

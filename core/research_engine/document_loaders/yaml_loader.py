@@ -61,7 +61,7 @@ class YAMLLoader(BaseLoader):
 
             # Skip empty YAML documents
             if data is None:
-                logger.debug(f"Skipping empty YAML document: {self.file_path}")
+                logger.warning(f"Skipping empty YAML document: {self.file_path}")
                 return
 
             # Convert back to formatted YAML for readability

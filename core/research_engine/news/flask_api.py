@@ -23,7 +23,7 @@ from ..security.decorators import require_json_body
 def scheduler_control_required(f):
     """Decorator that gates global scheduler control behind a setting.
 
-    The news scheduler is a global singleton — starting, stopping, or
+    The news scheduler is a global singleton â€” starting, stopping, or
     triggering it affects all users.  This decorator checks the
     ``news.scheduler.allow_api_control`` setting (env var
     ``LDR_NEWS_SCHEDULER_ALLOW_API_CONTROL``, default ``false``) and
@@ -417,7 +417,7 @@ def get_current_user_subscriptions() -> Any:
 
         # Ensure we have a database session for the user
         # This will trigger register_activity
-        logger.debug(f"Getting news feed for user {user_id}")
+        logger.warning(f"Getting news feed for user {user_id}")
 
         # Use the API function
         result = api.get_subscriptions(user_id)

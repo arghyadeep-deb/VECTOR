@@ -218,7 +218,7 @@ class AudioMixer:
         return output_path
 
 
-# ── TTS narration pipeline ────────────────────────────────────────────────────
+# â”€â”€ TTS narration pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class NarrationPipeline:
     """
@@ -288,7 +288,7 @@ if __name__ == "__main__":
             assert result.duration_seconds == 1.0
             print(f"Silence generated: {os.path.getsize(tmp)} bytes")
         else:
-            print("FFmpeg not installed — skipping audio test")
+            print("FFmpeg not installed â€” skipping audio test")
     finally:
         try: os.unlink(tmp)
         except: pass

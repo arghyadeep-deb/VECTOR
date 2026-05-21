@@ -1,8 +1,8 @@
 """
-VECTOR Sentry Bridge — error tracking and performance monitoring.
+VECTOR Sentry Bridge â€” error tracking and performance monitoring.
 
 Verdict vs VECTOR's loguru:
-- loguru: local structured logs (KEEP — excellent for dev)
+- loguru: local structured logs (KEEP â€” excellent for dev)
 - Sentry: cloud error aggregation, alerting, performance tracing (ADD for production)
 
 Both coexist. Loguru handles local debug. Sentry handles cloud alerts.
@@ -24,7 +24,7 @@ _SENTRY_RELEASE = os.getenv("VECTOR_BUILD_SHA", "dev")
 
 class VectorSentry:
     """
-    Sentry integration for VECTOR — cloud-mode error tracking.
+    Sentry integration for VECTOR â€” cloud-mode error tracking.
 
     Local mode (no DSN): logs to loguru only.
     Cloud mode (DSN set): sends errors + performance data to Sentry.
@@ -88,8 +88,7 @@ class VectorSentry:
                     event_id = sentry_sdk.capture_exception(error)
                     logger.error("[VECTOR][sentry] captured: {} (id={})", type(error).__name__, event_id)
                     return event_id
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][sentry] sentry_bridge exception (suppressed)")
         logger.error("[VECTOR][sentry][local] {}: {}", type(error).__name__, error)
         return None
 
@@ -103,8 +102,7 @@ class VectorSentry:
                         for k, v in context.items():
                             scope.set_extra(k, v)
                     sentry_sdk.capture_message(message, level=level)
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][sentry] sentry_bridge exception (suppressed)")
         logger.log(level.upper(), "[VECTOR][sentry][local] {}", message)
 
     def set_user(self, user_id: str, username: str = "arghyadeep") -> None:
@@ -113,16 +111,14 @@ class VectorSentry:
             try:
                 import sentry_sdk
                 sentry_sdk.set_user({"id": user_id, "username": username})
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][sentry] sentry_bridge exception (suppressed)")
 
     def set_tag(self, key: str, value: str) -> None:
         if self._active:
             try:
                 import sentry_sdk
                 sentry_sdk.set_tag(key, value)
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][sentry] sentry_bridge exception (suppressed)")
 
     @property
     def is_active(self) -> bool:
@@ -147,4 +143,4 @@ if __name__ == "__main__":
         raise ValueError("test error")
     except ValueError as e:
         s.capture_exception(e)
-    print(f"OK sentry_bridge.py — active: {s.is_active} (set SENTRY_DSN to activate)")
+    print(f"OK sentry_bridge.py â€” active: {s.is_active} (set SENTRY_DSN to activate)")

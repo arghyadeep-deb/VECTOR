@@ -1,5 +1,5 @@
 """
-VECTOR Tool Dispatcher — three pluggable tool-call formats.
+VECTOR Tool Dispatcher â€” three pluggable tool-call formats.
 
 Ported from vector's agent/dispatcher.rs.
 
@@ -68,7 +68,7 @@ class ToolExecutionResult:
                 "name": self.name, "content": content}
 
 
-# ── Base dispatcher ────────────────────────────────────────────────────────────
+# â”€â”€ Base dispatcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ToolDispatcher(ABC):
     """Parse tool calls from LLM responses and format results back."""
@@ -90,7 +90,7 @@ class ToolDispatcher(ABC):
         return False
 
 
-# ── Native dispatcher (OpenAI/Anthropic structured tool_calls) ─────────────────
+# â”€â”€ Native dispatcher (OpenAI/Anthropic structured tool_calls) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class NativeDispatcher(ToolDispatcher):
     """
@@ -137,7 +137,7 @@ class NativeDispatcher(ToolDispatcher):
         return {"role": "tool", "content": json.dumps([r.to_dict() for r in results])}
 
 
-# ── XML dispatcher (<tool_call> tags) ─────────────────────────────────────────
+# â”€â”€ XML dispatcher (<tool_call> tags) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _XML_PATTERN = re.compile(
     r"<tool_call>\s*(.*?)\s*</tool_call>",
@@ -184,7 +184,7 @@ class XmlDispatcher(ToolDispatcher):
                     calls.append(ParsedToolCall(name=name, arguments=args))
                     clean = clean.replace(m.group(0), "").strip()
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return clean, calls
 
@@ -207,7 +207,7 @@ class XmlDispatcher(ToolDispatcher):
         )
 
 
-# ── P-Format dispatcher (compact inline syntax) ────────────────────────────────
+# â”€â”€ P-Format dispatcher (compact inline syntax) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _PFORMAT_PATTERN = re.compile(r"(\w[\w_]*)\[([^\]]*)\]")
 
@@ -265,11 +265,11 @@ class PFormatDispatcher(ToolDispatcher):
         lines = ["Available tools (format: tool_name[arg1|arg2|...]):"]
         for spec in tool_specs:
             params = list(spec.get("parameters", {}).get("properties", {}).keys())
-            lines.append(f"  {spec['name']}[{'|'.join(params)}] — {spec.get('description','')[:60]}")
+            lines.append(f"  {spec['name']}[{'|'.join(params)}] â€” {spec.get('description','')[:60]}")
         return "\n" + "\n".join(lines)
 
 
-# ── Factory ────────────────────────────────────────────────────────────────────
+# â”€â”€ Factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def make_dispatcher(format_name: str = "native", **kwargs) -> ToolDispatcher:
     """Create a dispatcher by name: 'native' | 'xml' | 'pformat'."""
@@ -283,7 +283,7 @@ def make_dispatcher(format_name: str = "native", **kwargs) -> ToolDispatcher:
 
 
 if __name__ == "__main__":
-    # Native — no structured calls, falls back to XML
+    # Native â€” no structured calls, falls back to XML
     nd = NativeDispatcher()
     text = 'Let me help. <tool_call>{"name": "read_file", "arguments": {"path": "x.py"}}</tool_call>'
     clean, calls = nd.parse_response(text)
@@ -305,4 +305,4 @@ if __name__ == "__main__":
     msg = xd.format_results([result])
     assert "bash" in msg["content"]
 
-    print("OK dispatcher.py — Native/XML/PFormat all verified")
+    print("OK dispatcher.py â€” Native/XML/PFormat all verified")

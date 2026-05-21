@@ -180,7 +180,7 @@ class ExaSearchEngine(BaseSearchEngine):
                         parsed_url = urlparse(link)
                         display_link = parsed_url.netloc or ""
                     except Exception:
-                        logger.debug(
+                        logger.warning(
                             f"Failed to parse URL for display: {link[:50]}"
                         )
 

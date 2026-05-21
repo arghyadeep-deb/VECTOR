@@ -97,7 +97,7 @@ class Skill(
                     if len(files) >= _MAX_LISTED_FILES:
                         break
             except OSError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         file_lines = "\n".join(f"<file>{f}</file>" for f in files)
         base_dir_lines: list[str] = []

@@ -194,7 +194,7 @@ class BrowseCompEntityStrategy(BaseSearchStrategy):
     ) -> Tuple[str, Dict]:
         """Execute entity-focused search strategy."""
         try:
-            logger.info(f"🎯 Starting BrowseComp Entity Search for: {query}")
+            logger.info(f"ðŸŽ¯ Starting BrowseComp Entity Search for: {query}")
 
             # Phase 1: Constraint and entity analysis
             if progress_callback:
@@ -271,7 +271,7 @@ class BrowseCompEntityStrategy(BaseSearchStrategy):
                     best_candidate = evaluated[0]
                     if best_candidate.confidence > 0.8:
                         logger.info(
-                            f"✅ Found high-confidence match: {best_candidate.name} ({best_candidate.confidence:.2%})"
+                            f"âœ… Found high-confidence match: {best_candidate.name} ({best_candidate.confidence:.2%})"
                         )
                         break
 
@@ -808,7 +808,7 @@ Format: SCORE: X.X | REASON: explanation"""
         # Check cache first
         cached_results = cache.get(query, "browsecomp_entity")
         if cached_results is not None:
-            logger.debug(f"Using cached search results for: {query[:50]}...")
+            logger.warning(f"Using cached search results for: {query[:50]}...")
             return cached_results
 
         # Perform actual search
@@ -842,10 +842,10 @@ Format: SCORE: X.X | REASON: explanation"""
                     oldest_key = next(iter(self.knowledge_graph.search_cache))
                     del self.knowledge_graph.search_cache[oldest_key]
                 except (StopIteration, KeyError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
             self.knowledge_graph.search_cache[query] = normalized_results
 
-            logger.debug(f"Cached new search results for: {query[:50]}...")
+            logger.warning(f"Cached new search results for: {query[:50]}...")
             return normalized_results
 
         except Exception:
@@ -922,10 +922,10 @@ Provide a helpful response explaining what was found and why no definitive answe
         import asyncio
 
         try:
-            # Run async search — detect whether we're inside an event loop
+            # Run async search â€” detect whether we're inside an event loop
             try:
                 asyncio.get_running_loop()
-                # Inside a running loop — run in a thread to avoid nesting
+                # Inside a running loop â€” run in a thread to avoid nesting
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -938,7 +938,7 @@ Provide a helpful response explaining what was found and why no definitive answe
                     )
                     return future.result()
             except RuntimeError:
-                # No running event loop — safe to use asyncio.run() directly
+                # No running event loop â€” safe to use asyncio.run() directly
                 return asyncio.run(self._analyze_topic_async(query))
 
         except Exception as e:

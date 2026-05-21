@@ -179,7 +179,7 @@ class PubMedDownloader(BaseDownloader):
                             skip_reason=f"Article PMID:{pmid} not found in Europe PMC database"
                         )
             except Exception as e:
-                logger.debug(f"Error checking article status: {e}")
+                logger.warning(f"Error checking article status: {e}")
 
             # Try to find PMC ID via NCBI
             pmc_id = self._get_pmc_id_from_pmid(pmid)
@@ -301,7 +301,7 @@ class PubMedDownloader(BaseDownloader):
                                 return text
 
         except Exception as e:
-            logger.debug(f"Failed to fetch text from Europe PMC: {e}")
+            logger.warning(f"Failed to fetch text from Europe PMC: {e}")
 
         return None
 
@@ -312,7 +312,7 @@ class PubMedDownloader(BaseDownloader):
 
         if time_since_last < self.rate_limit_delay:
             sleep_time = self.rate_limit_delay - time_since_last
-            logger.debug(f"Rate limiting: sleeping {sleep_time:.2f}s")
+            logger.warning(f"Rate limiting: sleeping {sleep_time:.2f}s")
             time.sleep(sleep_time)
 
         self.last_request_time = time.time()
@@ -404,7 +404,7 @@ class PubMedDownloader(BaseDownloader):
                             return self._download_via_europe_pmc(pmcid)
 
         except Exception as e:
-            logger.debug(f"Europe PMC API query failed: {e}")
+            logger.warning(f"Europe PMC API query failed: {e}")
 
         return None
 
@@ -437,7 +437,7 @@ class PubMedDownloader(BaseDownloader):
                             return f"PMC{pmc_id_num}"
 
         except Exception as e:
-            logger.debug(f"NCBI E-utilities lookup failed: {e}")
+            logger.warning(f"NCBI E-utilities lookup failed: {e}")
 
         # Fallback: Try scraping the PubMed page
         try:
@@ -451,7 +451,7 @@ class PubMedDownloader(BaseDownloader):
                     return pmc_match.group(0)
 
         except Exception as e:
-            logger.debug(f"PubMed page scraping failed: {e}")
+            logger.warning(f"PubMed page scraping failed: {e}")
 
         return None
 
@@ -460,7 +460,7 @@ class PubMedDownloader(BaseDownloader):
         # Europe PMC PDF URL
         pdf_url = f"https://europepmc.org/backend/ptpmcrender.fcgi?accid={pmc_id}&blobtype=pdf"
 
-        logger.debug(f"Trying Europe PMC: {pdf_url}")
+        logger.warning(f"Trying Europe PMC: {pdf_url}")
         pdf_content = self._download_pdf(pdf_url)
 
         if pdf_content:
@@ -477,7 +477,7 @@ class PubMedDownloader(BaseDownloader):
         ]
 
         for pdf_url in url_patterns:
-            logger.debug(f"Trying NCBI PMC: {pdf_url}")
+            logger.warning(f"Trying NCBI PMC: {pdf_url}")
 
             # Add referer header for NCBI
             headers = {

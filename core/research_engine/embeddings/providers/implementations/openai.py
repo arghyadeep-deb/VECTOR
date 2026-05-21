@@ -16,7 +16,7 @@ class OpenAIEmbeddingsProvider(BaseEmbeddingProvider):
     Targets the OpenAI cloud API by default, and any OpenAI-compatible
     endpoint (LM Studio, vLLM, llama.cpp server, etc.) when
     ``embeddings.openai.base_url`` is configured. An API key is required
-    for the cloud, but optional for keyless local servers — the
+    for the cloud, but optional for keyless local servers â€” the
     ``base_url``-set, ``api_key``-empty configuration falls back to a
     placeholder key so the OpenAI client request still goes out.
     """
@@ -84,7 +84,7 @@ class OpenAIEmbeddingsProvider(BaseEmbeddingProvider):
                 # OpenAI client requires the field to be non-empty.
                 logger.info(
                     "OpenAI embeddings: no API key set but base_url={} "
-                    "is configured — using placeholder key for the "
+                    "is configured â€” using placeholder key for the "
                     "OpenAI-compatible endpoint.",
                     base_url,
                 )
@@ -160,7 +160,7 @@ class OpenAIEmbeddingsProvider(BaseEmbeddingProvider):
             )
             return bool(base_url and str(base_url).strip())
         except Exception:
-            logger.debug(
+            logger.warning(
                 "Error checking OpenAI embedding availability", exc_info=True
             )
             return False
@@ -186,7 +186,7 @@ class OpenAIEmbeddingsProvider(BaseEmbeddingProvider):
 
             if not api_key:
                 if base_url:
-                    # Keyless OpenAI-compatible local server — use a
+                    # Keyless OpenAI-compatible local server â€” use a
                     # placeholder so the client request can proceed.
                     api_key = cls._PLACEHOLDER_API_KEY
                 else:

@@ -85,6 +85,6 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
             conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))
         conn.commit()
     except sqlite3.OperationalError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     finally:
         conn.close()

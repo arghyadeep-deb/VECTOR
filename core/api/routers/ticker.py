@@ -1,4 +1,4 @@
-"""VECTOR ticker router — feeds the dashboard's top stock strip and bottom news strip.
+"""VECTOR ticker router Ã¢â‚¬â€ feeds the dashboard's top stock strip and bottom news strip.
 
 Endpoints:
     GET /finance/ticker?symbols=AAPL,MSFT,SPY  -> latest quote per symbol
@@ -63,7 +63,7 @@ def _yfinance_quote(symbol: str) -> dict | None:
             "currency": (info.get("currency") or "USD"),
         }
     except Exception as e:
-        logger.debug(f"[VECTOR][ticker] yfinance {symbol} failed: {e}")
+        logger.warning(f"[VECTOR][ticker] yfinance {symbol} failed: {e}")
         return None
 
 
@@ -124,7 +124,7 @@ def _aggregator_headlines(limit: int) -> list[dict] | None:
     try:
         from districts.research.news_aggregator import NewsAggregator  # type: ignore
     except Exception as e:
-        logger.debug(f"[VECTOR][ticker] news_aggregator import failed: {e}")
+        logger.warning(f"[VECTOR][ticker] news_aggregator import failed: {e}")
         return None
     try:
         agg = NewsAggregator()
@@ -133,12 +133,12 @@ def _aggregator_headlines(limit: int) -> list[dict] | None:
             if hasattr(agg, fn):
                 items: Any = getattr(agg, fn)(limit) if callable(getattr(agg, fn)) else None
                 if asyncio.iscoroutine(items):
-                    return None  # async path — handled at call site
+                    return None  # async path Ã¢â‚¬â€ handled at call site
                 if isinstance(items, list):
                     return [_norm_headline(it) for it in items][:limit]
         return None
     except Exception as e:
-        logger.debug(f"[VECTOR][ticker] aggregator call failed: {e}")
+        logger.warning(f"[VECTOR][ticker] aggregator call failed: {e}")
         return None
 
 

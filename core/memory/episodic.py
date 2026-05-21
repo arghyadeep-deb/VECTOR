@@ -13,16 +13,16 @@ from contextlib import contextmanager
 try:
     import sqlcipher3 as sqlcipher  # sqlcipher3-binary package
     _USE_SQLCIPHER = True
-    logger.info("[VECTOR][memory] SQLCipher (sqlcipher3) available — AES-256 encryption enabled")
+    logger.info("[VECTOR][memory] SQLCipher (sqlcipher3) available â€” AES-256 encryption enabled")
 except ImportError:
     try:
         from pysqlcipher3 import dbapi2 as sqlcipher  # legacy package
         _USE_SQLCIPHER = True
-        logger.info("[VECTOR][memory] SQLCipher (pysqlcipher3) available — AES-256 encryption enabled")
+        logger.info("[VECTOR][memory] SQLCipher (pysqlcipher3) available â€” AES-256 encryption enabled")
     except ImportError:
         sqlcipher = None
         _USE_SQLCIPHER = False
-        logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite (install sqlcipher3-binary to encrypt)")
+        logger.warning("[VECTOR][memory] SQLCipher not available â€” using plain SQLite (install sqlcipher3-binary to encrypt)")
 
 _DB_KEY = None  # resolved lazily below
 
@@ -51,9 +51,9 @@ def _get_db_key() -> str:
         logger.info("[VECTOR][memory] Generated and stored new DB key in OS keyring")
         return _DB_KEY
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     # Priority 3: fallback for dev only (logged as warning)
-    logger.warning("[VECTOR][memory] No VECTOR_DB_KEY env var or keyring — using dev fallback. Set VECTOR_DB_KEY for production!")
+    logger.warning("[VECTOR][memory] No VECTOR_DB_KEY env var or keyring â€” using dev fallback. Set VECTOR_DB_KEY for production!")
     _DB_KEY = "vector_dev_fallback_change_me"
     return _DB_KEY
 
@@ -278,10 +278,10 @@ class EpisodicMemory:
                     "tags": tags_json, "context_snapshot": context_json,
                     "timestamp": timestamp, "source": source,
                 })
-            logger.warning("[VECTOR][episodic] circuit open — buffered event {}", event_id[:8])
+            logger.warning("[VECTOR][episodic] circuit open â€” buffered event {}", event_id[:8])
             return event_id
         except Exception as e:
-            logger.error(f"[VECTOR][episodic] store() failed — event lost: {e}")
+            logger.error(f"[VECTOR][episodic] store() failed â€” event lost: {e}")
             raise RuntimeError(f"Episodic store failed: {e}") from e
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
@@ -345,7 +345,7 @@ class EpisodicMemory:
                 })
             return result
         except CircuitBreakerOpenError:
-            logger.warning("[VECTOR][episodic] circuit open — recall returning empty")
+            logger.warning("[VECTOR][episodic] circuit open â€” recall returning empty")
             return []
         except Exception as e:
             logger.error(f"Recall failed: {e}")
@@ -511,4 +511,4 @@ if __name__ == '__main__':
     assert len(training) >= 1, 'training data failed'
     stats = mem.get_stats()
     mem.close()
-    print(f"✅ episodic.py OK — {stats}")
+    print(f"âœ… episodic.py OK â€” {stats}")

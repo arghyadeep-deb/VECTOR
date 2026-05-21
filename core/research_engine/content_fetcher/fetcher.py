@@ -188,7 +188,7 @@ class ContentFetcher:
         if not downloader:
             # Fall back to generic HTML downloader.  This triggers when a
             # specialized downloader (ArXiv, SemanticScholar, etc.) failed
-            # to import — playwright_html may still be available.
+            # to import â€” playwright_html may still be available.
             # Use _get_downloader so the instance is cached and cleaned up
             # by close().
             downloader = self._get_downloader(URLType.HTML)
@@ -209,9 +209,9 @@ class ContentFetcher:
 
             # HTML fallback: when a specialized downloader fails (e.g.
             # arXiv PDF unavailable, PubMed paywalled), try generic HTML
-            # extraction — the abstract/landing page often has useful content.
+            # extraction â€” the abstract/landing page often has useful content.
             if not result.is_success and url_type not in _NO_HTML_FALLBACK:
-                logger.debug(
+                logger.warning(
                     f"Specialized downloader failed for {url}, "
                     "trying HTML fallback"
                 )
@@ -226,7 +226,7 @@ class ContentFetcher:
                     downloader = html_downloader
 
             if result.is_success and result.content:
-                # Decode content — check PDF magic bytes first, then try
+                # Decode content â€” check PDF magic bytes first, then try
                 # UTF-8, and reject anything that is neither.
                 if result.content[:4] == b"%PDF":
                     from ..research_library.downloaders.base import (
@@ -266,7 +266,7 @@ class ContentFetcher:
                     try:
                         metadata = downloader.get_metadata(url)
                     except Exception:
-                        logger.debug(
+                        logger.warning(
                             "Failed to fetch metadata for {}",
                             url,
                             exc_info=True,
@@ -325,7 +325,7 @@ class ContentFetcher:
         across all HTML URLs.
 
         Returns:
-            Dict mapping URL → extracted text (or None if failed).
+            Dict mapping URL â†’ extracted text (or None if failed).
         """
         return {url: self.fetch_text(url) for url in urls}
 

@@ -74,7 +74,7 @@ class StealthBrowserClient:
     async def __aexit__(self, *_):
         await self.close()
 
-    # ── Health ────────────────────────────────────────────────────────────────
+    # â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def is_healthy(self) -> bool:
         try:
@@ -91,7 +91,7 @@ class StealthBrowserClient:
         from core.stealth_browser.server_manager import StealthBrowserServer
         return await StealthBrowserServer().ensure_running()
 
-    # ── Tab lifecycle ─────────────────────────────────────────────────────────
+    # â”€â”€ Tab lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def create_tab(
         self,
@@ -124,7 +124,7 @@ class StealthBrowserClient:
         r = await c.delete(f"{self._base}/sessions/{user_id}", headers=self._headers())
         r.raise_for_status()
 
-    # ── Navigation ────────────────────────────────────────────────────────────
+    # â”€â”€ Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def navigate(self, tab_id: str, url: str) -> dict:
         """Navigate to URL or server macro (e.g. @google_search:AI news)."""
@@ -156,7 +156,7 @@ class StealthBrowserClient:
         r.raise_for_status()
         return r.json()
 
-    # ── Content ───────────────────────────────────────────────────────────────
+    # â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def snapshot(self, tab_id: str, offset: int = 0) -> str:
         """
@@ -202,7 +202,7 @@ class StealthBrowserClient:
         b64 = data.get("screenshot") or data.get("data") or ""
         return base64.b64decode(b64) if b64 else b""
 
-    # ── Interaction ───────────────────────────────────────────────────────────
+    # â”€â”€ Interaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def click(
         self,
@@ -261,7 +261,7 @@ class StealthBrowserClient:
         r.raise_for_status()
         return r.json()
 
-    # ── YouTube ───────────────────────────────────────────────────────────────
+    # â”€â”€ YouTube â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def youtube_transcript(self, url: str) -> dict:
         """Extract YouTube transcript via yt-dlp + browser fallback."""
@@ -275,7 +275,7 @@ class StealthBrowserClient:
         r.raise_for_status()
         return r.json()
 
-    # ── High-level helpers ────────────────────────────────────────────────────
+    # â”€â”€ High-level helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def scrape_page(
         self,
@@ -285,7 +285,7 @@ class StealthBrowserClient:
         close_after: bool = True,
     ) -> dict:
         """
-        Full scrape cycle: create tab → navigate → wait → snapshot → links → close.
+        Full scrape cycle: create tab â†’ navigate â†’ wait â†’ snapshot â†’ links â†’ close.
         Returns {url, snapshot, links, tab_id}.
         """
         tab = await self.create_tab("about:blank", user_id=user_id)
@@ -296,14 +296,14 @@ class StealthBrowserClient:
                 await asyncio.sleep(wait_ms / 1000)
             snap = await self.snapshot(tab_id)
             links = await self.get_links(tab_id)
-            logger.info("[VECTOR][stealth] scraped {} — snapshot={} chars links={}", url[:60], len(snap), len(links))
+            logger.info("[VECTOR][stealth] scraped {} â€” snapshot={} chars links={}", url[:60], len(snap), len(links))
             return {"url": url, "snapshot": snap, "links": links, "tab_id": tab_id}
         finally:
             if close_after and tab_id:
                 try:
                     await self.close_tab(tab_id)
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     async def search(
         self,
@@ -331,7 +331,7 @@ if __name__ == "__main__":
         client = StealthBrowserClient()
         healthy = await client.is_healthy()
         await client.close()
-        print(f"OK client.py — base_url={client._base}")
+        print(f"OK client.py â€” base_url={client._base}")
         print(f"  server healthy: {healthy}")
         if not healthy:
             print(f"  (start server: cd core/stealth_browser/server && node server.js)")

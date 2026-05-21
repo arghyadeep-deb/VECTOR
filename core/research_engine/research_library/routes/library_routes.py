@@ -94,7 +94,7 @@ def get_authenticated_user_password(
             username, session_id
         )
         if user_password:
-            logger.debug(
+            logger.warning(
                 f"Retrieved user password from session store for user {username}"
             )
             return user_password
@@ -104,7 +104,7 @@ def get_authenticated_user_password(
     # Fallback to g.user_password (set by middleware if temp_auth was used)
     user_password = getattr(g, "user_password", None)
     if user_password:
-        logger.debug(
+        logger.warning(
             f"Retrieved user password from g.user_password fallback for user {username}"
         )
         return user_password
@@ -631,7 +631,7 @@ def download_all_text():
                             try:
                                 existing_resource_ids.add(int(parts[1]))
                             except ValueError:
-                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                                logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
                 for resource in resources:
                     # Check if text file already exists using preloaded set
@@ -771,7 +771,7 @@ def download_bulk():
                         .count()
                     )
                     total += count
-                    logger.debug(
+                    logger.warning(
                         f"[PROGRESS_DEBUG] Research {research_id}: {count} pending items in queue"
                     )
 
@@ -817,11 +817,11 @@ def download_bulk():
 
                     # Process each queued item
                     for queue_item in queue_items:
-                        logger.debug(
+                        logger.warning(
                             f"[PROGRESS_DEBUG] Before increment: current={current} (type: {type(current)}), total={total} (type: {type(total)})"
                         )
                         current += 1
-                        logger.debug(
+                        logger.warning(
                             f"[PROGRESS_DEBUG] After increment: current={current} (type: {type(current)})"
                         )
 
@@ -835,7 +835,7 @@ def download_bulk():
                         progress = (
                             int((current / total) * 100) if total > 0 else 100
                         )
-                        logger.debug(
+                        logger.warning(
                             f"[PROGRESS_DEBUG] Calculated progress: {progress}%"
                         )
 
@@ -856,7 +856,7 @@ def download_bulk():
                         error_msg = None
 
                         try:
-                            logger.debug(
+                            logger.warning(
                                 f"Attempting {'PDF download' if mode == 'pdf' else 'text extraction'} for resource {queue_item.resource_id}"
                             )
 
@@ -884,7 +884,7 @@ def download_bulk():
                                     f"{'Download' if mode == 'pdf' else 'Text extraction'} skipped for resource {queue_item.resource_id}: {skip_reason}"
                                 )
 
-                            logger.debug(
+                            logger.warning(
                                 f"{'Download' if mode == 'pdf' else 'Text extraction'} result: success={success}, status={status}, skip_reason={skip_reason}"
                             )
                         except Exception as e:
@@ -940,7 +940,7 @@ def download_bulk():
                         # Ensure skip_reason is set if we have an error message
                         if error_msg and not skip_reason:
                             skip_reason = f"Processing failed - {error_type}"
-                            logger.debug(
+                            logger.warning(
                                 f"Setting skip_reason from error_msg: {error_msg}"
                             )
 
@@ -1057,7 +1057,7 @@ def queue_all_undownloaded():
         research_ids = set()
         skipped_count = 0
 
-        # Convert filter_results to dict for O(1) lookup instead of O(n²)
+        # Convert filter_results to dict for O(1) lookup instead of O(nÂ²)
         filter_results_by_id = {r.resource_id: r for r in filter_results}
 
         for resource in undownloaded:
@@ -1067,11 +1067,11 @@ def queue_all_undownloaded():
             if not filter_result or not filter_result.can_retry:
                 skipped_count += 1
                 if filter_result:
-                    logger.debug(
+                    logger.warning(
                         f"Skipping resource {resource.id} due to retry policy: {filter_result.reason}"
                     )
                 else:
-                    logger.debug(
+                    logger.warning(
                         f"Skipping resource {resource.id} - no filter result available"
                     )
                 continue
@@ -1089,7 +1089,7 @@ def queue_all_undownloaded():
 
             if not is_downloadable:
                 skipped_count += 1
-                logger.debug(
+                logger.warning(
                     f"Skipping non-downloadable URL: {resource.url[:100] if resource.url else 'None'}"
                 )
                 continue
@@ -1108,14 +1108,14 @@ def queue_all_undownloaded():
                     existing_queue.completed_at = None
                     queued_count += 1
                     research_ids.add(resource.research_id)
-                    logger.debug(
+                    logger.warning(
                         f"Reset queue entry for resource {resource.id} to pending"
                     )
                 else:
                     # Already pending, still count it
                     queued_count += 1
                     research_ids.add(resource.research_id)
-                    logger.debug(
+                    logger.warning(
                         f"Resource {resource.id} already pending in queue"
                     )
             else:
@@ -1129,7 +1129,7 @@ def queue_all_undownloaded():
                 db_session.add(queue_entry)
                 queued_count += 1
                 research_ids.add(resource.research_id)
-                logger.debug(
+                logger.warning(
                     f"Added new queue entry for resource {resource.id}"
                 )
 
@@ -1184,7 +1184,7 @@ def get_research_sources(research_id):
                     domain = urlparse(resource.url).hostname or ""
                 except (ValueError, AttributeError):
                     # urlparse can raise ValueError for malformed URLs
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
             source_data = {
                 "number": idx,

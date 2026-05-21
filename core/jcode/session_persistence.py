@@ -1,11 +1,11 @@
 """
 Disk-backed session persistence with crash recovery.
 
-vectorcode's session.py is in-memory only — state is lost on process exit.
+vectorcode's session.py is in-memory only â€” state is lost on process exit.
 This module adds:
   - JSON session files under ~/.vector_ca/sessions/<id>.json
   - PID registration for crash detection
-  - recover_crashed_sessions() — finds sessions whose PID no longer exists
+  - recover_crashed_sessions() â€” finds sessions whose PID no longer exists
   - Provider session IDs, model snapshots, compaction state per-session
 
 Ported from the high-performance agent harness session.rs.
@@ -38,7 +38,7 @@ def _pids_dir() -> Path:
     return _PIDS_DIR
 
 
-# ── Data structures ────────────────────────────────────────────────────────────
+# â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class StoredCompactionState:
@@ -135,7 +135,7 @@ class PersistedSession:
         )
 
 
-# ── PID tracking ───────────────────────────────────────────────────────────────
+# â”€â”€ PID tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _register_pid(session_id: str) -> None:
     pid_file = _pids_dir() / f"{os.getpid()}.json"
@@ -156,7 +156,7 @@ def _pid_is_alive(pid: int) -> bool:
         return False
 
 
-# ── SessionPersistence ────────────────────────────────────────────────────────
+# â”€â”€ SessionPersistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SessionPersistence:
     """
@@ -237,12 +237,12 @@ class SessionPersistence:
                 s = PersistedSession.from_dict(json.loads(p.read_text()))
                 sessions.append(s)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return sorted(sessions, key=lambda s: s.updated_at, reverse=True)
 
     def recover_crashed_sessions(self) -> list[PersistedSession]:
         """
-        Find sessions whose last_pid no longer exists — crashed sessions.
+        Find sessions whose last_pid no longer exists â€” crashed sessions.
         Marks them as 'crashed' and returns them for inspection.
         """
         crashed = []

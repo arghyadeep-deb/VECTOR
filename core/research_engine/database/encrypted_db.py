@@ -38,8 +38,8 @@ class DatabaseInitializationError(Exception):
     """Raised when a per-user database opens but its schema can't be initialised.
 
     Distinct from credential / decryption failures (which return ``None``
-    from :py:meth:`DatabaseManager.open_user_database`) so callers — chiefly
-    the login route — can avoid penalising the user's lockout counter and
+    from :py:meth:`DatabaseManager.open_user_database`) so callers â€” chiefly
+    the login route â€” can avoid penalising the user's lockout counter and
     surface a different error message. The credentials are valid; the
     database state isn't.
     """
@@ -58,7 +58,7 @@ class DatabaseManager:
         self.has_encryption = self._check_encryption_available()
 
         # ----------------------------------------------------------------
-        # Pool class selection — see ADR-0004
+        # Pool class selection â€” see ADR-0004
         #
         # We use QueuePool (pool_size=20, max_overflow=40,
         # pool_timeout=10) for production and StaticPool for tests.
@@ -72,7 +72,7 @@ class DatabaseManager:
         #    See: https://github.com/dotnet/efcore/issues/35010
         #
         # 2. SQLite serializes all writes through a single file lock.
-        #    Multiple pooled connections don't improve throughput — they
+        #    Multiple pooled connections don't improve throughput â€” they
         #    just hold FDs (up to 3 per connection in WAL mode).
         #
         # 3. The cleanup scheduler periodically calls engine.dispose()
@@ -83,7 +83,7 @@ class DatabaseManager:
         # QueuePool session on every request via g.db_session. With the
         # UI polling /api/research/<id>/status every 1-2s plus other
         # API calls and before_request middleware, pool_size=1
-        # (max_overflow=2, so 3 total) is easily exhausted — causing
+        # (max_overflow=2, so 3 total) is easily exhausted â€” causing
         # 30-second timeouts and PendingRollbackError cascades.
         # pool_size=20 + max_overflow=40 (60 total) provides ample
         # headroom for concurrent requests and multiple browser tabs.
@@ -202,7 +202,7 @@ class DatabaseManager:
                 try:
                     os_module.unlink(tmp_path)
                 except OSError as e:
-                    logger.debug(
+                    logger.warning(
                         f"Failed to clean up temp file {tmp_path}: {e}"
                     )
 
@@ -263,7 +263,7 @@ class DatabaseManager:
                 try:
                     connection.execute(pragma)
                 except Exception as e:
-                    logger.debug(f"Could not apply pragma '{pragma}': {e}")
+                    logger.warning(f"Could not apply pragma '{pragma}': {e}")
         else:
             # Regular SQLite pragma
             try:
@@ -271,7 +271,7 @@ class DatabaseManager:
                     "PRAGMA mmap_size = 268435456"
                 )  # 256MB memory mapping
             except Exception as e:
-                logger.debug(f"Could not apply mmap_size pragma: {e}")
+                logger.warning(f"Could not apply mmap_size pragma: {e}")
 
     @staticmethod
     def _make_sqlcipher_connection(
@@ -314,7 +314,7 @@ class DatabaseManager:
             apply_sqlcipher_pragmas(cursor, creation_mode=False)
 
             if not verify_sqlcipher_connection(cursor):
-                raise ValueError("Failed to verify database key")  # noqa: TRY301 — cleanup in except before re-raise
+                raise ValueError("Failed to verify database key")  # noqa: TRY301 â€” cleanup in except before re-raise
 
             apply_performance_pragmas(cursor)
         except Exception:
@@ -386,7 +386,7 @@ class DatabaseManager:
 
                     from .models import Base
 
-                    # Indexes must be emitted explicitly — SQLAlchemy compiles
+                    # Indexes must be emitted explicitly â€” SQLAlchemy compiles
                     # `index=True`/`unique=True` and `Index(...)` to separate
                     # CREATE [UNIQUE] INDEX statements, not inline.
                     sqlite_dialect = sqlite.dialect()
@@ -398,7 +398,7 @@ class DatabaseManager:
                                 dialect=sqlite_dialect
                             )
                         )
-                        logger.debug(f"Creating table {table.name}")
+                        logger.warning(f"Creating table {table.name}")
                         conn.execute(create_sql)
                         for index in table.indexes:
                             index_sql = str(
@@ -486,10 +486,10 @@ class DatabaseManager:
 
         # Mirror of the fail-loud change #3635 made to open_user_database.
         # Previously this swallowed the exception with "tables exist but
-        # schema version not stamped — migrations will be retried on next
+        # schema version not stamped â€” migrations will be retried on next
         # process restart". That left a half-broken DB on disk: tables
         # present, no alembic_version row. The next login then re-ran
-        # alembic, hit the same error, and (post-#3635) 503'd — so the
+        # alembic, hit the same error, and (post-#3635) 503'd â€” so the
         # user could register but never log in again. Better to fail
         # registration loudly with the partial DB removed, so the real
         # cause (e.g. world-writable migrations dir) gets fixed instead
@@ -501,7 +501,7 @@ class DatabaseManager:
         except Exception:
             logger.exception(
                 f"Database migration failed for {username} during creation"
-                " — removing partial DB"
+                " â€” removing partial DB"
             )
             engine.dispose()
             if db_path.exists():
@@ -640,7 +640,7 @@ class DatabaseManager:
                         )
                 except Exception:
                     logger.exception(
-                        "Pre-migration backup failed — proceeding with migration"
+                        "Pre-migration backup failed â€” proceeding with migration"
                     )
 
             # Init failures need to be distinguishable from credential
@@ -655,7 +655,7 @@ class DatabaseManager:
                 elapsed_ms = (time.perf_counter() - open_start) * 1000
                 logger.exception(
                     f"Database migration failed for {username} "
-                    f"after {elapsed_ms:.0f}ms — refusing login"
+                    f"after {elapsed_ms:.0f}ms â€” refusing login"
                 )
                 engine.dispose()
                 raise DatabaseInitializationError(
@@ -697,7 +697,7 @@ class DatabaseManager:
         with self._connections_lock:
             if username not in self.connections:
                 # Use debug level for this common scenario to reduce log noise
-                logger.debug(f"No open database for user {username}")
+                logger.warning(f"No open database for user {username}")
                 return None
             engine = self.connections[username]
             # Create session inside lock to prevent race with close_user_database()
@@ -715,17 +715,17 @@ class DatabaseManager:
             with engine.connect() as conn:
                 # TRUNCATE returns (busy, log_pages, checkpointed_pages).
                 # busy=1 means a reader/writer held a WAL lock and the WAL
-                # was NOT truncated — surface that so we can tell from logs
+                # was NOT truncated â€” surface that so we can tell from logs
                 # whether the helper actually shrank the file.
                 result = conn.execute(
                     text("PRAGMA wal_checkpoint(TRUNCATE)")
                 ).fetchone()
                 if result and result[0] == 1:
-                    logger.debug(
-                        f"WAL checkpoint busy {context} — WAL not truncated"
+                    logger.warning(
+                        f"WAL checkpoint busy {context} â€” WAL not truncated"
                     )
         except Exception:
-            logger.debug(f"WAL checkpoint failed {context}", exc_info=True)
+            logger.warning(f"WAL checkpoint failed {context}", exc_info=True)
 
     def close_user_database(self, username: str):
         """Close a user's database connection."""
@@ -751,7 +751,7 @@ class DatabaseManager:
                     self._checkpoint_wal(engine, f"for {username}")
                     engine.dispose()
                 except Exception:
-                    logger.debug(f"Error disposing engine for {username}")
+                    logger.warning(f"Error disposing engine for {username}")
             self.connections.clear()
 
     def check_database_integrity(self, username: str) -> bool:
@@ -789,7 +789,7 @@ class DatabaseManager:
     ) -> bool:
         """Change the encryption password for a user's database.
 
-        This rekeys the SQLCipher database — no separate auth-DB
+        This rekeys the SQLCipher database â€” no separate auth-DB
         password-hash update is needed because passwords are never
         stored.  Login verification is done by attempting decryption.
         """
@@ -884,7 +884,7 @@ class DatabaseManager:
             engine = self.connections.get(username)
 
         if engine is None:
-            # Cache miss — open the user database. This is idempotent:
+            # Cache miss â€” open the user database. This is idempotent:
             # after the first call it just returns the cached engine.
             engine = self.open_user_database(username, password)
             if engine is None:

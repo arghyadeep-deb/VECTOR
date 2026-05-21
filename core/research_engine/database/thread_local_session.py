@@ -62,7 +62,7 @@ class ThreadLocalSessionManager:
                 except PendingRollbackError:
                     # Session has a pending rollback (e.g. from a previous database lock error).
                     # Attempt rollback to recover without destroying the session.
-                    logger.debug(
+                    logger.warning(
                         f"Thread {thread_id}: PendingRollbackError, attempting rollback recovery"
                     )
                     try:
@@ -77,13 +77,13 @@ class ThreadLocalSessionManager:
                         self._cleanup_thread_session()
                 except Exception:
                     # Session is invalid, will create a new one
-                    logger.debug(
+                    logger.warning(
                         f"Thread {thread_id}: Existing session invalid, creating new one"
                     )
                     self._cleanup_thread_session()
 
         # Create new session for this thread
-        logger.debug(
+        logger.warning(
             f"Thread {thread_id}: Creating new database session for user {username}"
         )
 
@@ -136,7 +136,7 @@ class ThreadLocalSessionManager:
         """Clean up the current thread's session.
 
         Sessions are bound to the shared per-user QueuePool engine, so
-        closing the session returns its connection to the pool — there
+        closing the session returns its connection to the pool â€” there
         are no per-thread engines to dispose.
         """
         thread_id = threading.get_ident()
@@ -150,7 +150,7 @@ class ThreadLocalSessionManager:
                 )
             try:
                 self._local.session.close()
-                logger.debug(f"Thread {thread_id}: Closed database session")
+                logger.warning(f"Thread {thread_id}: Closed database session")
             except Exception:
                 logger.warning(f"Thread {thread_id}: Error closing session")
             finally:
@@ -202,7 +202,7 @@ class ThreadLocalSessionManager:
             for tid in dead_ids:
                 del self._thread_credentials[tid]
         if dead_ids:
-            logger.debug(f"Swept {len(dead_ids)} dead thread credential(s)")
+            logger.warning(f"Swept {len(dead_ids)} dead thread credential(s)")
 
     def cleanup_all(self):
         """Clean up all tracked sessions (for shutdown)."""
@@ -236,7 +236,7 @@ def get_current_thread_session() -> Optional[Session]:
 def cleanup_current_thread():
     """Clean up the current thread's database session and cached credentials.
 
-    Also clears any passwords cached by ``metrics_writer`` on this thread —
+    Also clears any passwords cached by ``metrics_writer`` on this thread â€”
     pooled worker threads must not retain plaintext credentials across tasks.
     """
     thread_session_manager.cleanup_thread()
@@ -245,7 +245,7 @@ def cleanup_current_thread():
 
         metrics_writer.clear_passwords()
     except Exception:
-        logger.debug(
+        logger.warning(
             "cleanup_current_thread: error clearing metrics_writer passwords",
             exc_info=True,
         )
@@ -269,7 +269,7 @@ class _ThreadCleanup(ContextDecorator):
         try:
             cleanup_current_thread()
         except Exception:
-            logger.debug(
+            logger.warning(
                 "thread_cleanup: error during DB session cleanup",
                 exc_info=True,
             )
@@ -278,7 +278,7 @@ class _ThreadCleanup(ContextDecorator):
 
             clear_settings_context()
         except Exception:
-            logger.debug(
+            logger.warning(
                 "thread_cleanup: error clearing settings context",
                 exc_info=True,
             )
@@ -287,7 +287,7 @@ class _ThreadCleanup(ContextDecorator):
 
             clear_search_context()
         except Exception:
-            logger.debug(
+            logger.warning(
                 "thread_cleanup: error clearing search context",
                 exc_info=True,
             )

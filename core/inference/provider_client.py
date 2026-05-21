@@ -1,5 +1,5 @@
 """
-VECTOR Unified Provider Client — routes LLM calls to any of the 27 providers.
+VECTOR Unified Provider Client â€” routes LLM calls to any of the 27 providers.
 
 Replaces the Ollama-only constraint with a priority-based routing system:
   1. Ollama first (local, free, private)
@@ -96,11 +96,11 @@ class ProviderClient:
 
         Pipeline:
           1. Rate-limit check (GCRA, 500 tokens/min per caller)
-          2. ModelRouter resolves tier → model
+          2. ModelRouter resolves tier â†’ model
           3. ReliableProvider wraps call with retry + backoff
           4. Tries providers in order until one succeeds
         """
-        # ── Rate limit check ────────────────────────────────────────────────────
+        # â”€â”€ Rate limit check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         try:
             from core.metering.rate_limiter import get_rate_limiter
             rl = get_rate_limiter()
@@ -111,11 +111,11 @@ class ProviderClient:
                     caller_id, wait_ms,
                 )
                 if wait_ms > 5000:
-                    raise RuntimeError(f"Rate limit exceeded — retry in {wait_ms/1000:.1f}s")
+                    raise RuntimeError(f"Rate limit exceeded â€” retry in {wait_ms/1000:.1f}s")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-        # ── Model routing via ModelRouter ───────────────────────────────────────
+        # â”€â”€ Model routing via ModelRouter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if not model:
             try:
                 from core.engine.providers.model_router import ModelRouter
@@ -123,9 +123,9 @@ class ProviderClient:
                 route = _router.resolve(tier)
                 model = route.model
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-        # ── Provider selection ──────────────────────────────────────────────────
+        # â”€â”€ Provider selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if provider:
             prov_obj = get_provider(provider)
             if not prov_obj:
@@ -141,13 +141,13 @@ class ProviderClient:
             if not providers_to_try:
                 providers_to_try = [PROVIDERS["ollama"]]
 
-        # ── ReliableProvider retry loop ──────────────────────────────────────────
+        # â”€â”€ ReliableProvider retry loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         last_error = ""
         for prov in providers_to_try:
             target_model = model or prov.default_model
             try:
                 logger.debug(
-                    "[VECTOR][provider_client] {} → {} ({})",
+                    "[VECTOR][provider_client] {} â†’ {} ({})",
                     tier, target_model, prov.slug,
                 )
                 result = await self._call_with_retry(
@@ -202,7 +202,7 @@ class ProviderClient:
                     elif is_rate_limited(err):
                         wait = backoff * 2
                 logger.warning(
-                    "[VECTOR][provider_client] attempt {}/{} failed — retrying in {:.1f}s",
+                    "[VECTOR][provider_client] attempt {}/{} failed â€” retrying in {:.1f}s",
                     attempt + 1, max_retries, wait,
                 )
                 await asyncio.sleep(wait)
@@ -275,7 +275,7 @@ class ProviderClient:
         content = choice["message"].get("content") or ""
         usage = data.get("usage", {})
 
-        # ── ToolDispatcher: parse structured tool_calls from response ──────────
+        # â”€â”€ ToolDispatcher: parse structured tool_calls from response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # NativeDispatcher handles OpenAI/Ollama tool_call format;
         # falls back to XmlDispatcher for <tool_call> tags in raw text.
         tool_calls_parsed: list = []
@@ -292,7 +292,7 @@ class ProviderClient:
                         [tc.name for tc in tool_calls_parsed],
                     )
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         result = CompletionResult(
             content=content,
@@ -468,5 +468,5 @@ if __name__ == "__main__":
     for p in configured_providers():
         assert p.base_url or p.effective_base_url
 
-    print(f"OK provider_client.py — {len(PROVIDERS)} providers, routing verified")
+    print(f"OK provider_client.py â€” {len(PROVIDERS)} providers, routing verified")
     print("Note: Set API keys in .env to activate cloud providers")

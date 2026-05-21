@@ -87,7 +87,7 @@ def _save_csrf_tokens():
         with _csrf_lock:
             _CSRF_TOKEN_FILE.write_text(json.dumps(_csrf_tokens))
     except Exception:
-        pass  # Non-critical — tokens regenerate on next request
+        logger.warning("[VECTOR][middleware] CSRF token save failed — tokens regenerate on next request")
 
 # Load on module import
 _load_csrf_tokens()

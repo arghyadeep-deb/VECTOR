@@ -115,7 +115,7 @@ class GooglePSESearchEngine(BaseSearchEngine):
                 )
             except NoSettingsContextError:
                 # No settings context available
-                logger.debug(
+                logger.warning(
                     "No settings context available for Google PSE API key"
                 )
                 pass
@@ -130,7 +130,7 @@ class GooglePSESearchEngine(BaseSearchEngine):
                 )
             except NoSettingsContextError:
                 # No settings context available
-                logger.debug(
+                logger.warning(
                     "No settings context available for Google PSE engine ID"
                 )
                 pass
@@ -156,7 +156,7 @@ class GooglePSESearchEngine(BaseSearchEngine):
             # Check if we got a valid response
             if response.get("error"):
                 error_msg = response["error"].get("message", "Unknown error")
-                raise ValueError(f"Google PSE API error: {error_msg}")  # noqa: TRY301 — except only adds logging before re-raise
+                raise ValueError(f"Google PSE API error: {error_msg}")  # noqa: TRY301 â€” except only adds logging before re-raise
 
             # If we get here, the connection is valid
             logger.info("Google PSE connection validated successfully")
@@ -175,7 +175,7 @@ class GooglePSESearchEngine(BaseSearchEngine):
         # If we've made a request recently, wait until the minimum interval has passed
         if elapsed < self.min_request_interval:
             sleep_time = self.min_request_interval - elapsed
-            logger.debug("Rate limiting: sleeping for {:.2f} s", sleep_time)
+            logger.warning("Rate limiting: sleeping for {:.2f} s", sleep_time)
             time.sleep(sleep_time)
 
         # Update the last request time
@@ -233,7 +233,7 @@ class GooglePSESearchEngine(BaseSearchEngine):
                     time.sleep(sleep_time)
 
                 # Make the request
-                logger.debug(
+                logger.warning(
                     "Making request to Google PSE API: {} (start_index={})",
                     query,
                     start_index,

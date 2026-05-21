@@ -166,7 +166,7 @@ class BaseTool[
 
             return read_safe(prompt_path).text
         except (FileNotFoundError, TypeError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return None
 

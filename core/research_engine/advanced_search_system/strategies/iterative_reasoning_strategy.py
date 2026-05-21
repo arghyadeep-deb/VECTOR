@@ -444,7 +444,7 @@ EXPECTED_OUTCOME: [what we hope to learn]
         response = self.model.invoke(prompt)
         content = remove_think_tags(str(response.content))
 
-        logger.debug(f"LLM response for next search: {content[:200]}...")
+        logger.warning(f"LLM response for next search: {content[:200]}...")
 
         if "DONE" in content:
             logger.info("LLM decided no more searches needed")

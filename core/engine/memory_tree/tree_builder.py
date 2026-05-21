@@ -1,5 +1,5 @@
 """
-VECTOR Memory Tree — hierarchical summary tree builder.
+VECTOR Memory Tree â€” hierarchical summary tree builder.
 
 Builds a 3-level tree from ingested content:
   Level 0: Source (document/channel/integration)
@@ -29,11 +29,11 @@ _TREE_DB = Path.home() / ".vector_ca" / "memory_tree"
 _BRAIN_WIKI = Path("brain") / "VECTOR" / "wiki"
 
 
-# ── Data structures ────────────────────────────────────────────────────────────
+# â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class TreeChunk:
-    """Atomic memory unit — a single fact or observation."""
+    """Atomic memory unit â€” a single fact or observation."""
     id: str
     source_kind: str        # "conversation" | "document" | "integration" | "observation"
     source_id: str
@@ -82,11 +82,11 @@ class MemorySource:
         return self.nodes[topic]
 
 
-# ── MemoryTree ─────────────────────────────────────────────────────────────────
+# â”€â”€ MemoryTree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class MemoryTree:
     """
-    Hierarchical memory tree: Source → Topic → Chunk.
+    Hierarchical memory tree: Source â†’ Topic â†’ Chunk.
 
     Usage:
         tree = MemoryTree()
@@ -102,7 +102,7 @@ class MemoryTree:
         self._sources: dict[str, MemorySource] = {}
         self._load()
 
-    # ── Ingestion ──────────────────────────────────────────────────────────────
+    # â”€â”€ Ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def ingest(
         self,
@@ -122,7 +122,7 @@ class MemoryTree:
             content:     Text content to store
             topic:       Topic/category (auto-detected if not provided)
             tags:        Optional tags for retrieval
-            score:       Importance score 0.0–1.0
+            score:       Importance score 0.0â€“1.0
 
         Returns:
             The created TreeChunk.
@@ -170,7 +170,7 @@ class MemoryTree:
         logger.info("[VECTOR][memory_tree] ingested {} chunks from {}", len(results), source_id[:40])
         return results
 
-    # ── Query ──────────────────────────────────────────────────────────────────
+    # â”€â”€ Query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def query(
         self,
@@ -215,7 +215,7 @@ class MemoryTree:
             return source.nodes.get(topic, TreeNode(topic=topic)).chunks
         return [c for node in source.nodes.values() for c in node.chunks]
 
-    # ── Wiki builder ───────────────────────────────────────────────────────────
+    # â”€â”€ Wiki builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def build_wiki(self, source_kind: str, source_id: str) -> str:
         """Build an Obsidian-compatible markdown wiki for a source."""
@@ -225,7 +225,7 @@ class MemoryTree:
             return f"# {source_id}\n\nNo memory tree data yet.\n"
 
         lines = [
-            f"# Memory Tree — {source_id}",
+            f"# Memory Tree â€” {source_id}",
             f"*Source: {source_kind} | Updated: {source.updated_at[:10]}*",
             "",
         ]
@@ -258,7 +258,7 @@ class MemoryTree:
             paths.append(self.save_wiki(wiki, source.source_id))
         return paths
 
-    # ── Topic detection ────────────────────────────────────────────────────────
+    # â”€â”€ Topic detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     _TOPIC_KEYWORDS = {
         "coding": {"code", "function", "class", "error", "debug", "python", "rust", "api", "git"},
@@ -280,7 +280,7 @@ class MemoryTree:
                 best, best_score = topic, score
         return best
 
-    # ── Helpers ────────────────────────────────────────────────────────────────
+    # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @staticmethod
     def _chunk_id(source_id: str, content: str) -> str:
@@ -302,7 +302,7 @@ class MemoryTree:
             chunks.append(current.strip())
         return chunks
 
-    # ── Persistence ────────────────────────────────────────────────────────────
+    # â”€â”€ Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _db_path(self) -> Path:
         return self._db_dir / "memory_tree.json"
@@ -349,7 +349,7 @@ class MemoryTree:
                         try:
                             node.chunks.append(TreeChunk.from_dict(cd))
                         except Exception:
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
                     source.nodes[topic] = node
                 self._sources[key] = source
         except Exception as e:

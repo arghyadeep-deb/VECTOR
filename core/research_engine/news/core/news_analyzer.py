@@ -62,11 +62,11 @@ class NewsAnalyzer:
 
         try:
             # Step 1: Extract news items table
-            logger.debug("Extracting news items")
+            logger.warning("Extracting news items")
             news_items = self.extract_news_items(search_results)
 
             # Step 2: Generate overview components (separate LLM calls for modularity)
-            logger.debug("Generating analysis components")
+            logger.warning("Generating analysis components")
             components = {
                 "items": news_items,
                 "item_count": len(news_items),
@@ -256,7 +256,7 @@ WATCH FOR:
                 line = line.strip()
                 if line and line not in ["WATCH FOR:", "Watch for:"]:
                     # Remove bullet markers
-                    line = line.lstrip("-•* ")
+                    line = line.lstrip("-â€¢* ")
                     if line:
                         watch_items.append(line)
 

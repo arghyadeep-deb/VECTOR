@@ -1,5 +1,5 @@
 """
-VECTOR Code Conductor — Git Commit Accuracy Evaluator
+VECTOR Code Conductor â€” Git Commit Accuracy Evaluator
 Python port of codebuff/evals/git-evals/run-git-evals.ts
 
 Measures coding agent accuracy by reconstructing git commits:
@@ -142,7 +142,7 @@ class GitEvalRunner:
         try:
             _run_git(["worktree", "remove", "--force", worktree], self._cwd, check=False)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def _score_diffs(
         self, target_diff: str, agent_diff: str, sha: str, message: str
@@ -211,7 +211,7 @@ class GitEvalRunner:
                 try:
                     worktree = self._checkout_pre_commit(parent_sha, tmp)
                 except Exception:
-                    # Worktree may not be supported — use git show instead
+                    # Worktree may not be supported â€” use git show instead
                     worktree = self._cwd
 
                 # Run the coding orchestrator on the pre-commit state
@@ -284,12 +284,12 @@ if __name__ == "__main__":
     async def _smoke():
         runner = GitEvalRunner()
         is_repo = runner._verify_repo()
-        print(f"OK git_eval.py — GitEvalRunner init")
+        print(f"OK git_eval.py â€” GitEvalRunner init")
         print(f"  cwd={runner._cwd}")
         print(f"  is_git_repo={is_repo}")
         if is_repo:
             recent = _run_git(["log", "-1", "--pretty=%H %s"], runner._cwd, check=False)
             print(f"  latest commit: {recent[:80]}")
-        print(f"  run_suite(5) ready — starts CodingOrchestrator per commit")
+        print(f"  run_suite(5) ready â€” starts CodingOrchestrator per commit")
 
     asyncio.run(_smoke())

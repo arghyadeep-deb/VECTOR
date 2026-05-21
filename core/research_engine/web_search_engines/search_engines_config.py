@@ -39,7 +39,7 @@ def _get_setting(
                 key, default_value, settings_snapshot=settings_snapshot
             )
         except Exception as e:
-            logger.debug(f"Could not get setting {key} from snapshot: {e}")
+            logger.warning(f"Could not get setting {key} from snapshot: {e}")
 
     # Try database session if available
     if db_session:
@@ -47,7 +47,7 @@ def _get_setting(
             settings_manager = get_settings_manager(db_session, username)
             return settings_manager.get_setting(key, default_value)
         except Exception as e:
-            logger.debug(f"Could not get setting {key} from db_session: {e}")
+            logger.warning(f"Could not get setting {key} from db_session: {e}")
 
     # Return default if all methods fail
     logger.warning(
@@ -127,7 +127,7 @@ def search_config(
 
     # Inject module/class from the hardcoded engine registry.
     # This is the single source of truth for which Python module implements
-    # each engine — these values are never read from the settings DB.
+    # each engine â€” these values are never read from the settings DB.
     from .engine_registry import ENGINE_REGISTRY
 
     for name, entry in ENGINE_REGISTRY.items():
@@ -253,7 +253,7 @@ def search_config(
                         f"Registered {len(collections)} document collections as search engines"
                     )
             else:
-                logger.debug(
+                logger.warning(
                     "No username available for collection registration"
                 )
         except Exception:
@@ -283,7 +283,7 @@ def get_available_engines(
             own name).
 
     Returns:
-        Dict of engine_name → config for engines that passed all checks.
+        Dict of engine_name â†’ config for engines that passed all checks.
     """
     if not settings_snapshot:
         logger.warning(
@@ -321,8 +321,8 @@ def get_available_engines(
         if requires_key:
             api_key = _resolve_api_key(name, config, settings_snapshot)
             if not api_key:
-                logger.debug(
-                    f"Skipping {name} — requires API key but none configured"
+                logger.warning(
+                    f"Skipping {name} â€” requires API key but none configured"
                 )
                 continue
 

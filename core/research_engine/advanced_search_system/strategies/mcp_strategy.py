@@ -31,27 +31,27 @@ REACT_SYSTEM_PROMPT = """You are a research assistant. Today's date: {current_da
 
 You MUST search before answering. Do NOT answer from memory. Do NOT ask clarifying questions.
 
-## Tool Selection — pick the right tool for the domain:
+## Tool Selection â€” pick the right tool for the domain:
 
 | Domain | First step (quick) | Deep dive |
 |--------|-------------------|-----------|
 | Medical/biomedical | **search_pubmed** | focused_research with search_engine="pubmed" |
 | Scientific papers (physics, math, CS) | **search_arxiv** | focused_research with search_engine="arxiv" |
 | Academic papers (all fields) | **search_semantic_scholar** or **search_openalex** | focused_research with search_engine="semantic_scholar" |
-| Background knowledge | **search_wikipedia** | — |
-| Current news | **search_wikinews** or **web_search** | — |
+| Background knowledge | **search_wikipedia** | â€” |
+| Current news | **search_wikinews** or **web_search** | â€” |
 | General/mixed topics | **web_search** | focused_research |
 
-**Strategy**: Start with a quick direct search (web_search or search_[engine]) to learn about the topic. Only use focused_research after initial exploration — it runs many search rounds and is slow.
+**Strategy**: Start with a quick direct search (web_search or search_[engine]) to learn about the topic. Only use focused_research after initial exploration â€” it runs many search rounds and is slow.
 
 ## Tools:
 
-- **web_search** — General web search. You control the query — use exact phrases, date ranges, site filters.
-- **search_[engine]** — Single query against a specialized database (arxiv, pubmed, wikipedia, etc.). Fast and targeted.
-- **focused_research** — Deep iterative research with multiple automatic search rounds. Optional parameters:
+- **web_search** â€” General web search. You control the query â€” use exact phrases, date ranges, site filters.
+- **search_[engine]** â€” Single query against a specialized database (arxiv, pubmed, wikipedia, etc.). Fast and targeted.
+- **focused_research** â€” Deep iterative research with multiple automatic search rounds. Optional parameters:
   - **iterations** (1-25): Search rounds. Default 8. Use 15-20+ for exhaustive research. More iterations = deeper.
   - **search_engine**: Override which engine to use (e.g. "pubmed", "arxiv"). Powerful for domain-specific deep dives.
-- **download_content** — Fetch full text from a URL (papers, articles, web pages).
+- **download_content** â€” Fetch full text from a URL (papers, articles, web pages).
 
 ## Response format:
 
@@ -121,7 +121,7 @@ class MCPSearchStrategy(BaseSearchStrategy):
     # NOTE: The MCP/agentic strategy is designed for large-context LLMs (32k+).
     # These high limits ensure the agent sees full sub-research output for better
     # synthesis. For small-context models (4k-8k), use focused-iteration or
-    # source-based strategies instead — they don't accumulate history this way.
+    # source-based strategies instead â€” they don't accumulate history this way.
     OBSERVATION_MAX_LENGTH = 50000  # Max chars kept from a single tool result
     MAX_ARG_LENGTH = 10000
     DOWNLOAD_DEFAULT_MAX_LENGTH = 10000
@@ -587,7 +587,7 @@ class MCPSearchStrategy(BaseSearchStrategy):
             tools.append(
                 {
                     "name": "focused_research",
-                    "description": "Deep iterative research that runs multiple search rounds automatically. Best for complex topics needing thorough investigation. Use 'search_engine' to target specific databases (e.g. 'pubmed' for medical, 'arxiv' for scientific). Use 'iterations' to control depth — default 8, but 15-20+ is better for exhaustive research.",
+                    "description": "Deep iterative research that runs multiple search rounds automatically. Best for complex topics needing thorough investigation. Use 'search_engine' to target specific databases (e.g. 'pubmed' for medical, 'arxiv' for scientific). Use 'iterations' to control depth â€” default 8, but 15-20+ is better for exhaustive research.",
                     "parameters": _sub_research_params,
                     "executor": lambda args: self._execute_strategy_research(
                         args, "focused-iteration"
@@ -1390,7 +1390,7 @@ class MCPSearchStrategy(BaseSearchStrategy):
                         f"sub-research engine ({search_engine_name})",
                     )
                 except Exception:
-                    logger.debug(
+                    logger.warning(
                         f"Failed to close sub-research engine {search_engine_name}",
                         exc_info=True,
                     )
@@ -1419,7 +1419,7 @@ class MCPSearchStrategy(BaseSearchStrategy):
                 # Convert "ArXivSearchEngine" -> "arxiv"
                 return class_name.replace("SearchEngine", "").lower()
         except Exception:
-            logger.debug("best-effort class name extraction", exc_info=True)
+            logger.warning("best-effort class name extraction", exc_info=True)
         return ""
 
     def _execute_specialized_search(

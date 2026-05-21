@@ -179,7 +179,7 @@ class OllamaProvider(BaseLLMProvider):
         llm = ChatOllama(**ollama_params)
 
         # Log the actual client configuration after creation
-        logger.debug(
+        logger.warning(
             f"ChatOllama created - base_url attribute: {getattr(llm, 'base_url', 'not found')}"
         )
 
@@ -202,7 +202,7 @@ class OllamaProvider(BaseLLMProvider):
                 settings_snapshot=settings_snapshot,
             )
             if not raw_base_url:
-                logger.debug("Ollama URL not configured")
+                logger.warning("Ollama URL not configured")
                 return False
             base_url = normalize_url(raw_base_url)
             logger.info(f"Checking Ollama availability at {base_url}/api/tags")

@@ -1,5 +1,5 @@
 """
-VECTOR Wan2GP Client — Python port of Open-Generative-AI/electron/lib/wan2gpProvider.js
+VECTOR Wan2GP Client â€” Python port of Open-Generative-AI/electron/lib/wan2gpProvider.js
 
 Connects to a user-run Wan2GP Gradio server for FREE local GPU generation.
 Supports: Flux.1 Dev, Qwen Image, Wan 2.2 T2V/I2V, Hunyuan Video, LTX Video.
@@ -48,7 +48,7 @@ class Wan2GPModel:
 WAN2GP_CATALOG: list[Wan2GPModel] = [
     Wan2GPModel(
         id="wan2gp:flux-dev", name="Flux.1 Dev (Wan2GP)",
-        description="Image — FLUX.1 dev served by Wan2GP. 1024px output.",
+        description="Image â€” FLUX.1 dev served by Wan2GP. 1024px output.",
         type="image", family="flux", fn="flux",
         fn_aliases=["flux_dev", "flux_1_dev", "flux1_dev", "flux_image"],
         aspect_ratios=["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -56,7 +56,7 @@ WAN2GP_CATALOG: list[Wan2GPModel] = [
     ),
     Wan2GPModel(
         id="wan2gp:qwen-image", name="Qwen Image (Wan2GP)",
-        description="Image — Qwen-Image text-to-image served by Wan2GP.",
+        description="Image â€” Qwen-Image text-to-image served by Wan2GP.",
         type="image", family="qwen", fn="qwen_image",
         fn_aliases=["qwen", "qwen_t2i", "qwen_image_t2i"],
         aspect_ratios=["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -64,7 +64,7 @@ WAN2GP_CATALOG: list[Wan2GPModel] = [
     ),
     Wan2GPModel(
         id="wan2gp:wan22-t2v", name="Wan 2.2 (Text-to-Video)",
-        description="Video — Wan 2.2 text-to-video. Slow on consumer GPUs.",
+        description="Video â€” Wan 2.2 text-to-video. Slow on consumer GPUs.",
         type="video", family="wan", fn="wan22_t2v",
         fn_aliases=["wan_2_2_t2v", "wan22_text2video", "wan_t2v", "wan2_2_t2v", "t2v"],
         aspect_ratios=["16:9", "1:1", "9:16"],
@@ -72,7 +72,7 @@ WAN2GP_CATALOG: list[Wan2GPModel] = [
     ),
     Wan2GPModel(
         id="wan2gp:wan22-i2v", name="Wan 2.2 (Image-to-Video)",
-        description="Video — Wan 2.2 image-to-video. Provide a start frame.",
+        description="Video â€” Wan 2.2 image-to-video. Provide a start frame.",
         type="video", family="wan", fn="wan22_i2v",
         fn_aliases=["wan_2_2_i2v", "wan22_image2video", "wan_i2v", "wan2_2_i2v", "i2v"],
         aspect_ratios=["16:9", "1:1", "9:16"],
@@ -80,7 +80,7 @@ WAN2GP_CATALOG: list[Wan2GPModel] = [
     ),
     Wan2GPModel(
         id="wan2gp:hunyuan-video", name="Hunyuan Video (Wan2GP)",
-        description="Video — Hunyuan text-to-video via Wan2GP.",
+        description="Video â€” Hunyuan text-to-video via Wan2GP.",
         type="video", family="hunyuan", fn="hunyuan_video",
         fn_aliases=["hunyuan", "hunyuan_t2v", "hyvideo", "hy_video"],
         aspect_ratios=["16:9", "1:1", "9:16"],
@@ -88,7 +88,7 @@ WAN2GP_CATALOG: list[Wan2GPModel] = [
     ),
     Wan2GPModel(
         id="wan2gp:ltx-video", name="LTX Video (Wan2GP)",
-        description="Video — LTX text-to-video. Fastest video option in Wan2GP.",
+        description="Video â€” LTX text-to-video. Fastest video option in Wan2GP.",
         type="video", family="ltx", fn="ltx_video",
         fn_aliases=["ltx", "ltx_t2v", "ltxv", "ltx_v", "ltx_2", "ltx2"],
         aspect_ratios=["16:9", "1:1", "9:16"],
@@ -110,7 +110,7 @@ def _load_config() -> dict:
         try:
             return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     return {"url": ""}
 
 
@@ -148,7 +148,7 @@ def _resolve_output_url(base_url: str, output) -> str | None:
 
 class Wan2GPClient:
     """
-    VECTOR's Wan2GP client — connects to user-run local GPU Gradio server.
+    VECTOR's Wan2GP client â€” connects to user-run local GPU Gradio server.
     Free generation of image/video models (Wan 2.2, Hunyuan, LTX Video, Flux).
     """
 
@@ -160,12 +160,12 @@ class Wan2GPClient:
             or _load_config().get("url", "")
         )
         self._base_url = _normalize_url(cfg_url)
-        self._fn_cache: dict[str, str | None] = {}  # model_id → resolved fn name
+        self._fn_cache: dict[str, str | None] = {}  # model_id â†’ resolved fn name
         self._known_api_names: list[str] = []
         if self._base_url:
             logger.debug("[VECTOR][wan2gp] server={}", self._base_url)
         else:
-            logger.debug("[VECTOR][wan2gp] no server URL configured — set WAN2GP_URL in .env")
+            logger.debug("[VECTOR][wan2gp] no server URL configured â€” set WAN2GP_URL in .env")
 
     def set_url(self, url: str) -> None:
         self._base_url = _normalize_url(url)
@@ -173,7 +173,7 @@ class Wan2GPClient:
         self._known_api_names = []
         _save_config({"url": self._base_url})
 
-    # ── Discovery ─────────────────────────────────────────────────────────────
+    # â”€â”€ Discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _fetch_api_names(self) -> list[str]:
         if not self._base_url:
@@ -191,7 +191,7 @@ class Wan2GPClient:
                             if keys:
                                 return [k.lstrip("/") for k in keys]
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             # Legacy fallback
             try:
                 resp = await c.get(f"{base}/config")
@@ -199,7 +199,7 @@ class Wan2GPClient:
                     deps = resp.json().get("dependencies", [])
                     return [d["api_name"] for d in deps if isinstance(d.get("api_name"), str) and d["api_name"] != "false"]
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return []
 
     def _resolve_fn(self, model: Wan2GPModel, api_names: list[str]) -> str | None:
@@ -229,7 +229,7 @@ class Wan2GPClient:
             async with httpx.AsyncClient(timeout=5.0) as c:
                 resp = await c.get(f"{target}/config")
                 if resp.status_code != 200:
-                    return {"ok": False, "error": f"HTTP {resp.status_code} from /config — is this a Gradio server?"}
+                    return {"ok": False, "error": f"HTTP {resp.status_code} from /config â€” is this a Gradio server?"}
                 cfg = resp.json()
             api_names = await self._fetch_api_names()
             self._known_api_names = api_names
@@ -266,7 +266,7 @@ class Wan2GPClient:
             result.append(entry)
         return result
 
-    # ── File upload ───────────────────────────────────────────────────────────
+    # â”€â”€ File upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def upload_file(self, file_path: str) -> str:
         """Upload a file to Wan2GP Gradio server. Returns the served URL."""
@@ -288,10 +288,10 @@ class Wan2GPClient:
             raise RuntimeError("Wan2GP upload returned no path")
         return f"{self._base_url}/file={server_path.lstrip('/')}"
 
-    # ── Gradio SSE generation ─────────────────────────────────────────────────
+    # â”€â”€ Gradio SSE generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _gradio_call(self, fn: str, payload: dict) -> object:
-        """Gradio v4 protocol: POST /gradio_api/call/<fn> → event_id → SSE stream."""
+        """Gradio v4 protocol: POST /gradio_api/call/<fn> â†’ event_id â†’ SSE stream."""
         base = self._base_url
         async with httpx.AsyncClient(timeout=30.0) as c:
             post_resp = await c.post(
@@ -300,7 +300,7 @@ class Wan2GPClient:
                 headers={"Content-Type": "application/json"},
             )
             if not post_resp.is_success:
-                raise RuntimeError(f"Wan2GP POST /call/{fn} → HTTP {post_resp.status_code}")
+                raise RuntimeError(f"Wan2GP POST /call/{fn} â†’ HTTP {post_resp.status_code}")
             event_id = post_resp.json().get("event_id")
             if not event_id:
                 raise RuntimeError("Wan2GP did not return an event_id")
@@ -308,7 +308,7 @@ class Wan2GPClient:
         async with httpx.AsyncClient(timeout=1800.0) as stream_client:
             async with stream_client.stream("GET", f"{base}/gradio_api/call/{fn}/{event_id}") as resp:
                 if not resp.is_success:
-                    raise RuntimeError(f"Wan2GP stream → HTTP {resp.status_code}")
+                    raise RuntimeError(f"Wan2GP stream â†’ HTTP {resp.status_code}")
                 buf = ""
                 async for chunk in resp.aiter_text():
                     buf += chunk
@@ -358,7 +358,7 @@ class Wan2GPClient:
             )
 
         if model.needs_image and not image:
-            raise RuntimeError(f"{model.name} requires a start-frame image — provide image= parameter")
+            raise RuntimeError(f"{model.name} requires a start-frame image â€” provide image= parameter")
 
         width, height = _ar_to_dimensions(aspect_ratio)
         if seed == -1:
@@ -403,7 +403,7 @@ if __name__ == "__main__":
         url_status = client._base_url or "not configured (set WAN2GP_URL in .env)"
         probe = await client.probe()
         models = await client.list_models()
-        print(f"OK wan2gp_client.py — server={url_status}")
+        print(f"OK wan2gp_client.py â€” server={url_status}")
         print(f"  probe.ok={probe.get('ok')} models={len(models)}")
         if probe.get("ok"):
             ready = [m for m in models if m["ready"]]

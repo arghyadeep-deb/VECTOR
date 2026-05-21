@@ -1,4 +1,4 @@
-"""MCP router — /mcp/status."""
+"""MCP router â€” /mcp/status."""
 
 import sys
 from pathlib import Path
@@ -20,7 +20,7 @@ async def mcp_status():
             import fastmcp
             fastmcp_available = True
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         try:
             from vectorcode.src.core.config import VCConfig
@@ -28,7 +28,7 @@ async def mcp_status():
             vc_mcp_available = True
             transport = getattr(vc_cfg, "mcp_transport", "unknown")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         status = "ok" if fastmcp_available else "fastmcp_unavailable"
         if not fastmcp_available and not vc_mcp_available:
@@ -41,4 +41,4 @@ async def mcp_status():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ mcp.py OK")
+    print("âœ… mcp.py OK")

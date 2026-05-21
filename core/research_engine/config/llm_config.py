@@ -20,7 +20,7 @@ try:
     from ..llm.providers import discover_providers  # noqa: F401
     # Auto-discovery happens on module import
 except ImportError:
-    logger.debug("Providers module not available yet")
+    logger.warning("Providers module not available yet")
 from ..llm.providers.base import normalize_provider
 from .thread_settings import (
     get_setting_from_snapshot,
@@ -50,7 +50,7 @@ def is_openai_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking OpenAI availability", exc_info=True)
+        logger.warning("Error checking OpenAI availability", exc_info=True)
         return False
 
 
@@ -63,7 +63,7 @@ def is_anthropic_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking Anthropic availability", exc_info=True)
+        logger.warning("Error checking Anthropic availability", exc_info=True)
         return False
 
 
@@ -78,7 +78,7 @@ def is_openai_endpoint_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug(
+        logger.warning(
             "Error checking OpenAI endpoint availability", exc_info=True
         )
         return False
@@ -93,7 +93,7 @@ def is_ollama_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking Ollama availability", exc_info=True)
+        logger.warning("Error checking Ollama availability", exc_info=True)
         return False
 
 
@@ -106,7 +106,7 @@ def is_lmstudio_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking LM Studio availability", exc_info=True)
+        logger.warning("Error checking LM Studio availability", exc_info=True)
         return False
 
 
@@ -123,7 +123,7 @@ def is_llamacpp_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking llama.cpp availability", exc_info=True)
+        logger.warning("Error checking llama.cpp availability", exc_info=True)
         return False
 
 
@@ -136,7 +136,7 @@ def is_google_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking Google availability", exc_info=True)
+        logger.warning("Error checking Google availability", exc_info=True)
         return False
 
 
@@ -151,7 +151,7 @@ def is_openrouter_available(settings_snapshot=None):
     except ImportError:
         return False
     except Exception:
-        logger.debug("Error checking OpenRouter availability", exc_info=True)
+        logger.warning("Error checking OpenRouter availability", exc_info=True)
         return False
 
 
@@ -369,7 +369,7 @@ def get_llm(
             f"Set context_limit={context_window_size} in research_context"
         )
     else:
-        logger.debug(
+        logger.warning(
             f"Context limit not set: research_context={bool(research_context)}, context_window_size={context_window_size}"
         )
 
@@ -592,7 +592,7 @@ def get_llm(
                     enable_thinking, bool
                 ):
                     ollama_params["reasoning"] = enable_thinking
-                    logger.debug(
+                    logger.warning(
                         f"Ollama thinking enabled: {enable_thinking} "
                         f"(thinking will be {'shown internally but discarded' if enable_thinking else 'disabled'})"
                     )
@@ -602,19 +602,19 @@ def get_llm(
                 )
 
                 # Log the actual client configuration after creation
-                logger.debug(
+                logger.warning(
                     f"ChatOllama created - base_url attribute: {getattr(llm, 'base_url', 'not found')}"
                 )
                 if hasattr(llm, "_client"):
                     client = llm._client
-                    logger.debug(f"ChatOllama _client type: {type(client)}")
+                    logger.warning(f"ChatOllama _client type: {type(client)}")
                     if hasattr(client, "_client"):
                         inner_client = client._client
-                        logger.debug(
+                        logger.warning(
                             f"ChatOllama inner client type: {type(inner_client)}"
                         )
                         if hasattr(inner_client, "base_url"):
-                            logger.debug(
+                            logger.warning(
                                 f"ChatOllama inner client base_url: {inner_client.base_url}"
                             )
 
@@ -814,7 +814,7 @@ def wrap_llm_without_think_tags(
 
                 _close_base_llm(self.base_llm)
             except Exception:
-                logger.debug(
+                logger.warning(
                     "best-effort cleanup of HTTP clients on shutdown",
                     exc_info=True,
                 )

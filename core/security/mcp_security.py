@@ -1,5 +1,5 @@
 """
-VECTOR MCP Security Middleware — tool classification, rate limiting, auditing.
+VECTOR MCP Security Middleware â€” tool classification, rate limiting, auditing.
 
 Intercepts all MCP tool calls from district agents to:
   1. Classify tool risk (low / medium / critical)
@@ -229,7 +229,7 @@ class MCPSecurityMiddleware:
                 )
                 return True
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return False
 
@@ -353,4 +353,4 @@ if __name__ == "__main__":
     anomalous = mw.detect_anomalous_call("read_file", "test_district", {})
     assert anomalous is False
 
-    print("OK mcp_security.py — classification, rate limit, audit, anomaly detection verified")
+    print("OK mcp_security.py â€” classification, rate limit, audit, anomaly detection verified")

@@ -35,7 +35,7 @@ try:
     HAS_ODT_LOADER = True
 except ImportError:
     HAS_ODT_LOADER = False
-    logger.debug("UnstructuredODTLoader not available - ODT support disabled")
+    logger.warning("UnstructuredODTLoader not available - ODT support disabled")
 
 try:
     from langchain_community.document_loaders import UnstructuredEPubLoader
@@ -43,7 +43,7 @@ try:
     HAS_EPUB_LOADER = True
 except ImportError:
     HAS_EPUB_LOADER = False
-    logger.debug("UnstructuredEPubLoader not available - EPUB support disabled")
+    logger.warning("UnstructuredEPubLoader not available - EPUB support disabled")
 
 try:
     from langchain_community.document_loaders import UnstructuredRTFLoader
@@ -51,7 +51,7 @@ try:
     HAS_RTF_LOADER = True
 except ImportError:
     HAS_RTF_LOADER = False
-    logger.debug("UnstructuredRTFLoader not available - RTF support disabled")
+    logger.warning("UnstructuredRTFLoader not available - RTF support disabled")
 
 try:
     from langchain_community.document_loaders import UnstructuredRSTLoader
@@ -59,7 +59,7 @@ try:
     HAS_RST_LOADER = True
 except ImportError:
     HAS_RST_LOADER = False
-    logger.debug("UnstructuredRSTLoader not available - RST support disabled")
+    logger.warning("UnstructuredRSTLoader not available - RST support disabled")
 
 try:
     from langchain_community.document_loaders import UnstructuredOrgModeLoader
@@ -67,7 +67,7 @@ try:
     HAS_ORG_LOADER = True
 except ImportError:
     HAS_ORG_LOADER = False
-    logger.debug(
+    logger.warning(
         "UnstructuredOrgModeLoader not available - Org support disabled"
     )
 
@@ -77,7 +77,7 @@ try:
     HAS_IMAGE_LOADER = True
 except ImportError:
     HAS_IMAGE_LOADER = False
-    logger.debug(
+    logger.warning(
         "UnstructuredImageLoader not available - Image/OCR support disabled"
     )
 

@@ -39,7 +39,7 @@ class ObsidianSync:
         self._watching = False
         logger.info(f"[VECTOR][obsidian] vault={self._vault}")
 
-    # ── Permission helpers ─────────────────────────────────────────────────────
+    # â”€â”€ Permission helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _is_protected(self, path: Path) -> bool:
         try:
@@ -60,7 +60,7 @@ class ObsidianSync:
             return "yellow"
         return "forbidden"
 
-    # ── Write path ─────────────────────────────────────────────────────────────
+    # â”€â”€ Write path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def write_note(
         self,
@@ -72,7 +72,7 @@ class ObsidianSync:
         _bypass_gateway: bool = False,
     ) -> Path:
         """
-        Write a note to the vault. Atomic (tmp → rename).
+        Write a note to the vault. Atomic (tmp â†’ rename).
         Raises PermissionDeniedError for protected paths or un-gated personal writes.
         """
         target_dir = self._vault / folder
@@ -87,7 +87,7 @@ class ObsidianSync:
 
         if level == "yellow" and not _bypass_gateway:
             raise PermissionDeniedError(
-                f"Personal folder '{folder}' requires gateway — "
+                f"Personal folder '{folder}' requires gateway â€” "
                 "use async write_note_via_gateway() instead"
             )
 
@@ -139,7 +139,7 @@ class ObsidianSync:
         )
         return frontmatter + f"# {title}\n\n{content}\n"
 
-    # ── Gateway-aware write (async, for personal folders) ─────────────────────
+    # â”€â”€ Gateway-aware write (async, for personal folders) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def write_note_via_gateway(
         self,
@@ -172,7 +172,7 @@ class ObsidianSync:
 
         return self.write_note(title, content, folder, tags, overwrite=overwrite, _bypass_gateway=True)
 
-    # ── Memory helpers ─────────────────────────────────────────────────────────
+    # â”€â”€ Memory helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _get_memory(self):
         if self._memory is None:
@@ -197,7 +197,7 @@ class ObsidianSync:
         except Exception as e:
             logger.warning(f"[VECTOR][obsidian] episodic store failed: {e}")
 
-    # ── LightRAG ───────────────────────────────────────────────────────────────
+    # â”€â”€ LightRAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _init_rag(self) -> None:
         """Lazy-init LightRAG with Ollama backend. Gracefully degrades on failure."""
@@ -306,10 +306,10 @@ class ObsidianSync:
             except Exception as e:
                 logger.warning(f"[VECTOR][obsidian] ingest failed for {f}: {e}")
 
-        logger.info(f"[VECTOR][obsidian] bulk ingest complete — {count} new files")
+        logger.info(f"[VECTOR][obsidian] bulk ingest complete â€” {count} new files")
         return count
 
-    # ── MarkItDown pre-processor ───────────────────────────────────────────────
+    # â”€â”€ MarkItDown pre-processor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _to_markdown(self, file_path: Path) -> str | None:
         """
@@ -323,7 +323,7 @@ class ObsidianSync:
             result = md.convert(str(file_path))
             return result.text_content if result else None
         except ImportError:
-            logger.debug("[VECTOR][obsidian] markitdown not installed — skipping non-md conversion")
+            logger.debug("[VECTOR][obsidian] markitdown not installed â€” skipping non-md conversion")
             return None
         except Exception as e:
             logger.warning(f"[VECTOR][obsidian] markitdown conversion failed for {file_path}: {e}")
@@ -363,7 +363,7 @@ class ObsidianSync:
         return await self.ingest_to_rag_anything(file_path)
 
     async def ingest_to_rag_anything(self, file_path: str | Path) -> bool:
-        """Multi-modal ingestion (PDF, image, audio) via RagAnything → same LightRAG graph."""
+        """Multi-modal ingestion (PDF, image, audio) via RagAnything â†’ same LightRAG graph."""
         await self._init_rag()
         if self._rag is None:
             return False
@@ -379,7 +379,7 @@ class ObsidianSync:
             logger.warning(f"[VECTOR][obsidian] RagAnything failed: {e}")
             return False
 
-    # ── Watchdog ───────────────────────────────────────────────────────────────
+    # â”€â”€ Watchdog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def start_watching(self) -> None:
         """Watch vault for .md changes with 30s debounce per file. Never crashes."""
@@ -420,7 +420,7 @@ class ObsidianSync:
                     path = await asyncio.wait_for(queue.get(), timeout=1.0)
                     seen[path] = time.monotonic()
                 except asyncio.TimeoutError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
                 now = time.monotonic()
                 ready = [p for p, t in list(seen.items()) if now - t >= debounce_sec]
@@ -464,17 +464,17 @@ if __name__ == "__main__":
                 sync.write_note("CLAUDE", "evil", ".", [], _bypass_gateway=True)
                 assert False, "should have raised"
             except PermissionDeniedError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             try:
                 sync.write_note("journal", "x", "00 Notes", [], _bypass_gateway=False)
                 assert False, "should have raised"
             except PermissionDeniedError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             personal_path = sync.write_note("journal", "x", "00 Notes", [], _bypass_gateway=True)
             assert personal_path.exists()
 
-        print("✅ obsidian_sync.py OK")
+        print("âœ… obsidian_sync.py OK")
 
     asyncio.run(_smoke())

@@ -1,5 +1,5 @@
 """
-VECTOR Smart Routing — Usage Statistics + Request Journal
+VECTOR Smart Routing â€” Usage Statistics + Request Journal
 Python port of ClawRouter/src/stats.ts + src/logger.ts
 
 Tracks per-model usage, cost, latency, and savings.
@@ -162,7 +162,7 @@ class RequestJournal:
                     by_prov[p]["requests"] += 1
                     by_prov[p]["cost"] = by_prov[p].get("cost", 0.0) + r.get("cost_usd", 0)
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         if latencies:
             stats.avg_latency_ms = sum(latencies) / len(latencies)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         latency_ms=800, baseline_usd=0.0138, tier="SIMPLE",
     )
     stats = journal.get_stats(days=1)
-    print(f"OK stats.py — request journaling + usage statistics")
+    print(f"OK stats.py â€” request journaling + usage statistics")
     print(f"  log_dir: {journal._log_dir}")
     print(f"  total_requests: {stats.total_requests}")
     print(f"  total_cost: ${stats.total_cost_usd:.6f}")

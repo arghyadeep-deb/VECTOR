@@ -107,7 +107,7 @@ class ProjectContextProvider:
                 if "origin/master" in branches_output:
                     main_branch = "master"
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             status = self._format_git_status(status_future.result().stdout.strip())
             recent_commits = self._parse_git_log(log_future.result().stdout.strip())
@@ -248,7 +248,7 @@ def _get_scratchpad_section(scratchpad_dir: Path | None) -> str | None:
         f"You have a scratchpad directory at: `{scratchpad_dir}`\n\n"
         "Use this for temporary files: intermediate results, draft scripts, "
         "working files, outputs that don't belong in the project.\n"
-        "Files here are automatically allowed — no permission prompts.\n"
+        "Files here are automatically allowed â€” no permission prompts.\n"
         "Session-scoped. Shared with subagents."
     )
 
@@ -256,7 +256,7 @@ def _get_scratchpad_section(scratchpad_dir: Path | None) -> str | None:
 def _get_headless_section() -> str:
     return (
         "# Headless Mode\n\n"
-        "You are running in headless mode — no human is available to respond.\n"
+        "You are running in headless mode â€” no human is available to respond.\n"
         "Do not ask questions, request confirmation, or wait for user input.\n"
         "If the task is ambiguous, make the best judgment call and proceed.\n"
         "Complete the entire task in a single pass. Produce a final, complete result.\n"

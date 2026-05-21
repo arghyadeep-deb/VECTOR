@@ -47,7 +47,7 @@ class ModelCrashPlaybook(RecoveryPlaybook):
                 actions.append("Ollama model healthy")
                 return PlaybookResult(name=self.name, success=True, duration_s=time.time() - start, actions_taken=actions)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         actions.append("Attempting Ollama restart")
         subprocess.run(["ollama", "serve"], capture_output=True, timeout=10)
@@ -70,7 +70,7 @@ class OOMPlaybook(RecoveryPlaybook):
                 torch.cuda.empty_cache()
                 logger.info("[Playbook] GPU cache cleared")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return PlaybookResult(
             name=self.name, success=True,
@@ -151,9 +151,9 @@ class GPUFailurePlaybook(RecoveryPlaybook):
                 torch.cuda.synchronize()
                 actions.append(f"GPU OK: {torch.cuda.get_device_name(0)}")
             else:
-                actions.append("GPU unavailable — falling back to CPU")
+                actions.append("GPU unavailable â€” falling back to CPU")
         except ImportError:
-            actions.append("torch not installed — skipping GPU check")
+            actions.append("torch not installed â€” skipping GPU check")
 
         return PlaybookResult(
             name=self.name, success=True,
@@ -175,7 +175,7 @@ class ProcessHangPlaybook(RecoveryPlaybook):
         for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
             try:
                 if proc.info["cpu_percent"] and proc.info["cpu_percent"] > 90:
-                    actions.append(f"High CPU: {proc.info['name']} (PID {proc.info['pid']}) — restarting")
+                    actions.append(f"High CPU: {proc.info['name']} (PID {proc.info['pid']}) â€” restarting")
                     proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue

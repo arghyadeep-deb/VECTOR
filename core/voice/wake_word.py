@@ -24,7 +24,7 @@ class WakeWordDetector:
     def _init_model(self):
         # Try openwakeword with the custom-trained "hey_vector" model only.
         # If not available, use Whisper KWS so the user can say "Hey Vector" naturally.
-        # Do NOT fall back to "alexa" — wrong brand, wrong phrase.
+        # Do NOT fall back to "alexa" â€” wrong brand, wrong phrase.
         try:
             import openwakeword
             from openwakeword.model import Model
@@ -33,9 +33,9 @@ class WakeWordDetector:
             logger.info(f"[VECTOR][wake] openWakeWord ready (phrase='{self._wake_phrase}')")
             return
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-        # Custom model not available — Whisper KWS: user can say "Hey Vector" or "Vector"
+        # Custom model not available â€” Whisper KWS: user can say "Hey Vector" or "Vector"
         logger.info(
             f"[VECTOR][wake] Custom model '{self._wake_phrase}.onnx' not found. "
             f"Using Whisper keyword detection. Say 'Hey Vector' or 'Vector' to activate. "
@@ -45,7 +45,7 @@ class WakeWordDetector:
         self._use_whisper_kws = True
 
     def is_wake_word(self, audio_frame: np.ndarray) -> bool:
-        """Per-frame check — only used in the openwakeword path."""
+        """Per-frame check â€” only used in the openwakeword path."""
         if self._use_whisper_kws or self._model is None:
             return False
         try:
@@ -58,7 +58,7 @@ class WakeWordDetector:
             logger.error(f"[VECTOR][wake] is_wake_word error: {e}")
             return False
 
-    # Maps detected phrase → conversation mode
+    # Maps detected phrase â†’ conversation mode
     _PHRASE_MODES = {
         "vector think": "deep_think",
         "vector private": "private",
@@ -102,7 +102,7 @@ class WakeWordDetector:
             from core.voice.stt import WhisperSTT
             stt = WhisperSTT()
             chunk_sec = 2.0
-            logger.info(f"[VECTOR][wake] Whisper KWS — say 'Hey Vector', 'Vector Think', or 'Vector Private'")
+            logger.info(f"[VECTOR][wake] Whisper KWS â€” say 'Hey Vector', 'Vector Think', or 'Vector Private'")
             while True:
                 audio = await asyncio.to_thread(
                     sd.rec,
@@ -122,10 +122,10 @@ class WakeWordDetector:
                     if text:
                         for phrase, mode in self._PHRASE_MODES.items():
                             if phrase in text:
-                                logger.info(f"[VECTOR][wake] KWS triggered: '{text}' → mode={mode}")
+                                logger.info(f"[VECTOR][wake] KWS triggered: '{text}' â†’ mode={mode}")
                                 return mode
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
                 await asyncio.sleep(0.05)
         except Exception as e:
             logger.error(f"[VECTOR][wake] _listen_whisper_kws error: {e}")
@@ -149,11 +149,11 @@ class WakeWordDetector:
         samples_dir.mkdir(exist_ok=True)
         model_out = model_dir / f"{self._wake_phrase}.onnx"
 
-        logger.info(f"[VECTOR][wake] Training '{self._wake_phrase}' — recording {n_samples} samples")
+        logger.info(f"[VECTOR][wake] Training '{self._wake_phrase}' â€” recording {n_samples} samples")
         recorded: list[Path] = []
 
         for i in range(n_samples):
-            logger.info(f"[VECTOR][wake] Sample {i+1}/{n_samples} — say '{self._wake_phrase}' now...")
+            logger.info(f"[VECTOR][wake] Sample {i+1}/{n_samples} â€” say '{self._wake_phrase}' now...")
             try:
                 audio = await asyncio.to_thread(
                     sd.rec,
@@ -172,7 +172,7 @@ class WakeWordDetector:
                 logger.warning(f"[VECTOR][wake] Sample {i+1} failed: {e}")
 
         if len(recorded) < 3:
-            return {"status": "error", "error": f"Only {len(recorded)} samples recorded (need ≥3)"}
+            return {"status": "error", "error": f"Only {len(recorded)} samples recorded (need â‰¥3)"}
 
         # Run openWakeWord training script
         try:
@@ -207,4 +207,4 @@ if __name__ == "__main__":
     result = detector.is_wake_word(silent_frame)
     model_ok = detector._model is not None or detector._use_whisper_kws
     method = "whisper_kws" if detector._use_whisper_kws else f"openwakeword({detector._active_model_name})"
-    print(f"✅ wake_word OK (method={method})" if model_ok else "❌ FAILED — no detection method available")
+    print(f"âœ… wake_word OK (method={method})" if model_ok else "âŒ FAILED â€” no detection method available")

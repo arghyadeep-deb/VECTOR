@@ -138,14 +138,14 @@ class FindingsRepository(BaseFindingsRepository):
             f"Formatting final report. Number of detailed findings: {len(findings_list)}. Synthesized content length: {len(synthesized_content)}. Number of question iterations: {len(self.questions_by_iteration)}"
         )
         # Log details about the inputs
-        logger.debug(
+        logger.warning(
             f"Detailed findings list structure (first item type if exists): {type(findings_list[0]) if findings_list else 'Empty'}"
         )
-        logger.debug(
+        logger.warning(
             f"Questions by iteration keys: {list(self.questions_by_iteration.keys())}"
         )
         if findings_list:
-            logger.debug(
+            logger.warning(
                 f"First finding item keys: {list(findings_list[0].keys())}"
             )
 
@@ -248,7 +248,7 @@ class FindingsRepository(BaseFindingsRepository):
             )
 
             # Check if knowledge exceeds a reasonable token limit (rough estimate based on characters)
-            # 1 token ≈ 4 characters in English
+            # 1 token â‰ˆ 4 characters in English
             estimated_tokens = len(current_knowledge) / 4
             max_safe_tokens = (
                 12000  # Adjust based on your model's context window
@@ -296,7 +296,7 @@ Use IEEE style citations [1], [2], etc. Never make up your own citations.
                 f"Synthesizing final answer. Query: '{query}'. Knowledge length: {len(current_knowledge)}. Prompt length: {len(prompt)}"
             )
             # Log first 500 chars of prompt for debugging context length issues
-            logger.debug(
+            logger.warning(
                 f"Synthesis prompt (first 500 chars): {prompt[:500]}..."
             )
 
@@ -386,7 +386,7 @@ Use IEEE style citations [1], [2], etc. Never make up your own citations.
                     @contextmanager
                     def timeout(seconds, message="Operation timed out"):
                         def signal_handler(signum, frame):
-                            raise TimeoutError(message)  # noqa: TRY301 — signal handler, not caught by enclosing try
+                            raise TimeoutError(message)  # noqa: TRY301 â€” signal handler, not caught by enclosing try
 
                         signal.signal(signal.SIGALRM, signal_handler)
                         signal.alarm(seconds)

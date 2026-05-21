@@ -368,7 +368,7 @@ class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
         try:
             await agent_loop.wait_until_ready()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def _create_agent_loop(
         self, config: VectorCAConfig, agent_name: str, hook_config_result: Any = None
@@ -577,7 +577,7 @@ class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
                 update = self._build_usage_update(session)
                 await self.client.session_update(session_id=session.id, update=update)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         session.spawn(_send())
 
@@ -1367,7 +1367,7 @@ class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
     async def _handle_proxy_setup(
         self, session: AcpSessionLoop, text_prompt: str, message_id: str
     ) -> PromptResponse:
-        # Proxy setup removed — VECTOR uses environment variables directly
+        # Proxy setup removed â€” VECTOR uses environment variables directly
         return await self._command_reply(
             session,
             "Proxy configuration is managed via environment variables in VECTOR.",
@@ -1475,7 +1475,7 @@ def run_acp_server() -> None:
                     )
                 )
             except (TimeoutError, Exception):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         # This is expected when the server is terminated
         pass
     except Exception as e:

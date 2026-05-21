@@ -107,7 +107,7 @@ class SessionLogger:
             if result.returncode == 0 and result.stdout:
                 return result.stdout.strip()
         except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return None
 
     @property
@@ -123,7 +123,7 @@ class SessionLogger:
             if result.returncode == 0 and result.stdout:
                 return result.stdout.strip()
         except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return None
 
     @property
@@ -164,7 +164,7 @@ class SessionLogger:
             text = str(first_user_message.content)
             title = text[:MAX_TITLE_LENGTH]
             if len(text) > MAX_TITLE_LENGTH:
-                title += "…"
+                title += "â€¦"
 
         return title
 

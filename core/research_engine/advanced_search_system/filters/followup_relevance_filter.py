@@ -145,7 +145,7 @@ Return the indices of relevant sources as a JSON array:"""
                     if isinstance(i, (int, float)) and int(i) < len(sources)
                 ]
             else:
-                logger.debug("Failed to parse JSON, attempting regex fallback")
+                logger.warning("Failed to parse JSON, attempting regex fallback")
                 # Fallback to regex extraction
                 import re
 
@@ -154,6 +154,6 @@ Return the indices of relevant sources as a JSON array:"""
 
             return indices
         except Exception as e:
-            logger.debug(f"LLM source selection failed: {e}")
+            logger.warning(f"LLM source selection failed: {e}")
             # Fallback to first max_results sources
             return list(range(min(max_results, len(sources))))

@@ -123,7 +123,7 @@ def _parse_multiselect(x):
     """Parse multiselect value, handling both lists and strings.
 
     DB values (via SQLAlchemy JSON column) arrive as Python lists already.
-    Env var overrides arrive as strings and need parsing — either as JSON
+    Env var overrides arrive as strings and need parsing â€” either as JSON
     arrays (e.g. '["markdown","latex"]') or comma-separated values
     (e.g. 'markdown,latex').
     """
@@ -137,7 +137,7 @@ def _parse_multiselect(x):
                 if isinstance(parsed, list):
                     return parsed
             except (json.JSONDecodeError, ValueError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
         # Comma-separated fallback
         return [item.strip() for item in stripped.split(",") if item.strip()]
     return x
@@ -260,7 +260,7 @@ def check_env_setting(key: str) -> str | None:
 
     Note:
         Empty environment variables ("") are treated as unset. This is standard
-        practice across the ecosystem — see CPython's official docs (PYTHON*
+        practice across the ecosystem â€” see CPython's official docs (PYTHON*
         env vars require "a non-empty string"), botocore PR #1687, Pallets/Click
         PR #2223, and Vercel Turborepo PR #6929. Orchestration tools like Unraid,
         Terraform, and Kubernetes manifests often cannot conditionally omit env
@@ -271,14 +271,14 @@ def check_env_setting(key: str) -> str | None:
     """
     env_variable_name = f"LDR_{'_'.join(key.split('.')).upper()}"
     env_value = os.getenv(env_variable_name)
-    # Treat empty string as unset — orchestration tools (Unraid, Terraform, K8s)
+    # Treat empty string as unset â€” orchestration tools (Unraid, Terraform, K8s)
     # often cannot omit env var declarations and pass "" for unconfigured values.
     if env_value is not None and env_value != "":
-        logger.debug(f"Overriding {key} setting from environment variable.")
+        logger.warning(f"Overriding {key} setting from environment variable.")
         return env_value
     if env_value == "":
         logger.warning(
-            "Environment variable {} is set but empty — "
+            "Environment variable {} is set but empty â€” "
             "ignoring it and falling back to DB/default for setting '{}'. "
             "This is expected on Unraid or Docker templates that create "
             "all variables even when left blank. To suppress this warning, "
@@ -307,7 +307,7 @@ class SettingsManager(ISettingsManager):
             db_session: SQLAlchemy session for database operations
             owns_session: If True, close() will close the session.
                 Defaults to False (safe for borrowed sessions).  Set to True
-                only when this manager created/owns the session — currently
+                only when this manager created/owns the session â€” currently
                 only get_settings_manager() in db_utils.py does this.
         """
         self.db_session = db_session
@@ -330,15 +330,15 @@ class SettingsManager(ISettingsManager):
 
         Borrowed sessions (owns_session=False) are left open for their
         owner to close (e.g. Flask teardown closes g.db_session).
-        Safe to call multiple times — subsequent calls are no-ops.
+        Safe to call multiple times â€” subsequent calls are no-ops.
         """
         if self._owns_session and self.db_session is not None:
             try:
-                logger.debug("Closing owned DB session in SettingsManager")
+                logger.warning("Closing owned DB session in SettingsManager")
                 self.db_session.close()
             except Exception:
                 logger.warning(
-                    "Failed to close SettingsManager DB session — "
+                    "Failed to close SettingsManager DB session â€” "
                     "connection may leak",
                 )
         self._closed = True
@@ -406,7 +406,7 @@ class SettingsManager(ISettingsManager):
             # Find all JSON files recursively in the defaults directory
             json_files = sorted(defaults_path.rglob("*.json"))
 
-            logger.debug(f"Found {len(json_files)} JSON settings files")
+            logger.warning(f"Found {len(json_files)} JSON settings files")
 
             # Load and merge all JSON files
             for json_file in json_files:
@@ -426,7 +426,7 @@ class SettingsManager(ISettingsManager):
                         )
 
                     settings.update(file_settings)
-                    logger.debug(f"Loaded {relative_path}")
+                    logger.warning(f"Loaded {relative_path}")
 
                 except json.JSONDecodeError:
                     logger.exception(f"Invalid JSON in {json_file}")
@@ -446,7 +446,7 @@ class SettingsManager(ISettingsManager):
                 )
             except ImportError:
                 # Theme registry not available, use static options from JSON
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         # Inject search strategy options from code (single source of truth)
         if "search.search_strategy" in settings:
@@ -463,7 +463,7 @@ class SettingsManager(ISettingsManager):
                 {"label": s["label"], "value": s["name"]} for s in strategies
             ]
 
-        logger.debug(f"Loaded {len(settings)} total settings")
+        logger.warning(f"Loaded {len(settings)} total settings")
         return settings
 
     def __get_typed_setting_value(
@@ -520,7 +520,7 @@ class SettingsManager(ISettingsManager):
                 )
             return query.all()
 
-        logger.debug(
+        logger.warning(
             "DB is disabled, reading setting '{}' from defaults file.", key
         )
 
@@ -555,7 +555,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_setting('{}') called after close() — "
+                "SettingsManager.get_setting('{}') called after close() â€” "
                 "this is a bug; the caller should not reuse a closed manager",
                 key,
             )
@@ -605,7 +605,7 @@ class SettingsManager(ISettingsManager):
                     )
                 logger.warning(
                     "Setting '{}' has env var override but is not in "
-                    "defaults — returning raw string without type "
+                    "defaults â€” returning raw string without type "
                     "conversion. Add this setting to a defaults JSON "
                     "file with a ui_element type to enable proper "
                     "type conversion.",
@@ -648,7 +648,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.set_setting('{}') called after close() — "
+                "SettingsManager.set_setting('{}') called after close() â€” "
                 "this is a bug; the caller should not reuse a closed manager",
                 key,
             )
@@ -731,7 +731,7 @@ class SettingsManager(ISettingsManager):
     def clear_cache(self):
         """Clear the settings cache."""
         self.__dict__.pop("default_settings", None)
-        logger.debug("Settings cache cleared")
+        logger.warning("Settings cache cleared")
 
     def get_all_settings(self, bypass_cache: bool = False) -> Dict[str, Any]:
         """
@@ -748,7 +748,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_all_settings() called after close() — "
+                "SettingsManager.get_all_settings() called after close() â€” "
                 "this is a bug; the caller should not reuse a closed manager",
             )
             raise RuntimeError(
@@ -793,7 +793,7 @@ class SettingsManager(ISettingsManager):
 
             # Log if this is a custom setting not in defaults
             if str(setting.key) not in result:
-                logger.debug(
+                logger.warning(
                     f"Database contains custom setting not in "
                     f"defaults: {setting.key} (type={setting_type}, "
                     f"category={setting.category})"
@@ -860,7 +860,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_settings_snapshot() called after close() — "
+                "SettingsManager.get_settings_snapshot() called after close() â€” "
                 "this is a bug; the caller should not reuse a closed manager",
             )
             raise RuntimeError(
@@ -1030,7 +1030,7 @@ class SettingsManager(ISettingsManager):
             commit: Whether to commit changes to database. The post-login
                 atomic block in `web/auth/routes.py` passes ``commit=False``
                 and combines this call with ``update_db_version(commit=False)``
-                under a single terminal ``db_session.commit()`` — preserving
+                under a single terminal ``db_session.commit()`` â€” preserving
                 the all-or-nothing invariant is what prevents the sticky-loop
                 bug where `app.version` is missing after a partial write.
             **kwargs: Will be passed to `import_settings`.
@@ -1046,7 +1046,7 @@ class SettingsManager(ISettingsManager):
                 f"in {elapsed_ms:.0f}ms (commit={commit})"
             )
         else:
-            logger.debug(
+            logger.warning(
                 f"load_from_defaults_file imported {row_count} settings "
                 f"in {elapsed_ms:.0f}ms (commit={commit})"
             )
@@ -1058,7 +1058,7 @@ class SettingsManager(ISettingsManager):
 
         """
         db_version = self.get_setting("app.version")
-        logger.debug(
+        logger.warning(
             f"App version saved in DB is {db_version}, have package "
             f"settings from version {package_version}."
         )
@@ -1079,7 +1079,7 @@ class SettingsManager(ISettingsManager):
                 transaction; splitting them risks the sticky-loop state
                 where `app.version` never gets written.
         """
-        logger.debug(f"Updating saved DB version to {package_version}.")
+        logger.warning(f"Updating saved DB version to {package_version}.")
 
         self.delete_setting("app.version", commit=False)
         version = Setting(
@@ -1122,7 +1122,7 @@ class SettingsManager(ISettingsManager):
         """
         if self.db_session is None:
             raise RuntimeError("Database session is not initialized")
-        logger.debug(f"Importing {len(settings_data)} settings")
+        logger.warning(f"Importing {len(settings_data)} settings")
 
         for key, setting_values in settings_data.items():
             setting_values = dict(setting_values)
@@ -1156,7 +1156,7 @@ class SettingsManager(ISettingsManager):
             all_settings = self.get_all_settings()
             for key in all_settings:
                 if key not in settings_data:
-                    logger.debug(f"Deleting extraneous setting: {key}")
+                    logger.warning(f"Deleting extraneous setting: {key}")
                     self.delete_setting(key, commit=False)
 
     def _create_setting(self, key, value, setting_type):
@@ -1224,7 +1224,7 @@ class SettingsManager(ISettingsManager):
             try:
                 socket_service = SocketIOService()
             except ValueError:
-                logger.debug(
+                logger.warning(
                     "Not emitting socket event because server is not initialized."
                 )
                 return
@@ -1249,7 +1249,7 @@ class SettingsManager(ISettingsManager):
                 },
             )
 
-            logger.debug(
+            logger.warning(
                 f"Emitted settings_changed event for keys: {changed_keys}"
             )
 

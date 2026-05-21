@@ -88,7 +88,7 @@ class PearlDockerLauncher:
             self._client.images.get(tag)
             return tag
         except image_not_found:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         pull_error: str | None = None
         try:
@@ -282,11 +282,11 @@ class PearlDockerLauncher:
         try:
             container.stop(timeout=timeout)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         try:
             container.remove()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._container = None
 
     def is_running(self) -> bool:

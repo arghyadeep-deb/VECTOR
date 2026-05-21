@@ -947,7 +947,7 @@ def get_documents():
                 )
             )
 
-            logger.debug(f"Base query for collection {collection_id}: {query}")
+            logger.warning(f"Base query for collection {collection_id}: {query}")
 
             # Apply filters based on rag_document_status existence
             if filter_type == "indexed":
@@ -1426,7 +1426,7 @@ def upload_to_collection(collection_id):
                             # Filename sanitization already happens via sanitize_filename() above.
                             # See PR #3145 review for details.
                             if file_content[:4] != b"%PDF":
-                                logger.debug(
+                                logger.warning(
                                     "Skipping PDF upgrade for {}: not a PDF file",
                                     filename,
                                 )
@@ -1823,7 +1823,7 @@ def index_collection(collection_id):
             username, session_id
         )
 
-    # Create RAG service — on force reindex use current default model
+    # Create RAG service â€” on force reindex use current default model
     rag_service = get_rag_service(collection_id, use_defaults=force_reindex)
     logger.info(
         f"RAG service created: provider={rag_service.embedding_provider}"
@@ -1919,7 +1919,7 @@ def index_collection(collection_id):
                     yield f"data: {json.dumps({'type': 'progress', 'current': idx, 'total': total, 'filename': filename, 'percent': int((idx / total) * 100)})}\n\n"
 
                     try:
-                        logger.debug(
+                        logger.warning(
                             f"Indexing document {idx}/{total}: {filename}"
                         )
 
@@ -1948,7 +1948,7 @@ def index_collection(collection_id):
 
                                     cleanup_current_thread()
                                 except Exception:
-                                    logger.debug(
+                                    logger.warning(
                                         "best-effort thread-local DB session cleanup",
                                         exc_info=True,
                                     )
@@ -1966,7 +1966,7 @@ def index_collection(collection_id):
 
                         # Check for errors from thread
                         if not error_queue.empty():
-                            raise error_queue.get()  # noqa: TRY301 — re-raises thread exception for per-document error handling
+                            raise error_queue.get()  # noqa: TRY301 â€” re-raises thread exception for per-document error handling
 
                         result = result_queue.get()
                         logger.info(
@@ -2086,7 +2086,7 @@ def trigger_auto_index(
     from ...database.session_context import get_user_db_session
 
     if not document_ids:
-        logger.debug("No documents to auto-index")
+        logger.warning("No documents to auto-index")
         return
 
     # Check if auto-indexing is enabled
@@ -2098,7 +2098,7 @@ def trigger_auto_index(
             )
 
             if not auto_index_enabled:
-                logger.debug("Auto-indexing is disabled, skipping")
+                logger.warning("Auto-indexing is disabled, skipping")
                 return
     except Exception:
         logger.exception(
@@ -2149,9 +2149,9 @@ def _auto_index_documents_worker(
                     )
                     if result.get("status") == "success":
                         indexed_count += 1
-                        logger.debug(f"Auto-indexed document {doc_id}")
+                        logger.warning(f"Auto-indexed document {doc_id}")
                     elif result.get("status") == "skipped":
-                        logger.debug(
+                        logger.warning(
                             f"Document {doc_id} already indexed, skipped"
                         )
                 except Exception:

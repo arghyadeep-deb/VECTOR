@@ -126,7 +126,7 @@ class VoiceManager:
                 self._transcribe_task.cancel()
                 self._on_audio_transcription_error("Transcription timed out")
             except CancelledError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             self._transcribe_task = None
 
         if self._transcribe_state != TranscribeState.IDLE:
@@ -153,7 +153,7 @@ class VoiceManager:
         try:
             self._listeners.remove(listener)
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     async def close(self) -> None:
         transcribe_task = self._transcribe_task

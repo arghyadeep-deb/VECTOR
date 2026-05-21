@@ -181,7 +181,7 @@ class RetrieverSearchEngine(BaseSearchEngine):
                 docs = await self.retriever.aget_relevant_documents(query)
             else:
                 # Fall back to sync version
-                logger.debug(
+                logger.warning(
                     f"Retriever '{self.name}' doesn't support async, using sync version"
                 )
                 return self.run(query)

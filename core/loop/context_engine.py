@@ -10,7 +10,7 @@ from core.config import CONFIG
 class ContextEngine:
     """
     Builds VECTOR's world state. session_hydration_prompt() MUST be called before every LLM call.
-    RULE 1 — Skip this = VECTOR has amnesia every session. Never skip.
+    RULE 1 Ã¢â‚¬â€ Skip this = VECTOR has amnesia every session. Never skip.
     """
 
     def __init__(self):
@@ -43,8 +43,7 @@ class ContextEngine:
             try:
                 from core.sensing.health_monitor import HealthMonitor
                 self._health = HealthMonitor()
-            except Exception:
-                pass
+            except Exception: logger.debug("[VECTOR][context] exception suppressed")
         return self._health
 
     def _get_screen(self):
@@ -53,7 +52,7 @@ class ContextEngine:
                 from core.sensing.screen_observer import ScreenObserver
                 self._screen = ScreenObserver()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self._screen
 
     def _get_obsidian(self):
@@ -71,7 +70,7 @@ class ContextEngine:
                 from districts.time_calendar.deadline_manager import DeadlineManager
                 self._deadline_mgr = DeadlineManager()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self._deadline_mgr
 
     def _get_expense_tracker(self):
@@ -80,7 +79,7 @@ class ContextEngine:
                 from districts.finance.expense_tracker import ExpenseTracker
                 self._expense_tracker = ExpenseTracker()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self._expense_tracker
 
     def _get_kiit_scraper(self):
@@ -89,7 +88,7 @@ class ContextEngine:
                 from districts.time_calendar.kiit_scraper import KIITScraper
                 self._kiit_scraper = KIITScraper()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self._kiit_scraper
 
     def _get_comms_hub(self):
@@ -98,7 +97,7 @@ class ContextEngine:
                 from districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
                 self._comms_hub = _VCCommsHub()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return self._comms_hub
 
     def _get_personality(self):
@@ -161,7 +160,7 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
 
-        # ── Extended domain fields ─────────────────────────────────────────────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ Extended domain fields Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         calendar_upcoming: list = []
         try:
             dm = self._get_deadline_mgr()
@@ -184,7 +183,7 @@ class ContextEngine:
         try:
             ks = self._get_kiit_scraper()
             if ks:
-                # Only call sync methods — get_schedule() is async and cannot be called here
+                # Only call sync methods Ã¢â‚¬â€ get_schedule() is async and cannot be called here
                 if hasattr(ks, "get_cached_schedule"):
                     academic_info = ks.get_cached_schedule() or {}
                 elif hasattr(ks, "schedule_cache") and ks.schedule_cache:
@@ -276,7 +275,7 @@ class ContextEngine:
                     asyncio.ensure_future(self._async_ha_snapshot(mgr, cfg))
                     return {"enabled": True, "status": "pending"}
             except RuntimeError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             return {"enabled": True}
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] HA snapshot failed: {e}")
@@ -298,7 +297,7 @@ class ContextEngine:
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
         """
-        RULE 1 — Call this before EVERY LLM call.
+        RULE 1 Ã¢â‚¬â€ Call this before EVERY LLM call.
         Returns a context block to prepend to the LLM message.
         """
         try:
@@ -317,7 +316,7 @@ class ContextEngine:
             }
 
         lines = [
-            f"[SESSION CONTEXT — {state['timestamp']}]",
+            f"[SESSION CONTEXT Ã¢â‚¬â€ {state['timestamp']}]",
             f"Owner: {state['owner']} | Env: {state['env']} | VECTOR v{state['version']}",
             f"Time: {state['time_of_day']} ({state['day_of_week']})",
         ]
@@ -376,7 +375,7 @@ class ContextEngine:
         lines.append("[END SESSION CONTEXT]")
         raw = "\n".join(lines)
 
-        # ── TokenJuice compression — strip noise before injecting into LLM ──────
+        # Ã¢â€â‚¬Ã¢â€â‚¬ TokenJuice compression Ã¢â‚¬â€ strip noise before injecting into LLM Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         try:
             from core.engine.token_juice.compressor import reduce_text
             compressed = reduce_text(
@@ -388,13 +387,13 @@ class ContextEngine:
             )
             if len(compressed) < len(raw):
                 logger.debug(
-                    "[VECTOR][context_engine] TokenJuice: {} → {} chars ({:.0f}% reduction)",
+                    "[VECTOR][context_engine] TokenJuice: {} Ã¢â€ â€™ {} chars ({:.0f}% reduction)",
                     len(raw), len(compressed),
                     (1 - len(compressed) / len(raw)) * 100,
                 )
                 return compressed
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return raw
 
@@ -440,6 +439,6 @@ if __name__ == "__main__":
         and ("enabled" in personality or personality == {})
     )
     print(
-        f"✅ context_engine OK — {len(state)} domains, prompt={len(prompt)} chars"
-        if ok else "❌ FAILED"
+        f"Ã¢Å“â€¦ context_engine OK Ã¢â‚¬â€ {len(state)} domains, prompt={len(prompt)} chars"
+        if ok else "Ã¢ÂÅ’ FAILED"
     )

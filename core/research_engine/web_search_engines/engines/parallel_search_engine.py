@@ -216,13 +216,13 @@ class ParallelSearchEngine(BaseSearchEngine):
             )
 
             if not success:
-                logger.debug(error_msg)
+                logger.warning(error_msg)
                 continue
 
             # Check if engine is public or if local engines are allowed
             if hasattr(engine_class, "is_public"):
                 if not engine_class.is_public and not self.allow_local_engines:
-                    logger.debug(f"Skipping local/private engine: {name}")
+                    logger.warning(f"Skipping local/private engine: {name}")
                     continue
                 if not engine_class.is_public and self.allow_local_engines:
                     logger.warning(
@@ -231,7 +231,7 @@ class ParallelSearchEngine(BaseSearchEngine):
             else:
                 # No is_public flag - assume it's private/local for safety
                 if not self.allow_local_engines:
-                    logger.debug(
+                    logger.warning(
                         f"Skipping engine {name} - no is_public flag and local engines not allowed"
                     )
                     continue
@@ -242,12 +242,12 @@ class ParallelSearchEngine(BaseSearchEngine):
                 is_generic = getattr(engine_class, "is_generic", False)
 
                 if not (is_scientific or is_generic):
-                    logger.debug(
+                    logger.warning(
                         f"Skipping {name} in scientific mode (not scientific or generic)"
                     )
                     continue
 
-                logger.debug(
+                logger.warning(
                     f"Including {name} in scientific mode (scientific={is_scientific}, generic={is_generic})"
                 )
 
@@ -271,7 +271,7 @@ class ParallelSearchEngine(BaseSearchEngine):
             )
 
             if not success:
-                logger.debug(
+                logger.warning(
                     f"Could not check if {name} is generic: {error_msg}"
                 )
                 continue
@@ -279,7 +279,7 @@ class ParallelSearchEngine(BaseSearchEngine):
             # Check if engine is generic
             if getattr(engine_class, "is_generic", False):
                 generic_engines.append(name)
-                logger.debug(f"Found generic engine: {name}")
+                logger.warning(f"Found generic engine: {name}")
 
         return generic_engines
 
@@ -310,7 +310,7 @@ class ParallelSearchEngine(BaseSearchEngine):
                 engines_for_selection = [
                     e for e in engines_for_selection if e not in generic_engines
                 ]
-                logger.debug(
+                logger.warning(
                     f"Excluding generic engines from LLM selection: {generic_engines}"
                 )
 
@@ -329,7 +329,7 @@ class ParallelSearchEngine(BaseSearchEngine):
                 ]
             )
 
-            logger.debug(f"Engines for LLM selection: {engines_for_selection}")
+            logger.warning(f"Engines for LLM selection: {engines_for_selection}")
 
             prompt = f"""Query: {query}
 
@@ -341,7 +341,7 @@ Example: [0, 2, 5]
 
 Select up to {self.max_engines_to_select} engines that would best answer this query."""
 
-            logger.debug("Sending prompt to LLM for engine selection")
+            logger.warning("Sending prompt to LLM for engine selection")
             # Get LLM response
             response = self.llm.invoke(prompt)
             content = get_llm_response_text(response)
@@ -363,7 +363,7 @@ Select up to {self.max_engines_to_select} engines that would best answer this qu
                         for engine in generic_engines:
                             if engine not in selected_engines:
                                 selected_engines.append(engine)
-                                logger.debug(f"Added generic engine: {engine}")
+                                logger.warning(f"Added generic engine: {engine}")
 
                     logger.info(f"Final selected engines: {selected_engines}")
                     return selected_engines
@@ -557,7 +557,7 @@ Select up to {self.max_engines_to_select} engines that would best answer this qu
                 try:
                     cleanup_current_thread()
                 except Exception:
-                    logger.debug(
+                    logger.warning(
                         "parallel_search submit wrapper: cleanup_current_thread failed",
                         exc_info=True,
                     )
@@ -597,7 +597,7 @@ Select up to {self.max_engines_to_select} engines that would best answer this qu
                             },
                         )
                     except Exception:
-                        logger.debug("Socket emit error (non-critical)")
+                        logger.warning("Socket emit error (non-critical)")
                 else:
                     # Emit failure event
                     try:
@@ -610,7 +610,7 @@ Select up to {self.max_engines_to_select} engines that would best answer this qu
                             },
                         )
                     except Exception:
-                        logger.debug("Socket emit error (non-critical)")
+                        logger.warning("Socket emit error (non-critical)")
 
             except Exception:
                 logger.exception(f"Failed to get result from {engine_name}")
@@ -639,10 +639,10 @@ Select up to {self.max_engines_to_select} engines that would best answer this qu
 
         # Log sample result to understand structure
         if all_results:
-            logger.debug(
+            logger.warning(
                 f"Sample result keys from first result: {list(all_results[0].keys())}"
             )
-            logger.debug(f"Sample result: {str(all_results[0])[:500]}")
+            logger.warning(f"Sample result: {str(all_results[0])[:500]}")
 
         logger.info(f"Total results from all engines: {len(all_results)}")
 

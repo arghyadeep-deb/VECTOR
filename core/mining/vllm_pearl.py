@@ -144,7 +144,7 @@ class VllmPearlProvider(MiningProvider):
 
 def ensure_registered() -> None:
     """Idempotent registration. Required because tests/conftest.py clears
-    every registry before each test (see Spec A §4.2).
+    every registry before each test (see Spec A Â§4.2).
     """
     if not MinerRegistry.contains("vllm-pearl"):
         MinerRegistry.register_value("vllm-pearl", VllmPearlProvider)

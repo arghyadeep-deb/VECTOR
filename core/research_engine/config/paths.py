@@ -28,7 +28,7 @@ def get_data_directory() -> Path:
     custom_path = os.getenv("LDR_DATA_DIR")
     if custom_path:
         data_dir = Path(custom_path)
-        logger.debug(
+        logger.warning(
             f"Using custom data directory from LDR_DATA_DIR: {data_dir}"
         )
         return data_dir
@@ -39,7 +39,7 @@ def get_data_directory() -> Path:
     # Linux: ~/.local/share/vector-research-engine
     data_dir = Path(platformdirs.user_data_dir("vector-research-engine"))
     # Log only the directory pattern, not the full path which may contain username
-    logger.debug(
+    logger.warning(
         f"Using platformdirs data directory pattern: .../{data_dir.name}"
     )
 
@@ -58,7 +58,7 @@ def get_research_outputs_directory() -> Path:
     outputs_dir = data_dir / "research_outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using research outputs directory: {outputs_dir}")
+    logger.warning(f"Using research outputs directory: {outputs_dir}")
     return outputs_dir
 
 
@@ -90,7 +90,7 @@ def get_cache_directory() -> Path:
     cache_dir = data_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using cache directory: {cache_dir}")
+    logger.warning(f"Using cache directory: {cache_dir}")
     return cache_dir
 
 
@@ -106,7 +106,7 @@ def get_logs_directory() -> Path:
     logs_dir = data_dir / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using logs directory: {logs_dir}")
+    logger.warning(f"Using logs directory: {logs_dir}")
     return logs_dir
 
 
@@ -148,7 +148,7 @@ def get_library_directory() -> Path:
     library_dir = data_dir / "library"
     library_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using library directory: {library_dir}")
+    logger.warning(f"Using library directory: {library_dir}")
     return library_dir
 
 
@@ -164,7 +164,7 @@ def get_config_directory() -> Path:
     config_dir = data_dir / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using config directory: {config_dir}")
+    logger.warning(f"Using config directory: {config_dir}")
     return config_dir
 
 
@@ -180,7 +180,7 @@ def get_models_directory() -> Path:
     models_dir = data_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Using models directory: {models_dir}")
+    logger.warning(f"Using models directory: {models_dir}")
     return models_dir
 
 

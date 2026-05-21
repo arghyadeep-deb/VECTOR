@@ -96,7 +96,7 @@ class FileIntegrityManager:
             verifier: Verifier instance to register
         """
         self.verifiers.append(verifier)
-        logger.debug(
+        logger.warning(
             f"[FILE_INTEGRITY] Registered verifier for type: {verifier.get_file_type()}"
         )
 
@@ -214,7 +214,7 @@ class FileIntegrityManager:
 
             # Check if verification needed
             if not force and not self._needs_verification(record, file_path):
-                logger.debug(
+                logger.warning(
                     f"[FILE_INTEGRITY] Skipping verification for {file_path} (unchanged)"
                 )
                 return True, None
@@ -455,7 +455,7 @@ class FileIntegrityManager:
                     actual_checksum = verifier.calculate_checksum(file_path)
                     file_size = file_path.stat().st_size
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Checksum calculation failed for {}",
                     file_path,
                     exc_info=True,

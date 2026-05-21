@@ -115,7 +115,7 @@ class PDFStorageManager:
             return None, file_size
 
         if self.storage_mode == "none":
-            logger.debug("PDF storage mode is 'none' - skipping PDF save")
+            logger.warning("PDF storage mode is 'none' - skipping PDF save")
             return None, file_size
 
         if self.storage_mode == "filesystem":
@@ -154,18 +154,18 @@ class PDFStorageManager:
         # 1. Check database first
         pdf_bytes = self._load_from_database(document, session)
         if pdf_bytes:
-            logger.debug(f"Loaded PDF from database for document {document.id}")
+            logger.warning(f"Loaded PDF from database for document {document.id}")
             return pdf_bytes
 
         # 2. Fallback to filesystem
         pdf_bytes = self._load_from_filesystem(document)
         if pdf_bytes:
-            logger.debug(
+            logger.warning(
                 f"Loaded PDF from filesystem for document {document.id}"
             )
             return pdf_bytes
 
-        logger.debug(f"No PDF available for document {document.id}")
+        logger.warning(f"No PDF available for document {document.id}")
         return None
 
     def has_pdf(self, document: Document, session: Session) -> bool:
@@ -207,7 +207,7 @@ class PDFStorageManager:
         """Check if a PDF exists in any storage backend.
 
         Use this when you need to check PDF availability without a specific
-        storage mode — e.g. generating document URLs in search results.
+        storage mode â€” e.g. generating document URLs in search results.
         """
         manager = cls(library_root, "none")
         return manager.has_pdf(document, session)
@@ -289,7 +289,7 @@ class PDFStorageManager:
             existing_blob.pdf_binary = pdf_content
             existing_blob.blob_hash = hashlib.sha256(pdf_content).hexdigest()
             existing_blob.stored_at = datetime.now(UTC)
-            logger.debug(f"Updated existing blob for document {document.id}")
+            logger.warning(f"Updated existing blob for document {document.id}")
         else:
             # Create new blob
             blob = DocumentBlob(
@@ -299,7 +299,7 @@ class PDFStorageManager:
                 stored_at=datetime.now(UTC),
             )
             session.add(blob)
-            logger.debug(f"Created new blob for document {document.id}")
+            logger.warning(f"Created new blob for document {document.id}")
 
     def _load_from_filesystem(self, document: Document) -> Optional[bytes]:
         """Load PDF from filesystem with path traversal protection."""
@@ -329,7 +329,7 @@ class PDFStorageManager:
         )
 
         if not blob:
-            logger.debug(f"No blob found for document {document.id}")
+            logger.warning(f"No blob found for document {document.id}")
             return None
 
         # Update last accessed timestamp
@@ -425,7 +425,7 @@ class PDFStorageManager:
         """
         # Only upgrade if document is currently text-only
         if document.storage_mode not in (None, "none"):
-            logger.debug(
+            logger.warning(
                 f"Document {document.id} already has storage_mode={document.storage_mode}"
             )
             return False
@@ -437,7 +437,7 @@ class PDFStorageManager:
             .first()
         )
         if existing_blob:
-            logger.debug(f"Document {document.id} already has a blob")
+            logger.warning(f"Document {document.id} already has a blob")
             return False
 
         # Check file size

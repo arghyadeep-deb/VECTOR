@@ -104,7 +104,7 @@ class TopicSubscription(BaseSubscription):
         # Replace YYYY-MM-DD placeholder ONLY (not all dates)
         news_query = news_query.replace("YYYY-MM-DD", current_date)
 
-        logger.debug(f"Generated topic query: {news_query}")
+        logger.warning(f"Generated topic query: {news_query}")
         return news_query
 
     def update_activity(
@@ -163,7 +163,7 @@ class TopicSubscription(BaseSubscription):
         """
         if topic not in self.related_topics and topic != self.current_topic:
             self.related_topics.append(topic)
-            logger.debug(
+            logger.warning(
                 f"Added related topic '{topic}' to '{self.current_topic}'"
             )
 

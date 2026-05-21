@@ -137,7 +137,7 @@ class LibraryRAGSearchEngine(BaseSearchEngine):
                         )
 
                         if not rag_index:
-                            logger.debug(
+                            logger.warning(
                                 f"No RAG index found for collection {collection_id}"
                             )
                             continue
@@ -163,7 +163,7 @@ class LibraryRAGSearchEngine(BaseSearchEngine):
                         # Get RAG stats to check if there are any indexed documents
                         stats = rag_service.get_rag_stats(collection_id)
                         if stats.get("indexed_documents", 0) == 0:
-                            logger.debug(
+                            logger.warning(
                                 f"No documents indexed in collection {collection_id}"
                             )
                             continue
@@ -347,7 +347,7 @@ class LibraryRAGSearchEngine(BaseSearchEngine):
                             if len(document.text_content) > SNIPPET_LENGTH_LONG
                             else document.text_content
                         )
-                        logger.debug(
+                        logger.warning(
                             f"Retrieved full content for document {doc_id}"
                         )
 

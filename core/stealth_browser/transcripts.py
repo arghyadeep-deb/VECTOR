@@ -1,8 +1,8 @@
 """
-VECTOR Stealth Browser — YouTube Transcript Extraction
+VECTOR Stealth Browser â€” YouTube Transcript Extraction
 Two-mode transcript extraction:
-  Mode 1 (fast, free): yt-dlp subprocess — no browser needed
-  Mode 2 (browser fallback): StealthBrowserClient → /youtube/transcript endpoint
+  Mode 1 (fast, free): yt-dlp subprocess â€” no browser needed
+  Mode 2 (browser fallback): StealthBrowserClient â†’ /youtube/transcript endpoint
 
 Usage:
     result = asyncio.run(get_youtube_transcript("https://youtu.be/dQw4w9WgXcQ"))
@@ -40,7 +40,7 @@ def _extract_video_id(url: str) -> str | None:
     return None
 
 
-# ── Mode 1: yt-dlp ────────────────────────────────────────────────────────────
+# â”€â”€ Mode 1: yt-dlp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _yt_dlp_available() -> bool:
     try:
@@ -100,7 +100,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                 try:
                     import httpx
                     vtt = httpx.get(sub_url, timeout=15.0).text
-                    # Strip VTT markup → plain text
+                    # Strip VTT markup â†’ plain text
                     lines = []
                     for line in vtt.split("\n"):
                         line = line.strip()
@@ -116,7 +116,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                     transcript_text = " ".join(lines)
                     break
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return {
             "url": url,
@@ -133,7 +133,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
         return None
 
 
-# ── Mode 2: Browser fallback ──────────────────────────────────────────────────
+# â”€â”€ Mode 2: Browser fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _extract_via_browser(url: str) -> dict | None:
     """Extract transcript via stealth browser server's /youtube/transcript endpoint."""
@@ -142,7 +142,7 @@ async def _extract_via_browser(url: str) -> dict | None:
         async with StealthBrowserClient() as client:
             healthy = await client.is_healthy()
             if not healthy:
-                logger.debug("[VECTOR][transcripts] stealth server not running — skipping browser fallback")
+                logger.debug("[VECTOR][transcripts] stealth server not running â€” skipping browser fallback")
                 return None
             result = await client.youtube_transcript(url)
             result["source"] = "browser"
@@ -152,7 +152,7 @@ async def _extract_via_browser(url: str) -> dict | None:
         return None
 
 
-# ── Main entry point ──────────────────────────────────────────────────────────
+# â”€â”€ Main entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def get_youtube_transcript(
     url: str,

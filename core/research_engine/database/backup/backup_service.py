@@ -130,7 +130,7 @@ class BackupService:
                 )
                 if existing_today:
                     latest = max(existing_today, key=lambda p: p.name)
-                    logger.debug(
+                    logger.warning(
                         f"Backup already exists for today ({latest.name}), "
                         "skipping"
                     )
@@ -156,7 +156,7 @@ class BackupService:
                     f"({size_info}) took {elapsed_ms:.0f}ms"
                 )
             else:
-                logger.debug(
+                logger.warning(
                     f"Backup for user {self.username} "
                     f"({size_info}) took {elapsed_ms:.0f}ms"
                 )
@@ -226,7 +226,7 @@ class BackupService:
 
                 # Attach backup database with encryption (using temp path)
                 # Note: ATTACH DATABASE does not support parameter binding
-                # in SQLite/SQLCipher — f-string is required here.
+                # in SQLite/SQLCipher â€” f-string is required here.
                 cursor.execute(
                     f"ATTACH DATABASE '{temp_path_str}' AS backup KEY \"x'{hex_key}'\""
                 )
@@ -234,7 +234,7 @@ class BackupService:
                 try:
                     # Apply cipher settings to the backup database (must match source)
                     # Note: PRAGMA statements do not support parameter binding
-                    # in SQLite — f-string is required. Values are validated
+                    # in SQLite â€” f-string is required. Values are validated
                     # upstream by get_sqlcipher_settings() against allow-lists.
                     settings = get_sqlcipher_settings()
                     page_size = int(settings["page_size"])
@@ -303,13 +303,13 @@ class BackupService:
                 try:
                     temp_path.unlink()
                 except OSError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
             # Also clean up final path in case rename partially succeeded
             if backup_path.exists():
                 try:
                     backup_path.unlink()
                 except OSError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
             return BackupResult(
                 success=False,
                 error=str(e),
@@ -392,7 +392,7 @@ class BackupService:
                             f"Cleaned up stale temp file: {tmp_file.name}"
                         )
                 except (OSError, FileNotFoundError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
             # Get all backup files sorted by modification time (newest first)
             def _safe_mtime(p: Path) -> float:
@@ -435,7 +435,7 @@ class BackupService:
                     try:
                         backup.unlink()
                         deleted_count += 1
-                        logger.debug(
+                        logger.warning(
                             f"Deleted old backup {backup.name}: {reason}"
                         )
                     except OSError:
@@ -509,7 +509,7 @@ class BackupService:
             for info in self.list_backups():
                 try:
                     Path(info["path"]).unlink()
-                    logger.debug(f"Purged old-key backup: {info['filename']}")
+                    logger.warning(f"Purged old-key backup: {info['filename']}")
                 except OSError:
                     logger.warning(
                         f"Could not delete backup {info['filename']}"

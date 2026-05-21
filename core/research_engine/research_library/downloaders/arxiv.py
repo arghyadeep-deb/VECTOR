@@ -223,6 +223,6 @@ class ArxivDownloader(BaseDownloader):
                         return "\n".join(text_parts)
 
         except Exception as e:
-            logger.debug(f"Failed to fetch from arXiv API: {e}")
+            logger.warning(f"Failed to fetch from arXiv API: {e}")
 
         return None

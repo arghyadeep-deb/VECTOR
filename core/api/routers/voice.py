@@ -1,4 +1,4 @@
-"""Voice router — /voice endpoint.
+"""Voice router â€” /voice endpoint.
 
 Pipeline: audio -> Whisper (local) -> language detect -> intent classify -> action -> TTS
 All audio is processed locally (RULE 5 - audio never leaves device).
@@ -174,4 +174,4 @@ async def voice_speak(body: dict):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ voice.py OK")
+    print("âœ… voice.py OK")

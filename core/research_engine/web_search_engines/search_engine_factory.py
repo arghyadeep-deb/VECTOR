@@ -78,7 +78,7 @@ def create_search_engine(
             username=username, settings_snapshot=settings_snapshot
         )
 
-        logger.debug(
+        logger.warning(
             f"Extracted search engines from snapshot: {list(config.keys())}"
         )
     else:
@@ -88,7 +88,7 @@ def create_search_engine(
 
     if engine_name == "none":
         # Reject the literal string "none". Historically this silently fell
-        # through to the "auto" engine and hit live networks — callers that
+        # through to the "auto" engine and hit live networks â€” callers that
         # wanted an offline pipeline were unknowingly doing real searches.
         raise ValueError(
             "search.tool='none' is not a valid engine. Register a LangChain "
@@ -100,7 +100,7 @@ def create_search_engine(
     if engine_name not in config:
         # Check if engine_name might be a display label instead of a config key
         # Display labels have format: "{icon} {base_name} ({category})"
-        # e.g., "🔬 OpenAlex (Scientific)"
+        # e.g., "ðŸ”¬ OpenAlex (Scientific)"
         # NOTE: This fallback is deprecated - callers should pass config keys directly
         logger.warning(
             f"Engine '{engine_name}' not found in config - attempting display label fallback. "
@@ -110,7 +110,7 @@ def create_search_engine(
         # Try to extract the base name from the label
         # To avoid ReDoS, we use string operations instead of regex
         # Pattern: icon, space, base_name, space, (category)
-        # Example: "🔬 OpenAlex (Scientific)"
+        # Example: "ðŸ”¬ OpenAlex (Scientific)"
         if " (" in engine_name and engine_name.endswith(")"):
             # Split on the last occurrence of ' ('
             parts = engine_name.rsplit(" (", 1)
@@ -204,7 +204,7 @@ def create_search_engine(
     if engine_config.get("requires_llm", False) and not llm:
         logger.warning(
             f"Engine '{engine_name}' is configured with requires_llm=True but no LLM provided. "
-            f"Creating engine without LLM — some features (query optimization, relevance filtering) "
+            f"Creating engine without LLM â€” some features (query optimization, relevance filtering) "
             f"may be unavailable."
         )
 
@@ -329,7 +329,7 @@ def create_search_engine(
                     )
                     if skip_filter:
                         should_filter = False
-                        logger.debug(
+                        logger.warning(
                             f"Global skip_relevance_filter=True applied "
                             f"for {engine_name}"
                         )
@@ -337,14 +337,14 @@ def create_search_engine(
         # Apply the setting
         if should_filter and hasattr(engine, "llm") and engine.llm:
             engine.enable_llm_relevance_filter = True
-            logger.info(f"✓ Enabled LLM relevance filtering for {engine_name}")
+            logger.info(f"âœ“ Enabled LLM relevance filtering for {engine_name}")
         elif should_filter:
             logger.warning(
                 f"LLM relevance filtering requested for {engine_name} "
-                f"but no LLM is available — filtering skipped"
+                f"but no LLM is available â€” filtering skipped"
             )
         else:
-            logger.debug(f"LLM relevance filtering disabled for {engine_name}")
+            logger.warning(f"LLM relevance filtering disabled for {engine_name}")
 
         # Check if we need to wrap with full search capabilities
         if kwargs.get("use_full_search", False) and engine_config.get(
@@ -483,7 +483,7 @@ def _create_full_search_wrapper(
         if "web_search" in wrapper_init_params:
             wrapper_params["web_search"] = base_engine
 
-        logger.debug(
+        logger.warning(
             f"Creating full search wrapper for {engine_name} with filtered parameters: {wrapper_params.keys()}"
         )
 

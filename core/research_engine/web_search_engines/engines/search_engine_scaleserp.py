@@ -128,7 +128,7 @@ class ScaleSerpSearchEngine(BaseSearchEngine):
                 params["output"] = (
                     "json"  # Ensure JSON output for cache detection
                 )
-                logger.debug(
+                logger.warning(
                     "ScaleSerp caching enabled - identical searches within 1 hour are free"
                 )
 
@@ -168,7 +168,7 @@ class ScaleSerpSearchEngine(BaseSearchEngine):
                         )
                     except Exception:
                         # Fallback to truncated URL if parsing fails
-                        logger.debug("URL parsing failed, using truncation")
+                        logger.warning("URL parsing failed, using truncation")
                         display_link = link[:50]
 
                 preview = {
@@ -218,7 +218,7 @@ class ScaleSerpSearchEngine(BaseSearchEngine):
 
             # Log if result was served from cache
             if from_cache:
-                logger.debug(
+                logger.warning(
                     "Result served from ScaleSerp cache - no API credit used!"
                 )
 

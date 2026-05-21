@@ -1,4 +1,4 @@
-"""Loop router — /loop/status."""
+"""Loop router â€” /loop/status."""
 
 import sys
 import datetime as dt
@@ -46,7 +46,7 @@ async def loop_status():
             tq = TaskQueue.get()
             task_queue_depth = len(getattr(tq, "_tasks", []))
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
         return LoopStatusResponse(
             running=running, tick_count=tick_count, uptime_seconds=uptime,
             guard_violations=guard_violations, task_queue_depth=task_queue_depth,
@@ -60,4 +60,4 @@ async def loop_status():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ loop.py OK")
+    print("âœ… loop.py OK")

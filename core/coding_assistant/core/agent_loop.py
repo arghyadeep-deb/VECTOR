@@ -62,7 +62,7 @@ from core.coding_assistant.core.session.session_logger import SessionLogger
 from core.coding_assistant.core.session.session_migration import migrate_sessions_entrypoint
 from core.coding_assistant.core.skills.manager import SkillManager
 from core.coding_assistant.core.system_prompt import get_universal_system_prompt
-# Telemetry module removed — VECTOR never sends telemetry (privacy rule)
+# Telemetry module removed â€” VECTOR never sends telemetry (privacy rule)
 # Stubs so agent_loop.py compiles and runs without crashes
 
 def build_request_metadata(*args, **kwargs) -> dict:  # type: ignore[misc]
@@ -142,7 +142,7 @@ from core.coding_assistant.core.utils import (
     is_user_cancellation_event,
 )
 
-# Teleport removed — stubs so nothing crashes at import time
+# Teleport removed â€” stubs so nothing crashes at import time
 _TELEPORT_AVAILABLE = False
 _TeleportService = None
 
@@ -218,7 +218,7 @@ def _is_context_too_long_error(e: Exception) -> bool:
 def _is_non_retryable_error(e: BaseException) -> bool:
     # Detect Temporal-style ``non_retryable`` flag without importing temporalio.
     # Walks ``__cause__`` so an ``ActivityError`` whose cause is a non-retryable
-    # ``ApplicationError`` is detected too — that's what callers driving the
+    # ``ApplicationError`` is detected too â€” that's what callers driving the
     # agent loop from a Temporal activity will see when a sub-activity has
     # already failed terminally.
     seen: set[int] = set()
@@ -349,7 +349,7 @@ class AgentLoop:
             self.stats.input_price_per_million = active_model.input_price
             self.stats.output_price_per_million = active_model.output_price
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         self._current_user_message_id: str | None = None
         self._is_user_prompt_call: bool = False
@@ -626,7 +626,7 @@ class AgentLoop:
             ):
                 yield event
 
-    # Teleport removed — Mistral cloud feature not used in VECTOR
+    # Teleport removed â€” Mistral cloud feature not used in VECTOR
 
     def _setup_middleware(self) -> None:
         """Configure middleware pipeline for this conversation."""
@@ -1532,7 +1532,7 @@ class AgentLoop:
                 active_model.input_price, active_model.output_price
             )
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         self.middleware_pipeline.reset()
         self.tool_manager.reset_all()
@@ -1681,7 +1681,7 @@ class AgentLoop:
                 active_model.input_price, active_model.output_price
             )
         except ValueError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         if reset_middleware:
             self._setup_middleware()

@@ -1,4 +1,4 @@
-"""WebSocket endpoint for streaming voice — push-to-talk flow.
+"""WebSocket endpoint for streaming voice ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â push-to-talk flow.
 
 Protocol:
   Client -> Server: binary audio chunks (webm/opus)
@@ -39,7 +39,7 @@ async def voice_stream(websocket: WebSocket):
             from core.api.routers.websocket import broadcast_event  # type: ignore
             await broadcast_event({"type": "orb_state", "state": state})
         except Exception as _bc_err:
-            logger.debug(f"[VECTOR][voice_ws] orb_state broadcast skipped: {_bc_err}")
+            logger.warning(f"[VECTOR][voice_ws] orb_state broadcast skipped: {_bc_err}")
 
     try:
         await _orb("listening")  # connection open = mic active
@@ -98,12 +98,12 @@ async def voice_stream(websocket: WebSocket):
         try:
             await websocket.send_json({"type": "error", "text": str(e)})
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     finally:
         try:
             await websocket.close()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
 def _transcribe(chunks: list[bytes]) -> str:
@@ -145,7 +145,7 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
                     speed = tone_config.speed
                 prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
             except Exception as e:
-                logger.debug(f"[VECTOR][voice_ws] personality init failed: {e}")
+                logger.warning(f"[VECTOR][voice_ws] personality init failed: {e}")
                 prompt = text
         else:
             prompt = text
@@ -164,7 +164,7 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
                         response = validation["rewritten"]
                         logger.debug("[VECTOR][voice_ws] response rewritten by consistency enforcer")
                 except Exception as e:
-                    logger.debug(f"[VECTOR][voice_ws] consistency check skipped: {e}")
+                    logger.warning(f"[VECTOR][voice_ws] consistency check skipped: {e}")
     except Exception as e:
         logger.warning(f"[VECTOR][voice_ws] LLM error: {e}")
     return response, speed

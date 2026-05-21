@@ -206,7 +206,7 @@ class BaseDownloader(ABC):
 
         max_attempts = 3
 
-        logger.debug(
+        logger.warning(
             f"Downloading PDF from {url} with adaptive rate limiting (max {max_attempts} attempts)"
         )
 
@@ -233,7 +233,7 @@ class BaseDownloader(ABC):
                 # Check response
                 if response.status_code == 200:
                     if self._is_pdf_content(response):
-                        logger.debug(
+                        logger.warning(
                             f"Successfully downloaded PDF from {url} on attempt {attempt}"
                         )
                         # Record successful outcome

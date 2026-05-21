@@ -3,13 +3,13 @@
 Exposes every district registered in VECTOR's agent registry as an A2A
 endpoint compatible with Google's A2A protocol spec. External agents can:
 
-  GET  /a2a/.well-known/agent.json    — discovery manifest
-  GET  /a2a/agents                    — list of all available agents
-  GET  /a2a/districts/{name}             — single agent's manifest
-  POST /a2a/districts/{name}/invoke      — dispatch a task to an agent
-  GET  /a2a/districts/{name}/tasks/{id}  — fetch task status
-  POST /a2a/sessions                  — create a session (multi-turn)
-  POST /a2a/sessions/{id}/messages    — send a message in session
+  GET  /a2a/.well-known/agent.json    â€” discovery manifest
+  GET  /a2a/agents                    â€” list of all available agents
+  GET  /a2a/districts/{name}             â€” single agent's manifest
+  POST /a2a/districts/{name}/invoke      â€” dispatch a task to an agent
+  GET  /a2a/districts/{name}/tasks/{id}  â€” fetch task status
+  POST /a2a/sessions                  â€” create a session (multi-turn)
+  POST /a2a/sessions/{id}/messages    â€” send a message in session
 
 Backed by vectorcode.src.a2a if absorbed, with VECTOR-native fallback that
 uses the existing agent registry. Always returns 200 OK with structured
@@ -31,7 +31,7 @@ from loguru import logger
 router = APIRouter(prefix="/a2a", tags=["a2a"])
 
 
-# ── In-memory task store + durable session store ───────────────────────────
+# â”€â”€ In-memory task store + durable session store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 _TASKS: dict[str, dict] = {}
@@ -55,7 +55,7 @@ def _get_session_store() -> Any | None:
     return _SESSION_STORE if not isinstance(_SESSION_STORE, object) else None
 
 
-# ── Request / response models ───────────────────────────────────────────────
+# â”€â”€ Request / response models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class InvokeRequest(BaseModel):
@@ -84,7 +84,7 @@ class SessionMessageRequest(BaseModel):
     role: str = "user"
 
 
-# ── Discovery ───────────────────────────────────────────────────────────────
+# â”€â”€ Discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 @router.get("/.well-known/agent.json")
@@ -93,7 +93,7 @@ async def well_known() -> dict:
     return {
         "schema_version": "1.0",
         "name": "VECTOR",
-        "description": "Personal AI city — 27+ districts, local-first, energy-aware",
+        "description": "Personal AI city â€” 27+ districts, local-first, energy-aware",
         "url": "/a2a",
         "version": "1.0.0",
         "owner": "Arghyadeep Deb",
@@ -163,7 +163,7 @@ async def get_agent(name: str) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Invocation ──────────────────────────────────────────────────────────────
+# â”€â”€ Invocation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 @router.post("/districts/{name}/invoke")
@@ -203,7 +203,7 @@ async def get_task(name: str, task_id: str) -> dict:
     return {"task_id": task_id, **rec}
 
 
-# ── Sessions (multi-turn) ───────────────────────────────────────────────────
+# â”€â”€ Sessions (multi-turn) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 @router.post("/sessions")
@@ -217,7 +217,7 @@ async def create_session(body: SessionRequest) -> dict:
                          if body.initial_message else [])
             return {"session_id": sid, "agent": body.agent}
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
     # Fallback: in-memory
     import uuid as _uuid
     sid = sid or str(_uuid.uuid4())
@@ -251,7 +251,7 @@ async def session_message(session_id: str, body: SessionMessageRequest) -> dict:
         except HTTPException:
             raise
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
 
     # Fallback: in-memory
     sess = _SESSIONS_FALLBACK.get(session_id)
@@ -274,7 +274,7 @@ async def session_message(session_id: str, body: SessionMessageRequest) -> dict:
     return {"messages": sess["messages"][-1:]}
 
 
-# ── Internal dispatch ───────────────────────────────────────────────────────
+# â”€â”€ Internal dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
@@ -298,7 +298,7 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
     except Exception as e:
         logger.debug(f"[VECTOR][a2a] A2A client unavailable: {e}")
 
-    # 2) Try VECTOR's own agent registry — instantiate + call .run()
+    # 2) Try VECTOR's own agent registry â€” instantiate + call .run()
     try:
         from vectorcode.src.districts.registry import get_registry
         reg = get_registry()
@@ -355,11 +355,11 @@ async def _materialize_agent(defn: Any) -> Any:
                 try:
                     return obj()
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
     return None
 
 
-# ── Server-Sent Events stream for live agent activity ──────────────────────
+# â”€â”€ Server-Sent Events stream for live agent activity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 @router.get("/events")

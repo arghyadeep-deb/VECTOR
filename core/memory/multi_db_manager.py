@@ -1,10 +1,10 @@
 """Multi-database sync manager for V.E.C.T.O.R.
 
 Manages sync across 4 backends:
-1. SQLite (local) — primary write target, always available
-2. Supabase (primary cloud) — via REST API
-3. Turso (secondary cloud) — via REST API
-4. Cloudflare D1 (edge) — via Workers REST API
+1. SQLite (local) â€” primary write target, always available
+2. Supabase (primary cloud) â€” via REST API
+3. Turso (secondary cloud) â€” via REST API
+4. Cloudflare D1 (edge) â€” via Workers REST API
 
 All sync uses last-write-wins based on updated_at timestamp.
 """
@@ -56,7 +56,7 @@ class MultiDBManager:
             self._local = EpisodicMemory()
         return self._local
 
-    # ─── Write Operations ──────────────────────────────────────────────────────
+    # â”€â”€â”€ Write Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     _ALLOWED_TABLES = frozenset({
         "episodic_memory", "semantic_memory", "policy_memory",
@@ -66,12 +66,12 @@ class MultiDBManager:
     def write_local(self, table: str, record: dict) -> bool:
         """Write to local SQLite. Always succeeds."""
         if table not in self._ALLOWED_TABLES:
-            logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' — blocked")
+            logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' â€” blocked")
             return False
         columns = list(record.keys())
         for col in columns:
             if not _SAFE_IDENTIFIER.match(col):
-                logger.error(f"[VECTOR][multi_db] write_local: unsafe column '{col}' — blocked")
+                logger.error(f"[VECTOR][multi_db] write_local: unsafe column '{col}' â€” blocked")
                 return False
         try:
             conn = self._get_local().conn
@@ -105,7 +105,7 @@ class MultiDBManager:
 
         # Queue for later
         self.queue_sync({"table": table, "record": record, "attempt": 0})
-        logger.warning(f"[VECTOR][multi_db] Cloud write failed — queued for retry")
+        logger.warning(f"[VECTOR][multi_db] Cloud write failed â€” queued for retry")
         return results
 
     async def write_all(self, table: str, record: dict) -> dict:
@@ -118,7 +118,7 @@ class MultiDBManager:
 
         return {"local": local_ok, **cloud}
 
-    # ─── Sync Operations ────────────────────────────────────────────────────────
+    # â”€â”€â”€ Sync Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def sync_all(self) -> dict:
         """
@@ -178,20 +178,20 @@ class MultiDBManager:
         self._sync_queue.append(item)
         logger.debug(f"[VECTOR][multi_db] queued item, queue size={len(self._sync_queue)}")
 
-    # ─── Health Checks ──────────────────────────────────────────────────────────
+    # â”€â”€â”€ Health Checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def health_check(self) -> dict:
         """Check connectivity to all 4 DBs. Returns status per backend."""
         results = {"local": False, "supabase": False, "turso": False, "d1": False, "latency_ms": {}}
 
-        # SQLite — always available if we got this far
+        # SQLite â€” always available if we got this far
         try:
             conn = self._get_local().conn
             conn.execute("SELECT 1").fetchone()
             results["local"] = True
             results["latency_ms"]["local"] = 1
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         # Supabase
         supabase_url = self._get_config("supabase_url")
@@ -228,7 +228,7 @@ class MultiDBManager:
 
         return results
 
-    # ─── Private Helpers ────────────────────────────────────────────────────────
+    # â”€â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _get_config(self, key: str) -> Optional[str]:
         """Get config value safely."""
@@ -273,11 +273,11 @@ class MultiDBManager:
 
         # Validate table and column names before any string interpolation
         if table not in self._ALLOWED_TABLES:
-            logger.error(f"[VECTOR][multi_db] _write_turso: unknown table '{table}' — blocked")
+            logger.error(f"[VECTOR][multi_db] _write_turso: unknown table '{table}' â€” blocked")
             return False
         for col in record.keys():
             if not _SAFE_IDENTIFIER.match(col):
-                logger.error(f"[VECTOR][multi_db] _write_turso: unsafe column '{col}' — blocked")
+                logger.error(f"[VECTOR][multi_db] _write_turso: unsafe column '{col}' â€” blocked")
                 return False
 
         url = self._get_config("turso_url")
@@ -411,7 +411,7 @@ class MultiDBManager:
             "last_sync": self._last_sync,
         }
 
-    # ─── Gap 19: Backup / Restore ─────────────────────────────────────────────
+    # â”€â”€â”€ Gap 19: Backup / Restore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def backup(self, backup_path: str | None = None) -> str:
         """
@@ -451,7 +451,7 @@ class MultiDBManager:
             json.dump(dump, f, default=str, indent=2)
 
         total_rows = sum(len(v) for v in dump["tables"].values())
-        logger.info(f"[VECTOR][backup] {total_rows} rows → {backup_path}")
+        logger.info(f"[VECTOR][backup] {total_rows} rows â†’ {backup_path}")
         return backup_path
 
     def restore(self, backup_path: str, overwrite: bool = False) -> dict:
@@ -541,6 +541,6 @@ if __name__ == "__main__":
         # Test stats
         stats = mgr.get_stats()
 
-        print(f"✅ multi_db_manager OK — local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
+        print(f"âœ… multi_db_manager OK â€” local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
 
     asyncio.run(_smoke())

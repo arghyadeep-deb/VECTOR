@@ -123,7 +123,7 @@ def get_user_db_session(
                 # Try to get from g (works with app context)
                 if hasattr(g, "user_password"):
                     password = g.user_password
-                    logger.debug(
+                    logger.warning(
                         f"Got password from g.user_password for {username}"
                     )
 
@@ -131,18 +131,18 @@ def get_user_db_session(
             if not password and has_request_context():
                 session_id = flask_session.get("session_id")
                 if session_id:
-                    logger.debug(
+                    logger.warning(
                         f"Trying session password store for {username}"
                     )
                     password = session_password_store.get_session_password(
                         username, session_id
                     )
                     if password:
-                        logger.debug(
+                        logger.warning(
                             f"Got password from session store for {username}"
                         )
                     else:
-                        logger.debug(
+                        logger.warning(
                             f"No password in session store for {username}"
                         )
 
@@ -151,7 +151,7 @@ def get_user_db_session(
                 thread_context = get_search_context()
                 if thread_context and thread_context.get("user_password"):
                     password = thread_context["user_password"]
-                    logger.debug(
+                    logger.warning(
                         f"Got password from thread context for {username}"
                     )
 
@@ -187,7 +187,7 @@ def get_user_db_session(
             try:
                 session.close()
             except Exception:
-                logger.debug("Failed to close session during cleanup")
+                logger.warning("Failed to close session during cleanup")
 
 
 def with_user_database(func: Callable) -> Callable:

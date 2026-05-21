@@ -91,7 +91,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
                     settings_snapshot=settings_snapshot,
                 )
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to read openalex.email from settings snapshot",
                     exc_info=True,
                 )
@@ -169,7 +169,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
             self._last_wait_time = self.rate_tracker.apply_rate_limit(
                 self.engine_type
             )
-            logger.debug(
+            logger.warning(
                 f"Applied rate limit wait: {self._last_wait_time:.2f}s"
             )
 
@@ -187,7 +187,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
             if "x-ratelimit-remaining" in response.headers:
                 remaining = response.headers.get("x-ratelimit-remaining")
                 limit = response.headers.get("x-ratelimit-limit", "unknown")
-                logger.debug(
+                logger.warning(
                     f"OpenAlex rate limit: {remaining}/{limit} requests remaining"
                 )
 
@@ -204,27 +204,27 @@ class OpenAlexSearchEngine(BaseSearchEngine):
                 # Log first result structure for debugging
                 if results:
                     first_result = results[0]
-                    logger.debug(
+                    logger.warning(
                         f"First result keys: {list(first_result.keys())}"
                     )
-                    logger.debug(
+                    logger.warning(
                         f"First result has abstract: {'abstract_inverted_index' in first_result}"
                     )
                     if "open_access" in first_result:
-                        logger.debug(
+                        logger.warning(
                             f"Open access structure: {first_result['open_access']}"
                         )
 
                 # Format results as previews
                 previews = []
                 for i, work in enumerate(results):
-                    logger.debug(
+                    logger.warning(
                         f"Formatting work {i + 1}/{len(results)}: {(work.get('display_name') or 'Unknown')[:50]}"
                     )
                     preview = self._format_work_preview(work)
                     if preview:
                         previews.append(preview)
-                        logger.debug(
+                        logger.warning(
                             f"Preview created with snippet: {preview.get('snippet', '')[:100]}..."
                         )
                     else:
@@ -238,7 +238,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
             if response.status_code == 429:
                 # Rate limited (very rare with OpenAlex)
                 logger.warning("OpenAlex rate limit reached")
-                raise RateLimitError("OpenAlex rate limit exceeded")  # noqa: TRY301 — re-raised by except RateLimitError for base class retry
+                raise RateLimitError("OpenAlex rate limit exceeded")  # noqa: TRY301 â€” re-raised by except RateLimitError for base class retry
 
             logger.error(
                 f"OpenAlex API error: {response.status_code} - {response.text[:200]}"
@@ -266,35 +266,35 @@ class OpenAlexSearchEngine(BaseSearchEngine):
         """
         try:
             # Extract basic information
-            # Use `or` instead of dict.get default — OpenAlex routinely
+            # Use `or` instead of dict.get default â€” OpenAlex routinely
             # returns these keys with explicit None values, which would
             # bypass the default and crash on downstream string ops.
             work_id = work.get("id") or ""
             title = work.get("display_name") or "No title"
-            logger.debug(f"Formatting work: {title[:50]}")
+            logger.warning(f"Formatting work: {title[:50]}")
 
             # Build snippet from abstract or first part of title
             abstract = None
             if work.get("abstract_inverted_index"):
-                logger.debug(
+                logger.warning(
                     f"Found abstract_inverted_index with {len(work['abstract_inverted_index'])} words"
                 )
                 # Reconstruct abstract from inverted index
                 abstract = self._reconstruct_abstract(
                     work["abstract_inverted_index"]
                 )
-                logger.debug(
+                logger.warning(
                     f"Reconstructed abstract length: {len(abstract) if abstract else 0}"
                 )
             else:
-                logger.debug("No abstract_inverted_index found")
+                logger.warning("No abstract_inverted_index found")
 
             snippet = (
                 abstract[:SNIPPET_LENGTH_LONG]
                 if abstract
                 else f"Academic paper: {title}"
             )
-            logger.debug(f"Created snippet: {snippet[:100]}...")
+            logger.warning(f"Created snippet: {snippet[:100]}...")
 
             # Get publication info
             publication_year = work.get("publication_year", "unknown")
@@ -335,7 +335,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
 
             # Extract author affiliations for the institution-tier scoring.
             # Each entry is a dict with the OpenAlex institution id, ROR id,
-            # and display name — the lookup_institution() helper accepts any
+            # and display name â€” the lookup_institution() helper accepts any
             # of those three.
             affiliations: list[dict] = []
             seen_inst_ids: set[str] = set()
@@ -452,7 +452,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
             return " ".join(words)
 
         except Exception:
-            logger.debug("Could not reconstruct abstract from inverted index")
+            logger.warning("Could not reconstruct abstract from inverted index")
             return ""
 
     def _get_full_content(

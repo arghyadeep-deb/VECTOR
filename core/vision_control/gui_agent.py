@@ -1,12 +1,12 @@
 """
-VECTOR Vision Control — GUI Agent
+VECTOR Vision Control â€” GUI Agent
 Python port of UI-TARS-desktop/packages/ui-tars/sdk/src/GUIAgent.ts
 
 The main VLM-driven GUI automation loop:
-  screenshot → VLM predicts action → parse → execute → repeat
+  screenshot â†’ VLM predicts action â†’ parse â†’ execute â†’ repeat
 
 Supports pause/resume/stop by the owner (human-in-the-loop).
-Uses VECTOR's inference stack (Ollama vision model → Gemini → GPT-4o fallback).
+Uses VECTOR's inference stack (Ollama vision model â†’ Gemini â†’ GPT-4o fallback).
 
 Usage:
     agent = GUIAgent()
@@ -30,7 +30,7 @@ from core.vision_control.action_parser import action_parser
 from core.vision_control.vision_operator import VisionOperator
 from loguru import logger
 
-# ── Status enum (mirrors StatusEnum from shared/types/agent.ts) ───────────────
+# â”€â”€ Status enum (mirrors StatusEnum from shared/types/agent.ts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class GUIStatus(str, Enum):
     INIT         = "init"
@@ -43,7 +43,7 @@ class GUIStatus(str, Enum):
     ERROR        = "error"
 
 
-# ── VLM system prompt ─────────────────────────────────────────────────────────
+# â”€â”€ VLM system prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _SYSTEM_PROMPT_TEMPLATE = """You are VECTOR's GUI automation agent. You control the computer to complete tasks.
 
@@ -59,12 +59,12 @@ Rules:
 Current task: {instruction}"""
 
 
-# ── GUI Agent ─────────────────────────────────────────────────────────────────
+# â”€â”€ GUI Agent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class GUIAgent:
     """
     VECTOR's VLM-driven GUI automation agent.
-    Runs a continuous loop: screenshot → VLM → parse action → execute → repeat.
+    Runs a continuous loop: screenshot â†’ VLM â†’ parse action â†’ execute â†’ repeat.
     Supports pause/resume/stop for human-in-the-loop control.
     """
 
@@ -91,7 +91,7 @@ class GUIAgent:
         self._resume_event  = asyncio.Event()
         self._resume_event.set()  # not paused initially
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
+    # â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def pause(self) -> None:
         if self._status == GUIStatus.RUNNING:
@@ -116,7 +116,7 @@ class GUIAgent:
     def status(self) -> GUIStatus:
         return self._status
 
-    # ── Main loop ─────────────────────────────────────────────────────────────
+    # â”€â”€ Main loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def run(self, instruction: str) -> dict:
         """
@@ -142,7 +142,7 @@ class GUIAgent:
 
         try:
             while loop_count < self._max_loop:
-                # ── Pause/stop check ──────────────────────────────────────────
+                # â”€â”€ Pause/stop check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 await self._resume_event.wait()
                 if self._stop_signal:
                     self._status = GUIStatus.USER_STOPPED
@@ -151,7 +151,7 @@ class GUIAgent:
                 loop_count += 1
                 step_start = time.time()
 
-                # ── 1. Screenshot ──────────────────────────────────────────────
+                # â”€â”€ 1. Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 shot = await self._screenshot_with_retry()
                 if shot is None:
                     self._status = GUIStatus.ERROR
@@ -160,7 +160,7 @@ class GUIAgent:
 
                 screen_ctx = {"width": shot["width"], "height": shot["height"]}
 
-                # ── 2. VLM prediction ──────────────────────────────────────────
+                # â”€â”€ 2. VLM prediction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 prediction = await self._predict_with_retry(
                     system_prompt, shot["base64"], conversations
                 )
@@ -169,7 +169,7 @@ class GUIAgent:
                     err_msg = "VLM call failed after retries"
                     break
 
-                # ── 3. Parse actions ───────────────────────────────────────────
+                # â”€â”€ 3. Parse actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 parsed = action_parser(
                     prediction,
                     factors=self._factors,
@@ -184,7 +184,7 @@ class GUIAgent:
                     "elapsed_ms":  round((time.time() - step_start) * 1000),
                 }
 
-                # ── 4. Execute actions ─────────────────────────────────────────
+                # â”€â”€ 4. Execute actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 terminal = False
                 terminal_type = ""
                 for action in parsed:
@@ -201,7 +201,7 @@ class GUIAgent:
                     try:
                         self._on_step(step_data)
                     except Exception:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
                 if terminal:
                     if terminal_type == "finished":
@@ -240,7 +240,7 @@ class GUIAgent:
         logger.info("[VECTOR][gui_agent] done status={} loops={}", self._status.value, loop_count)
         return result
 
-    # ── Retry wrappers ─────────────────────────────────────────────────────────
+    # â”€â”€ Retry wrappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _screenshot_with_retry(self, max_retries: int = 5) -> dict | None:
         for attempt in range(1, max_retries + 1):
@@ -280,7 +280,7 @@ class GUIAgent:
                     await asyncio.sleep(0.5)
         return {"status": "error", "error": "execute failed after retries"}
 
-    # ── VLM call ───────────────────────────────────────────────────────────────
+    # â”€â”€ VLM call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _call_vlm(
         self,
@@ -290,7 +290,7 @@ class GUIAgent:
     ) -> str:
         """
         Call VECTOR's multimodal VLM with the current screenshot.
-        Uses provider_client for Ollama → Gemini → GPT-4o fallback chain.
+        Uses provider_client for Ollama â†’ Gemini â†’ GPT-4o fallback chain.
         """
         # Build conversation context (last 3 steps to avoid context overflow)
         ctx_parts = []
@@ -346,8 +346,8 @@ if __name__ == "__main__":
         agent.stop()
         assert agent._stop_signal is True
 
-        print(f"OK gui_agent.py — GUIAgent init, pause/resume/stop OK")
+        print(f"OK gui_agent.py â€” GUIAgent init, pause/resume/stop OK")
         print(f"  model={agent._model} max_loop={agent._max_loop}")
-        print(f"  session_id={agent._session_id[:8]}…")
+        print(f"  session_id={agent._session_id[:8]}â€¦")
 
     asyncio.run(_smoke())

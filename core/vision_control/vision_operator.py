@@ -1,12 +1,12 @@
 """
-VECTOR Vision Control — Vision Operator
+VECTOR Vision Control â€” Vision Operator
 Python port of UI-TARS-desktop/packages/ui-tars/operators/nut-js/src/index.ts
 
 Wraps VECTOR's existing core/control/pc_controller.py and core/sensing/screen_observer.py
 with the Operator interface expected by GUIAgent.
 
 Screenshot returns base64 PNG + screen dimensions.
-Execute dispatches typed actions (click, type, hotkey, scroll, drag, wait, …).
+Execute dispatches typed actions (click, type, hotkey, scroll, drag, wait, â€¦).
 
 Usage:
     op = VisionOperator()
@@ -28,7 +28,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
-# ── Action type constants (mirrors shared/types/agent.ts ActionType) ──────────
+# â”€â”€ Action type constants (mirrors shared/types/agent.ts ActionType) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 TERMINAL_ACTIONS = {"finished", "call_user", "error_env"}
 CLICK_ACTIONS    = {"click", "left_click", "left_single"}
 DCLICK_ACTIONS   = {"left_double", "double_click"}
@@ -38,10 +38,10 @@ DRAG_ACTIONS     = {"drag", "select"}
 TYPE_ACTIONS     = {"type", "input_text"}
 HOTKEY_ACTIONS   = {"hotkey", "key_press", "press"}
 
-# Direction → scroll amount mapping
+# Direction â†’ scroll amount mapping
 SCROLL_MAP = {"up": -3, "down": 3, "left": -3, "right": 3}
 
-# VECTOR hotkey name → pyautogui key name
+# VECTOR hotkey name â†’ pyautogui key name
 KEY_MAP = {
     "ctrl": "ctrl", "control": "ctrl",
     "shift": "shift", "alt": "alt",
@@ -60,16 +60,16 @@ KEY_MAP = {
 
 ACTION_SPACE = """You are a GUI automation agent. Control the computer using these actions:
 
-click(start_box='<point>x y</point>')          — left-click at coordinate
-double_click(start_box='<point>x y</point>')   — double-click
-right_click(start_box='<point>x y</point>')    — right-click
-drag(start_box='<point>x1 y1</point>', end_box='<point>x2 y2</point>') — drag
-type(content='text to type')                   — type text
-hotkey(key='ctrl c')                           — keyboard shortcut
-scroll(start_box='<point>x y</point>', direction='down') — scroll up/down/left/right
-wait()                                         — wait 5 seconds
-finished()                                     — task complete
-call_user()                                    — need human help
+click(start_box='<point>x y</point>')          â€” left-click at coordinate
+double_click(start_box='<point>x y</point>')   â€” double-click
+right_click(start_box='<point>x y</point>')    â€” right-click
+drag(start_box='<point>x1 y1</point>', end_box='<point>x2 y2</point>') â€” drag
+type(content='text to type')                   â€” type text
+hotkey(key='ctrl c')                           â€” keyboard shortcut
+scroll(start_box='<point>x y</point>', direction='down') â€” scroll up/down/left/right
+wait()                                         â€” wait 5 seconds
+finished()                                     â€” task complete
+call_user()                                    â€” need human help
 
 Coordinates x,y are in range 0-1000 (normalized to screen size).
 Always output Thought: then Action: on separate lines."""
@@ -92,7 +92,7 @@ class VisionOperator:
             self._pc = PCController()
         return self._pc
 
-    # ── Screenshot ────────────────────────────────────────────────────────────
+    # â”€â”€ Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def screenshot(self) -> dict:
         """
@@ -131,7 +131,7 @@ class VisionOperator:
                 "scale_factor": 1.0,
             }
 
-    # ── Execute ───────────────────────────────────────────────────────────────
+    # â”€â”€ Execute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def execute(self, parsed_action: dict) -> dict:
         """
@@ -199,7 +199,7 @@ class VisionOperator:
 
         return {"status": "ok", "action_type": action_type}
 
-    # ── Low-level actions ─────────────────────────────────────────────────────
+    # â”€â”€ Low-level actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _click(self, x: int, y: int) -> None:
         import pyautogui
@@ -232,7 +232,7 @@ class VisionOperator:
                 )
                 original = result.stdout.rstrip("\r\n")
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             # Set new content via powershell
             text_no_newline = content.rstrip("\n")
@@ -277,7 +277,7 @@ class VisionOperator:
         else:
             pyautogui.scroll(clicks)
 
-    # ── System prompt ─────────────────────────────────────────────────────────
+    # â”€â”€ System prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def get_action_space(self) -> str:
         return ACTION_SPACE
@@ -293,7 +293,7 @@ if __name__ == "__main__":
         assert "base64" in shot
         assert shot["width"] > 0
         assert shot["height"] > 0
-        print(f"OK vision_operator.py — screen {shot['width']}x{shot['height']}")
+        print(f"OK vision_operator.py â€” screen {shot['width']}x{shot['height']}")
         print(f"  action_space: {len(op.get_action_space())} chars")
         # Test terminal action handling
         result = await op.execute({"action_type": "finished", "action_inputs": {}})

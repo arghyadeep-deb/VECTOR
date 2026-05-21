@@ -1,7 +1,7 @@
 """
 Module: core/sensing/sound_classifier.py
 SoundClassifier: classifies ambient sound using energy-based heuristics.
-No model required — all processing is local (RULE 5).
+No model required â€” all processing is local (RULE 5).
 Labels: silence / speech / music / alert / background / unknown
 """
 
@@ -18,15 +18,15 @@ from core.config import CONFIG
 class SoundClassifier:
     """Classifies ambient sound into one of five categories.
 
-    Classification uses two cheap signal features — no ML model needed:
-        RMS energy  — overall loudness
-        Zero-Crossing Rate (ZCR) — frequency proxy
+    Classification uses two cheap signal features â€” no ML model needed:
+        RMS energy  â€” overall loudness
+        Zero-Crossing Rate (ZCR) â€” frequency proxy
 
     Decision logic:
-        rms < 0.01                    → "silence"
-        rms > 0.30                    → "alert"   (sudden loud transient)
-        zcr > 0.20                    → "speech"  (rapid sign changes typical of voice)
-        otherwise                     → "background"
+        rms < 0.01                    â†’ "silence"
+        rms > 0.30                    â†’ "alert"   (sudden loud transient)
+        zcr > 0.20                    â†’ "speech"  (rapid sign changes typical of voice)
+        otherwise                     â†’ "background"
 
     The label "music" is reserved for future model-based extension.
     """
@@ -40,7 +40,7 @@ class SoundClassifier:
         self._frame_duration: float = 0.5        # seconds per recording window
         self._sd = None                          # sounddevice, lazy
 
-    # ── private helpers ───────────────────────────────────────────────────────
+    # â”€â”€ private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _ensure_sounddevice(self) -> bool:
         """Lazy-import sounddevice. Returns True if available."""
@@ -65,7 +65,7 @@ class SoundClassifier:
 
     @staticmethod
     def _zcr(audio: np.ndarray) -> float:
-        """Zero-Crossing Rate — fraction of samples where sign changes."""
+        """Zero-Crossing Rate â€” fraction of samples where sign changes."""
         if len(audio) < 2:
             return 0.0
         audio_f = audio.astype(np.float32)
@@ -73,7 +73,7 @@ class SoundClassifier:
         crossings = np.sum(np.abs(np.diff(signs)) > 0)
         return float(crossings) / float(len(audio_f) - 1)
 
-    # ── public API ─────────────────────────────────────────────────────────────
+    # â”€â”€ public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def classify_frame(self, audio_np: np.ndarray) -> str:
         """Classify a mono audio numpy array (int16 or float32).
@@ -129,7 +129,7 @@ class SoundClassifier:
                 blocking=True,
             )
             label = self.classify_frame(recording)
-            logger.debug(f"[VECTOR][sound] sample_and_classify → {label}")
+            logger.debug(f"[VECTOR][sound] sample_and_classify â†’ {label}")
             return label
 
         except Exception as exc:
@@ -146,10 +146,10 @@ class SoundClassifier:
             import asyncio
             asyncio.create_task(_emit("environment", "alert_sound", True, "sound_classifier"))
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
-# ── smoke test ────────────────────────────────────────────────────────────────
+# â”€â”€ smoke test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -160,25 +160,25 @@ if __name__ == "__main__":
 
         # --- pure-signal unit tests (no mic needed) ---
 
-        # 1. silence — all zeros
+        # 1. silence â€” all zeros
         silence = np.zeros(8000, dtype=np.float32)
         result = classifier.classify_frame(silence)
         assert result == "silence", f"Expected 'silence', got {result!r}"
 
-        # 2. alert — high amplitude
+        # 2. alert â€” high amplitude
         alert = np.ones(8000, dtype=np.float32) * 0.5
         result = classifier.classify_frame(alert)
         assert result == "alert", f"Expected 'alert', got {result!r}"
 
-        # 3. speech-like — moderate amplitude, rapid sign changes
-        #    alternating ±0.1 → ZCR ~ 1.0, RMS ~ 0.1 → speech
+        # 3. speech-like â€” moderate amplitude, rapid sign changes
+        #    alternating Â±0.1 â†’ ZCR ~ 1.0, RMS ~ 0.1 â†’ speech
         speech = np.tile(np.array([0.1, -0.1], dtype=np.float32), 4000)
         result = classifier.classify_frame(speech)
         assert result == "speech", f"Expected 'speech', got {result!r}"
 
-        # 4. background — moderate RMS, low ZCR (low-freq sine proxy)
+        # 4. background â€” moderate RMS, low ZCR (low-freq sine proxy)
         t = np.linspace(0, 0.5, 8000, dtype=np.float32)
-        # 20 Hz sine: ~40 zero-crossings in 8000 samples → ZCR ≈ 0.005
+        # 20 Hz sine: ~40 zero-crossings in 8000 samples â†’ ZCR â‰ˆ 0.005
         background = np.sin(2 * np.pi * 20 * t) * 0.05
         result = classifier.classify_frame(background)
         assert result == "background", f"Expected 'background', got {result!r}"
@@ -190,16 +190,16 @@ if __name__ == "__main__":
 
         logger.info("[VECTOR][sound] All classify_frame unit tests passed")
 
-        # 6. is_speech_active — must return bool without raising
+        # 6. is_speech_active â€” must return bool without raising
         active = classifier.is_speech_active()
         assert isinstance(active, bool), "is_speech_active must return bool"
 
         logger.info(
-            f"[VECTOR][sound] SoundClassifier OK — "
+            f"[VECTOR][sound] SoundClassifier OK â€” "
             f"mic_sample={'captured' if active or True else 'skipped'}"
         )
     except Exception as exc:
         logger.error(f"[VECTOR][sound] SoundClassifier smoke test FAILED: {exc}")
         ok = False
 
-    print("✅ sound_classifier.py OK" if ok else "❌ sound_classifier.py FAILED")
+    print("âœ… sound_classifier.py OK" if ok else "âŒ sound_classifier.py FAILED")

@@ -250,7 +250,7 @@ Query:
             response = self.model.invoke(prompt).content.strip()
             return response if response != base_query else None
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 f"Error generating synonym query for '{base_query}': {e}"
             )
             return None
@@ -279,7 +279,7 @@ Related search term:
             response = self.model.invoke(prompt).content.strip()
             return response if response != base_query else None
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 f"Error generating related terms query for '{base_query}': {e}"
             )
             return None

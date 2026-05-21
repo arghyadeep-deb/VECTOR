@@ -128,7 +128,7 @@ class EarlyStopConstrainedStrategy(ParallelConstrainedStrategy):
 
                 # Update progress
                 if self.progress_callback:
-                    symbol = "✓" if score >= 0.8 else "○"
+                    symbol = "âœ“" if score >= 0.8 else "â—‹"
                     self.progress_callback(
                         f"{symbol} {candidate.name} | {constraint.type.value}: {int(score * 100)}%",
                         None,
@@ -335,7 +335,7 @@ class EarlyStopConstrainedStrategy(ParallelConstrainedStrategy):
             try:
                 return float(matches[-1])  # Use last number found
             except ValueError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         # Default confidence based on keywords
         if any(

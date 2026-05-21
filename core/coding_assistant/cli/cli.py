@@ -56,7 +56,7 @@ def get_prompt_from_stdin() -> str | None:
             sys.stdin = sys.__stdin__ = open("/dev/tty")
             return content
     except KeyboardInterrupt:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     except OSError:
         return None
 

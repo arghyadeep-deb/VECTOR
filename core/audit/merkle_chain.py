@@ -1,5 +1,5 @@
 """
-VECTOR Merkle Audit Chain — cryptographic append-only audit trail.
+VECTOR Merkle Audit Chain â€” cryptographic append-only audit trail.
 
 Every agent action is hashed and chained. Each entry contains:
   - SHA-256 hash of its own content
@@ -77,7 +77,7 @@ class AuditVerification:
 
     def __str__(self) -> str:
         if self.valid:
-            return f"Chain OK — {self.total_entries} entries verified"
+            return f"Chain OK â€” {self.total_entries} entries verified"
         return f"Chain BROKEN at seq={self.broken_at}: {self.reason}"
 
 
@@ -90,7 +90,7 @@ class MerkleAuditChain:
         audit.log("agent_001", "tool_call", "coding",
                   {"tool": "bash", "cmd": "git status"})
         result = audit.verify()
-        print(result)  # Chain OK — 1 entries verified
+        print(result)  # Chain OK â€” 1 entries verified
     """
 
     _SENSITIVE_KEYS = frozenset({
@@ -115,7 +115,7 @@ class MerkleAuditChain:
                     try:
                         entries.append(AuditEntry.from_dict(json.loads(line)))
                     except Exception:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._cache = entries
         self._loaded = True
         return entries
@@ -273,4 +273,4 @@ if __name__ == "__main__":
         coding_entries = chain.search(district="coding")
         assert len(coding_entries) == 2
 
-        print(f"OK merkle_chain.py — {chain.count()} entries, chain verified, tamper detected")
+        print(f"OK merkle_chain.py â€” {chain.count()} entries, chain verified, tamper detected")

@@ -78,7 +78,7 @@ class NewsSearchCallback:
                 strategy_used=result.get("strategy", "unknown"),
             )
 
-            logger.debug(f"Tracked user search: {query[:50]}...")
+            logger.warning(f"Tracked user search: {query[:50]}...")
 
         except Exception:
             logger.exception("Error tracking search")

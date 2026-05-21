@@ -2,8 +2,8 @@
 Shared extraction pipeline.
 
 Two entry points:
-    extract_content(html) — HTML string in, clean text out.
-    fetch_and_extract(url) — URL in, clean text out (static + JS fallback).
+    extract_content(html) â€” HTML string in, clean text out.
+    fetch_and_extract(url) â€” URL in, clean text out (static + JS fallback).
 
 This is the single source of truth for content extraction in the project.
 Used by HTMLDownloader, ContentFetcher, FullSearchResults, WaybackSearchEngine,
@@ -29,7 +29,7 @@ from .metadata_extractor import extract_metadata, metadata_to_text
 # Minimum extracted text length to consider extraction successful
 MIN_CONTENT_LENGTH = 50
 # If content is shorter than this, enrich with structured metadata
-# (JSON-LD, OpenGraph) — helps product pages, JS-heavy sites
+# (JSON-LD, OpenGraph) â€” helps product pages, JS-heavy sites
 METADATA_ENRICHMENT_THRESHOLD = 1000
 # Boilerplate penalty per keyword when scoring extraction quality
 BOILERPLATE_PENALTY = 500
@@ -43,7 +43,7 @@ _readability = ReadabilityExtractor()
 _justext_en = JustextExtractor(language="English")
 _newspaper = NewspaperExtractor()
 
-# Boilerplate keywords — used to penalize low-quality extraction
+# Boilerplate keywords â€” used to penalize low-quality extraction
 _BOILERPLATE_KEYWORDS = [
     "cookie",
     "sign up",
@@ -61,7 +61,7 @@ def _run_extractors_parallel(
     """Run trafilatura and newspaper4k sequentially.
 
     Both extractors call into lxml's C extension, which is not safe to
-    share across threads — running them in a ThreadPoolExecutor caused
+    share across threads â€” running them in a ThreadPoolExecutor caused
     Fatal Python error: Aborted during pool teardown on Python 3.14
     (the workers would deadlock in shutdown's join). Serializing the
     calls eliminates the crash; the perf cost is one extra extraction's
@@ -73,13 +73,13 @@ def _run_extractors_parallel(
     try:
         trafilatura_content = _trafilatura.extract(html)
     except Exception:
-        logger.debug("Pipeline: trafilatura raised an exception")
+        logger.warning("Pipeline: trafilatura raised an exception")
         trafilatura_content = None
 
     try:
         newspaper_content = _newspaper.extract(html, url)
     except Exception:
-        logger.debug("Pipeline: newspaper4k raised an exception")
+        logger.warning("Pipeline: newspaper4k raised an exception")
         newspaper_content = None
 
     return trafilatura_content, newspaper_content
@@ -109,10 +109,10 @@ def extract_content(
     """Extract clean text content from HTML.
 
     Pipeline:
-        1. trafilatura (primary — best benchmarks, multilingual, markdown)
-        2. newspaper4k (parallel — strong on news/forum pages)
-        → pick the higher-quality result from steps 1-2
-        3. readability → justext (fallback if both above fail, with 80% safety)
+        1. trafilatura (primary â€” best benchmarks, multilingual, markdown)
+        2. newspaper4k (parallel â€” strong on news/forum pages)
+        â†’ pick the higher-quality result from steps 1-2
+        3. readability â†’ justext (fallback if both above fail, with 80% safety)
         4. soup.get_text() (last resort)
 
     Args:
@@ -130,7 +130,7 @@ def extract_content(
     # Run trafilatura and newspaper4k in parallel, pick the better result.
     # newspaper4k is strong on news front pages and multi-answer threads
     # where trafilatura sometimes extracts less content.
-    # 5s timeout per extractor — covers P95 of pages, cuts off outliers.
+    # 5s timeout per extractor â€” covers P95 of pages, cuts off outliers.
     trafilatura_content, newspaper_content = _run_extractors_parallel(html, url)
 
     traf_score = _quality_score(trafilatura_content)
@@ -147,7 +147,7 @@ def extract_content(
         winner = "trafilatura"
 
     if content and len(content.strip()) >= min_length:
-        logger.debug(
+        logger.warning(
             f"Pipeline: {winner} extracted {len(content)} chars"
             + (
                 f" (traf={len(trafilatura_content or '')}, "
@@ -157,8 +157,8 @@ def extract_content(
             )
         )
     else:
-        # Fallback: readability → justext
-        logger.debug(
+        # Fallback: readability â†’ justext
+        logger.warning(
             "Pipeline: primary extractors insufficient, using fallback"
         )
 
@@ -201,9 +201,9 @@ def extract_content(
                     prev_text_len > 0
                     and result_len < prev_text_len * SAFETY_DISCARD_RATIO
                 ):
-                    logger.debug(
+                    logger.warning(
                         f"Pipeline: {extractor.__class__.__name__} discarded "
-                        f">80% of content — skipping"
+                        f">80% of content â€” skipping"
                     )
                     continue
                 content = result
@@ -214,7 +214,7 @@ def extract_content(
                     )
                 else:
                     prev_text_len = result_len
-                logger.debug(
+                logger.warning(
                     f"Pipeline: {extractor.__class__.__name__} "
                     f"returned {result_len} chars"
                 )
@@ -227,7 +227,7 @@ def extract_content(
 
         # Last resort
         if not content or len(content.strip()) < min_length:
-            logger.debug("Pipeline: all extractors failed, using get_text()")
+            logger.warning("Pipeline: all extractors failed, using get_text()")
             content = soup.get_text(separator="\n", strip=True)
 
     if not content or len(content.strip()) < min_length:
@@ -239,7 +239,7 @@ def extract_content(
         metadata = extract_metadata(html)
         supplement = metadata_to_text(metadata)
         if supplement and supplement.strip():
-            logger.debug(
+            logger.warning(
                 f"Pipeline: enriching with {len(supplement)} chars "
                 f"of structured metadata"
             )
@@ -265,7 +265,7 @@ def extract_content_with_metadata(
         min_length: Minimum content length to accept.
 
     Returns:
-        Dict with keys: content, title, description — or None if content
+        Dict with keys: content, title, description â€” or None if content
         is below min_length.
     """
     if not html or not html.strip():
@@ -350,7 +350,7 @@ def _try_specialized_downloader(url: str, timeout: int = 30) -> Optional[str]:
 
             downloader = BioRxivDownloader(timeout=timeout)
     except ImportError:
-        logger.debug(
+        logger.warning(
             f"Pipeline: specialized downloader not available for {url_type.value}"
         )
         return None
@@ -365,13 +365,13 @@ def _try_specialized_downloader(url: str, timeout: int = 30) -> Optional[str]:
         if result.is_success and result.content:
             text = result.content.decode("utf-8", errors="replace")
             if len(text.strip()) >= MIN_CONTENT_LENGTH:
-                logger.debug(
+                logger.warning(
                     f"Pipeline: specialized downloader ({url_type.value}) "
                     f"returned {len(text)} chars for {url}"
                 )
                 return text
     except Exception:
-        logger.debug(
+        logger.warning(
             f"Pipeline: specialized downloader failed for {url}",
             exc_info=True,
         )
@@ -379,10 +379,10 @@ def _try_specialized_downloader(url: str, timeout: int = 30) -> Optional[str]:
         try:
             downloader.close()
         except Exception:  # noqa: silent-exception
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
-    # Specialized downloader didn't produce content — fall back to HTML
-    logger.debug(
+    # Specialized downloader didn't produce content â€” fall back to HTML
+    logger.warning(
         f"Pipeline: specialized downloader ({url_type.value}) returned "
         f"no content for {url}, falling back to HTML pipeline"
     )
@@ -398,8 +398,8 @@ def fetch_and_extract(
 
     Pipeline:
         1. Specialized downloader (arXiv PDF, PubMed API, etc.) if URL matches
-        2. Static HTTP fetch → Playwright fallback (if JS needed)
-           → trafilatura → readability → justext
+        2. Static HTTP fetch â†’ Playwright fallback (if JS needed)
+           â†’ trafilatura â†’ readability â†’ justext
 
     Args:
         url: The URL to fetch.
@@ -424,7 +424,7 @@ def fetch_and_extract(
     try:
         # download() returns extracted text as UTF-8 bytes (not raw HTML):
         # AutoHTMLDownloader inherits HTMLDownloader.download() which runs
-        # _fetch_html() → _extract_content() → the full extraction pipeline.
+        # _fetch_html() â†’ _extract_content() â†’ the full extraction pipeline.
         result = downloader.download(url)
         if result:
             return result.decode("utf-8", errors="replace")
@@ -436,7 +436,7 @@ def fetch_and_extract(
         try:
             downloader.close()
         except Exception:
-            logger.debug("Failed to close downloader in fetch_and_extract")
+            logger.warning("Failed to close downloader in fetch_and_extract")
 
 
 def batch_fetch_and_extract(
@@ -459,13 +459,13 @@ def batch_fetch_and_extract(
         language: Language for justext stoplist.
 
     Returns:
-        Dict mapping URL → extracted text (or None if failed).
+        Dict mapping URL â†’ extracted text (or None if failed).
     """
     from ..playwright_html import AutoHTMLDownloader
 
     results: Dict[str, Optional[str]] = {}
 
-    # Try specialized downloaders first — collect URLs that need HTML fallback
+    # Try specialized downloaders first â€” collect URLs that need HTML fallback
     html_urls: List[str] = []
     for url in urls:
         try:
@@ -474,7 +474,7 @@ def batch_fetch_and_extract(
                 results[url] = specialized
                 continue
         except Exception:
-            logger.debug(
+            logger.warning(
                 f"Pipeline: specialized downloader error for {url}",
                 exc_info=True,
             )
@@ -503,7 +503,7 @@ def batch_fetch_and_extract(
             try:
                 downloader.close()
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to close downloader in batch_fetch_and_extract"
                 )
 

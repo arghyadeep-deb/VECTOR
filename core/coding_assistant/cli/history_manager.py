@@ -55,7 +55,7 @@ class HistoryManager:
                 Path(tmp_path).unlink(missing_ok=True)
                 raise
         except OSError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def add(self, text: str) -> None:
         text = text.strip()

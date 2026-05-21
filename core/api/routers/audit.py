@@ -1,4 +1,4 @@
-"""Audit router — /audit/recent + /audit/verify."""
+"""Audit router Ã¢â‚¬â€ /audit/recent + /audit/verify."""
 
 import sys
 import json
@@ -46,7 +46,7 @@ async def audit_verify():
                     source="audit.verify",
                 ))
             except Exception as _ev_err:
-                logger.debug(f"[VECTOR][audit] event publish failed: {_ev_err}")
+                logger.warning(f"[VECTOR][audit] event publish failed: {_ev_err}")
         return {
             "valid": result.valid,
             "chain_length": result.total_entries,
@@ -59,4 +59,4 @@ async def audit_verify():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ audit.py OK")
+    print("Ã¢Å“â€¦ audit.py OK")

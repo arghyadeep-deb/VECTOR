@@ -35,7 +35,7 @@ class BaseFailure(ABC):
         self.retry_after = retry_after
         self.created_at = datetime.now(UTC)
 
-        logger.debug(
+        logger.warning(
             f"Created {self.__class__.__name__}: {error_type} - {message}"
         )
 
@@ -182,7 +182,7 @@ class FailureClassifier:
                     "Content returned HTML instead of PDF",
                 )
 
-        # Login/subscription/paywall errors — these are permanent
+        # Login/subscription/paywall errors â€” these are permanent
         if any(
             pattern in details_lower
             for pattern in [
@@ -197,7 +197,7 @@ class FailureClassifier:
                 "Requires login or subscription",
             )
 
-        # HTML content instead of PDF (non-arXiv) — permanent
+        # HTML content instead of PDF (non-arXiv) â€” permanent
         if "text/html" in details_lower and (
             "unexpected content type" in details_lower
             or "not a pdf" in details_lower

@@ -160,7 +160,7 @@ UNCERTAINTY: [score]
             try:
                 return float(match.group(1))
             except (ValueError, TypeError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
         return 0.1  # Default low score
 
     def _gather_evidence_for_constraint(
@@ -250,7 +250,7 @@ UNCERTAINTY: [score]
                     )
 
                     symbol = (
-                        "✓" if score >= 0.8 else "○" if score >= 0.5 else "✗"
+                        "âœ“" if score >= 0.8 else "â—‹" if score >= 0.5 else "âœ—"
                     )
                     logger.info(
                         f"{symbol} {candidate.name} | {constraint.value}: {int(score * 100)}% "

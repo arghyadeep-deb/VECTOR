@@ -1,5 +1,5 @@
 """
-VECTOR Scraper — district-ready adapters for all three fetcher tiers.
+VECTOR Scraper â€” district-ready adapters for all three fetcher tiers.
 
 Wraps core/scraper's Fetcher/DynamicFetcher/StealthyFetcher with:
   - VECTOR permission gateway integration
@@ -61,13 +61,13 @@ class ScrapeResult:
 
 class VectorScraper:
     """
-    Unified VECTOR scraping interface — one class for all three fetcher tiers.
+    Unified VECTOR scraping interface â€” one class for all three fetcher tiers.
 
     Tier selection:
-        fetch()         → HTTP with TLS fingerprint (fastest, ~100ms)
-        fetch_stealth() → Anti-bot browser (Cloudflare bypass, ~3-8s)
-        fetch_dynamic() → Standard Playwright browser (JS sites, ~2-5s)
-        crawl()         → Spider framework (multi-page, checkpointed)
+        fetch()         â†’ HTTP with TLS fingerprint (fastest, ~100ms)
+        fetch_stealth() â†’ Anti-bot browser (Cloudflare bypass, ~3-8s)
+        fetch_dynamic() â†’ Standard Playwright browser (JS sites, ~2-5s)
+        crawl()         â†’ Spider framework (multi-page, checkpointed)
 
     All methods:
         - Check SSRF guard before fetching
@@ -87,7 +87,7 @@ class VectorScraper:
         self._proxy = proxy
         self._timeout = timeout
 
-    # ── SSRF guard ────────────────────────────────────────────────────────────
+    # â”€â”€ SSRF guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _check_url(self, url: str) -> bool:
         try:
@@ -96,7 +96,7 @@ class VectorScraper:
                 logger.warning("[VECTOR][scraper] SSRF blocked: {}", url)
                 return False
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return True
 
     def _audit(self, action: str, url: str, status: int) -> None:
@@ -109,9 +109,9 @@ class VectorScraper:
                 payload={"url": url[:100], "status": status},
             )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-    # ── HTTP fetcher ──────────────────────────────────────────────────────────
+    # â”€â”€ HTTP fetcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def fetch(
         self,
@@ -161,17 +161,17 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             # Tag fetched content as EXTERNAL_NETWORK (taint tracking)
             try:
                 from core.security.taint_tracker import get_taint_tracker, TaintLabel
                 get_taint_tracker().tag_external(result.content)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             self._audit("fetch_http", url, result.status_code)
-            logger.info("[VECTOR][scraper] fetch {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] fetch {} â†’ {}", url[:60], result.status_code)
             return result
 
         except Exception as e:
@@ -179,7 +179,7 @@ class VectorScraper:
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="http_tls", error=str(e))
 
-    # ── Stealth fetcher (anti-bot) ─────────────────────────────────────────────
+    # â”€â”€ Stealth fetcher (anti-bot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def fetch_stealth(
         self,
@@ -189,7 +189,7 @@ class VectorScraper:
         selector: str | None = None,
     ) -> ScrapeResult:
         """
-        Anti-bot fetch — Cloudflare Turnstile bypass, fingerprint spoofing.
+        Anti-bot fetch â€” Cloudflare Turnstile bypass, fingerprint spoofing.
         Use for: G2, LinkedIn, Cloudflare-protected sites, finance portals.
         Slower (~3-8s) but bypasses nearly all bot detection.
         """
@@ -221,10 +221,10 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             self._audit("fetch_stealth", url, result.status_code)
-            logger.info("[VECTOR][scraper] stealth {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] stealth {} â†’ {}", url[:60], result.status_code)
             return result
 
         except Exception as e:
@@ -232,7 +232,7 @@ class VectorScraper:
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="stealth_browser", error=str(e))
 
-    # ── Dynamic fetcher (Playwright) ───────────────────────────────────────────
+    # â”€â”€ Dynamic fetcher (Playwright) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def fetch_dynamic(
         self,
@@ -272,7 +272,7 @@ class VectorScraper:
                 result.content = "\n".join(resp.css(selector).getall())
 
             self._audit("fetch_dynamic", url, result.status_code)
-            logger.info("[VECTOR][scraper] dynamic {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] dynamic {} â†’ {}", url[:60], result.status_code)
             return result
 
         except Exception as e:
@@ -280,7 +280,7 @@ class VectorScraper:
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="dynamic_browser", error=str(e))
 
-    # ── Smart fetch (auto-selects tier) ───────────────────────────────────────
+    # â”€â”€ Smart fetch (auto-selects tier) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def smart_fetch(
         self,
@@ -304,7 +304,7 @@ class VectorScraper:
 
         return result
 
-    # ── Batch fetch ───────────────────────────────────────────────────────────
+    # â”€â”€ Batch fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def fetch_many(
         self,
@@ -325,7 +325,7 @@ class VectorScraper:
                 ScrapeResult(url=u, status_code=0, content="", error=str(r))
                 for u, r in zip(urls, results)]
 
-    # ── Spider crawl ──────────────────────────────────────────────────────────
+    # â”€â”€ Spider crawl â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def crawl(
         self,
@@ -337,7 +337,7 @@ class VectorScraper:
     ) -> list[dict]:
         """
         Multi-page spider crawl with automatic link following.
-        Supports checkpoints — press Ctrl+C and resume from same directory.
+        Supports checkpoints â€” press Ctrl+C and resume from same directory.
         """
         if not self._check_url(start_url):
             return []
@@ -371,7 +371,7 @@ class VectorScraper:
         logger.info("[VECTOR][scraper] crawl done: {} pages", len(results))
         return results
 
-    # ── Selector shortcut ─────────────────────────────────────────────────────
+    # â”€â”€ Selector shortcut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def parse(self, html: str):
         """Parse raw HTML and return a Selector for querying."""
@@ -379,7 +379,7 @@ class VectorScraper:
         return Selector(html)
 
 
-# ── Convenience functions (district-callable) ──────────────────────────────────
+# â”€â”€ Convenience functions (district-callable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _scraper: VectorScraper | None = None
 
@@ -418,7 +418,7 @@ if __name__ == "__main__":
         assert sel.css("h1::text").get() == "VECTOR"
 
         # Test smart_fetch fallback logic (just checks it runs)
-        print("OK vector_scraper.py — SSRF guard + parsing verified")
+        print("OK vector_scraper.py â€” SSRF guard + parsing verified")
         print("Note: Network tests require internet connection")
 
     asyncio.run(_test())

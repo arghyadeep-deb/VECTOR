@@ -109,7 +109,7 @@ class SearchTracker:
                     )
                     session.add(search_call)
 
-                    logger.debug(
+                    logger.warning(
                         f"Search call recorded to encrypted DB: {engine_name} - "
                         f"{results_count} results in {response_time_ms}ms"
                     )

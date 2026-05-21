@@ -1,5 +1,5 @@
 """
-core/communications/hub.py — Unified CommsHub (Phase 3C).
+core/communications/hub.py â€” Unified CommsHub (Phase 3C).
 
 Routes outbound messages to any configured platform adapter from
 vectorcode.src.comms.*. Incoming messages are polled and published
@@ -139,7 +139,7 @@ class CommsHub:
                 if callable(fn):
                     total += int(fn() or 0)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return total
 
     def get_comms_status(self) -> dict:

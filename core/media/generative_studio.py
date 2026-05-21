@@ -1,7 +1,7 @@
 """
-VECTOR Generative Studio — Unified orchestrator for AI creative media generation.
+VECTOR Generative Studio â€” Unified orchestrator for AI creative media generation.
 
-Priority chain: Wan2GP (free local GPU) → LocalInference (sd.cpp offline) → Muapi (cloud)
+Priority chain: Wan2GP (free local GPU) â†’ LocalInference (sd.cpp offline) â†’ Muapi (cloud)
 
 For image/video generation, always tries local/free options first before using
 Muapi.ai cloud credits. Pass prefer_local=False to skip directly to cloud.
@@ -43,7 +43,7 @@ class GenerativeStudio:
         self._local   = LocalInference()
         self._wan2gp_probed = False
 
-    # ── Backend selection ─────────────────────────────────────────────────────
+    # â”€â”€ Backend selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _wan2gp_model_ids(self) -> set[str]:
         return {m.id for m in WAN2GP_CATALOG}
@@ -58,7 +58,7 @@ class GenerativeStudio:
     def _has_muapi(self) -> bool:
         return bool(self._muapi._api_key)
 
-    # ── Auto-upload local files ───────────────────────────────────────────────
+    # â”€â”€ Auto-upload local files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _resolve_url(self, path_or_url: str, prefer_local: bool = True) -> str:
         """If given a local file path, upload it to Muapi.ai or Wan2GP and return a hosted URL."""
@@ -72,7 +72,7 @@ class GenerativeStudio:
                 try:
                     return await self._wan2gp.upload_file(str(p))
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             if self._has_muapi():
                 return await self._muapi.upload_file(str(p))
         return path_or_url
@@ -89,13 +89,13 @@ class GenerativeStudio:
                 resp = await c.get(url)
                 resp.raise_for_status()
                 out_path.write_bytes(resp.content)
-            logger.debug("[VECTOR][studio] saved → {}", out_path)
+            logger.debug("[VECTOR][studio] saved â†’ {}", out_path)
             return str(out_path)
         except Exception as e:
             logger.warning("[VECTOR][studio] could not download result {}: {}", url[:80], e)
             return url
 
-    # ── Image generation ──────────────────────────────────────────────────────
+    # â”€â”€ Image generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def generate_image(
         self,
@@ -105,7 +105,7 @@ class GenerativeStudio:
         aspect_ratio: str = "1:1",
         **kwargs,
     ) -> dict:
-        """Text-to-image. Tries Wan2GP → sd.cpp → Muapi in order."""
+        """Text-to-image. Tries Wan2GP â†’ sd.cpp â†’ Muapi in order."""
         wan2gp_id = f"wan2gp:{model.replace('flux-dev', 'flux-dev')}"
 
         # 1. Wan2GP (free local GPU)
@@ -145,7 +145,7 @@ class GenerativeStudio:
         model: str = "nano-banana-edit",
         **kwargs,
     ) -> dict:
-        """Image-to-image editing (always cloud — Muapi.ai)."""
+        """Image-to-image editing (always cloud â€” Muapi.ai)."""
         image_url = await self._resolve_url(image, prefer_local=False)
         if not self._has_muapi():
             raise RuntimeError("Image-to-image requires MUAPI_API_KEY")
@@ -161,7 +161,7 @@ class GenerativeStudio:
         aspect_ratio: str = "16:9",
         **kwargs,
     ) -> dict:
-        """Text-to-video. Tries Wan2GP → Muapi in order."""
+        """Text-to-video. Tries Wan2GP â†’ Muapi in order."""
         wan2gp_id = f"wan2gp:{model}"
 
         # 1. Wan2GP (free local GPU)
@@ -191,7 +191,7 @@ class GenerativeStudio:
         prefer_local: bool = True,
         **kwargs,
     ) -> dict:
-        """Image-to-video animation. Tries Wan2GP wan22-i2v → Muapi."""
+        """Image-to-video animation. Tries Wan2GP wan22-i2v â†’ Muapi."""
         if prefer_local:
             ok = await self._probe_wan2gp_if_needed()
             if ok:
@@ -219,14 +219,14 @@ class GenerativeStudio:
         model: str = "infinite-talk",
         is_video: bool = False,
     ) -> dict:
-        """Lip sync — portrait image or video + narration audio → talking head video."""
+        """Lip sync â€” portrait image or video + narration audio â†’ talking head video."""
         portrait_url = await self._resolve_url(portrait, prefer_local=False)
         audio_url    = await self._resolve_url(audio, prefer_local=False)
         if not self._has_muapi():
             raise RuntimeError("Lip sync requires MUAPI_API_KEY")
         result = await self._muapi.process_lipsync(model, portrait_url, audio_url, is_video=is_video)
         result["backend"] = "muapi"
-        logger.info("[VECTOR][studio] lipsync complete → {}", (result.get("url") or "")[:80])
+        logger.info("[VECTOR][studio] lipsync complete â†’ {}", (result.get("url") or "")[:80])
         return result
 
     async def background_remove(self, image: str) -> dict:
@@ -247,7 +247,7 @@ class GenerativeStudio:
         result["backend"] = "muapi"
         return result
 
-    # ── Governor dispatch ──────────────────────────────────────────────────────
+    # â”€â”€ Governor dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def generate(self, task: dict) -> dict:
         """Dispatch a generation task by action name. Used by Governor and MediaStudioAgent."""
@@ -295,7 +295,7 @@ class GenerativeStudio:
         else:
             return {"error": f"Unknown action: {action}"}
 
-    # ── Status ─────────────────────────────────────────────────────────────────
+    # â”€â”€ Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def status(self) -> dict:
         probe = await self._wan2gp.probe() if self._wan2gp._base_url else {"ok": False}

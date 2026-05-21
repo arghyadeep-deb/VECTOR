@@ -1,4 +1,4 @@
-"""Sandbox executor — runs experiment code in an isolated subprocess."""
+"""Sandbox executor â€” runs experiment code in an isolated subprocess."""
 
 import asyncio
 import ast
@@ -145,7 +145,7 @@ class SandboxExecutor:
         finally:
             if tmp_dir and tmp_dir.exists():
                 shutil.rmtree(tmp_dir, ignore_errors=True)
-                logger.debug("Cleaned up sandbox dir {}", tmp_dir)
+                logger.warning("Cleaned up sandbox dir {}", tmp_dir)
 
     def _extract_stats(self, stdout: str) -> dict:
         stats: dict = {}

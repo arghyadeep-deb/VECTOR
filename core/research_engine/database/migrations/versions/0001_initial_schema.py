@@ -71,7 +71,7 @@ def upgrade():
 
 def downgrade():
     """
-    ⚠️  DESTRUCTIVE OPERATION - Drop all tables.
+    âš ï¸  DESTRUCTIVE OPERATION - Drop all tables.
 
     WARNING: This will permanently delete ALL data in the database.
     This includes: research history, settings, API keys, benchmarks,
@@ -96,4 +96,4 @@ def downgrade():
         try:
             table.drop(connection, checkfirst=True)
         except Exception:
-            logger.debug(f"Could not drop table {table.name} during downgrade")
+            logger.warning(f"Could not drop table {table.name} during downgrade")

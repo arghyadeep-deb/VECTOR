@@ -60,7 +60,7 @@ def _get_auth_engine() -> Engine:
         if _auth_engine is not None and _auth_engine_path != auth_db_path:
             try:
                 _auth_engine.dispose()
-                logger.debug(
+                logger.warning(
                     "Disposed auth engine due to data directory change"
                 )
             except Exception:
@@ -72,7 +72,7 @@ def _get_auth_engine() -> Engine:
         if not auth_db_path.exists():
             init_auth_database()
 
-        # Moderate pool — auth DB is unencrypted SQLite used by every
+        # Moderate pool â€” auth DB is unencrypted SQLite used by every
         # authenticated request via before_request middleware.
         # See ADR-0004 for pool sizing rationale.
         _auth_engine = create_engine(
@@ -92,7 +92,7 @@ def _get_auth_engine() -> Engine:
         event.listen(_auth_engine, "connect", _apply_auth_pragmas)
 
         _auth_engine_path = auth_db_path
-        logger.debug("Created cached auth database engine")
+        logger.warning("Created cached auth database engine")
 
         return _auth_engine
 
@@ -109,12 +109,12 @@ def init_auth_database():
     # Ensure the data directory exists
     auth_db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Ensuring auth database at {auth_db_path}")
+    logger.warning(f"Ensuring auth database at {auth_db_path}")
 
     # Create the database with a temporary engine
     engine = create_engine(f"sqlite:///{auth_db_path}")
 
-    # Use SQL-level IF NOT EXISTS — idempotent and atomic, safe for
+    # Use SQL-level IF NOT EXISTS â€” idempotent and atomic, safe for
     # concurrent calls without Python-level locking.
     with engine.begin() as conn:
         conn.execute(CreateTable(User.__table__, if_not_exists=True))
@@ -124,7 +124,7 @@ def init_auth_database():
     # Dispose the temporary engine
     engine.dispose()
 
-    logger.debug("Auth database initialized successfully")
+    logger.warning("Auth database initialized successfully")
 
 
 def get_auth_db_session() -> Session:
@@ -171,4 +171,4 @@ def dispose_auth_engine():
             _auth_engine.dispose()
             _auth_engine = None
             _auth_engine_path = None
-            logger.debug("Disposed auth database engine")
+            logger.warning("Disposed auth database engine")

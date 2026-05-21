@@ -46,13 +46,13 @@ class DecisionEngine:
     """
     Scores 4 candidates per decision using the 5-factor weighted formula.
     RULE 7: policy.get_score() BEFORE. policy.update_from_outcome() AFTER.
-    ALL candidates logged — including rejected. No silent drops.
+    ALL candidates logged Ã¢â‚¬â€ including rejected. No silent drops.
 
     Scoring: goal_alignment(30%) + confidence(25%) + policy(20%) +
              urgency(15%) + timing(10%) - cost(5%)
     """
 
-    # Scoring weights — override via CONFIG["decision_weights"] dict
+    # Scoring weights Ã¢â‚¬â€ override via CONFIG["decision_weights"] dict
     W_GOAL    = CONFIG.get("decision_weights", {}).get("goal",    0.30)
     W_CONF    = CONFIG.get("decision_weights", {}).get("conf",    0.25)
     W_POLICY  = CONFIG.get("decision_weights", {}).get("policy",  0.20)
@@ -140,7 +140,7 @@ class DecisionEngine:
             state[2] = candidate.timing_score
             state[3] = candidate.goal_alignment if hasattr(candidate, "goal_alignment") else 0.5
             state[4] = min(1.0, candidate.estimated_cost_inr / 10.0)
-            # Map action_type to index — derive from governor's live task map so new districts are included
+            # Map action_type to index Ã¢â‚¬â€ derive from governor's live task map so new districts are included
             try:
                 from core.city.governor import DISTRICT_TASK_MAP
                 _ACTION_TYPES = sorted(set(DISTRICT_TASK_MAP.keys()))
@@ -217,11 +217,10 @@ class DecisionEngine:
                     if abs(blended_conf - raw_conf) > 0.05:
                         logger.debug(
                             f"[VECTOR][decision_engine] Epistemic blend {candidate.action_type}: "
-                            f"{raw_conf:.2f} → {blended_conf:.2f}"
+                            f"{raw_conf:.2f} Ã¢â€ â€™ {blended_conf:.2f}"
                         )
                     candidate.confidence = round(blended_conf, 4)
-            except Exception:
-                pass  # epistemic tracker never blocks a decision
+            except Exception: logger.debug("[VECTOR][decision] exception suppressed")  # epistemic tracker never blocks a decision
 
         # Neural A2C refinement: 5% blend with RL-derived action-value estimate
         neural_score = self._neural_score(candidate)
@@ -233,7 +232,7 @@ class DecisionEngine:
             + self.W_URGENCY * candidate.urgency
             + self.W_TIMING * candidate.timing_score
             - self.W_COST * cost_penalty
-            + 0.05 * neural_score  # A2C Q-value nudge (small weight — RL still learning)
+            + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬â€ RL still learning)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
 
@@ -283,7 +282,7 @@ class DecisionEngine:
         ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
         winner = ranked[0]
 
-        # Log ALL candidates including rejected — RULE 8
+        # Log ALL candidates including rejected Ã¢â‚¬â€ RULE 8
         mem = self._get_memory()
         for c in ranked:
             status = "winner" if c is winner else "rejected"
@@ -319,7 +318,7 @@ class DecisionEngine:
                     evidence=f"decision_winner: score={winner.total_score}",
                 )
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         # RULE 8: store winning decision reasoning in ReasoningBank
         # High-reward decisions (score > 0.7) become training data
@@ -348,7 +347,7 @@ class DecisionEngine:
                     trainer.save_checkpoint(ckpt)
                     logger.debug(f"[VECTOR][decision_engine] Neural trainer checkpoint saved (n={self._neural_decision_count})")
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return Decision(
             winner=winner,
@@ -391,7 +390,7 @@ if __name__ == "__main__":
         and 0.0 <= decision.winner.total_score <= 1.0
     )
     print(
-        f"✅ decision_engine OK — winner={decision.winner.action_type} "
+        f"Ã¢Å“â€¦ decision_engine OK Ã¢â‚¬â€ winner={decision.winner.action_type} "
         f"score={decision.winner.total_score}, {decision.evaluated} evaluated"
-        if ok else "❌ FAILED"
+        if ok else "Ã¢ÂÅ’ FAILED"
     )

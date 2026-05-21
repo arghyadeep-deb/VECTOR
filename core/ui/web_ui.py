@@ -1,5 +1,5 @@
 """
-VECTOR Web Dashboard — FastAPI router serving the browser UI.
+VECTOR Web Dashboard â€” FastAPI router serving the browser UI.
 
 Mounted at /ui on the existing FastAPI server (core/main.py).
 Zero npm, zero Node.js, zero external dependencies.
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/ui", tags=["ui"])
 _VERSION = CONFIG.get("version", "1.0.0")
 _OWNER = CONFIG.get("owner_name", "Arghyadeep")
 
-# ── HTML dashboard (single file, no template engine needed) ───────────────────
+# â”€â”€ HTML dashboard (single file, no template engine needed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _DASHBOARD_HTML = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -251,7 +251,7 @@ _DASHBOARD_HTML = """\
 (function(){
   "use strict";
 
-  // ── safe text node helpers ──────────────────────────────────────────────────
+  // â”€â”€ safe text node helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function txt(s){return document.createTextNode(String(s||""))}
   function el(tag,attrs,children){
     const e=document.createElement(tag);
@@ -266,7 +266,7 @@ _DASHBOARD_HTML = """\
   function clear(id){const e=document.getElementById(id);if(e)e.textContent="";return e}
   function append(id,node){const e=document.getElementById(id);if(e)e.appendChild(node)}
 
-  // ── Tab routing ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tab routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const LAZY={goals:loadGoals,memory:loadMemory,districts:loadDistricts,
                tasks:loadTasks,karpathy:loadKarpathy,agents:loadAgents};
 
@@ -287,7 +287,7 @@ _DASHBOARD_HTML = """\
     t.addEventListener("click",()=>showTab(t.dataset.tab));
   });
 
-  // ── Chat ────────────────────────────────────────────────────────────────────
+  // â”€â”€ Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let chatHistory=[];
   try{
     const saved=sessionStorage.getItem("vector-chat");
@@ -338,7 +338,7 @@ _DASHBOARD_HTML = """\
     inp.focus();
   }
 
-  // ── Search ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   document.getElementById("search-go").addEventListener("click",doSearch);
   document.getElementById("search-q").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
   document.getElementById("btn-hn").addEventListener("click",()=>fetchAndRender("/ui/hn"));
@@ -397,7 +397,7 @@ _DASHBOARD_HTML = """\
     });
   }
 
-  // ── Goals ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Goals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function loadGoals(){
     const c=clear("goals-content");
     try{
@@ -415,7 +415,7 @@ _DASHBOARD_HTML = """\
     }catch(e){c.textContent="Error: "+e.message;}
   }
 
-  // ── Memory ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Memory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   document.getElementById("mem-search-btn").addEventListener("click",searchMem);
   document.getElementById("mem-q").addEventListener("keydown",e=>{if(e.key==="Enter")searchMem();});
 
@@ -445,14 +445,14 @@ _DASHBOARD_HTML = """\
     mems.forEach(m=>{
       const item=el("div",{class:"mem-item"});
       item.appendChild(el("div",{style:"color:var(--dim);font-size:10px"},
-        [(m.timestamp||"")+" — "+(m.event_type||"")+" — "+(m.source||"")]));
+        [(m.timestamp||"")+" â€” "+(m.event_type||"")+" â€” "+(m.source||"")]));
       item.appendChild(el("div",{style:"font-size:12px;margin-top:2px"},
         [(m.content||"").substring(0,200)]));
       c.appendChild(item);
     });
   }
 
-  // ── Districts ───────────────────────────────────────────────────────────────
+  // â”€â”€ Districts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const DISTRICTS=[
     ["01","governance","LLM Council, Mayor"],
     ["02","security","ThreatScout, Malware"],
@@ -491,7 +491,7 @@ _DASHBOARD_HTML = """\
     });
   }
 
-  // ── Karpathy ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Karpathy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function loadKarpathy(){
     const c=clear("karpathy-content");
     try{
@@ -504,13 +504,13 @@ _DASHBOARD_HTML = """\
       const todayCard=el("div",{class:"card"});
       todayCard.appendChild(el("div",{class:"card-title"},["Today"]));
       todayCard.appendChild(el("div",{style:"color:var(--dim);font-size:12px"},
-        [d.today||"No session yet. python -m core.ui.chat → /karpathy"]));
+        [d.today||"No session yet. python -m core.ui.chat â†’ /karpathy"]));
       c.appendChild(streakCard);
       c.appendChild(todayCard);
     }catch(e){c.textContent="Error: "+e.message;}
   }
 
-  // ── Agents HP ────────────────────────────────────────────────────────────────
+  // â”€â”€ Agents HP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function loadAgents(){
     const c=clear("agents-content");
     try{
@@ -533,13 +533,13 @@ _DASHBOARD_HTML = """\
         bar.appendChild(fill);
         card.appendChild(bar);
         card.appendChild(el("div",{style:"color:var(--dim);font-size:10px;margin-top:2px"},
-          [(a.district||"?")+" — Gen "+(a.generation||1)]));
+          [(a.district||"?")+" â€” Gen "+(a.generation||1)]));
         c.appendChild(card);
       });
     }catch(e){c.textContent="Error: "+e.message;}
   }
 
-  // ── Status polling ───────────────────────────────────────────────────────────
+  // â”€â”€ Status polling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function pollStatus(){
     try{
       const r=await fetch("/status");
@@ -551,30 +551,30 @@ _DASHBOARD_HTML = """\
       document.getElementById("r-ollama").textContent=d.ollama_available?"OK":"DOWN";
       document.getElementById("r-loop").textContent=d.loop_running?"ACTIVE":"STOPPED";
       const comms=d.comms||{};
-      document.getElementById("r-urgent").textContent=comms.urgent??"—";
-      document.getElementById("r-unread").textContent=comms.unread??"—";
-      document.getElementById("r-pending").textContent=comms.pending??"—";
+      document.getElementById("r-urgent").textContent=comms.urgent??"â€”";
+      document.getElementById("r-unread").textContent=comms.unread??"â€”";
+      document.getElementById("r-pending").textContent=comms.pending??"â€”";
     }catch(e){
         document.getElementById("ollama-badge").className="badge red";
         document.getElementById("ollama-badge").textContent="Ollama: LOST";
         document.getElementById("loop-badge").className="badge red";
         document.getElementById("loop-badge").textContent="Loop: UNKNOWN";
-        document.getElementById("r-ollama").textContent="—";
-        document.getElementById("r-loop").textContent="—";
-        document.getElementById("r-urgent").textContent="—";
-        document.getElementById("r-unread").textContent="—";
-        document.getElementById("r-pending").textContent="—";
+        document.getElementById("r-ollama").textContent="â€”";
+        document.getElementById("r-loop").textContent="â€”";
+        document.getElementById("r-urgent").textContent="â€”";
+        document.getElementById("r-unread").textContent="â€”";
+        document.getElementById("r-pending").textContent="â€”";
         console.warn("pollStatus failed:", e.message);
     }
   }
 
-  // ── Clock ────────────────────────────────────────────────────────────────────
+  // â”€â”€ Clock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function tick(){
     document.getElementById("clock-badge").textContent=
       new Date().toLocaleTimeString("en-GB",{hour12:false});
   }
 
-  // ── Quick action buttons ─────────────────────────────────────────────────────
+  // â”€â”€ Quick action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   document.getElementById("qa-news").addEventListener("click",()=>{
     document.getElementById("search-q").value="AI news today";
     fetchAndRender("/ui/search?q=AI+news+today");
@@ -583,7 +583,7 @@ _DASHBOARD_HTML = """\
   document.getElementById("qa-goals").addEventListener("click",loadGoals);
   document.getElementById("qa-mem").addEventListener("click",()=>{showTab("memory");loadMemory();});
 
-  // ── Background Tasks ─────────────────────────────────────────────────────────
+  // â”€â”€ Background Tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function loadTasks(){
     try{
       const d=await apiFetch("/tasks/");
@@ -619,7 +619,7 @@ _DASHBOARD_HTML = """\
         row.appendChild(elapsed);row.appendChild(dist);
         if(t.status==="running"){
           const cancelBtn=document.createElement("button");
-          cancelBtn.textContent="✕";
+          cancelBtn.textContent="âœ•";
           cancelBtn.style.cssText="background:none;border:1px solid var(--red);color:var(--red);"+
             "cursor:pointer;font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0";
           cancelBtn.addEventListener("click",async()=>{
@@ -635,7 +635,7 @@ _DASHBOARD_HTML = """\
       if(running.length){
         const h=document.createElement("div");
         h.style.cssText="color:var(--green);font-size:11px;margin-bottom:4px;font-weight:700";
-        h.textContent="▶ RUNNING ("+running.length+")";
+        h.textContent="â–¶ RUNNING ("+running.length+")";
         runEl.appendChild(h);
         running.forEach(t=>runEl.appendChild(makeRow(t)));
       } else {
@@ -672,7 +672,7 @@ _DASHBOARD_HTML = """\
     }catch(e){console.error("submit task error",e);}
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────────────────
+  // â”€â”€ Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   tick();
   setInterval(tick,1000);
   pollStatus();
@@ -692,7 +692,7 @@ _DASHBOARD_HTML = """\
 _DASHBOARD_HTML = _DASHBOARD_HTML.replace("__VER__", _VERSION).replace("__OWNER__", _OWNER)
 
 
-# ── FastAPI routes ─────────────────────────────────────────────────────────────
+# â”€â”€ FastAPI routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -729,7 +729,7 @@ async def web_chat(body: dict):
                 source="web_ui",
             )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         return {"response": response}
     except Exception as e:
@@ -775,15 +775,15 @@ async def web_chat_ws(websocket: WebSocket):
                 source="web_ui_ws",
             )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     except WebSocketDisconnect:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     except Exception as e:
         logger.error(f"[VECTOR][web_ui] ws chat: {e}")
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
 @router.get("/search")

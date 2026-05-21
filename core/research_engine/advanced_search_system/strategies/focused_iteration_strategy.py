@@ -96,7 +96,7 @@ class FocusedIterationStrategy(BaseSearchStrategy):
         logger.info(
             f"FocusedIterationStrategy configuration - max_iterations: {self.max_iterations}, questions_per_iteration: {self.questions_per_iteration}"
         )
-        logger.debug(
+        logger.warning(
             f"FocusedIterationStrategy - use_browsecomp_optimization: {self.use_browsecomp_optimization}"
         )
 

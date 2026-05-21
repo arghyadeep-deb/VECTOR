@@ -1,9 +1,9 @@
-# VECTOR module — ported from VectorCode
+# VECTOR module â€” ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
 
-"""Task scheduler — cron/interval/once execution with background polling."""
+"""Task scheduler â€” cron/interval/once execution with background polling."""
 
 from __future__ import annotations
 
@@ -319,7 +319,7 @@ class TaskScheduler:
             it = croniter(cron_expr, now)
             return it.get_next(datetime).isoformat()
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         # Basic fallback: parse "minute hour * * *" style expressions
         parts = cron_expr.strip().split()

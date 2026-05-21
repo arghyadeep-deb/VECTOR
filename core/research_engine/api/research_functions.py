@@ -267,7 +267,7 @@ def quick_summary(
         import uuid
 
         research_id = str(uuid.uuid4())
-        logger.debug(f"Generated research_id: {research_id}")
+        logger.warning(f"Generated research_id: {research_id}")
 
     # Register retrievers if provided
     if retrievers:
@@ -546,7 +546,7 @@ def detailed_research(
         import uuid
 
         research_id = str(uuid.uuid4())
-        logger.debug(f"Generated research_id: {research_id}")
+        logger.warning(f"Generated research_id: {research_id}")
 
     # Register retrievers if provided
     if retrievers:

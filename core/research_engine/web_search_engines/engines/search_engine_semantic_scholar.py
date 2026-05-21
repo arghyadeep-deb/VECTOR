@@ -106,7 +106,7 @@ class SemanticScholarSearchEngine(BaseSearchEngine):
                     settings_snapshot=settings_snapshot,
                 )
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to read semantic_scholar.api_key from settings snapshot",
                     exc_info=True,
                 )
@@ -212,7 +212,7 @@ class SemanticScholarSearchEngine(BaseSearchEngine):
         self._last_wait_time = self.rate_tracker.apply_rate_limit(
             self.engine_type
         )
-        logger.debug(f"Applied rate limit wait: {self._last_wait_time:.2f}s")
+        logger.warning(f"Applied rate limit wait: {self._last_wait_time:.2f}s")
 
     def _make_request(
         self,
@@ -285,9 +285,9 @@ INSTRUCTIONS:
 5. Keep it under 100 characters if possible
 
 EXAMPLE TRANSFORMATIONS:
-"What are the latest findings about mRNA vaccines and COVID-19?" → "mRNA vaccines COVID-19 recent findings"
-"How does machine learning impact climate change prediction?" → "machine learning "climate change" prediction"
-"Tell me about quantum computing approaches for encryption" → "quantum computing encryption"
+"What are the latest findings about mRNA vaccines and COVID-19?" â†’ "mRNA vaccines COVID-19 recent findings"
+"How does machine learning impact climate change prediction?" â†’ "machine learning "climate change" prediction"
+"Tell me about quantum computing approaches for encryption" â†’ "quantum computing encryption"
 
 Return ONLY the optimized search query with no explanation.
 """

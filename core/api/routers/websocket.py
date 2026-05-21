@@ -43,12 +43,12 @@ class ConnectionManager:
     async def connect(self, ws: WebSocket):
         await ws.accept()
         self._connections.append(ws)
-        logger.info(f"[VECTOR][ws] Client connected — {len(self._connections)} total")
+        logger.info(f"[VECTOR][ws] Client connected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {len(self._connections)} total")
 
     def disconnect(self, ws: WebSocket):
         if ws in self._connections:
             self._connections.remove(ws)
-        logger.info(f"[VECTOR][ws] Client disconnected — {len(self._connections)} total")
+        logger.info(f"[VECTOR][ws] Client disconnected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {len(self._connections)} total")
 
     async def broadcast(self, message: dict):
         """Send a message to all connected clients."""
@@ -78,7 +78,7 @@ async def broadcast_event(message: dict) -> None:
     try:
         await manager.broadcast(message)
     except Exception as _bc_err:
-        logger.debug(f"[VECTOR][ws] broadcast_event failed: {_bc_err}")
+        logger.warning(f"[VECTOR][ws] broadcast_event failed: {_bc_err}")
 
 
 async def _build_status_payload() -> dict:
@@ -105,14 +105,14 @@ async def _build_status_payload() -> dict:
             "list": agents[:20],  # cap at 20 for WS payload size
         }
     except Exception as e:
-        logger.debug(f"[VECTOR][ws] agent stats failed: {e}")
+        logger.warning(f"[VECTOR][ws] agent stats failed: {e}")
 
     try:
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         payload["memory"] = mem.get_stats()
     except Exception as e:
-        logger.debug(f"[VECTOR][ws] memory stats failed: {e}")
+        logger.warning(f"[VECTOR][ws] memory stats failed: {e}")
 
     try:
         import httpx
@@ -157,17 +157,17 @@ async def vector_ws(websocket: WebSocket):
     immediately before any data is sent.
 
     Message protocol:
-        Client → Server:
-            {"action": "ping"}           → heartbeat
-            {"action": "command", "text": "..."}  → execute command via intelligence stack
-            {"action": "subscribe", "channel": "status"}  → start streaming
+        Client ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Server:
+            {"action": "ping"}           ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ heartbeat
+            {"action": "command", "text": "..."}  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ execute command via intelligence stack
+            {"action": "subscribe", "channel": "status"}  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ start streaming
 
-        Server → Client:
-            {"type": "status",  ...}     → full system status (every 2s)
-            {"type": "events",  ...}     → recent memory events (every 5s)
-            {"type": "agent",   ...}     → single agent update
-            {"type": "response", ...}    → command response
-            {"type": "error",   ...}     → error message
+        Server ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Client:
+            {"type": "status",  ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ full system status (every 2s)
+            {"type": "events",  ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ recent memory events (every 5s)
+            {"type": "agent",   ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ single agent update
+            {"type": "response", ...}    ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ command response
+            {"type": "error",   ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ error message
     """
     try:
         require_auth(websocket)
@@ -181,7 +181,7 @@ async def vector_ws(websocket: WebSocket):
         await manager.send_personal(websocket, await _build_recent_events())
 
         while True:
-            # Non-blocking receive — timeout after 30s to allow background pushes
+            # Non-blocking receive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â timeout after 30s to allow background pushes
             try:
                 raw = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
             except asyncio.TimeoutError:
@@ -220,7 +220,7 @@ async def vector_ws(websocket: WebSocket):
                     from core.loop.permission_gateway import PermissionGateway, Action
                     from core.memory.policy import PolicyMemory
 
-                    # RULE 1 — Session hydration
+                    # RULE 1 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Session hydration
                     ctx = ContextEngine()
                     hydration = ctx.session_hydration_prompt()
 
@@ -299,7 +299,7 @@ async def _status_broadcaster(ws: WebSocket):
             await manager.send_personal(ws, payload)
             await asyncio.sleep(2.0)
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
 class WSCommandRequest(BaseModel):
@@ -347,7 +347,7 @@ async def ws_command_http(request: WSCommandRequest):
                 source="ws_command_http",
             )
         except Exception as e:
-            logger.debug(f"[VECTOR][ws] memory store failed: {e}")
+            logger.warning(f"[VECTOR][ws] memory store failed: {e}")
 
         return WSCommandResponse(response=response_text, success=True)
 
@@ -358,4 +358,4 @@ async def ws_command_http(request: WSCommandRequest):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("✅ websocket.py OK")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ websocket.py OK")

@@ -52,7 +52,7 @@ async def kill_async_subprocess(
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             except (ProcessLookupError, PermissionError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             except Exception:
                 logger.debug(
                     "Unexpected error killing process group for pid %s",
@@ -62,4 +62,4 @@ async def kill_async_subprocess(
 
         await proc.wait()
     except (ProcessLookupError, PermissionError, OSError):
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)

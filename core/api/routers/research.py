@@ -1,4 +1,4 @@
-"""Research router — /research/status."""
+"""Research router â€” /research/status."""
 
 import sys
 from pathlib import Path
@@ -19,20 +19,20 @@ async def research_status():
             from core.loop.llm_interface import LLMInterface
             llm_available = True
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         try:
             from core.scraper.vector_scraper import VectorScraper
             modes.append("web_scrape")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         try:
             from core.media.models import all_models
             if all_models():
                 modes.append("media_generation")
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         modes.append("basic_search")
     except Exception as e:

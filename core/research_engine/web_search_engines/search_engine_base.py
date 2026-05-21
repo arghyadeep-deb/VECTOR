@@ -48,7 +48,7 @@ class BaseSearchEngine(ABC):
             super().__init__(max_results=max_results, **kwargs)
             self.my_param = my_param
 
-    Many existing engines accept ``**kwargs`` but don't forward — that
+    Many existing engines accept ``**kwargs`` but don't forward â€” that
     silently drops ``programmatic_mode`` (and used to bind the wrong rate
     tracker). The factory has a post-construction safety net that calls
     ``_configure_programmatic_mode`` when the engine's mode doesn't match
@@ -63,7 +63,7 @@ class BaseSearchEngine(ABC):
 
     # Class attribute to indicate if this is a generic search engine (vs specialized)
     # Generic engines are general web search (Google, Bing, etc) vs specialized (arXiv, PubMed).
-    # Note: generic does NOT imply good native ranking — see is_lexical.
+    # Note: generic does NOT imply good native ranking â€” see is_lexical.
     is_generic = False
 
     # Class attribute to indicate if this is a scientific/academic search engine
@@ -96,7 +96,7 @@ class BaseSearchEngine(ABC):
     # Behavioral: should the factory auto-enable LLM relevance filtering?
     # When True, the factory sets enable_llm_relevance_filter=True on the engine
     # instance, causing _filter_for_relevance() to run after previews are fetched.
-    # Typically set alongside is_lexical=True, but can be set independently —
+    # Typically set alongside is_lexical=True, but can be set independently â€”
     # e.g. a non-lexical engine with noisy results could opt in.
     needs_llm_relevance_filter = False
 
@@ -155,7 +155,7 @@ class BaseSearchEngine(ABC):
                     if isinstance(parsed, list):
                         return [str(item) for item in parsed]
                 except (json.JSONDecodeError, ValueError, RecursionError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception", exc_info=True)
             return [
                 item.strip() for item in stripped.split(",") if item.strip()
             ]
@@ -234,7 +234,7 @@ class BaseSearchEngine(ABC):
             or api_key.startswith("YOUR_")
             or api_key == "null"
         ):
-            logger.debug(
+            logger.warning(
                 f"Skipping {name} - requires API key but none configured"
             )
             return False
@@ -307,7 +307,7 @@ class BaseSearchEngine(ABC):
 
         Called from ``__init__`` and from the factory as a fallback when an
         engine subclass swallows the ``programmatic_mode`` kwarg without
-        forwarding it to ``super().__init__``. Safe to call after init —
+        forwarding it to ``super().__init__``. Safe to call after init â€”
         rebinding ``rate_tracker`` discards the previous tracker (no
         resources to release) and the new one starts with empty in-memory
         caches.
@@ -354,7 +354,7 @@ class BaseSearchEngine(ABC):
         """Get adaptive wait time from tracker."""
         wait_time = self.rate_tracker.get_wait_time(self.engine_type)
         self._last_wait_time = wait_time
-        logger.debug(
+        logger.warning(
             f"{self.engine_type} waiting {wait_time:.2f}s before retry"
         )
         return wait_time
@@ -468,7 +468,7 @@ class BaseSearchEngine(ABC):
                             previews, email=email
                         )
                     except Exception:
-                        logger.debug(
+                        logger.warning(
                             "DOI enrichment skipped (import or call failed)"
                         )
 
@@ -484,7 +484,7 @@ class BaseSearchEngine(ABC):
                     filtered_items = self._filter_for_relevance(previews, query)
                 else:
                     filtered_items = previews
-                    logger.debug(
+                    logger.warning(
                         f"[{type(self).__name__}] Relevance filter skipped "
                         f"(enabled={enable_llm_filter}, "
                         f"llm={'yes' if self.llm else 'no'})"
@@ -605,7 +605,7 @@ class BaseSearchEngine(ABC):
         engine_name = type(self).__name__
 
         if not self.llm or len(previews) <= 1:
-            logger.debug(
+            logger.warning(
                 f"[{engine_name}] Skipping relevance filter "
                 f"(llm={'yes' if self.llm else 'no'}, "
                 f"previews={len(previews)})"
@@ -1035,7 +1035,7 @@ class BaseSearchEngine(ABC):
 
         if hasattr(self, "session") and self.session is not None:
             safe_close(self.session, "HTTP session")
-        # Close preview filters as well as content filters — the journal
+        # Close preview filters as well as content filters â€” the journal
         # reputation filter is registered as a preview filter on academic
         # engines (arxiv, pubmed, openalex, nasa_ads, semantic_scholar)
         # and holds a SearXNG engine + LLM client that need releasing.

@@ -70,7 +70,7 @@ class TrustedFoldersManager:
             with self._file_path.open("wb") as f:
                 tomli_w.dump(data, f)
         except OSError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def is_trusted(self, path: Path) -> bool | None:
         """Check trust walking up from *path* to filesystem root.

@@ -22,14 +22,14 @@ class AgentBase:
         self.last_active = self.created_at
         self.subscribed_events: set[str] = set()
         self._inbox: list[dict] = []
-        # ── Role system — load specialist role by name/district ──────────────
+        # â”€â”€ Role system â€” load specialist role by name/district â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.role = self._load_role(name, district)
         if self.role:
             logger.debug(
                 "[VECTOR][city] {} loaded role={} tier={}",
                 name, self.role.name, self.role.tier,
             )
-        # ── Vectorcode-backed LLM caller (auto-loads .md system prompt) ──────
+        # â”€â”€ Vectorcode-backed LLM caller (auto-loads .md system prompt) â”€â”€â”€â”€â”€â”€
         self._district_llm = self._make_district_llm()
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
 
@@ -37,7 +37,7 @@ class AgentBase:
         """Load specialist role from roles registry by agent name or district."""
         try:
             from core.engine.agents.roles import get_agent_prompt, ROLES_BY_NAME
-            # Try exact name match first (e.g. "researcher" → RESEARCHER role)
+            # Try exact name match first (e.g. "researcher" â†’ RESEARCHER role)
             key = name.lower().replace("agent", "").replace("bot", "").strip("_- ")
             role = ROLES_BY_NAME.get(key)
             if role:
@@ -55,7 +55,7 @@ class AgentBase:
             if district_role_key:
                 return ROLES_BY_NAME.get(district_role_key)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return None
 
     def get_system_prompt(self) -> str:
@@ -77,7 +77,7 @@ class AgentBase:
             pe = PersonalityEngine()
             self.personality_traits = dict(pe.card.traits)
             return (
-                f"[PERSONALITY — {pe.card.name}]\n"
+                f"[PERSONALITY â€” {pe.card.name}]\n"
                 f"Traits: {pe.card.get_traits_summary()}\n"
                 f"Speech: address as '{pe.card.speech_patterns.address_owner}', "
                 f"contractions={pe.card.speech_patterns.contractions}, "
@@ -88,7 +88,7 @@ class AgentBase:
             return ""
 
     def _make_district_llm(self):
-        """Lazy-init DistrictLLM — routes calls through vectorcode_llm + .md prompt."""
+        """Lazy-init DistrictLLM â€” routes calls through vectorcode_llm + .md prompt."""
         try:
             from core.inference.district_llm import DistrictLLM
             return DistrictLLM(self.district, self.name)
@@ -100,8 +100,8 @@ class AgentBase:
                inject_md: bool = True) -> str:
         """Convenience: call vectorcode LLM chain with optional .md system prompt.
 
-        Preferred over importing ollama_safe directly — routes through the full
-        Ollama → Gemini → Anthropic → OpenRouter provider chain.
+        Preferred over importing ollama_safe directly â€” routes through the full
+        Ollama â†’ Gemini â†’ Anthropic â†’ OpenRouter provider chain.
         """
         if self._district_llm is not None:
             return self._district_llm.chat(
@@ -119,7 +119,7 @@ class AgentBase:
             return ""
 
     def _calculate_model(self) -> str:
-        # HP tier thresholds — override via CONFIG["hp_tiers"] dict
+        # HP tier thresholds â€” override via CONFIG["hp_tiers"] dict
         tiers = CONFIG.get("hp_tiers", {})
         t_elite  = tiers.get("elite",    800)
         t_strong  = tiers.get("strong",  600)
@@ -288,7 +288,7 @@ class AgentBase:
                 }],
             )
             logger.info(
-                f"[VECTOR][agent_base] {self.name} → {target_agent_id} "
+                f"[VECTOR][agent_base] {self.name} â†’ {target_agent_id} "
                 f"workflow_id={workflow_id} task={task.get('type', '?')}"
             )
             return {"workflow_id": workflow_id, "status": "queued"}
@@ -296,7 +296,7 @@ class AgentBase:
             logger.warning(f"[VECTOR][agent_base] request_agent_help failed: {e}")
             return {"status": "error", "error": str(e)}
 
-    # ── Gap 8: Shared fact store ──────────────────────────────────────────────
+    # â”€â”€ Gap 8: Shared fact store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     def know(self, key: str, value: str, confidence: float = 0.7) -> None:
         """Publish a fact to the shared cross-agent fact store."""
         try:
@@ -337,4 +337,4 @@ if __name__ == '__main__':
     a.deduct_points(900, 'test death')
     assert a.health_points == 0
     assert 'died_at' in a.ghost_memory
-    print('✅ agent_base.py OK')
+    print('âœ… agent_base.py OK')

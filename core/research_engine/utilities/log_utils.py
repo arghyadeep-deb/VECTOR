@@ -38,7 +38,7 @@ Default log directory to use.
 
 # Cap how much of a single log record's message we ship to the browser over
 # socket.io. Some diagnostic log lines (e.g. ``[FETCH] page_text``) inline
-# the full extracted page body — up to ~10 KB per call — which is useless
+# the full extracted page body â€” up to ~10 KB per call â€” which is useless
 # in the UI (a single massive blob fills the viewport) and inflates both
 # wire traffic and client-side state. Container-log/stderr, file, and DB
 # sinks remain unchanged, so full diagnostics are preserved for grep/DB
@@ -109,7 +109,7 @@ def _get_research_context_fallback() -> dict | None:
     username via ``logger.bind``. The research thread sets this once at
     startup via ``set_search_context``, so every subsequent log call from
     the same thread picks up research_id, username, and user_password
-    automatically — without requiring every call site to remember to bind.
+    automatically â€” without requiring every call site to remember to bind.
     """
     try:
         from .thread_context import get_search_context
@@ -138,7 +138,7 @@ def _get_research_id(record=None) -> str | None:
         gid = g.get("research_id")
         if gid:
             return gid
-    # Fall back to per-thread research context — research-thread logger
+    # Fall back to per-thread research context â€” research-thread logger
     # calls without an explicit bind still get attributed correctly.
     ctx = _get_research_context_fallback()
     if ctx:
@@ -149,7 +149,7 @@ def _get_research_id(record=None) -> str | None:
 # Counters for swallowed exceptions in the logging path. Bare except: pass
 # is required here (logging errors must not propagate or recurse), but we
 # write a stderr line on each new occurrence so silent failures aren't
-# invisible — only active when LDR_APP_DEBUG=true so production stderr
+# invisible â€” only active when LDR_APP_DEBUG=true so production stderr
 # stays clean.
 _silent_exc_counts: dict[str, int] = {}
 
@@ -169,7 +169,7 @@ def _report_silent_exception(
 
     Note: takes the exception's TYPE NAME as a plain string (not the
     exception object). The caller does ``type(exc).__name__`` and passes
-    the result. This is deliberate — CodeQL's taint analyzer treats any
+    the result. This is deliberate â€” CodeQL's taint analyzer treats any
     function frame holding a ``BaseException`` captured from a password-
     bearing call site as tainted, and flags every stderr write inside
     that frame. Receiving only a type-name string severs the flow at
@@ -192,7 +192,7 @@ def _report_silent_exception(
     # CodeQL's py/clear-text-logging-sensitive-data may flag this stderr
     # write because the function frame is reachable from
     # _write_log_to_database which holds user_password locally. The data
-    # actually written is only plain strings — `where` (literal),
+    # actually written is only plain strings â€” `where` (literal),
     # `exc_type_name` (`type(exc).__name__`), and `username/research_id/level`
     # repr'd from the queue entry. No password value ever reaches the
     # formatter; the helper signature deliberately accepts only typed
@@ -236,7 +236,7 @@ def _process_log_queue():
         except queue.Empty:
             continue
         except Exception as exc:
-            # noqa: silent-exception — must not let logging errors crash the log processor thread.
+            # noqa: silent-exception â€” must not let logging errors crash the log processor thread.
             # Wrap the report itself: if stderr is closed (broken pipe etc.)
             # an IOError from inside an except handler propagates and would
             # kill the daemon thread, silently breaking all subsequent log
@@ -246,7 +246,7 @@ def _process_log_queue():
                     "process_log_queue", type(exc).__name__
                 )
             except Exception:
-                pass  # noqa: silent-exception — broken stderr must not kill the daemon
+                pass  # noqa: silent-exception â€” broken stderr must not kill the daemon
 
 
 def _write_log_to_database(log_entry: dict) -> None:
@@ -277,7 +277,7 @@ def _write_log_to_database(log_entry: dict) -> None:
                 db_session.add(db_log)
                 db_session.commit()
     except Exception as exc:
-        # noqa: silent-exception — DB errors in the logging path must not propagate or recurse.
+        # noqa: silent-exception â€” DB errors in the logging path must not propagate or recurse.
         # Wrap the report itself so a broken-stderr IOError can't escape and
         # be re-caught by an outer logging-aware handler somewhere upstream.
         try:
@@ -289,7 +289,7 @@ def _write_log_to_database(log_entry: dict) -> None:
                 level=log_entry.get("level"),
             )
         except Exception:
-            pass  # noqa: silent-exception — broken stderr must not bubble out of logging path
+            pass  # noqa: silent-exception â€” broken stderr must not bubble out of logging path
 
 
 def database_sink(message: loguru.Message) -> None:
@@ -315,7 +315,7 @@ def database_sink(message: loguru.Message) -> None:
     #      requiring an explicit bind)
     #   3. Flask request session (for request-handler threads that
     #      tagged research_id via the @log_for_research decorator but
-    #      didn't bind username — common for /api/research/<id>/* routes)
+    #      didn't bind username â€” common for /api/research/<id>/* routes)
     username = record.get("extra", {}).get("username")
     user_password = None
     ctx = _get_research_context_fallback()
@@ -324,11 +324,11 @@ def database_sink(message: loguru.Message) -> None:
             username = ctx.get("username")
         user_password = ctx.get("user_password")
     # Only consult Flask request state when the log already has a
-    # research_id. ResearchLog is research-scoped by design — auth and
+    # research_id. ResearchLog is research-scoped by design â€” auth and
     # other system DEBUG logs (research_id=None) don't belong there. If
     # we attached a username to them via flask_session, they'd just churn
     # through the queue and fail at the daemon (where the encrypted DB
-    # may not even be open yet for that user — e.g. right after a server
+    # may not even be open yet for that user â€” e.g. right after a server
     # restart with a still-valid session cookie).
     if research_id is not None and has_app_context():
         try:
@@ -342,7 +342,7 @@ def database_sink(message: loguru.Message) -> None:
             if not user_password and hasattr(g, "user_password"):
                 user_password = g.user_password
         except Exception:
-            pass  # noqa: silent-exception — must not fail logging on session lookup
+            pass  # noqa: silent-exception â€” must not fail logging on session lookup
 
     # Skip persistence for system logs that have no research context.
     # These can't be written to any per-user encrypted DB and would just
@@ -371,7 +371,7 @@ def database_sink(message: loguru.Message) -> None:
             _log_queue.put_nowait(log_entry)
         except queue.Full:
             # Drop log if queue is full to avoid blocking
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception", exc_info=True)
     else:
         # We're in the main thread with app context - write directly
         _write_log_to_database(log_entry)
@@ -393,7 +393,7 @@ def _truncate_for_frontend(message: str) -> str:
     if len(message) <= FRONTEND_MESSAGE_MAX_LENGTH:
         return message
     suffix = (
-        f"… (truncated; full message in server logs; "
+        f"â€¦ (truncated; full message in server logs; "
         f"original length: {len(message)} chars)"
     )
     return message[:FRONTEND_MESSAGE_MAX_LENGTH] + suffix
@@ -432,7 +432,7 @@ def flush_log_queue():
 
     Used at process exit (see ``flush_logs_on_exit`` in ``web/app.py``) to
     drain whatever the background daemon did not get to before it was
-    stopped. The request path no longer calls this — the
+    stopped. The request path no longer calls this â€” the
     ``start_log_queue_processor`` daemon handles steady-state drainage so
     requests never block on DB writes.
     """
@@ -445,10 +445,10 @@ def flush_log_queue():
         except queue.Empty:
             break
         except Exception:
-            pass  # noqa: silent-exception — DB errors during log flush must not propagate
+            pass  # noqa: silent-exception â€” DB errors during log flush must not propagate
 
     if flushed > 0:
-        logger.debug(f"Flushed {flushed} queued log entries to database")
+        logger.warning(f"Flushed {flushed} queued log entries to database")
 
 
 def start_log_queue_processor(app) -> threading.Thread:
@@ -573,4 +573,4 @@ def config_logger(name: str, debug: bool = False) -> None:
         logger.level("MILESTONE", no=26, color="<magenta><bold>")
     except ValueError:
         # Level already exists, that's fine
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception", exc_info=True)

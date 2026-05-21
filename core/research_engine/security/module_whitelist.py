@@ -240,5 +240,5 @@ def get_safe_module_class(
         )
         raise
 
-    logger.debug(f"Successfully loaded {class_name} from {module_path}")
+    logger.warning(f"Successfully loaded {class_name} from {module_path}")
     return engine_class

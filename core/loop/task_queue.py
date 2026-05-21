@@ -1,5 +1,5 @@
 """
-VECTOR Background Task Queue — parallel execution without blocking the main loop.
+VECTOR Background Task Queue â€” parallel execution without blocking the main loop.
 
 RULE 2: nothing in here can crash the autonomous loop.
 RULE 8: every completed/failed task stored in episodic memory.
@@ -9,7 +9,7 @@ Usage:
 
     tq = TaskQueue.get()
     task_id = tq.submit(some_coroutine(), name="Research AI news", priority=Priority.LOW)
-    tq.status(task_id)   # → Task dataclass
+    tq.status(task_id)   # â†’ Task dataclass
     tq.cancel(task_id)
 """
 import sys
@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
-# ── Enums & Dataclasses ───────────────────────────────────────────────────────
+# â”€â”€ Enums & Dataclasses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class Priority(int, Enum):
     CRITICAL   = 0
@@ -53,7 +53,7 @@ class Task:
     district:     str               = "core"
     tags:         list[str]         = field(default_factory=list)
     status:       TaskStatus        = TaskStatus.QUEUED
-    progress:     float             = 0.0          # 0.0 → 1.0
+    progress:     float             = 0.0          # 0.0 â†’ 1.0
     result:       Any               = None
     error:        str | None        = None
     submitted_at: float             = field(default_factory=time.time)
@@ -82,21 +82,21 @@ class Task:
         }
 
 
-# ── TaskQueue ─────────────────────────────────────────────────────────────────
+# â”€â”€ TaskQueue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TaskQueue:
     """
     Singleton parallel execution engine.
 
-    submit()  → returns task_id immediately, work runs in background
-    status()  → Task dataclass with live progress/status
-    cancel()  → cancels if still running
-    list_*()  → introspection helpers
+    submit()  â†’ returns task_id immediately, work runs in background
+    status()  â†’ Task dataclass with live progress/status
+    cancel()  â†’ cancels if still running
+    list_*()  â†’ introspection helpers
 
     On complete/fail fires three notifications:
-      1. Terminal line  — printed directly via loguru (chat picks it up)
-      2. Episodic store — RULE 8
-      3. Pushover       — via permission_gateway.notify (best-effort)
+      1. Terminal line  â€” printed directly via loguru (chat picks it up)
+      2. Episodic store â€” RULE 8
+      3. Pushover       â€” via permission_gateway.notify (best-effort)
     """
 
     _instance: "TaskQueue | None" = None
@@ -116,11 +116,11 @@ class TaskQueue:
             max_workers=4, thread_name_prefix="vector-bg"
         )
         self._max_concurrent = max_workers
-        # Terminal notification callback — set by chat.py when it starts
+        # Terminal notification callback â€” set by chat.py when it starts
         self._terminal_notify: Callable[[str], None] | None = None
         logger.info(f"[VECTOR][task_queue] ready max_concurrent={max_workers}")
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def submit(
         self,
@@ -152,12 +152,12 @@ class TaskQueue:
             elif asyncio.iscoroutinefunction(work):
                 aio = loop.create_task(self._run_coro(task_id, work()))
             else:
-                # blocking callable → offload to thread pool
+                # blocking callable â†’ offload to thread pool
                 aio = loop.create_task(self._run_in_thread(task_id, work))
             self._aio_tasks[task_id] = aio
         except RuntimeError:
-            # Called from outside a running event loop — mark QUEUED, loop picks up
-            logger.warning(f"[VECTOR][task_queue] no running loop — task {task_id} queued")
+            # Called from outside a running event loop â€” mark QUEUED, loop picks up
+            logger.warning(f"[VECTOR][task_queue] no running loop â€” task {task_id} queued")
 
         logger.info(
             f"[VECTOR][task_queue] submitted id={task_id} name={name!r} "
@@ -212,7 +212,7 @@ class TaskQueue:
         """Register a callback for in-terminal task completion lines."""
         self._terminal_notify = fn
 
-    # ── Internal runners ─────────────────────────────────────────────────────
+    # â”€â”€ Internal runners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _run_coro(self, task_id: str, coro: Coroutine) -> None:
         task = self._tasks[task_id]
@@ -259,22 +259,22 @@ class TaskQueue:
             task.finished_at = time.time()
             self._running.discard(task_id)
 
-    # ── Notification ─────────────────────────────────────────────────────────
+    # â”€â”€ Notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _on_complete(self, task: Task) -> None:
-        msg = f"[✓ BG] {task.name} ({task.elapsed}s)"
+        msg = f"[âœ“ BG] {task.name} ({task.elapsed}s)"
 
         # 1. Terminal line
         self._notify_terminal(msg)
 
-        # 2. Episodic memory — RULE 8
+        # 2. Episodic memory â€” RULE 8
         await self._store_episodic(task, success=True)
 
         # 3. Pushover
         await self._pushover(msg)
 
     async def _on_failed(self, task: Task) -> None:
-        msg = f"[✗ BG] {task.name} FAILED: {task.error or '?'} ({task.elapsed}s)"
+        msg = f"[âœ— BG] {task.name} FAILED: {task.error or '?'} ({task.elapsed}s)"
 
         self._notify_terminal(msg)
         await self._store_episodic(task, success=False)
@@ -285,8 +285,8 @@ class TaskQueue:
             try:
                 self._terminal_notify(msg)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-        # Always log — visible in the terminal regardless
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        # Always log â€” visible in the terminal regardless
         logger.info(f"[VECTOR][task_queue] {msg}")
 
     async def _store_episodic(self, task: Task, success: bool) -> None:
@@ -309,10 +309,10 @@ class TaskQueue:
             from core.loop.permission_gateway import PermissionGateway
             await PermissionGateway().notify(msg)
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
-# ── Convenience helpers ───────────────────────────────────────────────────────
+# â”€â”€ Convenience helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def get_task_queue() -> TaskQueue:
     return TaskQueue.get()
@@ -357,6 +357,6 @@ if __name__ == "__main__":
         assert s["completed_today"] >= 2
         print(f"  summary: {s['completed_today']} completed, {s['running']} running")
 
-        print(f"✅ task_queue.py OK")
+        print(f"âœ… task_queue.py OK")
 
     asyncio.run(_smoke())

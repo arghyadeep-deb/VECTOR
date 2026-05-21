@@ -1,4 +1,4 @@
-"""Sensing router — /sensing/status."""
+"""Sensing router â€” /sensing/status."""
 
 import sys
 from pathlib import Path
@@ -80,7 +80,7 @@ async def sensing_system():
                 result["gpu_mem_used_mb"] = float(parts[1].strip())
                 result["gpu_mem_total_mb"] = float(parts[2].strip())
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][sensing] system failed: {e}")

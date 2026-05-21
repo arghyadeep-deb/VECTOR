@@ -1,4 +1,4 @@
-"""VECTOR camera router — live webcam stream with YOLO object detection."""
+"""VECTOR camera router ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â live webcam stream with YOLO object detection."""
 import sys
 import asyncio
 import base64
@@ -51,7 +51,7 @@ async def camera_ws(ws: WebSocket):
     try:
         import cv2
 
-        # Try to load YOLO — gracefully skip if not available
+        # Try to load YOLO ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gracefully skip if not available
         try:
             from ultralytics import YOLO
             model = YOLO("yolov8n.pt")
@@ -94,9 +94,9 @@ async def camera_ws(ws: WebSocket):
                                 "bbox": [round(x1), round(y1), round(x2 - x1), round(y2 - y1)],
                             })
                 except Exception as e:
-                    logger.debug(f"[VECTOR][camera] Detection error: {e}")
+                    logger.warning(f"[VECTOR][camera] Detection error: {e}")
 
-            # Encode frame to JPEG → base64
+            # Encode frame to JPEG ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ base64
             ok, buf = cv2.imencode(".jpg", frame, encode_params)
             if not ok:
                 continue
@@ -119,7 +119,7 @@ async def camera_ws(ws: WebSocket):
         try:
             await ws.send_text(json.dumps({"error": str(e)}))
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
     finally:
         if cap is not None:
             cap.release()

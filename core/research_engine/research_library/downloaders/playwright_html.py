@@ -6,7 +6,7 @@ Crawl4AI adds: robots.txt checking, shadow DOM flattening, iframe
 inlining, smart scrolling for lazy-loaded content, and caching.
 Falls back to plain Playwright if Crawl4AI is not installed.
 
-No stealth/anti-detection features are used — the browser identifies
+No stealth/anti-detection features are used â€” the browser identifies
 honestly via BROWSER_USER_AGENT and respects robots.txt.
 """
 
@@ -54,7 +54,7 @@ def _run_async(coro, timeout: float = None):
     if loop is None:
         return asyncio.run(coro)
 
-    # Already inside an event loop — run in a new thread
+    # Already inside an event loop â€” run in a new thread
     import concurrent.futures
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -100,7 +100,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             # through to Playwright.
             return html or None
 
-        # Crawl4AI not installed or failed — fall back to Playwright
+        # Crawl4AI not installed or failed â€” fall back to Playwright
         return self._fetch_with_playwright(url)
 
     def _fetch_with_crawl4ai(self, url: str) -> Optional[str]:
@@ -115,10 +115,10 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
                 CrawlerRunConfig,
             )
         except ImportError:
-            logger.debug("crawl4ai not installed — using Playwright")
+            logger.warning("crawl4ai not installed â€” using Playwright")
             return None
 
-        logger.debug(f"Crawl4AI fetch: {url}")
+        logger.warning(f"Crawl4AI fetch: {url}")
         wait_time = self.rate_tracker.apply_rate_limit(engine_type)
 
         browser_cfg = BrowserConfig(
@@ -155,7 +155,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
 
             if result.success and result.html:
                 html = result.html
-                logger.debug(f"Crawl4AI: got {len(html)} bytes from {url}")
+                logger.warning(f"Crawl4AI: got {len(html)} bytes from {url}")
                 self.rate_tracker.record_outcome(
                     engine_type=engine_type,
                     wait_time=wait_time,
@@ -169,7 +169,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             error_msg = getattr(result, "error_message", "") or ""
             if "robots.txt" in error_msg.lower():
                 logger.info(f"Crawl4AI: blocked by robots.txt for {url}")
-                # Don't fall back to Playwright — respect the block
+                # Don't fall back to Playwright â€” respect the block
                 self.rate_tracker.record_outcome(
                     engine_type=engine_type,
                     wait_time=wait_time,
@@ -180,8 +180,8 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
                 return ""  # Empty string signals intentional skip
 
             status = getattr(result, "status_code", "unknown")
-            logger.debug(
-                f"Crawl4AI: failed for {url} — "
+            logger.warning(
+                f"Crawl4AI: failed for {url} â€” "
                 f"success={result.success}, status={status}"
             )
             self.rate_tracker.record_outcome(
@@ -194,7 +194,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             return None
 
         except Exception as e:
-            logger.debug(f"Crawl4AI error for {url}: {e}")
+            logger.warning(f"Crawl4AI error for {url}: {e}")
             self.rate_tracker.record_outcome(
                 engine_type=engine_type,
                 wait_time=wait_time,
@@ -206,7 +206,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
 
     def _fetch_with_playwright(self, url: str) -> Optional[str]:
         """Fetch HTML using plain Playwright (fallback)."""
-        logger.debug(f"Playwright fetch: {url}")
+        logger.warning(f"Playwright fetch: {url}")
         domain = urlparse(url).netloc
         engine_type = f"playwright_download_{domain}"
 
@@ -217,7 +217,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
 
             # Lazy-init browser (reuse across multiple fetches)
             if self._browser is None:
-                logger.debug("Playwright: launching Chromium browser")
+                logger.warning("Playwright: launching Chromium browser")
                 pw = sync_playwright().start()
                 try:
                     self._browser = pw.chromium.launch(headless=True)
@@ -248,10 +248,10 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
                 try:
                     page.close()
                 except Exception:
-                    logger.debug("Failed to close Playwright page")
+                    logger.warning("Failed to close Playwright page")
 
             if html:
-                logger.debug(f"Playwright: got {len(html)} bytes from {url}")
+                logger.warning(f"Playwright: got {len(html)} bytes from {url}")
                 self.rate_tracker.record_outcome(
                     engine_type=engine_type,
                     wait_time=wait_time,
@@ -261,11 +261,11 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
                 )
                 return html
 
-            logger.debug(f"Playwright: empty response from {url}")
+            logger.warning(f"Playwright: empty response from {url}")
             return None
 
         except ImportError:
-            logger.warning("playwright not installed — cannot use JS rendering")
+            logger.warning("playwright not installed â€” cannot use JS rendering")
             return None
         except Exception as e:
             logger.exception(f"Playwright error fetching {url}")
@@ -284,7 +284,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             try:
                 self._browser.close()
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to close Playwright browser", exc_info=True
                 )
             self._browser = None
@@ -292,7 +292,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             try:
                 self._playwright.stop()
             except Exception:
-                logger.debug("Failed to stop Playwright", exc_info=True)
+                logger.warning("Failed to stop Playwright", exc_info=True)
             self._playwright = None
         super().close()
 
@@ -337,7 +337,7 @@ class AutoHTMLDownloader(HTMLDownloader):
 
         Note: _last_raw_html is instance state read by download()/download_with_result().
         This is safe because AutoHTMLDownloader instances are created per-request
-        in fetch_and_extract/batch_fetch_and_extract — not shared across threads.
+        in fetch_and_extract/batch_fetch_and_extract â€” not shared across threads.
         """
         self._last_raw_html = None
         # Try the normal static fetch
@@ -346,7 +346,7 @@ class AutoHTMLDownloader(HTMLDownloader):
             self._last_raw_html = html
             return html
 
-        # Static fetch failed (403, etc.) — try raw GET to check for
+        # Static fetch failed (403, etc.) â€” try raw GET to check for
         # challenge pages / SPA signals even on non-200 responses
         try:
             response = self.session.get(
@@ -356,7 +356,7 @@ class AutoHTMLDownloader(HTMLDownloader):
             )
             self._last_raw_html = response.text
         except Exception:
-            logger.debug("Failed to fetch raw HTML for SPA detection")
+            logger.warning("Failed to fetch raw HTML for SPA detection")
         return None
 
     def download(self, url, content_type=None):
@@ -367,11 +367,11 @@ class AutoHTMLDownloader(HTMLDownloader):
             content_type = ContentType.TEXT
 
         # First: try static fetch (fast)
-        logger.debug(f"Auto: trying static fetch for {url}")
+        logger.warning(f"Auto: trying static fetch for {url}")
         result = super().download(url, content_type)
 
         if result and len(result) >= self.min_content_length:
-            logger.debug(
+            logger.warning(
                 f"Auto: static fetch succeeded ({len(result)} bytes) for {url}"
             )
             return result
@@ -393,7 +393,7 @@ class AutoHTMLDownloader(HTMLDownloader):
                     f"Auto: JS rendering succeeded ({len(pw_result)} bytes) for {url}"
                 )
                 return pw_result
-            logger.debug(f"Auto: JS rendering did not improve result for {url}")
+            logger.warning(f"Auto: JS rendering did not improve result for {url}")
 
         return result
 
@@ -405,7 +405,7 @@ class AutoHTMLDownloader(HTMLDownloader):
             content_type = ContentType.TEXT
 
         # First: try static fetch (fast)
-        logger.debug(f"Auto: trying static fetch for {url}")
+        logger.warning(f"Auto: trying static fetch for {url}")
         result = super().download_with_result(url, content_type)
 
         if (
@@ -413,7 +413,7 @@ class AutoHTMLDownloader(HTMLDownloader):
             and result.content
             and len(result.content) >= self.min_content_length
         ):
-            logger.debug(
+            logger.warning(
                 f"Auto: static fetch succeeded ({len(result.content)} bytes) for {url}"
             )
             return result
@@ -444,7 +444,7 @@ class AutoHTMLDownloader(HTMLDownloader):
                     f"({len(pw_result.content)} bytes) for {url}"
                 )
                 return pw_result
-            logger.debug(f"Auto: JS rendering did not improve result for {url}")
+            logger.warning(f"Auto: JS rendering did not improve result for {url}")
 
         return result
 

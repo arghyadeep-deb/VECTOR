@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
-# ── Rate limiting (Phase 1C) ──────────────────────────────────────────────────
+# â”€â”€ Rate limiting (Phase 1C) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _RATE_LIMIT_PER_MIN = int(os.environ.get("VECTOR_TASK_RATE_PER_MIN", "60"))
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
@@ -31,7 +31,7 @@ def _check_rate(authorization: str | None) -> None:
         )
     _rate_buckets[key].append(now)
 
-# ── External task ingestion (Gap 3) ──────────────────────────────────────────
+# â”€â”€ External task ingestion (Gap 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Pre-shared key auth: set VECTOR_TASK_API_KEY in .env.
 # External callers (phone, cloud, ESP32) POST to /api/v1/tasks with
 # Authorization: Bearer <key>. Validated through permission gateway.
@@ -73,7 +73,7 @@ async def ingest_external_task(
     """
     External task ingestion endpoint (Gap 3).
     Accepts tasks from phone, cloud agents, ESP32, webhooks.
-    Validates through permission gateway before injecting into the think→act pipeline.
+    Validates through permission gateway before injecting into the thinkâ†’act pipeline.
     """
     _check_api_key(authorization)
     _check_rate(authorization)
@@ -95,8 +95,7 @@ async def ingest_external_task(
         loop = AutonomousLoop.get_instance()
         if loop is not None and hasattr(loop, "_pending_voice"):
             loop._pending_voice.append(req.text)
-    except Exception:
-        pass  # loop not running — task still executed via gateway above
+    except Exception: logger.warning("[VECTOR][tasks] loop not running, task executed via gateway") # loop not running â€” task still executed via gateway above
 
     return {
         "accepted": True,

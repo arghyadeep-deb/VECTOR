@@ -115,7 +115,7 @@ UNCERTAINTY: [score]
             try:
                 return float(match.group(1))
             except (ValueError, TypeError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception", exc_info=True)
         return 0.1  # Default low score
 
     def evaluate_evidence_list(

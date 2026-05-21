@@ -122,7 +122,7 @@ def write_file_verified(
         with open(filepath, mode, encoding=encoding) as f:  # nosec B603
             f.write(content)
 
-    logger.debug(
+    logger.warning(
         f"Verified file write: {filepath} (setting: {setting_name}={required_value})"
     )
 

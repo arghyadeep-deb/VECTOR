@@ -137,7 +137,7 @@ class SyncSession:
         try:
             page.wait_for_load_state("networkidle", timeout=timeout)
         except (PlaywrightError, Exception):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def _wait_for_page_stability(self, page: Page | Frame, load_dom: bool, network_idle: bool):
         page.wait_for_load_state(state="load")
@@ -324,7 +324,7 @@ class AsyncSession:
         try:
             await page.wait_for_load_state("networkidle", timeout=timeout)
         except (PlaywrightError, Exception):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     async def _wait_for_page_stability(self, page: AsyncPage | AsyncFrame, load_dom: bool, network_idle: bool):
         await page.wait_for_load_state(state="load")

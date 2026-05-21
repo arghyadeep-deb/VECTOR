@@ -7,22 +7,22 @@ opt-in last resort.  Predatory journals are auto-removed.
 
 Scoring tiers (tried in order, first match wins):
 
-  1. Predatory check — auto-removes blacklisted journals/publishers
+  1. Predatory check â€” auto-removes blacklisted journals/publishers
                        (whitelist override prevents false positives)
-  2. OpenAlex        — h-index, quartile, DOAJ from ~217K bundled sources;
+  2. OpenAlex        â€” h-index, quartile, DOAJ from ~217K bundled sources;
                        preprint repos can be lifted via institution affiliations
-  3. DOAJ            — quality floor (5) for listed OA journals;
-                       DOAJ Seal → 8
-  3.5 Institutions   — author affiliation lookup when no venue matched
+  3. DOAJ            â€” quality floor (5) for listed OA journals;
+                       DOAJ Seal â†’ 8
+  3.5 Institutions   â€” author affiliation lookup when no venue matched
                        (capped at 6, never beats a real venue)
 
   --- DB cache check (only for cached LLM results from previous runs) ---
 
-  3.6 LLM cleanup    — LLM canonicalises the name, then retries Tier 2
+  3.6 LLM cleanup    â€” LLM canonicalises the name, then retries Tier 2
                        (opt-in via ``enable_llm_scoring``)
-  4. LLM analysis    — SearXNG web search + LLM scoring (opt-in, expensive);
+  4. LLM analysis    â€” SearXNG web search + LLM scoring (opt-in, expensive);
                        disabled after 2 consecutive failures
-  Conference         — name-pattern heuristic for unmatched conferences
+  Conference         â€” name-pattern heuristic for unmatched conferences
 
 Unknown journals that no tier can score receive a low-confidence score (3).
 """
@@ -43,7 +43,7 @@ from ...constants import VALID_QUALITY_SCORES
 from ...database.models import Journal
 from ...database.session_context import get_user_db_session
 
-# normalize_name applies NFKC + lower + strip — must match the
+# normalize_name applies NFKC + lower + strip â€” must match the
 # migration backfill/dedupe expressions in 0006_journal_quality_system.py
 # and the reference DB builder in journal_quality/db.py so name_lower
 # is single-valued across every writer.
@@ -88,7 +88,7 @@ def _sanitize_name(name: str) -> str:
     # Strip control + format characters. Covers C0/C1 (log injection),
     # bidi overrides (U+202A-E, U+2066-9), zero-width / joiner chars
     # (U+200B-F, U+2060-4, U+FEFF), Arabic letter mark, and digit-shape
-    # controls — the comprehensive pattern audited in log_sanitizer,
+    # controls â€” the comprehensive pattern audited in log_sanitizer,
     # not the narrow C0/C1-only regex we used to have here.
     name = strip_control_chars(name)
     # Normalize Unicode (prevents lookalike bypasses)
@@ -133,7 +133,7 @@ def _start_background_journal_fetch() -> None:
     thread the first time a search hits the pending path.
 
     The worker returns immediately if another thread is already in
-    flight (``_bg_fetch_thread.is_alive()``) — so 30 concurrent filter
+    flight (``_bg_fetch_thread.is_alive()``) â€” so 30 concurrent filter
     workers can't each spawn their own download. The ``ensure_journal_data``
     TTL cache provides a second line of defence.
 
@@ -142,8 +142,8 @@ def _start_background_journal_fetch() -> None:
     global _bg_fetch_thread
     with _bg_fetch_lock:
         if _bg_fetch_thread is not None and _bg_fetch_thread.is_alive():
-            logger.debug(
-                "journal-data background fetch already in flight — "
+            logger.warning(
+                "journal-data background fetch already in flight â€” "
                 "not spawning a second thread"
             )
             return
@@ -164,7 +164,7 @@ def _start_background_journal_fetch() -> None:
                 logger.info("journal-data background fetch: done")
             except Exception:
                 logger.exception(
-                    "journal-data background fetch crashed — "
+                    "journal-data background fetch crashed â€” "
                     "next search will retry"
                 )
 
@@ -277,14 +277,14 @@ class JournalReputationFilter(BaseFilter):
         )
         if not self.__searxng_available:
             logger.info(
-                "SearXNG not available — Tier 4 (LLM analysis) disabled. "
+                "SearXNG not available â€” Tier 4 (LLM analysis) disabled. "
                 "Bundled data tiers still active."
             )
 
         # Fail-fast counter for SearXNG failures within a batch.
         # Stored in `threading.local()` so concurrent `filter_results`
         # calls on the same cached filter instance (the parallel search
-        # engine reuses instances across worker threads — see
+        # engine reuses instances across worker threads â€” see
         # parallel_search_engine.py:177) can't clobber each other's
         # counter. Per-thread state is reset at the top of every
         # `filter_results` invocation.
@@ -337,7 +337,7 @@ class JournalReputationFilter(BaseFilter):
     ) -> Optional["JournalReputationFilter"]:
         """Initializes a default configuration of the filter based on settings.
 
-        SearXNG is not required — the filter works with bundled data alone.
+        SearXNG is not required â€” the filter works with bundled data alone.
         SearXNG enables the optional Tier 4 (LLM analysis) for journals
         not found in the bundled datasets.
 
@@ -372,12 +372,12 @@ class JournalReputationFilter(BaseFilter):
                 model=model, settings_snapshot=settings_snapshot
             )
             logger.info(
-                f"Journal filter created for {engine_name} — "
+                f"Journal filter created for {engine_name} â€” "
                 f"threshold={filt._JournalReputationFilter__threshold}"
             )
             return filt
         except Exception:
-            # Any failure — settings read, filter init — returns None
+            # Any failure â€” settings read, filter init â€” returns None
             # rather than silently defaulting to enabled. A separate
             # silent ``except Exception: enabled = True`` branch used to
             # wrap only the settings read, which hid legitimate
@@ -416,7 +416,7 @@ class JournalReputationFilter(BaseFilter):
 
         Deterministic regex-based cleaning only: strips volume / page /
         year / month references, then tries a JabRef abbreviation
-        expansion. This method does NOT call the LLM — it is the cheap,
+        expansion. This method does NOT call the LLM â€” it is the cheap,
         instant cleaning path that every Tier runs through first.
 
         The separate ``__llm_clean_journal_name`` method is the LLM
@@ -440,12 +440,12 @@ class JournalReputationFilter(BaseFilter):
         # Try JabRef abbreviation expansion (deterministic, instant)
         expanded = self.__data_manager.expand_abbreviation(cleaned)
         if expanded:
-            logger.debug(f"Abbreviation expanded: '{cleaned}' → '{expanded}'")
+            logger.warning(f"Abbreviation expanded: '{cleaned}' â†’ '{expanded}'")
             return expanded
 
         if cleaned != journal_name:
-            logger.debug(
-                f"Regex-cleaned journal name: '{journal_name}' → '{cleaned}'"
+            logger.warning(
+                f"Regex-cleaned journal name: '{journal_name}' â†’ '{cleaned}'"
             )
         return cleaned
 
@@ -467,12 +467,12 @@ class JournalReputationFilter(BaseFilter):
         # Strip a leading [bracketed-original-language] prefix that
         # MEDLINE uses for non-English journals:
         #   "[Rinsho ketsueki] The Japanese journal of clinical hematology"
-        # → "The Japanese journal of clinical hematology"
+        # â†’ "The Japanese journal of clinical hematology"
         name = re.sub(r"^\[[^\]]+\]\s*", "", name)
 
         # Strip trailing publisher suffixes that some search engines glue
         # onto the journal name (e.g. "Information Fusion Elsevier" or
-        # "Cell Press"). Conservative — only the handful of well-known
+        # "Cell Press"). Conservative â€” only the handful of well-known
         # academic publishers, anchored at end of string with a leading
         # space so we don't eat them mid-name.
         name = re.sub(
@@ -485,11 +485,11 @@ class JournalReputationFilter(BaseFilter):
             flags=re.IGNORECASE,
         )
 
-        # Strip a leading 4-digit year ("2015 Plasma Phys. ..." → "Plasma Phys. ...")
+        # Strip a leading 4-digit year ("2015 Plasma Phys. ..." â†’ "Plasma Phys. ...")
         name = re.sub(r"^(?:19|20)\d{2}\s+", "", name)
 
         # Strip a leading ordinal volume marker, e.g.
-        # "31st Conference on Neural Information Processing Systems" → "Conference on …"
+        # "31st Conference on Neural Information Processing Systems" â†’ "Conference on â€¦"
         # Without this the OpenAlex name lookup fails on most conference
         # entries because the canonical name has no ordinal prefix.
         name = re.sub(
@@ -514,13 +514,13 @@ class JournalReputationFilter(BaseFilter):
             r",?\s*(?:vol(?:ume)?\.?\s*\d+|"
             r"issue\s*\d+|"
             r"no\.?\s*\d+|"
-            r"pp?\.?\s*\d+[\s–-]*\d*|"
-            r"pages?\s*\d+[\s–-]*\d*)",
+            r"pp?\.?\s*\d+[\sâ€“-]*\d*|"
+            r"pages?\s*\d+[\sâ€“-]*\d*)",
             "",
             name,
             flags=re.IGNORECASE,
         )
-        # Remove volume(issue) patterns: "141(5)" — and bare "(15)" issues.
+        # Remove volume(issue) patterns: "141(5)" â€” and bare "(15)" issues.
         name = re.sub(r",?\s*\d+\(\d+\)", "", name)
         name = re.sub(r"\s*\(\d+\)\s*", " ", name)
         # Remove year references: "(2023)", ", 2023". Anchored to 19xx/20xx
@@ -537,17 +537,17 @@ class JournalReputationFilter(BaseFilter):
         # "151:48-60", or a bare trailing volume "116". Repeated to peel
         # multiple chunks. Stops when only the journal name remains. We
         # require the run to start with whitespace or punctuation so we
-        # don't eat the "2023" of "NeurIPS 2023" — the trailing-year regex
+        # don't eat the "2023" of "NeurIPS 2023" â€” the trailing-year regex
         # below handles that case.
         prev = None
         while prev != name:
             prev = name
             name = re.sub(
-                r"[\s,;:]+\d+(?:\s*[:\-–]\s*\d+)?(?:\s*[-–]\s*\d+)?\s*$",
+                r"[\s,;:]+\d+(?:\s*[:\-â€“]\s*\d+)?(?:\s*[-â€“]\s*\d+)?\s*$",
                 "",
                 name,
             )
-        # Strip leftover trailing month name (no year) — happens when the
+        # Strip leftover trailing month name (no year) â€” happens when the
         # year was stripped by another regex first.
         name = re.sub(
             rf",?\s*\b(?:{months})\b\.?\s*$",
@@ -564,7 +564,7 @@ class JournalReputationFilter(BaseFilter):
             name,
             flags=re.IGNORECASE,
         )
-        # Strip empty / whitespace-only trailing parens — arXiv
+        # Strip empty / whitespace-only trailing parens â€” arXiv
         # journal_ref fields sometimes end with "()" where the citation
         # year was stripped upstream, e.g. "Physical Review Research ()".
         name = re.sub(r"\s*\(\s*\)\s*$", "", name)
@@ -573,9 +573,9 @@ class JournalReputationFilter(BaseFilter):
         # (preserves "NeurIPS (2023)" which is handled by the year regex)
         name = re.sub(r"\s*\([^()0-9]+\)\s*$", "", name)
         # Strip trailing truncated volume/page markers: ", v", ", p",
-        # ", vol" — these appear when the search engine preview cut the
+        # ", vol" â€” these appear when the search engine preview cut the
         # citation mid-keyword ("Plasma Physics and Controlled Fusion,
-        # vol. 63, no. 8" → "Plasma Physics and Controlled Fusion, v").
+        # vol. 63, no. 8" â†’ "Plasma Physics and Controlled Fusion, v").
         name = re.sub(
             r",\s*(?:v|vol|p|pp|no|n)\.?\s*$",
             "",
@@ -585,11 +585,11 @@ class JournalReputationFilter(BaseFilter):
         # Remove trailing punctuation and whitespace
         name = re.sub(r"[,;.\s]+$", "", name)
         # Strip a trailing 4-digit year/volume (conferences: "NeurIPS 2023"
-        # → "NeurIPS"). Comes after the punctuation strip so any trailing
+        # â†’ "NeurIPS"). Comes after the punctuation strip so any trailing
         # comma/period is already gone, and after the parenthesized-year
         # regex above so we don't double-process "(2023)".
         name = re.sub(r"\s+\d{4}\s*$", "", name)
-        # Normalize "&" → "and" for consistent matching
+        # Normalize "&" â†’ "and" for consistent matching
         name = re.sub(r"\s*&\s*", " and ", name)
         # Normalize internal whitespace
         return re.sub(r"\s+", " ", name).strip()
@@ -599,7 +599,7 @@ class JournalReputationFilter(BaseFilter):
 
         The regex + JabRef abbreviation tiers handle the common cases
         (volume/year/page stripping, well-known abbreviations like
-        "Phys. Rev. Lett." → "Physical Review Letters"). They cannot
+        "Phys. Rev. Lett." â†’ "Physical Review Letters"). They cannot
         handle locations ("ICML 2023, Honolulu"), unusual abbreviations
         not in the JabRef list, or non-English title transliterations.
 
@@ -637,7 +637,7 @@ class JournalReputationFilter(BaseFilter):
             ValueError,
         ) as e:
             # Network / service / parse failures are expected and
-            # recoverable — caller falls back to the regex-cleaned name.
+            # recoverable â€” caller falls back to the regex-cleaned name.
             # Surface at WARNING (not silent / not DEBUG) so they're
             # visible during triage without flooding info-level logs.
             # Log only the exception class name; the message can carry
@@ -656,7 +656,7 @@ class JournalReputationFilter(BaseFilter):
     def __analyze_journal_reputation(self, journal_name: str) -> int:
         """Analyze journal reputation via 1 SearXNG search + 1 LLM call.
 
-        This is Tier 4 — the last-resort scoring path. Only used when
+        This is Tier 4 â€” the last-resort scoring path. Only used when
         the journal is not found in bundled data (OpenAlex, DOAJ, predatory).
         Uses a single web search for context, then a single LLM call to score.
 
@@ -689,7 +689,7 @@ class JournalReputationFilter(BaseFilter):
 
         if not journal_info_text:
             logger.warning(
-                f"No SearXNG results for '{journal_name}' — "
+                f"No SearXNG results for '{journal_name}' â€” "
                 f"cannot score via Tier 4"
             )
             raise ValueError(f"No search results for journal '{journal_name}'")
@@ -699,7 +699,7 @@ class JournalReputationFilter(BaseFilter):
             journal_info_text = journal_info_text[: self.__max_context] + "..."
 
         # Single LLM call to score. Wording mirrors the long-standing
-        # original prompt — earlier code review flagged that arbitrary
+        # original prompt â€” earlier code review flagged that arbitrary
         # rewrites of this prompt have a real chance of regressing the
         # Q1/Q2/Q3 calibration the rest of the code depends on.
         prompt = f"""
@@ -718,7 +718,7 @@ JOURNAL INFORMATION:
 """
 
         response = self.model.invoke(prompt).content
-        logger.debug(f"Tier 4 LLM response for '{journal_name}': {response}")
+        logger.warning(f"Tier 4 LLM response for '{journal_name}': {response}")
 
         match = re.search(r"\d+", response.strip())
         if match is None:
@@ -754,7 +754,7 @@ JOURNAL INFORMATION:
     def __save_llm_score_to_db(self, *, name: str, quality: int) -> None:
         """Cache a Tier 4 LLM score for future research runs.
 
-        Only Tier 4 (LLM) results are cached — Tiers 1–3 read directly
+        Only Tier 4 (LLM) results are cached â€” Tiers 1â€“3 read directly
         from the read-only reference DB on every scoring pass. The
         lookup predicate filters on ``score_source == "llm"`` and the
         current ``quality_model`` so stale scores from a superseded LLM
@@ -770,10 +770,10 @@ JOURNAL INFORMATION:
                 session_ctx, name=name, quality=quality
             )
         except Exception:
-            # Score is still valid and returned to the caller — only
+            # Score is still valid and returned to the caller â€” only
             # the cache write failed.
             logger.exception(
-                f"Failed to cache LLM score for '{name}' — "
+                f"Failed to cache LLM score for '{name}' â€” "
                 f"score is still returned but won't be cached."
             )
 
@@ -838,7 +838,7 @@ JOURNAL INFORMATION:
             # Competing writer inserted first; re-fetch and update.
             journal = db_session.query(Journal).filter_by(name=name).first()
             if journal is None:
-                # Genuinely unexpected — UNIQUE violation with no row.
+                # Genuinely unexpected â€” UNIQUE violation with no row.
                 logger.warning(
                     f"IntegrityError on Journal '{name}' insert but "
                     f"row not found on re-fetch; skipping cache write."
@@ -895,13 +895,13 @@ JOURNAL INFORMATION:
         if is_pred:
             # Check whitelist override (avoids false positives)
             if dm.is_whitelisted(issn=issn, name=journal_name):
-                logger.debug(
+                logger.warning(
                     f"Tier 1: '{journal_name}' is on predatory list "
-                    f"({pred_source}) but whitelisted — not removing"
+                    f"({pred_source}) but whitelisted â€” not removing"
                 )
             else:
                 logger.warning(
-                    f"Tier 1: PREDATORY — removing results from "
+                    f"Tier 1: PREDATORY â€” removing results from "
                     f"'{journal_name}' (source: {pred_source})"
                 )
                 return None, None  # Signal auto-remove
@@ -913,7 +913,7 @@ JOURNAL INFORMATION:
         if oa_entry:
             h_idx = oa_entry.get("h_index")
             oa_doaj = oa_entry.get("is_in_doaj", False)
-            # OpenAlex has is_in_doaj but not has_doaj_seal — cross-ref DOAJ
+            # OpenAlex has is_in_doaj but not has_doaj_seal â€” cross-ref DOAJ
             oa_seal = (
                 dm.has_doaj_seal(oa_entry.get("issn_l")) if oa_doaj else False
             )
@@ -927,29 +927,29 @@ JOURNAL INFORMATION:
                 source_type=oa_type,
             )
             if score is not None:
-                logger.debug(
-                    f"Tier 2 (OpenAlex): '{journal_name}' → "
+                logger.warning(
+                    f"Tier 2 (OpenAlex): '{journal_name}' â†’ "
                     f"score {score}/10 "
-                    f"(quartile: {oa_quartile or '—'}, h-index: {h_idx})"
+                    f"(quartile: {oa_quartile or 'â€”'}, h-index: {h_idx})"
                 )
-                # Tier 2 results are NOT cached to the user DB — the
-                # read-only reference DB is already a 100–300µs lookup,
+                # Tier 2 results are NOT cached to the user DB â€” the
+                # read-only reference DB is already a 100â€“300Âµs lookup,
                 # so a second-level cache adds no value. Only Tier 4
                 # (LLM) results are cached, below.
                 # Preprint repositories (arxiv, biorxiv, ssrn, ...) get a
                 # low Tier-2 floor because they aren't peer-reviewed. If
                 # the authors are at a strong institution, lift the score
-                # via the institution tier — taking max so a real venue
-                # match (≥6) is never demoted. Only applies to repository
-                # source types and only when score is weak (≤5).
+                # via the institution tier â€” taking max so a real venue
+                # match (â‰¥6) is never demoted. Only applies to repository
+                # source types and only when score is weak (â‰¤5).
                 if oa_type == "repository" and score <= 5:
                     affs = result.get("affiliations")
                     if affs:
                         inst = dm.score_from_affiliations(affs)
                         if inst is not None and inst > score:
-                            logger.debug(
+                            logger.warning(
                                 f"Tier 2+3.5 (preprint lift): "
-                                f"'{journal_name}' {score} → {inst} via "
+                                f"'{journal_name}' {score} â†’ {inst} via "
                                 f"institutions: {_format_affiliations(affs)}"
                             )
                             return inst, "institution"
@@ -964,8 +964,8 @@ JOURNAL INFORMATION:
                     is_in_doaj=True,
                     has_doaj_seal=seal,
                 )
-                logger.debug(
-                    f"Tier 3 (DOAJ): '{journal_name}' → "
+                logger.warning(
+                    f"Tier 3 (DOAJ): '{journal_name}' â†’ "
                     f"score {score}/10 (DOAJ Seal: {seal})"
                 )
                 return score, "doaj"
@@ -980,8 +980,8 @@ JOURNAL INFORMATION:
         if affiliations:
             inst_score = dm.score_from_affiliations(affiliations)
             if inst_score is not None:
-                logger.debug(
-                    f"Tier 3.5 (Institution): '{journal_name}' → "
+                logger.warning(
+                    f"Tier 3.5 (Institution): '{journal_name}' â†’ "
                     f"score {inst_score}/10 from institutions: "
                     f"{_format_affiliations(affiliations)}"
                 )
@@ -1016,11 +1016,11 @@ JOURNAL INFORMATION:
 
                         if is_fresh and is_valid:
                             logger.info(
-                                f"DB cache hit: '{journal_name}' → "
+                                f"DB cache hit: '{journal_name}' â†’ "
                                 f"score {cached.quality}/10 [cached LLM]"
                             )
                             # Cache hit on a Journal row written by the
-                            # LLM path — tag as "llm" so the dashboard
+                            # LLM path â€” tag as "llm" so the dashboard
                             # surfaces it as a Tier 4 verdict.
                             return cached.quality, "llm"
                         if is_fresh and not is_valid:
@@ -1029,7 +1029,7 @@ JOURNAL INFORMATION:
                                 f"'{journal_name}' not in valid set "
                                 f"{sorted(VALID_QUALITY_SCORES)}; rescoring"
                             )
-                        # Expired or invalid — fall through to re-evaluate
+                        # Expired or invalid â€” fall through to re-evaluate
             except Exception:
                 logger.exception(
                     f"DB cache read failed for '{journal_name}', "
@@ -1037,7 +1037,7 @@ JOURNAL INFORMATION:
                 )
 
         # --- Tier 4: LLM analysis (last resort) ---
-        # Off by default — bundled data covers 217K+ sources and this tier
+        # Off by default â€” bundled data covers 217K+ sources and this tier
         # adds significant latency (1 SearXNG search + 1 LLM call per
         # unknown journal). Users opt in via the
         # `search.journal_reputation.enable_llm_scoring` setting. The
@@ -1061,8 +1061,8 @@ JOURNAL INFORMATION:
         if _enable_tier4:
             relabeled = self.__llm_clean_journal_name(journal_name)
             if relabeled and relabeled != journal_name:
-                logger.debug(
-                    f"Tier 3.6 (LLM cleanup): '{journal_name}' → "
+                logger.warning(
+                    f"Tier 3.6 (LLM cleanup): '{journal_name}' â†’ "
                     f"'{relabeled}', retrying bundled tiers"
                 )
                 oa_retry = dm.lookup_openalex(name=relabeled)
@@ -1083,15 +1083,15 @@ JOURNAL INFORMATION:
                     )
                     if score is not None:
                         logger.info(
-                            f"Tier 3.6 (LLM cleanup → OpenAlex): "
-                            f"'{journal_name}' (as '{relabeled}') → "
+                            f"Tier 3.6 (LLM cleanup â†’ OpenAlex): "
+                            f"'{journal_name}' (as '{relabeled}') â†’ "
                             f"score {score}/10"
                         )
                         # Tier 3.6 is a Tier 2 retry under a cleaned
                         # name; the result is effectively Tier 2 data
                         # and is NOT cached in the user DB (reference
                         # DB lookups are already instant). Tagged
-                        # "openalex" — only the NAME came from the LLM,
+                        # "openalex" â€” only the NAME came from the LLM,
                         # not the score.
                         return score, "openalex"
 
@@ -1116,18 +1116,18 @@ JOURNAL INFORMATION:
                         seal_bonus = True
                     else:
                         # Bump lands outside the canonical score set
-                        # (e.g. q=8 → 9, and 9 ∉ VALID_QUALITY_SCORES).
+                        # (e.g. q=8 â†’ 9, and 9 âˆ‰ VALID_QUALITY_SCORES).
                         # Log the skip so operators can see the Seal
                         # had no effect instead of dropping silently.
-                        logger.debug(
+                        logger.warning(
                             f"DOAJ Seal +1 bonus skipped for "
                             f"'{journal_name}': {quality}+1={bumped} "
                             f"not in VALID_QUALITY_SCORES "
                             f"{sorted(VALID_QUALITY_SCORES)}"
                         )
                 self.__save_llm_score_to_db(name=journal_name, quality=quality)
-                logger.debug(
-                    f"Tier 4 (LLM): '{journal_name}' → "
+                logger.warning(
+                    f"Tier 4 (LLM): '{journal_name}' â†’ "
                     f"score {quality}/10 "
                     f"[via SearXNG + LLM analysis"
                     f"{', +1 DOAJ Seal bonus' if seal_bonus else ''}]"
@@ -1146,34 +1146,34 @@ JOURNAL INFORMATION:
                     )
 
         # --- Conference heuristic (for papers without DOI or OpenAlex match) ---
-        # Guard: many high-tier journals start with "Proceedings of …"
-        # (PNAS, Royal Society A/B, AMS, LMS, …). The bare `proceedings`
+        # Guard: many high-tier journals start with "Proceedings of â€¦"
+        # (PNAS, Royal Society A/B, AMS, LMS, â€¦). The bare `proceedings`
         # token in `_CONFERENCE_PATTERNS` would otherwise classify them
         # as Q3 conferences and throw away their real h-index. Skip the
-        # heuristic for these — they fall through to the unknown-journal
+        # heuristic for these â€” they fall through to the unknown-journal
         # score (3) and the user's threshold decides what to do.
         if journal_name.lower().lstrip().startswith("proceedings of "):
-            logger.debug(
+            logger.warning(
                 f"Conference heuristic: skipped for '{journal_name}' "
-                f"(starts with 'Proceedings of' — likely a journal, "
+                f"(starts with 'Proceedings of' â€” likely a journal, "
                 f"not a conference)"
             )
         elif _is_likely_conference(journal_name):
             score = dm.derive_quality_score(source_type="conference")
-            logger.debug(
-                f"Conference heuristic: '{journal_name}' → "
+            logger.warning(
+                f"Conference heuristic: '{journal_name}' â†’ "
                 f"score {score}/10 (detected as conference by name pattern)"
             )
             return score, "conference"
 
-        # No tier could score this journal — neither OpenAlex/DOAJ
+        # No tier could score this journal â€” neither OpenAlex/DOAJ
         # venue match nor Tier 3.5 institution salvage produced a
         # signal. Score it as low-confidence (3) so the default
         # threshold (4) actually filters it out. Distinct from
-        # predatory (1) — these are merely unknown, not blacklisted.
+        # predatory (1) â€” these are merely unknown, not blacklisted.
         affs_for_log = result.get("affiliations") or []
-        logger.debug(
-            f"No scoring data for '{journal_name}' — flagging as "
+        logger.warning(
+            f"No scoring data for '{journal_name}' â€” flagging as "
             f"low-confidence (score 3); tried institutions: "
             f"{_format_affiliations(affs_for_log)}"
         )
@@ -1194,19 +1194,19 @@ JOURNAL INFORMATION:
         # Fail-soft during a fresh install: if the reference DB file
         # isn't on disk yet, don't score anything. Every journal would
         # otherwise fall through to the "no scoring data" branch and
-        # be marked as score 3, which is semantically wrong — we don't
+        # be marked as score 3, which is semantically wrong â€” we don't
         # know the journal is unknown, we just haven't loaded the data
         # yet. Tag each result with the QUALITY_PENDING sentinel so the
         # report renderer can show the user a helpful note pointing
         # them at /metrics/journals.
         #
         # We probe the DB file path directly rather than calling
-        # ``data_manager.available`` — the latter has side effects
+        # ``data_manager.available`` â€” the latter has side effects
         # (triggers `_ensure_engine`, which tries to lazy-build the DB
         # and can block on an in-flight download for several minutes).
         # A cached engine on the data manager means either the file
         # was successfully opened earlier, or a test fixture has
-        # injected an in-memory DB — either way we're good to score.
+        # injected an in-memory DB â€” either way we're good to score.
         try:
             from ...config.paths import get_journal_data_directory
 
@@ -1239,7 +1239,7 @@ JOURNAL INFORMATION:
             # workers from all racing to spawn the same download.
             _start_background_journal_fetch()
 
-            # Respect exclude_non_published — results without a venue
+            # Respect exclude_non_published â€” results without a venue
             # still get dropped in pending mode, same as in the full
             # scoring path. Only venued results carry the marker.
             out = []
@@ -1255,7 +1255,7 @@ JOURNAL INFORMATION:
                 else:
                     dropped += 1
             logger.warning(
-                f"Journal filter: reference DB not yet built — "
+                f"Journal filter: reference DB not yet built â€” "
                 f"tagged {tagged} result(s) with QUALITY_PENDING, "
                 f"kept {len(out) - tagged} venueless, "
                 f"dropped {dropped} (exclude_non_published). "
@@ -1286,7 +1286,7 @@ JOURNAL INFORMATION:
                 If Tier 3.5 salvages a score from author affiliations,
                 the result carries that numeric score. Otherwise we
                 tag it with ``QUALITY_PREPRINT`` so the report renderer
-                can show a "preprint — not in journal catalog" label
+                can show a "preprint â€” not in journal catalog" label
                 instead of leaving the quality column ambiguously blank.
                 """
                 from ...utilities.search_utilities import QUALITY_PREPRINT
@@ -1301,9 +1301,9 @@ JOURNAL INFORMATION:
                         and inst_score >= self.__threshold
                     ):
                         result["journal_quality"] = inst_score
-                        logger.debug(
+                        logger.warning(
                             f"Tier 3.5 (Institution, no venue): "
-                            f"'{result.get('title', '')[:60]}' → "
+                            f"'{result.get('title', '')[:60]}' â†’ "
                             f"score {inst_score}/10 from institutions: "
                             f"{_format_affiliations(affs)}"
                         )
@@ -1313,7 +1313,7 @@ JOURNAL INFORMATION:
                     result.setdefault("journal_quality", QUALITY_PREPRINT)
                     filtered.append(result)
 
-            # Per-batch cache for journal name cleaning — avoids redundant
+            # Per-batch cache for journal name cleaning â€” avoids redundant
             # regex + abbreviation DB lookups when multiple results come
             # from the same raw journal_ref string (common in OpenAlex
             # result batches).
@@ -1321,7 +1321,7 @@ JOURNAL INFORMATION:
 
             for result in results:
                 journal_ref = result.get("journal_ref")
-                # Strip whitespace-only refs — " " is truthy but has no
+                # Strip whitespace-only refs â€” " " is truthy but has no
                 # meaningful content for the filter.
                 if isinstance(journal_ref, str):
                     journal_ref = journal_ref.strip()
@@ -1368,7 +1368,7 @@ JOURNAL INFORMATION:
                 score, source_tag = journal_scores[clean_name]
 
                 if score is None:
-                    # Predatory → auto-remove. Include original journal_ref
+                    # Predatory â†’ auto-remove. Include original journal_ref
                     # and URL in the log so false-positive reports can be
                     # debugged without re-running the query.
                     logger.warning(
@@ -1376,17 +1376,17 @@ JOURNAL INFORMATION:
                         f"title='{result.get('title', '')[:80]}' "
                         f"journal_ref='{result.get('journal_ref', '')!r}' "
                         f"cleaned='{clean_name}' "
-                        f"url={result.get('link') or result.get('url') or '—'}"
+                        f"url={result.get('link') or result.get('url') or 'â€”'}"
                     )
                     continue
 
                 if score >= self.__threshold:
                     result["journal_quality"] = score
-                    # Cleaned name that keyed the successful score —
+                    # Cleaned name that keyed the successful score â€”
                     # persisted on Paper.container_title so the dashboard
                     # can GROUP BY it and enrich from the reference DB.
                     result["journal_name_matched"] = clean_name
-                    # Source tag — propagates to the rendered quality
+                    # Source tag â€” propagates to the rendered quality
                     # tag in the research output. Nothing is frozen on
                     # the Paper row; the dashboard resolves current
                     # quality live from journals.quality (Tier 4) or
@@ -1408,7 +1408,7 @@ JOURNAL INFORMATION:
                 if s is not None and s < self.__threshold
             )
             logger.info(
-                f"Journal quality filter: {len(results)} → "
+                f"Journal quality filter: {len(results)} â†’ "
                 f"{len(filtered)} results | "
                 f"{len(journal_scores)} unique journals scored | "
                 f"{passed_count} passed, {below_count} below threshold, "
@@ -1420,13 +1420,13 @@ JOURNAL INFORMATION:
             # Safety net: a filter crash should not kill the entire search,
             # but it MUST NOT re-admit predatory journals either.
             # `filtered` is predatory-free by construction (the pass-2 loop
-            # `continue`s on predatory scores). Returning `results` — the
-            # original unfiltered list — would leak predatory sources that
+            # `continue`s on predatory scores). Returning `results` â€” the
+            # original unfiltered list â€” would leak predatory sources that
             # Tier 1 had already caught. Prefer losing in-flight non-
             # predatory results over breaking the predatory-removal
             # safety contract. Logged at ERROR so the root cause surfaces.
             logger.exception(
-                "Journal quality filtering failed — returning partial "
+                "Journal quality filtering failed â€” returning partial "
                 "(predatory-free) results. This is a bug that should be "
                 "investigated."
             )

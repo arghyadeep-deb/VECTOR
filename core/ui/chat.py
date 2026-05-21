@@ -62,13 +62,13 @@ def _get_status_line() -> str:
 
     now = datetime.datetime.now().strftime("%H:%M")
     ollama_status = "[green]Ollama: OK[/green]" if ollama_ok else "[red]Ollama: DOWN[/red]"
-    return f"[bold cyan]HP: 500[/bold cyan]  │  {ollama_status}  │  [yellow]Goals: {goal_count}[/yellow]  │  [dim]{now}[/dim]"
+    return f"[bold cyan]HP: 500[/bold cyan]  â”‚  {ollama_status}  â”‚  [yellow]Goals: {goal_count}[/yellow]  â”‚  [dim]{now}[/dim]"
 
 
 def _render_header(console: "Console") -> None:
     banner_text = Text(_BANNER, style="bold green")
     console.print(banner_text)
-    console.print(f"  [dim]V{_VERSION}  •  Virtual Entity for Cognitive Tasks & Operational Reasoning[/dim]")
+    console.print(f"  [dim]V{_VERSION}  â€¢  Virtual Entity for Cognitive Tasks & Operational Reasoning[/dim]")
     console.print(Rule(style="green"))
     console.print("  " + _get_status_line())
     console.print(Rule(style="green"))
@@ -99,7 +99,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             ("/districts",    "All 25 districts and their status"),
             ("/council <q>",  "Convene LLM council for high-stakes question"),
             ("/karpathy",     "Today's Karpathy session streak"),
-            ("/bg <task>",    "Run a big task in background — returns immediately"),
+            ("/bg <task>",    "Run a big task in background â€” returns immediately"),
             ("/tasks",        "Show running and recently completed background tasks"),
             ("/cancel <id>",  "Cancel a running background task by ID"),
             ("/quit",         "Exit VECTOR terminal"),
@@ -221,7 +221,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
         t.add_column("Agents", style="dim")
         for i, (d, agents) in enumerate(districts, 1):
             t.add_row(str(i), d, agents)
-        console.print(Panel(t, title="[bold green]VECTOR — 25 Districts[/bold green]", border_style="green"))
+        console.print(Panel(t, title="[bold green]VECTOR â€” 25 Districts[/bold green]", border_style="green"))
         return True
 
     if verb == "/council":
@@ -236,7 +236,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             )
             console.print(Panel(
                 Markdown(result.get("verdict", "No verdict.")),
-                title=f"[bold green]Council Verdict — Session {result.get('session_id', '?')}[/bold green]",
+                title=f"[bold green]Council Verdict â€” Session {result.get('session_id', '?')}[/bold green]",
                 border_style="green",
             ))
         except Exception as e:
@@ -251,7 +251,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             today = typer.get_today_summary()
             console.print(Panel(
                 f"[bold green]Streak: {streak} days[/bold green]\n\n{today}",
-                title="[bold green]Karpathy Track — RULE 12[/bold green]",
+                title="[bold green]Karpathy Track â€” RULE 12[/bold green]",
                 border_style="green",
             ))
         except Exception as e:
@@ -290,7 +290,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
             )
             console.print(f"[green]Background task started:[/green] [dim]id={task_id}[/dim]")
             console.print(f"[dim]  {arg[:80]}[/dim]")
-            console.print(f"[dim]  Check with /tasks — you'll be notified when done[/dim]")
+            console.print(f"[dim]  Check with /tasks â€” you'll be notified when done[/dim]")
         except Exception as e:
             console.print(f"[red]Background task error: {e}[/red]")
         return True
@@ -341,7 +341,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
                 console.print("[dim]No background tasks yet.[/dim]")
             else:
                 title = (
-                    f"[bold green]Background Tasks — "
+                    f"[bold green]Background Tasks â€” "
                     f"{summary['running']} running  "
                     f"{summary['completed_today']} done  "
                     f"{summary['failed_today']} failed[/bold green]"
@@ -381,9 +381,9 @@ def _chat_with_vector(user_input: str, history: list[dict], console: "Console") 
     messages += history[-10:]  # keep last 10 exchanges for context
     messages.append({"role": "user", "content": user_input})
 
-    response = chat(model=_MODEL, messages=messages, timeout=120.0) or "…"
+    response = chat(model=_MODEL, messages=messages, timeout=120.0) or "â€¦"
 
-    # RULE 8 — store in episodic memory
+    # RULE 8 â€” store in episodic memory
     try:
         mem = EpisodicMemory()
         mem.store(
@@ -393,7 +393,7 @@ def _chat_with_vector(user_input: str, history: list[dict], console: "Console") 
             source="terminal_ui",
         )
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     return response
 
@@ -413,7 +413,7 @@ def run_chat() -> None:
             console.print(f"\n[bold green]{msg}[/bold green]")
         TaskQueue.get().set_terminal_notify(_bg_notify)
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     history: list[dict] = []
 
@@ -435,7 +435,7 @@ def run_chat() -> None:
             continue
 
         # Regular chat
-        console.print(f"[dim]  ↳ vector-focus thinking...[/dim]")
+        console.print(f"[dim]  â†³ vector-focus thinking...[/dim]")
         try:
             response = _chat_with_vector(user_input, history, console)
             history.append({"role": "user", "content": user_input})

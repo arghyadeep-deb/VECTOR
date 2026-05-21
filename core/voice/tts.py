@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
-# Kokoro-supported voices only. bn/as not supported by Kokoro — routed to pyttsx3 fallback.
+# Kokoro-supported voices only. bn/as not supported by Kokoro â€” routed to pyttsx3 fallback.
 _KOKORO_VOICE_MAP = {
     "en": "bf_emma",
     "hi": "hf_alpha",
@@ -14,7 +14,7 @@ _KOKORO_VOICE_MAP = {
 _KOKORO_UNSUPPORTED = {"bn", "as"}  # gTTS fallback for regional languages
 
 
-# LRU cache for gTTS audio: maps (text, lang) → raw MP3 bytes
+# LRU cache for gTTS audio: maps (text, lang) â†’ raw MP3 bytes
 _GTTS_CACHE: dict[tuple[str, str], bytes] = {}
 _GTTS_CACHE_MAX = 50
 
@@ -39,7 +39,7 @@ class VoiceTTS:
             self._init_pyttsx3()
 
     def _init_piper(self):
-        """Try Piper TTS (piper-tts package) — fast, local, high quality."""
+        """Try Piper TTS (piper-tts package) â€” fast, local, high quality."""
         try:
             from piper import PiperVoice  # type: ignore
             import wave, io
@@ -81,7 +81,7 @@ class VoiceTTS:
             else:
                 model_file = cpu_model
             if not model_file.exists() or not voices_file.exists():
-                logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir} — using pyttsx3 fallback")
+                logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir} â€” using pyttsx3 fallback")
                 return
             self._kokoro = Kokoro(str(model_file), str(voices_file))
             self._kokoro_ok = True
@@ -110,7 +110,7 @@ class VoiceTTS:
             if self._pyttsx3 is not None:
                 self._pyttsx3.stop()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
@@ -122,7 +122,7 @@ class VoiceTTS:
             self._speak_kokoro(text, lang)
         else:
             if lang in _KOKORO_UNSUPPORTED:
-                logger.info(f"[VECTOR][tts] {lang} not in Kokoro — using gTTS fallback")
+                logger.info(f"[VECTOR][tts] {lang} not in Kokoro â€” using gTTS fallback")
                 self._speak_gtts(text, lang)
             else:
                 self._speak_pyttsx3(text)
@@ -146,7 +146,7 @@ class VoiceTTS:
             sd.wait()
             self._speaking = False
         except Exception as e:
-            logger.warning(f"[VECTOR][tts] Piper speak failed: {e} — falling back to pyttsx3")
+            logger.warning(f"[VECTOR][tts] Piper speak failed: {e} â€” falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
@@ -179,7 +179,7 @@ class VoiceTTS:
             self._speaking = False
         except Exception as e:
             self._speaking = False
-            logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} — falling back to pyttsx3")
+            logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} â€” falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_gtts(self, text: str, lang: str) -> None:
@@ -196,7 +196,7 @@ class VoiceTTS:
 
             cache_key = (text, lang)
             if cache_key in _GTTS_CACHE:
-                # Cache hit — no HTTP call needed
+                # Cache hit â€” no HTTP call needed
                 mp3_bytes = _GTTS_CACHE[cache_key]
                 logger.debug(f"[VECTOR][tts] gTTS cache hit for '{text[:30]}'")
             else:
@@ -220,9 +220,9 @@ class VoiceTTS:
                 try:
                     os.unlink(temp_file.name)
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         except Exception as e:
-            logger.error(f"[VECTOR][tts] gTTS speak failed: {e} — falling back to pyttsx3")
+            logger.error(f"[VECTOR][tts] gTTS speak failed: {e} â€” falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_pyttsx3(self, text: str) -> None:
@@ -315,7 +315,7 @@ class StreamingTTS:
             import sounddevice as sd
             sd.stop()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
     @property
     def is_speaking(self) -> bool:
@@ -328,4 +328,4 @@ if __name__ == "__main__":
     tts.speak("Hello, I am VECTOR. Voice pipeline is online.", lang="en")
     st = StreamingTTS()
     st.set_voice("bf_emma")
-    print(f"✅ tts OK (streaming_tts_kokoro={st._kokoro_ok})")
+    print(f"âœ… tts OK (streaming_tts_kokoro={st._kokoro_ok})")

@@ -1,12 +1,12 @@
 """
-Batch DOI → OpenAlex source_id enrichment.
+Batch DOI â†’ OpenAlex source_id enrichment.
 
 Resolves paper DOIs to OpenAlex source IDs in a single batch HTTP request
 (up to 50 DOIs per call). This populates ``openalex_source_id`` and
 ``source_type`` on result dicts so the journal reputation filter can look
 up journals by ID rather than fragile name matching.
 
-Runs as a pre-enrichment layer before content filters — the existing
+Runs as a pre-enrichment layer before content filters â€” the existing
 tiered scoring system is unchanged. This just gives Tier 2 (OpenAlex
 snapshot lookup) a reliable key to work with.
 """
@@ -33,7 +33,7 @@ def _normalize_doi(doi: str) -> str:
     snapshot of this file; the current CodeQL scan does not raise it,
     and the anchored ``startswith`` pattern is the rule's recommended
     mitigation. Refactoring to a bare-first normalization was
-    evaluated (PR #3081) but rejected as no-op churn — the
+    evaluated (PR #3081) but rejected as no-op churn â€” the
     ``https://doi.org/`` form OpenAlex actually returns round-trips
     unchanged through every branch here. Do not refactor without a
     new, reproducible functional issue.
@@ -57,7 +57,7 @@ def enrich_results_with_source_ids(
 
     For results that have a DOI but no ``openalex_source_id``, makes a
     single batch request to the OpenAlex works endpoint to resolve
-    DOI → journal/conference source_id.
+    DOI â†’ journal/conference source_id.
 
     The results list is modified in-place and also returned.
 
@@ -85,7 +85,7 @@ def enrich_results_with_source_ids(
             doi_to_indices.setdefault(normalized, []).append(i)
 
     if not doi_to_indices:
-        logger.debug("DOI enrichment: no DOIs to resolve")
+        logger.warning("DOI enrichment: no DOIs to resolve")
         return results
 
     # Batch DOIs into chunks of MAX_DOIS_PER_REQUEST
@@ -167,7 +167,7 @@ def enrich_results_with_source_ids(
             f"{len(doi_to_indices)} DOIs to OpenAlex source IDs"
         )
     else:
-        logger.debug(
+        logger.warning(
             f"DOI enrichment: no matches from {len(doi_to_indices)} DOIs"
         )
 

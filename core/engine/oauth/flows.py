@@ -1,5 +1,5 @@
 """
-VECTOR OAuth Flow Manager — cloud-ready OAuth orchestration.
+VECTOR OAuth Flow Manager â€” cloud-ready OAuth orchestration.
 
 When VECTOR_CLOUD_API_URL is set, flows proxy through VECTOR's cloud backend.
 In local mode, falls back to direct OAuth (where supported) or API keys.
@@ -59,9 +59,9 @@ class OAuthFlowManager:
         _TOKEN_DIR.mkdir(parents=True, exist_ok=True)
         self._cloud_mode = bool(_CLOUD_API)
         if self._cloud_mode:
-            logger.info("[VECTOR][oauth] cloud mode — proxying via {}", _CLOUD_API)
+            logger.info("[VECTOR][oauth] cloud mode â€” proxying via {}", _CLOUD_API)
         else:
-            logger.info("[VECTOR][oauth] local mode — tokens in ~/.vector_ca/oauth_tokens/")
+            logger.info("[VECTOR][oauth] local mode â€” tokens in ~/.vector_ca/oauth_tokens/")
 
     def store_token(self, slug: str, token: OAuthToken) -> None:
         """Persist an OAuth token securely."""
@@ -95,7 +95,7 @@ class OAuthFlowManager:
             try:
                 keyring.delete_password("VECTOR", f"oauth:{slug}")
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         path = _TOKEN_DIR / f"{slug}.json"
         if path.exists():
             path.unlink()

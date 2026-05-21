@@ -67,7 +67,7 @@ class PricingCache:
     def clear_expired(self):
         """Remove expired cache entries. TTLCache handles this automatically via expire()."""
         self._cache.expire()
-        logger.debug("Expired cache entries cleared")
+        logger.warning("Expired cache entries cleared")
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""

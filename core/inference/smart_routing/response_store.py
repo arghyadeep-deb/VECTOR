@@ -1,5 +1,5 @@
 """
-VECTOR Smart Routing — Persistent Response Store
+VECTOR Smart Routing â€” Persistent Response Store
 Python port of ClawRouter/src/response-store.ts
 
 Stores LLM responses persistently (beyond the 30s in-memory cache).
@@ -97,7 +97,7 @@ class ResponseStore:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 results.append(StoredResponse(**data))
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return results
 
     def delete(self, resp_id: str) -> bool:
@@ -135,5 +135,5 @@ if __name__ == "__main__":
         st = store.stats()
         assert st["count"] == 1
 
-    print(f"OK response_store.py — persistent response storage")
+    print(f"OK response_store.py â€” persistent response storage")
     print(f"  store_dir: {_STORE_DIR}")

@@ -1,8 +1,8 @@
 """
-VECTOR Local Inference — Python port of Open-Generative-AI/electron/lib/localInference.js
+VECTOR Local Inference â€” Python port of Open-Generative-AI/electron/lib/localInference.js
 
 Manages sd.cpp binary for offline Stable Diffusion image generation.
-No ComfyUI needed — direct subprocess inference with platform-specific binaries.
+No ComfyUI needed â€” direct subprocess inference with platform-specific binaries.
 
 Supported models: SD 1.5 (512px), SDXL (1024px), Flux (requires LLM + VAE).
 
@@ -45,7 +45,7 @@ _ARCH       = platform.machine().lower()
 _BIN_NAME   = "sd-cli.exe" if _IS_WINDOWS else "sd-cli"
 _BIN_PATH   = _BIN_DIR / _BIN_NAME
 
-# Model catalog — id → {name, sd_version, base_dim, hf_repo, filename}
+# Model catalog â€” id â†’ {name, sd_version, base_dim, hf_repo, filename}
 LOCAL_MODEL_CATALOG: dict[str, dict] = {
     "sd15": {
         "name": "Stable Diffusion 1.5",
@@ -102,7 +102,7 @@ def _select_binary_variant() -> str | None:
             sp.run(["nvcc", "--version"], capture_output=True, timeout=3)
             has_cuda = True
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         if has_cuda:
             return f"{BASE}/sd-master-win-cuda12-x64.zip"
         return f"{BASE}/sd-master-win-avx2-x64.zip"
@@ -119,7 +119,7 @@ def _select_binary_variant() -> str | None:
 class LocalInference:
     """
     VECTOR's local Stable Diffusion inference via sd.cpp binary.
-    Works without ComfyUI — useful as offline fallback.
+    Works without ComfyUI â€” useful as offline fallback.
     """
 
     def is_available(self) -> bool:
@@ -144,7 +144,7 @@ class LocalInference:
             })
         return result
 
-    # ── Binary management ─────────────────────────────────────────────────────
+    # â”€â”€ Binary management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def download_binary(self) -> bool:
         url = _select_binary_variant()
@@ -203,7 +203,7 @@ class LocalInference:
                                 pct = round(downloaded / total * 100)
                                 if pct % 10 == 0:
                                     logger.debug("[VECTOR][local_inf] {} {}%", model_id, pct)
-            logger.info("[VECTOR][local_inf] {} downloaded → {}", model_id, out_path)
+            logger.info("[VECTOR][local_inf] {} downloaded â†’ {}", model_id, out_path)
             return True
         except Exception as e:
             if out_path.exists():
@@ -211,7 +211,7 @@ class LocalInference:
             logger.error("[VECTOR][local_inf] Model download failed: {}", e)
             return False
 
-    # ── Inference ─────────────────────────────────────────────────────────────
+    # â”€â”€ Inference â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def generate(
         self,
@@ -281,7 +281,7 @@ class LocalInference:
             raise RuntimeError(f"sd.cpp exited with code {returncode}. Logs: {chr(10).join(logs[-5:])}")
         if not output_path.exists():
             raise RuntimeError("sd.cpp completed but output PNG not found")
-        logger.info("[VECTOR][local_inf] Generated → {}", output_path)
+        logger.info("[VECTOR][local_inf] Generated â†’ {}", output_path)
         return {"image_path": str(output_path), "model": model, "width": width, "height": height}
 
     async def cancel(self) -> None:
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     inf = LocalInference()
     available = inf.is_available()
     models = inf.list_models()
-    print(f"OK local_inference.py — binary={'present' if available else 'missing (run download_binary())'}")
+    print(f"OK local_inference.py â€” binary={'present' if available else 'missing (run download_binary())'}")
     print(f"  data_dir={_DATA_DIR}")
     for m in models:
         dl = "downloaded" if m["downloaded"] else "not downloaded"
-        print(f"  {m['id']}: {m['name']} — {dl}")
+        print(f"  {m['id']}: {m['name']} â€” {dl}")

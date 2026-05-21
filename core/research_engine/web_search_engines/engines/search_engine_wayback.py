@@ -135,7 +135,7 @@ class WaybackSearchEngine(BaseSearchEngine):
             second = timestamp[12:14]
             return f"{year}-{month}-{day} {hour}:{minute}:{second}"
         except Exception:
-            logger.debug("Timestamp formatting failed, returning original")
+            logger.warning("Timestamp formatting failed, returning original")
             return timestamp
 
     def _get_wayback_snapshots(self, url: str) -> List[Dict[str, Any]]:
@@ -157,7 +157,7 @@ class WaybackSearchEngine(BaseSearchEngine):
 
                 # Check for rate limit
                 if response.status_code == 429:
-                    raise RateLimitError("Wayback Machine rate limit exceeded")  # noqa: TRY301 — re-raised by except RateLimitError for base class retry
+                    raise RateLimitError("Wayback Machine rate limit exceeded")  # noqa: TRY301 â€” re-raised by except RateLimitError for base class retry
 
                 data = response.json()
 
@@ -194,7 +194,7 @@ class WaybackSearchEngine(BaseSearchEngine):
 
                 # Check for rate limit
                 if response.status_code == 429:
-                    raise RateLimitError(  # noqa: TRY301 — re-raised by except RateLimitError for base class retry
+                    raise RateLimitError(  # noqa: TRY301 â€” re-raised by except RateLimitError for base class retry
                         "Wayback Machine CDX API rate limit exceeded"
                     )
 

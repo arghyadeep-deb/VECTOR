@@ -64,7 +64,7 @@ class GenericDownloader(BaseDownloader):
             parsed = urlparse(url)
             if not parsed.path.endswith(".pdf"):
                 pdf_url = url.rstrip("/") + ".pdf"
-                logger.debug(f"Trying with .pdf extension: {pdf_url}")
+                logger.warning(f"Trying with .pdf extension: {pdf_url}")
                 pdf_content = super()._download_pdf(pdf_url)
             else:
                 pdf_content = None
@@ -165,7 +165,7 @@ class GenericDownloader(BaseDownloader):
             parsed = urlparse(url)
             if not parsed.path.endswith(".pdf"):
                 pdf_url = url.rstrip("/") + ".pdf"
-                logger.debug(f"Trying with .pdf extension: {pdf_url}")
+                logger.warning(f"Trying with .pdf extension: {pdf_url}")
                 pdf_content = super()._download_pdf(pdf_url)
             else:
                 pdf_content = None

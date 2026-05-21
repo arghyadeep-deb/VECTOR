@@ -126,7 +126,7 @@ class PricingFetcher:
         # Provider-first approach: Check if provider indicates local/free models
         local_providers = ["ollama", "lmstudio", "llamacpp"]
         if provider in local_providers:
-            logger.debug(
+            logger.warning(
                 f"Local provider '{provider}' detected - returning zero cost"
             )
             return {"prompt": 0.0, "completion": 0.0}

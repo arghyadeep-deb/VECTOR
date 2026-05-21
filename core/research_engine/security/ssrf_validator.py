@@ -17,7 +17,7 @@ from urllib3.util import parse_url
 from .ip_ranges import PRIVATE_IP_RANGES as BLOCKED_IP_RANGES
 from .ip_ranges import NAT64_PREFIXES
 
-# Cloud-provider metadata endpoints — always blocked, even with
+# Cloud-provider metadata endpoints â€” always blocked, even with
 # allow_localhost=True or allow_private_ips=True. These IPs expose IAM /
 # instance-role credentials and are never legitimate destinations.
 # nosec B104 - Hardcoded IPs are intentional for SSRF prevention
@@ -56,7 +56,7 @@ def is_nat64_wrapped_metadata_ip(ip: ipaddress._BaseAddress) -> bool:
 
 # RFC 3986 forbids these characters in URLs; their presence in a URL signals
 # a parser-differential attempt (GHSA-g23j-2vwm-5c25). \s covers space, \t,
-# \n, \r, \v, \f. Backslash is the load-bearing payload — Python's urlparse
+# \n, \r, \v, \f. Backslash is the load-bearing payload â€” Python's urlparse
 # treats it as a literal char while requests/urllib3 treat it as a path
 # delimiter, so a crafted URL like ``http://127.0.0.1\@1.1.1.1`` would
 # pass the urlparse-based hostname check but actually connect to 127.0.0.1.
@@ -113,7 +113,7 @@ def is_ip_blocked(
     try:
         ip = ipaddress.ip_address(ip_str)
 
-        # Unwrap IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 → 127.0.0.1)
+        # Unwrap IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 â†’ 127.0.0.1)
         # These bypass IPv4 range checks if not converted.
         if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
             ip = ip.ipv4_mapped
@@ -128,7 +128,7 @@ def is_ip_blocked(
         # Also block metadata IPs reached via NAT64 wrap. NAT64 prefixes
         # embed the IPv4 destination in the low 32 bits; even when the
         # operator has set LDR_SECURITY_ALLOW_NAT64=true the metadata
-        # block is "always" — an opt-in for IPv4 reachability does NOT
+        # block is "always" â€” an opt-in for IPv4 reachability does NOT
         # license IMDS exposure.
         if is_nat64_wrapped_metadata_ip(ip):
             return True
@@ -206,7 +206,7 @@ def validate_url(
         url = url.strip()
         # Layer 1: reject RFC-illegal characters that drive parser-differential
         # attacks (backslash, whitespace, control bytes). The URL is omitted
-        # from this log line because userinfo (RFC 3986 §3.2.1) may contain
+        # from this log line because userinfo (RFC 3986 Â§3.2.1) may contain
         # credentials and rejected URLs are by definition adversarial-shaped.
         if RFC_FORBIDDEN_URL_CHARS_RE.search(url):
             logger.warning("Blocked URL containing RFC-illegal characters")
@@ -223,7 +223,7 @@ def validate_url(
 
         # Layer 2: extract host using urllib3, the same parser ``requests``
         # uses internally. ``urlparse`` and urllib3 disagree on URLs like
-        # ``http://127.0.0.1\@1.1.1.1`` — urlparse says ``1.1.1.1``,
+        # ``http://127.0.0.1\@1.1.1.1`` â€” urlparse says ``1.1.1.1``,
         # urllib3 says ``127.0.0.1``. Validating against urllib3 means the
         # validator and the HTTP client cannot disagree on destination.
         try:
@@ -234,7 +234,7 @@ def validate_url(
         hostname = u3.host
         # Authority must be ASCII printable. urllib3 currently rejects
         # non-ASCII via LocationParseError, but this guard keeps us
-        # independent of that staying constant — CVE-2019-9636 showed
+        # independent of that staying constant â€” CVE-2019-9636 showed
         # Python's stdlib loosened a similar restriction previously.
         # Brackets/colon used in IPv6 hosts are within 0x20-0x7e, so this
         # runs cleanly before bracket-strip.
@@ -244,7 +244,7 @@ def validate_url(
         # Strip IPv6 brackets so ipaddress.ip_address can parse the host.
         if hostname and hostname.startswith("[") and hostname.endswith("]"):
             hostname = hostname[1:-1]
-        # rstrip(".") matches getaddrinfo behaviour — trailing dots are
+        # rstrip(".") matches getaddrinfo behaviour â€” trailing dots are
         # ignored at resolution time.
         if hostname:
             hostname = hostname.rstrip(".")
@@ -268,7 +268,7 @@ def validate_url(
                 return False
         except ValueError:
             # Not an IP address, it's a hostname - need to resolve it
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
         # Resolve hostname to IP and check.
         #
@@ -350,7 +350,7 @@ def redact_url_for_log(url: str) -> str:
     sensitive paths into logs while still giving operators enough to
     distinguish ``http://10.0.0.1:80`` from ``https://10.0.0.1:443``.
 
-    RFC 3986 §3.2.1 allows credentials in URL userinfo
+    RFC 3986 Â§3.2.1 allows credentials in URL userinfo
     (``http://user:pass@host/``). A rejected URL is by definition
     adversarial-shaped, but it may still carry the operator's real
     credentials if a misconfiguration produced it.

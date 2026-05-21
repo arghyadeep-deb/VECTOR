@@ -95,7 +95,7 @@ class TopicOrganizationStrategy(BaseSearchStrategy):
         logger.info(
             f"TopicOrganizationStrategy configuration - use_focused_iteration: {use_focused_iteration}, enable_refinement: {enable_refinement}"
         )
-        logger.debug(
+        logger.warning(
             f"TopicOrganizationStrategy - min_sources_per_topic: {min_sources_per_topic}, max_topics: {max_topics}, generate_text: {generate_text}"
         )
 
@@ -266,7 +266,7 @@ Response:"""
 
             # Debug log the full prompt for the first few sources and periodically
             if i < 3 or i % 50 == 0:
-                logger.debug(
+                logger.warning(
                     f"Topic organization prompt for source {i + 1}:\n{source_prompt}"
                 )  # Log full prompt
 
@@ -314,7 +314,7 @@ Response:"""
                         is_potential_lead
                         and len(topics[topic_index].get_all_sources()) >= 2
                     ):
-                        logger.debug(
+                        logger.warning(
                             f"Source {i} marked as potential lead for topic {topic_index}"
                         )
                         lead_changed = self._reselect_lead_for_single_topic(
@@ -499,7 +499,7 @@ Response (just the number):"""
             return False
 
         except (ValueError, IndexError) as e:
-            logger.debug(
+            logger.warning(
                 f"Could not parse lead selection for topic '{topic.title}': {e}"
             )
             return False
@@ -1315,7 +1315,7 @@ Otherwise, respond with only the follow-up question, nothing else.
             for hist in self.iteration_history:
                 if hist["type"] == "initial":
                     history_lines.append(
-                        f"\n**Initial Search:** {hist['sources_count']} sources → {hist['topics_count']} topics"
+                        f"\n**Initial Search:** {hist['sources_count']} sources â†’ {hist['topics_count']} topics"
                     )
                 else:
                     history_lines.append(
@@ -1325,7 +1325,7 @@ Otherwise, respond with only the follow-up question, nothing else.
                         f"  - Added {hist['new_sources']} new sources"
                     )
                     history_lines.append(
-                        f"  - Topics: {hist['topics_before']} → {hist['topics_after']}"
+                        f"  - Topics: {hist['topics_before']} â†’ {hist['topics_after']}"
                     )
             topic_graph_str += "\n".join(history_lines)
 
@@ -1517,7 +1517,7 @@ Otherwise, respond with only the follow-up question, nothing else.
 
             if relationships:
                 for t1, t2 in relationships:
-                    lines.append(f"- **{t1}** ↔ **{t2}**")
+                    lines.append(f"- **{t1}** â†” **{t2}**")
 
         return "\n".join(lines)
 
@@ -1584,7 +1584,7 @@ Otherwise, respond with only the follow-up question, nothing else.
             for hist in self.iteration_history:
                 if hist["type"] == "initial":
                     lines.append(
-                        f"\n**Initial Search:** {hist['sources_count']} sources → {hist['topics_count']} topics"
+                        f"\n**Initial Search:** {hist['sources_count']} sources â†’ {hist['topics_count']} topics"
                     )
                 else:
                     lines.append(
@@ -1592,7 +1592,7 @@ Otherwise, respond with only the follow-up question, nothing else.
                     )
                     lines.append(f"  - Added {hist['new_sources']} new sources")
                     lines.append(
-                        f"  - Topics: {hist['topics_before']} → {hist['topics_after']}"
+                        f"  - Topics: {hist['topics_before']} â†’ {hist['topics_after']}"
                     )
 
         return "\n".join(lines)

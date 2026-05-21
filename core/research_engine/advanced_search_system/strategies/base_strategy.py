@@ -30,7 +30,7 @@ class BaseSearchStrategy(ABC):
         # Log strategy initialization
         strategy_name = self.__class__.__name__
         logger.info(f"Initializing strategy: {strategy_name}")
-        logger.debug(
+        logger.warning(
             f"Strategy {strategy_name} - search_original_query: {search_original_query}"
         )
 
@@ -65,7 +65,7 @@ class BaseSearchStrategy(ABC):
         Note: This is called by AdvancedSearchSystem.close() which is
         called in run_research_process()'s finally block. Strategies
         should also clean up in their own finally blocks (as they already
-        do) — this close() is a second line of defense.
+        do) â€” this close() is a second line of defense.
         """
         pass
 
@@ -101,7 +101,7 @@ class BaseSearchStrategy(ABC):
         flag check -- no UI logging or socket emission occurs.
         """
         if self.progress_callback:
-            logger.debug("Checking termination status")
+            logger.warning("Checking termination status")
             self.progress_callback(
                 "Checking termination status",
                 None,
@@ -218,7 +218,7 @@ class BaseSearchStrategy(ABC):
         """
         if iteration == 1:
             self._update_progress(
-                f"Generating initial search questions:\n• {query}",
+                f"Generating initial search questions:\nâ€¢ {query}",
                 progress_percent,
                 {
                     "phase": "question_generation",
@@ -229,7 +229,7 @@ class BaseSearchStrategy(ABC):
         else:
             # Show previous questions and source count
             prev_questions = self.questions_by_iteration.get(iteration - 1, [])
-            prev_display = "\n".join(f"• {q}" for q in prev_questions[:3])
+            prev_display = "\n".join(f"â€¢ {q}" for q in prev_questions[:3])
             if len(prev_questions) > 3:
                 prev_display += f"\n... and {len(prev_questions) - 3} more"
             self._update_progress(
@@ -257,7 +257,7 @@ class BaseSearchStrategy(ABC):
             questions: List of questions being searched
             progress_percent: Current progress percentage
         """
-        questions_display = "\n".join(f"• {q}" for q in questions[:5])
+        questions_display = "\n".join(f"â€¢ {q}" for q in questions[:5])
         if len(questions) > 5:
             questions_display += f"\n... and {len(questions) - 5} more"
         self._update_progress(

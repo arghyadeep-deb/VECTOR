@@ -930,7 +930,7 @@ class EnhancedEvidenceBasedStrategy(EvidenceBasedStrategy):
             ]
             return synonyms[:3]
         except Exception as e:
-            logger.debug(f"Error getting synonyms for '{term}': {e}")
+            logger.warning(f"Error getting synonyms for '{term}': {e}")
             return []
 
     def _find_common_terms(

@@ -1,4 +1,4 @@
-# VECTOR module — ported from VectorCode
+# VECTOR module â€” ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -297,7 +297,7 @@ if BaseAgent is not None:
     class SandboxedAgent(BaseAgent):
         """Transparent wrapper that runs any BaseAgent in a container.
 
-        Follows the ``GuardrailsEngine`` wrapper pattern — the wrapped
+        Follows the ``GuardrailsEngine`` wrapper pattern â€” the wrapped
         agent's configuration is serialized and sent to the container.
         """
 
@@ -372,11 +372,11 @@ if BaseAgent is not None:
                 metadata=result.get("metadata", {}),
             )
 
-# Absorbed GPU Docker container launcher (optional — for sandboxed GPU agents)
+# Absorbed GPU Docker container launcher (optional â€” for sandboxed GPU agents)
 try:
     from core.mining.docker import PearlDockerLauncher  # noqa: F401
 except Exception:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 if BaseAgent is not None:
     __all__ = ["ContainerRunner", "SandboxedAgent"]

@@ -128,7 +128,7 @@ def get_setting_from_snapshot(
     if default is not None:
         from loguru import logger
 
-        logger.debug(
+        logger.warning(
             f"Setting '{key}' not found in snapshot or context, using default"
         )
         return default

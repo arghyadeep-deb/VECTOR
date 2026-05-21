@@ -264,10 +264,10 @@ CRITICAL RULES:
 8. Use wildcards for variations: vaccin*[Title/Abstract]
 
 EXAMPLE QUERIES:
-✓ GOOD: (mRNA[Title/Abstract] OR "messenger RNA"[Title/Abstract]) AND vaccin*[Title/Abstract]
-✓ GOOD: (influenza[Title/Abstract] OR flu[Title/Abstract]) AND treatment[Title/Abstract]
-✗ BAD: (mRNA[Title/Abstract]) AND "specific disease"[Mesh] AND treatment[Title/Abstract] AND 2023[dp]
-✗ BAD: "Here's a query to find articles about vaccines..."
+âœ“ GOOD: (mRNA[Title/Abstract] OR "messenger RNA"[Title/Abstract]) AND vaccin*[Title/Abstract]
+âœ“ GOOD: (influenza[Title/Abstract] OR flu[Title/Abstract]) AND treatment[Title/Abstract]
+âœ— BAD: (mRNA[Title/Abstract]) AND "specific disease"[Mesh] AND treatment[Title/Abstract] AND 2023[dp]
+âœ— BAD: "Here's a query to find articles about vaccines..."
 
 Return ONLY the search query without any explanations.
 """
@@ -395,7 +395,7 @@ Return ONLY the search query without any explanations.
             # Log original and optimized queries
             logger.info("Original query: '{}'", query)
             logger.info(f"Optimized for PubMed: '{optimized_query}'")
-            logger.debug(
+            logger.warning(
                 f"Query optimization complete: '{query[:50]}...' -> '{optimized_query[:100]}...'"
             )
 
@@ -403,7 +403,7 @@ Return ONLY the search query without any explanations.
 
         except Exception:
             logger.exception("Error optimizing query")
-            logger.debug(f"Falling back to original query: '{query}'")
+            logger.warning(f"Falling back to original query: '{query}'")
             return query  # Fall back to original query on error
 
     def _simplify_query(self, query: str) -> str:
@@ -418,7 +418,7 @@ Return ONLY the search query without any explanations.
             Simplified query
         """
         logger.info(f"Simplifying query: {query}")
-        logger.debug(f"Query simplification started for: '{query[:100]}...'")
+        logger.warning(f"Query simplification started for: '{query[:100]}...'")
 
         # Simple approach: remove field restrictions to broaden the search
         import re
@@ -440,10 +440,10 @@ Return ONLY the search query without any explanations.
 
         # If no simplification was possible, return the original query
         if simplified == query:
-            logger.debug("No simplification possible, returning original query")
+            logger.warning("No simplification possible, returning original query")
 
         logger.info(f"Simplified query: {simplified}")
-        logger.debug(
+        logger.warning(
             f"Query simplified from {len(query)} to {len(simplified)} chars"
         )
         return simplified
@@ -633,32 +633,32 @@ The default assumption should be that medical and scientific queries want RECENT
             # Add API key if available
             if self.api_key:
                 params["api_key"] = self.api_key
-                logger.debug("Using PubMed API key for higher rate limits")
+                logger.warning("Using PubMed API key for higher rate limits")
             else:
-                logger.debug("No PubMed API key - using default rate limits")
+                logger.warning("No PubMed API key - using default rate limits")
 
             # Add date restriction if specified
             if self.days_limit:
                 params["reldate"] = self.days_limit
                 params["datetype"] = "pdat"  # Publication date
-                logger.debug(f"Limiting results to last {self.days_limit} days")
+                logger.warning(f"Limiting results to last {self.days_limit} days")
 
-            logger.debug(
+            logger.warning(
                 f"PubMed search query: '{query}' with max_results={self.max_results}"
             )
 
             self._last_wait_time = self.rate_tracker.apply_rate_limit(
                 self.engine_type
             )
-            logger.debug(
+            logger.warning(
                 f"Applied rate limit wait: {self._last_wait_time:.2f}s"
             )
 
             # Execute search request
-            logger.debug(f"Sending request to PubMed API: {self.search_url}")
+            logger.warning(f"Sending request to PubMed API: {self.search_url}")
             response = safe_get(self.search_url, params=params)
             response.raise_for_status()
-            logger.debug(f"PubMed API response status: {response.status_code}")
+            logger.warning(f"PubMed API response status: {response.status_code}")
 
             # Parse response
             data = response.json()
@@ -669,7 +669,7 @@ The default assumption should be that medical and scientific queries want RECENT
                 f"PubMed search for '{query}' found {len(id_list)} results (total available: {total_count})"
             )
             if len(id_list) > 0:
-                logger.debug(f"First 5 PMIDs: {id_list[:5]}")
+                logger.warning(f"First 5 PMIDs: {id_list[:5]}")
             return id_list
 
         except Exception:
@@ -689,10 +689,10 @@ The default assumption should be that medical and scientific queries want RECENT
             List of article summary dictionaries
         """
         if not id_list:
-            logger.debug("Empty ID list provided to _get_article_summaries")
+            logger.warning("Empty ID list provided to _get_article_summaries")
             return []
 
-        logger.debug(f"Fetching summaries for {len(id_list)} PubMed articles")
+        logger.warning(f"Fetching summaries for {len(id_list)} PubMed articles")
 
         try:
             # Prepare parameters
@@ -710,19 +710,19 @@ The default assumption should be that medical and scientific queries want RECENT
             self._last_wait_time = self.rate_tracker.apply_rate_limit(
                 self.engine_type
             )
-            logger.debug(
+            logger.warning(
                 f"Applied rate limit wait: {self._last_wait_time:.2f}s"
             )
 
             # Execute request
-            logger.debug(f"Requesting summaries from: {self.summary_url}")
+            logger.warning(f"Requesting summaries from: {self.summary_url}")
             response = safe_get(self.summary_url, params=params)
             response.raise_for_status()
-            logger.debug(f"Summary API response status: {response.status_code}")
+            logger.warning(f"Summary API response status: {response.status_code}")
 
             # Parse response
             data = response.json()
-            logger.debug(
+            logger.warning(
                 f"PubMed API returned data for {len(id_list)} requested IDs"
             )
             summaries = []
@@ -730,7 +730,7 @@ The default assumption should be that medical and scientific queries want RECENT
             for pmid in id_list:
                 if pmid in data["result"]:
                     article = data["result"][pmid]
-                    logger.debug(
+                    logger.warning(
                         f"Processing article {pmid}: {article.get('title', 'NO TITLE')[:50]}"
                     )
 
@@ -812,10 +812,10 @@ The default assumption should be that medical and scientific queries want RECENT
             Dictionary mapping PubMed IDs to their abstracts
         """
         if not id_list:
-            logger.debug("Empty ID list provided to _get_article_abstracts")
+            logger.warning("Empty ID list provided to _get_article_abstracts")
             return {}
 
-        logger.debug(f"Fetching abstracts for {len(id_list)} PubMed articles")
+        logger.warning(f"Fetching abstracts for {len(id_list)} PubMed articles")
 
         try:
             # Prepare parameters
@@ -833,21 +833,21 @@ The default assumption should be that medical and scientific queries want RECENT
             self._last_wait_time = self.rate_tracker.apply_rate_limit(
                 self.engine_type
             )
-            logger.debug(
+            logger.warning(
                 f"Applied rate limit wait: {self._last_wait_time:.2f}s"
             )
 
             # Execute request
-            logger.debug(f"Requesting abstracts from: {self.fetch_url}")
+            logger.warning(f"Requesting abstracts from: {self.fetch_url}")
             response = safe_get(self.fetch_url, params=params)
             response.raise_for_status()
-            logger.debug(
+            logger.warning(
                 f"Abstract fetch response status: {response.status_code}, size: {len(response.text)} bytes"
             )
 
             # Parse XML response
             root = ET.fromstring(response.text)
-            logger.debug(
+            logger.warning(
                 f"Parsing abstracts from XML for {len(id_list)} articles"
             )
 
@@ -871,7 +871,7 @@ The default assumption should be that medical and scientific queries want RECENT
                 # Some abstracts are split into multiple sections
                 abstract_sections = article.findall(".//AbstractText")
                 if len(abstract_sections) > 1:
-                    logger.debug(
+                    logger.warning(
                         f"Article {pmid} has {len(abstract_sections)} abstract sections"
                     )
 
@@ -894,7 +894,7 @@ The default assumption should be that medical and scientific queries want RECENT
                 # Store in dictionary
                 if pmid and abstract_text:
                     abstracts[pmid] = abstract_text
-                    logger.debug(
+                    logger.warning(
                         f"Abstract for {pmid}: {len(abstract_text)} chars"
                     )
                 elif pmid:
@@ -1276,7 +1276,7 @@ The default assumption should be that medical and scientific queries want RECENT
                             full_text.append(text)
 
             result_text = "\n\n".join(full_text)
-            logger.debug(
+            logger.warning(
                 f"Successfully extracted {len(result_text)} chars of PMC full text with {len(full_text)} sections"
             )
             return result_text
@@ -1322,16 +1322,16 @@ The default assumption should be that medical and scientific queries want RECENT
             return []
 
         # Get article summaries
-        logger.debug(f"Fetching article summaries for {len(pmid_list)} PMIDs")
+        logger.warning(f"Fetching article summaries for {len(pmid_list)} PMIDs")
         summaries = self._get_article_summaries(pmid_list)
-        logger.debug(f"Retrieved {len(summaries)} summaries")
+        logger.warning(f"Retrieved {len(summaries)} summaries")
 
         # ALWAYS fetch abstracts for snippet-only mode to provide context for LLM
-        logger.debug(
+        logger.warning(
             f"Fetching abstracts for {len(pmid_list)} articles for snippet enrichment"
         )
         abstracts = self._get_article_abstracts(pmid_list)
-        logger.debug(f"Retrieved {len(abstracts)} abstracts")
+        logger.warning(f"Retrieved {len(abstracts)} abstracts")
 
         # Format as previews
         previews = []
@@ -1430,11 +1430,11 @@ The default assumption should be that medical and scientific queries want RECENT
                 enriched_snippet = f"Title: {title}\n\nMetadata: {snippet}"
 
             # Log the complete snippet for debugging
-            logger.debug(f"Complete snippet for PMID {pmid}:")
-            logger.debug(f"  Title: {title[:100]}...")
-            logger.debug(f"  Abstract length: {len(abstract_text)} chars")
-            logger.debug(f"  Metadata: {snippet}")
-            logger.debug(
+            logger.warning(f"Complete snippet for PMID {pmid}:")
+            logger.warning(f"  Title: {title[:100]}...")
+            logger.warning(f"  Abstract length: {len(abstract_text)} chars")
+            logger.warning(f"  Metadata: {snippet}")
+            logger.warning(
                 f"  Full enriched snippet ({len(enriched_snippet)} chars): {enriched_snippet[:500]}..."
             )
 
@@ -1469,7 +1469,7 @@ The default assumption should be that medical and scientific queries want RECENT
             f"Found {len(previews)} PubMed previews using strategy: {strategy}"
         )
         if previews:
-            logger.debug(
+            logger.warning(
                 f"Sample preview title: '{previews[0].get('title', 'NO TITLE')[:80]}...'"
             )
         return previews

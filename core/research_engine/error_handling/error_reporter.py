@@ -121,7 +121,7 @@ class ErrorReporter:
         for category, patterns in self.error_patterns.items():
             for pattern in patterns:
                 if re.search(pattern.lower(), error_message):
-                    logger.debug(
+                    logger.warning(
                         f"Categorized error as {category.value}: {pattern}"
                     )
                     return category
@@ -194,7 +194,7 @@ class ErrorReporter:
             ],
             ErrorCategory.RATE_LIMIT_ERROR: [
                 "The API has reached its rate limit",
-                "Enable LLM Rate Limiting in Settings → Rate Limiting → Enable LLM Rate Limiting",
+                "Enable LLM Rate Limiting in Settings â†’ Rate Limiting â†’ Enable LLM Rate Limiting",
                 "Once enabled, the system will automatically learn and adapt to API limits",
                 "Consider upgrading to a paid API plan for higher limits",
                 "Try using a different model temporarily",
@@ -275,12 +275,12 @@ class ErrorReporter:
 
             # Don't send notifications if we can't determine user
             if not username:
-                logger.debug(
+                logger.warning(
                     "No username in context, skipping error notification"
                 )
                 return
 
-            # Notifications removed — VECTOR uses Pushover+Telegram via vectorcode
+            # Notifications removed â€” VECTOR uses Pushover+Telegram via vectorcode
             # Errors are logged via loguru; districts can subscribe to error events
             logger.info(
                 f"Error notification skipped (category={category}): {error_message[:100]}"
@@ -288,7 +288,7 @@ class ErrorReporter:
             return
 
         except Exception as e:
-            logger.debug(f"Failed to send error notification: {e}")
+            logger.warning(f"Failed to send error notification: {e}")
 
     def _extract_service_name(self, error_message: str) -> str:
         """

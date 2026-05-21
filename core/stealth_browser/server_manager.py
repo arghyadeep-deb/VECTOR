@@ -3,7 +3,7 @@ VECTOR Stealth Browser Server Manager
 Manages the Node.js anti-detection browser server as a Python subprocess.
 
 Also implements crash detection and rate-limited alerting (ported from
-workers/crash-reporter/ in the original repo — repurposed to send alerts
+workers/crash-reporter/ in the original repo â€” repurposed to send alerts
 to VECTOR's Pushover instead of external GitHub Issues).
 
 Usage:
@@ -38,23 +38,23 @@ _SERVER_DIR = Path(__file__).parent / "server"
 _DEFAULT_PORT = 9377
 _HEALTH_URL = f"http://127.0.0.1:{_DEFAULT_PORT}/health"
 
-# Module-level singleton — multiple callers share one server process
+# Module-level singleton â€” multiple callers share one server process
 _instance: Optional["StealthBrowserServer"] = None
 _instance_lock = threading.Lock()
 
 
-# ── Crash reporter (from workers/crash-reporter/ logic) ───────────────────────
+# â”€â”€ Crash reporter (from workers/crash-reporter/ logic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _CrashReporter:
     """
     Monitors server stderr for crashes and event loop stalls.
     Deduplicates by stack signature (MD5 of first 3 frames).
-    Rate-limits to 10 alerts per hour — same as original crash-reporter worker.
+    Rate-limits to 10 alerts per hour â€” same as original crash-reporter worker.
     Sends alerts to VECTOR's Pushover instead of GitHub Issues.
     """
 
     MAX_PER_HOUR = 10
-    _seen_signatures: dict[str, float] = {}   # signature → last_seen timestamp
+    _seen_signatures: dict[str, float] = {}   # signature â†’ last_seen timestamp
     _hour_counts: collections.deque = collections.deque()  # timestamps in last hour
 
     @classmethod
@@ -94,7 +94,7 @@ class _CrashReporter:
                 source=source,
             )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         # Pushover notification
         try:
             import httpx
@@ -112,10 +112,10 @@ class _CrashReporter:
                     timeout=5.0,
                 )
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
-# ── Server Manager ────────────────────────────────────────────────────────────
+# â”€â”€ Server Manager â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class StealthBrowserServer:
     """
@@ -134,7 +134,7 @@ class StealthBrowserServer:
     def is_running(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
 
-    # ── Health check ──────────────────────────────────────────────────────────
+    # â”€â”€ Health check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def is_healthy(self) -> bool:
         try:
@@ -154,7 +154,7 @@ class StealthBrowserServer:
             except ConnectionRefusedError:
                 return False
 
-    # ── Start / Stop ──────────────────────────────────────────────────────────
+    # â”€â”€ Start / Stop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def start(self) -> bool:
         """Start the Node.js server subprocess. Returns True if started/already running."""
@@ -170,7 +170,7 @@ class StealthBrowserServer:
         try:
             subprocess.run(["node", "--version"], capture_output=True, timeout=5)
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            logger.error("[VECTOR][stealth] Node.js not found — install Node.js 18+")
+            logger.error("[VECTOR][stealth] Node.js not found â€” install Node.js 18+")
             return False
 
         env = {
@@ -223,7 +223,7 @@ class StealthBrowserServer:
                     headers = {"Authorization": f"Bearer {admin_key}"} if admin_key else {}
                     await c.post(f"{self._base_url}/stop", headers=headers)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             try:
                 self._proc.terminate()
                 self._proc.wait(timeout=5)
@@ -257,7 +257,7 @@ class StealthBrowserServer:
         return self
 
     async def __aexit__(self, *_):
-        # Don't stop on context exit — server runs as long-lived service
+        # Don't stop on context exit â€” server runs as long-lived service
         pass
 
 
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     async def _smoke():
         srv = StealthBrowserServer()
         healthy = await srv.is_healthy()
-        print(f"OK server_manager.py — port={srv._port}")
+        print(f"OK server_manager.py â€” port={srv._port}")
         print(f"  server_dir={_SERVER_DIR}")
         print(f"  server.js exists: {(_SERVER_DIR / 'server.js').exists()}")
         print(f"  currently healthy: {healthy}")

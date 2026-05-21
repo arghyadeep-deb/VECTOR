@@ -49,7 +49,7 @@ class ExporterRegistry:
         instance = exporter_class()
         format_name = instance.format_name.lower()
         cls._exporters[format_name] = exporter_class
-        logger.debug(f"Registered exporter for format: {format_name}")
+        logger.warning(f"Registered exporter for format: {format_name}")
         return exporter_class
 
     @classmethod

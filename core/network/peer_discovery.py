@@ -1,10 +1,10 @@
 """
-VECTOR Peer Discovery — finds other VECTOR nodes on the network.
+VECTOR Peer Discovery â€” finds other VECTOR nodes on the network.
 
 Discovery methods:
-  1. Static config  — hosts listed in VECTOR_PEERS env var or config file
-  2. LAN broadcast  — UDP multicast on local network (auto-discover)
-  3. Cloud registry — register with a central VECTOR cloud node (Phase 3)
+  1. Static config  â€” hosts listed in VECTOR_PEERS env var or config file
+  2. LAN broadcast  â€” UDP multicast on local network (auto-discover)
+  3. Cloud registry â€” register with a central VECTOR cloud node (Phase 3)
 
 Usage:
     discovery = PeerDiscovery(node_id="vector-legion", port=7790)
@@ -118,7 +118,7 @@ class PeerDiscovery:
         self.capabilities = capabilities or []
         self.registry = PeerRegistry()
 
-    # ── Static discovery (from VECTOR_PEERS env var) ───────────────────────────
+    # â”€â”€ Static discovery (from VECTOR_PEERS env var) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def discover_static(self) -> list[PeerInfo]:
         """
@@ -157,7 +157,7 @@ class PeerDiscovery:
 
         return peers
 
-    # ── LAN multicast discovery ────────────────────────────────────────────────
+    # â”€â”€ LAN multicast discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def announce(self) -> None:
         """Broadcast this node's presence on the local network via UDP multicast."""
@@ -231,7 +231,7 @@ class PeerDiscovery:
                                 peer.node_id, peer.address(),
                             )
                 except (asyncio.TimeoutError, json.JSONDecodeError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             sock.close()
         except Exception as e:
@@ -282,6 +282,6 @@ if __name__ == "__main__":
         assert len(peers) == 2
         del os.environ["VECTOR_PEERS"]
 
-        print("OK peer_discovery.py — registry persistence + static discovery verified")
+        print("OK peer_discovery.py â€” registry persistence + static discovery verified")
 
     asyncio.run(_test())
