@@ -61,7 +61,7 @@ def _atomic_write(path: Path, content: str) -> None:
             try:
                 os.unlink(tmp_path)
             except OSError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def _strip_ansi(text: str) -> str:
@@ -83,7 +83,7 @@ def _truncate_output(
             f.write(output)
             spill_path = f.name
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     head_budget = int(max_chars * head_ratio)
     tail_budget = max_chars - head_budget
     head = output[:head_budget]

@@ -201,7 +201,7 @@ class GUIAgent:
                     try:
                         self._on_step(step_data)
                     except Exception:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
                 if terminal:
                     if terminal_type == "finished":

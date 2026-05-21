@@ -1,5 +1,5 @@
 """
-Restructure agents/districts/ to match agency-agents repo structure.
+Restructure districts/ to match agency-agents repo structure.
 - Renames files (strips vector-ag- / vector- prefix, matches repo naming)
 - Creates new districts: academic/, engineering/, paid_media/, product/,
   project_management/, sales/, strategy/, support/, testing/

@@ -73,9 +73,19 @@ async def voice_endpoint(audio: UploadFile = File(...)):
         )
         result = await gw.execute(action)
 
-        # Step 5: Speak response
-        response_text = result.result.get("message", f"Done: {intent.get('action_type', 'ok')}")
+        # Step 4b: Consistency check with PersonalityEngine (if enabled)
+        if CONFIG.get("personality", {}).get("enabled", True):
+            try:
+                from core.personality import PersonalityEngine
+                pe = PersonalityEngine()
+                validation = pe.validate_response(response_text, transcript)
+                if validation.get("rewritten"):
+                    response_text = validation["rewritten"]
+                    logger.debug("[VECTOR][api][voice] response rewritten by consistency enforcer")
+            except Exception as e:
+                logger.debug(f"[VECTOR][api][voice] consistency check skipped: {e}")
 
+        # Step 5: Speak response
         tts = await asyncio.to_thread(_load_tts)
         await asyncio.to_thread(tts.speak, response_text, lang=language.split('-')[0])
 

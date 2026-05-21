@@ -2,6 +2,6 @@
 try:
     from vectorcode.src.vector_cli._tool_names import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def resolve_tool_names(names): return names

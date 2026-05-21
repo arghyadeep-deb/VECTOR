@@ -52,7 +52,7 @@ def build_references_chain(original: dict[str, Any]) -> dict[str, Any]:
         try:
             existing_refs = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     references = [r for r in [*existing_refs, original_msg_id] if r]
     thread_id = original.get("thread_id") or original.get("id", "")
     return {"original_msg_id": original_msg_id, "references": references, "thread_id": thread_id}

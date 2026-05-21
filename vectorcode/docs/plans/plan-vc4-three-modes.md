@@ -3,9 +3,9 @@
 **Goal:** Build Mode A (terminal REPL), Mode B (autonomous), and Mode C (hybrid) — all running simultaneously via TaskQueue, sharing VectorCodeSession state.
 **Architecture:** repl.py is a blocking Rich-based terminal loop. autonomous.py submits a GSDLoop run as a TaskQueue HIGH-priority task and returns immediately. hybrid.py wraps autonomous.py but injects checkpoint gates at plan approval and RED-action boundaries using asyncio.Event for user confirmation. All three modes import and share VectorCodeSession.get() and GSDLoop.
 **Files:**
-- Create: `agents/districts/coding/vectorcode/repl.py`
-- Create: `agents/districts/coding/vectorcode/autonomous.py`
-- Create: `agents/districts/coding/vectorcode/hybrid.py`
+- Create: `districts/coding/vectorcode/repl.py`
+- Create: `districts/coding/vectorcode/autonomous.py`
+- Create: `districts/coding/vectorcode/hybrid.py`
 - Create: `tests/test_vectorcode_vc4.py`
 
 ---
@@ -15,7 +15,7 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.repl import VectorREPL
+  from districts.coding.vectorcode.repl import VectorREPL
   def test_repl_instantiates():
       repl = VectorREPL()
       assert repl.mode == "repl"
@@ -41,7 +41,7 @@
       assert "hp" in status
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "repl" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/repl.py`
+- [ ] Implement `districts/coding/vectorcode/repl.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "repl" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc4): VectorREPL Mode A terminal interface"`
 
@@ -52,9 +52,9 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.autonomous import VectorAutonomous
+  from districts.coding.vectorcode.autonomous import VectorAutonomous
   def test_autonomous_submit_returns_task_id():
-      with patch("agents.districts.coding.vectorcode.autonomous.TaskQueue") as MockTQ:
+      with patch("districts.coding.vectorcode.autonomous.TaskQueue") as MockTQ:
           mock_tq = MagicMock()
           mock_tq.get.return_value = mock_tq
           mock_tq.submit.return_value = "task-abc-123"
@@ -63,8 +63,8 @@
           task_id = va.submit("build a login endpoint")
           assert task_id == "task-abc-123"
   def test_autonomous_uses_high_priority():
-      with patch("agents.districts.coding.vectorcode.autonomous.TaskQueue") as MockTQ:
-          with patch("agents.districts.coding.vectorcode.autonomous.Priority") as MockPri:
+      with patch("districts.coding.vectorcode.autonomous.TaskQueue") as MockTQ:
+          with patch("districts.coding.vectorcode.autonomous.Priority") as MockPri:
               mock_tq = MagicMock()
               mock_tq.get.return_value = mock_tq
               mock_tq.submit.return_value = "x"
@@ -78,7 +78,7 @@
       assert va.session.mode in ("auto", "repl", "hybrid")
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "autonomous" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/autonomous.py`
+- [ ] Implement `districts/coding/vectorcode/autonomous.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "autonomous" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc4): VectorAutonomous Mode B TaskQueue-based"`
 
@@ -89,7 +89,7 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.hybrid import VectorHybrid, CheckpointGate
+  from districts.coding.vectorcode.hybrid import VectorHybrid, CheckpointGate
   def test_hybrid_has_checkpoint_types():
       assert hasattr(CheckpointGate, "PLAN_APPROVAL")
       assert hasattr(CheckpointGate, "RED_ACTION")
@@ -111,7 +111,7 @@
       assert vh.mode_label == "hybrid"
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "hybrid" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/hybrid.py`
+- [ ] Implement `districts/coding/vectorcode/hybrid.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc4.py -k "hybrid" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc4): VectorHybrid Mode C checkpoint gates"`
 

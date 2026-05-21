@@ -5,7 +5,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ---
 
-## Research District (`agents/districts/research/research_hub.py`)
+## Research District (`districts/research/research_hub.py`)
 
 | Source | URL | What VECTOR uses it for |
 |--------|-----|-------------------------|
@@ -23,7 +23,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ---
 
-## Investment District (`agents/districts/investment/stock_analyst.py`)
+## Investment District (`districts/investment/stock_analyst.py`)
 
 | Source | URL | What VECTOR uses it for |
 |--------|-----|-------------------------|
@@ -36,7 +36,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ---
 
-## News / Research Sources (`agents/districts/research/news_aggregator.py`)
+## News / Research Sources (`districts/research/news_aggregator.py`)
 
 | Source | URL | Notes |
 |--------|-----|-------|
@@ -49,7 +49,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ---
 
-## Communications District (`agents/districts/communications/hermes_adapter.py`)
+## Communications District (`districts/communications/hermes_adapter.py`)
 
 Routed through VectorCode (fully integrated).
 
@@ -65,7 +65,7 @@ Routed through VectorCode (fully integrated).
 
 ---
 
-## Content District (`agents/districts/content/comfyui_adapter.py`)
+## Content District (`districts/content/comfyui_adapter.py`)
 
 | Service | URL | Notes |
 |---------|-----|-------|
@@ -97,7 +97,7 @@ Routed through VectorCode (fully integrated).
 
 ---
 
-## GitHub APIs (`agents/districts/coding/`)
+## GitHub APIs (`districts/coding/`)
 
 All unauthenticated unless noted.
 

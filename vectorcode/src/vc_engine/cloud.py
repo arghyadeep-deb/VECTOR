@@ -227,14 +227,14 @@ class CloudEngine(InferenceEngine):
 
                 self._openai_client = openai.OpenAI()
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         if os.environ.get("ANTHROPIC_API_KEY"):
             try:
                 import anthropic
 
                 self._anthropic_client = anthropic.Anthropic()
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get(
             "GOOGLE_API_KEY"
         )
@@ -244,7 +244,7 @@ class CloudEngine(InferenceEngine):
 
                 self._google_client = genai.Client(api_key=gemini_key)
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         openrouter_key = os.environ.get("OPENROUTER_API_KEY")
         if openrouter_key:
             try:
@@ -255,7 +255,7 @@ class CloudEngine(InferenceEngine):
                     api_key=openrouter_key,
                 )
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         minimax_key = os.environ.get("MINIMAX_API_KEY")
         if minimax_key:
             try:
@@ -266,7 +266,7 @@ class CloudEngine(InferenceEngine):
                     api_key=minimax_key,
                 )
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         # Codex — uses the OpenAI Responses API.
         # Supports both standard API keys (api.openai.com) and ChatGPT
         # OAuth tokens (chatgpt.com) via OPENAI_CODEX_BASE_URL override.

@@ -28,7 +28,7 @@ def _build_provider_env_blocklist() -> frozenset:
             if pconfig.base_url_env_var:
                 blocked.add(pconfig.base_url_env_var)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     try:
         from vector_cli.config import OPTIONAL_ENV_VARS
@@ -39,7 +39,7 @@ def _build_provider_env_blocklist() -> frozenset:
             elif category == "setting" and metadata.get("password"):
                 blocked.add(name)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     blocked.update({
         "OPENAI_BASE_URL",

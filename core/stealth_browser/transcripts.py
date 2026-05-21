@@ -116,7 +116,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                     transcript_text = " ".join(lines)
                     break
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return {
             "url": url,

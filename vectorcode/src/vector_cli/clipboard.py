@@ -403,7 +403,7 @@ def _convert_to_png(path: Path) -> bool:
         img.save(path, "PNG")
         return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as e:
         logger.debug("Pillow BMP→PNG conversion failed: %s", e)
 

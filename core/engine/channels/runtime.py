@@ -166,9 +166,9 @@ class ChannelRuntime:
                 tasks.add(t)
                 t.add_done_callback(lambda t: (tasks.discard(t), self._semaphore.release()))
         except asyncio.TimeoutError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         except asyncio.CancelledError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         finally:
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -227,7 +227,7 @@ class ChannelRuntime:
                 )
                 await self._reply(err_reply)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     @staticmethod
     async def _default_agent(agent: str, hint: str, message: str) -> str:

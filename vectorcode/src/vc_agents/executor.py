@@ -295,7 +295,7 @@ class AgentExecutor:
 
                 _ensure_registries_populated()
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             from vectorcode.src.vc_core.registry import ToolRegistry
 
             for tname in tool_names:

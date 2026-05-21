@@ -13,7 +13,7 @@ router = APIRouter(prefix="/ads", tags=["ads"])
 
 def _run_ads(task_type: str, params: dict) -> dict:
     import asyncio
-    from agents.districts.marketing.ads_orchestrator_agent import AdsOrchestratorAgent
+    from districts.marketing.ads_orchestrator_agent import AdsOrchestratorAgent
     agent = AdsOrchestratorAgent()
     loop = asyncio.new_event_loop()
     result = loop.run_until_complete(agent.run({"type": task_type, "params": params}))
@@ -199,7 +199,7 @@ async def ads_report(body: AdsReportRequest):
 async def ads_references():
     """List all available RAG knowledge references (platform specs, benchmarks, compliance)."""
     try:
-        from core.ads import list_references, list_templates
+        from districts.marketing.ads import list_references, list_templates
         return {"references": list_references(), "templates": list_templates()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

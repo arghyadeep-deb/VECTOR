@@ -182,7 +182,7 @@ Obsidian Vault Sync
 ### Extensibility Patterns
 
 #### Adding New Districts
-1. Create district folder in `agents/districts/`
+1. Create district folder in `districts/`
 2. Implement AgentBase inheritance
 3. Register district in configuration
 4. Establish inter-district communication protocols

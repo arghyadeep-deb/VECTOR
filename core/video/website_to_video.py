@@ -1,6 +1,5 @@
 """
 VECTOR Website-to-Video Pipeline
-Ported from hyperframes cli/capture/ (contentExtractor.ts, screenshotCapture.ts,
 assetDownloader.ts, mediaCapture.ts, assetCataloger.ts, scaffolding.ts)
 
 Full 7-step pipeline:
@@ -33,7 +32,7 @@ from typing import Any, Optional
 from loguru import logger
 
 from core.video.composition_types import Fps, FPS_30, RenderQuality
-from core.video.hyperframes_composer import (
+from core.video.vector_composer import (
     VectorComposer, ComposerJob, ComposerResult, CompositionTemplate
 )
 
@@ -85,8 +84,7 @@ class CaptureResult:
 class WebContentExtractor:
     """
     Extract structured content from a webpage.
-    Equivalent to hyperframes capture/contentExtractor.ts + htmlExtractor.ts
-    """
+        """
 
     async def extract(self, url: str, html: str = "") -> ExtractedContent:
         if not html:
@@ -146,8 +144,7 @@ class WebContentExtractor:
 class WebScreenshotter:
     """
     Captures screenshots and scroll videos of websites.
-    Equivalent to hyperframes capture/screenshotCapture.ts + mediaCapture.ts
-    """
+        """
 
     async def screenshot(
         self,
@@ -233,8 +230,7 @@ def build_composition_from_content(
 ) -> str:
     """
     Build a VECTOR HTML composition from extracted web content.
-    Equivalent to hyperframes capture/scaffolding.ts
-    """
+        """
     title    = content.title or "Website Overview"
     headline = content.headline or title
     desc     = content.description[:200] if content.description else ""
@@ -349,8 +345,7 @@ def build_composition_from_content(
 class WebsiteToVideo:
     """
     Complete website-to-video pipeline.
-    Equivalent to hyperframes /website-to-hyperframes skill workflow.
-    """
+        """
 
     def __init__(self) -> None:
         self._extractor  = WebContentExtractor()

@@ -16,8 +16,8 @@ files = [
     "core/seo/broken_link_checker.py",
     "core/seo/cms_connector.py",
     "core/seo/portfolio.py",
-    "agents/districts/marketing/seo_agent.py",
-    "agents/districts/marketing/seo_portfolio.py",
+    "districts/marketing/seo_agent.py",
+    "districts/marketing/seo_portfolio.py",
     "core/loop/autonomous_loop.py",
     "run_vector.py",
     "core/inference/provider_client.py",
@@ -126,7 +126,7 @@ print()
 # GROUP 4: Agent tests
 print("GROUP 4 -- Marketing district agents")
 try:
-    from agents.districts.marketing.seo_agent import SEOAgent
+    from districts.marketing.seo_agent import SEOAgent
     agent = SEOAgent()
     assert agent.health_points == 500
     assert agent.district == "marketing"
@@ -135,7 +135,7 @@ except Exception as e:
     fail(f"SEOAgent: {e}")
 
 try:
-    from agents.districts.marketing.seo_portfolio import SEOPortfolioAgent
+    from districts.marketing.seo_portfolio import SEOPortfolioAgent
     pa = SEOPortfolioAgent()
     assert pa.health_points == 500
     assert pa.district == "marketing"

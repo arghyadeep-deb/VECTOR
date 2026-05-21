@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
+from core.resilience.bulkhead_executor import BulkheadRegistry, BulkheadRejectedError
 
 _END_PHRASES = {"that's all vector", "thats all vector", "stop vector", "goodbye vector"}
 _WAKE_MODES = {
@@ -19,7 +20,7 @@ VECTOR_PERSONALITY = (
     "You are VECTOR — a sharp, efficient AI assistant built and owned by Arghyadeep Deb. "
     "Your tone is calm, precise, and slightly dry. "
     "Address Arghyadeep as 'sir' occasionally (not every sentence). "
-    "You are not JARVIS. You are VECTOR — Arghyadeep's own creation, built on his Legion Pro 5. "
+    "You are not VECTOR. You are VECTOR — Arghyadeep's own creation, built on his Legion Pro 5. "
     "Keep conversational replies brief: 1-2 sentences maximum unless a detailed answer is needed. "
     "Never say 'I cannot' — find the nearest useful action instead. "
     "When classifying intent, always respond with valid JSON only."
@@ -29,7 +30,8 @@ _ACTION_TYPES = (
     "search_web, set_timer, play_music, take_screenshot, check_weather, "
     "check_attendance, set_reminder, read_calendar, create_calendar_event, "
     "commit_code, download_file, open_panel, run_command, respond, "
-    "widget_open, widget_close, widget_show_location, music_play, music_pause, music_next"
+    "widget_open, widget_close, widget_show_location, music_play, music_pause, music_next, "
+    "home_control"
 )
 
 
@@ -54,12 +56,12 @@ class AmbientListener:
         self._lang = None
         self._gateway = None
         self._context = None
+        self._personality = None
+        self._conversation = None
         self._wake_task: asyncio.Task | None = None
         self._session_active = False
         self._last_speech_time: float = 0.0
-        # Conversation memory — last 16 messages (8 turns)
         self._conversation_history: list[dict] = []
-        # Result from last completed voice turn — read by autonomous_loop
         self._last_voice_result: dict | None = None
         self._init_components()
 
@@ -88,11 +90,26 @@ class AmbientListener:
         except Exception as e:
             logger.warning(f"[VECTOR][voice] LanguageDetector init failed: {e}")
 
+        try:
+            from core.voice.conversation_manager import ConversationManager
+            self._conversation = ConversationManager()
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] ConversationManager init failed: {e}")
+
     def _get_gateway(self):
         if self._gateway is None:
             from core.loop.permission_gateway import PermissionGateway
             self._gateway = PermissionGateway()
         return self._gateway
+
+    def _get_personality(self):
+        if self._personality is None and CONFIG.get("personality", {}).get("enabled", True):
+            try:
+                from core.personality import PersonalityEngine
+                self._personality = PersonalityEngine()
+            except Exception as e:
+                logger.debug(f"[VECTOR][voice] PersonalityEngine init failed: {e}")
+        return self._personality
 
     async def listen_tick(self) -> dict | None:
         """
@@ -120,8 +137,11 @@ class AmbientListener:
     async def _wake_and_handle(self) -> None:
         """Background task: wait for wake word, route to correct mode, then handle."""
         try:
-            mode = await self._wake.listen_for_wake()  # returns mode string or None
+            mode = await self._wake.listen_for_wake()
             if mode:
+                if self._conversation:
+                    self._conversation.start_session("default_user")
+                    self._conversation.transition("LISTENING")
                 await self.handle_voice_input(mode=mode)
         except Exception as e:
             logger.error(f"[VECTOR][voice] _wake_and_handle error: {e}")
@@ -184,17 +204,23 @@ class AmbientListener:
 
         try:
             while self._session_active:
-                # Timeout check
+                if self._conversation and self._conversation.has_timed_out():
+                    logger.info("[VECTOR][voice] conversation timeout — session closed")
+                    self._session_active = False
+                    if self._conversation:
+                        self._conversation.end_session()
+                    break
+
                 if time.time() - self._last_speech_time > _SILENCE_TIMEOUT_SEC:
                     logger.info("[VECTOR][voice] 45s silence — session closed")
                     self._session_active = False
+                    if self._conversation:
+                        self._conversation.end_session()
                     break
 
-                # 1. Barge-in: stop any ongoing TTS before recording new input
                 if self._tts:
                     self._tts.stop_speaking()
 
-                # 2. Transcribe
                 text = ""
                 if self._stt:
                     duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
@@ -205,43 +231,47 @@ class AmbientListener:
 
                 self._last_speech_time = time.time()
 
-                # End phrase check
                 if self._is_end_phrase(text):
                     logger.info("[VECTOR][voice] End phrase — session closed")
                     farewell = "Understood, sir. Standing by."
                     if self._tts:
                         await asyncio.to_thread(self._tts.speak, farewell, lang="en")
                     self._session_active = False
+                    if self._conversation:
+                        self._conversation.end_session()
                     break
 
                 logger.info(f"[VECTOR][voice] TRANSCRIBE: '{text}'")
 
-                # Add user turn to conversation history
+                if self._conversation:
+                    self._conversation.transition("PROCESSING")
+
                 self._conversation_history.append({"role": "user", "content": text})
                 if len(self._conversation_history) > 16:
                     self._conversation_history = self._conversation_history[-16:]
 
-                # 2. Detect language
                 lang = "en"
                 if self._lang:
                     lang = self._lang.detect(text)
 
-                # 3. RULE 1 — session_hydration_prompt before LLM call
+                tone_config = None
+                pe = self._get_personality()
+                if pe:
+                    personality_result = pe.process(text)
+                    tone_config = personality_result.get("tone_config")
+                    personality_system_prompt = personality_result.get("system_prompt", "")
+                    if personality_system_prompt:
+                        VECTOR_PERSONALITY = personality_system_prompt
+
                 if self._context is None:
                     from core.loop.context_engine import ContextEngine
                     self._context = ContextEngine()
                 hydration = self._context.session_hydration_prompt()
 
-                # 4. Classify intent(s) via Ollama with personality + conversation history.
-                #    Returns a LIST of intents — supports compound utterances like
-                #    "close Spotify and show me London". Falls back to single-intent
-                #    if the LLM returns a malformed array (see _classify_intents).
                 intents = await self._classify_intents(text, hydration)
                 if not intents:
                     intents = [{"action_type": "respond", "params": {"message": text}, "confidence": 0.5}]
 
-                # 5. RULE 3 — execute every intent through the gateway. Stop on the
-                #    first RED denial. Aggregate response text for TTS.
                 from core.loop.permission_gateway import Action
                 gw = self._get_gateway()
                 response_parts: list[str] = []
@@ -258,28 +288,34 @@ class AmbientListener:
 
                     logger.info(f"[VECTOR][voice] THINK[{action_type}] {params}")
 
-                    action = Action(action_type=action_type, params=params, proposed_by="voice")
-                    result = await gw.execute(action)
-                    msg = result.get("message", f"Done, sir: {action_type}.")
-                    response_parts.append(msg)
+                    if action_type == "home_control":
+                        msg = await self._handle_home_control(text)
+                        response_parts.append(msg)
+                    else:
+                        action = Action(action_type=action_type, params=params, proposed_by="voice")
+                        result = await gw.execute(action)
+                        msg = result.get("message", f"Done, sir: {action_type}.")
+                        response_parts.append(msg)
 
-                    if str(result.get("decision", "")).upper() == "RED":
-                        logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
-                        break
+                        if str(result.get("decision", "")).upper() == "RED":
+                            logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
+                            break
 
-                # 6. Speak combined response
+                if self._conversation:
+                    self._conversation.transition("VECTOR_SPEAKING")
+
                 response_text = " ".join(p for p in response_parts if p) or f"Done, sir."
                 logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
                 if self._tts:
+                    if tone_config:
+                        self._tts._speed = tone_config.speed
                     await asyncio.to_thread(self._tts.speak, response_text, lang=lang)
 
-                # Add assistant turn to conversation history
+                if self._conversation:
+                    self._conversation.transition("LISTENING")
+
                 self._conversation_history.append({"role": "assistant", "content": response_text})
-
-                # 7. Persist to episodic memory
                 self._store_in_memory(text, response_text, last_action_type)
-
-                # 8. Set result for loop integration (observe_tick picks this up)
                 self._last_voice_result = {
                     "actionable": last_action_type != "respond",
                     "intent": last_action_type,
@@ -294,6 +330,8 @@ class AmbientListener:
             logger.error(f"[VECTOR][voice] handle_voice_input error: {e}")
         finally:
             self._session_active = False
+            if self._conversation:
+                self._conversation.end_session()
 
     async def _classify_intent(self, text: str, hydration: str,
                                conversation_history: list[dict] | None = None) -> dict:
@@ -331,24 +369,35 @@ class AmbientListener:
                 "Respond with ONLY valid JSON, no explanation."
             )
 
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                resp = await client.post(
-                    f"{ollama_host}/api/chat",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "stream": False,
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json().get("message", {}).get("content", "")
-                start = raw.find("{")
-                end = raw.rfind("}") + 1
-                if start != -1 and end > start:
-                    return json.loads(raw[start:end])
+            bulkhead = BulkheadRegistry.get("voice")
+            async def _classify_call():
+                async with httpx.AsyncClient(timeout=12.0) as client:
+                    resp = await client.post(
+                        f"{ollama_host}/api/chat",
+                        json={
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": prompt},
+                            ],
+                            "stream": False,
+                        },
+                    )
+                    resp.raise_for_status()
+                    raw = resp.json().get("message", {}).get("content", "")
+                    start = raw.find("{")
+                    end = raw.rfind("}") + 1
+                    if start != -1 and end > start:
+                        return json.loads(raw[start:end])
+                    return None
+            if bulkhead:
+                result = await bulkhead.execute(_classify_call)
+                if result:
+                    return result
+            else:
+                result = await _classify_call()
+                if result:
+                    return result
         except Exception as e:
             logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to respond")
         return {
@@ -403,20 +452,26 @@ class AmbientListener:
                 "Respond with ONLY valid JSON. No prose."
             )
 
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                resp = await client.post(
-                    f"{ollama_host}/api/chat",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "stream": False,
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json().get("message", {}).get("content", "")
+            bulkhead = BulkheadRegistry.get("voice")
+            async def _classify_call():
+                async with httpx.AsyncClient(timeout=12.0) as client:
+                    resp = await client.post(
+                        f"{ollama_host}/api/chat",
+                        json={
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": prompt},
+                            ],
+                            "stream": False,
+                        },
+                    )
+                    resp.raise_for_status()
+                    return resp.json().get("message", {}).get("content", "")
+            if bulkhead:
+                raw = await bulkhead.execute(_classify_call)
+            else:
+                raw = await _classify_call()
 
             # Extract the JSON object
             start = raw.find("{")
@@ -449,6 +504,31 @@ class AmbientListener:
             return [single]
 
 
+    async def _handle_home_control(self, text: str) -> str:
+        try:
+            from districts.home_assistant.voice_bridge import VoiceBridge
+            from districts.home_assistant.entity_manager import EntityManager
+            from districts.home_assistant.connector import HAConfig, HAConnector
+
+            cfg = HAConfig(
+                host=CONFIG.get("home_assistant", {}).get("host", "homeassistant.local"),
+                port=CONFIG.get("home_assistant", {}).get("port", 8123),
+                token=CONFIG.get("home_assistant", {}).get("token", ""),
+                use_ssl=CONFIG.get("home_assistant", {}).get("use_ssl", False),
+            )
+            connector = HAConnector(cfg)
+            await connector.connect()
+            entity_mgr = EntityManager()
+            await entity_mgr.discover(connector)
+            bridge = VoiceBridge(entity_mgr, connector)
+            result = await bridge.process(text)
+            await connector.disconnect()
+            return result
+        except Exception as e:
+            logger.error(f"[VECTOR][voice] home_control failed: {e}")
+            return f"Home control failed: {e}"
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -468,7 +548,7 @@ if __name__ == "__main__":
             try:
                 await listener._wake_task
             except asyncio.CancelledError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         all_ok = all(components.values())
         print(f"✅ ambient_listener OK {components}" if all_ok else f"⚠️ ambient_listener partial {components}")

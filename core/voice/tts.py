@@ -31,9 +31,35 @@ class VoiceTTS:
         self._init_engines()
 
     def _init_engines(self):
-        self._init_kokoro()
+        # Phase 5A: Priority order: Piper > Kokoro > pyttsx3
+        self._init_piper()
+        if not self._kokoro_ok:
+            self._init_kokoro()
         if not self._kokoro_ok:
             self._init_pyttsx3()
+
+    def _init_piper(self):
+        """Try Piper TTS (piper-tts package) — fast, local, high quality."""
+        try:
+            from piper import PiperVoice  # type: ignore
+            import wave, io
+            # Look for voice model in models/piper/
+            piper_dir = Path(CONFIG.get("voice", {}).get("piper_model_dir", "./models/piper"))
+            onnx_files = list(piper_dir.glob("*.onnx")) if piper_dir.exists() else []
+            if not onnx_files:
+                return  # no Piper model installed
+            model_path = onnx_files[0]
+            config_path = model_path.with_suffix(".onnx.json")
+            if not config_path.exists():
+                return
+            self._piper = PiperVoice.load(str(model_path), config_path=str(config_path))
+            self._kokoro_ok = True  # reuse flag to mean "primary TTS ready"
+            self._tts_engine = "piper"
+            logger.info(f"[VECTOR][tts] Piper TTS ready ({model_path.name})")
+        except ImportError:
+            pass  # piper-tts not installed
+        except Exception as e:
+            logger.debug(f"[VECTOR][tts] Piper init failed: {e}")
 
     def _init_kokoro(self):
         try:
@@ -84,12 +110,15 @@ class VoiceTTS:
             if self._pyttsx3 is not None:
                 self._pyttsx3.stop()
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
             return
-        if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
+        # Phase 5A: Piper > Kokoro > gTTS > pyttsx3
+        if self._kokoro_ok and getattr(self, '_tts_engine', 'kokoro') == 'piper' and lang == "en":
+            self._speak_piper(text)
+        elif self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
         else:
             if lang in _KOKORO_UNSUPPORTED:
@@ -97,6 +126,28 @@ class VoiceTTS:
                 self._speak_gtts(text, lang)
             else:
                 self._speak_pyttsx3(text)
+
+    def _speak_piper(self, text: str) -> None:
+        """Speak using Piper TTS (Phase 5A)."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            import io, wave
+            self._speaking = True
+            buf = io.BytesIO()
+            with wave.open(buf, 'wb') as wf:
+                self._piper.synthesize(text, wf)
+            buf.seek(0)
+            with wave.open(buf, 'rb') as wf:
+                sr = wf.getframerate()
+                frames = wf.readframes(wf.getnframes())
+            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            sd.play(audio, samplerate=sr)
+            sd.wait()
+            self._speaking = False
+        except Exception as e:
+            logger.warning(f"[VECTOR][tts] Piper speak failed: {e} — falling back to pyttsx3")
+            self._speak_pyttsx3(text)
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
         try:
@@ -169,7 +220,7 @@ class VoiceTTS:
                 try:
                     os.unlink(temp_file.name)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
         except Exception as e:
             logger.error(f"[VECTOR][tts] gTTS speak failed: {e} — falling back to pyttsx3")
             self._speak_pyttsx3(text)
@@ -188,8 +239,93 @@ class VoiceTTS:
             logger.error(f"[VECTOR][tts] pyttsx3 speak failed: {e}")
 
 
+class StreamingTTS:
+    def __init__(self):
+        import numpy as np
+        self._np = np
+        self._kokoro = None
+        self._pyttsx3 = None
+        self._kokoro_ok = False
+        self._speaking = False
+        self._model_dir = Path(CONFIG.get("voice", {}).get("kokoro_model_dir", "./models/kokoro"))
+        self._speed = CONFIG.get("voice", {}).get("kokoro_speed", 0.85)
+        self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
+        self._current_voice = "bf_emma"
+        self._init_engines()
+
+    def _init_engines(self):
+        try:
+            from kokoro_onnx import Kokoro
+            voices_file = self._model_dir / "voices-v1.0.bin"
+            gpu_model = self._model_dir / "kokoro-v1.0.fp16-gpu.onnx"
+            cpu_model = self._model_dir / "kokoro-v1.0.onnx"
+            model_file = gpu_model if gpu_model.exists() else cpu_model
+            if model_file.exists() and voices_file.exists():
+                self._kokoro = Kokoro(str(model_file), str(voices_file))
+                self._kokoro_ok = True
+                logger.info(f"[VECTOR][tts:streaming] Kokoro ready ({model_file.name})")
+        except Exception as e:
+            logger.warning(f"[VECTOR][tts:streaming] Kokoro init failed: {e}")
+        if not self._kokoro_ok:
+            try:
+                import pyttsx3
+                self._pyttsx3 = pyttsx3.init()
+                logger.info("[VECTOR][tts:streaming] pyttsx3 fallback ready")
+            except Exception as e:
+                logger.error(f"[VECTOR][tts:streaming] pyttsx3 init failed: {e}")
+
+    def set_voice(self, voice_name: str) -> None:
+        self._current_voice = voice_name
+        logger.info(f"[VECTOR][tts:streaming] voice set to {voice_name}")
+
+    def generate_stream(self, text: str, callback: callable) -> None:
+        import re
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+        if not sentences:
+            sentences = [text]
+        self._speaking = True
+        for sentence in sentences:
+            if not self._speaking:
+                break
+            if self._kokoro_ok:
+                try:
+                    samples, sample_rate = self._kokoro.create(
+                        sentence, voice=self._current_voice, speed=self._speed
+                    )
+                    callback(samples, sample_rate)
+                except Exception as e:
+                    logger.debug(f"[VECTOR][tts:streaming] Kokoro sentence failed: {e}")
+            else:
+                callback(self._np.zeros(int(self._sample_rate * 0.5), dtype=self._np.float32), self._sample_rate)
+
+    def cross_fade(self, chunk1, chunk2, overlap_ms: int = 50):
+        overlap_samples = int(self._sample_rate * overlap_ms / 1000)
+        if len(chunk1) < overlap_samples or len(chunk2) < overlap_samples:
+            return self._np.concatenate([chunk1, chunk2])
+        fade_out = self._np.linspace(1.0, 0.0, overlap_samples, dtype=self._np.float32)
+        fade_in = self._np.linspace(0.0, 1.0, overlap_samples, dtype=self._np.float32)
+        chunk1_end = chunk1[-overlap_samples:] * fade_out
+        chunk2_start = chunk2[:overlap_samples] * fade_in
+        blended = chunk1_end + chunk2_start
+        return self._np.concatenate([chunk1[:-overlap_samples], blended, chunk2[overlap_samples:]])
+
+    def early_terminate(self) -> None:
+        self._speaking = False
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+
+    @property
+    def is_speaking(self) -> bool:
+        return self._speaking
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     tts = VoiceTTS()
     tts.speak("Hello, I am VECTOR. Voice pipeline is online.", lang="en")
-    print("✅ tts OK")
+    st = StreamingTTS()
+    st.set_voice("bf_emma")
+    print(f"✅ tts OK (streaming_tts_kokoro={st._kokoro_ok})")

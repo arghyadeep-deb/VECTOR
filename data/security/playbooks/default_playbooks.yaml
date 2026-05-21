@@ -1,0 +1,90 @@
+playbooks:
+  - id: "high_resource_usage"
+    name: "High Resource Usage Response"
+    trigger_rules: ["high_cpu_usage", "high_memory_usage"]
+    steps:
+      - action: "capture_process_snapshot"
+        params:
+          sort_by: "cpu"
+        description: "Capture current process snapshot sorted by CPU usage"
+      - action: "notify"
+        params:
+          message: "High resource usage detected on {host}. Top processes captured."
+          priority: 0
+    rollback:
+      - action: "notify"
+        params:
+          message: "Resource usage playbook rolled back"
+    timeout: 120
+
+  - id: "port_scan"
+    name: "Port Scan Response"
+    trigger_rules: ["port_scan_detected"]
+    steps:
+      - action: "block_ip"
+        params:
+          ip: "{target}"
+          duration: 3600
+        description: "Block source IP for 1 hour"
+      - action: "capture_process_snapshot"
+        params: {}
+        description: "Capture process snapshot for evidence"
+      - action: "log_evidence"
+        params:
+          incident_id: "{incident_id}"
+        description: "Log evidence bundle"
+      - action: "notify"
+        params:
+          message: "Port scan from {target} blocked. Evidence logged."
+          priority: 1
+    rollback:
+      - action: "unblock_ip"
+        params:
+          ip: "{target}"
+      - action: "notify"
+        params:
+          message: "Unblocked {target}. Rollback complete."
+    timeout: 300
+
+  - id: "unknown_outbound"
+    name: "Unknown Outbound Investigation"
+    trigger_rules: ["unknown_outbound"]
+    steps:
+      - action: "capture_process_snapshot"
+        params: {}
+        description: "Snapshot all running processes"
+      - action: "log_evidence"
+        params:
+          incident_id: "{incident_id}"
+        description: "Log investigation evidence"
+      - action: "notify"
+        params:
+          message: "Unknown outbound connection to {target}. Investigation log created."
+          priority: 1
+    rollback:
+      - action: "notify"
+        params:
+          message: "Outbound investigation playbook rolled back"
+    timeout: 120
+
+  - id: "failed_auth"
+    name: "Failed Authentication Response"
+    trigger_rules: ["multiple_failed_auths"]
+    steps:
+      - action: "log_evidence"
+        params:
+          incident_id: "{incident_id}"
+        description: "Log authentication failure evidence"
+      - action: "notify"
+        params:
+          message: "Multiple auth failures detected from {target}. Investigation required."
+          priority: 0
+      - action: "escalate_to_human"
+        params:
+          message: "Multiple authentication failures. Human review recommended."
+        description: "Escalate to human operator"
+    rollback:
+      - action: "notify"
+        params:
+          message: "Auth failure playbook rolled back"
+    timeout: 120

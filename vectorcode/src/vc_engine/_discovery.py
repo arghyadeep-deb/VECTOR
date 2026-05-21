@@ -69,7 +69,7 @@ def _maybe_register_mining_sidecar_engine() -> None:
         try:
             from vector.mining._constants import SIDECAR_PATH
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except ImportError:
         return
 

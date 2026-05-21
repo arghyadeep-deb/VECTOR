@@ -2419,7 +2419,7 @@ def _default_verify() -> bool | ssl.SSLContext:
             import certifi
             return ssl.create_default_context(cafile=certifi.where())
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return True
 
 
@@ -3897,7 +3897,7 @@ def _login_openai_codex(
             else:
                 print("Existing Codex credentials are expired. Starting fresh login...")
         except AuthError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Check for existing Codex CLI tokens we can import
     if not force_new_login:

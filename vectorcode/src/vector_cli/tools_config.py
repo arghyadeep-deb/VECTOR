@@ -486,7 +486,7 @@ def _run_post_setup(post_setup_key: str):
             _print_success("    kittentts is already installed")
             return
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         import subprocess
         _print_info("    Installing kittentts (~25-80MB model, CPU-only)...")
         wheel_url = (

@@ -1,6 +1,5 @@
 """
 VECTOR Video Composition Types
-Ported from hyperframes core.types — Python dataclasses for the full
 timeline model: FPS rationals, canvas resolutions, timeline elements,
 composition variables, keyframes, and render options.
 """

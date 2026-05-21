@@ -1,6 +1,5 @@
 """
 VECTOR Audio Mixer
-Ported from hyperframes engine/services/audioMixer.ts + render/stages/audioStage.ts
 
 Mixes multiple audio tracks, handles TTS narration sync, pad/trim to duration.
 Supports:
@@ -44,8 +43,7 @@ class MixResult:
 class AudioMixer:
     """
     Mixes audio tracks using FFmpeg filter_complex.
-    Equivalent to hyperframes engine/services/audioMixer.ts
-    """
+        """
 
     def mix(
         self,

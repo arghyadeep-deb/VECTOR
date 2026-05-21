@@ -319,7 +319,7 @@ class TaskScheduler:
             it = croniter(cron_expr, now)
             return it.get_next(datetime).isoformat()
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Basic fallback: parse "minute hour * * *" style expressions
         parts = cron_expr.strip().split()

@@ -24,10 +24,10 @@ async def _guarded(coro_factory, name: str, backoff_sec: int = 30) -> None:
 
 
 async def run_research_workers() -> None:
-    from agents.districts.research.web_scout import WebScout
-    from agents.districts.research.paper_reader import PaperReader
-    from agents.districts.research.news_aggregator import NewsAggregator
-    from agents.districts.research.reddit_miner import RedditMiner
+    from districts.research.web_scout import WebScout
+    from districts.research.paper_reader import PaperReader
+    from districts.research.news_aggregator import NewsAggregator
+    from districts.research.reddit_miner import RedditMiner
 
     await asyncio.gather(
         _guarded(lambda: WebScout().run_forever(), "WebScout"),
@@ -38,8 +38,8 @@ async def run_research_workers() -> None:
 
 
 async def run_memory_workers() -> None:
-    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
-    from agents.districts.memory_curator.pattern_finder import PatternFinder
+    from districts.memory_curator.consolidation_bot import ConsolidationBot
+    from districts.memory_curator.pattern_finder import PatternFinder
 
     await asyncio.gather(
         _guarded(lambda: ConsolidationBot().run_forever(), "ConsolidationBot"),
@@ -48,7 +48,7 @@ async def run_memory_workers() -> None:
 
 
 async def run_governance_workers() -> None:
-    from agents.districts.governance.llm_council import LLMCouncil
+    from districts.governance.llm_council import LLMCouncil
     await _guarded(lambda: LLMCouncil().run_forever(), "LLMCouncil")
 
 

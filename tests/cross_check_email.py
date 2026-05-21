@@ -76,12 +76,12 @@ try:
         validate_sender("b@x.com", "wrong@x.com", "me@x.com")
         errors.append("FAIL  helpers.py: SenderValidationError not raised on mismatch")
     except SenderValidationError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         validate_sender("b@x.com", "noemail", "noemail")
         errors.append("FAIL  helpers.py: SenderValidationError not raised on bad email")
     except SenderValidationError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # generate_message_id
     m = generate_message_id("test.com")
@@ -202,7 +202,7 @@ except Exception as e:
 
 # ── email_agent — full CRUD + structured search ────────────────────────────────
 try:
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     ag = EmailAgent()
 
     # store + read
@@ -258,7 +258,7 @@ except Exception as e:
 # ── reply_forward — column correctness + error paths ─────────────────────────
 try:
     from core.email.schema import get_connection, init_schema
-    from agents.districts.communications.reply_forward import handle_reply_email, handle_forward_email
+    from districts.communications.reply_forward import handle_reply_email, handle_forward_email
     init_schema()
     conn = get_connection()
     sid = str(uuid.uuid4())

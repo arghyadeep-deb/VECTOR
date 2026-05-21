@@ -130,7 +130,7 @@ class ToolAgent:
                     source="tool_agent",
                 )
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return {"status": "ok", "tool": tool_name, "result": result, "tier": check["tier"]}
         except Exception as e:
             log_entry["result"] = f"error: {e}"

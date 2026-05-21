@@ -1,0 +1,95 @@
+rules:
+  - pattern: "\\bwhat\\s+time\\b"
+    response_template: "The current time is {time}."
+    priority: 50
+    category: time
+
+  - pattern: "\\bcurrent\\s+time\\b"
+    response_template: "It is {time}."
+    priority: 50
+    category: time
+
+  - pattern: "\\btime\\s+now\\b"
+    response_template: "The time is {time}."
+    priority: 50
+    category: time
+
+  - pattern: "\\bwhat\\s+date\\b"
+    response_template: "Today's date is {date}."
+    priority: 50
+    category: date
+
+  - pattern: "\\btoday'?s\\s+date\\b"
+    response_template: "Today is {date}."
+    priority: 50
+    category: date
+
+  - pattern: "\\bwhat\\s+day\\b"
+    response_template: "Today is {day}."
+    priority: 50
+    category: date
+
+  - pattern: "\\bhello\\b"
+    response_template: "Sir."
+    priority: 30
+    category: greeting
+
+  - pattern: "\\bhi\\b"
+    response_template: "Sir."
+    priority: 30
+    category: greeting
+
+  - pattern: "\\bgood\\s+morning\\b"
+    response_template: "Sir."
+    priority: 30
+    category: greeting
+
+  - pattern: "\\bthanks?\\b"
+    response_template: "Always, sir."
+    priority: 30
+    category: thanks
+
+  - pattern: "\\bthank\\s+you\\b"
+    response_template: "Always, sir."
+    priority: 30
+    category: thanks
+
+  - pattern: "\\bare\\s+you\\s+there\\b"
+    response_template: "VECTOR online. All systems nominal."
+    priority: 40
+    category: status
+
+  - pattern: "\\bping\\b"
+    response_template: "VECTOR online. All systems nominal."
+    priority: 40
+    category: status
+
+  - pattern: "\\bwho\\s+(made|created)\\s+you\\b"
+    response_template: "I was created by Arghyadeep Deb."
+    priority: 50
+    category: owner
+
+  - pattern: "\\bwhat\\s+is\\s+your\\s+name\\b"
+    response_template: "VECTOR — Virtual Entity for Cognitive Tasks & Operational Reasoning."
+    priority: 50
+    category: identity
+
+  - pattern: "\\bwho\\s+are\\s+you\\b"
+    response_template: "I am VECTOR."
+    priority: 50
+    category: identity
+
+  - pattern: "\\bhow\\s+much\\s+RAM\\b"
+    response_template: "System RAM: {ram_free} free / {ram_total} total."
+    priority: 40
+    category: system
+
+  - pattern: "\\bGPU\\s+status\\b"
+    response_template: "GPU temperature: {gpu_temp}C, utilization: {gpu_util}%."
+    priority: 40
+    category: system
+
+  - pattern: "\\bnever\\s+mind\\b"
+    response_template: "Understood, sir."
+    priority: 20
+    category: acknowledgment

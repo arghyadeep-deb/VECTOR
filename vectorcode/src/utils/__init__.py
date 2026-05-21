@@ -35,4 +35,4 @@ try:
         normalize_proxy_url, base_url_hostname, base_url_host_matches,
     )
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

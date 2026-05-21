@@ -259,7 +259,7 @@ def check_import_from(node: ast.ImportFrom, py: Path, rel: str) -> None:
                     issues.append(("IMPORT", rel, node.lineno,
                                    f"from {mod!r} import {name!r} — {name!r} not defined in {target_file.name}"))
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 for py in py_files:

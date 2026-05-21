@@ -857,7 +857,7 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
                 if not is_provider_explicitly_configured("anthropic"):
                     continue
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return _try_anthropic()
 
         pool_present, entry = _select_pool_entry(provider_id)
@@ -1641,13 +1641,13 @@ def _to_async_client(sync_client, model: str, is_vision: bool = False):
         if isinstance(sync_client, GeminiNativeClient):
             return AsyncGeminiNativeClient(sync_client), model
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         from agent.copilot_acp_client import CopilotACPClient
         if isinstance(sync_client, CopilotACPClient):
             return sync_client, model
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     async_kwargs = {
         "api_key": sync_client.api_key,
@@ -1945,7 +1945,7 @@ def resolve_provider_client(
                 provider)
             return None, None
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # ── API-key providers from PROVIDER_REGISTRY ─────────────────────
     try:
@@ -2026,7 +2026,7 @@ def resolve_provider_client(
                         final_model)
                     client = CodexAuxiliaryClient(client, final_model)
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Honor api_mode for any API-key provider (e.g. direct OpenAI with
         # codex-family models).  The copilot-specific wrapping above handles

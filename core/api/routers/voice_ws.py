@@ -72,11 +72,11 @@ async def voice_stream(websocket: WebSocket):
         await websocket.send_json({"type": "transcript", "text": transcript})
         logger.info(f"[VECTOR][voice_ws] Transcript: {transcript}")
 
-        response_text = await loop.run_in_executor(None, _llm_respond, transcript)
+        response_text, tts_speed = await loop.run_in_executor(None, _llm_respond_with_personality, transcript)
         await websocket.send_json({"type": "response", "text": response_text})
 
         await _orb("speaking")
-        wav_bytes = await loop.run_in_executor(None, _tts_to_wav, response_text)
+        wav_bytes = await loop.run_in_executor(None, _tts_to_wav, response_text, tts_speed)
         if wav_bytes:
             chunk_size = 32000
             for i in range(0, len(wav_bytes), chunk_size):
@@ -98,12 +98,12 @@ async def voice_stream(websocket: WebSocket):
         try:
             await websocket.send_json({"type": "error", "text": str(e)})
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     finally:
         try:
             await websocket.close()
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def _transcribe(chunks: list[bytes]) -> str:
@@ -124,25 +124,53 @@ def _transcribe(chunks: list[bytes]) -> str:
     return stt.transcribe(audio_np, sr)
 
 
-def _llm_respond(text: str) -> str:
+def _llm_respond_with_personality(text: str) -> tuple[str, float]:
     import httpx
     from core.config import CONFIG
     ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+    speed = 0.85
+    response = "Done."
     try:
         model = CONFIG.get("models", {}).get("focus", "vector-focus")
+        personality_enabled = CONFIG.get("personality", {}).get("enabled", True)
+        pe = None
+        if personality_enabled:
+            try:
+                from core.personality import PersonalityEngine
+                pe = PersonalityEngine()
+                personality_result = pe.process(text)
+                system_prompt = personality_result.get("system_prompt", "")
+                tone_config = personality_result.get("tone_config")
+                if tone_config:
+                    speed = tone_config.speed
+                prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
+            except Exception as e:
+                logger.debug(f"[VECTOR][voice_ws] personality init failed: {e}")
+                prompt = text
+        else:
+            prompt = text
+
         r = httpx.post(
             f"{ollama_host}/api/generate",
-            json={"model": model, "prompt": text, "stream": False},
+            json={"model": model, "prompt": prompt, "stream": False},
             timeout=30.0,
         )
         if r.status_code == 200:
-            return r.json().get("response", "Done.")
+            response = r.json().get("response", "Done.")
+            if pe is not None:
+                try:
+                    validation = pe.validate_response(response, text)
+                    if validation.get("rewritten"):
+                        response = validation["rewritten"]
+                        logger.debug("[VECTOR][voice_ws] response rewritten by consistency enforcer")
+                except Exception as e:
+                    logger.debug(f"[VECTOR][voice_ws] consistency check skipped: {e}")
     except Exception as e:
         logger.warning(f"[VECTOR][voice_ws] LLM error: {e}")
-    return "Done."
+    return response, speed
 
 
-def _tts_to_wav(text: str) -> bytes | None:
+def _tts_to_wav(text: str, speed: float | None = None) -> bytes | None:
     from core.voice.tts import VoiceTTS
     tts = VoiceTTS()
     if not tts._kokoro_ok:
@@ -150,7 +178,8 @@ def _tts_to_wav(text: str) -> bytes | None:
         return None
     try:
         voice = "bf_emma"
-        samples, sample_rate = tts._kokoro.create(text, voice=voice, speed=0.85)
+        tts_speed = speed if speed is not None else 0.85
+        samples, sample_rate = tts._kokoro.create(text, voice=voice, speed=tts_speed)
         buf = io.BytesIO()
         sf.write(buf, samples, sample_rate, format="WAV")
         return buf.getvalue()

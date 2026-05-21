@@ -517,8 +517,8 @@ _DASHBOARD_HTML = """\
       const r=await fetch("/ui/agents");
       const d=await r.json();
       const agents=d.agents||[];
-      if(!agents.districts.length){c.textContent="No agents in registry.";return;}
-      agents.districts.forEach(a=>{
+      if(!districts.length){c.textContent="No agents in registry.";return;}
+      districts.forEach(a=>{
         const card=el("div",{class:"card",style:"margin-bottom:7px"});
         const top=el("div",{style:"display:flex;justify-content:space-between;margin-bottom:3px"});
         const hp=a.hp||0;
@@ -729,7 +729,7 @@ async def web_chat(body: dict):
                 source="web_ui",
             )
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return {"response": response}
     except Exception as e:
@@ -775,21 +775,21 @@ async def web_chat_ws(websocket: WebSocket):
                 source="web_ui_ws",
             )
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except WebSocketDisconnect:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as e:
         logger.error(f"[VECTOR][web_ui] ws chat: {e}")
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 @router.get("/search")
 async def web_search(q: str = "", limit: int = 8):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from districts.research.research_hub import ResearchHub
         results = await ResearchHub().search_web(q, max_results=limit)
         return {"results": results}
     except Exception as e:
@@ -799,7 +799,7 @@ async def web_search(q: str = "", limit: int = 8):
 @router.get("/hn")
 async def web_hn(limit: int = 15):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from districts.research.research_hub import ResearchHub
         results = await ResearchHub().get_hn_top(limit=limit)
         return {"results": results}
     except Exception as e:
@@ -809,7 +809,7 @@ async def web_hn(limit: int = 15):
 @router.get("/github")
 async def web_github(lang: str = "python", limit: int = 10):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from districts.research.research_hub import ResearchHub
         results = await ResearchHub().get_github_trending(lang, limit=limit)
         return {"results": results}
     except Exception as e:
@@ -819,7 +819,7 @@ async def web_github(lang: str = "python", limit: int = 10):
 @router.get("/devto")
 async def web_devto(tag: str = "machinelearning", limit: int = 10):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from districts.research.research_hub import ResearchHub
         results = await ResearchHub().get_devto_posts(tag, limit=limit)
         return {"results": results}
     except Exception as e:
@@ -829,7 +829,7 @@ async def web_devto(tag: str = "machinelearning", limit: int = 10):
 @router.get("/arxiv")
 async def web_arxiv(q: str = "large language model", limit: int = 5, category: str = "cs.AI"):
     try:
-        from agents.districts.research.research_hub import ResearchHub
+        from districts.research.research_hub import ResearchHub
         results = await ResearchHub().search_arxiv(q, max_results=limit, category=category)
         return {"results": results}
     except Exception as e:
@@ -860,7 +860,7 @@ async def web_memory(q: str = "", limit: int = 20):
 @router.get("/karpathy")
 async def web_karpathy():
     try:
-        from agents.districts.karpathy_lab.code_typer import CodeTyper
+        from districts.karpathy_lab.code_typer import CodeTyper
         typer = CodeTyper()
         return {"streak": typer.get_streak(), "today": typer.get_today_summary()}
     except Exception as e:

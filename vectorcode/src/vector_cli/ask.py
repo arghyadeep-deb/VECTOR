@@ -381,7 +381,7 @@ def ask(
     tool_names: str | None,
     enable_profile: bool,
 ) -> None:
-    """Ask Jarvis a question."""
+    """Ask Vector a question."""
     console = Console(stderr=True)
     query_text = " ".join(query)
 

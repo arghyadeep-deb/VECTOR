@@ -26,7 +26,7 @@ Single-context repo:
 │   │   └── 0006-sqlite-not-postgres-for-local-runtime.md
 │   └── agents/                   ← skill configuration (this folder)
 ├── core/                         ← intelligence stack (loop, memory, inference, city)
-├── agents/districts/             ← 45+ specialized districts
+├── districts/             ← 45+ specialized districts
 ├── vectorcode/src/               ← comms layer (30+ channels, neural, swarm)
 └── cloud/                        ← Cloudflare Workers + Fly.io deployment
 ```

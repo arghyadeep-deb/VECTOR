@@ -65,6 +65,22 @@ class VectorIntelAgent(AgentBase):
         self._available    = False
         self._sb           = None
         self._init_client()
+        # Phase 2B: subscribe to intelligence events
+        self.subscribe_to("security_alert")
+        self.subscribe_to("research_complete")
+
+    async def handle_event(self, event: dict) -> dict:
+        """Phase 2B: Cross-correlate OSINT on security/research events."""
+        await super().handle_event(event)
+        et = event.get("event_type", "")
+        if et in ("security_alert", "research_complete"):
+            try:
+                data = event.get("data", {})
+                logger.info(f"[VECTOR][intel] event-triggered OSINT: {et}")
+                await self.run({"type": "global_intel", "params": {"context": str(data)[:200]}})
+            except Exception as e:
+                logger.debug(f"[VECTOR][intel] handle_event failed: {e}")
+        return {"status": "handled", "agent": self.name, "event": et}
 
     def _init_client(self):
         """Create ShadowBrokerClient and check availability."""

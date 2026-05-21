@@ -73,7 +73,7 @@ async def stock_analysis(body: StockAnalysisRequest):
     """Run comprehensive stock analysis via Fincept terminal intelligence."""
     try:
         return _run_agent(
-            "agents.districts.investment.fincept_agent.FinceptAgent",
+            "districts.investment.vector_finagent_agent.FinAgentAgent",
             "investor_analysis",
             body.model_dump()
         )
@@ -87,7 +87,7 @@ async def dcf_valuation(body: DCFRequest):
     """Run DCF/WACC valuation model for a company."""
     try:
         return _run_agent(
-            "agents.districts.investment.fincept_agent.FinceptAgent",
+            "districts.investment.vector_finagent_agent.FinAgentAgent",
             "corporate_finance/dcf",
             body.model_dump()
         )
@@ -101,7 +101,7 @@ async def alpha_discovery(body: AlphaRequest):
     """Discover alpha signals using RSI, MACD, ROC technical indicators."""
     try:
         return _run_agent(
-            "agents.districts.investment.fincept_agent.FinceptAgent",
+            "districts.investment.vector_finagent_agent.FinAgentAgent",
             "alpha_discovery",
             body.model_dump()
         )
@@ -115,7 +115,7 @@ async def backtest(body: BacktestRequest):
     """Run quantitative backtest via Fincept's BacktestingPy provider."""
     try:
         return _run_agent(
-            "agents.districts.investment.fincept_agent.FinceptAgent",
+            "districts.investment.vector_finagent_agent.FinAgentAgent",
             "quant_backtest",
             body.model_dump()
         )
@@ -129,7 +129,7 @@ async def geopolitics(body: GeopoliticsRequest):
     """Geopolitical risk analysis for investment decisions."""
     try:
         return _run_agent(
-            "agents.districts.investment.fincept_agent.FinceptAgent",
+            "districts.investment.vector_finagent_agent.FinAgentAgent",
             "geopolitics",
             body.model_dump()
         )
@@ -145,7 +145,7 @@ async def hedge_analysis(body: HedgeRequest):
     """Run AutoHedge multi-agent hedge fund analysis (ANALYSIS ONLY, never executes trades)."""
     try:
         return _run_agent(
-            "agents.districts.investment.autohedge_agent.AutoHedgeAgent",
+            "districts.investment.vector_hedgebot_agent.HedgeBotAgent",
             "hedge_run",
             body.model_dump()
         )
@@ -159,7 +159,7 @@ async def hedge_status():
     """Get current AutoHedge session status and portfolio snapshot."""
     try:
         return _run_agent(
-            "agents.districts.investment.autohedge_agent.AutoHedgeAgent",
+            "districts.investment.vector_hedgebot_agent.HedgeBotAgent",
             "hedge_status",
             {}
         )
@@ -174,7 +174,7 @@ async def vt_research(body: VTResearchRequest):
     """Run VibeTranding quantitative research with 74 skills and 9 backtest engines."""
     try:
         return _run_agent(
-            "agents.districts.investment.vibe_trading_agent.VibeTradingAgent",
+            "districts.investment.vector_backtest_agent.BacktestAgent",
             "vt_research",
             body.model_dump()
         )
@@ -188,7 +188,7 @@ async def vt_skills():
     """List all 74 quantitative research skills available in VibeTranding."""
     try:
         return _run_agent(
-            "agents.districts.investment.vibe_trading_agent.VibeTradingAgent",
+            "districts.investment.vector_backtest_agent.BacktestAgent",
             "list_skills",
             {}
         )

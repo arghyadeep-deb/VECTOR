@@ -21,14 +21,14 @@ async def channels_status():
             directory = ChannelDirectory()
             active = [ch for ch in directory.list_active() if ch]
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         if not active:
             try:
                 from core.engine.channels.runtime import ChannelRuntime
                 runtime = ChannelRuntime()
                 active = [ch.name for ch in runtime.active_channels()] if hasattr(runtime, 'active_channels') else []
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from core.memory.episodic import EpisodicMemory
             recent = EpisodicMemory().recall("channel message", limit=1, event_type="channel_message")

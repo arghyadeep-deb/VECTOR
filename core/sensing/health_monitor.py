@@ -107,33 +107,44 @@ class HealthMonitor:
             logger.error(f"[VECTOR][health] get_system_load error: {exc}")
             return {"cpu_percent": 0.0, "ram_percent": 0.0}
 
-    def get_health_snapshot(self) -> dict:
-        """Build a full health snapshot from all available signals.
+    def _get_wearable_data(self) -> dict:
+        """Pull wearable metrics from the connector layer (async-safe via fallback)."""
+        try:
+            from districts.health.wearable_connector import WearableConnector
+            import time
+            if self._wearable_connector is None:
+                self._wearable_connector = WearableConnector()
+            if hasattr(self._wearable_connector, 'poll_all'):
+                metrics = self._wearable_connector.poll_all()
+                if metrics:
+                    return {"available": True, "data": metrics, "note": "connector poll"}
+            return {"available": False, "note": "wearable poll returned empty"}
+            connector = PhoneSensorConnector()
+            try:
+                loop = asyncio.new_event_loop()
+                data = loop.run_until_complete(connector.fetch_metrics())
+                loop.close()
+                if data:
+                    return data
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.warning(f"[VECTOR][health] wearable data unavailable: {exc}")
+        return {"available": False, "note": "wearable unavailable"}
 
-        Returns::
-            {
-                "fatigue_score":  float,      # 0-10
-                "energy_level":   str,         # "high"/"medium"/"low"
-                "system_load":    dict,         # {cpu_percent, ram_percent}
-                "wearable":       dict,         # stub
-                "timestamp":      str,          # ISO-8601 UTC
-            }
-        Never raises — returns safe defaults on partial failure.
-        """
+    def get_health_snapshot(self) -> dict:
         ts = datetime.now(timezone.utc).isoformat()
 
-        fatigue = self.get_fatigue_score()          # 5.0 on error
+        fatigue = self.get_fatigue_score()
         energy  = self._fatigue_to_energy(fatigue)
-        sysload = self.get_system_load()            # zeros on error
+        sysload = self.get_system_load()
+        wearable = self._get_wearable_data()
 
         snapshot = {
             "fatigue_score": fatigue,
             "energy_level":  energy,
             "system_load":   sysload,
-            "wearable": {
-                "available": False,
-                "note": "wearable API T6",
-            },
+            "wearable":      wearable,
             "timestamp": ts,
         }
 

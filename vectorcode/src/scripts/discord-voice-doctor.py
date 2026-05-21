@@ -181,7 +181,7 @@ def check_env_vars():
         if ENV_FILE.exists():
             load_dotenv(ENV_FILE)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     ok = True
 

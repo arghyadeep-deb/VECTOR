@@ -20,6 +20,8 @@ from functools import lru_cache
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
+from core.resilience.circuit_breaker import CircuitBreakerOpenError
+from core.breaker_registry import get_registry
 
 # Root of all district agent folders
 _DISTRICTS_ROOT = Path(__file__).parent.parent.parent / "agents" / "districts"
@@ -67,7 +69,7 @@ def _parse_md_body(path: Path) -> str:
 def load_district_prompt(district: str, agent_name: str) -> str:
     """Find and return the best matching .md system prompt for an agent.
 
-    Searches agents/districts/<district>/*.md and returns the body of the
+    Searches districts/<district>/*.md and returns the body of the
     best-scoring match. Returns empty string if nothing found.
     Results are cached in-process.
     """
@@ -105,7 +107,7 @@ class DistrictLLM:
     """
     LLM caller for a specific district agent.
 
-    - Loads matching .md system prompt from agents/districts/<district>/
+    - Loads matching .md system prompt from districts/<district>/
     - Routes calls through vectorcode_llm (Ollama → free cloud → paid cloud)
     - Injects system prompt only when caller hasn't already set one
     """
@@ -151,12 +153,33 @@ class DistrictLLM:
                 if prompt:
                     final_messages = [{"role": "system", "content": prompt}] + final_messages
 
-        return _vc_chat(
-            model=model,
-            messages=final_messages,
-            timeout=timeout,
-            allow_cloud=allow_cloud,
-        )
+        try:
+            import asyncio as _asyncio
+            cb = get_registry().get("district_llm")
+            if cb:
+                _coro = cb.call(lambda: _vc_chat(
+                    model=model,
+                    messages=final_messages,
+                    timeout=timeout,
+                    allow_cloud=allow_cloud,
+                ))
+                try:
+                    return _asyncio.run(_coro)
+                except RuntimeError:
+                    _coro.close()
+            return _vc_chat(
+                model=model,
+                messages=final_messages,
+                timeout=timeout,
+                allow_cloud=allow_cloud,
+            )
+        except (CircuitBreakerOpenError, RuntimeError):
+            return _vc_chat(
+                model=model,
+                messages=final_messages,
+                timeout=timeout,
+                allow_cloud=allow_cloud,
+            )
 
     def chat_no_md(self, model: str, messages: list[dict], timeout: float = 30.0) -> str:
         """Call LLM without .md injection — for when agent has its own system prompt."""

@@ -94,7 +94,7 @@ class _CrashReporter:
                 source=source,
             )
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         # Pushover notification
         try:
             import httpx
@@ -112,7 +112,7 @@ class _CrashReporter:
                     timeout=5.0,
                 )
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 # ── Server Manager ────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ class StealthBrowserServer:
                     headers = {"Authorization": f"Bearer {admin_key}"} if admin_key else {}
                     await c.post(f"{self._base_url}/stop", headers=headers)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             try:
                 self._proc.terminate()
                 self._proc.wait(timeout=5)

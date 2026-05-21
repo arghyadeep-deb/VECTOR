@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 
-_LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "agents/districts/memory_curator"
+_LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "districts/memory_curator"
 
 # FIX #15: File-level locking to prevent race conditions between agents writing to vault
 _vault_write_lock = threading.Lock()
@@ -420,7 +420,7 @@ class ObsidianSync:
                     path = await asyncio.wait_for(queue.get(), timeout=1.0)
                     seen[path] = time.monotonic()
                 except asyncio.TimeoutError:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
                 now = time.monotonic()
                 ready = [p for p, t in list(seen.items()) if now - t >= debounce_sec]
@@ -464,13 +464,13 @@ if __name__ == "__main__":
                 sync.write_note("CLAUDE", "evil", ".", [], _bypass_gateway=True)
                 assert False, "should have raised"
             except PermissionDeniedError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             try:
                 sync.write_note("journal", "x", "00 Notes", [], _bypass_gateway=False)
                 assert False, "should have raised"
             except PermissionDeniedError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             personal_path = sync.write_note("journal", "x", "00 Notes", [], _bypass_gateway=True)
             assert personal_path.exists()

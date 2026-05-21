@@ -320,7 +320,7 @@ def templates() -> None:
 
 
 def _get_system():
-    """Build a JarvisSystem for CLI commands that need scheduler/executor."""
+    """Build a VectorSystem for CLI commands that need scheduler/executor."""
     from vectorcode.src.system import SystemBuilder
 
     try:
@@ -331,7 +331,7 @@ def _get_system():
 
 
 def _get_scheduler_and_executor(system=None):
-    """Get scheduler + executor from a JarvisSystem instance."""
+    """Get scheduler + executor from a VectorSystem instance."""
     if system is None:
         system = _get_system()
     return system.agent_scheduler, system.agent_executor, system

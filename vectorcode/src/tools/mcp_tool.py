@@ -1452,23 +1452,23 @@ def _get_auth_error_types() -> tuple:
         from mcp.client.auth import OAuthFlowError, OAuthTokenError
         types.extend([OAuthFlowError, OAuthTokenError])
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         # Older MCP SDK variants exported this
         from mcp.client.auth import UnauthorizedError  # type: ignore
         types.append(UnauthorizedError)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         from tools.mcp_oauth import OAuthNonInteractiveError
         types.append(OAuthNonInteractiveError)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         import httpx
         types.append(httpx.HTTPStatusError)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     _AUTH_ERROR_TYPES = tuple(types)
     return _AUTH_ERROR_TYPES
 
@@ -1488,7 +1488,7 @@ def _is_auth_error(exc: BaseException) -> bool:
         if isinstance(exc, httpx.HTTPStatusError):
             return getattr(exc.response, "status_code", None) == 401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return True
 
 

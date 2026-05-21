@@ -62,7 +62,7 @@ export interface StatusResponse {
   loop_running: boolean
   uptime_seconds: number
   models: Record<string, string>
-  memory: Record<string, unknown>
+  memory: { episodic_memory?: number; [key: string]: unknown }
   agents: { count: number; districts: string[]; alive?: number; elite?: number; list?: any[] }
   vector_version: string
   last_reflect?: string | null

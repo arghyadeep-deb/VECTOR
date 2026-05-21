@@ -2,7 +2,7 @@
 try:
     from vectorcode.src.comms.imessage_daemon import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 def is_running() -> bool:
     return False
 

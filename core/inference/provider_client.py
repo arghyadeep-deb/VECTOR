@@ -113,7 +113,7 @@ class ProviderClient:
                 if wait_ms > 5000:
                     raise RuntimeError(f"Rate limit exceeded — retry in {wait_ms/1000:.1f}s")
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # ── Model routing via ModelRouter ───────────────────────────────────────
         if not model:
@@ -123,7 +123,7 @@ class ProviderClient:
                 route = _router.resolve(tier)
                 model = route.model
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # ── Provider selection ──────────────────────────────────────────────────
         if provider:
@@ -292,7 +292,7 @@ class ProviderClient:
                         [tc.name for tc in tool_calls_parsed],
                     )
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         result = CompletionResult(
             content=content,

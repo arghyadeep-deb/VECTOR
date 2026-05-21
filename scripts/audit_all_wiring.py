@@ -20,7 +20,7 @@ for root, dirs, files in os.walk(CODEBASE):
             with open(fpath, encoding="utf-8") as fh:
                 all_source[rel] = fh.read()
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def is_wired(module_rel: str, symbol: str) -> tuple[bool, list[str]]:
     """Return (wired, [files that import/use it])."""

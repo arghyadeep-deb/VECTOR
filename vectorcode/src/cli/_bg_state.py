@@ -2,7 +2,7 @@
 try:
     from vectorcode.src.vector_cli._bg_state import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def get_status(): return {"status": "idle"}
 

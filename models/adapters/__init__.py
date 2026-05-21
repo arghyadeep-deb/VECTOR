@@ -1,0 +1,1 @@
+"""VECTOR adapter storage — LoRA adapters for fine-tuned model variants."""

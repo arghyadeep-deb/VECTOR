@@ -101,6 +101,7 @@ class SoundClassifier:
             if rms < 0.01:
                 return "silence"
             if rms > 0.30:
+                self._emit_emergency_signal()
                 return "alert"
             if zcr > 0.20:
                 return "speech"
@@ -138,6 +139,14 @@ class SoundClassifier:
     def is_speech_active(self) -> bool:
         """Return True if the current ambient sound is classified as speech."""
         return self.sample_and_classify() == "speech"
+
+    def _emit_emergency_signal(self) -> None:
+        try:
+            from districts.emergency.main import _emit
+            import asyncio
+            asyncio.create_task(_emit("environment", "alert_sound", True, "sound_classifier"))
+        except Exception:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 # ── smoke test ────────────────────────────────────────────────────────────────

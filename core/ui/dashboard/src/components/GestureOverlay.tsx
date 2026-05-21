@@ -15,6 +15,7 @@ export default function GestureOverlay() {
   const contentWindows = useVectorStore((s) => s.contentWindows)
   const clearContentWindows = useVectorStore((s) => s.clearContentWindows)
   const scrollToPanel = useVectorStore((s) => s.scrollToPanel)
+  const isAwake = useVectorStore((s) => s.isAwake)
   const [lastDismissed, setLastDismissed] = useState<typeof contentWindows[0] | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -148,7 +149,7 @@ export default function GestureOverlay() {
   return (
     <>
       {/* Tracking dot at fingertip */}
-      {dot && (
+      {dot && isAwake && (
         <div style={{
           position: 'fixed',
           left: dot.x - 8,

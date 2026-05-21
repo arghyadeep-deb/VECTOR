@@ -23,6 +23,7 @@ class ContextEngine:
         self._expense_tracker = None
         self._kiit_scraper = None
         self._comms_hub = None
+        self._personality = None
         logger.info("[VECTOR][context_engine] initialized")
 
     def _get_memory(self):
@@ -52,7 +53,7 @@ class ContextEngine:
                 from core.sensing.screen_observer import ScreenObserver
                 self._screen = ScreenObserver()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self._screen
 
     def _get_obsidian(self):
@@ -70,7 +71,7 @@ class ContextEngine:
                 from districts.time_calendar.deadline_manager import DeadlineManager
                 self._deadline_mgr = DeadlineManager()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self._deadline_mgr
 
     def _get_expense_tracker(self):
@@ -79,7 +80,7 @@ class ContextEngine:
                 from districts.finance.expense_tracker import ExpenseTracker
                 self._expense_tracker = ExpenseTracker()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self._expense_tracker
 
     def _get_kiit_scraper(self):
@@ -88,7 +89,7 @@ class ContextEngine:
                 from districts.time_calendar.kiit_scraper import KIITScraper
                 self._kiit_scraper = KIITScraper()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self._kiit_scraper
 
     def _get_comms_hub(self):
@@ -97,8 +98,17 @@ class ContextEngine:
                 from districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
                 self._comms_hub = _VCCommsHub()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self._comms_hub
+
+    def _get_personality(self):
+        if self._personality is None and CONFIG.get("personality", {}).get("enabled", True):
+            try:
+                from core.personality import PersonalityEngine
+                self._personality = PersonalityEngine()
+            except Exception as e:
+                logger.warning(f"[VECTOR][context_engine] PersonalityEngine init failed: {e}")
+        return self._personality
 
     async def get_vault_context(self, query: str) -> str:
         """LightRAG hybrid query over Obsidian vault. Returns '' if not ready."""
@@ -194,6 +204,32 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] comms fetch failed: {e}")
 
+        personality = {}
+        try:
+            pe = self._get_personality()
+            if pe:
+                personality = {
+                    "enabled": True,
+                    "active_traits": dict(pe.card.traits),
+                    "traits_summary": pe.card.get_traits_summary(),
+                    "tone_profiles": list(pe.card.tone_mapping.keys()),
+                }
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] personality data failed: {e}")
+
+        predictions = {}
+        try:
+            from districts.predictive_analytics.prediction_store import PredictionStore
+            ps = PredictionStore()
+            predictions = {
+                "recent_forecasts": len(ps.get_recent_forecasts(limit=5)),
+                "active_anomalies": len(ps.get_recent_anomalies(limit=20)),
+                "pending_recommendations": len(ps.get_pending_recommendations()),
+                "recent_simulations": len(ps.get_recent_simulations(limit=5)),
+            }
+        except Exception as e:
+            logger.debug(f"[VECTOR][context_engine] predictions fetch failed: {e}")
+
         return {
             "timestamp": now.isoformat(),
             "time_of_day": self._time_of_day(now),
@@ -216,7 +252,49 @@ class ContextEngine:
             "finance": finance_summary,
             "academic": academic_info,
             "comms": comms_status,
+            "personality": personality,
+            "predictions": predictions,
+            "home_assistant": self._get_ha_snapshot(),
         }
+
+    def _get_ha_snapshot(self) -> dict:
+        if not CONFIG.get("home_assistant", {}).get("enabled", False):
+            return {"enabled": False}
+        try:
+            from districts.home_assistant.entity_manager import EntityManager
+            mgr = EntityManager()
+            from districts.home_assistant.connector import HAConfig, HAConnector
+            cfg = HAConfig(
+                host=CONFIG["home_assistant"]["host"],
+                port=CONFIG["home_assistant"]["port"],
+                token=CONFIG["home_assistant"]["token"],
+            )
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(self._async_ha_snapshot(mgr, cfg))
+                    return {"enabled": True, "status": "pending"}
+            except RuntimeError:
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            return {"enabled": True}
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] HA snapshot failed: {e}")
+            return {"enabled": False, "error": str(e)}
+
+    async def _async_ha_snapshot(self, mgr, cfg):
+        try:
+            from districts.home_assistant.connector import HAConnector
+            connector = HAConnector(cfg)
+            await connector.connect()
+            count = await mgr.discover(connector)
+            await connector.disconnect()
+            lights = [{"id": e.entity_id, "state": e.state} for e in mgr.get_by_domain("light")[:5]]
+            sensors = [{"id": e.entity_id, "state": e.state} for e in mgr.get_by_domain("sensor")[:5]]
+            logger.info("[VECTOR][context_engine] HA snapshot: {} entities, {} lights, {} sensors",
+                        count, len(lights), len(sensors))
+        except Exception as e:
+            logger.warning(f"[VECTOR][context_engine] async HA snapshot failed: {e}")
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
         """
@@ -278,6 +356,12 @@ class ContextEngine:
         if urgent or unread:
             lines.append(f"Comms: {urgent} urgent, {unread} unread")
 
+        if state.get("personality", {}).get("enabled"):
+            p = state["personality"]
+            lines.append(f"Personality: {p.get('traits_summary', 'active')}")
+            if p.get("tone_profiles"):
+                lines.append(f"Tone profiles: {', '.join(p['tone_profiles'])}")
+
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
                 e for e in state["recent_episodes"] if e
@@ -310,7 +394,7 @@ class ContextEngine:
                 )
                 return compressed
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return raw
 
@@ -338,11 +422,12 @@ if __name__ == "__main__":
     state = engine.get_world_state()
     prompt = engine.session_hydration_prompt({"task": "smoke test"})
     comms = state.get("comms", {})
+    personality = state.get("personality", {})
     ok = (
         "SESSION CONTEXT" in prompt
         and "Arghyadeep" in prompt
         and "[END SESSION CONTEXT]" in prompt
-        and len(state) >= 14
+        and len(state) >= 15
         and "location" in state
         and "calendar" in state
         and "finance" in state
@@ -351,6 +436,8 @@ if __name__ == "__main__":
         and "urgent" in comms
         and "unread" in comms
         and "pending" in comms
+        and "personality" in state
+        and ("enabled" in personality or personality == {})
     )
     print(
         f"✅ context_engine OK — {len(state)} domains, prompt={len(prompt)} chars"

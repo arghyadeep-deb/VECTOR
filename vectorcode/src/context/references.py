@@ -321,7 +321,7 @@ def _fetch_url(url: str) -> str:
         text = re.sub(r"\s{3,}", "\n\n", text)
         return text.strip()[:_MAX_INJECTED_CHARS]
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     try:
         import urllib.request

@@ -303,7 +303,7 @@ class StealthBrowserClient:
                 try:
                     await self.close_tab(tab_id)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     async def search(
         self,

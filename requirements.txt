@@ -245,3 +245,16 @@ apify-fingerprint-datapoints>=0.13.0
 tld>=0.13.2
 w3lib>=2.4.1
 cssselect>=1.4.0
+
+# ── SQLite encryption (Phase 1D) ─────────────────────────────────────────────
+# Optional: install to encrypt vector_memory.db at rest.
+# Set VECTOR_DB_KEY env var to activate. Falls back to plain sqlite3 if not installed.
+sqlcipher3-binary==0.5.4
+
+
+# ── Voice TTS (Phase 5A) ──────────────────────────────────────────────────────
+# Piper TTS — fast local TTS, better quality than pyttsx3.
+# Install: pip install piper-tts
+# Download voice: wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx
+# Place in models/piper/en_US-ryan-high.onnx + en_US-ryan-high.onnx.json
+# piper-tts>=1.2.0

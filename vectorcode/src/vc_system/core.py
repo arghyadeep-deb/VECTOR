@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     try:
         from vector.channels._stubs import BaseChannel
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     from vectorcode.src.learning._stubs import RouterPolicy
     from vectorcode.src.learning.learning_orchestrator import LearningOrchestrator
     from vectorcode.src.vc_mcp.client import MCPClient

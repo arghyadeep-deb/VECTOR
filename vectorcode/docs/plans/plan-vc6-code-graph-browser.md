@@ -3,8 +3,8 @@
 **Goal:** Build AST-based code graph with blast-radius analysis (ported from code-review-graph) and Playwright browser automation tools.
 **Architecture:** CodeGraph builds an incremental AST index using Python's ast module + SQLite, tracks function/class dependencies, computes blast radius for any changed symbol. BrowserTools wraps Playwright async API with permission-gated actions (navigate/screenshot/click/extract are YELLOW; form-submit is RED).
 **Files:**
-- Create: `agents/districts/coding/vectorcode/tools/code_graph.py`
-- Create: `agents/districts/coding/vectorcode/tools/browser_tools.py`
+- Create: `districts/coding/vectorcode/tools/code_graph.py`
+- Create: `districts/coding/vectorcode/tools/browser_tools.py`
 - Create: `tests/test_vectorcode_vc6.py`
 
 ---
@@ -14,7 +14,7 @@
 - [ ] Write failing test
   ```python
   import textwrap
-  from agents.districts.coding.vectorcode.tools.code_graph import CodeGraph
+  from districts.coding.vectorcode.tools.code_graph import CodeGraph
   def test_code_graph_indexes_file(tmp_path):
       src = tmp_path / "module.py"
       src.write_text(textwrap.dedent("""
@@ -52,7 +52,7 @@
       assert len(cg.list_all_symbols()) >= 2
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc6.py -k "code_graph" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/tools/code_graph.py`
+- [ ] Implement `districts/coding/vectorcode/tools/code_graph.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc6.py -k "code_graph" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc6): CodeGraph AST index + blast-radius analysis"`
 
@@ -63,14 +63,14 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, AsyncMock, MagicMock
-  from agents.districts.coding.vectorcode.tools.browser_tools import BrowserTools
+  from districts.coding.vectorcode.tools.browser_tools import BrowserTools
   def test_browser_tools_permission_levels():
       bt = BrowserTools.__new__(BrowserTools)
       assert bt.NAVIGATE_PERMISSION == "yellow"
       assert bt.SCREENSHOT_PERMISSION == "yellow"
       assert bt.SUBMIT_FORM_PERMISSION == "red"
   def test_browser_tools_navigate_goes_through_gateway():
-      with patch("agents.districts.coding.vectorcode.tools.browser_tools.PermissionGateway") as MockGW:
+      with patch("districts.coding.vectorcode.tools.browser_tools.PermissionGateway") as MockGW:
           mock_gw = MagicMock()
           mock_gw.check.return_value = True
           MockGW.return_value = mock_gw
@@ -90,7 +90,7 @@
       assert isinstance(result, bytes)
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc6.py -k "browser" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/tools/browser_tools.py`
+- [ ] Implement `districts/coding/vectorcode/tools/browser_tools.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc6.py -k "browser" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc6): BrowserTools Playwright navigate/screenshot/click"`
 

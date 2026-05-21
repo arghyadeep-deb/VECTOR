@@ -68,7 +68,7 @@ class Planner:
                 world = self._get_context().get_world_state()
                 energy = world.get("health", {}).get("energy_level", "high")
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             if energy == "low":
                 actions = [a for a in actions if a.get("urgency") == "high"]

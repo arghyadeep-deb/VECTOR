@@ -15,8 +15,8 @@ files = [
     "core/memory/episodic.py",
     "core/city/governor.py",
     "core/scraper/vector_scraper.py",
-    "agents/districts/research/web_scout.py",
-    "agents/districts/coding/coding_tools.py",
+    "districts/research/web_scout.py",
+    "districts/coding/coding_tools.py",
     "core/engine/agents/subagent_runner.py",
     "core/engine/channels/runtime.py",
     "core/engine/agents/roles.py",
@@ -84,14 +84,14 @@ ok("VectorScraper.fetch() tags web content as EXTERNAL_NETWORK taint")
 print()
 
 print("GROUP 8 -- WebScout uses ParallelResearcher")
-with open("agents/districts/research/web_scout.py", encoding="utf-8") as f: src = f.read()
+with open("districts/research/web_scout.py", encoding="utf-8") as f: src = f.read()
 assert "ParallelResearcher" in src
 assert 'mode="fast"' in src
 ok("WebScout.search(): ParallelResearcher (DuckDuckGo+Wikipedia+ArXiv) with DDG fallback")
 print()
 
 print("GROUP 9 -- VectorSandbox in coding_tools")
-with open("agents/districts/coding/coding_tools.py", encoding="utf-8") as f: src = f.read()
+with open("districts/coding/coding_tools.py", encoding="utf-8") as f: src = f.read()
 assert "run_code_safely" in src
 assert "VectorSandbox" in src
 ok("coding_tools: run_code_safely() wraps VectorSandbox for isolated code execution")

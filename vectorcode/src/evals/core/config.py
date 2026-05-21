@@ -221,12 +221,12 @@ def load_eval_config(path: str | Path) -> EvalSuiteConfig:
     # Env vars override TOML values; either source may be empty.
     external_raw = raw.get("backend", {}).get("external", {})
     backend_external_base_url = (
-        os.environ.get("JARVIS_BACKEND_BASE_URL")
+        os.environ.get("VECTOR_BACKEND_BASE_URL")
         or external_raw.get("base_url")
         or None
     )
     backend_external_api_key = (
-        os.environ.get("JARVIS_BACKEND_API_KEY") or external_raw.get("api_key") or None
+        os.environ.get("VECTOR_BACKEND_API_KEY") or external_raw.get("api_key") or None
     )
 
     return EvalSuiteConfig(

@@ -25,7 +25,7 @@ try:
 except ImportError:
     # atroposlib not installed — environments are unavailable but
     # submodules like tool_call_parsers can still be imported directly.
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 __all__ = [
     "AgentResult",

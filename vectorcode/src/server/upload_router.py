@@ -63,7 +63,7 @@ def _extract_text_from_pdf(data: bytes) -> str:
             pages = [p.extract_text() or "" for p in pdf.pages]
         return "\n\n".join(pages)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Fall back to PyPDF2
     try:

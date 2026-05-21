@@ -142,7 +142,7 @@ class GitEvalRunner:
         try:
             _run_git(["worktree", "remove", "--force", worktree], self._cwd, check=False)
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     def _score_diffs(
         self, target_diff: str, agent_diff: str, sha: str, message: str

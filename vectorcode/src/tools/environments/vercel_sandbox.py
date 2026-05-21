@@ -51,7 +51,7 @@ def _ensure_vercel_sdk() -> None:
         from tools.lazy_deps import ensure as _lazy_ensure
         _lazy_ensure("terminal.vercel", prompt=False)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as e:
         raise ImportError(str(e))
 

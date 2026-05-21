@@ -54,7 +54,7 @@ class VideoAgent:
 
         # Fallback: VECTOR's local video generator
         try:
-            from agents.districts.content.video_generator import VideoGenerator
+            from districts.content.video_generator import VideoGenerator
             import asyncio
             gen = VideoGenerator()
             loop = asyncio.new_event_loop()
@@ -77,7 +77,7 @@ class VideoAgent:
             try:
                 return [p.name for p in registry.list_providers()]
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return ["sadtalker-local"]
 
 

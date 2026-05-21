@@ -171,6 +171,16 @@ async def get_heartbeat():
     }
 
 
+# ── Failover API (resilience hot-failover) ────────────────────────────────────
+
+try:
+    from core.resilience.hot_failover_api import router as failover_router
+    app.include_router(failover_router)
+    logger.info("[VECTOR][brain_server] failover API router registered")
+except Exception as e:
+    logger.warning(f"[VECTOR][brain_server] failover API router failed: {e}")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     port = int(os.environ.get("PORT", 8000))

@@ -70,27 +70,27 @@ def build_scheduler():
 
 
 async def _news_brief():
-    from agents.districts.research.news_aggregator import NewsAggregator
+    from districts.research.news_aggregator import NewsAggregator
     await NewsAggregator().morning_brief()
 
 
 async def _reddit_intel():
-    from agents.districts.research.reddit_miner import RedditMiner
+    from districts.research.reddit_miner import RedditMiner
     await RedditMiner().intelligence_report()
 
 
 async def _paper_brief():
-    from agents.districts.research.paper_reader import PaperReader
+    from districts.research.paper_reader import PaperReader
     await PaperReader().daily_brief()
 
 
 async def _daily_reflection():
-    from agents.districts.memory_curator.consolidation_bot import ConsolidationBot
+    from districts.memory_curator.consolidation_bot import ConsolidationBot
     await ConsolidationBot().write_daily_reflection()
 
 
 async def _pattern_scan():
-    from agents.districts.memory_curator.pattern_finder import PatternFinder
+    from districts.memory_curator.pattern_finder import PatternFinder
     await PatternFinder().find_patterns(window_hours=48)
 
 

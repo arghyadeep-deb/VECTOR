@@ -48,6 +48,6 @@ class TwitchAdapter:
                                 msg = parts[2].strip()
                                 await callback(author, msg)
                     except asyncio.TimeoutError:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
         except Exception as e:
             logger.error("[VECTOR][twitch] listen failed: {}", e)

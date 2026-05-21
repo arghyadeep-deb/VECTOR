@@ -79,7 +79,7 @@ class RLMRepl:
 
                 self._namespace[mod_name] = importlib.import_module(mod_name)
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # answer dict — code can set answer["ready"] = True, answer["value"] = ...
         self._namespace["answer"] = {"ready": False, "value": None}

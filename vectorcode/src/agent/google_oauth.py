@@ -237,7 +237,7 @@ def _credentials_lock(timeout_seconds: float = LOCK_TIMEOUT_SECONDS):
                         except OSError as _sve:
                             logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: %s", _sve)
                     except ImportError:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
         finally:
             os.close(fd)
             _lock_state.depth = 0

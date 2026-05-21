@@ -114,7 +114,7 @@ def _add_ips(text: str, target: list[str]) -> None:
                     socket.inet_pton(socket.AF_INET6, part)
                     target.append(part)
                 except OSError:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 # ---------------------------------------------------------------------------

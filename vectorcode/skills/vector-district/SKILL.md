@@ -69,7 +69,7 @@ if __name__ == "__main__":
 ## Steps
 
 1. Parse the argument to get district name and agent name
-2. Generate the agent file at `agents/districts/<district>/<agent_name>.py`
+2. Generate the agent file at `districts/<district>/<agent_name>.py`
 3. Replace all `<placeholders>` with actual names using PascalCase for class, snake_case for files
 4. Ensure the `sys.path.insert` depth is correct (count parent directories to project root)
 5. Add the agent to the district's `__init__.py`

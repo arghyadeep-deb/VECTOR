@@ -1,0 +1,78 @@
+"""Statistical test experiment — {{ experiment_type }}"""
+
+import json
+import math
+import statistics
+import sys
+from typing import Any
+
+test_type = "{{ test_type }}"
+sample_size = {{ sample_size }}
+effect_size = {{ effect_size }}
+alpha = {{ alpha }}
+
+
+def run_experiment() -> dict[str, Any]:
+    random_seed = 42
+
+    print(f"STAT:test_type:{test_type}")
+    print(f"STAT:sample_size:{sample_size}")
+    print(f"STAT:effect_size:{effect_size}")
+    print(f"STAT:alpha:{alpha}")
+
+    try:
+        import scipy.stats as sp_stats
+        import numpy as np
+        np.random.seed(random_seed)
+
+        control = np.random.normal(loc=100, scale=15, size=sample_size)
+        treatment = np.random.normal(loc=100 + effect_size * 15, scale=15, size=sample_size)
+
+        t_stat, p_value = sp_stats.ttest_ind(control, treatment)
+        n1, n2 = len(control), len(treatment)
+        s1 = np.std(control, ddof=1)
+        s2 = np.std(treatment, ddof=1)
+        pooled_std = math.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
+        cohens_d = (np.mean(treatment) - np.mean(control)) / pooled_std if pooled_std > 0 else 0
+
+        nw_result = sp_stats.normaltest(control)
+        normality_pass = nw_result.pvalue > alpha
+
+        power = 0.0
+        try:
+            from scipy.stats import nct
+            df = n1 + n2 - 2
+            t_crit = sp_stats.t.ppf(1 - alpha / 2, df)
+            ncp = effect_size / math.sqrt(1 / n1 + 1 / n2)
+            power = 1 - nct.cdf(t_crit, df, ncp) + nct.cdf(-t_crit, df, ncp)
+        except Exception:
+            pass
+
+        print(f"STAT:t_statistic:{float(t_stat):.6f}")
+        print(f"STAT:p_value:{float(p_value):.6f}")
+        print(f"STAT:cohens_d:{float(cohens_d):.6f}")
+        print(f"STAT:significant:{int(p_value < alpha)}")
+        print(f"STAT:normality_pass:{int(normality_pass)}")
+        print(f"STAT:power:{float(power):.6f}")
+        print(f"STAT:sp_available:1")
+
+        return {
+            "test_type": test_type,
+            "sample_size": sample_size,
+            "effect_size_estimate": float(cohens_d),
+            "t_statistic": float(t_stat),
+            "p_value": float(p_value),
+            "significant": bool(p_value < alpha),
+            "power": float(power),
+            "control_mean": float(np.mean(control)),
+            "treatment_mean": float(np.mean(treatment)),
+        }
+
+    except ImportError:
+        print("STAT:sp_available:0")
+        print("STAT:error:scipy or numpy not available — using random placeholder data")
+        return {
+            "test_type": test_type,
+            "sample_size": sample_size,
+            "note": "scipy/numpy unavailable — install scipy for actual statistical tests",
+        }

@@ -232,7 +232,7 @@ class VisionOperator:
                 )
                 original = result.stdout.rstrip("\r\n")
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             # Set new content via powershell
             text_no_newline = content.rstrip("\n")

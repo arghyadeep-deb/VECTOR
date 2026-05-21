@@ -2,6 +2,6 @@
 try:
     from vectorcode.src.vector_cli._chat_banner import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def render_startup_banner(): pass

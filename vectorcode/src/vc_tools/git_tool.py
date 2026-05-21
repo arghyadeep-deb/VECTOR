@@ -15,7 +15,7 @@ from typing import Any
 try:
     from vectorcode.src._rust_bridge import get_rust_module
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._stubs import BaseTool, ToolSpec

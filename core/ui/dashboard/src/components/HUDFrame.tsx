@@ -7,6 +7,7 @@ export default function HUDFrame() {
   const [time, setTime] = useState('')
   const status = useVectorStore((s) => s.status)
   const connected = useVectorStore((s) => s.connected)
+  const voiceState = useVectorStore((s) => s.voiceState)
 
   useEffect(() => {
     const tick = () => {
@@ -26,8 +27,16 @@ export default function HUDFrame() {
     { label: 'VCTR',   active: connected },
   ]
 
+  const isListening = voiceState === 'listening'
+  const bracketBorderColor = isListening ? '#00CFFF' : `${CYAN}0.2)`
+  const bracketScale = isListening ? 'scale(1.18)' : 'scale(1)'
+  const bracketTransition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+
   return (
     <>
+      {/* Fullscreen Input Boundary Glow Overlay */}
+      <div className={`listening-boundary-glow ${isListening ? 'active' : ''}`} />
+
       {/* Top center bracket ⊓ */}
       <div style={{
         position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
@@ -43,28 +52,40 @@ export default function HUDFrame() {
       {/* Top-left corner bracket */}
       <div style={{
         position: 'fixed', top: 8, left: 8, width: 24, height: 24,
-        borderTop: `1px solid ${CYAN}0.2)`, borderLeft: `1px solid ${CYAN}0.2)`,
+        borderTop: `1.5px solid ${bracketBorderColor}`, borderLeft: `1.5px solid ${bracketBorderColor}`,
+        boxShadow: isListening ? `inset 2px 2px 8px rgba(0, 207, 255, 0.25)` : 'none',
+        transform: bracketScale,
+        transition: bracketTransition,
         zIndex: 200, pointerEvents: 'none',
       }} />
 
       {/* Top-right corner bracket */}
       <div style={{
         position: 'fixed', top: 8, right: 8, width: 24, height: 24,
-        borderTop: `1px solid ${CYAN}0.2)`, borderRight: `1px solid ${CYAN}0.2)`,
+        borderTop: `1.5px solid ${bracketBorderColor}`, borderRight: `1.5px solid ${bracketBorderColor}`,
+        boxShadow: isListening ? `inset -2px 2px 8px rgba(0, 207, 255, 0.25)` : 'none',
+        transform: bracketScale,
+        transition: bracketTransition,
         zIndex: 200, pointerEvents: 'none',
       }} />
 
       {/* Bottom-left corner bracket */}
       <div style={{
         position: 'fixed', bottom: 60, left: 8, width: 24, height: 24,
-        borderBottom: `1px solid ${CYAN}0.2)`, borderLeft: `1px solid ${CYAN}0.2)`,
+        borderBottom: `1.5px solid ${bracketBorderColor}`, borderLeft: `1.5px solid ${bracketBorderColor}`,
+        boxShadow: isListening ? `inset 2px -2px 8px rgba(0, 207, 255, 0.25)` : 'none',
+        transform: bracketScale,
+        transition: bracketTransition,
         zIndex: 200, pointerEvents: 'none',
       }} />
 
       {/* Bottom-right corner bracket */}
       <div style={{
         position: 'fixed', bottom: 60, right: 8, width: 24, height: 24,
-        borderBottom: `1px solid ${CYAN}0.2)`, borderRight: `1px solid ${CYAN}0.2)`,
+        borderBottom: `1.5px solid ${bracketBorderColor}`, borderRight: `1.5px solid ${bracketBorderColor}`,
+        boxShadow: isListening ? `inset -2px -2px 8px rgba(0, 207, 255, 0.25)` : 'none',
+        transform: bracketScale,
+        transition: bracketTransition,
         zIndex: 200, pointerEvents: 'none',
       }} />
 

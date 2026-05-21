@@ -1,4 +1,23 @@
-"""VECTOR neural training — A2C, DQN, Curiosity, DecisionTransformer, PPO, SARSA, Q-Learning, VECTORTrainer."""
+"""
+VECTOR neural training — A2C, DQN, Curiosity, DecisionTransformer, PPO, SARSA, Q-Learning, VECTORTrainer.
+
+⚠️  EDUCATIONAL / EXPERIMENTAL — NOT PRODUCTION (Issue 22)
+====================================================================
+All algorithms in this file are implemented in pure NumPy for
+educational clarity. They are NOT suitable for real model training:
+
+  - No PyTorch / TensorFlow / JAX — cannot use GPU acceleration
+  - No gradient checkpointing, mixed precision, or distributed training
+  - Toy-scale only: works on CartPole-style envs, not LLM fine-tuning
+
+For real RL training on VECTOR's reasoning chains, use:
+  - core/training/openmythos/trainer.py  (LoRA fine-tuning via PyTorch)
+  - core/training/self_improvement_cycle.py  (weekly pipeline)
+
+These implementations are kept for reference and unit-testing the
+reward/policy logic without a GPU dependency.
+====================================================================
+"""
 from __future__ import annotations
 
 import json

@@ -96,7 +96,7 @@ class VectorScraper:
                 logger.warning("[VECTOR][scraper] SSRF blocked: {}", url)
                 return False
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return True
 
     def _audit(self, action: str, url: str, status: int) -> None:
@@ -109,7 +109,7 @@ class VectorScraper:
                 payload={"url": url[:100], "status": status},
             )
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # ── HTTP fetcher ──────────────────────────────────────────────────────────
 
@@ -161,14 +161,14 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             # Tag fetched content as EXTERNAL_NETWORK (taint tracking)
             try:
                 from core.security.taint_tracker import get_taint_tracker, TaintLabel
                 get_taint_tracker().tag_external(result.content)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             self._audit("fetch_http", url, result.status_code)
             logger.info("[VECTOR][scraper] fetch {} → {}", url[:60], result.status_code)
@@ -221,7 +221,7 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             self._audit("fetch_stealth", url, result.status_code)
             logger.info("[VECTOR][scraper] stealth {} → {}", url[:60], result.status_code)

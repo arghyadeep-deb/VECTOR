@@ -171,7 +171,7 @@ class SSRFGuard:
                                     reason=f"DNS resolves to private IP: {ip_str}"
                                 )
                     except ValueError:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
             except OSError:
                 pass  # DNS failure — let request handle it
 

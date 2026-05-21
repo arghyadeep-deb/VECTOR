@@ -2,19 +2,27 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
+from core.resilience.circuit_breaker import CircuitBreakerOpenError
+from core.breaker_registry import get_registry
 from loguru import logger
 import asyncio, uuid, json, os, sqlite3, datetime, threading
 from contextlib import contextmanager
 
 # Try SQLCipher for AES-256 encryption; fall back to plain sqlite3
+# Supports both sqlcipher3-binary (pip install sqlcipher3-binary) and pysqlcipher3
 try:
-    from pysqlcipher3 import dbapi2 as sqlcipher
+    import sqlcipher3 as sqlcipher  # sqlcipher3-binary package
     _USE_SQLCIPHER = True
-    logger.info("[VECTOR][memory] SQLCipher available — AES-256 encryption enabled")
+    logger.info("[VECTOR][memory] SQLCipher (sqlcipher3) available — AES-256 encryption enabled")
 except ImportError:
-    sqlcipher = None
-    _USE_SQLCIPHER = False
-    logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite")
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher  # legacy package
+        _USE_SQLCIPHER = True
+        logger.info("[VECTOR][memory] SQLCipher (pysqlcipher3) available — AES-256 encryption enabled")
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite (install sqlcipher3-binary to encrypt)")
 
 _DB_KEY = None  # resolved lazily below
 
@@ -43,11 +51,74 @@ def _get_db_key() -> str:
         logger.info("[VECTOR][memory] Generated and stored new DB key in OS keyring")
         return _DB_KEY
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Priority 3: fallback for dev only (logged as warning)
     logger.warning("[VECTOR][memory] No VECTOR_DB_KEY env var or keyring — using dev fallback. Set VECTOR_DB_KEY for production!")
     _DB_KEY = "vector_dev_fallback_change_me"
     return _DB_KEY
+
+# In-memory buffer for writes when circuit breaker is open
+_memory_buffer: list[dict] = []
+_buffer_lock = threading.Lock()
+
+def _replay_buffer():
+    with _buffer_lock:
+        if not _memory_buffer:
+            return
+        items = list(_memory_buffer)
+        _memory_buffer.clear()
+    conn = get_db_connection()
+    for item in items:
+        try:
+            with conn:
+                conn.execute(
+                    "INSERT INTO episodic_memory (id, event_type, content, tags, context_snapshot, timestamp, source) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (item["id"], item["event_type"], item["content"], item.get("tags"), item.get("context_snapshot"), item["timestamp"], item["source"]),
+                )
+        except Exception as e:
+            logger.warning("[VECTOR][episodic] buffer replay failed: {}", e)
+
+def _with_cb(op, *args, **kwargs):
+    import time
+    cb = get_registry().get("episodic_memory")
+    if cb is None:
+        return op(*args, **kwargs)
+    try:
+        _coro = cb.call(lambda: op(*args, **kwargs))
+        return asyncio.run(_coro)
+    except RuntimeError:
+        _coro.close()
+        from core.resilience.circuit_breaker import CircuitState
+        _t = time.time()
+        if cb.state == CircuitState.OPEN:
+            if _t - cb.last_failure_time < cb.config.recovery_timeout:
+                raise CircuitBreakerOpenError("circuit breaker 'episodic_memory' is open")
+            cb.state = CircuitState.HALF_OPEN
+            cb.success_count = 0
+            cb._half_open_retries = 0
+        if cb.state == CircuitState.HALF_OPEN and cb._half_open_retries >= cb.config.half_open_max_retries:
+            raise CircuitBreakerOpenError("circuit breaker 'episodic_memory' half-open retries exhausted")
+        if cb.state == CircuitState.HALF_OPEN:
+            cb._half_open_retries += 1
+        try:
+            result = op(*args, **kwargs)
+            if cb.state == CircuitState.HALF_OPEN:
+                cb.success_count += 1
+                if cb.success_count >= cb.config.success_threshold:
+                    cb.state = CircuitState.CLOSED
+                    cb.failure_count = 0
+                    _replay_buffer()
+            elif cb.state == CircuitState.CLOSED:
+                cb.failure_count = 0
+            return result
+        except Exception:
+            cb.failure_count += 1
+            cb.last_failure_time = _t
+            if cb.state == CircuitState.CLOSED and cb.failure_count >= cb.config.failure_threshold:
+                cb.state = CircuitState.OPEN
+            elif cb.state == CircuitState.HALF_OPEN:
+                cb.state = CircuitState.OPEN
+            raise
 
 # Singleton database connection with thread-safe access
 _db_connection = None
@@ -165,26 +236,26 @@ class EpisodicMemory:
         logger.info("Episodic memory initialized (singleton connection)")
 
     def store(self, event_type, content, tags=None, context=None, source='vector') -> str:
-        """Store an event in episodic memory with FTS5 indexing."""
         event_id = str(uuid.uuid4())
         tags_json = json.dumps(tags) if tags else None
         context_json = json.dumps(context) if context else None
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         try:
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO episodic_memory
-                    (id, event_type, content, tags, context_snapshot, timestamp, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (event_id, event_type, content, tags_json, context_json, timestamp, source))
-                # Also index in FTS5 for fast full-text search
-                cursor.execute("""
-                    INSERT INTO episodic_memory_fts
-                    (id, event_type, content, tags, source, timestamp, context_snapshot)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (event_id, event_type, content, tags_json or '', source, timestamp, context_json or ''))
-            # ── MemoryTree ingestion — build hierarchical Source→Topic→Chunk ──
+            def _do_store():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO episodic_memory
+                        (id, event_type, content, tags, context_snapshot, timestamp, source)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (event_id, event_type, content, tags_json, context_json, timestamp, source))
+                    cursor.execute("""
+                        INSERT INTO episodic_memory_fts
+                        (id, event_type, content, tags, source, timestamp, context_snapshot)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (event_id, event_type, content, tags_json or '', source, timestamp, context_json or ''))
+            _with_cb(_do_store)
+
             try:
                 from core.engine.memory_tree.tree_builder import MemoryTree
                 _tree = MemoryTree()
@@ -200,58 +271,67 @@ class EpisodicMemory:
                 logger.debug(f"[VECTOR][episodic] MemoryTree ingestion skipped: {_tree_err}")
 
             return event_id
+        except CircuitBreakerOpenError:
+            with _buffer_lock:
+                _memory_buffer.append({
+                    "id": event_id, "event_type": event_type, "content": content,
+                    "tags": tags_json, "context_snapshot": context_json,
+                    "timestamp": timestamp, "source": source,
+                })
+            logger.warning("[VECTOR][episodic] circuit open — buffered event {}", event_id[:8])
+            return event_id
         except Exception as e:
             logger.error(f"[VECTOR][episodic] store() failed — event lost: {e}")
             raise RuntimeError(f"Episodic store failed: {e}") from e
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
-        """Recall events using FTS5 full-text search (falls back to LIKE if FTS5 unavailable)."""
         try:
-            with get_temp_cursor() as cursor:
-                # Try FTS5 MATCH first (fast, ranked)
-                try:
-                    if event_type:
-                        cursor.execute(
-                            """
-                            SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
-                            FROM episodic_memory_fts f
-                            WHERE episodic_memory_fts MATCH ? AND f.event_type = ?
-                            ORDER BY rank
-                            LIMIT ?
-                            """,
-                            (query, event_type, limit),
-                        )
-                    else:
-                        cursor.execute(
-                            """
-                            SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
-                            FROM episodic_memory_fts f
-                            WHERE episodic_memory_fts MATCH ?
-                            ORDER BY rank
-                            LIMIT ?
-                            """,
-                            (query, limit),
-                        )
-                    rows = cursor.fetchall()
-                except Exception:
-                    # Fallback to LIKE if FTS5 table doesn't exist or query syntax invalid
-                    query_pattern = f"%{query}%"
-                    if event_type:
-                        cursor.execute(
-                            """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                            FROM episodic_memory WHERE content LIKE ? AND event_type = ?
-                            ORDER BY timestamp DESC LIMIT ?""",
-                            (query_pattern, event_type, limit),
-                        )
-                    else:
-                        cursor.execute(
-                            """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                            FROM episodic_memory WHERE content LIKE ?
-                            ORDER BY timestamp DESC LIMIT ?""",
-                            (query_pattern, limit),
-                        )
-                    rows = cursor.fetchall()
-            
+            def _do_recall():
+                with get_temp_cursor() as cursor:
+                    try:
+                        if event_type:
+                            cursor.execute(
+                                """
+                                SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
+                                FROM episodic_memory_fts f
+                                WHERE episodic_memory_fts MATCH ? AND f.event_type = ?
+                                ORDER BY rank
+                                LIMIT ?
+                                """,
+                                (query, event_type, limit),
+                            )
+                        else:
+                            cursor.execute(
+                                """
+                                SELECT f.id, f.event_type, f.content, f.tags, f.context_snapshot, f.timestamp, f.source
+                                FROM episodic_memory_fts f
+                                WHERE episodic_memory_fts MATCH ?
+                                ORDER BY rank
+                                LIMIT ?
+                                """,
+                                (query, limit),
+                            )
+                        rows = cursor.fetchall()
+                    except Exception:
+                        query_pattern = f"%{query}%"
+                        if event_type:
+                            cursor.execute(
+                                """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                                FROM episodic_memory WHERE content LIKE ? AND event_type = ?
+                                ORDER BY timestamp DESC LIMIT ?""",
+                                (query_pattern, event_type, limit),
+                            )
+                        else:
+                            cursor.execute(
+                                """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                                FROM episodic_memory WHERE content LIKE ?
+                                ORDER BY timestamp DESC LIMIT ?""",
+                                (query_pattern, limit),
+                            )
+                        rows = cursor.fetchall()
+                    return rows
+            rows = _with_cb(_do_recall)
+
             result = []
             for row in rows:
                 result.append({
@@ -264,6 +344,9 @@ class EpisodicMemory:
                     "source": row[6],
                 })
             return result
+        except CircuitBreakerOpenError:
+            logger.warning("[VECTOR][episodic] circuit open — recall returning empty")
+            return []
         except Exception as e:
             logger.error(f"Recall failed: {e}")
             return []
@@ -271,32 +354,40 @@ class EpisodicMemory:
     def remember(self, key, value, category='general', confidence=0.5) -> bool:
         try:
             updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(key) DO UPDATE SET
-                        value=excluded.value,
-                        category=excluded.category,
-                        confidence=excluded.confidence,
-                        updated_at=excluded.updated_at
-                """, (key, value, category, confidence, updated_at))
-            return True
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(key) DO UPDATE SET
+                            value=excluded.value,
+                            category=excluded.category,
+                            confidence=excluded.confidence,
+                            updated_at=excluded.updated_at
+                    """, (key, value, category, confidence, updated_at))
+                return True
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            return False
         except Exception as e:
             logger.error(f"Remember failed: {e}")
             return False
 
     def recall_fact(self, key) -> dict | None:
         try:
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    SELECT * FROM semantic_memory
-                    WHERE key = ?
-                """, (key,))
-                row = cursor.fetchone()
-                if row:
-                    columns = [desc[0] for desc in cursor.description]
-                    return dict(zip(columns, row))
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        SELECT * FROM semantic_memory
+                        WHERE key = ?
+                    """, (key,))
+                    row = cursor.fetchone()
+                    if row:
+                        columns = [desc[0] for desc in cursor.description]
+                        return dict(zip(columns, row))
+                    return None
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
             return None
         except Exception as e:
             logger.error(f"Recall fact failed: {e}")
@@ -309,28 +400,36 @@ class EpisodicMemory:
             steps_json = json.dumps(steps)
             is_training = 1 if reward > 0.7 else 0
             timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO reasoning_chains
-                    (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp))
-            return chain_id
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO reasoning_chains
+                        (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp))
+                return chain_id
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            return ""
         except Exception as e:
             logger.error(f"Store chain failed: {e}")
             return ""
 
     def get_training_data(self, limit=100) -> list[dict]:
         try:
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    SELECT * FROM reasoning_chains
-                    WHERE is_training_data = 1
-                    ORDER BY reward DESC
-                    LIMIT ?
-                """, (limit,))
-                columns = [desc[0] for desc in cursor.description]
-                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        SELECT * FROM reasoning_chains
+                        WHERE is_training_data = 1
+                        ORDER BY reward DESC
+                        LIMIT ?
+                    """, (limit,))
+                    columns = [desc[0] for desc in cursor.description]
+                    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            return []
         except Exception as e:
             logger.error(f"Get training data failed: {e}")
             return []
@@ -338,30 +437,38 @@ class EpisodicMemory:
     def update_skill(self, skill_name, confidence, evidence=None) -> bool:
         try:
             evidence_json = json.dumps(evidence) if evidence else None
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO skill_memory (skill_name, confidence, evidence)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(skill_name) DO UPDATE SET
-                        confidence=excluded.confidence,
-                        evidence=COALESCE(excluded.evidence, skill_memory.evidence)
-                """, (skill_name, confidence, evidence_json))
-            return True
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO skill_memory (skill_name, confidence, evidence)
+                        VALUES (?, ?, ?)
+                        ON CONFLICT(skill_name) DO UPDATE SET
+                            confidence=excluded.confidence,
+                            evidence=COALESCE(excluded.evidence, skill_memory.evidence)
+                    """, (skill_name, confidence, evidence_json))
+                return True
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            return False
         except Exception as e:
             logger.error(f"Update skill failed: {e}")
             return False
 
     def get_skill(self, skill_name) -> dict | None:
         try:
-            with get_temp_cursor() as cursor:
-                cursor.execute("""
-                    SELECT * FROM skill_memory
-                    WHERE skill_name = ?
-                """, (skill_name,))
-                row = cursor.fetchone()
-                if row:
-                    columns = [desc[0] for desc in cursor.description]
-                    return dict(zip(columns, row))
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute("""
+                        SELECT * FROM skill_memory
+                        WHERE skill_name = ?
+                    """, (skill_name,))
+                    row = cursor.fetchone()
+                    if row:
+                        columns = [desc[0] for desc in cursor.description]
+                        return dict(zip(columns, row))
+                    return None
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
             return None
         except Exception as e:
             logger.error(f"Get skill failed: {e}")
@@ -371,13 +478,16 @@ class EpisodicMemory:
         _TABLES = ("episodic_memory", "semantic_memory", "policy_memory",
                    "reasoning_chains", "skill_memory", "agent_history")
         try:
-            stats = {}
-            with get_temp_cursor() as cursor:
-                for table in _TABLES:
-                    # Table name from closed constant, not user input — f-string is safe here.
-                    cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
-                    stats[table] = cursor.fetchone()[0]
-            return stats
+            def _do():
+                stats = {}
+                with get_temp_cursor() as cursor:
+                    for table in _TABLES:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        stats[table] = cursor.fetchone()[0]
+                return stats
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            return {}
         except Exception as e:
             logger.error(f"Get stats failed: {e}")
             return {}

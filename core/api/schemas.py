@@ -165,6 +165,49 @@ class WSPongPayload(BaseModel):
     type: str = "pong"
     time: str
 
+# --- New Router Response Models ---
+
+class LoopStatusResponse(BaseModel):
+    running: bool
+    tick_count: int
+    uptime_seconds: int
+    guard_violations: list
+    task_queue_depth: int
+
+class SchedulerJobsResponse(BaseModel):
+    total: int
+    active: int
+    jobs: list
+
+class InferenceStatsResponse(BaseModel):
+    total_models: int
+    loaded_models: int
+    model_list: list[str]
+    status: str
+
+class EmailRecentResponse(BaseModel):
+    total: int
+    unread: int
+    recent: list
+
+class ChannelsStatusResponse(BaseModel):
+    active_channels: list[str]
+    recent_messages: int
+    status: str
+
+class ProvidersRoutesResponse(BaseModel):
+    routes: dict[str, str]
+    active_providers: list[str]
+
+class ToolsRegistryResponse(BaseModel):
+    total_tools: int
+    scopes: list[str]
+    permission_levels: dict[str, int]
+
+class NetworkPeersResponse(BaseModel):
+    total_peers: int
+    peers: list
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print("✅ schemas.py OK")

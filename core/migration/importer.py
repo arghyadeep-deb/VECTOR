@@ -14,7 +14,7 @@ Converts to VECTOR agent format:
   - District assignment
   - Schedule (if autonomous)
 
-Ported from the agent OS openfang-migrate migration framework.
+Ported from the agent OS agent OS migration framework.
 """
 from __future__ import annotations
 
@@ -201,7 +201,7 @@ class VectorMigrator:
 
         # Save migrated agents
         for agent in result.agents:
-            migrator.save_agent(agent, output_dir="agents/districts/migrated/")
+            migrator.save_agent(agent, output_dir="districts/migrated/")
     """
 
     def from_file(self, path: str | Path, source: MigrationSource) -> MigrationResult:
@@ -258,7 +258,7 @@ class VectorMigrator:
         return MigrationResult(source=source, agents=all_agents,
                                warnings=all_warnings, errors=all_errors)
 
-    def save_agent(self, agent: VectorAgentDef, output_dir: str = "agents/districts/migrated/") -> Path:
+    def save_agent(self, agent: VectorAgentDef, output_dir: str = "districts/migrated/") -> Path:
         """Save a migrated agent as a VECTOR Python file."""
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
@@ -268,7 +268,7 @@ class VectorMigrator:
         logger.info("[VECTOR][migration] saved agent: {}", p)
         return p
 
-    def save_all(self, result: MigrationResult, output_dir: str = "agents/districts/migrated/") -> list[Path]:
+    def save_all(self, result: MigrationResult, output_dir: str = "districts/migrated/") -> list[Path]:
         return [self.save_agent(a, output_dir) for a in result.agents]
 
     # ── Source-specific parsers ────────────────────────────────────────────────

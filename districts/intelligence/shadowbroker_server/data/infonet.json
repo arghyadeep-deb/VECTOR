@@ -1,0 +1,8 @@
+{
+  "protocol": "infonet",
+  "network_id": "sb-testnet-0",
+  "head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "node_sequences": {},
+  "sequence_domains": {},
+  "events": []
+}

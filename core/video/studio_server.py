@@ -232,7 +232,7 @@ async def lint_endpoint(path: str) -> JSONResponse:
 async def content_queue() -> JSONResponse:
     """Active + pending video jobs."""
     try:
-        from agents.districts.content.video_pipeline import get_job_queue
+        from districts.content.video_pipeline import get_job_queue
         jobs = get_job_queue(limit=20)
         return JSONResponse({"jobs": jobs})
     except Exception as e:
@@ -243,7 +243,7 @@ async def content_queue() -> JSONResponse:
 async def content_history() -> JSONResponse:
     """Completed + failed video jobs."""
     try:
-        from agents.districts.content.video_pipeline import get_job_history
+        from districts.content.video_pipeline import get_job_history
         jobs = get_job_history(limit=10)
         return JSONResponse({"jobs": jobs})
     except Exception as e:
@@ -259,7 +259,7 @@ async def content_generate(body: dict) -> JSONResponse:
     dry_run  = bool(body.get("dry_run", False))
 
     async def _run():
-        from agents.districts.content.video_pipeline import VideoPipelineAgent
+        from districts.content.video_pipeline import VideoPipelineAgent
         agent = VideoPipelineAgent()
         result = await agent.create_and_upload(
             topic=topic, platform=platform, niche=niche, dry_run=dry_run
@@ -274,7 +274,7 @@ async def content_generate(body: dict) -> JSONResponse:
 async def content_cancel(job_id: str) -> JSONResponse:
     """Cancel a pending upload within the safety window."""
     try:
-        from agents.districts.content.video_pipeline import cancel_job
+        from districts.content.video_pipeline import cancel_job
         cancelled = cancel_job(job_id)
         await _broadcast({"type": "content_cancelled", "job_id": job_id})
         return JSONResponse({"cancelled": cancelled, "job_id": job_id})

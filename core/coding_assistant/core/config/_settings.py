@@ -721,7 +721,7 @@ class VectorCAConfig(BaseSettings):
         try:
             return SystemPrompt[self.system_prompt_id.upper()].read()
         except KeyError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         raise MissingPromptFileError(
             self.system_prompt_id, *(str(d) for d in prompt_dirs)
@@ -746,7 +746,7 @@ class VectorCAConfig(BaseSettings):
             if active_provider.backend == Backend.MISTRAL:
                 return active_provider
         except ValueError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return next((p for p in self.providers if p.backend == Backend.MISTRAL), None)
 
     def get_provider_for_model(self, model: ModelConfig) -> ProviderConfig:
@@ -861,7 +861,7 @@ class VectorCAConfig(BaseSettings):
             if api_key_env and not os.getenv(api_key_env):
                 raise MissingAPIKeyError(api_key_env, provider.name)
         except ValueError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return self
 
     @field_validator("tool_paths", mode="before")

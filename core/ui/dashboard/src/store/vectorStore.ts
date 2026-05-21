@@ -4,7 +4,7 @@ import type { MemoryEvent, StatusResponse, AgentData, SystemMetrics, GoalsRespon
 export interface PanelEntry { id: string; type: 'mortality' | 'district' | 'decision'; districtName?: string }
 interface ConnectionError { failed: boolean; lastError: string; retryCount: number }
 
-export type AppMode = 'JARVIS_MODE' | 'DASHBOARD_MODE' | 'FORTRESS_MODE'
+export type AppMode = 'ORB_MODE' | 'FORTRESS_MODE' | 'DASHBOARD_MODE'
 
 export interface ContentWindowEntry {
   id: string
@@ -35,6 +35,8 @@ export interface VectorState {
   openTaskbarPanel: 'core' | 'events' | 'metrics' | 'daily' | null
   showGlobe: boolean
   scrollTarget: { worldX: number; worldY: number; zoom?: number } | null
+  isAwake: boolean
+  hudVisible: boolean
   health: HealthData | null
   trainingData: TrainingData | null
   loopStatus: LoopStatus | null
@@ -64,6 +66,8 @@ export interface VectorState {
   setBootDone: (v: boolean) => void
   setProcessing: (v: boolean) => void
   setVoiceState: (v: VoiceState) => void
+  setIsAwake: (v: boolean) => void
+  setHudVisible: (v: boolean) => void
   addContentWindow: (w: ContentWindowEntry) => void
   removeContentWindow: (id: string) => void
   clearContentWindows: () => void
@@ -184,7 +188,7 @@ const PANEL_POSITIONS: Record<string, { worldX: number; worldY: number }> = {
 }
 
 export const useVectorStore = create<VectorState>()((set) => ({
-  mode: 'JARVIS_MODE',
+  mode: 'ORB_MODE',
   bootDone: false,
   processing: false,
   voiceState: 'idle' as VoiceState,
@@ -208,6 +212,8 @@ export const useVectorStore = create<VectorState>()((set) => ({
   openTaskbarPanel: null,
   showGlobe: false,
   scrollTarget: null,
+  isAwake: false,
+  hudVisible: false,
   health: null,
   trainingData: null,
   loopStatus: null,
@@ -237,7 +243,12 @@ export const useVectorStore = create<VectorState>()((set) => ({
   setMode: (m) => set({ mode: m }),
   setBootDone: (v) => set({ bootDone: v }),
   setProcessing: (v) => set({ processing: v }),
-  setVoiceState: (v) => set({ voiceState: v }),
+  setVoiceState: (v) => set((state) => ({
+    voiceState: v,
+    isAwake: v !== 'idle' ? true : state.isAwake
+  })),
+  setIsAwake: (v) => set({ isAwake: v }),
+  setHudVisible: (v) => set({ hudVisible: v }),
   addContentWindow: (w) => set((s) => ({ contentWindows: [...s.contentWindows, w], orbInCorner: true })),
   removeContentWindow: (id) => set((s) => {
     const remaining = s.contentWindows.filter(w => w.id !== id)

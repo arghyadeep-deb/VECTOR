@@ -1,0 +1,79 @@
+rules:
+  - id: "high_cpu_usage"
+    name: "High CPU Usage Detected"
+    description: "System CPU usage exceeds 95% for 30 seconds"
+    source: "system_monitor"
+    condition:
+      type: "threshold"
+      field: "cpu_percent"
+      operator: ">"
+      value: 95.0
+      window: 30
+    severity: 6
+    response:
+      - "alert"
+      - "notify"
+    tags: ["resource", "cpu"]
+
+  - id: "high_memory_usage"
+    name: "High Memory Usage Detected"
+    description: "System RAM usage exceeds 90%"
+    source: "system_monitor"
+    condition:
+      type: "threshold"
+      field: "memory_percent"
+      operator: ">"
+      value: 90.0
+    severity: 6
+    response:
+      - "alert"
+    tags: ["resource", "memory"]
+
+  - id: "port_scan_detected"
+    name: "Port Scan Detected"
+    description: "Connection rate from single source exceeds 100/min"
+    source: "network_monitor"
+    condition:
+      type: "rate"
+      field: "connection_count"
+      threshold: 100
+      window: 60
+      aggregation: "src_ip"
+    severity: 7
+    response:
+      - "alert"
+      - "notify"
+      - "playbook:port_scan"
+    tags: ["recon", "port_scan"]
+
+  - id: "unknown_outbound"
+    name: "Unknown Outbound Connection"
+    description: "Connection to unknown external IP address"
+    source: "network_monitor"
+    condition:
+      type: "threshold"
+      field: "is_known"
+      operator: "=="
+      value: false
+    severity: 8
+    response:
+      - "alert"
+      - "notify"
+      - "playbook:unknown_outbound"
+    tags: ["network", "outbound"]
+
+  - id: "multiple_failed_auths"
+    name: "Multiple Failed Authentication Attempts"
+    description: "More than 5 authentication failures in 1 minute"
+    source: "log_aggregator"
+    condition:
+      type: "rate"
+      field: "log_pattern"
+      pattern: "(auth|login|fail|denied).*(fail|error|invalid)"
+      threshold: 5
+      window: 60
+    severity: 7
+    response:
+      - "alert"
+      - "playbook:failed_auth"
+    tags: ["auth", "brute_force"]

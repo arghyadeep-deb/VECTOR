@@ -71,7 +71,7 @@ def create_ws_router(event_bus: EventBus) -> Any:
                 payload = await queue.get()
                 await websocket.send_json(payload)
         except WebSocketDisconnect:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         finally:
             clients.pop(websocket, None)
 

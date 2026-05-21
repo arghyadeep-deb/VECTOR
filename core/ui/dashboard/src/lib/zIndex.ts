@@ -9,7 +9,7 @@ export const Z = {
   CORNER_HUD:     45,   // Compass + metric bars
   CORE_STATUS:    46,   // Draggable status panel
   SIDEBARS:       50,   // Telemetry + Districts panels
-  OVERLAY:        50,   // JarvisOverlay brackets, reticle, status
+  OVERLAY:        50,   // VectorFrame brackets, reticle, status
   VOICE:          55,   // VoiceWaveform
   COMMAND_INPUT:  60,   // Command input area
   ALERTS:         80,   // AlertSystem toasts

@@ -2242,7 +2242,7 @@ def run_slash(rest: str) -> str:
         try:
             kanban_command(args)
         except SystemExit:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         except Exception as exc:
             print(f"error: {exc}", file=sys.stderr)
 

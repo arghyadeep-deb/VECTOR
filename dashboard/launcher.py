@@ -1,7 +1,7 @@
 """
 VECTOR Desktop Launcher — Python-native desktop window.
 
-Serves the React JARVIS UI via a local FastAPI server and wraps it in a
+Serves the React VECTOR UI via a local FastAPI server and wraps it in a
 native desktop window using pywebview. Zero Rust, zero Electron.
 
 Usage:
@@ -111,8 +111,8 @@ def _open_window(url: str, debug: bool = False) -> None:
         width=1400,
         height=900,
         min_size=(1100, 700),
-        background_color="#020A14",   # JARVIS dark background
-        frameless=False,              # set True for borderless JARVIS look
+        background_color="#020A14",   # VECTOR dark background
+        frameless=False,              # set True for borderless VECTOR look
         easy_drag=True,
         text_select=False,
     )
@@ -160,7 +160,7 @@ def main() -> None:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     else:
         _open_window(url, debug=args.debug)
 

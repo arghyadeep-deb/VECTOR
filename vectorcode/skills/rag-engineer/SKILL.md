@@ -18,7 +18,7 @@ Expert in building Retrieval-Augmented Generation systems. Masters embedding mod
 
 ## Use this skill when
 
-- Building `agents/districts/memory_curator/` (T6)
+- Building `districts/memory_curator/` (T6)
 - Wiring LightRAG into VECTOR's episodic memory
 - Improving `inject_past_reasoning()` retrieval quality
 - Setting up `nomic-embed-text` for semantic search over memories

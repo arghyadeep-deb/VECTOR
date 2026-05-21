@@ -102,7 +102,7 @@ def _select_binary_variant() -> str | None:
             sp.run(["nvcc", "--version"], capture_output=True, timeout=3)
             has_cuda = True
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         if has_cuda:
             return f"{BASE}/sd-master-win-cuda12-x64.zip"
         return f"{BASE}/sd-master-win-avx2-x64.zip"

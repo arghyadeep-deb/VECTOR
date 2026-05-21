@@ -716,12 +716,12 @@ def _run_single(config, console: Optional[Console] = None) -> object:
         base_url=(
             getattr(config, "base_url", None)
             or _metadata.get("base_url")
-            or os.environ.get("JARVIS_BACKEND_BASE_URL")
+            or os.environ.get("VECTOR_BACKEND_BASE_URL")
         ),
         api_key=(
             getattr(config, "api_key", None)
             or _metadata.get("api_key")
-            or os.environ.get("JARVIS_BACKEND_API_KEY")
+            or os.environ.get("VECTOR_BACKEND_API_KEY")
         ),
     )
     dataset = _build_dataset(config.benchmark)
@@ -1300,11 +1300,11 @@ def run(
         sheets_worksheet=sheets_worksheet,
         sheets_credentials_path=sheets_credentials_path,
         episode_mode=episode_mode,
-        base_url=base_url or os.environ.get("JARVIS_BACKEND_BASE_URL"),
-        api_key=api_key or os.environ.get("JARVIS_BACKEND_API_KEY"),
+        base_url=base_url or os.environ.get("VECTOR_BACKEND_BASE_URL"),
+        api_key=api_key or os.environ.get("VECTOR_BACKEND_API_KEY"),
         metadata={
-            "base_url": base_url or os.environ.get("JARVIS_BACKEND_BASE_URL"),
-            "api_key": api_key or os.environ.get("JARVIS_BACKEND_API_KEY"),
+            "base_url": base_url or os.environ.get("VECTOR_BACKEND_BASE_URL"),
+            "api_key": api_key or os.environ.get("VECTOR_BACKEND_API_KEY"),
         },
     )
 

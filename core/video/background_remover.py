@@ -1,6 +1,5 @@
 """
 VECTOR Background Remover
-Ported from hyperframes cli/src/background-removal/ (inference.ts + pipeline.ts + manager.ts)
 
 AI-based background removal using ONNX runtime + OpenCV.
 Outputs transparent RGBA video/images for overlay compositing.
@@ -78,8 +77,7 @@ class RemoveResult:
 class BGSession:
     """
     ONNX inference session for background removal.
-    Equivalent to hyperframes background-removal/inference.ts
-    """
+        """
 
     def __init__(self, model_id: str = DEFAULT_MODEL) -> None:
         self._model_id = model_id
@@ -157,7 +155,7 @@ class BGSession:
             logger.info("[VECTOR][bg_remover] using rembg models (auto-managed)")
             return model_path  # rembg handles its own models
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         logger.info("[VECTOR][bg_remover] downloading {} from {}", self._model_id, url)
         import httpx
@@ -171,8 +169,7 @@ class BGSession:
 class BackgroundRemover:
     """
     Full background removal pipeline for images and videos.
-    Equivalent to hyperframes background-removal/pipeline.ts
-    """
+        """
 
     def __init__(
         self,
@@ -208,7 +205,7 @@ class BackgroundRemover:
             return RemoveResult(output_path=output_path, frames_processed=1,
                                 provider="rembg", format="png")
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         frame_bgr = cv2.imread(input_path)
         if frame_bgr is None:
@@ -249,7 +246,7 @@ class BackgroundRemover:
         try:
             return self._remove_video_rembg(input_path, output_path, bg_plate_path, on_progress)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return self._remove_video_manual(input_path, output_path, bg_plate_path, on_progress)
 

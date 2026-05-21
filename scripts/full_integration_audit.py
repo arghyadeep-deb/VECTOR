@@ -153,7 +153,7 @@ check("Governor routes bash tool", "bash_execute" in gov or "bash_tool" in gov,
       "NOT in governor — bash_execute not routed")
 
 # coding district uses coding_assistant
-coding_hub = Path("agents/districts/coding")
+coding_hub = Path("districts/coding")
 hub_files = list(coding_hub.rglob("*.py"))
 ca_refs = sum(1 for f in hub_files
               if "coding_assistant" in f.read_text(encoding="utf-8", errors="replace"))
@@ -166,14 +166,14 @@ check("coding/ district uses coding_assistant", ca_refs > 0,
 print("\n=== VECTOR WIRING (research_engine) ===")
 
 # research_api.py exists and imports from research_engine
-rap = Path("agents/districts/research/research_api.py")
+rap = Path("districts/research/research_api.py")
 check("research_api.py exists", rap.exists())
 if rap.exists():
     content = rap.read_text(encoding="utf-8")
     check("research_api imports from core.research_engine", "core.research_engine" in content)
 
 # deep_researcher.py exists
-dr = Path("agents/districts/research/deep_researcher.py")
+dr = Path("districts/research/deep_researcher.py")
 check("deep_researcher.py exists", dr.exists())
 
 # governor routes research tasks

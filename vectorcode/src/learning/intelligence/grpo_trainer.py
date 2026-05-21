@@ -204,7 +204,7 @@ class GRPOTrainer:
                     load_in_8bit=True
                 )
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         ref_model = AutoModelForCausalLM.from_pretrained(
             self.config.model_name, **ref_kwargs
         )

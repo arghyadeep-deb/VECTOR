@@ -67,7 +67,7 @@ def _ensure_providers_registered() -> None:
 
         ensure_mps_registered()
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def _provider_ids() -> tuple[str, ...]:
@@ -471,7 +471,7 @@ def init(
 
     from vectorcode.src.core.config import DEFAULT_CONFIG_PATH
 
-    config_path = Path(os.environ.get("OPENJARVIS_CONFIG", DEFAULT_CONFIG_PATH))
+    config_path = Path(os.environ.get("OPENVECTOR_CONFIG", DEFAULT_CONFIG_PATH))
     config_path.parent.mkdir(parents=True, exist_ok=True)
     section = f"""
 [mining]

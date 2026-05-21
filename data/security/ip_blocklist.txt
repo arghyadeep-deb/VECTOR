@@ -1,0 +1,18 @@
+# Known malicious IPs — one per line, optional colon-separated reason
+# VECTOR Security SIEM blocklist
+10.0.0.1:internal_test
+185.220.101.0:tor_exit_node
+23.129.64.0:known_c2_infrastructure
+45.155.205.0:malware_command_control
+51.75.144.0:suspicious_scanner
+91.121.87.0:abuse_listed
+104.248.0.0:known_bad_hosting
+137.74.0.0:abuse_listed
+141.98.10.0:ransomware_associated
+162.247.74.0:tor_exit_node
+185.130.5.0:spam_known
+185.165.29.0:malware_distribution
+185.220.101.0:tor_exit_node
+192.42.116.0:known_c2
+192.168.254.0:suspicious_lan
+198.98.51.0:abuse_listed

@@ -22,9 +22,9 @@ new_files = [
     "core/video/video_encoder.py",
     "core/video/audio_mixer.py",
     "core/video/background_remover.py",
-    "core/video/hyperframes_composer.py",
+    "core/video/vector_composer.py",
     "core/video/website_to_video.py",
-    "agents/districts/content/website_to_video.py",
+    "districts/content/website_to_video.py",
 ]
 for f in new_files:
     try:
@@ -43,7 +43,7 @@ import_tests = [
     ("core.video.video_encoder",     ["VideoEncoder","EncodeOptions","find_ffmpeg"]),
     ("core.video.audio_mixer",       ["AudioMixer","AudioTrack","NarrationPipeline"]),
     ("core.video.background_remover",["BackgroundRemover","BGSession","remove_background"]),
-    ("core.video.hyperframes_composer",["VectorComposer","ComposerJob","CompositionTemplate"]),
+    ("core.video.vector_composer",["VectorComposer","ComposerJob","CompositionTemplate"]),
     ("core.video.website_to_video",  ["WebsiteToVideo","WebContentExtractor","CaptureOptions"]),
 ]
 for mod, symbols in import_tests:
@@ -170,7 +170,7 @@ assert session2._input_size == 320
 ok("BackgroundRemover + BGSession input sizes (isnet-dis=1024, u2net=320)")
 
 # CompositionTemplate HTML
-from core.video.hyperframes_composer import CompositionTemplate, VectorComposer, ComposerJob
+from core.video.vector_composer import CompositionTemplate, VectorComposer, ComposerJob
 with tempfile.TemporaryDirectory() as tmp:
     tc = os.path.join(tmp, "title.html")
     CompositionTemplate.title_card("VECTOR AI", "Intelligence", output_path=tc)
@@ -263,7 +263,7 @@ print()
 # ── GROUP 5: District agent ───────────────────────────────────────────────────
 print("GROUP 5 -- District agent")
 try:
-    from agents.districts.content.website_to_video import WebsiteToVideoAgent
+    from districts.content.website_to_video import WebsiteToVideoAgent
     agent = WebsiteToVideoAgent()
     assert agent.health_points == 500
     assert agent.name == "WebsiteToVideoAgent"
@@ -276,7 +276,7 @@ except Exception as e:
 print()
 print("GROUP 6 -- Zero external repo references")
 import re
-check_dirs = ["core/video", "agents/districts/content/website_to_video.py"]
+check_dirs = ["core/video", "districts/content/website_to_video.py"]
 banned = ["hyperframes", "heygen-com", "npx hyperframes"]
 all_clean = True
 for check in check_dirs:

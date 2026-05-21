@@ -111,6 +111,39 @@ export default function MapView() {
     }
   }, [loc])
 
+  // Listen for voice "show me <place>" events: useVectorWS dispatches
+  // 'vector:show-location' with a {query} payload. We hit /sb/geocode
+  // (proxied to shadowbroker_server's Nominatim cache) and flyTo the result.
+  useEffect(() => {
+    const onShow = async (e: Event) => {
+      const detail = (e as CustomEvent<{ query?: string }>).detail || {}
+      const query = (detail.query || '').trim()
+      if (!query) return
+      try {
+        const r = await fetch(`/sb/geocode?q=${encodeURIComponent(query)}&limit=1`)
+        if (!r.ok) return
+        const data = await r.json()
+        // SB returns either {results:[{lat, lng | lon}]} or [{lat, lng}]
+        const first = Array.isArray(data) ? data[0] :
+                      Array.isArray(data?.results) ? data.results[0] : data
+        if (!first) return
+        const lat = Number(first.lat ?? first.latitude)
+        const lng = Number(first.lng ?? first.lon ?? first.longitude)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+        setLoc({
+          lat, lon: lng,
+          city: first.label || first.display_name || query,
+          region: first.region || '',
+          country: first.country || '',
+        })
+        const map = mapInstanceRef.current
+        if (map) map.flyTo([lat, lng], 12, { duration: 2.4 })
+      } catch { /* network blip — ignore */ }
+    }
+    window.addEventListener('vector:show-location', onShow)
+    return () => window.removeEventListener('vector:show-location', onShow)
+  }, [])
+
   return (
     <div style={{ width: '100%', position: 'relative' }}>
       {/* Header */}

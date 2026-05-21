@@ -160,7 +160,7 @@ def _ensure_qrcode_installed() -> bool:
         import qrcode  # noqa: F401
         return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     import subprocess
 

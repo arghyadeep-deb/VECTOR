@@ -268,7 +268,7 @@ class AmbientScheduler:
             try:
                 return json.loads(self._directives_file.read_text())
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return []
 
     def _save_directives(self, directives: list[dict]) -> None:
@@ -337,7 +337,7 @@ class AmbientScheduler:
             try:
                 return json.loads(self._queue_file.read_text())
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return []
 
     def _save_queue(self, queue: list[dict]) -> None:

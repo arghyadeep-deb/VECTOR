@@ -1,6 +1,5 @@
 """
 VECTOR Video Encoder
-Ported from hyperframes engine/services/chunkEncoder.ts + streamingEncoder.ts
 + utils/runFfmpeg.ts + utils/gpuEncoder.ts
 
 Encodes PNG frame sequences to MP4/WebM/MOV using FFmpeg.
@@ -99,8 +98,7 @@ def probe_dimensions(path: str) -> tuple[int, int]:
 class VideoEncoder:
     """
     Encodes PNG frame sequences to video.
-    Equivalent to hyperframes engine/services/chunkEncoder.ts
-    """
+        """
 
     def __init__(self) -> None:
         self._ffmpeg = find_ffmpeg()
@@ -272,8 +270,7 @@ class VideoEncoder:
 class StreamingEncoder:
     """
     Pipes raw PNG bytes to FFmpeg stdin for zero-disk-write rendering.
-    Equivalent to hyperframes engine/services/streamingEncoder.ts
-    """
+        """
 
     def __init__(self, opts: EncodeOptions, output_path: str) -> None:
         self._opts = opts

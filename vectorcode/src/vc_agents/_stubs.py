@@ -353,6 +353,6 @@ class ToolUsingAgent(BaseAgent):
             if loop_guard_config.enabled:
                 self._loop_guard = LoopGuard(loop_guard_config, bus=bus)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 __all__ = ["AgentContext", "AgentResult", "BaseAgent", "ToolUsingAgent"]

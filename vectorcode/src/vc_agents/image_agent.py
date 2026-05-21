@@ -18,7 +18,7 @@ class ImageAgent:
     """
     Vectorcode's image generation executor.
     Routes through the registered image provider or falls back to VECTOR's
-    agents/districts/content/comfyui_adapter.py.
+    districts/content/comfyui_adapter.py.
     """
 
     def __init__(self):
@@ -55,7 +55,7 @@ class ImageAgent:
 
         # Fallback: VECTOR's local ComfyUI adapter
         try:
-            from agents.districts.content.comfyui_adapter import ComfyUIAdapter
+            from districts.content.comfyui_adapter import ComfyUIAdapter
             import asyncio
             adapter = ComfyUIAdapter()
             loop = asyncio.new_event_loop()
@@ -79,7 +79,7 @@ class ImageAgent:
             try:
                 return [p.name for p in registry.list_providers()]
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return ["comfyui-local"]
 
 

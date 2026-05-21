@@ -195,7 +195,7 @@ class TestVectorWiring:
         _record_telemetry("vector-coder", 0.5, {}, None)  # should be a silent no-op
 
     def test_agent_registry_loads(self):
-        from vectorcode.src.agents.districts.registry import get_registry
+        from vectorcode.src.districts.registry import get_registry
         reg = get_registry()
         agents = reg.list_all()
         assert isinstance(agents, list)

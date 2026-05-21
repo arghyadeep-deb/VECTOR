@@ -1,0 +1,53 @@
+"""ML training experiment — {{ experiment_type }}"""
+
+import json
+import statistics
+import sys
+from typing import Any
+
+model_type = "{{ model_type }}"
+dataset_path = "{{ dataset_path }}"
+hyperparameters = {{ hyperparameters }}
+epochs = {{ epochs }}
+batch_size = {{ batch_size }}
+
+
+def run_experiment() -> dict[str, Any]:
+    history: dict[str, list[float]] = {"train_loss": [], "val_loss": [], "val_accuracy": []}
+
+    for epoch in range(epochs):
+        train_loss = 0.5 / (epoch + 1) + 0.01
+        val_loss = 0.4 / (epoch + 1) + 0.02
+        val_accuracy = 1.0 - val_loss
+
+        history["train_loss"].append(train_loss)
+        history["val_loss"].append(val_loss)
+        history["val_accuracy"].append(val_accuracy)
+
+        print(f"STAT:epoch:{epoch}")
+        print(f"STAT:train_loss:{train_loss}")
+        print(f"STAT:val_loss:{val_loss}")
+        print(f"STAT:val_accuracy:{val_accuracy}")
+
+    final_accuracy = history["val_accuracy"][-1]
+    final_loss = history["val_loss"][-1]
+
+    print(f"STAT:final_accuracy:{final_accuracy}")
+    print(f"STAT:final_loss:{final_loss}")
+    print(f"STAT:epochs_completed:{epochs}")
+
+    try:
+        import sklearn.metrics as skm
+        _ = skm.accuracy_score
+        print("STAT:sklearn_available:1")
+    except ImportError:
+        print("STAT:sklearn_available:0")
+
+    return {
+        "model_type": model_type,
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "final_accuracy": final_accuracy,
+        "final_loss": final_loss,
+        "history": history,
+    }

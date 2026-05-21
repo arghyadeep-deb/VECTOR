@@ -349,7 +349,7 @@ class AgentLoop:
             self.stats.input_price_per_million = active_model.input_price
             self.stats.output_price_per_million = active_model.output_price
         except ValueError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         self._current_user_message_id: str | None = None
         self._is_user_prompt_call: bool = False
@@ -1532,7 +1532,7 @@ class AgentLoop:
                 active_model.input_price, active_model.output_price
             )
         except ValueError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         self.middleware_pipeline.reset()
         self.tool_manager.reset_all()
@@ -1681,7 +1681,7 @@ class AgentLoop:
                 active_model.input_price, active_model.output_price
             )
         except ValueError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         if reset_middleware:
             self._setup_middleware()

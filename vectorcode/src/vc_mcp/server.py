@@ -77,37 +77,37 @@ class MCPServer:
 
             _tool_classes.append(CalculatorTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from vectorcode.src.vc_tools.think import ThinkTool
 
             _tool_classes.append(ThinkTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from vectorcode.src.vc_tools.file_read import FileReadTool
 
             _tool_classes.append(FileReadTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from vectorcode.src.vc_tools.web_search import WebSearchTool
 
             _tool_classes.append(WebSearchTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from vectorcode.src.vc_tools.code_interpreter import CodeInterpreterTool
 
             _tool_classes.append(CodeInterpreterTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         try:
             from vectorcode.src.vc_tools.repl import ReplTool
 
             _tool_classes.append(ReplTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Storage MCP tools
         try:
@@ -127,7 +127,7 @@ class MCPServer:
                 ]
             )
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Channel MCP tools
         try:
@@ -145,7 +145,7 @@ class MCPServer:
                 ]
             )
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # LM tool (needs engine/model — instantiate with None)
         try:
@@ -153,7 +153,7 @@ class MCPServer:
 
             _tool_classes.append(LLMTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Retrieval tool (needs backend — instantiate with None)
         try:
@@ -161,7 +161,7 @@ class MCPServer:
 
             _tool_classes.append(RetrievalTool)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         for cls in _tool_classes:
             try:

@@ -1,0 +1,9 @@
+base_value: 50.0
+description: 'Auto-created scenario: nonexistent_test_scenario'
+name: nonexistent_test_scenario
+parameters:
+  param1:
+    distribution: normal
+    mean: 0.0
+    std: 1.0
+    weight: 1.0

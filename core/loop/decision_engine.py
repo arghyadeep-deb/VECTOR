@@ -319,7 +319,7 @@ class DecisionEngine:
                     evidence=f"decision_winner: score={winner.total_score}",
                 )
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # RULE 8: store winning decision reasoning in ReasoningBank
         # High-reward decisions (score > 0.7) become training data
@@ -348,7 +348,7 @@ class DecisionEngine:
                     trainer.save_checkpoint(ckpt)
                     logger.debug(f"[VECTOR][decision_engine] Neural trainer checkpoint saved (n={self._neural_decision_count})")
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return Decision(
             winner=winner,

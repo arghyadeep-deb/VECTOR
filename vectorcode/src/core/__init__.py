@@ -1,6 +1,9 @@
-"""Core shim package."""
-from vectorcode.src.vc_core import *
+"""
+Gap 11: This src/core/ directory is a shim that re-exports from src/vc_core/.
+Prefer importing from vectorcode.src.vc_core directly.
+"""
+from vectorcode.src.vc_core import *  # noqa: F401, F403
 try:
-    from vectorcode.src.core import config
+    from vectorcode.src.core import config  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

@@ -223,7 +223,7 @@ def main() -> None:
                     text_changed += 1
                     total_changed += 1
             except OSError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     if text_changed:
         print(f"  Non-Python files: {text_changed} files cleaned")

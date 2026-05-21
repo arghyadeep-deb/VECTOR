@@ -78,7 +78,7 @@ async def list_agents(request: Request):
 
         running = [{"id": k, **v} for k, v in _SPAWNED_AGENTS.items()]
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     return {"registered": registered, "running": running}
 
@@ -862,7 +862,7 @@ def include_all_routes(app) -> None:
             app.include_router(tools_r)
             app.include_router(sendblue_r)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # WebSocket bridge for real-time agent events
     try:

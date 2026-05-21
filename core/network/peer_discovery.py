@@ -231,7 +231,7 @@ class PeerDiscovery:
                                 peer.node_id, peer.address(),
                             )
                 except (asyncio.TimeoutError, json.JSONDecodeError):
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             sock.close()
         except Exception as e:

@@ -118,7 +118,7 @@ class HttpRequestTool(BaseTool):
 
             _rust = get_rust_module()
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         if _rust is not None and not headers:
             try:
                 content = _rust.HttpRequestTool().execute(url, method, body)

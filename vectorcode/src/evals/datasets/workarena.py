@@ -192,7 +192,7 @@ class WorkArenaDataset(DatasetProvider):
                     return "l3"
                 return "l2"
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         if task_class in ATOMIC_TASKS:
             return "l1"

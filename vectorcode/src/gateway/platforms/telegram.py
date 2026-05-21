@@ -312,7 +312,7 @@ class TelegramAdapter(BasePlatformAdapter):
             if isinstance(error, (NetworkError, TimedOut)):
                 return True
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return isinstance(error, OSError)
 
     def _coerce_bool_extra(self, key: str, default: bool = False) -> bool:

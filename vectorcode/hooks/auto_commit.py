@@ -48,6 +48,6 @@ try:
             capture_output=True, timeout=15
         )
 except Exception:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.exit(0)

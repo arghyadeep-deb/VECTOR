@@ -1076,7 +1076,7 @@ def _cleanup_inactive_envs(lifetime_seconds: int = 300):
             if process_registry.has_active_processes(task_id):
                 _last_activity[task_id] = current_time  # Keep sandbox alive
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Phase 1: collect stale entries and remove them from tracking dicts while
     # holding the lock.  Do NOT call env.cleanup() inside the lock -- Modal and
@@ -1106,7 +1106,7 @@ def _cleanup_inactive_envs(lifetime_seconds: int = 300):
             from tools.file_tools import clear_file_ops_cache
             clear_file_ops_cache(task_id)
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         try:
             if hasattr(env, 'cleanup'):
@@ -1160,7 +1160,7 @@ def _stop_cleanup_thread():
         try:
             _cleanup_thread.join(timeout=5)
         except (SystemExit, KeyboardInterrupt):
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def get_active_env(task_id: str):
@@ -1235,7 +1235,7 @@ def cleanup_vm(task_id: str):
         from tools.file_tools import clear_file_ops_cache
         clear_file_ops_cache(task_id)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     if env is None:
         return

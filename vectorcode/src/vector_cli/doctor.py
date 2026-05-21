@@ -1237,7 +1237,7 @@ def run_doctor(args):
                     except Exception as _sve:
                         logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as _sve:
         logger.debug("[VECTOR][vector_cli.doctor] suppressed Exception: %s", _sve)
 

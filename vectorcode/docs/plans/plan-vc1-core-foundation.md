@@ -1,17 +1,17 @@
 # VectorCode VC-1: Core Foundation
 
 **Goal:** Build the shared session state, semantic model router, file/bash tools, and security layer that all other VectorCode phases depend on.
-**Architecture:** All files live under `agents/districts/coding/vectorcode/`. Session is a singleton dataclass. Router maps task types to Ollama model names respecting RULE 4. FileTools and BashTools wrap all I/O through the security layer before touching disk or shell. No subprocess.shell=True anywhere — all commands run via subprocess.run with list args only.
+**Architecture:** All files live under `districts/coding/vectorcode/`. Session is a singleton dataclass. Router maps task types to Ollama model names respecting RULE 4. FileTools and BashTools wrap all I/O through the security layer before touching disk or shell. No subprocess.shell=True anywhere — all commands run via subprocess.run with list args only.
 **Files:**
-- Create: `agents/districts/coding/vectorcode/__init__.py`
-- Create: `agents/districts/coding/vectorcode/session.py`
-- Create: `agents/districts/coding/vectorcode/router.py`
-- Create: `agents/districts/coding/vectorcode/tools/__init__.py`
-- Create: `agents/districts/coding/vectorcode/tools/file_tools.py`
-- Create: `agents/districts/coding/vectorcode/tools/bash_tools.py`
-- Create: `agents/districts/coding/vectorcode/security/__init__.py`
-- Create: `agents/districts/coding/vectorcode/security/validator.py`
-- Create: `agents/districts/coding/vectorcode/security/safe_executor.py`
+- Create: `districts/coding/vectorcode/__init__.py`
+- Create: `districts/coding/vectorcode/session.py`
+- Create: `districts/coding/vectorcode/router.py`
+- Create: `districts/coding/vectorcode/tools/__init__.py`
+- Create: `districts/coding/vectorcode/tools/file_tools.py`
+- Create: `districts/coding/vectorcode/tools/bash_tools.py`
+- Create: `districts/coding/vectorcode/security/__init__.py`
+- Create: `districts/coding/vectorcode/security/validator.py`
+- Create: `districts/coding/vectorcode/security/safe_executor.py`
 - Create: `tests/test_vectorcode_vc1.py`
 
 ---
@@ -21,7 +21,7 @@
 - [ ] Write failing test
   ```python
   # tests/test_vectorcode_vc1.py
-  from agents.districts.coding.vectorcode.session import VectorCodeSession
+  from districts.coding.vectorcode.session import VectorCodeSession
   def test_session_singleton():
       a = VectorCodeSession.get()
       b = VectorCodeSession.get()
@@ -36,7 +36,7 @@
       assert hasattr(s, "current_model")
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py::test_session_singleton tests/test_vectorcode_vc1.py::test_session_fields -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/session.py`
+- [ ] Implement `districts/coding/vectorcode/session.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py::test_session_singleton tests/test_vectorcode_vc1.py::test_session_fields -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): VectorCodeSession singleton"`
 
@@ -46,7 +46,7 @@
 
 - [ ] Write failing test
   ```python
-  from agents.districts.coding.vectorcode.router import SemanticRouter
+  from districts.coding.vectorcode.router import SemanticRouter
   def test_router_routes_code():
       r = SemanticRouter()
       assert r.route("write a function") == "vector-coder"
@@ -66,7 +66,7 @@
       assert switches <= 3
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "router" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/router.py`
+- [ ] Implement `districts/coding/vectorcode/router.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "router" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): SemanticRouter Ollama model routing"`
 
@@ -77,7 +77,7 @@
 - [ ] Write failing test
   ```python
   import pytest
-  from agents.districts.coding.vectorcode.tools.file_tools import FileTools
+  from districts.coding.vectorcode.tools.file_tools import FileTools
   def test_file_read_write(tmp_path):
       ft = FileTools(repo_root=str(tmp_path))
       ft.write("hello.py", "print('hello')")
@@ -103,7 +103,7 @@
           ft.read("../../etc/passwd")
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "file" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/tools/file_tools.py`
+- [ ] Implement `districts/coding/vectorcode/tools/file_tools.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "file" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): FileTools read/write/edit/grep/glob"`
 
@@ -114,7 +114,7 @@
 - [ ] Write failing test
   ```python
   import pytest
-  from agents.districts.coding.vectorcode.tools.bash_tools import BashTools
+  from districts.coding.vectorcode.tools.bash_tools import BashTools
   def test_bash_allowed_command():
       bt = BashTools()
       result = bt.run(["python", "--version"])
@@ -137,7 +137,7 @@
       assert time.time() - start < 5
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "bash" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/tools/bash_tools.py`
+- [ ] Implement `districts/coding/vectorcode/tools/bash_tools.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "bash" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): BashTools safe command execution"`
 
@@ -148,7 +148,7 @@
 - [ ] Write failing test
   ```python
   import pytest
-  from agents.districts.coding.vectorcode.security.validator import InputValidator, PathValidator
+  from districts.coding.vectorcode.security.validator import InputValidator, PathValidator
   def test_path_validator_blocks_traversal(tmp_path):
       pv = PathValidator(repo_root=str(tmp_path))
       with pytest.raises(PermissionError):
@@ -167,7 +167,7 @@
           iv.validate_tool_call("read_file", {"path": ""})
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "validator" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/security/validator.py`
+- [ ] Implement `districts/coding/vectorcode/security/validator.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "validator" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): InputValidator + PathValidator"`
 
@@ -178,7 +178,7 @@
 - [ ] Write failing test
   ```python
   import pytest
-  from agents.districts.coding.vectorcode.security.safe_executor import SafeExecutor
+  from districts.coding.vectorcode.security.safe_executor import SafeExecutor
   def test_safe_executor_allowlist_git():
       se = SafeExecutor()
       assert se.is_allowed(["git", "status"]) is True
@@ -198,7 +198,7 @@
       assert "Python" in result["stdout"] or "Python" in result["stderr"]
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "executor" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/security/safe_executor.py`
+- [ ] Implement `districts/coding/vectorcode/security/safe_executor.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc1.py -k "executor" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc1): SafeExecutor allowlist + injection protection"`
 

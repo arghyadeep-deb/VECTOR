@@ -2464,7 +2464,7 @@ async def pty_ws(ws: WebSocket) -> None:
 
             bridge.write(raw)
     except WebSocketDisconnect:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     finally:
         reader_task.cancel()
         try:
@@ -2545,7 +2545,7 @@ async def pub_ws(ws: WebSocket) -> None:
         while True:
             await _broadcast_event(channel, await ws.receive_text())
     except WebSocketDisconnect:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 @app.websocket("/api/events")
@@ -2581,7 +2581,7 @@ async def events_ws(ws: WebSocket) -> None:
             # browser holds it.
             await ws.receive_text()
     except WebSocketDisconnect:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     finally:
         async with _event_lock:
             subs = _event_channels.get(channel)

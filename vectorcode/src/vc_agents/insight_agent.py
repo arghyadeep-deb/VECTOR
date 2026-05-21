@@ -73,7 +73,7 @@ class InsightAgent:
                     if ts >= cutoff:
                         recent.append(e)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             event_types: dict[str, int] = {}
             for e in recent:
@@ -109,7 +109,7 @@ class InsightAgent:
             if top and top[0][0] == "error":
                 hints.append(f"High error rate ({top[0][1]} errors) — check logs")
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         hints.append("Run /insights for detailed session analytics")
         return hints
 

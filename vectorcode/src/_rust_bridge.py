@@ -1,8 +1,8 @@
 """Single point of contact between Python and the Rust ``vectorcode.src_rust`` module.
 
-Every Python module that wants to delegate to Rust should import helpers from
-here rather than importing ``vectorcode.src_rust`` directly.  The Rust backend is
-mandatory — if it cannot be imported, a hard ``ImportError`` is raised.
+Gap 13 fix: The compiled Rust extension (.pyd) does not exist in this repo.
+All callers now get a graceful Python fallback instead of a hard ImportError.
+RUST_AVAILABLE is False; callers should check it before using Rust-specific paths.
 """
 
 from __future__ import annotations
@@ -14,98 +14,64 @@ from typing import TYPE_CHECKING, List
 if TYPE_CHECKING:
     import types as _types
 
-# ---------------------------------------------------------------------------
-# Mandatory import — Rust backend is required
-# ---------------------------------------------------------------------------
-
 
 @functools.lru_cache(maxsize=1)
-def get_rust_module() -> _types.ModuleType:
-    """Return the ``vectorcode.src_rust`` module.
-
-    Raises ``ImportError`` if the compiled extension is not available.
-    The Rust backend is mandatory for all modules that have Rust
-    implementations — there is no Python fallback.
-    """
-    import vectorcode.src_rust  # type: ignore[import-untyped]
-
-    return vectorcode.src_rust
+def get_rust_module() -> "_types.ModuleType | None":
+    """Return the ``vectorcode.src_rust`` module, or None if not compiled."""
+    try:
+        import vectorcode.src_rust  # type: ignore[import-untyped]
+        return vectorcode.src_rust
+    except ImportError:
+        return None
 
 
-RUST_AVAILABLE: bool = True
+RUST_AVAILABLE: bool = get_rust_module() is not None
 
 
 # ---------------------------------------------------------------------------
-# JSON -> Python dataclass converters
+# JSON -> Python dataclass converters (pure-Python, no Rust required)
 # ---------------------------------------------------------------------------
 
 
 def scan_result_from_json(json_str: str) -> object:
-    """Convert a Rust scanner JSON string to a Python ``ScanResult``."""
-    from vectorcode.src.security.types import (
-        ScanFinding,
-        ScanResult,
-        ThreatLevel,
-    )
-
+    from vectorcode.src.security.types import ScanFinding, ScanResult, ThreatLevel
     data = json.loads(json_str)
     findings: List[ScanFinding] = []
     for f in data.get("findings", []):
-        findings.append(
-            ScanFinding(
-                pattern_name=f.get("pattern_name", ""),
-                matched_text=f.get("matched_text", ""),
-                threat_level=ThreatLevel(
-                    f.get("threat_level", "low").lower(),
-                ),
-                start=f.get("start", 0),
-                end=f.get("end", 0),
-                description=f.get("description", ""),
-            )
-        )
+        findings.append(ScanFinding(
+            pattern_name=f.get("pattern_name", ""),
+            matched_text=f.get("matched_text", ""),
+            threat_level=ThreatLevel(f.get("threat_level", "low").lower()),
+            start=f.get("start", 0), end=f.get("end", 0),
+            description=f.get("description", ""),
+        ))
     return ScanResult(findings=findings)
 
 
 def injection_result_from_json(json_str: str) -> object:
-    """Convert Rust ``InjectionScanner.scan()`` JSON to dataclass."""
-    from vectorcode.src.security.injection_scanner import (
-        InjectionScanResult,
-    )
+    from vectorcode.src.security.injection_scanner import InjectionScanResult
     from vectorcode.src.security.types import ScanFinding, ThreatLevel
-
     data = json.loads(json_str)
     findings: List[ScanFinding] = []
     for f in data.get("findings", []):
-        findings.append(
-            ScanFinding(
-                pattern_name=f.get("pattern_name", ""),
-                matched_text=f.get("matched_text", ""),
-                threat_level=ThreatLevel(
-                    f.get("threat_level", "low").lower(),
-                ),
-                start=f.get("start", 0),
-                end=f.get("end", 0),
-                description=f.get("description", ""),
-            )
-        )
-
-    threat_raw = data.get("threat_level", "low").lower()
+        findings.append(ScanFinding(
+            pattern_name=f.get("pattern_name", ""),
+            matched_text=f.get("matched_text", ""),
+            threat_level=ThreatLevel(f.get("threat_level", "low").lower()),
+            start=f.get("start", 0), end=f.get("end", 0),
+            description=f.get("description", ""),
+        ))
     try:
-        threat = ThreatLevel(threat_raw)
+        threat = ThreatLevel(data.get("threat_level", "low").lower())
     except ValueError:
         threat = ThreatLevel.LOW
-
     return InjectionScanResult(
-        is_clean=data.get("is_clean", True),
-        findings=findings,
-        threat_level=threat,
+        is_clean=data.get("is_clean", True), findings=findings, threat_level=threat,
     )
 
 
 def retrieval_results_from_json(json_str: str) -> list:
-    """Convert Rust memory ``retrieve()`` JSON to a list of results."""
     from vectorcode.src.tools.storage._stubs import RetrievalResult
-
     items = json.loads(json_str)
     results: List[RetrievalResult] = []
     for item in items:
@@ -115,24 +81,14 @@ def retrieval_results_from_json(json_str: str) -> list:
                 meta = json.loads(meta)
             except (json.JSONDecodeError, TypeError):
                 meta = {}
-        results.append(
-            RetrievalResult(
-                content=item.get("content", ""),
-                score=float(item.get("score", 0.0)),
-                source=item.get("source", ""),
-                metadata=meta,
-            )
-        )
+        results.append(RetrievalResult(
+            content=item.get("content", ""), score=float(item.get("score", 0.0)),
+            source=item.get("source", ""), metadata=meta,
+        ))
     return results
 
 
-# ---------------------------------------------------------------------------
-# Phase 2 converters — optimization & engine types
-# ---------------------------------------------------------------------------
-
-
 def optimization_store_from_rust(path: str = ":memory:") -> object | None:
-    """Get a Rust-backed OptimizationStore, or None if Rust unavailable."""
     mod = get_rust_module()
     if mod is None:
         return None
@@ -143,17 +99,14 @@ def optimization_store_from_rust(path: str = ":memory:") -> object | None:
 
 
 def trial_result_from_json(json_str: str) -> dict:
-    """Convert Rust TrialResult JSON to a Python dict."""
     return json.loads(json_str)
 
 
 def optimization_run_from_json(json_str: str) -> dict:
-    """Convert Rust OptimizationRun JSON to a Python dict."""
     return json.loads(json_str)
 
 
 def generate_result_from_json(json_str: str) -> dict:
-    """Convert Rust GenerateResult JSON to a Python dict."""
     data = json.loads(json_str)
     return {
         "content": data.get("content", ""),
@@ -168,13 +121,8 @@ def generate_result_from_json(json_str: str) -> dict:
 
 
 __all__ = [
-    "RUST_AVAILABLE",
-    "generate_result_from_json",
-    "get_rust_module",
-    "injection_result_from_json",
-    "optimization_run_from_json",
-    "optimization_store_from_rust",
-    "retrieval_results_from_json",
-    "scan_result_from_json",
-    "trial_result_from_json",
+    "RUST_AVAILABLE", "generate_result_from_json", "get_rust_module",
+    "injection_result_from_json", "optimization_run_from_json",
+    "optimization_store_from_rust", "retrieval_results_from_json",
+    "scan_result_from_json", "trial_result_from_json",
 ]

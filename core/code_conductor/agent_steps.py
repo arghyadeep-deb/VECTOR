@@ -158,7 +158,7 @@ async def run_steps(
                 last_value = None
 
     except StopAsyncIteration:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as e:
         logger.error("[VECTOR][steps] run_steps error: {}", e)
         results.append(StepResult(step_type="error", error=str(e)))

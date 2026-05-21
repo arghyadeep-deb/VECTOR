@@ -3,10 +3,10 @@
 **Goal:** Build the FAISS-backed vector index, SONA pattern cache, and auto-memory bridge that give VectorCode self-learning capabilities.
 **Architecture:** FAISSIndex uses faiss.IndexHNSWFlat with nomic-embed-text embeddings (768-dim via Ollama). PatternStore wraps FAISSIndex to store/retrieve successful task patterns, writing rewards to reasoning_chains. AutoMemoryBridge syncs bidirectionally between the file-based Claude memory system and FAISSIndex every 5 minutes as a background TaskQueue task.
 **Files:**
-- Create: `agents/districts/coding/vectorcode/memory/__init__.py`
-- Create: `agents/districts/coding/vectorcode/memory/faiss_index.py`
-- Create: `agents/districts/coding/vectorcode/memory/pattern_store.py`
-- Create: `agents/districts/coding/vectorcode/memory/auto_bridge.py`
+- Create: `districts/coding/vectorcode/memory/__init__.py`
+- Create: `districts/coding/vectorcode/memory/faiss_index.py`
+- Create: `districts/coding/vectorcode/memory/pattern_store.py`
+- Create: `districts/coding/vectorcode/memory/auto_bridge.py`
 - Create: `tests/test_vectorcode_vc2.py`
 
 ---
@@ -15,7 +15,7 @@
 
 - [ ] Write failing test
   ```python
-  from agents.districts.coding.vectorcode.memory.faiss_index import FAISSIndex
+  from districts.coding.vectorcode.memory.faiss_index import FAISSIndex
   def test_faiss_add_and_search(tmp_path):
       idx = FAISSIndex(index_path=str(tmp_path / "test.index"), dim=768)
       idx.add("doc1", [0.1] * 768, {"text": "write a login function"})
@@ -40,7 +40,7 @@
       assert "close" in ids
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "faiss" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/memory/faiss_index.py`
+- [ ] Implement `districts/coding/vectorcode/memory/faiss_index.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "faiss" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc2): FAISSIndex HNSW vector index"`
 
@@ -51,9 +51,9 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.memory.pattern_store import PatternStore
+  from districts.coding.vectorcode.memory.pattern_store import PatternStore
   def test_pattern_store_save_and_recall(tmp_path):
-      with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+      with patch("districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
           mock_idx = MagicMock()
           mock_idx.search.return_value = [{"id": "p1", "score": 0.95, "meta": {"plan": "step1,step2", "outcome": "success"}}]
           MockFAISS.return_value = mock_idx
@@ -63,7 +63,7 @@
           assert result is not None
           assert result["reward"] >= 0.0
   def test_pattern_store_skip_below_threshold(tmp_path):
-      with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+      with patch("districts.coding.vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
           mock_idx = MagicMock()
           mock_idx.search.return_value = [{"id": "p1", "score": 0.3, "meta": {"plan": "x"}}]
           MockFAISS.return_value = mock_idx
@@ -71,8 +71,8 @@
           result = ps.recall(task="completely unrelated task")
           assert result is None
   def test_pattern_store_reward_updates_policy(tmp_path):
-      with patch("agents.districts.coding.vectorcode.memory.pattern_store.FAISSIndex"):
-          with patch("agents.districts.coding.vectorcode.memory.pattern_store.EpisodicMemory") as MockMem:
+      with patch("districts.coding.vectorcode.memory.pattern_store.FAISSIndex"):
+          with patch("districts.coding.vectorcode.memory.pattern_store.EpisodicMemory") as MockMem:
               mock_mem = MagicMock()
               MockMem.return_value = mock_mem
               ps = PatternStore(index_path=str(tmp_path / "patterns"))
@@ -80,7 +80,7 @@
               mock_mem.store_chain.assert_called_once()
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "pattern" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/memory/pattern_store.py`
+- [ ] Implement `districts/coding/vectorcode/memory/pattern_store.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "pattern" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc2): PatternStore SONA cache → reasoning_chains"`
 
@@ -91,10 +91,10 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.memory.auto_bridge import AutoMemoryBridge
+  from districts.coding.vectorcode.memory.auto_bridge import AutoMemoryBridge
   def test_bridge_sync_reads_episodic(tmp_path):
-      with patch("agents.districts.coding.vectorcode.memory.auto_bridge.EpisodicMemory") as MockMem:
-          with patch("agents.districts.coding.vectorcode.memory.auto_bridge.FAISSIndex") as MockFAISS:
+      with patch("districts.coding.vectorcode.memory.auto_bridge.EpisodicMemory") as MockMem:
+          with patch("districts.coding.vectorcode.memory.auto_bridge.FAISSIndex") as MockFAISS:
               mock_mem = MagicMock()
               mock_mem.recall.return_value = [{"content": "learned pattern", "tags": ["code"]}]
               MockMem.return_value = mock_mem
@@ -111,7 +111,7 @@
       assert set(AutoMemoryBridge.INSIGHT_CATEGORIES) == expected
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "bridge" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/memory/auto_bridge.py`
+- [ ] Implement `districts/coding/vectorcode/memory/auto_bridge.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc2.py -k "bridge" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc2): AutoMemoryBridge bidirectional memory sync"`
 

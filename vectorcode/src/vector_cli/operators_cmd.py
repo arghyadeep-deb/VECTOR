@@ -50,7 +50,7 @@ def list_operators() -> None:
                     m = load_operator(toml_path)
                     found.append(m)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         if not found:
             console.print("[dim]No operators discovered.[/dim]")
@@ -259,12 +259,12 @@ def _find_manifest(operator_id: str):
                 if m.id == operator_id:
                     return m
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None
 
 
 def _build_system_with_operators():
-    """Build a JarvisSystem with operators wired up."""
+    """Build a VectorSystem with operators wired up."""
     from vectorcode.src.operators.manager import OperatorManager
     from vectorcode.src.system import SystemBuilder
 

@@ -2535,7 +2535,7 @@ class MatrixAdapter(BasePlatformAdapter):
                 html = html.replace("<p>", "").replace("</p>", "")
             return html
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return self._markdown_to_html_fallback(text)
 

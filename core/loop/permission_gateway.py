@@ -122,8 +122,61 @@ class PermissionGateway:
         """Return all unknown action types and their block counts for review."""
         return getattr(self, '_unknown_actions', {})
 
+    async def evaluate_external(self, action_type: str, params: dict, source: str) -> GatewayResult:
+        """Validate an externally-submitted action (phone, cloud, ESP32). Skips capability check."""
+        level = self._classify(action_type)
+        logger.info("[VECTOR][gateway] external {} from {} classified as {}", action_type, source, level)
+        if level == 'FORBIDDEN':
+            r = GatewayResult(False, 'FORBIDDEN', False, {}, 'Action permanently forbidden')
+            self._write_audit(Action(action_type, params, source), r)
+            return r
+        if level == 'UNKNOWN':
+            self._record_unknown_action(action_type)
+            r = GatewayResult(False, 'UNKNOWN', False, {}, f'Unknown action type: {action_type}')
+            self._write_audit(Action(action_type, params, source), r)
+            return r
+        result = await self._execute_action(Action(action_type, params, source))
+        r = GatewayResult(True, level, True, result, f'External action from {source} executed')
+        self._write_audit(Action(action_type, params, source), r)
+        return r
+
     async def _request_humanlayer_approval(self, action: "Action") -> bool:
-        """Use HumanLayer to get owner approval for RED-tier actions via configured channels."""
+        """Use HumanLayer to get owner approval for RED-tier actions via configured channels.
+        Phase 3D: First tries Queen multi-model consensus; falls back to HumanLayer.
+        """
+        # Phase 3D: Try Queen consensus first (2+ Ollama models loaded)
+        try:
+            import httpx
+            from core.config import CONFIG
+            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            async with httpx.AsyncClient(timeout=3.0) as c:
+                r = await c.get(f"{ollama_host}/api/tags")
+                loaded_models = [m["name"] for m in r.json().get("models", [])] if r.status_code == 200 else []
+            if len(loaded_models) >= 2:
+                from vectorcode.src.queen import QueenCoordinator
+                queen = QueenCoordinator()
+                context = f"action={action.action_type} params={action.params} proposed_by={action.proposed_by}"
+                proposal = await asyncio.to_thread(
+                    queen.build_consensus,
+                    action.action_type, context, "RED",
+                )
+                if queen.should_proceed(proposal):
+                    logger.info(
+                        f"[VECTOR][gateway] Queen consensus APPROVED {action.action_type} "
+                        f"(confidence={proposal.confidence:.2f})"
+                    )
+                    return True
+                elif proposal.verdict.value == "reject":
+                    logger.warning(
+                        f"[VECTOR][gateway] Queen consensus REJECTED {action.action_type}: "
+                        f"{proposal.decision_reason}"
+                    )
+                    return False
+                # DEFER → fall through to HumanLayer
+                logger.info(f"[VECTOR][gateway] Queen deferred {action.action_type} → HumanLayer")
+        except Exception as _queen_err:
+            logger.debug(f"[VECTOR][gateway] Queen consensus skipped: {_queen_err}")
+
         if not _HUMANLAYER_AVAILABLE or _hl is None:
             return False
         try:
@@ -314,7 +367,7 @@ class PermissionGateway:
             elif action.action_type in ("widget_open", "widget_close", "widget_show_location",
                                         "music_play", "music_pause", "music_next", "music_prev",
                                         "open_panel"):
-                # JARVIS dashboard UI events. Effects are local to the dashboard,
+                # VECTOR dashboard UI events. Effects are local to the dashboard,
                 # delivered via the /ws broadcast channel. The gateway's job here
                 # is just to confirm + emit a structured payload the dashboard
                 # subscribes to. No real-world side-effect.

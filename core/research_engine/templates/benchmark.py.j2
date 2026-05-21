@@ -1,0 +1,44 @@
+"""Benchmark experiment — {{ experiment_name }}"""
+
+import json
+import statistics
+import sys
+import time
+from typing import Any
+
+
+def run_experiment() -> dict[str, Any]:
+    results: dict[str, list[float]] = {}
+    metrics = {{ metrics }}
+    iterations = {{ iterations }}
+    timeout = {{ timeout_seconds }}
+
+    for metric in metrics:
+        samples: list[float] = []
+        deadline = time.monotonic() + timeout
+        for i in range(iterations):
+            if time.monotonic() > deadline:
+                print(f"STAT:warning:Benchmark timed out at iteration {i}/{iterations}")
+                break
+            start = time.perf_counter()
+
+            # --- benchmark target ---
+            _ = sum(range(1000))
+            elapsed = time.perf_counter() - start
+
+            samples.append(elapsed)
+            print(f"STAT:{metric}_iter_{i}:{elapsed}")
+
+        if samples:
+            results[metric] = {
+                "mean": statistics.mean(samples),
+                "stdev": statistics.stdev(samples) if len(samples) > 1 else 0.0,
+                "min": min(samples),
+                "max": max(samples),
+                "iterations": len(samples),
+            }
+            print(f"STAT:{metric}_mean:{statistics.mean(samples)}")
+            print(f"STAT:{metric}_stdev:{statistics.stdev(samples) if len(samples) > 1 else 0.0}")
+
+    print(f"STAT:total_metrics:{len(metrics)}")
+    return results

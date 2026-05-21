@@ -1095,7 +1095,7 @@ def _seed_from_singletons(provider: str, entries: List[PooledCredential]) -> Tup
             if not is_provider_explicitly_configured("anthropic"):
                 return changed, active_sources
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         from agent.anthropic_adapter import read_claude_code_credentials, read_vector_oauth_credentials
 

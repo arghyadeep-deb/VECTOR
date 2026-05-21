@@ -7,7 +7,7 @@ try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 except (AttributeError, Exception):
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 

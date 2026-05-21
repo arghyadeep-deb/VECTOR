@@ -31,10 +31,10 @@ try:
     else:
         print("[VECTOR TESTS] ❌ Failures — fix before marking district done")
 except FileNotFoundError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 except subprocess.TimeoutExpired:
     print("[VECTOR TESTS] ⚠️ Timeout — tests took >2 min")
 except Exception:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.exit(0)

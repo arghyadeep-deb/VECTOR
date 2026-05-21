@@ -428,7 +428,7 @@ def _numbered_single_fallback(
         if idx == cancel_idx:
             return None
     except (ValueError, KeyboardInterrupt, EOFError):
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None
 
 

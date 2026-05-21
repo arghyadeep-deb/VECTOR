@@ -200,7 +200,7 @@ class ToolExecutor:
                             success=False,
                         )
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             # Remove internal taint key before passing to tool
             if isinstance(params, dict):
                 params.pop("_taint", None)
@@ -269,7 +269,7 @@ class ToolExecutor:
                 if detected and detected.labels:
                     result.metadata["_taint"] = detected
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Emit end event
         if self._bus:

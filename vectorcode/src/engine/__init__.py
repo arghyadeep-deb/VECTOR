@@ -1,3 +1,7 @@
+"""
+Gap 11: This src/engine/ directory is a shim that re-exports from src/vc_engine/.
+Prefer importing from vectorcode.src.vc_engine directly.
+"""
 # Ported from GitHub/VectorCode_vectorcode/repo/run_agent.py
 """VectorCode engine — the agent execution runtime."""
 from .agent import AIAgent

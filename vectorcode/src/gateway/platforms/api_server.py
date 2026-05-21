@@ -2672,7 +2672,7 @@ class APIServerAdapter(BasePlatformAdapter):
                         )
                         return False
                 except ImportError:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
             # Port conflict detection — fail fast if port is already in use
             try:

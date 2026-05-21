@@ -48,23 +48,23 @@ def ensure_registered() -> None:
     try:
         import vectorcode.src.learning.intelligence  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Orchestrator-specific training (optional deps)
     try:
         import vectorcode.src.learning.intelligence.orchestrator  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Agent optimizers (optional deps)
     try:
         import vectorcode.src.learning.agents.dspy_optimizer  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         import vectorcode.src.learning.agents.gepa_optimizer  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 __all__ = [
     "AgentConfigEvolver",

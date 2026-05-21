@@ -1217,7 +1217,7 @@ async def _send_matrix(token, extra, chat_id, message):
             payload["format"] = "org.matrix.custom.html"
             payload["formatted_body"] = html
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
             async with session.put(url, headers=headers, json=payload) as resp:

@@ -58,6 +58,9 @@ github/
 # Runtime-generated agent workspace
 agent_workspace/
 
+# Stale Claude Code worktrees — clean up with: git worktree prune
+.claude/worktrees/
+
 # Generated graph output
 graphify-out/
 

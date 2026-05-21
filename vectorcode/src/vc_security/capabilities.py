@@ -69,7 +69,7 @@ class CapabilityPolicy:
         try:
             from vector._rust_bridge import get_rust_module
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         _rust = get_rust_module()
         self._rust_impl = _rust.CapabilityPolicy(default_deny=default_deny)

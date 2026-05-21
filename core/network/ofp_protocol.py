@@ -379,7 +379,7 @@ class OFPNode:
                 await self._send_only(peer.host, peer.port, msg)
                 success += 1
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return success
 
     # ── Internal helpers ───────────────────────────────────────────────────────

@@ -115,7 +115,7 @@ class MerkleAuditChain:
                     try:
                         entries.append(AuditEntry.from_dict(json.loads(line)))
                     except Exception:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
         self._cache = entries
         self._loaded = True
         return entries

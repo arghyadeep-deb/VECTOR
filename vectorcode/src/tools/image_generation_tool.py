@@ -792,7 +792,7 @@ def check_image_generation_requirements() -> bool:
             fal_client  # noqa: F401 — SDK presence check
             return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Probe plugin providers. Discovery is idempotent and cheap.
     try:

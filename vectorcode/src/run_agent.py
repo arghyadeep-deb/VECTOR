@@ -10348,7 +10348,7 @@ class AIAgent:
                                 "error": _nous_msg,
                             }
                     except ImportError:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
                     except Exception:
                         pass  # Never let rate guard break the agent loop
 

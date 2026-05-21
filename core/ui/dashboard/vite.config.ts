@@ -12,9 +12,26 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '^/(api|status|ui|ws|vectorcode|agent|agents|command|csrf-token|system|daily|memory|council)(/.*)?$': {
-        target: 'https://127.0.0.1:8001',
-        secure: false,
+      // ── WebSocket endpoints ──────────────────────────────────────────────
+      '/ws': { target: 'ws://127.0.0.1:8000', ws: true, changeOrigin: true },
+      '/gesture/ws': { target: 'ws://127.0.0.1:8000', ws: true, changeOrigin: true },
+      '/camera/ws': { target: 'ws://127.0.0.1:8000', ws: true, changeOrigin: true },
+      '/ws/voice/stream': { target: 'ws://127.0.0.1:8000', ws: true, changeOrigin: true },
+
+      // ── New JARVIS REST endpoints ────────────────────────────────────────
+      '/sb': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/finance': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/news': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/location': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/voice': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/nudge': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/vectorcode': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/claims': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+
+      // ── Existing REST endpoints ──────────────────────────────────────────
+      '^/(csrf-token|status|system|daily|memory|agents|agent|command|council|security|tasks|loop|scheduler|inference|email|channels|providers|tools|network|audit|metering|jupyter|sandbox|sensing|media|mining|mcp|video|scraper|seo|oauth|research|migration|api)(/.*)?$': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
       },
     },
   },

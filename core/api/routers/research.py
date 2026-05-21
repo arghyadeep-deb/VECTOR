@@ -19,20 +19,20 @@ async def research_status():
             from core.loop.llm_interface import LLMInterface
             llm_available = True
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         try:
             from core.scraper.vector_scraper import VectorScraper
             modes.append("web_scrape")
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         try:
             from core.media.models import all_models
             if all_models():
                 modes.append("media_generation")
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         modes.append("basic_search")
     except Exception as e:
@@ -44,7 +44,7 @@ async def research_status():
 async def research_search(query: str, max_results: int = 5):
     """Search the web via VECTOR's WebScout agent using DuckDuckGo."""
     try:
-        from agents.districts.research.web_scout import WebScout
+        from districts.research.web_scout import WebScout
         scout = WebScout()
         import asyncio
         loop = asyncio.new_event_loop()
@@ -60,7 +60,7 @@ async def research_search(query: str, max_results: int = 5):
 async def research_news(query: str = "AI"):
     """Fetch recent news via VECTOR's NewsAggregator."""
     try:
-        from agents.districts.research.news_aggregator import NewsAggregator
+        from districts.research.news_aggregator import NewsAggregator
         agg = NewsAggregator()
         import asyncio
         loop = asyncio.new_event_loop()
@@ -76,7 +76,7 @@ async def research_news(query: str = "AI"):
 async def research_papers(query: str, max_results: int = 5):
     """Search ArXiv for academic papers via VECTOR's PaperReader."""
     try:
-        from agents.districts.research.paper_reader import PaperReader
+        from districts.research.paper_reader import PaperReader
         reader = PaperReader()
         import asyncio
         loop = asyncio.new_event_loop()
@@ -92,7 +92,7 @@ async def research_papers(query: str, max_results: int = 5):
 async def research_reddit(subreddit: str = "LocalLLaMA", limit: int = 10):
     """Mine hot posts from a subreddit via VECTOR's RedditMiner."""
     try:
-        from agents.districts.research.reddit_miner import RedditMiner
+        from districts.research.reddit_miner import RedditMiner
         miner = RedditMiner()
         import asyncio
         loop = asyncio.new_event_loop()

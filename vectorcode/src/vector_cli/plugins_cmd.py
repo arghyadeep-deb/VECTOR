@@ -1241,7 +1241,7 @@ def _run_composite_fallback(plugin_names, plugin_labels, plugin_selected,
                 if 0 <= ci < len(categories):
                     categories[ci][2]()  # call the configure function
         except (ValueError, KeyboardInterrupt, EOFError):
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     print()
 

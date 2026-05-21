@@ -107,7 +107,7 @@ research using local Ollama models (VECTOR Rule 11: zero cloud API calls).
 Achieves ~95% SimpleQA accuracy using local hardware (RTX 5070 Ti + Ollama).
 
 Public API (use this in VECTOR districts):
-    from agents.districts.research.research_api import (
+    from districts.research.research_api import (
         quick_research, generate_report, research_papers
     )
 

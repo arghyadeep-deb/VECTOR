@@ -20,6 +20,8 @@ class AgentBase:
         self.personality_traits = {}
         self.created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self.last_active = self.created_at
+        self.subscribed_events: set[str] = set()
+        self._inbox: list[dict] = []
         # ── Role system — load specialist role by name/district ──────────────
         self.role = self._load_role(name, district)
         if self.role:
@@ -53,14 +55,37 @@ class AgentBase:
             if district_role_key:
                 return ROLES_BY_NAME.get(district_role_key)
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return None
 
     def get_system_prompt(self) -> str:
-        """Return this agent's system prompt (from role if set, else empty)."""
+        """Return this agent's system prompt enriched with personality context."""
+        parts = []
         if self.role and self.role.system_prompt:
-            return self.role.system_prompt
-        return ""
+            parts.append(self.role.system_prompt)
+        personality_ctx = self._get_personality_context()
+        if personality_ctx:
+            parts.append(personality_ctx)
+        return "\n\n".join(parts) if parts else ""
+
+    def _get_personality_context(self) -> str:
+        """Return personality trait summary if personality engine is enabled."""
+        if not CONFIG.get("personality", {}).get("enabled", True):
+            return ""
+        try:
+            from core.personality import PersonalityEngine
+            pe = PersonalityEngine()
+            self.personality_traits = dict(pe.card.traits)
+            return (
+                f"[PERSONALITY — {pe.card.name}]\n"
+                f"Traits: {pe.card.get_traits_summary()}\n"
+                f"Speech: address as '{pe.card.speech_patterns.address_owner}', "
+                f"contractions={pe.card.speech_patterns.contractions}, "
+                f"emoji={pe.card.speech_patterns.emoji}"
+            )
+        except Exception as e:
+            logger.debug(f"[VECTOR][city] personality context unavailable: {e}")
+            return ""
 
     def _make_district_llm(self):
         """Lazy-init DistrictLLM — routes calls through vectorcode_llm + .md prompt."""
@@ -220,11 +245,74 @@ class AgentBase:
             'last_active': self.last_active,
         }
 
+    async def handle_event(self, event: dict) -> dict:
+        """Receive an event published by another agent. Override in subclasses."""
+        self.last_active = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self._inbox.append(event)
+        logger.debug("[VECTOR][agent_base] {} got event type={}", self.name, event.get("event_type"))
+        return {"status": "queued", "agent": self.name, "event": event.get("event_type", "?")}
+
+    def subscribe_to(self, event_type: str) -> None:
+        """Subscribe to a cross-district event by EventType value."""
+        self.subscribed_events.add(event_type)
+        logger.debug("[VECTOR][agent_base] {} subscribed to {}", self.name, event_type)
+
     async def run(self, task: dict) -> dict:
         """Standard dispatch interface. Governor calls this.
         Subclasses override to handle task['type'] and task['params']."""
         self.last_active = datetime.datetime.now(datetime.timezone.utc).isoformat()
         return {"status": "ok", "agent": self.name, "task": task.get("type", "?"), "note": "base handler"}
+
+    async def request_agent_help(self, target_agent_id: str, task: dict) -> dict:
+        """Delegate a task to another agent via WorkflowRunner.
+
+        Enqueues a single-step workflow targeting `target_agent_id` and injects it
+        into the WorkflowRunner. The receiving agent processes it in its next
+        think tick. Returns immediately with a workflow_id.
+
+        Example:
+            await self.request_agent_help("research_hub", {
+                "type": "search", "params": {"query": "blockchain trading bots"}
+            })
+        """
+        try:
+            from core.loop.workflow_runner import WorkflowRunner
+            runner = WorkflowRunner()
+            workflow_id = await runner.trigger_workflow(
+                name=f"agent_help_{self.name}_to_{target_agent_id}",
+                steps=[{
+                    "agent_id": target_agent_id,
+                    "task": task,
+                    "requester": self.id,
+                    "priority": "high",
+                }],
+            )
+            logger.info(
+                f"[VECTOR][agent_base] {self.name} → {target_agent_id} "
+                f"workflow_id={workflow_id} task={task.get('type', '?')}"
+            )
+            return {"workflow_id": workflow_id, "status": "queued"}
+        except Exception as e:
+            logger.warning(f"[VECTOR][agent_base] request_agent_help failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # ── Gap 8: Shared fact store ──────────────────────────────────────────────
+    def know(self, key: str, value: str, confidence: float = 0.7) -> None:
+        """Publish a fact to the shared cross-agent fact store."""
+        try:
+            from core.memory.shared_facts import SharedFacts
+            SharedFacts.get().set(key, value, confidence=confidence, source_agent=self.name)
+        except Exception as e:
+            logger.debug(f"[VECTOR][agent_base] know() failed: {e}")
+
+    def recall_fact(self, key: str, default: str | None = None) -> str | None:
+        """Look up a fact from the shared cross-agent fact store."""
+        try:
+            from core.memory.shared_facts import SharedFacts
+            return SharedFacts.get().get(key, default)
+        except Exception as e:
+            logger.debug(f"[VECTOR][agent_base] recall_fact() failed: {e}")
+            return default
 
     @property
     def is_alive(self):

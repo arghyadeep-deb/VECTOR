@@ -356,7 +356,7 @@ def _get_named_custom_provider(requested_provider: str) -> Optional[Dict[str, An
         try:
             auth_mod.resolve_provider(requested_norm)
         except AuthError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         else:
             return None
 

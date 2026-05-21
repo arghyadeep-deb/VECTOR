@@ -161,8 +161,34 @@ class FasterWhisperSTT:
             return ""
 
     def record_and_transcribe(self, duration_sec: float | None = None) -> str:
-        # Reuse Whisper's recording path
         return WhisperSTT.record_and_transcribe(self, duration_sec)  # type: ignore[arg-type]
+
+    async def transcribe_stream(self, audio_stream, callback: callable) -> str:
+        try:
+            self._load()
+            if self._model is None:
+                return ""
+            all_chunks = []
+            async for chunk in audio_stream:
+                all_chunks.append(chunk)
+                if chunk.dtype != np.float32:
+                    chunk = chunk.astype(np.float32) / 32768.0
+                segments, _info = self._model.transcribe(chunk, beam_size=5)
+                partial = " ".join(s.text.strip() for s in segments)
+                if partial:
+                    callback(partial)
+            if not all_chunks:
+                return ""
+            full_audio = np.concatenate(all_chunks)
+            if full_audio.dtype != np.float32:
+                full_audio = full_audio.astype(np.float32) / 32768.0
+            segments, _info = self._model.transcribe(full_audio, beam_size=5)
+            final = " ".join(s.text.strip() for s in segments)
+            logger.info(f"[VECTOR][stt:faster_whisper] stream final: '{final}'")
+            return final
+        except Exception as e:
+            logger.error(f"[VECTOR][stt:faster_whisper] stream failed: {e}")
+            return ""
 
 
 # ── Deepgram (cloud, low-latency) ────────────────────────────────────────────

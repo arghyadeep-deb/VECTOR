@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     try:
         from vector.mining._stubs import MiningConfig
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import tomllib  # Python 3.11+
@@ -1483,7 +1483,7 @@ def _parse_mining_section(data: dict) -> Optional["MiningConfig"]:
     try:
         from vector.mining._stubs import MiningConfig, PoolTarget, SoloTarget
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     section = data["mining"]
     extra = section.get("extra", {}) or {}

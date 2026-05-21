@@ -2,4 +2,4 @@
 try:
     from core.scheduler import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

@@ -92,7 +92,7 @@ Source: https://github.com/LearningCircuit/local-deep-research
 ~95% SimpleQA accuracy using local Ollama models.
 
 Usage in VECTOR:
-    from agents.districts.research.ldr_config import make_ldr_settings
+    from districts.research.ldr_config import make_ldr_settings
     from core.ldr.api.research_functions import quick_summary, generate_report
 
     settings = make_ldr_settings(mode="quick")

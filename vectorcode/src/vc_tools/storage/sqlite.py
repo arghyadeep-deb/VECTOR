@@ -44,7 +44,7 @@ class SQLiteMemory(MemoryBackend):
         try:
             from vector._rust_bridge import get_rust_module
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         _rust = get_rust_module()
         self._rust_impl = _rust.SQLiteMemory(self._db_path)
@@ -103,7 +103,7 @@ class SQLiteMemory(MemoryBackend):
         try:
             from vector._rust_bridge import retrieval_results_from_json
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         results = retrieval_results_from_json(
             self._rust_impl.retrieve(query, top_k),

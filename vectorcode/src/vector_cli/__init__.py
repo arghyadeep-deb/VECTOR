@@ -17,4 +17,4 @@ __release_date__ = "2026.4.23"
 try:
     from vectorcode.src.vector_cli import kanban_db
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

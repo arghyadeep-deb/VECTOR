@@ -14,4 +14,4 @@ try:
         "parse_context_references",
     ]
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

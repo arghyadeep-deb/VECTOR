@@ -97,7 +97,7 @@ class ResponseStore:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 results.append(StoredResponse(**data))
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return results
 
     def delete(self, resp_id: str) -> bool:

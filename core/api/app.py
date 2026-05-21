@@ -114,7 +114,7 @@ async def lifespan(app: FastAPI):
             try:
                 obj.conn.close()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def create_app() -> FastAPI:
@@ -184,8 +184,8 @@ def create_app() -> FastAPI:
         governance_extended,
         # Core infrastructure routers
         brain, city, control,
-        # JARVIS feature routers
-        camera, location, gesture,
+        # VECTOR feature routers
+        camera, location, gesture, sb, ticker, queue,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
@@ -260,6 +260,13 @@ def create_app() -> FastAPI:
     app.include_router(camera.router)
     app.include_router(location.router)
     app.include_router(gesture.router)
+    app.include_router(sb.router)
+    app.include_router(ticker.router)
+    app.include_router(queue.router)
+
+    # External task ingestion API — phone, cloud, ESP32
+    from core.api import tasks as external_tasks
+    app.include_router(external_tasks.router)
 
     # VECTOR browser dashboard — zero npm, served at /ui
     try:

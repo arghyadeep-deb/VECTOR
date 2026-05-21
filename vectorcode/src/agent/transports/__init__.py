@@ -41,16 +41,16 @@ def _discover_transports() -> None:
     try:
         import agent.transports.anthropic  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         import agent.transports.codex  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         import agent.transports.chat_completions  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         import agent.transports.bedrock  # noqa: F401
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)

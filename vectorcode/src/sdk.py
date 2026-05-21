@@ -39,7 +39,7 @@ class MemoryHandle:
             try:
                 from vectorcode.src.tools.storage.sqlite import SQLiteMemory  # noqa: F401
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         if not MemoryRegistry.contains(key):
             raise RuntimeError(f"Memory backend '{key}' not available")
@@ -202,7 +202,7 @@ class VectorAgent:
         try:
             import vectorcode.src.engine  # noqa: F401
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         pref = self._config.intelligence.preferred_engine
         engine_key = self._engine_key or pref or None

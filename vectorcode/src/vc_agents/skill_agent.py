@@ -1,7 +1,7 @@
 """
 SkillAgent — loads and executes VECTOR/vectorcode skill .md files.
 
-Skills live in brain/.claude/skills/ and agents/districts/<district>/*.md.
+Skills live in brain/.claude/skills/ and districts/<district>/*.md.
 This agent resolves skill names, loads the SKILL.md, and executes via LLM
 (or runs the skill's bash commands if it has an executable section).
 """
@@ -95,7 +95,7 @@ class SkillAgent:
                                        "path": parsed["path"]})
                         seen.add(parsed["name"])
                     except Exception:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
             for md in skill_dir.glob("*.md"):
                 name = md.stem
                 if name not in seen:

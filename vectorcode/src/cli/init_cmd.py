@@ -2,7 +2,7 @@
 try:
     from vectorcode.src.vector_cli.init_cmd import *
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def init(**kw) -> None:
     """Initialize VECTOR configuration."""

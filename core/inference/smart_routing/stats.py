@@ -162,7 +162,7 @@ class RequestJournal:
                     by_prov[p]["requests"] += 1
                     by_prov[p]["cost"] = by_prov[p].get("cost", 0.0) + r.get("cost_usd", 0)
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         if latencies:
             stats.avg_latency_ms = sum(latencies) / len(latencies)

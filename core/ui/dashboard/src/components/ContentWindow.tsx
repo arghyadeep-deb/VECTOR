@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useVectorStore, ContentWindowEntry } from '../store/vectorStore'
 import CameraView from './CameraView'
 import MapView from './MapView'
+import { getWidget } from '../widgets/registry'
 
 function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
   const removeContentWindow = useVectorStore((s) => s.removeContentWindow)
@@ -93,7 +94,18 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
 
       {/* Content */}
       <div style={{ padding: '10px 14px', overflow: 'auto', maxHeight: 'calc(100% - 30px)' }}>
-        {w.type === 'text' && (
+        {/* Registry widgets take priority — id-based lookup so voice
+            "open music" / "open schematic search" etc. render the right
+            component without any extra wiring. */}
+        {(() => {
+          const spec = getWidget(w.id)
+          if (spec) {
+            const C = spec.component
+            return <C onClose={close} />
+          }
+          return null
+        })()}
+        {!getWidget(w.id) && w.type === 'text' && (
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 13,
@@ -108,7 +120,7 @@ function SingleWindow({ w, index }: { w: ContentWindowEntry; index: number }) {
             {w.content}
           </div>
         )}
-        {w.type === 'map' && <MapView />}
+        {!getWidget(w.id) && w.type === 'map' && <MapView />}
       </div>
     </div>
   )

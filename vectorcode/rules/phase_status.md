@@ -56,25 +56,25 @@
 ## T5 — Day 5 Phase 1 Districts ✅ COMPLETE
 | Task | File | Status |
 |------|------|--------|
-| T5.1 | `agents/districts/coding/git_bot.py` | ✅ Done (YELLOW/RED gateway wired) |
-| T5.1 | `agents/districts/coding/code_reviewer.py` | ✅ Done (AST + VECTOR rules checklist) |
-| T5.1 | `agents/districts/coding/architect_bot.py` | ✅ Done (codebase scan + circular import detect) |
-| T5.2 | `agents/districts/time_calendar/kiit_scraper.py` | ✅ Done |
-| T5.2 | `agents/districts/time_calendar/deadline_manager.py` | ✅ Done |
-| T5.2 | `agents/districts/time_calendar/time_blocker.py` | ✅ Done |
-| T5.3 | `agents/districts/security/threat_scout.py` | ✅ Done (process + startup + malware scan) |
-| T5.3 | `agents/districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
-| T5.4 | `agents/districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
+| T5.1 | `districts/coding/git_bot.py` | ✅ Done (YELLOW/RED gateway wired) |
+| T5.1 | `districts/coding/code_reviewer.py` | ✅ Done (AST + VECTOR rules checklist) |
+| T5.1 | `districts/coding/architect_bot.py` | ✅ Done (codebase scan + circular import detect) |
+| T5.2 | `districts/time_calendar/kiit_scraper.py` | ✅ Done |
+| T5.2 | `districts/time_calendar/deadline_manager.py` | ✅ Done |
+| T5.2 | `districts/time_calendar/time_blocker.py` | ✅ Done |
+| T5.3 | `districts/security/threat_scout.py` | ✅ Done (process + startup + malware scan) |
+| T5.3 | `districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
+| T5.4 | `districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
 
 ## T6 — Day 6 Memory + Research + Cloud ✅ COMPLETE (cloud pending deploy)
 | Task | File | Status |
 |------|------|--------|
-| T6.1 | `agents/districts/memory_curator/consolidation_bot.py` | ✅ Done |
-| T6.1 | `agents/districts/memory_curator/pattern_finder.py` | ✅ Done |
-| T6.2 | `agents/districts/research/web_scout.py` | ✅ Done |
-| T6.2 | `agents/districts/research/paper_reader.py` | ✅ Done |
-| T6.2 | `agents/districts/research/news_aggregator.py` | ✅ Done |
-| T6.2 | `agents/districts/research/reddit_miner.py` | ✅ Done |
+| T6.1 | `districts/memory_curator/consolidation_bot.py` | ✅ Done |
+| T6.1 | `districts/memory_curator/pattern_finder.py` | ✅ Done |
+| T6.2 | `districts/research/web_scout.py` | ✅ Done |
+| T6.2 | `districts/research/paper_reader.py` | ✅ Done |
+| T6.2 | `districts/research/news_aggregator.py` | ✅ Done |
+| T6.2 | `districts/research/reddit_miner.py` | ✅ Done |
 | T6.3 | `cloud/brain_server/main.py` (FastAPI, /status → 200) | ✅ Done |
 | T6.3 | `cloud/agent_workers/workers.py` + `scheduler.py` | ✅ Done |
 | T6.3 | `cloud/comms_service/service.py` (Hermes bridge) | ✅ Done |
@@ -87,7 +87,7 @@
 | Task | File | Status |
 |------|------|--------|
 | T7.1 | `core/memory/obsidian_sync.py` | ✅ Done |
-| T7.2 | `agents/districts/governance/llm_council.py` | ✅ Done |
+| T7.2 | `districts/governance/llm_council.py` | ✅ Done |
 | T7.3 | `phone_node/ambient_server.py` (Termux HTTP server) | ✅ Done |
 | T7.3 | `phone_node/adb_bridge.py` (Legion ↔ phone bridge) | ✅ Done |
 | T7.3 | `phone_node/setup.sh` (Termux bootstrap) | ✅ Done |
@@ -96,20 +96,20 @@
 ## Phase 2 Districts — In Progress
 | Task | File | Status |
 |------|------|--------|
-| P2.1 | `agents/districts/reflection/daily_reviewer.py` | ✅ Done (vector-chairman, POLICY_UPDATES, Obsidian) |
-| P2.1 | `agents/districts/reflection/journal_writer.py` | ✅ Done (daily 22:30, weekly Sunday 23:00) |
-| P2.1 | `agents/districts/reflection/growth_analyst.py` | ✅ Done (21-day trend, velocity, bottlenecks) |
-| P2.2 | `agents/districts/health/sleep_tracker.py` | ✅ Done (activity-gap inference, quality labels) |
-| P2.2 | `agents/districts/health/fatigue_monitor.py` | ✅ Done (EAR + session-duration dual check) |
-| P2.2 | `agents/districts/health/exercise_logger.py` | ✅ Done (sedentary alerts, weekly report) |
-| P2.3 | `agents/districts/finance/upi_parser.py` | ✅ Done (UPI SMS regex, 8-category classifier) |
-| P2.3 | `agents/districts/finance/expense_tracker.py` | ✅ Done (monthly spend breakdown) |
-| P2.3 | `agents/districts/finance/budget_analyst.py` | ✅ Done (over-budget alerts + LLM recs) |
-| P2.3 | `agents/districts/finance/tax_calendar.py` | ✅ Done (Indian FY deadlines, T-7/1/0 alerts) |
-| P2.4 | `agents/districts/projects/project_planner.py` | ✅ Done (milestone plan, Obsidian) |
-| P2.4 | `agents/districts/projects/deadline_watcher.py` | ✅ Done (T-7/3/1/0 alerts, no-dupe guard) |
-| P2.4 | `agents/districts/projects/progress_tracker.py` | ✅ Done (git activity + manual, weekly report) |
-| P2.4 | `agents/districts/projects/doc_writer.py` | ✅ Done (5 doc types) |
+| P2.1 | `districts/reflection/daily_reviewer.py` | ✅ Done (vector-chairman, POLICY_UPDATES, Obsidian) |
+| P2.1 | `districts/reflection/journal_writer.py` | ✅ Done (daily 22:30, weekly Sunday 23:00) |
+| P2.1 | `districts/reflection/growth_analyst.py` | ✅ Done (21-day trend, velocity, bottlenecks) |
+| P2.2 | `districts/health/sleep_tracker.py` | ✅ Done (activity-gap inference, quality labels) |
+| P2.2 | `districts/health/fatigue_monitor.py` | ✅ Done (EAR + session-duration dual check) |
+| P2.2 | `districts/health/exercise_logger.py` | ✅ Done (sedentary alerts, weekly report) |
+| P2.3 | `districts/finance/upi_parser.py` | ✅ Done (UPI SMS regex, 8-category classifier) |
+| P2.3 | `districts/finance/expense_tracker.py` | ✅ Done (monthly spend breakdown) |
+| P2.3 | `districts/finance/budget_analyst.py` | ✅ Done (over-budget alerts + LLM recs) |
+| P2.3 | `districts/finance/tax_calendar.py` | ✅ Done (Indian FY deadlines, T-7/1/0 alerts) |
+| P2.4 | `districts/projects/project_planner.py` | ✅ Done (milestone plan, Obsidian) |
+| P2.4 | `districts/projects/deadline_watcher.py` | ✅ Done (T-7/3/1/0 alerts, no-dupe guard) |
+| P2.4 | `districts/projects/progress_tracker.py` | ✅ Done (git activity + manual, weekly report) |
+| P2.4 | `districts/projects/doc_writer.py` | ✅ Done (5 doc types) |
 | NOTE | `tests/test_phase2_districts.py` | ✅ 47/47 passing |
 | NOTE | `core/config.py` obsidian write folders | ✅ Journals/Reviews/Health/Finance/Projects added |
 

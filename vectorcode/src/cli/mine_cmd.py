@@ -64,7 +64,7 @@ def _ensure_providers_registered() -> None:
 
         ensure_mps_registered()
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 def _provider_ids() -> tuple[str, ...]:
     _ensure_providers_registered()

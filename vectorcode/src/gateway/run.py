@@ -66,7 +66,7 @@ def _ensure_ssl_certs() -> None:
         os.environ["SSL_CERT_FILE"] = certifi.where()
         return
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # 3. Common distro / macOS locations
     for candidate in (

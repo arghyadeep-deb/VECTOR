@@ -119,7 +119,7 @@ async def camera_ws(ws: WebSocket):
         try:
             await ws.send_text(json.dumps({"error": str(e)}))
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     finally:
         if cap is not None:
             cap.release()

@@ -82,7 +82,7 @@ def download_single_shard(index):
                     try:
                         os.remove(path)
                     except OSError:
-                        pass
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
             if attempt < max_attempts:
                 time.sleep(2 ** attempt)
     return False

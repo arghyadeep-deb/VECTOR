@@ -1488,7 +1488,7 @@ def cmd_whatsapp(args):
             cwd=str(bridge_dir),
         )
     except KeyboardInterrupt:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # ── Step 7: Post-pairing ─────────────────────────────────────────────
     print()
@@ -3636,7 +3636,7 @@ def _model_flow_copilot(config, current_model=""):
                     print(f"  ✗ {msg}")
                     return
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             save_env_value("COPILOT_GITHUB_TOKEN", new_key)
             print("  Token saved.")
             print()

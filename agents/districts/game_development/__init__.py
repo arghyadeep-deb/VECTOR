@@ -1,1 +1,0 @@
-"""VECTOR Game Development District."""

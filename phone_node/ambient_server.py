@@ -74,7 +74,7 @@ def _termux_notify(title: str, content: str) -> None:
             timeout=3, check=False,
         )
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def _uptime() -> float:

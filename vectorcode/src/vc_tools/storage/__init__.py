@@ -14,27 +14,27 @@ import vectorcode.src.vc_tools.storage.sqlite  # noqa: F401
 try:
     import vectorcode.src.vc_tools.storage.bm25  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_tools.storage.faiss_backend  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_tools.storage.colbert_backend  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_tools.storage.hybrid  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_tools.storage.dense  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 from vectorcode.src.vc_tools.storage._stubs import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.chunking import Chunk, ChunkConfig, chunk_text

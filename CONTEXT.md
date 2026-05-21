@@ -5,7 +5,7 @@ Virtual Entity for Cognitive Tasks & Operational Reasoning. A Darwinian multi-ag
 ## Language
 
 **District**:
-A specialized folder of agents (`agents/districts/<name>/`) with a single domain responsibility — e.g. `coding/`, `finance/`, `research/`. Districts are VECTOR's org chart.
+A specialized folder of agents (`districts/<name>/`) with a single domain responsibility — e.g. `coding/`, `finance/`, `research/`. Districts are VECTOR's org chart.
 _Avoid_: module, service, plugin, subsystem
 
 **Agent**:

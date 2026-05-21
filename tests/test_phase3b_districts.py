@@ -38,7 +38,7 @@ class TestAINewsBot:
     def _make_bot(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.news_trends.ai_news_bot import AINewsBot
+            from districts.news_trends.ai_news_bot import AINewsBot
             bot = AINewsBot()
             bot.memory = _make_memory_mock()
             bot.obsidian = _make_obsidian_mock()
@@ -55,7 +55,7 @@ class TestAINewsBot:
         """fetch_ai_news falls back to sample articles when no API key configured."""
         bot = self._make_bot()
         # Ensure no real API key is used by patching CONFIG
-        with patch("agents.districts.news_trends.ai_news_bot.CONFIG",
+        with patch("districts.news_trends.ai_news_bot.CONFIG",
                    {"api_keys": {}, "models": {"focus": "vector-focus"}}):
             result = bot.fetch_ai_news(3)
         assert "articles" in result
@@ -101,7 +101,7 @@ class TestMarketTrendsBot:
     def _make_bot(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.news_trends.market_trends_bot import MarketTrendsBot
+            from districts.news_trends.market_trends_bot import MarketTrendsBot
             bot = MarketTrendsBot()
             bot.memory = _make_memory_mock()
             bot.obsidian = _make_obsidian_mock()
@@ -153,7 +153,7 @@ class TestOpportunitySpotter:
     def _make_bot(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.news_trends.opportunity_spotter import OpportunitySpotter
+            from districts.news_trends.opportunity_spotter import OpportunitySpotter
             bot = OpportunitySpotter()
             bot.memory = _make_memory_mock()
             bot.obsidian = _make_obsidian_mock()
@@ -212,7 +212,7 @@ class TestVideoIngestor:
     def _make_agent(self, tmp_dir):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.learning.video_ingestor import VideoIngestor
+            from districts.learning.video_ingestor import VideoIngestor
             agent = VideoIngestor.__new__(VideoIngestor)
             # Call AgentBase.__init__ without triggering mkdir for real paths
             from core.city.agent_base import AgentBase
@@ -268,7 +268,7 @@ class TestConceptExtractor:
     def _make_agent(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.learning.concept_extractor import ConceptExtractor
+            from districts.learning.concept_extractor import ConceptExtractor
             agent = ConceptExtractor()
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
@@ -331,7 +331,7 @@ class TestCourseTracker:
     def _make_agent(self, tmp_dir):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.learning.course_tracker import CourseTracker
+            from districts.learning.course_tracker import CourseTracker
             agent = CourseTracker.__new__(CourseTracker)
             from core.city.agent_base import AgentBase
             import uuid
@@ -394,7 +394,7 @@ class TestMarketScanner:
     def _make_agent(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.startups.market_scanner import MarketScanner
+            from districts.startups.market_scanner import MarketScanner
             agent = MarketScanner()
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
@@ -465,7 +465,7 @@ class TestIdeaValidator:
     def _make_agent(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.startups.idea_validator import IdeaValidator
+            from districts.startups.idea_validator import IdeaValidator
             agent = IdeaValidator()
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
@@ -539,7 +539,7 @@ class TestCompetitorSpy:
     def _make_agent(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.startups.competitor_spy import CompetitorSpy
+            from districts.startups.competitor_spy import CompetitorSpy
             agent = CompetitorSpy()
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
@@ -610,7 +610,7 @@ class TestRevenueModeler:
     def _make_agent(self):
         with patch("core.memory.episodic.EpisodicMemory", return_value=_make_memory_mock()), \
              patch("core.memory.obsidian_sync.ObsidianSync", return_value=_make_obsidian_mock()):
-            from agents.districts.startups.revenue_modeler import RevenueModeler
+            from districts.startups.revenue_modeler import RevenueModeler
             agent = RevenueModeler()
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
@@ -681,7 +681,7 @@ class TestCallScreener:
             # Bypass the parent __init__ to avoid side effects, then init directly
             pass
 
-        from agents.districts.calls.call_screener import CallScreener
+        from districts.calls.call_screener import CallScreener
         with patch.object(CallScreener, "_load_contacts", return_value=None), \
              patch.object(CallScreener, "_save_contacts", return_value=True):
             screener = CallScreener.__new__(CallScreener)
@@ -737,7 +737,7 @@ class TestCallScreener:
 class TestTranscriptionBot:
 
     def _make_bot(self):
-        from agents.districts.calls.transcription_bot import TranscriptionBot
+        from districts.calls.transcription_bot import TranscriptionBot
         with patch.object(TranscriptionBot, "_init_whisper", return_value=None):
             bot = TranscriptionBot.__new__(TranscriptionBot)
             from core.city.agent_base import AgentBase
@@ -788,7 +788,7 @@ class TestTranscriptionBot:
 class TestVoiceResponder:
 
     def _make_responder(self):
-        from agents.districts.calls.voice_responder import VoiceResponder
+        from districts.calls.voice_responder import VoiceResponder
         with patch.object(VoiceResponder, "_check_tts", return_value=False):
             responder = VoiceResponder.__new__(VoiceResponder)
             from core.city.agent_base import AgentBase

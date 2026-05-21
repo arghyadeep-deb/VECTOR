@@ -1146,19 +1146,19 @@ def check_tts_requirements() -> bool:
         _import_edge_tts()
         return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         _import_elevenlabs()
         if os.getenv("ELEVENLABS_API_KEY"):
             return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         _import_openai_client()
         if _has_openai_audio_backend():
             return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     if os.getenv("MINIMAX_API_KEY"):
         return True
     if os.getenv("XAI_API_KEY"):
@@ -1170,7 +1170,7 @@ def check_tts_requirements() -> bool:
         if os.getenv("MISTRAL_API_KEY"):
             return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     if _check_neutts_available():
         return True
     if _check_kittentts_available():

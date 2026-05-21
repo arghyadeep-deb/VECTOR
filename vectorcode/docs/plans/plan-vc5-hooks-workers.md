@@ -3,9 +3,9 @@
 **Goal:** Port reference 17 hooks and 12 background workers to Python, wired into VectorCode's task lifecycle and VECTOR's TaskQueue.
 **Architecture:** HookRegistry is a priority-ordered dict of hook_name → list[callable]. HookExecutor fires hooks with timeout protection. All 12 background workers submit themselves as LOW-priority TaskQueue tasks. Workers run between user tasks and feed results back into PatternStore and episodic_memory.
 **Files:**
-- Create: `agents/districts/coding/vectorcode/hooks/__init__.py`
-- Create: `agents/districts/coding/vectorcode/hooks/registry.py`
-- Create: `agents/districts/coding/vectorcode/hooks/workers.py`
+- Create: `districts/coding/vectorcode/hooks/__init__.py`
+- Create: `districts/coding/vectorcode/hooks/registry.py`
+- Create: `districts/coding/vectorcode/hooks/workers.py`
 - Create: `tests/test_vectorcode_vc5.py`
 
 ---
@@ -14,7 +14,7 @@
 
 - [ ] Write failing test
   ```python
-  from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+  from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
   def test_all_hook_names_defined():
       expected = {
           "PRE_EDIT", "POST_EDIT", "PRE_TASK", "POST_TASK",
@@ -50,7 +50,7 @@
       reg.fire(HookName.PRE_TASK, {})
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc5.py -k "hook" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/hooks/registry.py`
+- [ ] Implement `districts/coding/vectorcode/hooks/registry.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc5.py -k "hook" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc5): HookRegistry 17 hooks priority-ordered"`
 
@@ -61,7 +61,7 @@
 - [ ] Write failing test
   ```python
   from unittest.mock import patch, MagicMock
-  from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+  from districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
   def test_all_worker_names_defined():
       expected = {
           "ULTRALEARN", "OPTIMIZE", "CONSOLIDATE", "PREDICT",
@@ -71,7 +71,7 @@
       actual = {w.name for w in WorkerName}
       assert expected == actual
   def test_worker_submits_to_task_queue():
-      with patch("agents.districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
+      with patch("districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
           mock_tq = MagicMock()
           mock_tq.get.return_value = mock_tq
           mock_tq.submit.return_value = "worker-task-1"
@@ -81,8 +81,8 @@
           assert task_id is not None
           mock_tq.submit.assert_called_once()
   def test_worker_uses_low_priority():
-      with patch("agents.districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
-          with patch("agents.districts.coding.vectorcode.hooks.workers.Priority") as MockPri:
+      with patch("districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
+          with patch("districts.coding.vectorcode.hooks.workers.Priority") as MockPri:
               mock_tq = MagicMock()
               mock_tq.get.return_value = mock_tq
               mock_tq.submit.return_value = "x"
@@ -92,8 +92,8 @@
               kwargs = mock_tq.submit.call_args[1]
               assert "priority" in kwargs
   def test_ultralearn_extracts_patterns():
-      with patch("agents.districts.coding.vectorcode.hooks.workers.PatternStore") as MockPS:
-          with patch("agents.districts.coding.vectorcode.hooks.workers.EpisodicMemory") as MockMem:
+      with patch("districts.coding.vectorcode.hooks.workers.PatternStore") as MockPS:
+          with patch("districts.coding.vectorcode.hooks.workers.EpisodicMemory") as MockMem:
               mock_mem = MagicMock()
               mock_mem.recall.return_value = [{"content": "test", "tags": ["code"]}]
               MockMem.return_value = mock_mem
@@ -103,7 +103,7 @@
               MockPS.return_value.save_pattern.assert_called()
   ```
 - [ ] Run: `pytest tests/test_vectorcode_vc5.py -k "worker" -v` → expect FAIL
-- [ ] Implement `agents/districts/coding/vectorcode/hooks/workers.py`
+- [ ] Implement `districts/coding/vectorcode/hooks/workers.py`
 - [ ] Run: `pytest tests/test_vectorcode_vc5.py -k "worker" -v` → expect PASS
 - [ ] Commit: `git commit -m "feat(vc5): BackgroundWorkers 12 workers via TaskQueue"`
 

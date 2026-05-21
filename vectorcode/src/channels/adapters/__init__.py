@@ -1,7 +1,7 @@
 """
 VECTOR Additional Channel Adapters — extends vectorcode's 30+ channels.
 
-New adapters added from openfang absorption:
+New adapters added from VECTOR absorption:
   MastodonAdapter  — federated microblogging (Mastodon.social, etc.)
   BlueskyAdapter   — AT Protocol decentralized social
   TwitchAdapter    — live streaming chat via IRC/WebSocket

@@ -114,6 +114,13 @@ class AgentRegistry:
     def get(self, agent_id: str):
         return self._agents.get(agent_id)
 
+    def get_all_agents(self) -> list:
+        return list(self._agents.values())
+
+    def list_alive(self) -> list:
+        """Return all agents with HP > 0 (alive). Used by event_fanout_loop."""
+        return [a for a in self._agents.values() if getattr(a, 'health_points', 1) > 0]
+
     def get_by_district(self, district: str) -> list:
         return [a for a in self._agents.values() if a.district == district]
 

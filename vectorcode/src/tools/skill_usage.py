@@ -47,7 +47,7 @@ except ImportError:  # pragma: no cover - platform-specific fallback
     try:
         import msvcrt
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 STATE_ACTIVE = "active"

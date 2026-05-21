@@ -282,7 +282,7 @@ class TaskQueue:
             try:
                 self._terminal_notify(msg)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         # Always log — visible in the terminal regardless
         logger.info(f"[VECTOR][task_queue] {msg}")
 
@@ -306,7 +306,7 @@ class TaskQueue:
             from core.loop.permission_gateway import PermissionGateway
             await PermissionGateway().notify(msg)
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 # ── Convenience helpers ───────────────────────────────────────────────────────

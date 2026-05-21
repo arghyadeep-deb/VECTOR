@@ -82,7 +82,7 @@ class OpenCLITool:
                     for r in ddgs.text(query, max_results=max_results)
                 ]
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         except Exception as e:
             logger.warning(f"[VECTOR][opencli] DDG lib failed: {e}")
 

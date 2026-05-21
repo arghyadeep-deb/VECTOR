@@ -14,20 +14,21 @@
     "windows": [
       {
         "label": "main",
-        "title": "VECTOR — Personal AI City",
-        "width": 1400,
-        "height": 900,
+        "title": "VECTOR — JARVIS HUD",
+        "width": 1920,
+        "height": 1080,
         "minWidth": 1024,
         "minHeight": 720,
-        "decorations": true,
+        "decorations": false,
         "resizable": true,
-        "fullscreen": false,
-        "transparent": false,
+        "fullscreen": true,
+        "transparent": true,
         "alwaysOnTop": false,
         "url": "/",
         "center": true,
-        "shadow": true,
-        "theme": "Dark"
+        "shadow": false,
+        "theme": "Dark",
+        "skipTaskbar": false
       }
     ],
     "security": {

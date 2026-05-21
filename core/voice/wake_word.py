@@ -7,7 +7,7 @@ import numpy as np
 from loguru import logger
 from core.config import CONFIG
 
-_KWS_PHRASES = ["vector", "hey vector", "okay vector", "hey vecto"]  # Whisper KWS phrases
+_KWS_PHRASES = ["vector", "hey vector", "okay vector", "hey vecto"]
 
 
 class WakeWordDetector:
@@ -33,7 +33,7 @@ class WakeWordDetector:
             logger.info(f"[VECTOR][wake] openWakeWord ready (phrase='{self._wake_phrase}')")
             return
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Custom model not available — Whisper KWS: user can say "Hey Vector" or "Vector"
         logger.info(
@@ -125,11 +125,79 @@ class WakeWordDetector:
                                 logger.info(f"[VECTOR][wake] KWS triggered: '{text}' → mode={mode}")
                                 return mode
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
                 await asyncio.sleep(0.05)
         except Exception as e:
             logger.error(f"[VECTOR][wake] _listen_whisper_kws error: {e}")
             return None
+
+    async def train_wake_word(self, n_samples: int = 10) -> dict:
+        """
+        Gap 9: Record n_samples of 'Hey Vector' and train a custom openWakeWord model.
+        Saves the .onnx file to the expected path so _init_model() picks it up on restart.
+        Returns {"status": "ok", "model_path": "..."} or {"status": "error", "error": "..."}.
+        """
+        import sounddevice as sd
+        import soundfile as sf
+        import tempfile
+        import subprocess
+        from pathlib import Path
+
+        model_dir = Path(__file__).parent.parent.parent / "models" / "wake_word"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        samples_dir = model_dir / "samples"
+        samples_dir.mkdir(exist_ok=True)
+        model_out = model_dir / f"{self._wake_phrase}.onnx"
+
+        logger.info(f"[VECTOR][wake] Training '{self._wake_phrase}' — recording {n_samples} samples")
+        recorded: list[Path] = []
+
+        for i in range(n_samples):
+            logger.info(f"[VECTOR][wake] Sample {i+1}/{n_samples} — say '{self._wake_phrase}' now...")
+            try:
+                audio = await asyncio.to_thread(
+                    sd.rec,
+                    int(1.5 * self._sample_rate),
+                    samplerate=self._sample_rate,
+                    channels=1,
+                    dtype="int16",
+                )
+                await asyncio.to_thread(sd.wait)
+                sample_path = samples_dir / f"sample_{i:03d}.wav"
+                await asyncio.to_thread(sf.write, str(sample_path), audio, self._sample_rate)
+                recorded.append(sample_path)
+                logger.info(f"[VECTOR][wake] Saved {sample_path.name}")
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                logger.warning(f"[VECTOR][wake] Sample {i+1} failed: {e}")
+
+        if len(recorded) < 3:
+            return {"status": "error", "error": f"Only {len(recorded)} samples recorded (need ≥3)"}
+
+        # Run openWakeWord training script
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "python", "-m", "openwakeword.train",
+                    "--positive_reference_clips", str(samples_dir),
+                    "--output_dir", str(model_dir),
+                    "--model_name", self._wake_phrase,
+                ],
+                capture_output=True, text=True, timeout=300,
+            )
+            if result.returncode != 0:
+                return {"status": "error", "error": result.stderr[:500]}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+        if model_out.exists():
+            # Reload the model without restarting
+            self._init_model()
+            logger.info(f"[VECTOR][wake] Custom model trained and loaded: {model_out}")
+            return {"status": "ok", "model_path": str(model_out), "samples": len(recorded)}
+
+        return {"status": "error", "error": "Training completed but .onnx not found"}
 
 
 if __name__ == "__main__":

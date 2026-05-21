@@ -24,6 +24,7 @@ For cloud tasks (when local is deliberately skipped):
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -36,6 +37,49 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
+from core.resilience.circuit_breaker import CircuitBreakerOpenError
+from core.breaker_registry import get_registry
+
+
+def _sync_cb_call(name: str, fn, *args, **kwargs):
+    cb = get_registry().get(name)
+    if cb is None:
+        return fn(*args, **kwargs)
+    try:
+        _coro = cb.call(lambda: fn(*args, **kwargs))
+        return asyncio.run(_coro)
+    except RuntimeError:
+        _coro.close()
+        from core.resilience.circuit_breaker import CircuitState
+        _t = time.time()
+        if cb.state == CircuitState.OPEN:
+            if _t - cb.last_failure_time < cb.config.recovery_timeout:
+                raise CircuitBreakerOpenError(f"circuit breaker '{name}' is open")
+            cb.state = CircuitState.HALF_OPEN
+            cb.success_count = 0
+            cb._half_open_retries = 0
+        if cb.state == CircuitState.HALF_OPEN and cb._half_open_retries >= cb.config.half_open_max_retries:
+            raise CircuitBreakerOpenError(f"circuit breaker '{name}' half-open retries exhausted")
+        if cb.state == CircuitState.HALF_OPEN:
+            cb._half_open_retries += 1
+        try:
+            result = fn(*args, **kwargs)
+            if cb.state == CircuitState.HALF_OPEN:
+                cb.success_count += 1
+                if cb.success_count >= cb.config.success_threshold:
+                    cb.state = CircuitState.CLOSED
+                    cb.failure_count = 0
+            elif cb.state == CircuitState.CLOSED:
+                cb.failure_count = 0
+            return result
+        except Exception:
+            cb.failure_count += 1
+            cb.last_failure_time = _t
+            if cb.state == CircuitState.CLOSED and cb.failure_count >= cb.config.failure_threshold:
+                cb.state = CircuitState.OPEN
+            elif cb.state == CircuitState.HALF_OPEN:
+                cb.state = CircuitState.OPEN
+            raise
 
 # ── Provider tier enum ───────────────────────────────────────────────────────
 
@@ -200,7 +244,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
             f"{gemini_model}:generateContent?key={api_key}"
         )
         body = {"contents": [{"parts": [{"text": prompt}]}]}
-        resp = httpx.post(url, json=body, timeout=timeout)
+        resp = _sync_cb_call("gemini", lambda: httpx.post(url, json=body, timeout=timeout))
         if resp.status_code == 429:
             _mark_rate_limited("gemini", 60.0)
             return ""
@@ -217,6 +261,9 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
                           (time.perf_counter() - t0) * 1000, True)
             logger.info(f"[VECTOR][vc_llm] gemini/{gemini_model} responded ({len(text)} chars)")
         return text
+    except CircuitBreakerOpenError:
+        logger.warning(f"[VECTOR][vc_llm] circuit breaker open for gemini")
+        return ""
     except Exception as e:
         logger.warning(f"[VECTOR][vc_llm] Gemini failed: {e}")
         return ""
@@ -238,7 +285,6 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
     try:
         import anthropic as _sdk
         client = _sdk.Anthropic(api_key=api_key)
-        # Extract system prompt if present
         system = ""
         user_msgs = []
         for m in messages:
@@ -250,13 +296,16 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
                       messages=user_msgs or [{"role": "user", "content": "Hello"}])
         if system:
             kwargs["system"] = system
-        response = client.messages.create(**kwargs)
+        response = _sync_cb_call("anthropic", lambda: client.messages.create(**kwargs))
         text = response.content[0].text if response.content else ""
         if text:
             _record_usage("anthropic", claude_model, messages, text,
                           (time.perf_counter() - t0) * 1000, True)
             logger.info(f"[VECTOR][vc_llm] anthropic/{claude_model} responded ({len(text)} chars)")
         return text
+    except CircuitBreakerOpenError:
+        logger.warning(f"[VECTOR][vc_llm] circuit breaker open for anthropic")
+        return ""
     except Exception as e:
         if "rate" in str(e).lower() or "429" in str(e):
             _mark_rate_limited("anthropic", 60.0)
@@ -280,14 +329,14 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
     t0 = time.perf_counter()
     try:
         import httpx
-        resp = httpx.post(
+        resp = _sync_cb_call("openrouter", lambda: httpx.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}",
                      "HTTP-Referer": "https://github.com/arghyadeep-deb/VECTOR",
                      "X-Title": "VECTOR AI"},
             json={"model": or_model, "messages": messages, "max_tokens": 4096},
             timeout=timeout,
-        )
+        ))
         if resp.status_code == 429:
             _mark_rate_limited("openrouter", 60.0)
             return ""
@@ -298,6 +347,9 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
                           (time.perf_counter() - t0) * 1000, True)
             logger.info(f"[VECTOR][vc_llm] openrouter/{or_model} responded ({len(text)} chars)")
         return text
+    except CircuitBreakerOpenError:
+        logger.warning(f"[VECTOR][vc_llm] circuit breaker open for openrouter")
+        return ""
     except Exception as e:
         logger.warning(f"[VECTOR][vc_llm] OpenRouter failed: {e}")
         return ""
@@ -456,7 +508,7 @@ def chat_stream(
             if yielded:
                 return
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Cloud providers — return as single token (no streaming)
     result = chat(model, messages, timeout, provider=provider)
     if result:

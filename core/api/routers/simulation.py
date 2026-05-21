@@ -11,10 +11,10 @@ from loguru import logger
 router = APIRouter(prefix="/simulation", tags=["simulation"])
 
 
-def _run_mirofish(task_type: str, params: dict) -> dict:
+def _run_social_sim(task_type: str, params: dict) -> dict:
     import asyncio
-    from agents.districts.intelligence.mirofish_agent import MiroFishAgent
-    agent = MiroFishAgent()
+    from districts.intelligence.vector_social_sim_agent import SocialSimAgent
+    agent = SocialSimAgent()
     loop = asyncio.new_event_loop()
     result = loop.run_until_complete(agent.run({"type": task_type, "params": params}))
     loop.close()
@@ -46,7 +46,7 @@ class ReportRequest(BaseModel):
 async def build_ontology(body: OntologyRequest):
     """Build knowledge graph from a document using LLM-powered entity extraction."""
     try:
-        return _run_mirofish("build_ontology", body.model_dump())
+        return _run_social_sim("build_ontology", body.model_dump())
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] ontology failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,7 +56,7 @@ async def build_ontology(body: OntologyRequest):
 async def run_simulation(body: SimulationRequest):
     """Run a multi-agent social simulation with LLM-driven agent behaviors."""
     try:
-        return _run_mirofish("run_simulation", body.model_dump())
+        return _run_social_sim("run_simulation", body.model_dump())
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] run failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,7 +66,7 @@ async def run_simulation(body: SimulationRequest):
 async def interview_agent(body: InterviewRequest):
     """Interview a simulated agent to get their perspective."""
     try:
-        return _run_mirofish("interview_agent", body.model_dump())
+        return _run_social_sim("interview_agent", body.model_dump())
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] interview failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -76,7 +76,7 @@ async def interview_agent(body: InterviewRequest):
 async def generate_report(body: ReportRequest):
     """Generate a markdown analysis report from simulation trace data."""
     try:
-        return _run_mirofish("generate_report", body.model_dump())
+        return _run_social_sim("generate_report", body.model_dump())
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] report failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -86,7 +86,7 @@ async def generate_report(body: ReportRequest):
 async def simulation_status():
     """Get current simulation engine status and capabilities."""
     try:
-        from core.mirofish.app.services.vector_simulation_engine import VectorSocialSimEngine
+        from districts.intelligence.vector_social_sim.app.services.vector_simulation_engine import VectorSocialSimEngine
         return {
             "available": True,
             "engine": "VectorSocialSimEngine",

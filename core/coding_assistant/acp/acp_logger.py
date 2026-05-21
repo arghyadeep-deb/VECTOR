@@ -97,4 +97,4 @@ def acp_message_observer(event: StreamEvent) -> None:
 
         _get_logger().info(log_entry)
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)

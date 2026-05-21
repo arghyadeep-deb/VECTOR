@@ -65,6 +65,34 @@ async def council_history(limit: int = Query(5, ge=1, le=20)):
         return CouncilHistoryResponse(sessions=[], count=0, error=str(e))
 
 
+# ── Gap 19: Backup / Restore ──────────────────────────────────────────────────
+
+@router.post("/backup")
+async def backup_memory():
+    """Dump the full local SQLite database to a JSON backup file."""
+    try:
+        from core.memory.multi_db_manager import get_manager
+        path = get_manager().backup()
+        return {"status": "ok", "backup_path": path}
+    except Exception as e:
+        logger.error(f"[VECTOR][api][memory] backup failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/restore")
+async def restore_memory(backup_path: str, overwrite: bool = False):
+    """Restore the local SQLite database from a JSON backup file."""
+    try:
+        from core.memory.multi_db_manager import get_manager
+        result = get_manager().restore(backup_path, overwrite=overwrite)
+        return {"status": "ok", **result}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[VECTOR][api][memory] restore failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

@@ -4400,7 +4400,7 @@ def _(rid, params: dict) -> dict:
 
                 stop_continuous()
             except ImportError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             except Exception as e:
                 logger.warning("voice: stop_continuous failed during toggle off: %s", e)
 
@@ -5027,7 +5027,7 @@ def _(rid, params: dict) -> dict:
                 rid, 4005, f"blocked: {desc}. Use the agent for dangerous commands."
             )
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         r = subprocess.run(
             __import__("shlex").split(cmd) if isinstance(cmd, str) else list(cmd), shell=False, capture_output=True, text=True, timeout=30, cwd=os.getcwd()

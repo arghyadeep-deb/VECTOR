@@ -25,6 +25,8 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
+from core.resilience.circuit_breaker import CircuitBreakerOpenError
+from core.breaker_registry import get_registry
 
 # ── AirLLM fallback path (large 70B+ models only) ───────────────────────────
 _airllm_env = os.environ.get("AIRLLM_REPO_PATH", "")
@@ -62,7 +64,48 @@ try:
     register_builtin_models()
     logger.info(f"[VECTOR][ollama_safe] model catalog loaded ({len(BUILTIN_MODELS)} built-in)")
 except Exception:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+
+def _wrap_with_circuit_breaker(name: str, func, *args, **kwargs):
+    import asyncio
+    cb = get_registry().get(name)
+    if cb is None:
+        return func(*args, **kwargs)
+    try:
+        _coro = cb.call(lambda: func(*args, **kwargs))
+        return asyncio.run(_coro)
+    except RuntimeError:
+        _coro.close()
+        import time
+        from core.resilience.circuit_breaker import CircuitState
+        if cb.state == CircuitState.OPEN:
+            if time.time() - cb.last_failure_time < cb.config.recovery_timeout:
+                raise CircuitBreakerOpenError(f"circuit breaker '{name}' is open")
+            cb.state = CircuitState.HALF_OPEN
+            cb.success_count = 0
+            cb._half_open_retries = 0
+        if cb.state == CircuitState.HALF_OPEN and cb._half_open_retries >= cb.config.half_open_max_retries:
+            raise CircuitBreakerOpenError(f"circuit breaker '{name}' half-open retries exhausted")
+        if cb.state == CircuitState.HALF_OPEN:
+            cb._half_open_retries += 1
+        try:
+            result = func(*args, **kwargs)
+            if cb.state == CircuitState.HALF_OPEN:
+                cb.success_count += 1
+                if cb.success_count >= cb.config.success_threshold:
+                    cb.state = CircuitState.CLOSED
+                    cb.failure_count = 0
+            elif cb.state == CircuitState.CLOSED:
+                cb.failure_count = 0
+            return result
+        except Exception:
+            cb.failure_count += 1
+            cb.last_failure_time = time.time()
+            if cb.state == CircuitState.CLOSED and cb.failure_count >= cb.config.failure_threshold:
+                cb.state = CircuitState.OPEN
+            elif cb.state == CircuitState.HALF_OPEN:
+                cb.state = CircuitState.OPEN
+            raise
 
 # Internal state
 _warmed: set[str] = set()
@@ -71,6 +114,33 @@ _warm_lock = threading.Lock()
 
 def _is_airllm_model(model: str) -> bool:
     return any(m in model.lower() for m in _AIRLLM_MODELS)
+
+
+def _inject_personality(messages: list[dict]) -> list[dict]:
+    """Inject VECTOR personality system prompt into messages if enabled."""
+    try:
+        if not CONFIG.get("personality", {}).get("enabled", True):
+            return messages
+        from core.personality import PersonalityEngine
+        pe = PersonalityEngine()
+        personality_prompt = pe.tone.compose_system_prompt(pe.card, pe.sentiment.analyze(""))
+        if not personality_prompt:
+            return messages
+        enriched = list(messages)
+        system_idx = None
+        for i, m in enumerate(enriched):
+            if m.get("role") == "system":
+                system_idx = i
+                break
+        personality_block = f"\n\n[PERSONALITY]\n{personality_prompt}"
+        if system_idx is not None:
+            enriched[system_idx] = {"role": "system", "content": enriched[system_idx]["content"] + personality_block}
+        else:
+            enriched.insert(0, {"role": "system", "content": personality_prompt})
+        return enriched
+    except Exception as e:
+        logger.debug(f"[VECTOR][ollama_safe] personality injection skipped: {e}")
+        return messages
 
 
 def chat(
@@ -89,6 +159,8 @@ def chat(
                     Defaults to DEFAULT_KEEP_ALIVE ("30m"); set to "-1" to
                     pin forever, or "0" to unload immediately after the call.
     """
+    messages = _inject_personality(messages)
+
     # Large models route through AirLLM
     if _is_airllm_model(model):
         result = _airllm_chat(model, messages)
@@ -106,16 +178,20 @@ def chat(
         client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
         if _energy_monitor is not None:
             with _energy_monitor.sample() as _energy:
-                response = client.chat(
+                response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
                     model=model, messages=messages, keep_alive=keep_alive,
-                )
+                ))
             _record_telemetry(model, time.time() - _start, response, _energy)
         else:
-            response = client.chat(
+            response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
                 model=model, messages=messages, keep_alive=keep_alive,
-            )
+            ))
             _record_telemetry(model, time.time() - _start, response, None)
         return response.get("message", {}).get("content", "")
+    except CircuitBreakerOpenError:
+        logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model}")
+        fallback = _multi_backend_fallback(model, messages, timeout)
+        return fallback
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} unavailable: {e}")
         # Multi-backend fallback — try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
@@ -137,16 +213,19 @@ def chat_stream(
     try:
         import ollama
         client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
-        stream = client.chat(
+        stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
             model=model,
             messages=messages,
             stream=True,
             keep_alive=keep_alive,
-        )
+        ))
         for chunk in stream:
             token = chunk.get("message", {}).get("content", "")
             if token:
                 yield token
+    except CircuitBreakerOpenError:
+        logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model} stream")
+        yield ""
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} stream failed: {e}")
         yield ""
@@ -155,7 +234,7 @@ def chat_stream(
 def _airllm_chat(model: str, messages: list[dict]) -> str:
     """Use AirLLM for large model inference. Returns empty string on failure."""
     try:
-        from integrations.airllm.airllm_runner import AirLLMRunner
+        from core.inference.airllm.airllm_runner import AirLLMRunner
         import asyncio
         runner = AirLLMRunner()
         prompt = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
@@ -194,16 +273,15 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
         try:
             import ollama
             client = ollama.Client(host=CONFIG["ollama_host"], timeout=60.0)
-            # Embeddings models warm via embed endpoint; chat models via chat
             if "embed" in model.lower():
-                client.embeddings(model=model, prompt="ping", keep_alive=keep_alive)
+                _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
             else:
-                client.chat(
+                _wrap_with_circuit_breaker("ollama", lambda: client.chat(
                     model=model,
                     messages=[{"role": "user", "content": "."}],
                     options={"num_predict": 1},
                     keep_alive=keep_alive,
-                )
+                ))
             with _warm_lock:
                 _warmed.add(model)
             results[model] = True
@@ -226,7 +304,7 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
             if available:
                 logger.info(f"[VECTOR][ollama_safe] catalog models available: {list(available)[:5]}")
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     return results
 

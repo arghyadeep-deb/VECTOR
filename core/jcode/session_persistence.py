@@ -237,7 +237,7 @@ class SessionPersistence:
                 s = PersistedSession.from_dict(json.loads(p.read_text()))
                 sessions.append(s)
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return sorted(sessions, key=lambda s: s.updated_at, reverse=True)
 
     def recover_crashed_sessions(self) -> list[PersistedSession]:

@@ -13,4 +13,9 @@ for p in (_PROJECT_ROOT, _VC_ROOT, _VC_SRC):
     if p_str not in sys.path:
         sys.path.insert(0, p_str)
 
-collect_ignore_glob = ["legacy_ported/*"]
+# Gap 15: Legacy tests are now enabled.
+# Previously: collect_ignore_glob = ["legacy_ported/*"]
+# The legacy_ported/ directory has its own conftest.py with proper fixtures.
+# Run with: pytest vectorcode/python/tests/
+# Skip legacy only: pytest vectorcode/python/tests/ --ignore=vectorcode/python/tests/legacy_ported
+

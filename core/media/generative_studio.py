@@ -72,7 +72,7 @@ class GenerativeStudio:
                 try:
                     return await self._wan2gp.upload_file(str(p))
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
             if self._has_muapi():
                 return await self._muapi.upload_file(str(p))
         return path_or_url

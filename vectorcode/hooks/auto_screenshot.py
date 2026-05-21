@@ -56,8 +56,8 @@ try:
 
 except ImportError:
     # Pillow not installed — silent skip
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 except Exception:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.exit(0)

@@ -11,8 +11,8 @@ from __future__ import annotations
 try:
     from vectorcode.src.learning.intelligence import sft_trainer as _sft  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 try:
     from vectorcode.src.learning.intelligence import grpo_trainer as _grpo  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)

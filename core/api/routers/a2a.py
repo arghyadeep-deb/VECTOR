@@ -5,9 +5,9 @@ endpoint compatible with Google's A2A protocol spec. External agents can:
 
   GET  /a2a/.well-known/agent.json    — discovery manifest
   GET  /a2a/agents                    — list of all available agents
-  GET  /a2a/agents/districts/{name}             — single agent's manifest
-  POST /a2a/agents/districts/{name}/invoke      — dispatch a task to an agent
-  GET  /a2a/agents/districts/{name}/tasks/{id}  — fetch task status
+  GET  /a2a/districts/{name}             — single agent's manifest
+  POST /a2a/districts/{name}/invoke      — dispatch a task to an agent
+  GET  /a2a/districts/{name}/tasks/{id}  — fetch task status
   POST /a2a/sessions                  — create a session (multi-turn)
   POST /a2a/sessions/{id}/messages    — send a message in session
 
@@ -109,7 +109,7 @@ async def well_known() -> dict:
         },
         "endpoints": {
             "agents":   "/a2a/agents",
-            "invoke":   "/a2a/agents/districts/{name}/invoke",
+            "invoke":   "/a2a/districts/{name}/invoke",
             "sessions": "/a2a/sessions",
         },
     }
@@ -119,7 +119,7 @@ async def well_known() -> dict:
 async def list_agents() -> dict:
     """Return every district agent that VECTOR exposes via A2A."""
     try:
-        from vectorcode.src.agents.districts.registry import get_registry
+        from vectorcode.src.districts.registry import get_registry
         reg = get_registry()
         agents_list = []
         for defn in reg.list_all():
@@ -137,11 +137,11 @@ async def list_agents() -> dict:
         return {"count": 0, "agents": [], "error": str(e)}
 
 
-@router.get("/agents/districts/{name}")
+@router.get("/districts/{name}")
 async def get_agent(name: str) -> dict:
     """Single-agent manifest."""
     try:
-        from vectorcode.src.agents.districts.registry import get_registry
+        from vectorcode.src.districts.registry import get_registry
         reg = get_registry()
         defn = reg.get(name)
         if defn is None:
@@ -154,7 +154,7 @@ async def get_agent(name: str) -> dict:
             "model": getattr(defn, "model", ""),
             "capabilities": getattr(defn, "capabilities", []),
             "endpoints": {
-                "invoke": f"/a2a/agents/districts/{name}/invoke",
+                "invoke": f"/a2a/districts/{name}/invoke",
             },
         }
     except HTTPException:
@@ -166,7 +166,7 @@ async def get_agent(name: str) -> dict:
 # ── Invocation ──────────────────────────────────────────────────────────────
 
 
-@router.post("/agents/districts/{name}/invoke")
+@router.post("/districts/{name}/invoke")
 async def invoke_agent(name: str, body: InvokeRequest) -> InvokeResponse:
     """Dispatch a task to a named agent and return the result."""
     task_id = secrets.token_urlsafe(12)
@@ -195,7 +195,7 @@ async def invoke_agent(name: str, body: InvokeRequest) -> InvokeResponse:
         return InvokeResponse(task_id=task_id, agent=name, status="failed", error=str(e))
 
 
-@router.get("/agents/districts/{name}/tasks/{task_id}")
+@router.get("/districts/{name}/tasks/{task_id}")
 async def get_task(name: str, task_id: str) -> dict:
     rec = _TASKS.get(task_id)
     if rec is None:
@@ -217,7 +217,7 @@ async def create_session(body: SessionRequest) -> dict:
                          if body.initial_message else [])
             return {"session_id": sid, "agent": body.agent}
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Fallback: in-memory
     import uuid as _uuid
     sid = sid or str(_uuid.uuid4())
@@ -251,7 +251,7 @@ async def session_message(session_id: str, body: SessionMessageRequest) -> dict:
         except HTTPException:
             raise
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Fallback: in-memory
     sess = _SESSIONS_FALLBACK.get(session_id)
@@ -300,7 +300,7 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
 
     # 2) Try VECTOR's own agent registry — instantiate + call .run()
     try:
-        from vectorcode.src.agents.districts.registry import get_registry
+        from vectorcode.src.districts.registry import get_registry
         reg = get_registry()
         defn = reg.get(agent_name)
         if defn is None:
@@ -355,7 +355,7 @@ async def _materialize_agent(defn: Any) -> Any:
                 try:
                     return obj()
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None
 
 

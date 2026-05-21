@@ -39,7 +39,7 @@ def _write_pid(pid: int) -> None:
 
 @click.group()
 def daemon() -> None:
-    """Manage the OpenJarvis server daemon."""
+    """Manage the OpenVector server daemon."""
 
 
 @daemon.command()
@@ -55,7 +55,7 @@ def start(
     model_name: str | None,
     agent_name: str | None,
 ) -> None:
-    """Start the OpenJarvis server as a background daemon."""
+    """Start the OpenVector server as a background daemon."""
     console = Console(stderr=True)
 
     existing = _read_pid()
@@ -93,7 +93,7 @@ def start(
     _write_pid(proc.pid)
 
     console.print(
-        f"[green]OpenJarvis server started[/green] (PID {proc.pid})\n"
+        f"[green]OpenVector server started[/green] (PID {proc.pid})\n"
         f"  URL: http://{bind_host}:{bind_port}\n"
         f"  Log: {_LOG_FILE}"
     )
@@ -101,7 +101,7 @@ def start(
 
 @daemon.command()
 def stop() -> None:
-    """Stop the running OpenJarvis server daemon."""
+    """Stop the running OpenVector server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is None:
@@ -122,9 +122,9 @@ def stop() -> None:
             try:
                 os.kill(pid, signal.SIGKILL)
             except OSError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except OSError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     _PID_FILE.unlink(missing_ok=True)
     console.print(f"[green]Server stopped[/green] (PID {pid}).")
@@ -133,7 +133,7 @@ def stop() -> None:
 @daemon.command()
 @click.pass_context
 def restart(ctx: click.Context) -> None:
-    """Restart the OpenJarvis server daemon."""
+    """Restart the OpenVector server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is not None:
@@ -144,7 +144,7 @@ def restart(ctx: click.Context) -> None:
 
 @daemon.command()
 def status() -> None:
-    """Show status of the OpenJarvis server daemon."""
+    """Show status of the OpenVector server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is None:
@@ -162,7 +162,7 @@ def status() -> None:
         minutes, seconds = divmod(remainder, 60)
         uptime_info = f"\n  Uptime: {hours}h {minutes}m {seconds}s"
     except (ImportError, Exception):
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     config = load_config()
     console.print(

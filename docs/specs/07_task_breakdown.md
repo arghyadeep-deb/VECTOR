@@ -21,13 +21,13 @@
 | T3.3 | `core/loop/autonomous_loop.py` | 3 | FR-01 — asyncio.gather 5 coroutines, all with try/except restart |
 | T4.1 | `core/sensing/` (all 4 files) | 4 | FR-09 — camera fatigue, screen activity, sound, health monitor |
 | T4.2 | `core/control/` (all files) | 4 | FR-06 — PC controller, ADB, malware 3-layer, node router |
-| T5.1 | `agents/districts/coding/` | 5 | FR-05 — git_bot auto-commit, code_reviewer, OpenCLI GitHub CLI |
-| T5.2 | `agents/districts/time_calendar/` | 5 | FR-04 — KIIT scraper Playwright, deadline_manager, attendance alert |
-| T5.3 | `agents/districts/security/` | 5 | FR-06 — threat_scout, malware_hunter, node_guard |
-| T5.4 | `agents/districts/communications/` | 5 | FR-11 — Hermes adapter, calls_handler (NOT rebuilt from scratch) |
-| T6.1 | `agents/districts/memory_curator/` | 6 | FR-03 — LightRAG integration, consolidation_bot |
-| T6.2 | `agents/districts/research/` | 6 | FR-14 — OpenCLI autoresearch, paper_reader, news_aggregator |
+| T5.1 | `districts/coding/` | 5 | FR-05 — git_bot auto-commit, code_reviewer, OpenCLI GitHub CLI |
+| T5.2 | `districts/time_calendar/` | 5 | FR-04 — KIIT scraper Playwright, deadline_manager, attendance alert |
+| T5.3 | `districts/security/` | 5 | FR-06 — threat_scout, malware_hunter, node_guard |
+| T5.4 | `districts/communications/` | 5 | FR-11 — Hermes adapter, calls_handler (NOT rebuilt from scratch) |
+| T6.1 | `districts/memory_curator/` | 6 | FR-03 — LightRAG integration, consolidation_bot |
+| T6.2 | `districts/research/` | 6 | FR-14 — OpenCLI autoresearch, paper_reader, news_aggregator |
 | T6.3 | `cloud/` + `api/` + `dashboard/` | 6 | FR-01 — Fly.io brain, Cloudflare Workers, Vercel dashboard |
 | T7.1 | `core/memory/obsidian_sync.py` | 7 | FR-03 — bidirectional vault, watchdog ingestion, Daily/ write |
-| T7.2 | `agents/districts/governance/llm_council.py` | 7 | FR-10 — council flow, HP gate 700+, sessions as training data |
+| T7.2 | `districts/governance/llm_council.py` | 7 | FR-10 — council flow, HP gate 700+, sessions as training data |
 | T7.3 | `phone_node/` setup | 7 | FR-08 — old phone Termux, ambient_server.py, ADB bridge |

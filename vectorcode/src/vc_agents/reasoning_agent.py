@@ -90,7 +90,7 @@ class ReasoningAgent:
             try:
                 return learner.get_best_strategies(situation, top_k=1)[0]
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return {"strategy": "default", "confidence": 0.5}
 
     def get_training_data_count(self) -> int:
@@ -100,7 +100,7 @@ class ReasoningAgent:
             try:
                 return bank.training_data_count()
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return 0
 
 

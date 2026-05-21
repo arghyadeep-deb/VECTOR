@@ -71,6 +71,16 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+async def broadcast_event(message: dict) -> None:
+    """Module-level helper used by core.loop.permission_gateway and other
+    backend producers to broadcast UI events (orb_state, ui_event, etc.) to
+    every connected dashboard. Never raises (RULE 2)."""
+    try:
+        await manager.broadcast(message)
+    except Exception as _bc_err:
+        logger.debug(f"[VECTOR][ws] broadcast_event failed: {_bc_err}")
+
+
 async def _build_status_payload() -> dict:
     """Gather current VECTOR state for dashboard."""
     payload: dict = {
@@ -280,7 +290,7 @@ async def _status_broadcaster(ws: WebSocket):
             await manager.send_personal(ws, payload)
             await asyncio.sleep(2.0)
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 class WSCommandRequest(BaseModel):

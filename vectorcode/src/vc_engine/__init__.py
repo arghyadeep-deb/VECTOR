@@ -24,7 +24,7 @@ for _optional in ("cloud", "litellm", "gemma_cpp"):
     try:
         importlib.import_module(f".{_optional}", __name__)
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 __all__ = [
     "EngineConnectionError",

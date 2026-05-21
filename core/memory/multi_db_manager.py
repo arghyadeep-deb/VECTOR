@@ -191,7 +191,7 @@ class MultiDBManager:
             results["local"] = True
             results["latency_ms"]["local"] = 1
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Supabase
         supabase_url = self._get_config("supabase_url")
@@ -410,6 +410,102 @@ class MultiDBManager:
             "queue_size": len(self._sync_queue),
             "last_sync": self._last_sync,
         }
+
+    # ─── Gap 19: Backup / Restore ─────────────────────────────────────────────
+
+    def backup(self, backup_path: str | None = None) -> str:
+        """
+        Dump the full local SQLite database to a JSON backup file.
+        Returns the path to the backup file.
+
+        The backup includes all tables and their rows. It can be restored
+        with restore() even if the original SQLite file is corrupted.
+        """
+        import sqlite3
+        import time as _time
+        from pathlib import Path as _Path
+
+        if backup_path is None:
+            ts = int(_time.time())
+            backup_path = str(_Path(__file__).parent.parent.parent / f"vector_backup_{ts}.json")
+
+        db_path = _Path(__file__).parent.parent.parent / "vector_memory.db"
+        if not db_path.exists():
+            raise FileNotFoundError(f"Local SQLite not found: {db_path}")
+
+        conn = sqlite3.connect(str(db_path), timeout=10)
+        conn.row_factory = sqlite3.Row
+        try:
+            tables = [r[0] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()]
+            dump: dict = {"version": 1, "tables": {}, "backed_up_at": _time.time()}
+            for table in tables:
+                rows = conn.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608
+                dump["tables"][table] = [dict(r) for r in rows]
+                logger.debug(f"[VECTOR][backup] {table}: {len(rows)} rows")
+        finally:
+            conn.close()
+
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump(dump, f, default=str, indent=2)
+
+        total_rows = sum(len(v) for v in dump["tables"].values())
+        logger.info(f"[VECTOR][backup] {total_rows} rows → {backup_path}")
+        return backup_path
+
+    def restore(self, backup_path: str, overwrite: bool = False) -> dict:
+        """
+        Restore the local SQLite database from a JSON backup file.
+
+        If overwrite=False (default), only inserts rows that don't already exist
+        (safe merge). If overwrite=True, drops and recreates all tables first.
+
+        Returns {"tables_restored": int, "rows_restored": int}.
+        """
+        import sqlite3
+        from pathlib import Path as _Path
+
+        bp = _Path(backup_path)
+        if not bp.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        with open(backup_path, "r", encoding="utf-8") as f:
+            dump = json.load(f)
+
+        if dump.get("version") != 1:
+            raise ValueError(f"Unsupported backup version: {dump.get('version')}")
+
+        db_path = _Path(__file__).parent.parent.parent / "vector_memory.db"
+        conn = sqlite3.connect(str(db_path), timeout=10)
+        try:
+            tables_restored = 0
+            rows_restored = 0
+            for table, rows in dump["tables"].items():
+                if not rows:
+                    continue
+                if overwrite:
+                    conn.execute(f"DELETE FROM {table}")  # noqa: S608
+                cols = list(rows[0].keys())
+                placeholders = ", ".join("?" * len(cols))
+                col_names = ", ".join(cols)
+                for row in rows:
+                    try:
+                        conn.execute(
+                            f"INSERT OR IGNORE INTO {table} ({col_names}) VALUES ({placeholders})",  # noqa: S608
+                            [row[c] for c in cols],
+                        )
+                        rows_restored += 1
+                    except Exception as _row_err:
+                        logger.debug(f"[VECTOR][restore] skip row in {table}: {_row_err}")
+                conn.commit()
+                tables_restored += 1
+                logger.debug(f"[VECTOR][restore] {table}: {len(rows)} rows")
+        finally:
+            conn.close()
+
+        logger.info(f"[VECTOR][restore] {tables_restored} tables, {rows_restored} rows from {backup_path}")
+        return {"tables_restored": tables_restored, "rows_restored": rows_restored}
 
 
 # Singleton

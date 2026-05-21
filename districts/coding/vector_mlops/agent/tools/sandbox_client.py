@@ -605,7 +605,7 @@ class Sandbox:
                     api.delete_repo(space_id, repo_type="space")
                     _log(f"Deleted Space {space_id}")
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
                 raise cls.Cancelled(f"Sandbox creation cancelled: {space_id}")
 
         base = name or "sandbox"

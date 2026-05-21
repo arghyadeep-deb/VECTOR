@@ -110,7 +110,7 @@ def _load_config() -> dict:
         try:
             return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return {"url": ""}
 
 
@@ -191,7 +191,7 @@ class Wan2GPClient:
                             if keys:
                                 return [k.lstrip("/") for k in keys]
                 except Exception:
-                    pass
+                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
             # Legacy fallback
             try:
                 resp = await c.get(f"{base}/config")
@@ -199,7 +199,7 @@ class Wan2GPClient:
                     deps = resp.json().get("dependencies", [])
                     return [d["api_name"] for d in deps if isinstance(d.get("api_name"), str) and d["api_name"] != "false"]
             except Exception:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return []
 
     def _resolve_fn(self, model: Wan2GPModel, api_names: list[str]) -> str | None:

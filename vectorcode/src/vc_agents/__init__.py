@@ -22,42 +22,42 @@ logger = logging.getLogger(__name__)
 try:
     import vectorcode.src.vc_agents.simple  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.orchestrator  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.native_react  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.native_openhands  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.react  # noqa: F401 -- backward-compat shim
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.openhands  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.rlm  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.claude_code  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.operative  # noqa: F401
@@ -77,12 +77,12 @@ except ImportError:
 try:
     import vectorcode.src.vc_agents.deep_research  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 try:
     import vectorcode.src.vc_agents.morning_digest  # noqa: F401
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 # Registry alias: "react" -> NativeReActAgent (for backward compat)
 try:

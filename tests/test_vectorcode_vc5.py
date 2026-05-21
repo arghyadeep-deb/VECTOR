@@ -3,7 +3,7 @@ import time
 from unittest.mock import patch, MagicMock
 
 def test_all_hook_names_defined():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     expected = {
         "PRE_EDIT", "POST_EDIT", "PRE_TASK", "POST_TASK",
         "SESSION_START", "SESSION_END", "ROUTE", "EXPLAIN",
@@ -15,7 +15,7 @@ def test_all_hook_names_defined():
     assert expected == actual
 
 def test_hook_register_and_fire():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     called = []
     reg.register(HookName.PRE_EDIT, lambda ctx: called.append(ctx))
@@ -24,7 +24,7 @@ def test_hook_register_and_fire():
     assert called[0]["file"] == "main.py"
 
 def test_hook_priority_order():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     order = []
     reg.register(HookName.POST_TASK, lambda ctx: order.append("low"), priority=10)
@@ -33,7 +33,7 @@ def test_hook_priority_order():
     assert order == ["high", "low"]
 
 def test_hook_timeout_protection():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry(default_timeout=0.1)
     def slow_hook(ctx):
         time.sleep(5)
@@ -42,7 +42,7 @@ def test_hook_timeout_protection():
     reg.fire(HookName.PRE_TASK, {})
 
 def test_hook_multiple_handlers():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     results = []
     reg.register(HookName.POST_EDIT, lambda ctx: results.append("a"))
@@ -51,7 +51,7 @@ def test_hook_multiple_handlers():
     assert len(results) == 2
 
 def test_hook_unregister():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     called = []
     fn = lambda ctx: called.append(1)
@@ -61,14 +61,14 @@ def test_hook_unregister():
     assert len(called) == 0
 
 def test_hook_list():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     reg.register(HookName.ROUTE, lambda ctx: None)
     handlers = reg.list_handlers(HookName.ROUTE)
     assert len(handlers) == 1
 
 def test_all_worker_names_defined():
-    from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+    from districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
     expected = {
         "ULTRALEARN", "OPTIMIZE", "CONSOLIDATE", "PREDICT",
         "AUDIT", "MAP", "PRELOAD", "DEEPDIVE",
@@ -78,54 +78,54 @@ def test_all_worker_names_defined():
     assert expected == actual
 
 def test_worker_submits_to_task_queue():
-    with patch("agents.districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
+    with patch("districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
         mock_tq = MagicMock()
         mock_tq.get.return_value = mock_tq
         mock_tq.submit.return_value = "worker-task-1"
         MockTQ.get.return_value = mock_tq
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+        from districts.coding.vectorcode.hooks.workers import BackgroundWorkers
         bw = BackgroundWorkers()
         task_id = bw.submit(from_module_import_WorkerName_ULTRALEARN())
         assert task_id is not None
         mock_tq.submit.assert_called_once()
 
 def from_module_import_WorkerName_ULTRALEARN():
-    from agents.districts.coding.vectorcode.hooks.workers import WorkerName
+    from districts.coding.vectorcode.hooks.workers import WorkerName
     return WorkerName.ULTRALEARN
 
 def test_worker_uses_low_priority():
-    with patch("agents.districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
+    with patch("districts.coding.vectorcode.hooks.workers.TaskQueue") as MockTQ:
         mock_tq = MagicMock()
         mock_tq.get.return_value = mock_tq
         mock_tq.submit.return_value = "x"
         MockTQ.get.return_value = mock_tq
-        from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+        from districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
         bw = BackgroundWorkers()
         bw.submit(WorkerName.OPTIMIZE)
         kwargs = mock_tq.submit.call_args[1]
         assert "priority" in kwargs
 
 def test_ultralearn_extracts_patterns():
-    with patch("agents.districts.coding.vectorcode.hooks.workers.PatternStore") as MockPS:
-        with patch("agents.districts.coding.vectorcode.hooks.workers.EpisodicMemory") as MockMem:
+    with patch("districts.coding.vectorcode.hooks.workers.PatternStore") as MockPS:
+        with patch("districts.coding.vectorcode.hooks.workers.EpisodicMemory") as MockMem:
             mock_mem = MagicMock()
             mock_mem.recall.return_value = [{"content": "test", "tags": ["code"]}]
             MockMem.return_value = mock_mem
             MockPS.return_value = MagicMock()
-            from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers
+            from districts.coding.vectorcode.hooks.workers import BackgroundWorkers
             bw = BackgroundWorkers()
             bw.run_ultralearn()
             MockPS.return_value.save_pattern.assert_called()
 
 def test_worker_list():
-    from agents.districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
+    from districts.coding.vectorcode.hooks.workers import BackgroundWorkers, WorkerName
     bw = BackgroundWorkers()
     workers = bw.list_workers()
     assert len(workers) == 12
     assert WorkerName.ULTRALEARN in workers
 
 def test_hook_context_passed_correctly():
-    from agents.districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
+    from districts.coding.vectorcode.hooks.registry import HookRegistry, HookName
     reg = HookRegistry()
     received = []
     reg.register(HookName.SESSION_START, lambda ctx: received.append(ctx.copy()))

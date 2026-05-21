@@ -144,7 +144,7 @@ class Sidecar:
             try:
                 os.unlink(tmp)
             except OSError:
-                pass
+                logger.debug("[VECTOR] suppressed exception", exc_info=True)
             raise
 
     @staticmethod
@@ -161,4 +161,4 @@ class Sidecar:
         try:
             path.unlink()
         except FileNotFoundError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)

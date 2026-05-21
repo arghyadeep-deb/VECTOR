@@ -171,7 +171,7 @@ def test_validate_sender_mismatch_raises():
         validate_sender("to@x.com", "other@x.com", "me@x.com")
         assert False, "Should have raised"
     except SenderValidationError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def test_validate_sender_bad_email_raises():
@@ -180,7 +180,7 @@ def test_validate_sender_bad_email_raises():
         validate_sender("to@x.com", "noemail", "noemail")
         assert False, "Should have raised"
     except SenderValidationError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
 def test_generate_message_id():
@@ -385,7 +385,7 @@ def test_schema_idempotent():
 # ── email_agent.py ────────────────────────────────────────────────────────────
 
 def test_email_agent_store_and_list():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("alice@x.com", "Test Subject", "<p>Body</p>")
     emails = agent.list_emails("inbox")
@@ -393,7 +393,7 @@ def test_email_agent_store_and_list():
 
 
 def test_email_agent_get_email():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("bob@x.com", "Get Test", "body")
     email = agent.get_email(eid)
@@ -402,13 +402,13 @@ def test_email_agent_get_email():
 
 
 def test_email_agent_get_nonexistent():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     assert agent.get_email("nonexistent-uuid") is None
 
 
 def test_email_agent_search_plain():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("charlie@x.com", "Invoice March", "pay now")
     results = agent.search_emails("Invoice")
@@ -416,7 +416,7 @@ def test_email_agent_search_plain():
 
 
 def test_email_agent_search_from_operator():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("dave@x.com", "From test", "body")
     results = agent.search_emails("from:dave@x.com")
@@ -424,7 +424,7 @@ def test_email_agent_search_from_operator():
 
 
 def test_email_agent_search_is_unread():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("eve@x.com", "Unread Test", "body")
     results = agent.search_emails("is:unread")
@@ -432,7 +432,7 @@ def test_email_agent_search_is_unread():
 
 
 def test_email_agent_search_is_read_after_mark():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("frank@x.com", "Read Test", "body")
     agent.mark_email_read(eid, True)
@@ -441,7 +441,7 @@ def test_email_agent_search_is_read_after_mark():
 
 
 def test_email_agent_draft_reply():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("grace@x.com", "Draft test", "hello")
     result = agent.draft_reply(eid, "grace@x.com", "Re: Draft test", "Thanks!")
@@ -450,7 +450,7 @@ def test_email_agent_draft_reply():
 
 
 def test_email_agent_discard_draft():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("hank@x.com", "Discard test", "body")
     draft = agent.draft_reply(eid, "hank@x.com", "Re: Discard test", "Draft text")
@@ -459,14 +459,14 @@ def test_email_agent_discard_draft():
 
 
 def test_email_agent_discard_nonexistent():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     result = agent.discard_draft("no-such-id")
     assert "error" in result
 
 
 def test_email_agent_move_email():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("ivan@x.com", "Move test", "body")
     result = agent.move_email(eid, "archive")
@@ -476,7 +476,7 @@ def test_email_agent_move_email():
 
 
 def test_email_agent_move_invalid_folder():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("judy@x.com", "Move invalid", "body")
     result = agent.move_email(eid, "nonexistent_folder")
@@ -484,7 +484,7 @@ def test_email_agent_move_invalid_folder():
 
 
 def test_email_agent_delete_email():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("kelly@x.com", "Delete test", "body")
     result = agent.delete_email(eid)
@@ -493,14 +493,14 @@ def test_email_agent_delete_email():
 
 
 def test_email_agent_delete_nonexistent():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     result = agent.delete_email("no-such-id")
     assert "error" in result
 
 
 def test_email_agent_get_thread():
-    from agents.districts.communications.email_agent import EmailAgent
+    from districts.communications.email_agent import EmailAgent
     agent = EmailAgent()
     eid = agent.store_incoming_email("liam@x.com", "Thread test", "body")
     thread = agent.get_thread(eid)
@@ -511,7 +511,7 @@ def test_email_agent_get_thread():
 
 def test_reply_forward_reply():
     from core.email.schema import get_connection, EMAIL_DB_PATH, init_schema
-    from agents.districts.communications.reply_forward import handle_reply_email
+    from districts.communications.reply_forward import handle_reply_email
     init_schema()
     conn = get_connection()
     seed_id = str(uuid.uuid4())
@@ -531,7 +531,7 @@ def test_reply_forward_reply():
 
 def test_reply_forward_forward():
     from core.email.schema import get_connection, init_schema
-    from agents.districts.communications.reply_forward import handle_forward_email
+    from districts.communications.reply_forward import handle_forward_email
     init_schema()
     conn = get_connection()
     seed_id = str(uuid.uuid4())
@@ -550,7 +550,7 @@ def test_reply_forward_forward():
 
 
 def test_reply_forward_missing_original():
-    from agents.districts.communications.reply_forward import handle_reply_email
+    from districts.communications.reply_forward import handle_reply_email
     result = handle_reply_email(
         mailbox_id="me@x.com", original_id="nonexistent-id",
         to="x@x.com", from_addr="me@x.com", subject="S"
@@ -560,7 +560,7 @@ def test_reply_forward_missing_original():
 
 def test_reply_forward_sender_mismatch():
     from core.email.schema import get_connection, init_schema
-    from agents.districts.communications.reply_forward import handle_reply_email
+    from districts.communications.reply_forward import handle_reply_email
     init_schema()
     conn = get_connection()
     seed_id = str(uuid.uuid4())

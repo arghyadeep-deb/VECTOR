@@ -95,7 +95,7 @@ def install_deps():
         print("Dependencies already installed.")
         return True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     print("Installing Google API dependencies...")
     try:

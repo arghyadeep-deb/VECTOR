@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "vectorcode"
+version = "1.0.0"
+description = "VectorCode — VECTOR's communications, routing, and agent infrastructure layer"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Arghyadeep Deb" }]
+
+# Minimal runtime deps — all optional extras are guarded by try/except in the code.
+dependencies = [
+    "loguru>=0.7.2",
+    "pydantic>=2.7.0",
+    "httpx>=0.27.0",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+comms = [
+    "python-telegram-bot>=21.0",
+    "slack-sdk>=3.27.0",
+    "discord.py>=2.3.0",
+]
+voice = [
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.1",
+    "openai-whisper>=20231117",
+]
+full = ["vectorcode[comms,voice]"]
+
+[project.scripts]
+# Entry point so `vectorcode` can be run as a CLI after pip install
+vectorcode = "vectorcode.src.vector_cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vectorcode*"]
+exclude = ["vectorcode.src.__pycache__*", "vectorcode.*.tests*"]
+
+[tool.setuptools.package-data]
+"vectorcode" = ["**/*.md", "**/*.json", "**/*.yaml", "**/*.toml"]

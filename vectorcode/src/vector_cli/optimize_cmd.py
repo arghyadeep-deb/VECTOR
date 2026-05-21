@@ -113,7 +113,7 @@ def optimize_run(
             if len(specs) > 1:
                 benchmark_specs = specs
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     if not benchmark and benchmark_specs is None:
         raise click.UsageError(

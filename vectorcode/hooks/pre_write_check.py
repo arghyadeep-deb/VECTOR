@@ -36,6 +36,6 @@ if new_content:
         print(f"[VECTOR HOOK] Syntax error blocked write to {file_path}:\n{e}")
         sys.exit(2)
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.exit(0)

@@ -42,7 +42,7 @@ def _load_api_key() -> str | None:
                         if val:
                             return val
         except OSError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None
 
 

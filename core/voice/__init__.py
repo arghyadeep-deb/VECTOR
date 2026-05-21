@@ -13,7 +13,7 @@ try:
     import vectorcode.src.speech  # noqa: F401 — triggers backend registration
     logger.info("[VECTOR][voice] speech backends available")
 except Exception:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 logger.info("[VECTOR] voice package loaded")
 

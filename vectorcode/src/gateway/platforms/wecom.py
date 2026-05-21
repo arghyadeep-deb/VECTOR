@@ -1542,7 +1542,7 @@ def qr_scan_for_bot_info(
         qr.print_ascii(invert=True)
         qr_rendered = True
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     except Exception as _sve:
         logger.debug("[VECTOR][gateway.platforms.wecom] suppressed Exception: %s", _sve)
 

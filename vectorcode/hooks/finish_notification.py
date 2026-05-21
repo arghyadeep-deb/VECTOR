@@ -43,6 +43,6 @@ except Exception:
             stderr=subprocess.DEVNULL,
         )
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 sys.exit(0)

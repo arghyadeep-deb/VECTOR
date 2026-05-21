@@ -187,7 +187,7 @@ class MessagingHub:
                 return {"status": "sent", "platform": "discord"}
             return {"status": "error", "platform": "discord", "detail": result.get("error")}
         except ImportError:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Fallback: direct webhook call when discord_bot module is unavailable
         cfg = CONFIG.get("discord", {}) if isinstance(CONFIG, dict) else {}

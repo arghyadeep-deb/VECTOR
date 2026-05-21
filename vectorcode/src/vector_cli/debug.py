@@ -470,7 +470,7 @@ def _capture_dump() -> str:
     try:
         run_dump(_FakeArgs())
     except SystemExit:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
     finally:
         sys.stdout = old_stdout
 

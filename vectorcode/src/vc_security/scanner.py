@@ -12,7 +12,7 @@ from typing import Dict, Tuple
 try:
     from vectorcode.src._rust_bridge import get_rust_module, scan_result_from_json
 except ImportError:
-    pass
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
 from vectorcode.src.vc_security._stubs import BaseScanner
 from vectorcode.src.vc_security.types import ScanResult, ThreatLevel
 

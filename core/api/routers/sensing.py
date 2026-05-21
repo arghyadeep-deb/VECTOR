@@ -80,7 +80,7 @@ async def sensing_system():
                 result["gpu_mem_used_mb"] = float(parts[1].strip())
                 result["gpu_mem_total_mb"] = float(parts[2].strip())
         except Exception:
-            pass
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][sensing] system failed: {e}")

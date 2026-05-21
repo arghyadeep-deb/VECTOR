@@ -80,92 +80,94 @@ export default function VectorCore() {
           </filter>
         </defs>
 
-        {/* Dark orb face */}
-        <circle cx={CX} cy={CY} r={FACE_R} fill="#05091a" />
+        <g className={voiceState === 'speaking' ? 'speaking-orb-animation' : ''}>
+          {/* Dark orb face */}
+          <circle cx={CX} cy={CY} r={FACE_R} fill="#05091a" />
 
-        {/* Ambient glow ring (blurred) */}
-        <circle cx={CX} cy={CY} r={RING_R} fill="none"
-          stroke={CYAN} strokeWidth={10}
-          opacity={glowOpacity}
-          filter="url(#vc-glow)"
-          style={{ transition: 'opacity 0.5s ease' }}
-        />
-
-        {/* Main ring (crisp) */}
-        <circle cx={CX} cy={CY} r={RING_R} fill="none"
-          stroke={CYAN} strokeWidth={3.5} opacity={0.9}
-          style={{ filter: `drop-shadow(0 0 6px ${CYAN})` }}
-        />
-
-        {/* Hotspot arc (traveling clockwise) */}
-        <circle cx={CX} cy={CY} r={RING_R} fill="none"
-          stroke={CYAN} strokeWidth={3.5}
-          strokeDasharray={`115 ${CIRC - 115}`}
-          strokeLinecap="round"
-          style={{
-            animation: `vc-hotspot ${hotspotDur} linear infinite`,
-            filter: `drop-shadow(0 0 10px ${CYAN})`,
-            transformOrigin: `${CX}px ${CY}px`,
-          }}
-        />
-
-        {/* Inner arc r=77 — 270° CCW 12s */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner1 12s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={77} fill="none"
-            stroke={CYAN} strokeWidth={1.2}
-            strokeDasharray={`${Math.round(ARC77_CIRC * 0.75)} ${Math.round(ARC77_CIRC * 0.25)}`}
-            opacity={0.22}
+          {/* Ambient glow ring (blurred) */}
+          <circle cx={CX} cy={CY} r={RING_R} fill="none"
+            stroke={CYAN} strokeWidth={10}
+            opacity={glowOpacity}
+            filter="url(#vc-glow)"
+            style={{ transition: 'opacity 0.5s ease' }}
           />
-        </g>
 
-        {/* Inner arc r=69 — 90° CW 8s */}
-        <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner2 8s linear infinite' }}>
-          <circle cx={CX} cy={CY} r={69} fill="none"
-            stroke={CYAN} strokeWidth={0.8}
-            strokeDasharray={`${Math.round(ARC69_CIRC * 0.25)} ${Math.round(ARC69_CIRC * 0.75)}`}
-            opacity={0.18}
+          {/* Main ring (crisp) */}
+          <circle cx={CX} cy={CY} r={RING_R} fill="none"
+            stroke={CYAN} strokeWidth={3.5} opacity={0.9}
+            style={{ filter: `drop-shadow(0 0 6px ${CYAN})` }}
           />
-        </g>
 
-        {/* Diamond markers at 45°/135°/225°/315° */}
-        {DIAMONDS.map(({ cx, cy }, i) => (
-          <rect key={i}
-            x={cx - 3} y={cy - 3} width={6} height={6}
-            fill={CYAN}
-            transform={`rotate(45 ${cx} ${cy})`}
-            opacity={0.7}
+          {/* Hotspot arc (traveling clockwise) */}
+          <circle cx={CX} cy={CY} r={RING_R} fill="none"
+            stroke={CYAN} strokeWidth={3.5}
+            strokeDasharray={`115 ${CIRC - 115}`}
+            strokeLinecap="round"
             style={{
-              animation: 'vc-diamond-pulse 3s ease-in-out infinite',
-              animationDelay: `${i * 0.5}s`,
+              animation: `vc-hotspot ${hotspotDur} linear infinite`,
+              filter: `drop-shadow(0 0 10px ${CYAN})`,
+              transformOrigin: `${CX}px ${CY}px`,
             }}
           />
-        ))}
 
-        {/* Center text */}
-        <text id="vc-center-text"
-          x={CX} y={CY + 6}
-          textAnchor="middle"
-          fontFamily="'Orbitron', sans-serif"
-          fontSize={voiceState === 'idle' ? 16 : 13}
-          fontWeight="400"
-          letterSpacing="0.25em"
-          fill={CYAN}
-          opacity={voiceState === 'idle' ? 0.9 : 0.75}
-          style={{ filter: `drop-shadow(0 0 8px ${CYAN})` }}
-        >
-          {centerText}
-        </text>
+          {/* Inner arc r=77 — 270° CCW 12s */}
+          <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner1 12s linear infinite' }}>
+            <circle cx={CX} cy={CY} r={77} fill="none"
+              stroke={CYAN} strokeWidth={1.2}
+              strokeDasharray={`${Math.round(ARC77_CIRC * 0.75)} ${Math.round(ARC77_CIRC * 0.25)}`}
+              opacity={0.22}
+            />
+          </g>
 
-        <text x={CX} y={CY + 22}
-          textAnchor="middle"
-          fontFamily="'JetBrains Mono', monospace"
-          fontSize={7}
-          letterSpacing="0.3em"
-          fill={CYAN}
-          opacity={0.2}
-        >
-          AUTONOMOUS
-        </text>
+          {/* Inner arc r=69 — 90° CW 8s */}
+          <g style={{ transformOrigin: `${CX}px ${CY}px`, animation: 'vc-inner2 8s linear infinite' }}>
+            <circle cx={CX} cy={CY} r={69} fill="none"
+              stroke={CYAN} strokeWidth={0.8}
+              strokeDasharray={`${Math.round(ARC69_CIRC * 0.25)} ${Math.round(ARC69_CIRC * 0.75)}`}
+              opacity={0.18}
+            />
+          </g>
+
+          {/* Diamond markers at 45°/135°/225°/315° */}
+          {DIAMONDS.map(({ cx, cy }, i) => (
+            <rect key={i}
+              x={cx - 3} y={cy - 3} width={6} height={6}
+              fill={CYAN}
+              transform={`rotate(45 ${cx} ${cy})`}
+              opacity={0.7}
+              style={{
+                animation: 'vc-diamond-pulse 3s ease-in-out infinite',
+                animationDelay: `${i * 0.5}s`,
+              }}
+            />
+          ))}
+
+          {/* Center text */}
+          <text id="vc-center-text"
+            x={CX} y={CY + 6}
+            textAnchor="middle"
+            fontFamily="'Orbitron', sans-serif"
+            fontSize={voiceState === 'idle' ? 16 : 13}
+            fontWeight="400"
+            letterSpacing="0.25em"
+            fill={CYAN}
+            opacity={voiceState === 'idle' ? 0.9 : 0.75}
+            style={{ filter: `drop-shadow(0 0 8px ${CYAN})` }}
+          >
+            {centerText}
+          </text>
+
+          <text x={CX} y={CY + 22}
+            textAnchor="middle"
+            fontFamily="'JetBrains Mono', monospace"
+            fontSize={7}
+            letterSpacing="0.3em"
+            fill={CYAN}
+            opacity={0.2}
+          >
+            AUTONOMOUS
+          </text>
+        </g>
       </svg>
     </div>
   )

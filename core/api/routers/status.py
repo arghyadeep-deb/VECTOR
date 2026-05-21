@@ -58,7 +58,7 @@ async def status_endpoint():
         if reflect_events:
             last_reflect = reflect_events[0].get("timestamp")
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     _loop_running = False
     try:
@@ -66,7 +66,7 @@ async def status_endpoint():
         _loop = AutonomousLoop()
         _loop_running = getattr(_loop, "_running", False)
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Surface TTS engine so UI can warn about Kokoro missing
     try:
@@ -124,7 +124,7 @@ async def system_metrics():
                 gpu_mem_percent = round(float(parts[1]) / float(parts[2]) * 100, 1) if float(parts[2]) > 0 else 0
                 gpu_temp_c = float(parts[3])
     except Exception:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     return {
         "cpu_percent": cpu,

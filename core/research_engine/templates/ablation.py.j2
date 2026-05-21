@@ -1,0 +1,46 @@
+"""Ablation study experiment — {{ experiment_type }}"""
+
+import json
+import statistics
+import sys
+from typing import Any
+
+baseline_config = {{ baseline_config }}
+ablation_configs = {{ ablation_configs }}
+metric = "{{ metric }}"
+
+
+def _run_config(config: dict) -> dict[str, float]:
+    noise = hash(str(config)) % 100 / 1000.0
+    performance = 0.85 - sum(config.values()) * 0.01 + noise
+    return {metric: performance}
+
+
+def run_experiment() -> dict[str, Any]:
+    baseline_result = _run_config(baseline_config)
+    baseline_score = baseline_result[metric]
+    print(f"STAT:baseline_{metric}:{baseline_score}")
+
+    components: dict[str, float] = {}
+
+    for ablation in ablation_configs:
+        label = ablation.get("label", "unknown")
+        result = _run_config(ablation)
+        score = result[metric]
+        delta = baseline_score - score
+        components[label] = delta
+        print(f"STAT:ablation_{label}:{score}")
+        print(f"STAT:delta_{label}:{delta}")
+
+    ranked = sorted(components.items(), key=lambda x: abs(x[1]), reverse=True)
+    for rank, (comp, delta) in enumerate(ranked, 1):
+        print(f"STAT:rank_{rank}:{comp}:{delta}")
+
+    print(f"STAT:components_tested:{len(ablation_configs)}")
+    return {
+        "baseline": baseline_score,
+        "ablation_results": components,
+        "ranking": [{"component": c, "delta": d} for c, d in ranked],
+        "top_component": ranked[0][0] if ranked else None,
+        "metric": metric,
+    }

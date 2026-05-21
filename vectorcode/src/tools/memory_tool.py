@@ -43,7 +43,7 @@ except ImportError:
     try:
         import msvcrt
     except ImportError:
-        pass
+        logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 logger = logging.getLogger(__name__)
 

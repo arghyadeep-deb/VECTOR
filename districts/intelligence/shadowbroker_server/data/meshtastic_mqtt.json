@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "broker": "mqtt.meshtastic.org",
+  "port": 1883,
+  "username": "meshdev",
+  "password": "large4cats",
+  "psk": "",
+  "include_default_roots": true,
+  "extra_roots": "",
+  "extra_topics": "",
+  "updated_at": 0
+}
