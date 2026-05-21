@@ -29,6 +29,7 @@ import hmac
 import json
 import os
 import secrets
+import ssl
 import struct
 import sys
 import time
@@ -212,10 +213,24 @@ class OFPNode:
         self._peers: dict[str, PeerInfo] = {}
         self._seen_nonces: set[str] = set()
         self._task_handler: TaskHandler | None = None
+        self._tls_context: ssl.SSLContext | None = self._init_tls()
         self._server: asyncio.AbstractServer | None = None
         self._running = False
 
-    # â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── TLS ───────────────────────────────────────────────────────────────────
+
+    def _init_tls(self) -> ssl.SSLContext | None:
+        cert_path = os.getenv("VECTOR_OFP_CERT", "")
+        key_path = os.getenv("VECTOR_OFP_KEY", "")
+        if cert_path and key_path:
+            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ctx.load_cert_chain(cert_path, key_path)
+            logger.info("[VECTOR][ofp] TLS enabled (cert={})", cert_path)
+            return ctx
+        logger.warning("[VECTOR][ofp] TLS not configured \u2014 traffic is PLAINTEXT")
+        return None
+
+    # ── Server ────────────────────────────────────────────────────────────────
 
     def on_task(self, handler: TaskHandler) -> None:
         """Register a handler for incoming task messages."""
@@ -224,7 +239,8 @@ class OFPNode:
     async def start(self) -> None:
         """Start the OFP server listening for incoming connections."""
         self._server = await asyncio.start_server(
-            self._handle_connection, self.host, self.port
+            self._handle_connection, self.host, self.port,
+            ssl=self._tls_context,
         )
         self._running = True
         logger.info(
@@ -422,7 +438,7 @@ class OFPNode:
         timeout: float,
     ) -> OFPMessage:
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=timeout
+            asyncio.open_connection(host, port, ssl=self._tls_context), timeout=timeout
         )
         try:
             await self._write_frame(writer, msg)
@@ -436,7 +452,7 @@ class OFPNode:
 
     async def _send_only(self, host: str, port: int, msg: OFPMessage) -> None:
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=5.0
+            asyncio.open_connection(host, port, ssl=self._tls_context), timeout=5.0
         )
         try:
             await self._write_frame(writer, msg)
