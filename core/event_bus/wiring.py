@@ -177,8 +177,8 @@ def get_downstream_tasks(event_type: EventType) -> list[tuple[str, str, dict]]:
 
 
 def auto_subscribe_all() -> int:
-    from core.city.agent_registry import AgentRegistry
-    registry = AgentRegistry()
+    from core.city.agent_registry import get_registry
+    registry = get_registry()
     count = 0
     for agent in registry.get_all_agents():
         events = get_subscriptions_for(agent.district)
