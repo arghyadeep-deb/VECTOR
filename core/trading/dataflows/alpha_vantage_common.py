@@ -9,7 +9,8 @@ API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
-    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    from core.config import CONFIG as _C
+    api_key = _C.get("vector_finagent", {}).get("alpha_vantage_key", "")
     if not api_key:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key

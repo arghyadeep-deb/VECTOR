@@ -126,7 +126,8 @@ class PeerDiscovery:
 
         Format: VECTOR_PEERS=node1@192.168.1.2:7790,node2@10.0.0.5:7790
         """
-        peers_env = os.getenv("VECTOR_PEERS", "")
+        from core.config import CONFIG as _C
+        peers_env = _C.get("peers", "")
         if not peers_env.strip():
             return []
 

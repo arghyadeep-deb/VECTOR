@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
+from core.config import CONFIG
 
 try:
     import keyring
@@ -24,7 +25,7 @@ except ImportError:
     _KEYRING_AVAILABLE = False
 
 _TOKEN_DIR = Path.home() / ".vector_ca" / "oauth_tokens"
-_CLOUD_API = os.getenv("VECTOR_CLOUD_API_URL", "")
+_CLOUD_API = CONFIG.get("cloud_api_url", "")
 
 
 @dataclass

@@ -10,16 +10,16 @@ Set SENTRY_DSN in .env to activate (leave empty for local-only mode).
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
+from core.config import CONFIG
 
-_SENTRY_DSN = os.getenv("SENTRY_DSN", "")
-_SENTRY_ENV = os.getenv("VECTOR_ENV", "local")
-_SENTRY_RELEASE = os.getenv("VECTOR_BUILD_SHA", "dev")
+_SENTRY_DSN = CONFIG.get("sentry_dsn", "")
+_SENTRY_ENV = CONFIG.get("sentry_env", "local")
+_SENTRY_RELEASE = CONFIG.get("build_sha", "dev")
 
 
 class VectorSentry:

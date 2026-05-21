@@ -16,8 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
+from core.config import CONFIG
 
-_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+_API_KEY = CONFIG.get("elevenlabs_key", "")
 
 # VECTOR-personalized voice profile
 _VECTOR_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # Adam — deep, authoritative

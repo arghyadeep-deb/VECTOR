@@ -43,10 +43,11 @@ try:
 except ImportError:
     _FASTAPI_AVAILABLE = False
 
+from core.config import CONFIG
 from core.engine.oauth.flows import OAuthFlowManager, OAuthToken
 from core.engine.oauth.providers import get_provider, PROVIDERS, configured_providers
 
-_REDIRECT_BASE = os.getenv("VECTOR_OAUTH_REDIRECT_BASE", "http://localhost:7788")
+_REDIRECT_BASE = CONFIG.get("oauth_redirect_base", "http://localhost:7788")
 _CALLBACK_PATH = "/oauth/callback"
 _CALLBACK_URL = f"{_REDIRECT_BASE}{_CALLBACK_PATH}"
 

@@ -373,6 +373,19 @@ class VectorSettings(BaseSettings):
     HASS_URL: str = ""
     HASS_TOKEN: SecretStr = SecretStr("")
 
+    # Network
+    VECTOR_OFP_SECRET: SecretStr = SecretStr("")
+    VECTOR_PEERS: str = ""
+    VECTOR_CLOUD_API_URL: str = ""
+    VECTOR_OAUTH_REDIRECT_BASE: str = "http://localhost:7788"
+
+    # Telemetry
+    SENTRY_DSN: str = ""
+    VECTOR_BUILD_SHA: str = "dev"
+
+    # Research engine
+    LDR_DATA_DIR: str = ""
+
     # CORS — overridable via env var as a JSON array
     ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: [
         "http://127.0.0.1:8000",
@@ -449,6 +462,14 @@ CONFIG: dict = {
     "env": _s.VECTOR_ENV,
     "debug": _s.VECTOR_DEBUG,
     "location": os.environ.get("VECTOR_LOCATION", "home"),
+    "ofp_secret": _secret(_s.VECTOR_OFP_SECRET.get_secret_value()),
+    "peers": _s.VECTOR_PEERS,
+    "cloud_api_url": _s.VECTOR_CLOUD_API_URL,
+    "oauth_redirect_base": _s.VECTOR_OAUTH_REDIRECT_BASE,
+    "sentry_dsn": _s.SENTRY_DSN,
+    "sentry_env": _s.VECTOR_ENV,
+    "build_sha": _s.VECTOR_BUILD_SHA,
+    "ldr_data_dir": _s.LDR_DATA_DIR,
     "search_response_limit": int(os.environ.get("VECTOR_SEARCH_LIMIT", "500")),
     "policy_default_score": float(os.environ.get("VECTOR_POLICY_DEFAULT", "0.5")),
     "decision_weights": {},     # override keys: goal, conf, policy, urgency, timing, cost
@@ -493,6 +514,7 @@ CONFIG: dict = {
     # Top-level aliases so CONFIG.get("pushover_token") works (permission_gateway uses this)
     "pushover_token": _s.PUSHOVER_TOKEN.get_secret_value(),
     "pushover_user": _s.PUSHOVER_USER,
+    "elevenlabs_key": _s.ELEVENLABS_KEY.get_secret_value(),
     "loop": _s.loop.model_dump(),
     "permission": _s.permission.model_dump(),
     "council": _s.council.model_dump(),

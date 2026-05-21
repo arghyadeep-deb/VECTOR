@@ -196,7 +196,8 @@ class OFPNode:
         self.node_id = node_id or f"vector-{secrets.token_hex(4)}"
         self.host = host
         self.port = port
-        _secret_env = os.getenv("VECTOR_OFP_SECRET")
+        from core.config import CONFIG as _C
+        _secret_env = _C.get("ofp_secret", "")
         if secret:
             self._secret = secret
         elif _secret_env:

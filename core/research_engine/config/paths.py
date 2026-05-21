@@ -25,7 +25,8 @@ def get_data_directory() -> Path:
         Path to data directory
     """
     # Check for explicit override via environment variable
-    custom_path = os.getenv("LDR_DATA_DIR")
+    from core.config import CONFIG as _C
+    custom_path = _C.get("ldr_data_dir", "") or os.getenv("LDR_DATA_DIR")
     if custom_path:
         data_dir = Path(custom_path)
         logger.warning(
