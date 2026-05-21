@@ -123,6 +123,39 @@ class Request:
         self._fp = fp
         return fp
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-safe dict (callback stored by name)."""
+        callback_name = getattr(self.callback, "__name__", None) if self.callback is not None else None
+        fp_hex = self._fp.hex() if self._fp is not None else None
+        return {
+            "url": self.url,
+            "sid": self.sid,
+            "callback_name": callback_name,
+            "priority": self.priority,
+            "dont_filter": self.dont_filter,
+            "meta": self.meta,
+            "_retry_count": self._retry_count,
+            "_session_kwargs": self._session_kwargs,
+            "_fp": fp_hex,
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "Request":
+        """Reconstruct a Request from a dict produced by to_dict()."""
+        req = Request(
+            url=data["url"],
+            sid=data.get("sid", ""),
+            priority=data.get("priority", 0),
+            dont_filter=data.get("dont_filter", False),
+            meta=data.get("meta", {}).copy(),
+            _retry_count=data.get("_retry_count", 0),
+            **data.get("_session_kwargs", {}),
+        )
+        fp_hex = data.get("_fp")
+        if fp_hex is not None:
+            req._fp = bytes.fromhex(fp_hex)
+        return req
+
     def __repr__(self) -> str:
         callback_name = getattr(self.callback, "__name__", None) or "None"
         return f"<Request({self.url}) priority={self.priority} callback={callback_name}>"

@@ -1378,7 +1378,8 @@ def validate_config_key(dotted_key: str) -> type:
             # Evaluate forward references in the config module namespace
             import vectorcode.src.vc_core.config as _cfg_mod
 
-            fld_type = eval(fld_type, vars(_cfg_mod))  # noqa: S307
+            safe_builtins = {k: __builtins__[k] for k in ("bool", "int", "float", "str", "list", "dict", "tuple", "type", "isinstance", "issubclass", "getattr", "hasattr", "len", "range", "min", "max", "any", "all", "True", "False", "None") if k in __builtins__}
+            fld_type = eval(fld_type, {"__builtins__": safe_builtins, **vars(_cfg_mod)})  # noqa: S307
 
         if i == len(parts) - 1:
             # Leaf — return the primitive type

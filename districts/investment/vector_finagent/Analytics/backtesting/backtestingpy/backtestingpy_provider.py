@@ -965,6 +965,7 @@ class BacktestingPyProvider(BacktestingProviderBase):
                 'crossover': crossover,
                 'pd': pd,
                 'np': np,
+                '__builtins__': {},
             }
             try:
                 exec(code, exec_globals)

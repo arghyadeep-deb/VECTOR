@@ -399,7 +399,7 @@ class WebChoreArenaTaskEnv:
             func_expr = target_url.split("func:")[1]
             func_expr = func_expr.replace("__last_url__", self._page.url)
             try:
-                target_url = eval(func_expr)  # noqa: S307
+                target_url = eval(func_expr, {"__builtins__": {}})  # noqa: S307
             except Exception as exc:
                 LOGGER.warning("Failed to eval URL func: %s", exc)
                 return 0.0
@@ -434,7 +434,7 @@ class WebChoreArenaTaskEnv:
             func_expr = locator.split("func:")[1]
             func_expr = func_expr.replace("__page__", "self._page")
             try:
-                selected_element = str(eval(func_expr))  # noqa: S307
+                selected_element = str(eval(func_expr, {"__builtins__": {}}))  # noqa: S307
             except Exception as exc:
                 LOGGER.warning("Failed to eval locator func: %s", exc)
                 selected_element = ""

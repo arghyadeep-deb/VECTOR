@@ -67,7 +67,7 @@ def load_registry() -> Dict[str, Any]:
         raise FileNotFoundError(f"Registry not found: {registry_path}")
 
     # Execute registry file to get STRATEGY_REGISTRY dict
-    registry_globals = {}
+    registry_globals = {"__builtins__": {}}
     with open(registry_path, 'r', encoding='utf-8') as f:
         exec(f.read(), registry_globals)
 
@@ -98,7 +98,7 @@ def load_strategy_class(strategy_id: str, custom_code: Optional[str] = None):
     if custom_code:
         debug("Loading from custom code")
         # Execute custom code to get the strategy class
-        strategy_globals = {}
+        strategy_globals = {"__builtins__": {}}
         exec(custom_code, strategy_globals)
         # Find the QCAlgorithm subclass
         for name, obj in strategy_globals.items():

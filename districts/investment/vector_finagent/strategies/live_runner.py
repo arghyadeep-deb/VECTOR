@@ -153,7 +153,7 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
         with open(full_path, "r") as f:
             source = f.read()
 
-        module_globals = {}
+        module_globals = {"__builtins__": {}}
         exec(compile(source, full_path, "exec"), module_globals)
 
         # Find the QCAlgorithm subclass

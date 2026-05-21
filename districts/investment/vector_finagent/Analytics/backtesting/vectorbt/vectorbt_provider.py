@@ -1778,6 +1778,7 @@ class VectorBTProvider(BacktestingProviderBase):
             raise ValueError('Custom strategy requires code')
 
         context = {
+            '__builtins__': {},
             'vbt': vbt, 'pd': pd, 'np': np,
             'data': close_series,
             'initial_capital': initial_capital,

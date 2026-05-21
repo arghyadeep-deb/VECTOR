@@ -62,6 +62,7 @@ class FinAgentStrategyRunner:
         }
 
         # Execute strategy file
+        namespace.setdefault("__builtins__", {})
         exec(code, namespace)
 
         # Find the algorithm class (inherits from QCAlgorithm)

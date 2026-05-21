@@ -197,6 +197,9 @@ class ReplTool(BaseTool):
         session_id = params.get("session_id")
         reset = params.get("reset", False)
 
+        import logging
+        logging.getLogger(__name__).warning("[VECTOR][repl] code execution: %.200s", code)
+
         if not code or not code.strip():
             return ToolResult(
                 tool_name="repl",

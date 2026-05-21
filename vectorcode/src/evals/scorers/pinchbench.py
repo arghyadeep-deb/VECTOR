@@ -380,7 +380,9 @@ def _grade_automated(
     if not code:
         return {"score": 0.0, "breakdown": {}, "notes": "No automated checks defined"}
 
-    namespace: Dict[str, Any] = {}
+    namespace: Dict[str, Any] = {
+        "__builtins__": {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "bytearray", "chr", "ord", "hex", "oct", "bin", "pow", "round", "divmod", "hash", "id", "repr", "ascii", "format", "callable", "delattr", "dir", "vars", "super", "object", "property", "staticmethod", "classmethod", "MemoryError", "RuntimeError", "RecursionError", "NotImplementedError", "OSError", "FileNotFoundError", "PermissionError", "ZeroDivisionError", "OverflowError", "IndexError", "KeyError", "StopIteration", "TypeError", "ValueError", "Warning", "UserWarning", "DeprecationWarning", "SyntaxError", "IndentationError", "TabError", "SystemExit", "KeyboardInterrupt", "GeneratorExit") if k in __builtins__},
+    }
     try:
         exec(code, namespace)  # noqa: S102
     except Exception as exc:

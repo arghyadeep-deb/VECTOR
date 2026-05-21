@@ -1,4 +1,4 @@
-import pickle
+import json
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -6,7 +6,7 @@ import anyio
 from anyio import Path as AsyncPath
 
 from core.scraper.core.utils import log
-from core.scraper.core._types import Set, List, Optional, TYPE_CHECKING
+from core.scraper.core._types import List, Set, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.scraper.spiders.request import Request
@@ -21,9 +21,9 @@ class CheckpointData:
 
 
 class CheckpointManager:
-    """Manages saving and loading checkpoint state to/from disk."""
+    """Manages saving and loading checkpoint state to/from disk via JSON."""
 
-    CHECKPOINT_FILE = "checkpoint.pkl"
+    CHECKPOINT_FILE = "checkpoint.json"
 
     def __init__(self, crawldir: str | Path | AsyncPath, interval: float = 300.0):
         self.crawldir = AsyncPath(crawldir)
@@ -36,17 +36,24 @@ class CheckpointManager:
                 raise ValueError("Checkpoints interval must be equal or greater than 0.")
 
     async def has_checkpoint(self) -> bool:
-        """Check if a checkpoint exists."""
-        return await self._checkpoint_path.exists()
+        """Check if a checkpoint exists (new JSON or legacy pickle format)."""
+        if await self._checkpoint_path.exists():
+            return True
+        legacy = self._checkpoint_path.with_suffix(".pkl")
+        return await legacy.exists()
 
     async def save(self, data: CheckpointData) -> None:
-        """Save checkpoint data to disk atomically."""
+        """Save checkpoint data to disk atomically as JSON."""
         await self.crawldir.mkdir(parents=True, exist_ok=True)
 
         temp_path = self._checkpoint_path.with_suffix(".tmp")
 
         try:
-            serialized = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+            payload = {
+                "requests": [r.to_dict() for r in data.requests],
+                "seen": [s.hex() for s in data.seen],
+            }
+            serialized = json.dumps(payload, indent=2, default=str).encode()
             async with await anyio.open_file(temp_path, "wb") as f:
                 await f.write(serialized)
 
@@ -54,17 +61,40 @@ class CheckpointManager:
 
             log.info(f"Checkpoint saved: {len(data.requests)} requests, {len(data.seen)} seen URLs")
         except Exception as e:
-            # Clean up temp file if it exists
             if await temp_path.exists():
                 await temp_path.unlink()
             log.error(f"Failed to save checkpoint: {e}")
             raise
 
-    async def load(self) -> Optional[CheckpointData]:
-        """Load checkpoint data from disk.
+    async def _try_load_json(self, path: AsyncPath) -> Optional[CheckpointData]:
+        """Try to load checkpoint as JSON (current format)."""
+        try:
+            async with await anyio.open_file(path, "rb") as f:
+                content = await f.read()
+            payload = json.loads(content)
+            from core.scraper.spiders.request import Request as _Req
+            requests = [_Req.from_dict(r) for r in payload.get("requests", [])]
+            seen = set(bytes.fromhex(s) for s in payload.get("seen", []))
+            return CheckpointData(requests=requests, seen=seen)
+        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError, KeyError, TypeError, ValueError) as e:
+            log.warning(f"[VECTOR][scraper] JSON checkpoint load failed: {e}")
+            return None
 
-        Returns None if no checkpoint exists or if loading fails.
-        """
+    async def _try_load_legacy_pickle(self, path: AsyncPath) -> Optional[CheckpointData]:
+        """Try to load legacy pickle-format checkpoint. Deprecated."""
+        import pickle
+        try:
+            async with await anyio.open_file(path, "rb") as f:
+                content = await f.read()
+            data = pickle.loads(content)
+            log.warning("[VECTOR][scraper] loaded legacy pickle checkpoint — consider re-saving to migrate")
+            return data
+        except Exception as e:
+            log.error(f"[VECTOR][scraper] legacy pickle load also failed: {e}")
+            return None
+
+    async def load(self) -> Optional[CheckpointData]:
+        """Load checkpoint data from disk. Tries JSON first, falls back to legacy pickle."""
         if not await self.has_checkpoint():
             return None
 
@@ -75,22 +105,32 @@ class CheckpointManager:
                 log.error(f"Checkpoint path outside crawl directory — refusing to load: {resolved}")
                 return None
 
-            async with await anyio.open_file(self._checkpoint_path, "rb") as f:
-                content = await f.read()
-                data: CheckpointData = pickle.loads(content)
+            json_path = self._checkpoint_path
+            if await json_path.exists():
+                result = await self._try_load_json(json_path)
+                if result is not None:
+                    log.info(f"Checkpoint loaded: {len(result.requests)} requests, {len(result.seen)} seen URLs")
+                    return result
 
-            log.info(f"Checkpoint loaded: {len(data.requests)} requests, {len(data.seen)} seen URLs")
-            return data
+            legacy_path = json_path.with_suffix(".pkl")
+            if await legacy_path.exists():
+                result = await self._try_load_legacy_pickle(legacy_path)
+                if result is not None:
+                    return result
+
+            log.error("Checkpoint exists but neither JSON nor legacy pickle could be loaded")
+            return None
 
         except Exception as e:
             log.error(f"Failed to load checkpoint (starting fresh): {e}")
             return None
 
     async def cleanup(self) -> None:
-        """Delete checkpoint file after successful completion."""
-        try:
-            if await self._checkpoint_path.exists():
-                await self._checkpoint_path.unlink()
-            log.debug("Checkpoint file cleaned up")
-        except Exception as e:
-            log.warning(f"Failed to cleanup checkpoint file: {e}")
+        """Remove checkpoint files (both JSON and legacy pickle)."""
+        for path in [self._checkpoint_path, self._checkpoint_path.with_suffix(".pkl")]:
+            try:
+                if await path.exists():
+                    await path.unlink()
+                    log.info(f"Checkpoint removed: {path.name}")
+            except Exception as e:
+                log.warning(f"Failed to remove {path}: {e}")

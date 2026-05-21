@@ -91,6 +91,7 @@ def _run_single_test(code: str, test_code: str) -> bool:
     import types
 
     mod = types.ModuleType("solution")
+    mod.__dict__.setdefault("__builtins__", {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "pow", "round", "hash", "id", "repr", "format", "callable", "super", "object", "ZeroDivisionError", "OverflowError", "SyntaxError") if k in __builtins__})
     try:
         exec(code, mod.__dict__)  # noqa: S102
     except Exception:
@@ -100,7 +101,7 @@ def _run_single_test(code: str, test_code: str) -> bool:
 
     sys.modules["solution"] = mod
     try:
-        exec(test_code, {"__name__": "__main__"})  # noqa: S102
+        exec(test_code, {"__name__": "__main__", "__builtins__": {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "pow", "round", "hash", "id", "repr", "format", "callable", "super", "object", "ZeroDivisionError", "OverflowError", "SyntaxError") if k in __builtins__}})  # noqa: S102
         return True
     except Exception:
         return False

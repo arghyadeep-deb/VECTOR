@@ -141,10 +141,10 @@ class RLMRepl:
         return None
 
     def execute(self, code: str) -> str:
-        """Execute *code* in the persistent namespace and return captured stdout.
+        """Execute code in the REPL namespace."""
+        import logging
+        logging.getLogger(__name__).warning("[VECTOR][rlm_repl] code execution: %.200s", code)
 
-        Raises are caught and returned as error strings.
-        """
         # Security check
         violation = self.security_check(code)
         if violation is not None:
@@ -155,6 +155,8 @@ class RLMRepl:
 
         try:
             with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
+                if "__builtins__" not in self._namespace:
+                    self._namespace.setdefault("__builtins__", {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next") if k in __builtins__})
                 exec(code, self._namespace)  # noqa: S102
         except Exception as exc:
             error_msg = f"{type(exc).__name__}: {exc}"
