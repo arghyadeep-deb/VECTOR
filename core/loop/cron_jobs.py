@@ -166,21 +166,8 @@ _MORNING_DIGEST_WORKFLOW: dict = {
 
 
 async def _run_morning_digest_fn(**kwargs: Any) -> dict:
-    """Run the MorningDigestAgent and return a digest dict."""
-    try:
-        from vectorcode.src.vc_districts.morning_digest import MorningDigestAgent
-        agent = MorningDigestAgent()
-        if hasattr(agent, "run"):
-            result = agent.run()
-            if asyncio.iscoroutine(result):
-                result = await result
-            if isinstance(result, dict):
-                return result
-            return {"status": "ok", "output": str(result)[:500]}
-        return {"status": "skipped", "reason": "MorningDigestAgent has no run()"}
-    except Exception as e:
-        logger.warning(f"[VECTOR][cron] morning_digest failed: {e}")
-        return {"status": "failed", "reason": str(e)}
+    """Morning digest — unavailable (vc_districts module does not exist)."""
+    return {"status": "skipped", "reason": "vc_districts module not available"}
 
 
 async def job_trigger_workflow(*, _ctx: dict | None = None) -> dict:
