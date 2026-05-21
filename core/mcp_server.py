@@ -2208,30 +2208,30 @@ class Test{cls_name}:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_eval(script: str, tab_id: str = "") -> str:
+        async def browser_eval(script: str, tab_id: str = "") -> str:
             """Evaluate JavaScript on page via direct HTTP to stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/eval", json={"script": script})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/eval", json={"script": script})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "JS eval requires stealth browser server with /eval endpoint"})
 
         @mcp.tool
-        def browser_cookie(action: str = "list", name: str = "", value: str = "", tab_id: str = "") -> str:
+        async def browser_cookie(action: str = "list", name: str = "", value: str = "", tab_id: str = "") -> str:
             """Get or set browser cookies via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
+                async with _httpx.AsyncClient(timeout=10) as client:
                     if action == "list":
-                        resp = client.get(f"{base}/tabs/{tid}/cookies")
+                        resp = await client.get(f"{base}/tabs/{tid}/cookies")
                     elif action == "set":
-                        resp = client.post(f"{base}/tabs/{tid}/cookies", json={"name": name, "value": value})
+                        resp = await client.post(f"{base}/tabs/{tid}/cookies", json={"name": name, "value": value})
                     else:
                         return _safe_json({"error": f"Unknown action: {action}"})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
@@ -2239,53 +2239,53 @@ class Test{cls_name}:
                 return _safe_json({"status": "not_available", "note": "Cookie support requires stealth browser server with /cookies endpoint"})
 
         @mcp.tool
-        def browser_storage(action: str = "get", key: str = "", value: str = "", storage_type: str = "local", tab_id: str = "") -> str:
+        async def browser_storage(action: str = "get", key: str = "", value: str = "", storage_type: str = "local", tab_id: str = "") -> str:
             """Get or set localStorage/sessionStorage via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/storage", json={"action": action, "key": key, "value": value, "type": storage_type})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/storage", json={"action": action, "key": key, "value": value, "type": storage_type})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Storage support requires stealth browser server with /storage endpoint"})
 
         @mcp.tool
-        def browser_network(action: str = "inspect", tab_id: str = "") -> str:
+        async def browser_network(action: str = "inspect", tab_id: str = "") -> str:
             """Intercept and inspect network requests via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.get(f"{base}/tabs/{tid}/network")
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(f"{base}/tabs/{tid}/network")
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Network inspection requires stealth browser server with /network endpoint"})
 
         @mcp.tool
-        def browser_console(action: str = "log", tab_id: str = "") -> str:
+        async def browser_console(action: str = "log", tab_id: str = "") -> str:
             """Get browser console logs via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.get(f"{base}/tabs/{tid}/console")
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(f"{base}/tabs/{tid}/console")
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Console access requires stealth browser server with /console endpoint"})
 
         @mcp.tool
-        def browser_pdf(tab_id: str = "") -> str:
+        async def browser_pdf(tab_id: str = "") -> str:
             """Export page as PDF via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=30) as client:
-                    resp = client.get(f"{base}/tabs/{tid}/pdf")
+                async with _httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(f"{base}/tabs/{tid}/pdf")
                     if resp.status_code == 200:
                         out_path = ROOT / f"browser_export_{int(_time.time())}.pdf"
                         with open(out_path, "wb") as f:
@@ -2296,85 +2296,85 @@ class Test{cls_name}:
                 return _safe_json({"status": "not_available", "note": "PDF export requires stealth browser server with /pdf endpoint"})
 
         @mcp.tool
-        def browser_record(tab_id: str = "") -> str:
+        async def browser_record(tab_id: str = "") -> str:
             """Record a browser session — stores screenshots in session replay file."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/record", json={"action": "start"})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/record", json={"action": "start"})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Session recording requires stealth browser server with /record endpoint"})
 
         @mcp.tool
-        def browser_replay(session_path: str = "", tab_id: str = "") -> str:
+        async def browser_replay(session_path: str = "", tab_id: str = "") -> str:
             """Replay a recorded browser session."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=30) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/replay", json={"session": session_path})
+                async with _httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/replay", json={"session": session_path})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Session replay requires stealth browser server with /replay endpoint"})
 
         @mcp.tool
-        def browser_assert(condition: str, tab_id: str = "") -> str:
+        async def browser_assert(condition: str, tab_id: str = "") -> str:
             """Assert a page condition — checks URL matches or element exists."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/assert", json={"condition": condition})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/assert", json={"condition": condition})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Assert support requires stealth browser server with /assert endpoint"})
 
         @mcp.tool
-        def browser_select(selector: str, option: str = "", tab_id: str = "") -> str:
+        async def browser_select(selector: str, option: str = "", tab_id: str = "") -> str:
             """Select a dropdown option via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/select", json={"selector": selector, "option": option})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/select", json={"selector": selector, "option": option})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Select support requires stealth browser server with /select endpoint"})
 
         @mcp.tool
-        def browser_hover(selector: str, tab_id: str = "") -> str:
+        async def browser_hover(selector: str, tab_id: str = "") -> str:
             """Hover over an element via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/hover", json={"selector": selector})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/hover", json={"selector": selector})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Hover support requires stealth browser server with /hover endpoint"})
 
         @mcp.tool
-        def browser_drag(selector: str, target_selector: str = "", tab_id: str = "") -> str:
+        async def browser_drag(selector: str, target_selector: str = "", tab_id: str = "") -> str:
             """Drag and drop an element via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/drag", json={"selector": selector, "target": target_selector})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/drag", json={"selector": selector, "target": target_selector})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Drag support requires stealth browser server with /drag endpoint"})
 
         @mcp.tool
-        def browser_upload(selector: str, file_path: str = "", tab_id: str = "") -> str:
+        async def browser_upload(selector: str, file_path: str = "", tab_id: str = "") -> str:
             """Upload a file to an input via stealth browser server."""
             try:
                 import httpx as _httpx
@@ -2383,23 +2383,23 @@ class Test{cls_name}:
                 resolved = _Path(file_path).resolve()
                 if not resolved.exists():
                     return _safe_json({"error": f"File not found: {file_path}"})
-                with open(str(resolved), "rb") as f:
-                    files = {"file": (resolved.name, f, "application/octet-stream")}
-                    with _httpx.Client(timeout=30) as client:
-                        resp = client.post(f"{base}/tabs/{tid}/upload", data={"selector": selector}, files=files)
-                        return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
+                file_bytes = resolved.read_bytes()
+                files = {"file": (resolved.name, file_bytes, "application/octet-stream")}
+                async with _httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/upload", data={"selector": selector}, files=files)
+                    return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Upload requires stealth browser server with /upload endpoint"})
 
         @mcp.tool
-        def browser_download(url: str = "", tab_id: str = "") -> str:
+        async def browser_download(url: str = "", tab_id: str = "") -> str:
             """Download a resource via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=30) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/download", json={"url": url})
+                async with _httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/download", json={"url": url})
                     if resp.status_code == 200:
                         out_path = ROOT / f"download_{int(_time.time())}"
                         with open(out_path, "wb") as f:
@@ -2410,14 +2410,14 @@ class Test{cls_name}:
                 return _safe_json({"status": "not_available", "note": "Download requires stealth browser server with /download endpoint"})
 
         @mcp.tool
-        def browser_resize(width: int = 1280, height: int = 720, tab_id: str = "") -> str:
+        async def browser_resize(width: int = 1280, height: int = 720, tab_id: str = "") -> str:
             """Resize the browser viewport via stealth browser server."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
                 tid = tab_id or "default"
-                with _httpx.Client(timeout=10) as client:
-                    resp = client.post(f"{base}/tabs/{tid}/viewport", json={"width": width, "height": height})
+                async with _httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(f"{base}/tabs/{tid}/viewport", json={"width": width, "height": height})
                     return _safe_json(resp.json() if resp.status_code == 200 else {"error": f"HTTP {resp.status_code}"})
             except Exception:
                 return _safe_json({"status": "not_available", "note": "Resize requires stealth browser server with /viewport endpoint"})
