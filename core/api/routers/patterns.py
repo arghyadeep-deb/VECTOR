@@ -1,5 +1,5 @@
 """VECTOR patterns router - /patterns/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/patterns", tags=["patterns"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class DetectPatternsReq(BaseModel):
@@ -29,8 +18,10 @@ class DetectPatternsReq(BaseModel):
 @router.post("/detect")
 async def detect_patterns(body: DetectPatternsReq):
     """Detect behavioral patterns from episodic memory."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("detect_patterns", body.model_dump())
+        return await gov.dispatch({"type": "detect_patterns", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][patterns] detect_patterns failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -38,8 +29,10 @@ async def detect_patterns(body: DetectPatternsReq):
 @router.get("/habits")
 async def identify_habits():
     """Identify recurring habits (positive and negative)."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("identify_habits", {})
+        return await gov.dispatch({"type": "identify_habits", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][patterns] identify_habits failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -50,8 +43,10 @@ class GenerateInsightsReq(BaseModel):
 @router.post("/insights")
 async def generate_insights(body: GenerateInsightsReq):
     """Generate actionable insights from patterns."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("generate_insights", body.model_dump())
+        return await gov.dispatch({"type": "generate_insights", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][patterns] generate_insights failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -63,8 +58,10 @@ class HabitPlanReq(BaseModel):
 @router.post("/habit-plan")
 async def habit_plan(body: HabitPlanReq):
     """Create habit change intervention plan."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("habit_plan", body.model_dump())
+        return await gov.dispatch({"type": "habit_plan", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][patterns] habit_plan failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

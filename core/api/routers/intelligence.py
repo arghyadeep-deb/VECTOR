@@ -21,12 +21,6 @@ def _get_agent():
     return _agent
 
 
-def _run(coro):
-    import asyncio
-    loop = asyncio.new_event_loop()
-    result = loop.run_until_complete(coro)
-    loop.close()
-    return result
 
 
 # ── Read endpoints ────────────────────────────────────────────────────────────

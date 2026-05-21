@@ -1,5 +1,5 @@
 """VECTOR projects router - /projects/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class CreateProjectReq(BaseModel):
@@ -30,8 +19,10 @@ class CreateProjectReq(BaseModel):
 @router.post("/create")
 async def create_project(body: CreateProjectReq):
     """Create project with roadmap and milestones."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("create_project", body.model_dump())
+        return await gov.dispatch({"type": "create_project", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][projects] create_project failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -39,8 +30,10 @@ async def create_project(body: CreateProjectReq):
 @router.get("/list")
 async def list_projects():
     """List all active projects with progress."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("list_projects", {})
+        return await gov.dispatch({"type": "list_projects", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][projects] list_projects failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -53,8 +46,10 @@ class TrackExperimentReq(BaseModel):
 @router.post("/experiment")
 async def track_experiment(body: TrackExperimentReq):
     """Track experiment: hypothesis, run, results."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("track_experiment", body.model_dump())
+        return await gov.dispatch({"type": "track_experiment", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][projects] track_experiment failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -62,8 +57,10 @@ async def track_experiment(body: TrackExperimentReq):
 @router.get("/deadline")
 async def upcoming_deadlines():
     """Get upcoming project deadlines."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("upcoming_deadlines", {})
+        return await gov.dispatch({"type": "upcoming_deadlines", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][projects] upcoming_deadlines failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

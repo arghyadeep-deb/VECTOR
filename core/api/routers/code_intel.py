@@ -1,4 +1,4 @@
-"""Code Intelligence router — /code-intel/* endpoints for the CodeIntelAgent (VectorCode Intelligence)."""
+﻿"""Code Intelligence router Ã¢â‚¬â€ /code-intel/* endpoints for the CodeIntelAgent (VectorCode Intelligence)."""
 
 import sys
 from pathlib import Path
@@ -13,6 +13,8 @@ router = APIRouter(prefix="/code-intel", tags=["code-intel"])
 _PROJECT_PATH = str(Path(__file__).parent.parent.parent.parent)
 _PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 
+_intel_agent = None
+
 
 def _safe_path(v: str) -> str:
     """Reject paths that escape the VECTOR codebase root."""
@@ -20,21 +22,19 @@ def _safe_path(v: str) -> str:
         return v
     resolved = Path(v).resolve()
     if not str(resolved).startswith(str(_PROJECT_ROOT)):
-        raise ValueError(f"Path '{v}' is outside the VECTOR codebase — access denied.")
+        raise ValueError(f"Path '{v}' is outside the VECTOR codebase Ã¢â‚¬â€ access denied.")
     return v
 
 
-def _run_intel(task_type: str, params: dict) -> dict:
-    import asyncio
-    from districts.coding.code_intel_agent import CodeIntelAgent
-    agent = CodeIntelAgent()
-    loop = asyncio.new_event_loop()
-    result = loop.run_until_complete(agent.run({"type": task_type, "params": params}))
-    loop.close()
-    return result
+def _get_intel_agent():
+    global _intel_agent
+    if _intel_agent is None:
+        from districts.coding.code_intel_agent import CodeIntelAgent
+        _intel_agent = CodeIntelAgent()
+    return _intel_agent
 
 
-# ── Request models ────────────────────────────────────────────────────────────
+# Ã¢â€â‚¬Ã¢â€â‚¬ Request models Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 class _PathMixin(BaseModel):
     @field_validator("project_path", "file_path", "file", mode="before", check_fields=False)
@@ -84,13 +84,13 @@ class WatchRequest(_PathMixin):
     action: str = "start"
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# Ã¢â€â‚¬Ã¢â€â‚¬ Endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 @router.post("/search")
 async def code_search(body: SearchRequest):
     """Hybrid semantic + BM25 search across the codebase. Natural language queries supported."""
     try:
-        return _run_intel("vc_search", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_search", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -100,7 +100,7 @@ async def code_search(body: SearchRequest):
 async def code_index(body: IndexRequest):
     """Start full codebase indexing (background). Poll /code-intel/status for progress."""
     try:
-        return _run_intel("vc_index", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_index", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] index failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -108,9 +108,9 @@ async def code_index(body: IndexRequest):
 
 @router.post("/update")
 async def code_update(body: IndexRequest):
-    """Incrementally update index — only re-indexes changed files."""
+    """Incrementally update index Ã¢â‚¬â€ only re-indexes changed files."""
     try:
-        return _run_intel("vc_update", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_update", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] update failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -120,7 +120,7 @@ async def code_update(body: IndexRequest):
 async def code_status(project_path: str = _PROJECT_PATH):
     """Get indexing progress and collection stats."""
     try:
-        return _run_intel("vc_status", {"project_path": project_path})
+        return await _get_intel_agent().run({"type": "vc_status", "params": {"project_path": project_path}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] status failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -130,7 +130,7 @@ async def code_status(project_path: str = _PROJECT_PATH):
 async def graph_build(body: IndexRequest):
     """Build the file-level dependency graph (AST-based, 18 languages)."""
     try:
-        return _run_intel("vc_graph_build", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_graph_build", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] graph build failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -140,7 +140,7 @@ async def graph_build(body: IndexRequest):
 async def graph_query(body: GraphQueryRequest):
     """Query the dependency graph for a specific file: imports + dependents."""
     try:
-        return _run_intel("vc_graph_query", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_graph_query", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] graph query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -150,7 +150,7 @@ async def graph_query(body: GraphQueryRequest):
 async def graph_circular(project_path: str = _PROJECT_PATH):
     """Detect circular dependencies in the codebase."""
     try:
-        return _run_intel("vc_graph_circular", {"project_path": project_path})
+        return await _get_intel_agent().run({"type": "vc_graph_circular", "params": {"project_path": project_path}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] circular deps failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -160,7 +160,7 @@ async def graph_circular(project_path: str = _PROJECT_PATH):
 async def graph_visualize(project_path: str = _PROJECT_PATH, mode: str = "html"):
     """Generate interactive HTML or Mermaid diagram of the dependency graph."""
     try:
-        return _run_intel("vc_visualize", {"project_path": project_path, "mode": mode, "open": False})
+        return await _get_intel_agent().run({"type": "vc_visualize", "params": {"project_path": project_path, "mode": mode, "open": False}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] visualize failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -168,9 +168,9 @@ async def graph_visualize(project_path: str = _PROJECT_PATH, mode: str = "html")
 
 @router.post("/impact")
 async def code_impact(body: ImpactRequest):
-    """Blast radius analysis — what breaks if you change a function or class?"""
+    """Blast radius analysis Ã¢â‚¬â€ what breaks if you change a function or class?"""
     try:
-        return _run_intel("vc_impact", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_impact", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] impact failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -180,7 +180,7 @@ async def code_impact(body: ImpactRequest):
 async def code_flow(body: FlowRequest):
     """Trace execution call flow from an entry point."""
     try:
-        return _run_intel("vc_flow", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_flow", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] flow failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -190,7 +190,7 @@ async def code_flow(body: FlowRequest):
 async def code_symbol(body: SymbolRequest):
     """360-degree view of a symbol: definition, callers, callees."""
     try:
-        return _run_intel("vc_symbol", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_symbol", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] symbol failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -200,7 +200,7 @@ async def code_symbol(body: SymbolRequest):
 async def list_symbols(project_path: str = _PROJECT_PATH, file: str | None = None, query: str | None = None, limit: int = 20):
     """List or search symbols in the codebase."""
     try:
-        return _run_intel("vc_symbols", {"project_path": project_path, "file": file, "query": query, "limit": limit})
+        return await _get_intel_agent().run({"type": "vc_symbols", "params": {"project_path": project_path, "file": file, "query": query, "limit": limit}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] symbols failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -210,7 +210,7 @@ async def list_symbols(project_path: str = _PROJECT_PATH, file: str | None = Non
 async def context_search(body: ContextSearchRequest):
     """Search context artifacts (schemas, API specs, architecture docs) alongside code."""
     try:
-        return _run_intel("vc_context_search", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_context_search", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] context search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -220,7 +220,7 @@ async def context_search(body: ContextSearchRequest):
 async def list_context(project_path: str = _PROJECT_PATH):
     """List all indexed context artifacts."""
     try:
-        return _run_intel("vc_context", {"project_path": project_path})
+        return await _get_intel_agent().run({"type": "vc_context", "params": {"project_path": project_path}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] context list failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -230,7 +230,7 @@ async def list_context(project_path: str = _PROJECT_PATH):
 async def code_watch(body: WatchRequest):
     """Start or stop the file watcher for automatic index updates."""
     try:
-        return _run_intel("vc_watch", body.model_dump())
+        return await _get_intel_agent().run({"type": "vc_watch", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] watch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -240,7 +240,7 @@ async def code_watch(body: WatchRequest):
 async def code_intel_health():
     """Check VectorCode Intelligence infrastructure: Qdrant, Ollama, Docker."""
     try:
-        return _run_intel("vc_health", {})
+        return await _get_intel_agent().run({"type": "vc_health", "params": {}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] health failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -250,7 +250,7 @@ async def code_intel_health():
 async def list_indexed_projects():
     """List all projects indexed by VectorCode Intelligence."""
     try:
-        return _run_intel("vc_projects", {})
+        return await _get_intel_agent().run({"type": "vc_projects", "params": {}})
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] projects failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

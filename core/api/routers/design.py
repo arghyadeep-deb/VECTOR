@@ -1,5 +1,5 @@
 """VECTOR design router - /design/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/design", tags=["design"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class SpecComponentReq(BaseModel):
@@ -30,8 +19,10 @@ class SpecComponentReq(BaseModel):
 @router.post("/component-spec")
 async def spec_component(body: SpecComponentReq):
     """Component specification with accessibility."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("spec_component", body.model_dump())
+        return await gov.dispatch({"type": "spec_component", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][design] spec_component failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -44,8 +35,10 @@ class ImagePromptReq(BaseModel):
 @router.post("/image-prompt")
 async def image_prompt(body: ImagePromptReq):
     """Optimized AI image generation prompt."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("image_prompt", body.model_dump())
+        return await gov.dispatch({"type": "image_prompt", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][design] image_prompt failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -58,8 +51,10 @@ class UxResearchReq(BaseModel):
 @router.post("/ux-research")
 async def ux_research(body: UxResearchReq):
     """UX research: journey mapping, persona generation."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("ux_research", body.model_dump())
+        return await gov.dispatch({"type": "ux_research", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][design] ux_research failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,8 +67,10 @@ class GenerateTokensReq(BaseModel):
 @router.post("/tokens")
 async def generate_tokens(body: GenerateTokensReq):
     """Design system tokens: colors, spacing, typography."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("generate_tokens", body.model_dump())
+        return await gov.dispatch({"type": "generate_tokens", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][design] generate_tokens failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

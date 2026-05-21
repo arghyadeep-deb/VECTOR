@@ -46,10 +46,7 @@ async def research_search(query: str, max_results: int = 5):
     try:
         from districts.research.web_scout import WebScout
         scout = WebScout()
-        import asyncio
-        loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(scout.run({"type": "search", "params": {"query": query, "max_results": max_results}}))
-        loop.close()
+        result = await scout.run({"type": "search", "params": {"query": query, "max_results": max_results}})
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][research] search failed: {e}")
@@ -62,10 +59,7 @@ async def research_news(query: str = "AI"):
     try:
         from districts.research.news_aggregator import NewsAggregator
         agg = NewsAggregator()
-        import asyncio
-        loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(agg.run({"type": "fetch", "params": {"query": query}}))
-        loop.close()
+        result = await agg.run({"type": "fetch", "params": {"query": query}})
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][research] news failed: {e}")
@@ -78,10 +72,7 @@ async def research_papers(query: str, max_results: int = 5):
     try:
         from districts.research.paper_reader import PaperReader
         reader = PaperReader()
-        import asyncio
-        loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(reader.run({"type": "search", "params": {"query": query, "max_results": max_results}}))
-        loop.close()
+        result = await reader.run({"type": "search", "params": {"query": query, "max_results": max_results}})
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][research] papers failed: {e}")
@@ -94,10 +85,7 @@ async def research_reddit(subreddit: str = "LocalLLaMA", limit: int = 10):
     try:
         from districts.research.reddit_miner import RedditMiner
         miner = RedditMiner()
-        import asyncio
-        loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(miner.run({"type": "hot_posts", "params": {"subreddit": subreddit, "limit": limit}}))
-        loop.close()
+        result = await miner.run({"type": "hot_posts", "params": {"subreddit": subreddit, "limit": limit}})
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][research] reddit failed: {e}")

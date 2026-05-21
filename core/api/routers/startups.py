@@ -1,5 +1,5 @@
 """VECTOR startups router - /startups/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/startups", tags=["startups"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class ValidateIdeaReq(BaseModel):
@@ -30,8 +19,10 @@ class ValidateIdeaReq(BaseModel):
 @router.post("/validate-idea")
 async def validate_idea(body: ValidateIdeaReq):
     """Market viability scoring for a startup idea."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("validate_idea", body.model_dump())
+        return await gov.dispatch({"type": "validate_idea", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][startups] validate_idea failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -43,8 +34,10 @@ class MarketScanReq(BaseModel):
 @router.post("/market-scan")
 async def market_scan(body: MarketScanReq):
     """TAM/SAM/SOM analysis for a market."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("market_scan", body.model_dump())
+        return await gov.dispatch({"type": "market_scan", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][startups] market_scan failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,8 +49,10 @@ class CompetitorAnalysisReq(BaseModel):
 @router.post("/competitor-analysis")
 async def competitor_analysis(body: CompetitorAnalysisReq):
     """Competitive landscape analysis."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("competitor_analysis", body.model_dump())
+        return await gov.dispatch({"type": "competitor_analysis", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][startups] competitor_analysis failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -70,8 +65,10 @@ class RevenueModelReq(BaseModel):
 @router.post("/revenue-model")
 async def revenue_model(body: RevenueModelReq):
     """Build financial projections."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("revenue_model", body.model_dump())
+        return await gov.dispatch({"type": "revenue_model", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][startups] revenue_model failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

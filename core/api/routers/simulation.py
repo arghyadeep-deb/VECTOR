@@ -1,4 +1,4 @@
-"""Simulation router — /simulation/* endpoints for the MiroFish social simulation engine."""
+﻿"""Simulation router Ã¢â‚¬â€ /simulation/* endpoints for the MiroFish social simulation engine."""
 
 import sys
 from pathlib import Path
@@ -10,18 +10,18 @@ from loguru import logger
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
 
-
-def _run_social_sim(task_type: str, params: dict) -> dict:
-    import asyncio
-    from districts.intelligence.vector_social_sim_agent import SocialSimAgent
-    agent = SocialSimAgent()
-    loop = asyncio.new_event_loop()
-    result = loop.run_until_complete(agent.run({"type": task_type, "params": params}))
-    loop.close()
-    return result
+_sim_agent = None
 
 
-# ── Request models ────────────────────────────────────────────────────────────
+def _get_sim_agent():
+    global _sim_agent
+    if _sim_agent is None:
+        from districts.intelligence.vector_social_sim_agent import SocialSimAgent
+        _sim_agent = SocialSimAgent()
+    return _sim_agent
+
+
+# Ã¢â€â‚¬Ã¢â€â‚¬ Request models Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 class OntologyRequest(BaseModel):
     document: str
@@ -40,13 +40,13 @@ class ReportRequest(BaseModel):
     trace_db_path: str = ""
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# Ã¢â€â‚¬Ã¢â€â‚¬ Endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 @router.post("/ontology")
 async def build_ontology(body: OntologyRequest):
     """Build knowledge graph from a document using LLM-powered entity extraction."""
     try:
-        return _run_social_sim("build_ontology", body.model_dump())
+        return await _get_sim_agent().run({"type": "build_ontology", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] ontology failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,7 +56,7 @@ async def build_ontology(body: OntologyRequest):
 async def run_simulation(body: SimulationRequest):
     """Run a multi-agent social simulation with LLM-driven agent behaviors."""
     try:
-        return _run_social_sim("run_simulation", body.model_dump())
+        return await _get_sim_agent().run({"type": "run_simulation", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] run failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,7 +66,7 @@ async def run_simulation(body: SimulationRequest):
 async def interview_agent(body: InterviewRequest):
     """Interview a simulated agent to get their perspective."""
     try:
-        return _run_social_sim("interview_agent", body.model_dump())
+        return await _get_sim_agent().run({"type": "interview_agent", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] interview failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -76,7 +76,7 @@ async def interview_agent(body: InterviewRequest):
 async def generate_report(body: ReportRequest):
     """Generate a markdown analysis report from simulation trace data."""
     try:
-        return _run_social_sim("generate_report", body.model_dump())
+        return await _get_sim_agent().run({"type": "generate_report", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] report failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,5 +1,5 @@
 """VECTOR learning router - /learning/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/learning", tags=["learning"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class IngestVideoReq(BaseModel):
@@ -29,8 +18,10 @@ class IngestVideoReq(BaseModel):
 @router.post("/ingest-video")
 async def ingest_video(body: IngestVideoReq):
     """Extract transcript and concepts from any video URL."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("ingest_video", body.model_dump())
+        return await gov.dispatch({"type": "ingest_video", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][learning] ingest_video failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -43,8 +34,10 @@ class TrackCourseReq(BaseModel):
 @router.post("/track-course")
 async def track_course(body: TrackCourseReq):
     """Track course enrollment and completion."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("track_course", body.model_dump())
+        return await gov.dispatch({"type": "track_course", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][learning] track_course failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,8 +49,10 @@ class ExtractConceptsReq(BaseModel):
 @router.post("/extract-concepts")
 async def extract_concepts(body: ExtractConceptsReq):
     """Extract concept dependency graph from content."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("extract_concepts", body.model_dump())
+        return await gov.dispatch({"type": "extract_concepts", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][learning] extract_concepts failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -70,8 +65,10 @@ class GenerateQuizReq(BaseModel):
 @router.post("/quiz-generate")
 async def generate_quiz(body: GenerateQuizReq):
     """Generate quiz from learned material."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("generate_quiz", body.model_dump())
+        return await gov.dispatch({"type": "generate_quiz", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][learning] generate_quiz failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

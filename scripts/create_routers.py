@@ -293,7 +293,7 @@ specs = {
 def build_router(filename, prefix, tag, endpoints):
     lines = [
         f'"""VECTOR {tag} router - {prefix}/* endpoints."""',
-        'import sys, asyncio',
+        'import sys',
         'from pathlib import Path',
         'sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))',
         'from fastapi import APIRouter, HTTPException',
@@ -301,19 +301,6 @@ def build_router(filename, prefix, tag, endpoints):
         'from loguru import logger',
         '',
         f'router = APIRouter(prefix="{prefix}", tags=["{tag}"])',
-        '',
-        '',
-        'def _run(task_type: str, params: dict) -> dict:',
-        '    from core.city.governor import GovernorCouncil',
-        '    gov = GovernorCouncil()',
-        '    loop = asyncio.new_event_loop()',
-        '    try:',
-        '        result = loop.run_until_complete(',
-        '            gov.dispatch({"type": task_type, "params": params})',
-        '        )',
-        '    finally:',
-        '        loop.close()',
-        '    return result',
         '',
         '',
     ]
@@ -335,11 +322,13 @@ def build_router(filename, prefix, tag, endpoints):
             lines += [dec, f'async def {fn_name}(body: {model_name}):']
 
         lines.append(f'    """{doc}"""')
+        lines.append('    from core.city.governor import GovernorCouncil')
+        lines.append('    gov = GovernorCouncil()')
         lines.append('    try:')
         if method == 'get' or not fields:
-            lines.append(f'        return _run("{name}", {{}})')
+            lines.append(f'        return await gov.dispatch({{"type": "{name}", "params": {{}}}})')
         else:
-            lines.append(f'        return _run("{name}", body.model_dump())')
+            lines.append(f'        return await gov.dispatch({{"type": "{name}", "params": body.model_dump()}})')
         lines.append('    except Exception as e:')
         lines.append(f'        logger.error("[VECTOR][{tag}] {name} failed: %s", e)')
         lines.append(f'        raise HTTPException(status_code=500, detail=str(e))')

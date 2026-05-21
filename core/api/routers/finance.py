@@ -1,5 +1,5 @@
 """VECTOR finance router - /finance/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/finance", tags=["finance"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class BudgetAnalyzeReq(BaseModel):
@@ -29,8 +18,10 @@ class BudgetAnalyzeReq(BaseModel):
 @router.post("/budget-analyze")
 async def budget_analyze(body: BudgetAnalyzeReq):
     """Monthly budget variance and forecasts."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("budget_analyze", body.model_dump())
+        return await gov.dispatch({"type": "budget_analyze", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][finance] budget_analyze failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -38,8 +29,10 @@ async def budget_analyze(body: BudgetAnalyzeReq):
 @router.get("/expenses")
 async def list_expenses():
     """List recent expenses with categories."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("list_expenses", {})
+        return await gov.dispatch({"type": "list_expenses", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][finance] list_expenses failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -52,8 +45,10 @@ class LogExpenseReq(BaseModel):
 @router.post("/expenses/log")
 async def log_expense(body: LogExpenseReq):
     """Log expense with auto-categorization."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("log_expense", body.model_dump())
+        return await gov.dispatch({"type": "log_expense", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][finance] log_expense failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -65,8 +60,10 @@ class TaxPlanReq(BaseModel):
 @router.post("/tax-plan")
 async def tax_plan(body: TaxPlanReq):
     """Tax planning recommendations and deductions."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("tax_plan", body.model_dump())
+        return await gov.dispatch({"type": "tax_plan", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][finance] tax_plan failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -74,8 +71,10 @@ async def tax_plan(body: TaxPlanReq):
 @router.get("/cost-tracker")
 async def llm_cost_summary():
     """LLM API cost usage and budget remaining."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("llm_cost_summary", {})
+        return await gov.dispatch({"type": "llm_cost_summary", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][finance] llm_cost_summary failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

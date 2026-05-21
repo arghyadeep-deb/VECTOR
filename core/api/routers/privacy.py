@@ -1,5 +1,5 @@
 """VECTOR privacy router - /privacy/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/privacy", tags=["privacy"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class ScanDataSharingReq(BaseModel):
@@ -29,8 +18,10 @@ class ScanDataSharingReq(BaseModel):
 @router.post("/scan-sharing")
 async def scan_data_sharing(body: ScanDataSharingReq):
     """Detect PII leaks and unauthorized data sharing."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("scan_data_sharing", body.model_dump())
+        return await gov.dispatch({"type": "scan_data_sharing", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][privacy] scan_data_sharing failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -42,8 +33,10 @@ class GdprCheckReq(BaseModel):
 @router.post("/gdpr-check")
 async def gdpr_check(body: GdprCheckReq):
     """GDPR compliance check."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("gdpr_check", body.model_dump())
+        return await gov.dispatch({"type": "gdpr_check", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][privacy] gdpr_check failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,8 +48,10 @@ class RedactDataReq(BaseModel):
 @router.post("/redact")
 async def redact_data(body: RedactDataReq):
     """Redact sensitive PII from text."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("redact_data", body.model_dump())
+        return await gov.dispatch({"type": "redact_data", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][privacy] redact_data failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -68,8 +63,10 @@ class AuditDataFlowReq(BaseModel):
 @router.post("/audit-flow")
 async def audit_data_flow(body: AuditDataFlowReq):
     """Audit what data flows where across VECTOR."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("audit_data_flow", body.model_dump())
+        return await gov.dispatch({"type": "audit_data_flow", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][privacy] audit_data_flow failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

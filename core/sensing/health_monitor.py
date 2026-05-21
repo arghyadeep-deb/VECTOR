@@ -119,15 +119,6 @@ class HealthMonitor:
                 if metrics:
                     return {"available": True, "data": metrics, "note": "connector poll"}
             return {"available": False, "note": "wearable poll returned empty"}
-            connector = PhoneSensorConnector()
-            try:
-                loop = asyncio.new_event_loop()
-                data = loop.run_until_complete(connector.fetch_metrics())
-                loop.close()
-                if data:
-                    return data
-            except Exception:
-                pass
         except Exception as exc:
             logger.warning(f"[VECTOR][health] wearable data unavailable: {exc}")
         return {"available": False, "note": "wearable unavailable"}

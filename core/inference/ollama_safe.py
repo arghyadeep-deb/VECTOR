@@ -233,20 +233,20 @@ def chat_stream(
 
 def _airllm_chat(model: str, messages: list[dict]) -> str:
     """Use AirLLM for large model inference. Returns empty string on failure."""
-    try:
+    import asyncio
+
+    async def _run():
         from core.inference.airllm.airllm_runner import AirLLMRunner
-        import asyncio
         runner = AirLLMRunner()
         prompt = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
-        loop = asyncio.new_event_loop()
-        try:
-            load_result = loop.run_until_complete(runner.load_model(model))
-            if not load_result.get("success"):
-                return ""
-            gen_result = loop.run_until_complete(runner.generate(prompt))
-            return gen_result.get("generated", "")
-        finally:
-            loop.close()
+        load_result = await runner.load_model(model)
+        if not load_result.get("success"):
+            return ""
+        result = await runner.generate(prompt)
+        return result.get("generated", "")
+
+    try:
+        return asyncio.run(_run())
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] AirLLM fallback failed: {e}")
         return ""

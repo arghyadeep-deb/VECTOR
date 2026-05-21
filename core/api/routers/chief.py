@@ -1,5 +1,5 @@
 """VECTOR chief router - /chief/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,24 +9,15 @@ from loguru import logger
 router = APIRouter(prefix="/chief", tags=["chief"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 @router.get("/morning-brief")
 async def morning_brief():
     """Get the 08:00 executive morning brief."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("morning_brief", {})
+        return await gov.dispatch({"type": "morning_brief", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][chief] morning_brief failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -34,8 +25,10 @@ async def morning_brief():
 @router.get("/evening-brief")
 async def evening_brief():
     """Get the 22:00 accomplishment summary."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("evening_brief", {})
+        return await gov.dispatch({"type": "evening_brief", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][chief] evening_brief failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -47,8 +40,10 @@ class ExecutiveBriefReq(BaseModel):
 @router.post("/executive-brief")
 async def executive_brief(body: ExecutiveBriefReq):
     """Generate executive brief."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("executive_brief", body.model_dump())
+        return await gov.dispatch({"type": "executive_brief", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][chief] executive_brief failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -60,8 +55,10 @@ class RouteEscalationReq(BaseModel):
 @router.post("/route-escalation")
 async def route_escalation(body: RouteEscalationReq):
     """Intelligently route a task."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("route_escalation", body.model_dump())
+        return await gov.dispatch({"type": "route_escalation", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][chief] route_escalation failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,8 +69,10 @@ class FilterNoiseReq(BaseModel):
 @router.post("/filter-noise")
 async def filter_noise(body: FilterNoiseReq):
     """Classify events as SIGNAL/ROUTINE/NOISE."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("filter_noise", body.model_dump())
+        return await gov.dispatch({"type": "filter_noise", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][chief] filter_noise failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

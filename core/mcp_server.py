@@ -112,7 +112,7 @@ def _make_server():
     # ── Intelligence tools (VectorIntel / Shadowbroker) ─────────────────────
 
     @mcp.tool
-    def intelligence_query(
+    async def intelligence_query(
         action: str,
         lat: float = 0.0,
         lon: float = 0.0,
@@ -129,7 +129,6 @@ def _make_server():
         label:   for place_pin  |  pass query param via label for search
         Requires VectorIntel server running: cd Shadowbroker-main && docker-compose up -d
         """
-        import asyncio
         from districts.intelligence.vectorintel_agent import VectorIntelAgent
         agent = VectorIntelAgent()
         if not agent._available:
@@ -138,9 +137,7 @@ def _make_server():
             "type": action,
             "params": {"lat": lat, "lon": lon, "radius_km": radius_km, "label": label},
         }
-        loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(agent.run(task))
-        loop.close()
+        result = await agent.run(task)
         return result.get("message", str(result))
 
     # ── Memory tools ──────────────────────────────────────────────────────────
@@ -204,28 +201,24 @@ def _make_server():
     # ── Research tools ────────────────────────────────────────────────────────
 
     @mcp.tool
-    def search_web(query: str, max_results: int = 5) -> str:
+    async def search_web(query: str, max_results: int = 5) -> str:
         """Search the web for information using VECTOR's WebScout agent."""
         try:
             from districts.research.web_scout import WebScout
             scout = WebScout()
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(scout.search(query, max_results=max_results))
-            loop.close()
+            result = await scout.search(query, max_results=max_results)
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] search_web failed: {e}")
             return f"Web search failed: {e}"
 
     @mcp.tool
-    def mine_reddit(subreddit: str = "LocalLLaMA", limit: int = 10) -> str:
+    async def mine_reddit(subreddit: str = "LocalLLaMA", limit: int = 10) -> str:
         """Get hot posts from a subreddit via VECTOR's RedditMiner (no OAuth needed)."""
         try:
             from districts.research.reddit_miner import RedditMiner
             miner = RedditMiner()
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(miner.mine_subreddit(subreddit, limit=limit))
-            loop.close()
+            result = await miner.mine_subreddit(subreddit, limit=limit)
             import json
             return json.dumps(result, indent=2, default=str)
         except Exception as e:
@@ -233,14 +226,12 @@ def _make_server():
             return f"Reddit mining failed: {e}"
 
     @mcp.tool
-    def read_paper(url: str) -> str:
+    async def read_paper(url: str) -> str:
         """Fetch and summarise an ArXiv paper or research URL using VECTOR's PaperReader."""
         try:
             from districts.research.paper_reader import PaperReader
             reader = PaperReader()
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(reader.read(url))
-            loop.close()
+            result = await reader.read(url)
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] read_paper failed: {e}")
@@ -249,7 +240,7 @@ def _make_server():
     # ── Governance tools ──────────────────────────────────────────────────────
 
     @mcp.tool
-    def convene_council(question: str, stakes: str = "high") -> str:
+    async def convene_council(question: str, stakes: str = "high") -> str:
         """
         Convene the VECTOR LLM Council for a high-stakes decision.
         stakes: 'high' or 'critical'. Requires 700+ HP gate. Max 10 sessions/week.
@@ -257,11 +248,7 @@ def _make_server():
         try:
             from districts.governance.llm_council import LLMCouncil
             council = LLMCouncil()
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(
-                council.convene(question=question, stakes=stakes)
-            )
-            loop.close()
+            result = await council.convene(question=question, stakes=stakes)
             verdict = result.get("verdict", "No verdict produced.")
             session_id = result.get("session_id", "?")
             return f"[Session {session_id}]\n{verdict}"
@@ -272,33 +259,30 @@ def _make_server():
     # ── Coding tools ──────────────────────────────────────────────────────────
 
     @mcp.tool
-    def review_code(file_path: str) -> str:
+    async def review_code(file_path: str) -> str:
         """Run VECTOR's CodeReviewer on a Python file and return the review report."""
         try:
             from districts.coding.code_reviewer import CodeReviewer
+            reviewer = CodeReviewer()
             _root = Path(__file__).parent.parent.resolve()
             path = Path(file_path).resolve()
             if not str(path).startswith(str(_root)):
                 return f"Access denied: '{file_path}' is outside the VECTOR codebase."
             if not path.exists():
                 return f"File not found: {file_path}"
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(reviewer.review_file(str(path)))
-            loop.close()
+            result = await reviewer.review_file(str(path))
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] review_code failed: {e}")
             return f"Code review failed: {e}"
 
     @mcp.tool
-    def git_status() -> str:
+    async def git_status() -> str:
         """Get the current git status of the VECTOR codebase."""
         try:
             from districts.coding.git_bot import GitBot
             bot = GitBot()
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(bot.get_status())
-            loop.close()
+            result = await bot.get_status()
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] git_status failed: {e}")

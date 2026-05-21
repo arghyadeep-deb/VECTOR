@@ -1,5 +1,5 @@
 """VECTOR qa router - /qa/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/qa", tags=["qa"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class QaWriteTestsReq(BaseModel):
@@ -29,8 +18,10 @@ class QaWriteTestsReq(BaseModel):
 @router.post("/write-tests")
 async def qa_write_tests(body: QaWriteTestsReq):
     """Generate comprehensive test suite."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("qa_write_tests", body.model_dump())
+        return await gov.dispatch({"type": "qa_write_tests", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][qa] qa_write_tests failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -42,8 +33,10 @@ class AnalyzeTestResultsReq(BaseModel):
 @router.post("/analyze-results")
 async def analyze_test_results(body: AnalyzeTestResultsReq):
     """Analyze test results: flakiness, regressions."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("analyze_test_results", body.model_dump())
+        return await gov.dispatch({"type": "analyze_test_results", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][qa] analyze_test_results failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,8 +48,10 @@ class AccessibilityAuditReq(BaseModel):
 @router.post("/accessibility-audit")
 async def accessibility_audit(body: AccessibilityAuditReq):
     """WCAG accessibility audit."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("accessibility_audit", body.model_dump())
+        return await gov.dispatch({"type": "accessibility_audit", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][qa] accessibility_audit failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -69,8 +64,10 @@ class ApiTestReq(BaseModel):
 @router.post("/api-test")
 async def api_test(body: ApiTestReq):
     """Validate API endpoint correctness."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("api_test", body.model_dump())
+        return await gov.dispatch({"type": "api_test", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][qa] api_test failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -82,8 +79,10 @@ class RealityCheckReq(BaseModel):
 @router.post("/reality-check")
 async def reality_check(body: RealityCheckReq):
     """Fact-check LLM output against evidence."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("reality_check", body.model_dump())
+        return await gov.dispatch({"type": "reality_check", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][qa] reality_check failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,5 +1,5 @@
 """VECTOR governance router - /governance/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/governance", tags=["governance"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class ProductRoadmapReq(BaseModel):
@@ -30,8 +19,10 @@ class ProductRoadmapReq(BaseModel):
 @router.post("/roadmap")
 async def product_roadmap(body: ProductRoadmapReq):
     """Generate product roadmap with RICE scoring."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("product_roadmap", body.model_dump())
+        return await gov.dispatch({"type": "product_roadmap", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][governance] product_roadmap failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -44,8 +35,10 @@ class DelegateTaskReq(BaseModel):
 @router.post("/federation")
 async def delegate_task(body: DelegateTaskReq):
     """Delegate task to another agent."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("delegate_task", body.model_dump())
+        return await gov.dispatch({"type": "delegate_task", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][governance] delegate_task failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -53,8 +46,10 @@ async def delegate_task(body: DelegateTaskReq):
 @router.get("/autopilot/status")
 async def autopilot_status():
     """Autonomous task execution status."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("autopilot_status", {})
+        return await gov.dispatch({"type": "autopilot_status", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][governance] autopilot_status failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,8 +61,10 @@ class AutopilotTriggerReq(BaseModel):
 @router.post("/autopilot/trigger")
 async def autopilot_trigger(body: AutopilotTriggerReq):
     """Trigger autonomous workflow."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("autopilot_trigger", body.model_dump())
+        return await gov.dispatch({"type": "autopilot_trigger", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][governance] autopilot_trigger failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

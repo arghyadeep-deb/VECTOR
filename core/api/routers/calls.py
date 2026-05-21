@@ -1,5 +1,5 @@
 """VECTOR calls router - /calls/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,6 @@ from loguru import logger
 router = APIRouter(prefix="/calls", tags=["calls"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 class ScreenCallReq(BaseModel):
@@ -29,8 +18,10 @@ class ScreenCallReq(BaseModel):
 @router.post("/screen")
 async def screen_call(body: ScreenCallReq):
     """Screen incoming call for spam."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("screen_call", body.model_dump())
+        return await gov.dispatch({"type": "screen_call", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][calls] screen_call failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -42,8 +33,10 @@ class TranscribeCallReq(BaseModel):
 @router.post("/transcribe")
 async def transcribe_call(body: TranscribeCallReq):
     """Transcribe a call recording to text."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("transcribe_call", body.model_dump())
+        return await gov.dispatch({"type": "transcribe_call", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][calls] transcribe_call failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,8 +48,10 @@ class VoiceRespondReq(BaseModel):
 @router.post("/respond")
 async def voice_respond(body: VoiceRespondReq):
     """Generate AI-driven call response."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("voice_respond", body.model_dump())
+        return await gov.dispatch({"type": "voice_respond", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][calls] voice_respond failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -64,8 +59,10 @@ async def voice_respond(body: VoiceRespondReq):
 @router.get("/contacts")
 async def list_call_contacts():
     """List call screening whitelist."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("list_call_contacts", {})
+        return await gov.dispatch({"type": "list_call_contacts", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][calls] list_call_contacts failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -78,8 +75,10 @@ class AddCallContactReq(BaseModel):
 @router.post("/contacts/add")
 async def add_call_contact(body: AddCallContactReq):
     """Add contact to whitelist."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("add_call_contact", body.model_dump())
+        return await gov.dispatch({"type": "add_call_contact", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][calls] add_call_contact failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

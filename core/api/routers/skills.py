@@ -1,5 +1,5 @@
 """VECTOR skills router - /skills/* endpoints."""
-import sys, asyncio
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
@@ -9,24 +9,15 @@ from loguru import logger
 router = APIRouter(prefix="/skills", tags=["skills"])
 
 
-def _run(task_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            gov.dispatch({"type": task_type, "params": params})
-        )
-    finally:
-        loop.close()
-    return result
 
 
 @router.get("/map")
 async def skill_map():
     """Knowledge graph of current skills and proficiency."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("skill_map", {})
+        return await gov.dispatch({"type": "skill_map", "params": {}})
     except Exception as e:
         logger.error("[VECTOR][skills] skill_map failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -38,8 +29,10 @@ class GapAnalysisReq(BaseModel):
 @router.post("/gap-analysis")
 async def gap_analysis(body: GapAnalysisReq):
     """Identify skill gaps toward a goal."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("gap_analysis", body.model_dump())
+        return await gov.dispatch({"type": "gap_analysis", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][skills] gap_analysis failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -52,8 +45,10 @@ class TrackMasteryReq(BaseModel):
 @router.post("/mastery")
 async def track_mastery(body: TrackMasteryReq):
     """Track mastery level for a skill."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("track_mastery", body.model_dump())
+        return await gov.dispatch({"type": "track_mastery", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][skills] track_mastery failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -65,8 +60,10 @@ class SuggestPracticeReq(BaseModel):
 @router.post("/practice-suggest")
 async def suggest_practice(body: SuggestPracticeReq):
     """Suggest targeted practice exercises."""
+    from core.city.governor import GovernorCouncil
+    gov = GovernorCouncil()
     try:
-        return _run("suggest_practice", body.model_dump())
+        return await gov.dispatch({"type": "suggest_practice", "params": body.model_dump()})
     except Exception as e:
         logger.error("[VECTOR][skills] suggest_practice failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
