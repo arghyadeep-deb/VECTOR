@@ -9,14 +9,16 @@ from loguru import logger
 
 logger.info("[VECTOR] core package loaded")
 
+for _pkg in ("mcp", "fastmcp"):
+    try:
+        __import__(_pkg)
+    except ImportError:
+        pass
+
+if "mcp" in sys.modules and not hasattr(sys.modules["mcp"], "server"):
+    logger.warning("[VECTOR] mcp module may be shadowed by vectorcode/src/mcp/")
+
 __all__ = [
-    "config",
-    "memory",
-    "inference",
-    "loop",
-    "voice",
-    "city",
-    "sensing",
-    "control",
-    "brain",
+    "config", "memory", "inference", "loop", "voice",
+    "city", "sensing", "control", "brain",
 ]
