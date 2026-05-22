@@ -15,8 +15,8 @@ from unittest.mock import patch, AsyncMock, MagicMock
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from districts.coding.vectorcode.tools.code_graph import CodeGraph
-from districts.coding.vectorcode.tools.browser_tools import BrowserTools
+from vectorcode.src.tools.code_graph import CodeGraph
+from vectorcode.src.tools.browser_tools import BrowserTools
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ def test_browser_tools_permission_levels():
 
 def test_browser_tools_navigate_goes_through_gateway():
     """_navigate_with_gate calls self._gateway.check()."""
-    with patch("districts.coding.vectorcode.tools.browser_tools.PermissionGateway") as MockGW:
+    with patch("vectorcode.src.tools.browser_tools.PermissionGateway") as MockGW:
         mock_gw = MagicMock()
         mock_gw.check.return_value = True
         MockGW.return_value = mock_gw
@@ -239,7 +239,7 @@ def test_browser_tools_extract_text_no_page_returns_empty():
 
 def test_browser_tools_stub_mode_when_playwright_missing():
     """BrowserTools can be instantiated even when playwright is not installed."""
-    with patch("districts.coding.vectorcode.tools.browser_tools._PLAYWRIGHT_AVAILABLE", False):
+    with patch("vectorcode.src.tools.browser_tools._PLAYWRIGHT_AVAILABLE", False):
         # Just checking no import errors / crashes on instantiation
         bt = BrowserTools.__new__(BrowserTools)
         bt._page = None

@@ -168,7 +168,45 @@ def cmd_mcp(args):
     subprocess.run(cmd)
 
 
+def _run_ipc(args):
+    """JSON stdin/stdout IPC mode for VECTOR bridge."""
+    import json
+    try:
+        data = json.loads(sys.stdin.read())
+    except Exception as e:
+        json.dump({"status": "error", "output": f"IPC parse error: {e}", "exit_code": -1}, sys.stdout)
+        sys.stdout.flush()
+        return
+    task = data.get("task", "").strip()
+    if not task:
+        json.dump({"status": "error", "output": "Empty task", "exit_code": -1}, sys.stdout)
+        sys.stdout.flush()
+        return
+
+    from repl import VectorREPL, _ask_ollama, _save_session
+    project_dir = Path(getattr(args, "dir", None) or ".").resolve()
+    repl = VectorREPL(project_dir=project_dir)
+    if getattr(args, "model", None):
+        repl.session.current_model = args.model
+    if getattr(args, "mode", None):
+        try:
+            repl.session.set_mode(args.mode)
+        except ValueError as e:
+            print(f"[VECTOR] {e}")
+
+    repl._history.append({"role": "user", "content": task})
+    reply = _ask_ollama(repl.session.current_model, repl._history)
+    repl._history.append({"role": "assistant", "content": reply})
+    _save_session(repl._history, repl.session.current_model)
+
+    json.dump({"status": "ok", "output": reply, "exit_code": 0}, sys.stdout)
+    sys.stdout.flush()
+
+
 def cmd_run(args):
+    if getattr(args, "ipc", False):
+        _run_ipc(args)
+        return
     """One-shot non-interactive task. Reads from stdin if no task given."""
     import select
     task = " ".join(args.task) if getattr(args, "task", None) else ""
@@ -975,6 +1013,7 @@ def main():
     run_p.add_argument("--model", default=None)
     run_p.add_argument("--mode",  default=None)
     run_p.add_argument("--dir",   default=None)
+    run_p.add_argument("--ipc", action="store_true", help="JSON IPC mode: read task from stdin, write result to stdout")
 
     auto_p = sub.add_parser("auto", help="Mode B: autonomous single task")
     auto_p.add_argument("task", nargs="*", help="Task description")
