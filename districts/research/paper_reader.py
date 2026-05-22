@@ -63,7 +63,10 @@ class PaperReader(AgentBase):
 
     def _parse_arxiv_xml(self, xml: str) -> list[dict]:
         """Parse ArXiv Atom XML response."""
-        import xml.etree.ElementTree as ET
+        try:
+            import defusedxml.ElementTree as ET
+        except ImportError:
+            import xml.etree.ElementTree as ET
         papers = []
         try:
             ns = {

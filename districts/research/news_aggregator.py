@@ -81,7 +81,10 @@ class NewsAggregator(AgentBase):
         """Fetch and parse an RSS feed. No dependencies beyond stdlib + httpx."""
         try:
             import httpx
-            import xml.etree.ElementTree as ET
+            try:
+                import defusedxml.ElementTree as ET
+            except ImportError:
+                import xml.etree.ElementTree as ET
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 r = await client.get(feed_url)
             root = ET.fromstring(r.text)
