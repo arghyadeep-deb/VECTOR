@@ -16,12 +16,10 @@ import subprocess
 import threading
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from loguru import logger
 from core.config import CONFIG
 
-_VC_ROOT = Path(__file__).parent.parent / "vectorcode"
+_VC_ROOT = Path(__file__).resolve().parent.parent.parent / "vectorcode"
 _VC_ENTRY = _VC_ROOT / "vector.py"
 
 
@@ -38,20 +36,6 @@ class VectorCodeBridge:
         else:
             logger.warning(f"[VectorCode] Entry not found at {_VC_ENTRY}")
 
-    async def _run_subprocess(self, cmd: list[str], timeout: int) -> tuple[bytes, bytes, int]:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(Path(__file__).parent.parent),
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            proc.kill()
-            raise
-        return stdout, stderr, proc.returncode
-
     def is_available(self) -> bool:
         return self._vc_available
 
@@ -61,7 +45,7 @@ class VectorCodeBridge:
 
         if not isinstance(task, str) or not task.strip():
             return {"status": "error", "output": "Empty or invalid task", "exit_code": -1, "task": ""}
-        task = task.strip()
+        task = task.strip().replace('\x00', '')
 
         if mode not in ("run", "auto", "hybrid"):
             mode = "run"
@@ -72,14 +56,14 @@ class VectorCodeBridge:
 
         logger.info(f"[VectorCode] Running: {mode} — {task[:60]}...")
 
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(Path(__file__).parent.parent),
-        )
         try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(Path(__file__).resolve().parent.parent.parent),
+            )
             stdout, stderr = await asyncio.wait_for(proc.communicate(payload), timeout=timeout)
         except asyncio.TimeoutError:
             return {"status": "timeout", "output": f"Task timed out after {timeout}s", "exit_code": -1, "task": task}
@@ -120,7 +104,7 @@ class VectorCodeBridge:
         try:
             proc = subprocess.Popen(
                 [sys.executable, str(_VC_ENTRY), "mcp", "--sse", "--port", str(port)],
-                cwd=str(Path(__file__).parent.parent),
+                cwd=str(_VC_ROOT),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -138,7 +122,7 @@ class VectorCodeBridge:
             result = subprocess.run(
                 [sys.executable, str(_VC_ENTRY), "status"],
                 capture_output=True, text=True, timeout=10,
-                cwd=str(Path(__file__).parent.parent),
+                cwd=str(_VC_ROOT),
             )
             return {
                 "available": True,

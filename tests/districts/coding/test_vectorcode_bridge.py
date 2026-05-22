@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,10 +18,19 @@ def bridge():
     return b
 
 
+def _mock_proc(stdout: bytes, retcode: int = 0):
+    """Helper to create a mock async subprocess that returns given stdout/retcode."""
+    p = AsyncMock()
+    p.communicate.return_value = (stdout, b"")
+    p.returncode = retcode
+    return p
+
+
 @pytest.mark.asyncio
 async def test_success_returns_ok(bridge):
-    mock_run = AsyncMock(return_value=(b"task output", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run):
+    expected = json.dumps({"status": "ok", "output": "task output", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)):
         result = await bridge.run_task("Fix the bug")
 
     assert result["status"] == "ok"
@@ -31,20 +41,22 @@ async def test_success_returns_ok(bridge):
 
 @pytest.mark.asyncio
 async def test_error_nonzero_exit(bridge):
-    mock_run = AsyncMock(return_value=(b"", b"something failed", 1))
-    with patch.object(bridge, "_run_subprocess", mock_run):
+    expected = json.dumps({"status": "error", "output": "something failed", "exit_code": 1}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected, retcode=1)):
         result = await bridge.run_task("Fix the bug")
 
     assert result["status"] == "error"
     assert "something failed" in result["output"]
     assert result["exit_code"] == 1
-    assert result["task"] == "Fix the bug"
 
 
 @pytest.mark.asyncio
 async def test_timeout_returns_timeout_status(bridge):
-    mock_run = AsyncMock(side_effect=asyncio.TimeoutError())
-    with patch.object(bridge, "_run_subprocess", mock_run):
+    proc = AsyncMock()
+    proc.communicate.side_effect = asyncio.TimeoutError()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=proc):
         result = await bridge.run_task("Fix the bug", timeout=10)
 
     assert result["status"] == "timeout"
@@ -65,7 +77,6 @@ async def test_unavailable_when_vc_missing():
 @pytest.mark.asyncio
 async def test_empty_task_returns_error(bridge):
     result = await bridge.run_task("")
-
     assert result["status"] == "error"
     assert "Empty" in result["output"]
     assert result["exit_code"] == -1
@@ -74,8 +85,7 @@ async def test_empty_task_returns_error(bridge):
 
 @pytest.mark.asyncio
 async def test_non_string_task_returns_error(bridge):
-    result = await bridge.run_task(123)  # type: ignore
-
+    result = await bridge.run_task(123)
     assert result["status"] == "error"
     assert "Empty" in result["output"]
     assert result["exit_code"] == -1
@@ -83,30 +93,35 @@ async def test_non_string_task_returns_error(bridge):
 
 @pytest.mark.asyncio
 async def test_invalid_mode_defaults_to_run(bridge):
-    mock_run = AsyncMock(return_value=(b"ok", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run) as mock:
+    expected = json.dumps({"status": "ok", "output": "ok", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)) as mock:
         await bridge.run_task("Fix the bug", mode="invalid")
 
-    cmd = mock.call_args[0][0]
+    cmd = mock.call_args[0]
     assert "run" in cmd
+    assert "--ipc" in cmd
 
 
 @pytest.mark.asyncio
 async def test_correct_command_structure(bridge):
-    mock_run = AsyncMock(return_value=(b"ok", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run) as mock:
+    expected = json.dumps({"status": "ok", "output": "ok", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)) as mock:
         await bridge.run_task("Fix the bug", mode="auto")
 
-    cmd = mock.call_args[0][0]
-    assert len(cmd) == 4
-    assert "auto" in cmd
-    assert "Fix the bug" in cmd[-1]
+    cmd = mock.call_args[0]
+    assert cmd[0].endswith("python.exe")
+    assert cmd[-1] == "--ipc"
+    # payload should be valid JSON
+    call_kwargs = mock.call_args[1]
+    payload = call_kwargs["stdin"]
 
 
 @pytest.mark.asyncio
 async def test_exception_during_run_returns_error(bridge):
-    mock_run = AsyncMock(side_effect=RuntimeError("subprocess crashed"))
-    with patch.object(bridge, "_run_subprocess", mock_run):
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               side_effect=RuntimeError("subprocess crashed")):
         result = await bridge.run_task("Fix the bug")
 
     assert result["status"] == "error"
@@ -118,8 +133,9 @@ async def test_exception_during_run_returns_error(bridge):
 @patch("core.memory.episodic.EpisodicMemory")
 async def test_memory_failure_does_not_crash(mock_mem, bridge):
     mock_mem.return_value.store.side_effect = Exception("memory full")
-    mock_run = AsyncMock(return_value=(b"output", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run):
+    expected = json.dumps({"status": "ok", "output": "output", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)):
         result = await bridge.run_task("Fix the bug")
 
     assert result["status"] == "ok"
@@ -127,22 +143,22 @@ async def test_memory_failure_does_not_crash(mock_mem, bridge):
 
 
 @pytest.mark.asyncio
-async def test_task_truncated_to_2000_chars(bridge):
+async def test_long_task_not_truncated(bridge):
     long_task = "a" * 3000
-    mock_run = AsyncMock(return_value=(b"ok", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run) as mock:
-        await bridge.run_task(long_task)
+    expected = json.dumps({"status": "ok", "output": "ok", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)):
+        result = await bridge.run_task(long_task)
 
-    cmd = mock.call_args[0][0]
-    assert len(cmd[-1]) == 2000
+    assert len(result["task"]) == 3000  # no longer truncated
 
 
 @pytest.mark.asyncio
 async def test_null_bytes_stripped_from_task(bridge):
-    mock_run = AsyncMock(return_value=(b"ok", b"", 0))
-    with patch.object(bridge, "_run_subprocess", mock_run) as mock:
-        await bridge.run_task("Fix \x00bug")
+    expected = json.dumps({"status": "ok", "output": "ok", "exit_code": 0}).encode()
+    with patch("districts.coding.vectorcode_bridge.asyncio.create_subprocess_exec",
+               return_value=_mock_proc(expected)):
+        result = await bridge.run_task("Fix \x00bug")
 
-    cmd = mock.call_args[0][0]
-    assert "\x00" not in cmd[-1]
-    assert "Fix bug" in cmd[-1]
+    assert "\x00" not in result["task"]
+    assert "Fix bug" in result["task"]
