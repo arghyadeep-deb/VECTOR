@@ -366,6 +366,8 @@ class VectorSettings(BaseSettings):
     INSTAGRAM_ACCOUNT_ID: str = ""
     ELEVENLABS_KEY: SecretStr = SecretStr("")
     ELEVENLABS_VOICE_ID: str = "pNInz6obpgDQGcFmaJgB"
+    OPENROUTER_KEY: SecretStr = SecretStr("")
+    MISTRAL_KEY: SecretStr = SecretStr("")
     CONTENT_NICHE: str = "AI"
     VIDEO_UPLOAD_DELAY_MINUTES: int = 30
     MUAPI_API_KEY: SecretStr = SecretStr("")
@@ -374,8 +376,33 @@ class VectorSettings(BaseSettings):
     HASS_URL: str = ""
     HASS_TOKEN: SecretStr = SecretStr("")
 
+    # LLM provider keys used by absorbed vectorcode/src/ (naming: _API_KEY suffix used there)
+    GROQ_API_KEY: SecretStr = SecretStr("")
+    XAI_API_KEY: SecretStr = SecretStr("")
+    MINIMAX_API_KEY: SecretStr = SecretStr("")
+    TAVILY_API_KEY: SecretStr = SecretStr("")
+    FIRECRAWL_API_KEY: SecretStr = SecretStr("")
+    HONCHO_API_KEY: SecretStr = SecretStr("")
+    DEEPGRAM_API_KEY: SecretStr = SecretStr("")
+    OLLAMA_API_KEY: SecretStr = SecretStr("")
+    AZURE_ANTHROPIC_KEY: SecretStr = SecretStr("")
+    AZURE_FOUNDRY_API_KEY: SecretStr = SecretStr("")
+    GOOGLE_API_KEY: SecretStr = SecretStr("")
+    OPENAI_CODEX_API_KEY: SecretStr = SecretStr("")
+    HINDSIGHT_API_KEY: SecretStr = SecretStr("")
+    BROWSERBASE_API_KEY: SecretStr = SecretStr("")
+    # Runtime vars used by absorbed vectorcode/src/
+    VECTOR_HOME: str = str(Path.home() / ".vector")
+    VECTOR_TIMEZONE: str = "Asia/Kolkata"
+    VECTOR_ALLOW_SHELL_EXEC: bool = False
+    VECTOR_WRITE_SAFE_ROOT: str = ""
+    VECTOR_ALLOW_PRIVATE_URLS: bool = False
+    VECTOR_ALLOW_COMMIT_DRIFT: bool = False
+
     # Network
     VECTOR_OFP_SECRET: SecretStr = SecretStr("")
+    VECTOR_OFP_CERT: str = ""
+    VECTOR_OFP_KEY: str = ""
     VECTOR_PEERS: str = ""
     VECTOR_CLOUD_API_URL: str = ""
     VECTOR_OAUTH_REDIRECT_BASE: str = "http://localhost:7788"
@@ -383,9 +410,29 @@ class VectorSettings(BaseSettings):
     # Telemetry
     SENTRY_DSN: str = ""
     VECTOR_BUILD_SHA: str = "dev"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+
+    # Infrastructure
+    VLLM_BASE_URL: str = "http://localhost:8000/v1"
+    CLOUDFLARE_ACCOUNT_ID: str = ""
+    SSL_CERT_FILE: str = ""
+    SSL_CERT_DIR: str = ""
+    ACP_LOGGING_ENABLED: bool = False
 
     # Research engine
     LDR_DATA_DIR: str = ""
+    LDR_LOG_SETTINGS: str = "none"
+
+    # OAuth
+    OAUTH_GITHUB_CLIENT_ID: str = ""
+    OAUTH_GITHUB_CLIENT_SECRET: SecretStr = SecretStr("")
+    OAUTH_GOOGLE_CLIENT_ID: str = ""
+    OAUTH_GOOGLE_CLIENT_SECRET: SecretStr = SecretStr("")
+
+    # Trading
+    VECTOR_TRADING_RESULTS_DIR: str = "logs"
+    VECTOR_TRADING_CACHE_DIR: str = "cache"
+    VECTOR_TRADING_MEMORY_LOG_PATH: str = "memory/trading_memory.md"
 
     # CORS — overridable via env var as a JSON array
     ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: [
@@ -428,10 +475,14 @@ class VectorSettings(BaseSettings):
     health: HealthConfig = Field(default_factory=HealthConfig)
     research_lab: ResearchLabConfig = Field(default_factory=ResearchLabConfig)
     home_assistant: HomeAssistantConfig = Field(default_factory=lambda: HomeAssistantConfig(
+        # os.getenv intentional — lambda can't access self
         enabled=bool(os.getenv("HASS_TOKEN")),
         host=(os.getenv("HASS_URL") or "homeassistant.local").replace("http://", "").replace("https://", "").split(":")[0],
         token=os.getenv("HASS_TOKEN", ""),
     ))
+
+    def get_env(self, key: str, default: str | None = None) -> str | None:
+        return os.getenv(key, default)
 
 
 # ── Instantiate: validation failure is fatal at startup ───────────────────────
@@ -465,14 +516,28 @@ CONFIG: dict = {
     "location": os.environ.get("VECTOR_LOCATION", "home"),
     "ofp_secret": _secret(_s.VECTOR_OFP_SECRET.get_secret_value()),
     "peers": _s.VECTOR_PEERS,
+    "ofp_cert": _s.VECTOR_OFP_CERT,
+    "ofp_key": _s.VECTOR_OFP_KEY,
     "cloud_api_url": _s.VECTOR_CLOUD_API_URL,
     "oauth_redirect_base": _s.VECTOR_OAUTH_REDIRECT_BASE,
     "sentry_dsn": _s.SENTRY_DSN,
     "sentry_env": _s.VECTOR_ENV,
+    "otel_endpoint": _s.OTEL_EXPORTER_OTLP_ENDPOINT,
+    "vllm_base_url": _s.VLLM_BASE_URL,
+    "cloudflare_account_id": _s.CLOUDFLARE_ACCOUNT_ID,
+    "ssl_cert_file": _s.SSL_CERT_FILE,
+    "ssl_cert_dir": _s.SSL_CERT_DIR,
+    "acp_logging_enabled": _s.ACP_LOGGING_ENABLED,
     "build_sha": _s.VECTOR_BUILD_SHA,
     "ldr_data_dir": _s.LDR_DATA_DIR,
     "search_response_limit": int(os.environ.get("VECTOR_SEARCH_LIMIT", "500")),
     "policy_default_score": float(os.environ.get("VECTOR_POLICY_DEFAULT", "0.5")),
+    "vector_home": _s.VECTOR_HOME,
+    "vector_timezone": _s.VECTOR_TIMEZONE,
+    "allow_shell_exec": _s.VECTOR_ALLOW_SHELL_EXEC,
+    "write_safe_root": _s.VECTOR_WRITE_SAFE_ROOT,
+    "allow_private_urls": _s.VECTOR_ALLOW_PRIVATE_URLS,
+    "allow_commit_drift": _s.VECTOR_ALLOW_COMMIT_DRIFT,
     "decision_weights": {},     # override keys: goal, conf, policy, urgency, timing, cost
     "hp_tiers": {},             # override keys: elite, strong, healthy, weak
     "llm_pricing": {},          # override per-model pricing for budget tracking
@@ -480,6 +545,12 @@ CONFIG: dict = {
     "db_path": _BASE_DIR / "vector_memory.db",
     "ollama_host": _s.OLLAMA_HOST,
     "allowed_origins": _s.ALLOWED_ORIGINS,
+    "oauth": {
+        "github_client_id": _s.OAUTH_GITHUB_CLIENT_ID,
+        "github_client_secret": _secret(_s.OAUTH_GITHUB_CLIENT_SECRET.get_secret_value()),
+        "google_client_id": _s.OAUTH_GOOGLE_CLIENT_ID,
+        "google_client_secret": _secret(_s.OAUTH_GOOGLE_CLIENT_SECRET.get_secret_value()),
+    },
     # Sub-configs as plain dicts — all existing CONFIG["x"]["y"] access works
     "models": _s.models.model_dump(),
     "model_router": _s.model_router.model_dump(),
@@ -503,8 +574,27 @@ CONFIG: dict = {
         "instagram_account_id":   _s.INSTAGRAM_ACCOUNT_ID,
         "elevenlabs_key":         _secret(_s.ELEVENLABS_KEY.get_secret_value()),
         "elevenlabs_voice_id":    _s.ELEVENLABS_VOICE_ID,
+        "openrouter_key":         _secret(_s.OPENROUTER_KEY.get_secret_value()),
+        "mistral_key":            _secret(_s.MISTRAL_KEY.get_secret_value()),
         "muapi_api_key":          _secret(_s.MUAPI_API_KEY.get_secret_value()),
         "pagespeed_api_key":      _secret(_s.PAGESPEED_API_KEY.get_secret_value()),
+        "hass_url":               _s.HASS_URL,
+        "hass_token":             _secret(_s.HASS_TOKEN.get_secret_value()),
+        "openai_api_key":         os.environ.get("OPENAI_API_KEY", ""),
+        "groq_api_key":           _secret(_s.GROQ_API_KEY.get_secret_value()),
+        "xai_api_key":            _secret(_s.XAI_API_KEY.get_secret_value()),
+        "minimax_api_key":        _secret(_s.MINIMAX_API_KEY.get_secret_value()),
+        "tavily_api_key":         _secret(_s.TAVILY_API_KEY.get_secret_value()),
+        "firecrawl_api_key":      _secret(_s.FIRECRAWL_API_KEY.get_secret_value()),
+        "honcho_api_key":         _secret(_s.HONCHO_API_KEY.get_secret_value()),
+        "deepgram_api_key":       _secret(_s.DEEPGRAM_API_KEY.get_secret_value()),
+        "ollama_api_key":         _secret(_s.OLLAMA_API_KEY.get_secret_value()),
+        "azure_anthropic_key":    _secret(_s.AZURE_ANTHROPIC_KEY.get_secret_value()),
+        "azure_foundry_api_key":  _secret(_s.AZURE_FOUNDRY_API_KEY.get_secret_value()),
+        "google_api_key":         _secret(_s.GOOGLE_API_KEY.get_secret_value()),
+        "openaicodex_api_key":    _secret(_s.OPENAI_CODEX_API_KEY.get_secret_value()),
+        "hindsight_api_key":      _secret(_s.HINDSIGHT_API_KEY.get_secret_value()),
+        "browserbase_api_key":    _secret(_s.BROWSERBASE_API_KEY.get_secret_value()),
     },
     "media": {
         "wan2gp_url": _s.WAN2GP_URL,
@@ -727,6 +817,92 @@ CONFIG: dict = {
     },
     "home_assistant": _s.home_assistant.model_dump(),
 }
+
+# ── Afterburner: inject CONFIG values into os.environ for absorbed code ──────
+# vectorcode/src/ (Hermes/OpenJarvis/Ruflo) uses os.getenv() directly (~1500 calls).
+# Instead of editing 330+ files, we pre-populate os.environ with CONFIG values
+# at startup. Existing os.getenv() calls automatically pick up CONFIG settings.
+# Shell env takes precedence (setdefault, not set).
+
+_CFG = CONFIG  # local alias for lazy closures
+
+
+def _resolve_cfg(path: str, default: str = "") -> str:
+    """Resolve a dotted CONFIG path like 'api_keys.anthropic_key' to a value."""
+    val: object = _CFG
+    for part in path.split("."):
+        if isinstance(val, dict):
+            val = val.get(part, default)
+        else:
+            return default
+    if isinstance(val, str):
+        return val
+    if isinstance(val, bool):
+        return "1" if val else "0"
+    return default
+
+
+# Maps: target env var name → CONFIG dotted path
+_ENV_ALIASES: dict[str, str] = {
+    # Naming mismatches: CONFIG uses shorter keys, vectorcode/src/ uses _API_KEY suffix
+    "ANTHROPIC_API_KEY":     "api_keys.anthropic_key",
+    "GEMINI_API_KEY":        "api_keys.gemini_key",
+    "MISTRAL_API_KEY":       "api_keys.mistral_key",
+    "OPENROUTER_API_KEY":    "api_keys.openrouter_key",
+    "ELEVENLABS_API_KEY":    "api_keys.elevenlabs_key",
+    "OPENAI_API_KEY":        "api_keys.openai_api_key",
+    "GROQ_API_KEY":          "api_keys.groq_api_key",
+    "XAI_API_KEY":           "api_keys.xai_api_key",
+    "MINIMAX_API_KEY":       "api_keys.minimax_api_key",
+    "TAVILY_API_KEY":        "api_keys.tavily_api_key",
+    "FIRECRAWL_API_KEY":     "api_keys.firecrawl_api_key",
+    "HONCHO_API_KEY":        "api_keys.honcho_api_key",
+    "DEEPGRAM_API_KEY":      "api_keys.deepgram_api_key",
+    "OLLAMA_API_KEY":        "api_keys.ollama_api_key",
+    "AZURE_ANTHROPIC_KEY":   "api_keys.azure_anthropic_key",
+    "AZURE_FOUNDRY_API_KEY": "api_keys.azure_foundry_api_key",
+    "GOOGLE_API_KEY":        "api_keys.google_api_key",
+    "OPENAI_CODEX_API_KEY":  "api_keys.openaicodex_api_key",
+    "HINDSIGHT_API_KEY":     "api_keys.hindsight_api_key",
+    "BROWSERBASE_API_KEY":   "api_keys.browserbase_api_key",
+    # Runtime vars with different CONFIG key names
+    "VECTOR_HOME":            "vector_home",
+    "VECTOR_TIMEZONE":        "vector_timezone",
+    "VECTOR_ALLOW_SHELL_EXEC":"allow_shell_exec",
+    "VECTOR_WRITE_SAFE_ROOT": "write_safe_root",
+    "VECTOR_ALLOW_PRIVATE_URLS": "allow_private_urls",
+    "VECTOR_ALLOW_COMMIT_DRIFT": "allow_commit_drift",
+    # Duplicate api_keys entries with top-level keys for broad coverage
+    "GITHUB_TOKEN":           "api_keys.github_token",
+    "ELEVENLABS_KEY":         "api_keys.elevenlabs_key",
+    "HASS_TOKEN":             "api_keys.hass_token",
+    "HASS_URL":               "api_keys.hass_url",
+    "NEWSAPI_KEY":            "api_keys.newsapi_key",
+    "VIRUSTOTAL_KEY":         "api_keys.virustotal_key",
+    "STRIPE_KEY":             "api_keys.stripe_key",
+    "SUPABASE_KEY":           "api_keys.supabase_key",
+    "PUSHOVER_TOKEN":         "api_keys.pushover_token",
+    "PUSHOVER_USER":          "api_keys.pushover_user",
+    "INSTAGRAM_ACCESS_TOKEN":  "api_keys.instagram_access_token",
+    "KIIT_USERNAME":          "api_keys.kiit_username",
+    "KIIT_PASSWORD":          "api_keys.kiit_password",
+    "MUAPI_API_KEY":          "api_keys.muapi_api_key",
+    "PAGESPEED_API_KEY":      "api_keys.pagespeed_api_key",
+    "ELEVENLABS_VOICE_ID":    "api_keys.elevenlabs_voice_id",
+    "YOUTUBE_CHANNEL_ID":     "api_keys.youtube_channel_id",
+    "INSTAGRAM_ACCOUNT_ID":   "api_keys.instagram_account_id",
+}
+
+
+def inject_env() -> None:
+    """Populate os.environ with CONFIG values. Uses setdefault so shell env wins."""
+    for env_key, cfg_path in _ENV_ALIASES.items():
+        val = _resolve_cfg(cfg_path)
+        if val:
+            os.environ.setdefault(env_key, val)
+
+
+inject_env()
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
