@@ -1,5 +1,6 @@
 import time
 import pytest
+from loguru import logger
 from districts.emergency.runbook import RunbookExecutor, RunbookAction, ActionResult
 from districts.emergency.classifier import ScoredEmergency
 from districts.emergency.detector import EmergencyEvent
