@@ -375,7 +375,7 @@ class SkillManager:
         self._tool_executor = tool_executor
 
     # ------------------------------------------------------------------
-    # Semantic match (Plan 3B)
+    # Semantic match (Plan 3B) — delegates to SkillMatcher
     # ------------------------------------------------------------------
 
     def match(
@@ -385,126 +385,40 @@ class SkillManager:
         action_type: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> List[MatchedSkill]:
-        """Return skills matching *query* with confidence >= 0.6, sorted descending.
+        """Return skills with confidence >= 0.6 sorted descending.
 
-        Accepts either a free-text *query* string or keyword args *action_type* /
-        *params* (as used by the autonomous loop).  Loads candidates from
-        ``data/skills_manifest.json`` when available, falling back to the
-        in-memory ``_skills`` catalog.
+        Delegates to :class:`SkillMatcher` for manifest-backed scoring,
+        then falls back to in-memory *_skills* catalog if the manifest
+        is unavailable.
         """
-        import json
-
-        if query is None and action_type:
+        matcher = SkillMatcher()
+        results = matcher.match(query, action_type=action_type, params=params)
+        if results:
+            return results
+        # Fallback: score in-memory catalog
+        if not query and action_type:
             query = action_type.replace("_", " ")
-            if params:
-                query += " " + " ".join(
-                    str(v) for v in params.values() if isinstance(v, str)
-                )
         if not query:
             return []
-
         query_lower = query.lower()
-        query_words = set(query_lower.split())
-
-        manifest_path = self._find_manifest_path()
-        if manifest_path is not None:
-            try:
-                with open(manifest_path, encoding="utf-8", errors="replace") as fh:
-                    manifest_data = json.load(fh)
-                results: List[MatchedSkill] = []
-                for skill_id, skill_data in manifest_data.items():
-                    confidence = self._score_skill(skill_data, skill_id, query_lower, query_words)
-                    if confidence >= 0.6:
-                        results.append(
-                            MatchedSkill(
-                                name=skill_data.get("name", skill_id),
-                                description=str(skill_data.get("description", ""))[:200],
-                                confidence=confidence,
-                                skill_id=skill_id,
-                                category=str(skill_data.get("category", "")),
-                                triggers=[str(t) for t in skill_data.get("triggers", [])],
-                            )
-                        )
-                results.sort(key=lambda s: s.confidence, reverse=True)
-                return results
-            except Exception as exc:
-                logger.debug("[VECTOR][skills.manager] manifest load failed: %s", exc)
-
-        return self._match_from_registered(query_lower, query_words)
-
-    def _find_manifest_path(self) -> Optional[Path]:
-        """Locate data/skills_manifest.json relative to the repo root."""
-        candidates = [
-            Path("data/skills_manifest.json"),
-            Path(__file__).parent.parent.parent.parent / "data" / "skills_manifest.json",
-        ]
-        for p in candidates:
-            if p.exists():
-                return p
-        return None
-
-    @staticmethod
-    def _score_skill(
-        skill_data: Dict[str, Any],
-        skill_id: str,
-        query_lower: str,
-        query_words: set,
-    ) -> float:
-        """Score a skill dict against the query; returns [0, 1]."""
-        name = str(skill_data.get("name", skill_id)).lower()
-        sid = skill_id.lower()
-        description = str(skill_data.get("description", "")).lower()
-        trigger_text = " ".join(str(t) for t in skill_data.get("triggers", [])).lower()
-
-        if not query_words:
-            return 0.0
-
-        # Exact match
-        if query_lower in (name, sid):
-            return 1.0
-
-        name_words = set(name.replace("-", " ").replace("_", " ").split())
-        id_words = set(sid.replace("-", " ").replace("_", " ").split())
-        all_name_words = name_words | id_words
-        desc_words = set(description.split())
-        trigger_words = set(trigger_text.split())
-
-        name_overlap = len(query_words & all_name_words) / len(query_words)
-        desc_overlap = len(query_words & desc_words) / len(query_words)
-        trigger_overlap = len(query_words & trigger_words) / len(query_words)
-        name_substr = any(w in name or w in sid for w in query_words if len(w) > 3)
-
-        confidence = max(
-            name_overlap * 0.9,
-            desc_overlap * 0.75,
-            trigger_overlap * 0.65,
-            0.7 if name_substr else 0.0,
-        )
-        return round(confidence, 3)
-
-    def _match_from_registered(
-        self, query_lower: str, query_words: set
-    ) -> List[MatchedSkill]:
-        """Fallback: score in-memory _skills catalog."""
-        results: List[MatchedSkill] = []
+        query_words = {w for w in query_lower.split() if w}
+        fallback: List[MatchedSkill] = []
         for skill_name, manifest in self._skills.items():
             skill_data: Dict[str, Any] = {
                 "name": manifest.name,
                 "description": manifest.description or "",
                 "triggers": list(manifest.tags),
             }
-            confidence = self._score_skill(skill_data, skill_name, query_lower, query_words)
+            confidence = _score(skill_data, skill_name, query_lower, query_words)
             if confidence >= 0.6:
-                results.append(
-                    MatchedSkill(
-                        name=manifest.name,
-                        description=manifest.description or "",
-                        confidence=confidence,
-                        skill_id=skill_name,
-                    )
-                )
-        results.sort(key=lambda s: s.confidence, reverse=True)
-        return results
+                fallback.append(MatchedSkill(
+                    name=manifest.name,
+                    description=manifest.description or "",
+                    confidence=confidence,
+                    skill_id=skill_name,
+                ))
+        fallback.sort(key=lambda s: s.confidence, reverse=True)
+        return fallback
 
     # ------------------------------------------------------------------
     # Lifecycle
