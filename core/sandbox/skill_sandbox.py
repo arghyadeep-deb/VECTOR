@@ -111,8 +111,13 @@ class SkillSandboxRunner:
 
         approved = level in ("GREEN", "YELLOW")
 
+        # Resolve skill_md_path to an absolute path so the subprocess can find it
+        # regardless of its working directory (sandbox uses a temp dir by default).
+        _project_root = Path(__file__).parent.parent.parent
+        abs_md_path = str(_project_root / skill_md_path) if skill_md_path else ""
+
         # Build the sandboxed script — uses only stdlib, no network, no LLM
-        safe_code = _build_skill_verification_code(skill_id, category, skill_md_path)
+        safe_code = _build_skill_verification_code(skill_id, category, abs_md_path)
 
         sandbox_result = await self._sandbox.run_code_safe(safe_code, timeout=15.0)
 
