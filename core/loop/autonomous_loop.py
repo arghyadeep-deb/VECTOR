@@ -812,7 +812,6 @@ class AutonomousLoop:
 
             try:
                 from core.training.data_collector import DataCollector
-                import json
                 DataCollector().record(
                     input_text=f"{winner.action_type}: {json.dumps(winner.params, default=str)}",
                     output_text=json.dumps(result.get("data", {}), default=str),
