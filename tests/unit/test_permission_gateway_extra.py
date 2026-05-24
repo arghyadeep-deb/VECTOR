@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.loop.permission_gateway import PermissionGateway, Action, GatewayResult
 
@@ -21,6 +21,187 @@ def gateway():
     g._check_capability = MagicMock(return_value=(True, "mock ok"))
     g._wait_for_confirmation = AsyncMock(return_value=False)
     return g
+
+
+class TestGatewayExecute:
+    """Test execute() — GREEN/YELLOW/RED/FORBIDDEN/UNKNOWN branches."""
+
+    async def test_execute_green_action_approved(self, gateway):
+        action = make_action("search_web", {"query": "test"})
+        result = await gateway.execute(action)
+        assert result.approved is True
+        assert result.level == "GREEN"
+        assert result.executed is True
+
+    async def test_execute_green_notifies(self, gateway):
+        action = make_action("search_web", {"query": "hello"})
+        await gateway.execute(action)
+        gateway._notify.assert_called()
+
+    async def test_execute_yellow_action_approved(self, gateway):
+        action = make_action("create_calendar_event", {"title": "Meeting"})
+        result = await gateway.execute(action)
+        assert result.approved is True
+        assert result.level == "YELLOW"
+        assert result.executed is True
+
+    async def test_execute_yellow_notifies(self, gateway):
+        action = make_action("set_reminder", {"time": "18:00"})
+        await gateway.execute(action)
+        gateway._notify.assert_called()
+
+    async def test_execute_forbidden_blocked(self, gateway):
+        action = make_action("format_drive", {})
+        result = await gateway.execute(action)
+        assert result.approved is False
+        assert result.level == "FORBIDDEN"
+        assert result.executed is False
+
+    async def test_execute_unknown_blocked(self, gateway):
+        action = make_action("some_completely_unknown_xyz_action_999", {})
+        result = await gateway.execute(action)
+        assert result.approved is False
+        assert result.level == "UNKNOWN"
+
+    async def test_execute_red_denied_no_humanlayer(self, gateway):
+        # _wait_for_confirmation returns False → timed out / denied
+        action = make_action("push_github", {})
+        result = await gateway.execute(action)
+        assert result.approved is False
+        assert result.level == "RED"
+
+    async def test_execute_capability_check_fail_blocks(self):
+        g = PermissionGateway()
+        g._notify = AsyncMock()
+        g._execute_action = AsyncMock(return_value={"status": "ok"})
+        g._check_capability = MagicMock(return_value=(False, "no capability"))
+        action = make_action("search_web", {})
+        result = await g.execute(action)
+        assert result.approved is False
+
+    async def test_execute_writes_audit(self, gateway):
+        action = make_action("play_music", {"track": "jazz"})
+        await gateway.execute(action)
+        assert len(gateway.audit_log) > 0
+
+    async def test_confirm_action_no_pending_returns_false(self):
+        g = PermissionGateway()
+        result = g.confirm_action("nonexistent_action_type")
+        assert result is False
+
+
+class TestExecuteActionStubs:
+    """Test _execute_action() directly for all stub action types."""
+
+    async def test_play_music_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("play_music", {"track": "jazz"}, "test"))
+        assert result["status"] == "ok"
+        assert "played" in result
+
+    async def test_set_timer_returns_duration(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("set_timer", {"duration_sec": 120}, "test"))
+        assert result["set"] == 120
+        assert result["status"] == "ok"
+
+    async def test_set_timer_default_duration(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("set_timer", {}, "test"))
+        assert result["set"] == 60
+
+    async def test_check_weather_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("check_weather", {"location": "Kolkata"}, "test"))
+        assert result["status"] == "ok"
+        assert result["location"] == "Kolkata"
+
+    async def test_check_attendance_returns_checked(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("check_attendance", {}, "test"))
+        assert result["checked"] is True
+        assert result["status"] == "ok"
+
+    async def test_commit_code_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("commit_code", {"msg": "fix bug"}, "test"))
+        assert result["status"] == "ok"
+        assert result["committed"] is True
+
+    async def test_write_note_personal_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("write_note_personal", {"title": "Note"}, "test"))
+        assert result["status"] == "ok"
+        assert result["title"] == "Note"
+
+    async def test_send_email_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("send_email", {"to": "a@b.com"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_delete_files_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("delete_files", {"path": "/tmp/x"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_financial_transaction_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("financial_transaction", {"amount": 100}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_respond_echoes_message(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("respond", {"message": "Hello, sir."}, "test"))
+        assert result["status"] == "ok"
+        assert result["message"] == "Hello, sir."
+
+    async def test_respond_default_message(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("respond", {}, "test"))
+        assert result["status"] == "ok"
+        assert "message" in result
+
+    async def test_unknown_action_acknowledged(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("no_such_action_xyz", {}, "test"))
+        assert result["status"] == "ok"
+        assert "note" in result
+
+    async def test_widget_open_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("widget_open", {"id": "calendar"}, "test"))
+        assert result["status"] == "ok"
+        assert "message" in result
+
+    async def test_widget_close_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("widget_close", {"id": "map"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_widget_close_all_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("widget_close", {"id": "all"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_music_pause_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("music_pause", {}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_music_next_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("music_next", {}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_widget_show_location_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("widget_show_location", {"query": "KIIT"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_open_panel_returns_ok(self):
+        g = PermissionGateway()
+        result = await g._execute_action(Action("open_panel", {"panel": "health"}, "test"))
+        assert result["status"] == "ok"
 
 
 class TestRecordUnknownAction:
