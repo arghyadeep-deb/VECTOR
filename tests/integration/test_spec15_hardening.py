@@ -257,7 +257,7 @@ class TestHPValidatorWiredInAgentBase:
 
     def _make_agent(self):
         from core.city.agent_base import AgentBase
-        agent = AgentBase(name="test_hardening_agent", role="tester")
+        agent = AgentBase(agent_id="test-hardening-001", name="test_hardening_agent", district="qa")
         agent.health_points = 500
         return agent
 
