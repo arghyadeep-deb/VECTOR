@@ -568,15 +568,17 @@ class SkillManager:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-class _NullToolExecutor(ToolExecutor):
-    """A no-op ToolExecutor used when no real executor is available.
+if _FULL_DEPS:
+    class _NullToolExecutor(ToolExecutor):  # type: ignore[valid-type]
+        """A no-op ToolExecutor used when no real executor is available."""
 
-    Allows SkillTool/SkillExecutor construction to succeed even before a
-    real tool executor is wired in; any actual tool call will produce an
-    error ToolResult rather than raising.
-    """
+        def __init__(self) -> None:
+            super().__init__(tools=[], bus=None)
+else:
+    class _NullToolExecutor:  # type: ignore[no-redef]
+        """Stub when vc_tools is not available."""
+        def __init__(self) -> None:
+            pass
 
-    def __init__(self) -> None:
-        super().__init__(tools=[], bus=None)
 
-__all__ = ["SkillManager"]
+__all__ = ["SkillManager", "SkillMatcher"]
