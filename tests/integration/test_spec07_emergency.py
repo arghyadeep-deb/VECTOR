@@ -143,8 +143,8 @@ class TestSeverityClassifier(unittest.TestCase):
     def test_security_scores_higher_than_battery(self):
         sec_event = self._make_event("security", "intrusion_detected", "sec-001")
         bat_event = self._make_event("battery", "battery_low", "bat-001")
-        sec_cls = SeverityClassifier()
-        bat_cls = SeverityClassifier()
+        sec_cls = self.classifier.__class__()
+        bat_cls = self.classifier.__class__()
         sec = sec_cls.classify(sec_event)
         bat = bat_cls.classify(bat_event)
         self.assertGreater(sec.severity_score, bat.severity_score)
