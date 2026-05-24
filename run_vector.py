@@ -862,6 +862,7 @@ def _setup_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
 
 async def run_loop() -> None:
     """Start the autonomous loop. This is intended to run until interrupted."""
+    asyncio.get_running_loop().set_exception_handler(_asyncio_exception_handler)
     preflight_checks()
     _setup_signal_handlers(asyncio.get_running_loop())
     await _start_background_services()
