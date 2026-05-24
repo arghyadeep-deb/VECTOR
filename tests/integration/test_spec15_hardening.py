@@ -338,7 +338,7 @@ class TestMCPRateLimiting:
             assert self.mw.check_rate_limit("district_b", "read_file") is True
 
     def test_rate_limit_exceeded(self):
-        from core.security.mcp_security import RATE_LIMIT_DISTRICT
+        from core.security.mcp_security import MCPSecurityMiddleware, RATE_LIMIT_DISTRICT
         mw = MCPSecurityMiddleware(db_path=":memory:")
         for _ in range(RATE_LIMIT_DISTRICT):
             mw.check_rate_limit("district_c", "read_file")
@@ -346,7 +346,7 @@ class TestMCPRateLimiting:
         assert mw.check_rate_limit("district_c", "read_file") is False
 
     def test_different_districts_independent(self):
-        from core.security.mcp_security import RATE_LIMIT_DISTRICT
+        from core.security.mcp_security import MCPSecurityMiddleware, RATE_LIMIT_DISTRICT
         mw = MCPSecurityMiddleware(db_path=":memory:")
         for _ in range(RATE_LIMIT_DISTRICT):
             mw.check_rate_limit("district_d", "read_file")
