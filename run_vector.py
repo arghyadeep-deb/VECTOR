@@ -76,13 +76,6 @@ def _asyncio_exception_handler(loop, context):
         logger.critical("[VECTOR][async-unhandled] {msg}", msg=msg)
 
 
-try:
-    loop = asyncio.get_running_loop()
-except RuntimeError:
-    loop = asyncio.get_event_loop_policy().get_event_loop()
-loop.set_exception_handler(_asyncio_exception_handler)
-
-
 CORE_DISTRICTS = (
     ("governance-001", "GovernorCouncil", "governance"),
     ("coding-001", "CodeDistrict", "coding"),
