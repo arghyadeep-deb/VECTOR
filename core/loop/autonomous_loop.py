@@ -757,18 +757,19 @@ class AutonomousLoop:
 
         try:
             # Phase 3B: check VectorCode Skills system before governor dispatch
-            # If a skill matches with confidence > 0.8, execute via skills and skip governor.
+            # If a skill matches with confidence > 0.6, execute via skills and skip governor.
             _skill_executed = False
             try:
                 from vectorcode.src.skills.manager import SkillManager
                 sm = SkillManager()
-                skill = sm.match(action_type=winner.action_type, params=winner.params)
-                if skill and getattr(skill, 'confidence', 0) > 0.8:
-                    skill_result = await sm.execute(skill, winner.params)
-                    if skill_result and skill_result.get("status") != "error":
-                        result = skill_result
+                skills = sm.match(action_type=winner.action_type, params=winner.params)
+                skill = skills[0] if skills else None
+                if skill and skill.confidence > 0.6:
+                    skill_result = sm.execute(skill.name, winner.params)
+                    if skill_result and getattr(skill_result, "status", None) != "error":
+                        result = {"status": "ok", "skill": skill.name}
                         _skill_executed = True
-                        logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{getattr(skill, 'name', '?')}'")
+                        logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{skill.name}' (conf={skill.confidence:.2f})")
             except Exception as _sk_err:
                 logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
 
