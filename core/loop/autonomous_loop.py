@@ -1285,6 +1285,20 @@ class AutonomousLoop:
             logger.debug("[VECTOR][autonomous_loop] session persistence skipped: {}", e)
             self._session = None
 
+        # Restore agent HP from last checkpoint
+        try:
+            from core.loop.loop_state import restore_agent_hp, load_decision
+            from core.city.agent_registry import get_registry
+            restored = restore_agent_hp(get_registry())
+            last = load_decision()
+            if last:
+                logger.info(
+                    "[VECTOR][loop_state] last decision: {} score={:.3f} at {}",
+                    last.get("action_type"), last.get("score", 0), last.get("ts", "?")[:19],
+                )
+        except Exception as _ls_err:
+            logger.debug("[VECTOR][loop_state] restore skipped: {}", _ls_err)
+
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
@@ -1302,6 +1316,7 @@ class AutonomousLoop:
             self.health_analysis_cycle(),
             self.emergency_detection_cycle(),
             self.research_loop(),
+            self.state_checkpoint_loop(),
             return_exceptions=True,
         )
 
