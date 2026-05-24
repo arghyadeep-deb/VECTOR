@@ -152,7 +152,7 @@ class TestDieAndInherit:
         assert a.ghost_memory != {}
 
     def test_inherit_ghost_lessons(self):
-        a = make_agent(generation=2)
+        a = AgentBase(str(uuid.uuid4()), "InheritBot", "coding", generation=2)
         ghost = {
             "lessons_learned": ["lesson1", "lesson2"],
             "best_decisions": [{"action": "research", "reward": 0.9}],
