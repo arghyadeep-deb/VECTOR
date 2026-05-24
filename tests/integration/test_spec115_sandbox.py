@@ -23,10 +23,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # ---------------------------------------------------------------------------
 # Helper: run async test bodies synchronously
+# Use asyncio.run() — creates a fresh event loop each call, avoiding
+# "event loop is closed" errors when the full suite runs multiple files.
 # ---------------------------------------------------------------------------
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------
