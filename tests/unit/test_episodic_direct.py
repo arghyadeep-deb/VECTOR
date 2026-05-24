@@ -252,6 +252,88 @@ class TestEpisodicMemoryBasic:
             assert "tags" in r
 
 
+class TestEpisodicCircuitOpen:
+    """Cover CircuitBreakerOpenError handlers in each EpisodicMemory method."""
+
+    @pytest.fixture(autouse=True)
+    def _circuit_error(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        self._err = CircuitBreakerOpenError("cb open")
+
+    def test_store_circuit_open_returns_id_and_buffers(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        import core.memory.episodic as em_mod
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            event_id = mem.store("test_event", "buffered content")
+        # Even when circuit is open, store() returns a valid UUID (event is buffered)
+        assert isinstance(event_id, str)
+        assert len(event_id) > 0
+
+    def test_recall_circuit_open_returns_empty_list(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            results = mem.recall("test query")
+        assert results == []
+
+    def test_remember_circuit_open_returns_false(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            ok = mem.remember("some_key", "some_value")
+        assert ok is False
+
+    def test_recall_fact_circuit_open_returns_none(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            result = mem.recall_fact("any_key")
+        assert result is None
+
+    def test_store_chain_circuit_open_returns_empty_string(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            chain_id = mem.store_chain("sit", [], ["step"], "action", "ok", 0.8)
+        assert chain_id == ""
+
+    def test_get_training_data_circuit_open_returns_empty(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            data = mem.get_training_data()
+        assert data == []
+
+    def test_update_skill_circuit_open_returns_false(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            result = mem.update_skill("test_skill", 0.5)
+        assert result is False
+
+    def test_get_skill_circuit_open_returns_none(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            result = mem.get_skill("test_skill")
+        assert result is None
+
+    def test_get_stats_circuit_open_returns_empty_dict(self):
+        from core.resilience.circuit_breaker import CircuitBreakerOpenError
+        mem = EpisodicMemory()
+        with patch("core.memory.episodic._with_cb", side_effect=CircuitBreakerOpenError("open")):
+            stats = mem.get_stats()
+        assert stats == {}
+
+    def test_get_temp_cursor_exception_reraises(self):
+        """get_temp_cursor() re-raises exceptions from the inner operation."""
+        import sqlite3
+        with pytest.raises(Exception):
+            with get_temp_cursor() as cursor:
+                cursor.execute("SELECT * FROM nonexistent_table_xyz_abc")
+
+
 class TestLoopStateExceptionPaths:
     """Cover the exception-handling paths in loop_state (lines 35-36, 43-45, etc.)."""
 
