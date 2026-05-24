@@ -23,6 +23,13 @@ Ported from the agent OS runtime LLM drivers (anthropic.rs, gemini.rs, openai.rs
 """
 from __future__ import annotations
 
+__all__ = [
+    "CompletionResult",
+    "get_client",
+    "ProviderClient",
+]
+
+
 import asyncio
 import json
 import os
@@ -85,22 +92,43 @@ class ProviderClient:
         messages: list[dict],
         provider: str | None = None,
         model: str | None = None,
-        tier: str = "agentic",
+        tier: str = “agentic”,
         temperature: float = 0.7,
         max_tokens: int = 4096,
         tools: list[dict] | None = None,
-        caller_id: str = "system",
+        caller_id: str = “system”,
+        inject_personality: bool = False,
     ) -> CompletionResult:
-        """
+        “””
         Multi-turn chat with automatic provider routing and fallback.
 
         Pipeline:
+          0. (optional) Personality injection — sentiment-aware system prompt
           1. Rate-limit check (GCRA, 500 tokens/min per caller)
           2. ModelRouter resolves tier â†’ model
           3. ReliableProvider wraps call with retry + backoff
           4. Tries providers in order until one succeeds
-        """
-        # â”€â”€ Rate limit check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          5. (optional) Consistency enforcement — rewrite off-character responses
+        “””
+        # ── Personality injection ─────────────────────────────────────────────
+        _personality_layer = None
+        _user_text_for_validation = “”
+        _sentiment_for_validation = “neutral”
+        if inject_personality:
+            try:
+                from core.personality.middleware import get_personality_layer
+                _personality_layer = get_personality_layer()
+                for m in reversed(messages):
+                    if m.get(“role”) == “user”:
+                        _user_text_for_validation = m.get(“content”, “”)
+                        break
+                messages = _personality_layer.inject(messages, user_text=_user_text_for_validation)
+                _sentiment_result = _personality_layer.analyze_sentiment(_user_text_for_validation)
+                _sentiment_for_validation = _sentiment_result.emotion
+            except Exception as _pe:
+                logger.warning(“[VECTOR][provider_client] personality injection failed: {}”, _pe)
+
+        # ── Rate limit check ──────────────────────────────────────────────────
         try:
             from core.metering.rate_limiter import get_rate_limiter
             rl = get_rate_limiter()
