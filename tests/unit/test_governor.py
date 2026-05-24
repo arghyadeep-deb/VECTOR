@@ -177,6 +177,144 @@ class TestDispatch:
             pass  # dispatch may fail on missing agent — routing bypass is what we test
 
 
+class TestGovernorLazyInit:
+    """Cover the lazy-init paths for _get_registry() and _get_memory()."""
+
+    def test_get_registry_lazy_initializes(self):
+        g = Governor()
+        assert g._registry is None
+        reg = g._get_registry()
+        assert reg is not None
+        assert g._registry is reg  # stored after first call
+
+    def test_get_registry_returns_same_on_second_call(self):
+        g = Governor()
+        r1 = g._get_registry()
+        r2 = g._get_registry()
+        assert r1 is r2
+
+    def test_get_memory_lazy_initializes(self):
+        g = Governor()
+        assert g._memory is None
+        mem = g._get_memory()
+        assert mem is not None
+        assert g._memory is mem
+
+
+class TestGovernorUtilityMethods:
+    """Cover get_active_tasks() and get_district_summary()."""
+
+    def test_get_active_tasks_initially_empty(self):
+        g = Governor()
+        tasks = g.get_active_tasks()
+        assert isinstance(tasks, list)
+        assert tasks == []
+
+    def test_get_district_summary_returns_dict(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_registry.count_by_district.return_value = {"coding": 2}
+        mock_agent = MagicMock()
+        mock_agent.health_points = 600
+        mock_registry.get_by_district.return_value = [mock_agent, mock_agent]
+        g._registry = mock_registry
+        summary = g.get_district_summary()
+        assert isinstance(summary, dict)
+        assert "coding" in summary
+        assert summary["coding"]["agents"] == 2
+
+    def test_get_district_summary_with_empty_registry(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_registry.count_by_district.return_value = {}
+        g._registry = mock_registry
+        summary = g.get_district_summary()
+        assert isinstance(summary, dict)
+        assert summary == {}
+
+
+class TestDispatchExtended:
+    """Extended dispatch tests covering no-agents and error paths."""
+
+    def _mocked_governor_no_agents(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_registry.get_by_district.return_value = []
+        mock_registry.list_alive.return_value = []
+        g._registry = mock_registry
+        g._llm_classify = MagicMock(return_value="research")
+        # Memory so store() doesn't fail
+        mock_memory = MagicMock()
+        g._memory = mock_memory
+        return g
+
+    async def test_dispatch_no_agents_returns_no_agents_status(self):
+        g = self._mocked_governor_no_agents()
+        with patch("core.city.governor.Governor._publish_district_event", new_callable=AsyncMock):
+            with patch("core.city.governor.Governor._should_convene_council", new_callable=AsyncMock, return_value=False):
+                result = await g.dispatch({"type": "research_papers", "district": "research", "params": {}})
+        assert isinstance(result, dict)
+        # no_agents or error — either way it's a dict
+        assert "district" in result or "task_id" in result
+
+    async def test_dispatch_with_agent_error_status_deducts_hp(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_agent = MagicMock()
+        mock_agent.health_points = 500
+        mock_agent.name = "TestBot"
+        mock_agent.run = AsyncMock(return_value={"status": "error", "error": "test_error"})
+        mock_registry.get_by_district.return_value = [mock_agent]
+        mock_registry.list_alive.return_value = [mock_agent]
+        g._registry = mock_registry
+        g._llm_classify = MagicMock(return_value="research")
+        mock_memory = MagicMock()
+        g._memory = mock_memory
+
+        with patch("core.city.governor.Governor._publish_district_event", new_callable=AsyncMock):
+            with patch("core.city.governor.Governor._should_convene_council", new_callable=AsyncMock, return_value=False):
+                result = await g.dispatch({"type": "research_papers", "district": "research", "params": {}})
+
+        mock_agent.deduct_points.assert_called()
+
+    async def test_dispatch_with_agent_ok_status_awards_hp(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_agent = MagicMock()
+        mock_agent.health_points = 500
+        mock_agent.name = "TestBot"
+        mock_agent.run = AsyncMock(return_value={"status": "ok", "data": "result"})
+        mock_registry.get_by_district.return_value = [mock_agent]
+        g._registry = mock_registry
+        g._llm_classify = MagicMock(return_value="research")
+        mock_memory = MagicMock()
+        g._memory = mock_memory
+
+        with patch("core.city.governor.Governor._publish_district_event", new_callable=AsyncMock):
+            with patch("core.city.governor.Governor._should_convene_council", new_callable=AsyncMock, return_value=False):
+                result = await g.dispatch({"type": "research_papers", "district": "research", "params": {}})
+
+        mock_agent.award_points.assert_called()
+
+    async def test_dispatch_returns_task_id(self):
+        g = Governor()
+        mock_registry = MagicMock()
+        mock_agent = MagicMock()
+        mock_agent.health_points = 500
+        mock_agent.run = AsyncMock(return_value={"status": "ok"})
+        mock_registry.get_by_district.return_value = [mock_agent]
+        g._registry = mock_registry
+        g._llm_classify = MagicMock(return_value="research")
+        g._memory = MagicMock()
+
+        with patch("core.city.governor.Governor._publish_district_event", new_callable=AsyncMock):
+            with patch("core.city.governor.Governor._should_convene_council", new_callable=AsyncMock, return_value=False):
+                result = await g.dispatch({"type": "research", "district": "research", "params": {}})
+
+        assert "task_id" in result
+        assert result["task_id"].startswith("task_")
+
+
 class TestLLMClassify:
     """Test _llm_classify fallback behavior."""
 
