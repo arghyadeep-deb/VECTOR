@@ -195,6 +195,8 @@ def _make_server():
     @mcp.tool
     def store_memory(content: str, event_type: str = "mcp_event", tags: str = "") -> str:
         """Store an event in VECTOR's episodic memory. tags: comma-separated string."""
+        if not _mcp_secure_call("store_memory", "mcp_client", {"event_type": event_type}):
+            return "store_memory blocked by MCP security rate limit."
         try:
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
