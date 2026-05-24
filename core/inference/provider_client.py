@@ -181,6 +181,24 @@ class ProviderClient:
                 result = await self._call_with_retry(
                     prov, target_model, messages, temperature, max_tokens, tools
                 )
+                # ── Consistency enforcement ───────────────────────────────────
+                if _personality_layer is not None and result.content:
+                    try:
+                        final_content, _val = _personality_layer.validate(
+                            result.content,
+                            user_text=_user_text_for_validation,
+                            sentiment=_sentiment_for_validation,
+                        )
+                        result = CompletionResult(
+                            content=final_content,
+                            model=result.model,
+                            provider=result.provider,
+                            input_tokens=result.input_tokens,
+                            output_tokens=result.output_tokens,
+                            finish_reason=result.finish_reason,
+                        )
+                    except Exception as _ve:
+                        logger.warning("[VECTOR][provider_client] consistency check failed: {}", _ve)
                 return result
             except Exception as e:
                 last_error = str(e)
