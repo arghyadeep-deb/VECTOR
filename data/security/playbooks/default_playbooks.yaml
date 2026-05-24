@@ -88,3 +88,55 @@ playbooks:
         params:
           message: "Auth failure playbook rolled back"
     timeout: 120
+
+  - id: "brute_force"
+    name: "Brute Force Attack Response"
+    trigger_rules: ["Brute Force Login Attempts"]
+    steps:
+      - action: "log_evidence"
+        params:
+          incident_id: "{incident_id}"
+        description: "Capture authentication failure evidence — T1110"
+      - action: "capture_process_snapshot"
+        params:
+          sort_by: "connections"
+        description: "Snapshot active network connections"
+      - action: "notify"
+        params:
+          message: "BRUTE FORCE DETECTED (T1110): High rate of auth failures. Evidence logged."
+          priority: 2
+      - action: "escalate_to_human"
+        params:
+          message: "Brute force attack in progress. MITRE T1110 — Credential Access. Consider blocking source IP."
+        description: "Escalate to owner for manual IP block decision"
+    rollback:
+      - action: "notify"
+        params:
+          message: "Brute force playbook rolled back"
+    timeout: 180
+
+  - id: "data_destruction"
+    name: "Data Destruction Response"
+    trigger_rules: ["Data Destruction Attempt"]
+    steps:
+      - action: "log_evidence"
+        params:
+          incident_id: "{incident_id}"
+        description: "Capture destruction command evidence — T1485"
+      - action: "capture_process_snapshot"
+        params:
+          sort_by: "cpu"
+        description: "Snapshot processes to identify source"
+      - action: "notify"
+        params:
+          message: "DATA DESTRUCTION ATTEMPT (T1485): Destructive command detected. Evidence logged."
+          priority: 2
+      - action: "escalate_to_human"
+        params:
+          message: "CRITICAL: Data destruction command detected. MITRE T1485 — Impact. Immediate review required."
+        description: "Immediate escalation — highest severity"
+    rollback:
+      - action: "notify"
+        params:
+          message: "Data destruction playbook rolled back — manual verification required"
+    timeout: 60
