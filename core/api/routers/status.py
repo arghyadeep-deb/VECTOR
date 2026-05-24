@@ -1,6 +1,17 @@
 """Status router â€” /status, /health."""
 
 import sys
+
+__all__ = [
+    "daily_info",
+    "get_uptime_seconds",
+    "health_endpoint",
+    "router",
+    "START_TIME",
+    "status_endpoint",
+    "system_metrics",
+]
+
 import time
 import datetime as dt
 from pathlib import Path
@@ -73,7 +84,7 @@ async def status_endpoint():
         from core.voice.tts import VoiceTTS
         _tts = VoiceTTS()
         models_status["tts_engine"] = "kokoro" if _tts._kokoro_ok else "pyttsx3"
-        models_status["tts_kokoro_ok"] = _tts._kokoro_ok
+        models_status["tts_kokoro_ok"] = str(_tts._kokoro_ok).lower()
     except Exception:
         models_status["tts_engine"] = "unknown"
         models_status["tts_kokoro_ok"] = False
