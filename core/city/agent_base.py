@@ -138,13 +138,34 @@ class AgentBase:
         else:
             return None
 
+    def _validate_hp_delta(self, delta: float, reason: str) -> float:
+        """Run HP delta through the validator; return the validated delta."""
+        try:
+            from core.security.hp_validator import get_hp_validator
+            result = get_hp_validator().validate(
+                delta=delta,
+                agent_id=self.name,
+                source_district=getattr(self, "district", "unknown"),
+                context={"reason": reason},
+            )
+            if result.issues:
+                logger.warning(
+                    "[VECTOR][hp] {} delta={} issues: {}",
+                    self.name, delta, "; ".join(result.issues),
+                )
+            return result.validated_delta
+        except Exception as _hpe:
+            logger.debug("[VECTOR][hp] validator unavailable: {}", _hpe)
+            return delta
+
     def award_points(self, points, reason) -> dict:
+        validated = self._validate_hp_delta(float(points), reason)
         old_hp = self.health_points
-        self.health_points = min(1000, self.health_points + points)
+        self.health_points = min(1000, self.health_points + validated)
         old_model = self.model
         self.model = self._calculate_model()
         model_changed = self.model != old_model
-        logger.info(f'[VECTOR][city] {self.name} +{points}HP ({reason}) | {old_hp}->{self.health_points}')
+        logger.info(f'[VECTOR][city] {self.name} +{validated:.1f}HP ({reason}) | {old_hp}->{self.health_points}')
         if model_changed:
             logger.info(f'[VECTOR][city] {self.name} model upgraded: {old_model} -> {self.model}')
         return {
@@ -156,12 +177,13 @@ class AgentBase:
         }
 
     def deduct_points(self, points, reason) -> dict:
+        validated = abs(self._validate_hp_delta(-float(points), reason))
         old_hp = self.health_points
-        self.health_points = max(0, self.health_points - points)
+        self.health_points = max(0, self.health_points - validated)
         old_model = self.model
         self.model = self._calculate_model()
         model_changed = self.model != old_model
-        logger.warning(f'[VECTOR][city] {self.name} -{points}HP ({reason}) | {old_hp}->{self.health_points}')
+        logger.warning(f'[VECTOR][city] {self.name} -{validated:.1f}HP ({reason}) | {old_hp}->{self.health_points}')
         if self.health_points == 0:
             ghost = self.die()
             return {
