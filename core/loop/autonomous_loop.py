@@ -800,6 +800,12 @@ class AutonomousLoop:
             h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
             pm.update_from_outcome(winner.action_type, h, reward)
 
+            try:
+                from core.loop.loop_state import save_decision
+                save_decision(winner.action_type, winner.params, winner.total_score)
+            except Exception:
+                pass
+
             if winner.reasoning_chain:
                 self._get_memory().store_chain(
                     situation=json.dumps(winner.situation) if winner.situation else winner.action_type,
