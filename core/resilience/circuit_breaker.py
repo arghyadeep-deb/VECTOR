@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
+    "CircuitBreakerOpenError",
+    "CircuitBreakerRegistry",
+    "CircuitState",
+]
+
+
 import asyncio
 import time
 from enum import Enum
@@ -105,6 +114,7 @@ class CircuitBreaker:
         async with self._lock:
             self.state = CircuitState.OPEN
             self.last_state_change = time.time()
+            self.last_failure_time = time.time()  # prevent immediate OPEN→HALF_OPEN transition
             logger.info("[CircuitBreaker] {} manually forced OPEN", self.config.name)
 
     async def force_close(self) -> None:
