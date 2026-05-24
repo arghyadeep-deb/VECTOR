@@ -180,7 +180,7 @@ class TestSeverityClassifier(unittest.TestCase):
         self.assertLess(ack_score, normal_score)
 
     def test_recommendation_for_critical_health(self):
-        cls = SeverityClassifier()
+        cls = self.classifier.__class__()
         event = self.EmergencyEvent(
             event_id="hr-crit", domain="health", signal_name="heart_rate_stopped",
             raw_value=0, raw_message="HR stopped", detected_at=time.time(), source="test",
