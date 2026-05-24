@@ -256,8 +256,8 @@ class TestHPValidatorWiredInAgentBase:
     """HP validator is wired: award_points and deduct_points go through validation."""
 
     def _make_agent(self):
-        from core.city.agent_base import VectorAgent
-        agent = VectorAgent(name="test_hardening_agent", role="tester")
+        from core.city.agent_base import AgentBase
+        agent = AgentBase(name="test_hardening_agent", role="tester")
         agent.health_points = 500
         return agent
 
