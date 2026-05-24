@@ -5,6 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
+
+@dataclass
+class MatchedSkill:
+    """A skill returned by SkillManager.match() with a confidence score."""
+
+    name: str
+    description: str = ""
+    confidence: float = 0.0
+    skill_id: str = ""
+    category: str = ""
+    triggers: List[str] = field(default_factory=list)
+
 @dataclass(slots=True)
 class SkillStep:
     """A single step in a skill pipeline."""
