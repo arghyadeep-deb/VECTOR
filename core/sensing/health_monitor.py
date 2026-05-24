@@ -36,6 +36,7 @@ class HealthMonitor:
     def __init__(self) -> None:
         self._fatigue_monitor = None    # FatigueMonitor, lazy
         self._psutil = None             # psutil module, lazy
+        self._wearable_connector = None # WearableConnector, lazy
 
     # ── private helpers ───────────────────────────────────────────────────────
 
