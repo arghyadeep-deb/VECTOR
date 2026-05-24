@@ -220,28 +220,17 @@ class TestSemanticMemory:
         sm.store(key, "second")
         assert sm.get(key) == "second"
 
-    def test_add_concept_async(self):
+    async def test_add_concept_async(self):
         sm = SemanticMemory()
         concept = f"concept_{uuid.uuid4().hex}"
-
-        async def _run():
-            result = await sm.add_concept(
-                concept, "A test definition", tags=["test", "memory"]
-            )
-            return result
-
-        result = asyncio.get_event_loop().run_until_complete(_run())
+        result = await sm.add_concept(concept, "A test definition", tags=["test", "memory"])
         assert result["concept"] == concept
         assert result["definition"] == "A test definition"
 
-    def test_get_concept_returns_dict(self):
+    async def test_get_concept_returns_dict(self):
         sm = SemanticMemory()
         concept = f"get_test_{uuid.uuid4().hex}"
-
-        async def _store():
-            await sm.add_concept(concept, "some definition", tags=["x"])
-
-        asyncio.get_event_loop().run_until_complete(_store())
+        await sm.add_concept(concept, "some definition", tags=["x"])
         result = sm.get_concept(concept)
         assert result is not None
         assert result["concept"] == concept
