@@ -179,17 +179,17 @@ if __name__ == "__main__":
             {
                 "skill_id": "vc-sec-analyzing-api-gateway-access-logs",
                 "category": "security",
-                "skill_md_path": r"vectorcode\skills\vc-sec-analyzing-api-gateway-access-logs\SKILL.md",
+                "skill_md_path": "vectorcode/skills/vc-sec-analyzing-api-gateway-access-logs/SKILL.md",
             },
             {
                 "skill_id": "vc-gs-benchmark",
                 "category": "general",
-                "skill_md_path": r"vectorcode\skills\vc-gs-benchmark\SKILL.md",
+                "skill_md_path": "vectorcode/skills/vc-gs-benchmark/SKILL.md",
             },
             {
                 "skill_id": "vc-ec-accessibility",
                 "category": "execution",
-                "skill_md_path": r"vectorcode\skills\vc-ec-accessibility\SKILL.md",
+                "skill_md_path": "vectorcode/skills/vc-ec-accessibility/SKILL.md",
             },
         ]
         for entry in entries:
