@@ -100,7 +100,9 @@ class TestDataCollector(unittest.TestCase):
             self.assertIn("### Response:", ex["text"])
 
     def test_deduplicate_removes_exact_dupes(self):
-        examples = [{"text": "hello world", "source": "test"}] * 5
+        # Text must be >50 chars to pass the length score check in deduplicate()
+        long_text = "This is a sufficiently long example text that exceeds the fifty character threshold."
+        examples = [{"text": long_text, "source": "test"}] * 5
         deduped = self.dc.deduplicate(examples)
         self.assertEqual(len(deduped), 1)
 
