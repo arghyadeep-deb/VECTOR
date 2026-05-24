@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "BulkheadConfig",
+    "BulkheadExecutor",
+    "BulkheadRegistry",
+    "BulkheadRejectedError",
+]
+
+
 import asyncio
 import time
 from typing import Any, Callable
@@ -35,11 +43,13 @@ class BulkheadExecutor:
         self._lock = asyncio.Lock()
 
     async def execute(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-        if self._queue_count >= self.config.max_queue:
-            self._total_rejected += 1
-            raise BulkheadRejectedError(f"Bulkhead '{self.config.name}' queue full ({self.config.max_queue})")
-
         async with self._lock:
+            # Only reject when semaphore is saturated AND the waiting queue is full.
+            # Checking both atomically prevents rejecting the very first call when max_queue=0.
+            slots_full = self._current_count >= self.config.max_concurrent
+            if slots_full and self._queue_count >= self.config.max_queue:
+                self._total_rejected += 1
+                raise BulkheadRejectedError(f"Bulkhead '{self.config.name}' queue full ({self.config.max_queue})")
             self._queue_count += 1
 
         try:
