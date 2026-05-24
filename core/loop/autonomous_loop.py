@@ -1320,6 +1320,19 @@ class AutonomousLoop:
             return_exceptions=True,
         )
 
+    async def state_checkpoint_loop(self) -> None:
+        """Save agent HP snapshot to semantic_memory every 60 s for crash recovery."""
+        logger.info("[VECTOR][loop_state] checkpoint loop started — 60s interval")
+        while self._running:
+            try:
+                await asyncio.sleep(60)
+                from core.loop.loop_state import save_agent_hp
+                from core.city.agent_registry import get_registry
+                save_agent_hp(get_registry())
+                logger.debug("[VECTOR][loop_state] agent HP snapshot saved")
+            except Exception as e:
+                logger.debug("[VECTOR][loop_state] checkpoint error: {}", e)
+
     async def degradation_monitor(self) -> None:
         logger.info("[VECTOR][degradation] monitor started Ã¢â‚¬â€ 30s check cycle")
         while self._running:
