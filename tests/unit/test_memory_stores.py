@@ -240,10 +240,10 @@ class TestSemanticMemory:
         result = sm.get_concept(f"missing_{uuid.uuid4().hex}")
         assert result is None
 
-    def test_search_concepts(self):
+    async def test_search_concepts(self):
         sm = SemanticMemory()
         unique = uuid.uuid4().hex[:8]
-        sm.store(f"search_key_{unique}", f"searchable_value_{unique}")
+        await sm.add_concept(f"search_key_{unique}", f"searchable_value_{unique}")
         results = sm.search_concepts(unique)
         assert isinstance(results, list)
 
