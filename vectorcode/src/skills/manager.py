@@ -28,7 +28,7 @@ class SkillManager:
 
     def __init__(
         self,
-        bus: EventBus,
+        bus: Optional[EventBus] = None,
         *,
         capability_policy: Optional[Any] = None,
         overlay_dir: Optional[Path] = None,
