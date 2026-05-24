@@ -14,6 +14,12 @@ MCP Client (outbound):
   This is the opposite direction â€” VECTOR as MCP consumer, not server.
 """
 import sys
+
+__all__ = [
+    "create_mcp_app",
+    "main",
+]
+
 import asyncio
 import argparse
 from pathlib import Path
@@ -37,6 +43,33 @@ except Exception:
     _VC_MCP_AVAILABLE = False
 
 from core.config import CONFIG
+
+
+def _mcp_secure_call(tool_name: str, source_district: str, params: dict) -> bool:
+    """Classify, rate-limit, and audit an MCP tool call. Returns True if allowed."""
+    try:
+        import time as _time
+        from core.security.mcp_security import get_mcp_security, ToolCallRecord
+        mw = get_mcp_security()
+        risk = mw.classify_tool(tool_name)
+        allowed = mw.check_rate_limit(source_district, tool_name)
+        anomalous = mw.detect_anomalous_call(tool_name, source_district, params)
+        if anomalous:
+            logger.warning("[VECTOR][mcp_sec] anomalous call: {} from {}", tool_name, source_district)
+        mw.audit_call(ToolCallRecord(
+            tool_name=tool_name,
+            source_district=source_district,
+            params=params,
+            timestamp=_time.time(),
+            allowed=allowed,
+            risk_level=risk,
+        ))
+        if not allowed:
+            logger.warning("[VECTOR][mcp_sec] rate-limit blocked {} from {}", tool_name, source_district)
+        return allowed
+    except Exception as _mcp_se:
+        logger.debug("[VECTOR][mcp_sec] security check failed (allowing): {}", _mcp_se)
+        return True
 
 
 def _make_server():
@@ -73,6 +106,8 @@ def _make_server():
         import re as _re
         if not _re.fullmatch(r"[a-zA-Z0-9_-]+", tool_name):
             return f"Invalid tool name '{tool_name}'. Only alphanumeric, hyphens, underscores allowed."
+        if not _mcp_secure_call(tool_name, "marketing", {"input_data": input_data[:200]}):
+            return f"Tool '{tool_name}' blocked by MCP security rate limit."
         cli_dir = Path(__file__).parent.parent / "districts" / "marketing" / "tools" / "clis"
         script = (cli_dir / f"{tool_name}.js").resolve()
         if not str(script).startswith(str(cli_dir.resolve())):
@@ -1700,7 +1735,7 @@ class Test{cls_name}:
 
     # â”€â”€ doc_* (28) â€” wired to districts/documentation/ + stdlib â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
-        from districts.documentation.doc_generator import DocGenerator
+        from districts.qa.doc_generator import DocGenerator
 
         @mcp.tool
         def doc_generate(doc_type: str = "weekly_summary") -> str:
@@ -1720,7 +1755,7 @@ class Test{cls_name}:
         def doc_update(module: str) -> str:
             """Update existing documentation for a module."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.generate_module_docs(module) if hasattr(writer, "generate_module_docs") else {"module": module, "status": "updated"}
                 return _safe_json(result)
@@ -1742,7 +1777,7 @@ class Test{cls_name}:
         def doc_extract(module: str) -> str:
             """Extract key facts from a module's documentation."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "scanned"}
                 return _safe_json(result)
@@ -1799,7 +1834,7 @@ class Test{cls_name}:
         def doc_validate(module: str) -> str:
             """Validate documentation completeness."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "validated"}
                 return _safe_json(result)
@@ -1810,7 +1845,7 @@ class Test{cls_name}:
         def doc_lint(module: str) -> str:
             """Lint documentation for issues."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "linted"}
                 return _safe_json(result)
@@ -1984,7 +2019,7 @@ class Test{cls_name}:
         def doc_review(module: str) -> str:
             """Review documentation for accuracy â€” scans source and suggests improvements."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "reviewed"}
                 return _safe_json(result)
@@ -2481,7 +2516,7 @@ class Test{cls_name}:
         def graph_symbols(file_path: str) -> str:
             """List all symbols in a file."""
             try:
-                from districts.documentation.technical_writer import TechnicalWriter
+                from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(file_path) if hasattr(writer, "scan_module") else {"file": file_path, "symbols": []}
                 return _safe_json(result)
