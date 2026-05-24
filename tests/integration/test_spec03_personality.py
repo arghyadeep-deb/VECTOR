@@ -116,8 +116,9 @@ class TestSentimentAnalyzer(unittest.TestCase):
         self.assertGreaterEqual(result.intensity, 0.0)
         self.assertLessEqual(result.intensity, 1.0)
 
-    def test_urgency_boosted_by_allcaps(self):
-        result = self.sa.analyze("FIX THIS NOW PLEASE")
+    def test_urgency_boosted_by_exclamation_and_asap(self):
+        # keyword analyzer detects urgency via literal phrases, not all-caps
+        result = self.sa.analyze("EMERGENCY fix this right now ASAP!!!")
         self.assertGreater(result.urgency, 0.0)
 
     def test_result_has_raw_scores(self):
