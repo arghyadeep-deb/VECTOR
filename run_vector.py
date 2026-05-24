@@ -855,9 +855,13 @@ async def _shutdown(sig: signal.Signals | None = None) -> None:
 
 
 def _setup_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
-    """Register SIGINT/SIGTERM for graceful shutdown."""
+    """Register SIGINT/SIGTERM for graceful shutdown. Falls back on Windows (no add_signal_handler)."""
     for s in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(_shutdown(sig)))
+        try:
+            loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(_shutdown(sig)))
+        except NotImplementedError:
+            # Windows does not support add_signal_handler; KeyboardInterrupt handles Ctrl+C
+            pass
 
 
 async def run_loop() -> None:
