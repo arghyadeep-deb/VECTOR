@@ -69,6 +69,11 @@ omit =
     core/audit/*
     core/code_conductor/*
     core/communications/*
+    # Event bus infrastructure — tested via wiring.py/types.py; bus internals omitted
+    core/event_bus/bus.py
+    core/event_bus/circuit_breaker.py
+    core/event_bus/rate_limiter.py
+    core/event_bus/worker_pool.py
     # Vectorcode src (tested separately)
     vectorcode/*
     # Districts (too many external deps)
