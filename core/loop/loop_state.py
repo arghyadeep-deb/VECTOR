@@ -117,4 +117,4 @@ if __name__ == "__main__":
     save_decision("research", {"query": "test"}, 0.75)
     d = load_decision()
     assert d and d["action_type"] == "research"
-    print("✅ loop_state OK")
+    print("loop_state OK")
