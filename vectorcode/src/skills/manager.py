@@ -7,13 +7,26 @@ import html
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.vc_core.events import EventBus
-from vectorcode.src.skills.dependency import validate_dependencies
-from vectorcode.src.skills.executor import SkillExecutor, SkillResult
-from vectorcode.src.skills.loader import discover_skills
-from vectorcode.src.skills.tool_adapter import SkillTool
+# Lightweight types — always importable
 from vectorcode.src.skills.types import MatchedSkill, SkillManifest
-from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
+from vectorcode.src.skills.matcher import SkillMatcher, _find_manifest_path, _score
+
+# Heavy deps — optional (need faiss / vc_tools installed)
+try:
+    from vectorcode.src.vc_core.events import EventBus
+    from vectorcode.src.skills.dependency import validate_dependencies
+    from vectorcode.src.skills.executor import SkillExecutor, SkillResult
+    from vectorcode.src.skills.loader import discover_skills
+    from vectorcode.src.skills.tool_adapter import SkillTool
+    from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
+    _FULL_DEPS = True
+except Exception as _dep_err:
+    logger.debug("[VECTOR][skills.manager] optional deps unavailable: %s", _dep_err)
+    _FULL_DEPS = False
+    # Stub sentinels so class body doesn't fail at parse time
+    EventBus = object  # type: ignore[misc,assignment]
+    ToolExecutor = object  # type: ignore[misc,assignment]
+    BaseTool = object  # type: ignore[misc,assignment]
 
 class SkillManager:
     """Coordinate skill discovery, resolution, catalog generation, and execution.
