@@ -149,7 +149,7 @@ class TestAutoSubscribeAll:
     def test_auto_subscribe_with_no_agents(self):
         mock_reg = MagicMock()
         mock_reg.get_all_agents.return_value = []
-        with patch("core.event_bus.wiring.get_registry", return_value=mock_reg):
+        with patch("core.city.agent_registry.get_registry", return_value=mock_reg):
             count = auto_subscribe_all()
         assert count == 0
 
@@ -161,7 +161,7 @@ class TestAutoSubscribeAll:
         mock_reg = MagicMock()
         mock_reg.get_all_agents.return_value = [mock_agent]
 
-        with patch("core.event_bus.wiring.get_registry", return_value=mock_reg):
+        with patch("core.city.agent_registry.get_registry", return_value=mock_reg):
             count = auto_subscribe_all()
 
         # coding district subscribes to DESIGN_COMPLETE, RESEARCH_COMPLETE, CONTENT_READY
@@ -173,14 +173,14 @@ class TestAutoSubscribeAll:
         coding_agent.district = "coding"
         coding_agent.subscribe_to = MagicMock()
 
-        research_agent = MagicMock()
-        research_agent.district = "unknown_xyz"
-        research_agent.subscribe_to = MagicMock()
+        unknown_agent = MagicMock()
+        unknown_agent.district = "unknown_xyz_district"
+        unknown_agent.subscribe_to = MagicMock()
 
         mock_reg = MagicMock()
-        mock_reg.get_all_agents.return_value = [coding_agent, research_agent]
+        mock_reg.get_all_agents.return_value = [coding_agent, unknown_agent]
 
-        with patch("core.event_bus.wiring.get_registry", return_value=mock_reg):
+        with patch("core.city.agent_registry.get_registry", return_value=mock_reg):
             count = auto_subscribe_all()
 
         # coding agent gets subscriptions, unknown gets 0
