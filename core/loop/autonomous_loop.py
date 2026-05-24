@@ -619,6 +619,12 @@ class AutonomousLoop:
                 "score": decision.winner.total_score,
                 "goal_ids": decision.winner.goal_ids,
             })
+            try:
+                from core.loop.loop_state import save_goal
+                if decision.winner.goal_ids:
+                    save_goal(decision.winner.goal_ids[0])
+            except Exception:
+                pass
             await self._act_on(decision.winner)
         else:
             logger.debug(
