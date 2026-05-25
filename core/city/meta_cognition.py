@@ -272,13 +272,18 @@ class MetaCognition:
             )
 
         # --- Overconfidence bias ---
-        confirmed = [
-            c for c, o in zip(confidences, outcomes)
-            if o and any(w in o.lower() for w in ("correct", "success", "confirmed", "accurate"))
+        # Use all samples that have any outcome (success or failure)
+        with_outcomes = [
+            (c, o) for c, o in zip(confidences, outcomes) if o is not None
         ]
-        if len(confirmed) >= 3:
+        if len(with_outcomes) >= 3:
             avg_conf = sum(confidences) / len(confidences)
-            success_rate = len(confirmed) / len(reasoning_samples)
+            success_words = {"correct", "success", "confirmed", "accurate", "right", "yes"}
+            successes = sum(
+                1 for _, o in with_outcomes
+                if any(w in o.lower() for w in success_words)
+            )
+            success_rate = successes / len(with_outcomes)
             if avg_conf - success_rate > 0.2:
                 biases.append({
                     "bias_type": "overconfidence",
