@@ -317,6 +317,7 @@ class ProviderClient:
         temperature: float,
         max_tokens: int,
         tools: list[dict] | None,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """Call any OpenAI-compatible /v1/chat/completions endpoint."""
         try:
@@ -328,9 +329,9 @@ class ProviderClient:
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        api_key = prov.api_key
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+        key = api_key if api_key is not None else prov.api_key
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
 
         payload: dict = {
             "model": model,
