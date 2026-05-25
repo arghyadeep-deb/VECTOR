@@ -267,6 +267,7 @@ class DecisionEngine:
             + self.W_URGENCY * candidate.urgency
             + self.W_TIMING * candidate.timing_score
             - self.W_COST * cost_penalty
+            + 0.05 * causal_score  # causal-graph influence nudge (Gap 6)
             + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬â€ RL still learning)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
