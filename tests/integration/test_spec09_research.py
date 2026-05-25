@@ -442,10 +442,7 @@ class TestPaperReader(unittest.TestCase):
             (vault / "Research").mkdir()
             self.reader._obsidian._vault = vault
             _run(self.reader.daily_brief(max_per_category=1))
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "paper_brief" for r in recent))
+        self.assertTrue(_event_stored("paper_brief"))
 
     def test_daily_brief_deduplicates_same_id(self):
         shared_id = f"dup_{uuid.uuid4().hex}"
