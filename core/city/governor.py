@@ -897,7 +897,7 @@ class Governor:
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
                 from core.avatar.avatar_core import AvatarCore
-                _avatar = AvatarCore._instance if hasattr(AvatarCore, “_instance”) and AvatarCore._instance is not None else AvatarCore()
+                _avatar = AvatarCore.get_instance()
                 user_msg = task.get(“params”, {}).get(“user_message”, “”) or task.get(“params”, {}).get(“query”, “”)
                 result = _avatar.on_act(result, task_context={“task_type”: task_type, “district”: district}, user_message=user_msg)
             except Exception as _av_err:
