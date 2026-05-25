@@ -361,6 +361,24 @@ class ContextEngine:
             if p.get("tone_profiles"):
                 lines.append(f"Tone profiles: {', '.join(p['tone_profiles'])}")
 
+        try:
+            from core.brain.person_model import PersonModel
+            pm = PersonModel()
+            persons = pm.list_persons(limit=3)
+            if persons:
+                summaries = []
+                for person in persons:
+                    s = pm.get_person_summary(person["person_id"])
+                    if s and s.get("trust_score") is not None:
+                        summaries.append(
+                            f"{person['name']} (trust={s['trust_score']:.2f}, "
+                            f"style={s.get('preferred_style','?')})"
+                        )
+                if summaries:
+                    lines.append(f"Known persons: {'; '.join(summaries)}")
+        except Exception:
+            pass
+
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
                 e for e in state["recent_episodes"] if e
