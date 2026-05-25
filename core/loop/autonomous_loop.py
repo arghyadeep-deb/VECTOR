@@ -546,8 +546,34 @@ class AutonomousLoop:
         pending = getattr(self, "_pending_voice", None)
         if pending:
             self._pending_voice = None
+            # Rules engine bypass: answer simple queries without LLM
+            _voice_text = pending.get("text", pending.get("params", {}).get("query", ""))
+            if _voice_text:
+                try:
+                    from core.security.rules_engine import get_rules_engine
+                    _re_engine = get_rules_engine()
+                    _bypass_rule = _re_engine.match(_voice_text)
+                    if _bypass_rule:
+                        _bypass_resp = _re_engine.execute_rule(_bypass_rule, {})
+                        logger.info(
+                            "[VECTOR][bypass] rule '{}' matched input '{}'", 
+                            _bypass_rule.category, _voice_text[:50],
+                        )
+                        try:
+                            from core.memory.episodic import EpisodicMemory
+                            EpisodicMemory().store(
+                                event_type="bypass_response",
+                                content="Q: " + _voice_text + " | A: " + _bypass_resp,
+                                tags=["bypass", _bypass_rule.category],
+                                source="rules_engine",
+                            )
+                        except Exception as _ep_err:
+                            logger.warning("[VECTOR][loop] episodic bypass store suppressed: {}", _ep_err)
+                        return
+                except Exception as _re_err:
+                    logger.debug("[VECTOR][bypass] rules engine failed: {}", _re_err)
             logger.info("[VECTOR][think] voice intent dispatched: {}", pending.get("intent"))
-            await self._act({
+            await self._get_governor().dispatch({
                 "type":       pending.get("intent", "respond"),
                 "params":     pending.get("params", {}),
                 "source":     "voice",
