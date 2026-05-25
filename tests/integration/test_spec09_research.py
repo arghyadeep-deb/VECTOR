@@ -20,6 +20,17 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _event_stored(event_type: str, limit: int = 30) -> bool:
+    """Check if an event_type was stored in episodic_memory (direct SQL, no FTS)."""
+    from core.memory.episodic import EpisodicMemory
+    mem = EpisodicMemory()
+    rows = mem.conn.execute(
+        "SELECT 1 FROM episodic_memory WHERE event_type = ? ORDER BY timestamp DESC LIMIT ?",
+        (event_type, limit),
+    ).fetchall()
+    return len(rows) > 0
+
+
 # ── shared XML / HTML / JSON fixtures ─────────────────────────────────────────
 
 _ARXIV_ATOM = """\
