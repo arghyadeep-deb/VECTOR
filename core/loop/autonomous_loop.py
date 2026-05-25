@@ -1003,6 +1003,34 @@ class AutonomousLoop:
             logger.error(f"[VECTOR][reflect] SelfImprovementCycle failed: {e}")
 
         try:
+            from core.memory.counterfactual import CounterfactualMemory
+            cfm = CounterfactualMemory()
+            patterns = cfm.get_rejection_patterns()
+            if patterns.get("total_rejections", 0) > 0:
+                logger.info(
+                    "[VECTOR][reflect] counterfactual: {} rejections, {} outcomes learned, top: {}",
+                    patterns["total_rejections"],
+                    patterns.get("total_outcomes_learned", 0),
+                    (patterns.get("top_rejection_reasons") or [{}])[0].get("reason", "none"),
+                )
+        except Exception as _cf_err:
+            logger.warning("[VECTOR][reflect] CounterfactualMemory reflect failed: {}", _cf_err)
+
+        try:
+            from core.city.meta_cognition import MetaCognition
+            mc = MetaCognition()
+            report = mc.get_monthly_report()
+            bias_count = len(report.get("bias_analysis", {}).get("detected_biases", []))
+            blind_spots = report.get("new_blind_spots_30d", 0)
+            logger.info(
+                "[VECTOR][reflect] meta_cognition: {} biases detected, {} new blind spots",
+                bias_count, blind_spots,
+            )
+            mc.close()
+        except Exception as _mc_err:
+            logger.warning("[VECTOR][reflect] MetaCognition reflect failed: {}", _mc_err)
+
+        try:
             # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
