@@ -460,6 +460,7 @@ class ProviderClient:
         messages: list[dict],
         temperature: float,
         max_tokens: int,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """Call Google Gemini API (generateContent format)."""
         try:
