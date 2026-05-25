@@ -484,13 +484,13 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
 
 # Map of task tier → preferred provider priority list
 TIER_ROUTING: dict[str, list[str]] = {
-    "agentic":       ["ollama", "groq", "deepseek", "openai"],
-    "coding":        ["ollama", "deepseek", "mistral", "openai"],
+    "agentic":       ["ollama", "groq", "deepseek", "openai", "huggingface"],
+    "coding":        ["ollama", "deepseek", "mistral", "openai", "huggingface"],
     "reasoning":     ["ollama", "deepseek", "anthropic", "openai"],
     "summarization": ["ollama", "groq", "cohere", "openai"],
     "multilingual":  ["ollama", "moonshot", "zhipu", "gemini"],
     "vision":        ["gemini", "openai", "anthropic"],
-    "fast":          ["ollama", "groq", "cerebras", "cloudflare"],
+    "fast":          ["ollama", "groq", "cerebras", "cloudflare", "huggingface"],
     "council":       ["ollama", "anthropic", "openai"],
 }
 
