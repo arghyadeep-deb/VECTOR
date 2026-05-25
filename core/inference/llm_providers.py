@@ -26,8 +26,19 @@ Ported from the agent OS runtime/drivers/ (anthropic.rs, gemini.rs, openai.rs).
 """
 from __future__ import annotations
 
+__all__ = [
+    "configured_providers",
+    "get_provider",
+    "list_free",
+    "LLMProvider",
+    "route_for_tier",
+]
+
+
 import os
 from dataclasses import dataclass, field
+
+from core.config import CONFIG
 
 # ── Provider dataclass ─────────────────────────────────────────────────────────
 
@@ -50,11 +61,16 @@ class LLMProvider:
 
     @property
     def api_key(self) -> str:
-        return os.getenv(self.api_key_env, "")
+        """Next key from the provider's pool (round-robin across comma-separated keys)."""
+        from core.inference.key_pool import get_pool
+        return get_pool(self.api_key_env).next_key()
 
     @property
     def is_configured(self) -> bool:
-        return self.free or bool(self.api_key)
+        if self.free:
+            return True
+        from core.inference.key_pool import get_pool
+        return get_pool(self.api_key_env).has_keys()
 
     @property
     def effective_base_url(self) -> str:
@@ -284,7 +300,7 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     LLMProvider(
         slug="vllm",
         name="vLLM (Self-hosted)",
-        base_url=os.getenv("VLLM_BASE_URL","http://localhost:8000/v1"),
+        base_url=CONFIG.get("vllm_base_url","http://localhost:8000/v1"),
         api_key_env="VLLM_API_KEY",
         driver="openai_compat",
         default_model="meta-llama/Llama-3-8b",
@@ -340,7 +356,7 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     LLMProvider(
         slug="cloudflare",
         name="Cloudflare Workers AI",
-        base_url=f"https://api.cloudflare.com/client/v4/accounts/{os.getenv('CLOUDFLARE_ACCOUNT_ID','')}/ai/v1",
+        base_url=f"https://api.cloudflare.com/client/v4/accounts/{CONFIG.get('cloudflare_account_id','')}/ai/v1",
         api_key_env="CLOUDFLARE_API_KEY",
         driver="openai_compat",
         default_model="@cf/meta/llama-3.1-8b-instruct",
