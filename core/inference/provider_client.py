@@ -182,7 +182,7 @@ class ProviderClient:
                 raise ValueError(f"Unknown provider: {provider}")
             providers_to_try = [prov_obj]
         else:
-            order = TIER_ROUTING.get(tier, ["ollama"])
+            order = _route_order if _route_order is not None else TIER_ROUTING.get(tier, ["ollama"])
             providers_to_try = []
             for slug in order:
                 p = get_provider(slug)
