@@ -977,20 +977,16 @@ class TestResearchEpisodicIntegration(unittest.TestCase):
 
     def test_web_scout_research_event_type_stored(self):
         from districts.research.web_scout import WebScout
-        from core.memory.episodic import EpisodicMemory
         scout = WebScout()
         scout.search = AsyncMock(return_value=[
             {"title": "Integration Test", "url": f"https://integ.test/{uuid.uuid4().hex}", "snippet": "s"}
         ])
         scout.fetch_page = AsyncMock(return_value="test content")
         _run(scout.research("integration test query", save_note=False))
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=20)
-        self.assertTrue(any(r.get("event_type") == "research" for r in recent))
+        self.assertTrue(_event_stored("research"))
 
     def test_news_aggregator_news_brief_event_stored(self):
         from districts.research.news_aggregator import NewsAggregator
-        from core.memory.episodic import EpisodicMemory
         agg = NewsAggregator()
         agg._newsapi_key = ""
         articles = [
@@ -1002,13 +998,10 @@ class TestResearchEpisodicIntegration(unittest.TestCase):
             (vault / "Research").mkdir()
             agg._obsidian._vault = vault
             _run(agg.morning_brief())
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "news_brief" for r in recent))
+        self.assertTrue(_event_stored("news_brief"))
 
     def test_paper_reader_paper_brief_event_stored(self):
         from districts.research.paper_reader import PaperReader
-        from core.memory.episodic import EpisodicMemory
         reader = PaperReader()
         reader.fetch_recent_papers = AsyncMock(return_value=[
             {"title": "Integ Paper", "authors": "Auth", "abstract": "abs", "url": "https://arxiv.org/abs/integ", "id": f"integ_{uuid.uuid4().hex}"}
@@ -1018,21 +1011,16 @@ class TestResearchEpisodicIntegration(unittest.TestCase):
             (vault / "Research").mkdir()
             reader._obsidian._vault = vault
             _run(reader.daily_brief(max_per_category=1))
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "paper_brief" for r in recent))
+        self.assertTrue(_event_stored("paper_brief"))
 
     def test_research_hub_daily_digest_event_stored(self):
         from districts.research.research_hub import ResearchHub
-        from core.memory.episodic import EpisodicMemory
         hub = ResearchHub()
         for method in ("get_hn_top", "get_github_trending", "get_devto_posts",
                        "search_arxiv", "get_crypto_prices", "get_tech_news"):
             setattr(hub, method, AsyncMock(return_value=[]))
         _run(hub.daily_digest())
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "daily_research_digest" for r in recent))
+        self.assertTrue(_event_stored("daily_research_digest"))
 
     def test_all_research_agents_alive_on_init(self):
         from districts.research.web_scout import WebScout
