@@ -291,7 +291,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
     """Tier 2 â€” Anthropic Claude API (paid). Active when ANTHROPIC_API_KEY is set."""
     if _is_rate_limited("anthropic"):
         return ""
-    api_key = str(CONFIG["api_keys"]["anthropic_key"])
+    api_key = _pool_key("ANTHROPIC_API_KEY", str(CONFIG["api_keys"]["anthropic_key"]))
     if not api_key:
         return ""
 
