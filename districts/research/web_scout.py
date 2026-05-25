@@ -129,6 +129,9 @@ class WebScout(AgentBase):
 
     async def fetch_page_stealth(self, url: str) -> str:
         """Fetch with full anti-bot bypass for Cloudflare / bot-protected sites."""
+        if not is_safe_url(url):
+            logger.warning("[VECTOR][web_scout] SSRF blocked (stealth): {}", url)
+            return ""
         try:
             from core.scraper.vector_scraper import get_scraper
             scraper = get_scraper()
