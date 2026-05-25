@@ -498,6 +498,19 @@ class AutonomousLoop:
             if result.get("actionable"):
                 self._pending_voice = result
                 logger.debug("[VECTOR][observe] voice intent queued: {}", result.get("intent"))
+                # User interaction detected — reset proactive care break timer
+                try:
+                    from core.avatar.proactive_care import get_proactive_care
+                    get_proactive_care().record_break()
+                except Exception:
+                    pass
+
+        # Avatar on_observe: pull health/fatigue signals + absorb voice sentiment
+        if getattr(self, '_avatar', None) is not None:
+            try:
+                self._avatar.on_observe(result if isinstance(result, dict) else {})
+            except Exception as _av_obs_err:
+                logger.debug("[VECTOR][observe] avatar on_observe suppressed: {}", _av_obs_err)
 
     async def _publish_event(self, event_type: EventType, data: dict | None = None) -> None:
         if self._event_bus is None:
