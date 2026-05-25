@@ -102,6 +102,22 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         notes="Primary VECTOR runtime. All local models. Zero cost, zero latency overhead.",
     ),
 
+    # ── Ollama Cloud (hosted big models, requires OLLAMA_API_KEY) ──────────────
+    LLMProvider(
+        slug="ollama_cloud",
+        name="Ollama Cloud",
+        base_url="https://ollama.com/v1",
+        api_key_env="OLLAMA_API_KEY",
+        driver="openai_compat",
+        default_model="kimi-k2:cloud",
+        models=["kimi-k2:cloud", "glm-4.6:cloud", "qwen3-coder:cloud"],
+        free=False,
+        context_window=128_000,
+        rate_limit_rpm=60,
+        pricing_per_1m={"input": 0.0, "output": 0.0},
+        notes="Ollama-hosted cloud models. Requires OLLAMA_API_KEY (ollama.com signin).",
+    ),
+
     # ── Anthropic (Claude) ────────────────────────────────────────────────────
     LLMProvider(
         slug="anthropic",
