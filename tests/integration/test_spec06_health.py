@@ -438,24 +438,26 @@ class TestSleepTracker(unittest.TestCase):
         self.assertIsInstance(periods, list)
 
     def test_infer_sleep_periods_detects_gap(self):
-        # Insert two rows with a 5-hour gap directly
+        import uuid
         now = datetime.datetime.now()
         ts1 = (now - datetime.timedelta(hours=6)).isoformat()
-        ts2 = (now - datetime.timedelta(hours=0, minutes=30)).isoformat()
+        ts2 = (now - datetime.timedelta(minutes=30)).isoformat()
+        # Use UUIDs so re-runs don't hit UNIQUE constraint
+        id1 = uuid.uuid4().hex
+        id2 = uuid.uuid4().hex
         self.tracker._memory.conn.execute(
             "INSERT INTO episodic_memory (id, event_type, content, source, timestamp, tags) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            ("sleep_test_a", "ambient", "working", "sleep_test", ts1, "[]"),
+            (id1, "ambient", "working", "sleep_gap_test", ts1, "[]"),
         )
         self.tracker._memory.conn.execute(
             "INSERT INTO episodic_memory (id, event_type, content, source, timestamp, tags) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            ("sleep_test_b", "ambient", "wake", "sleep_test", ts2, "[]"),
+            (id2, "ambient", "wake", "sleep_gap_test", ts2, "[]"),
         )
         self.tracker._memory.conn.commit()
         periods = self.tracker._infer_sleep_periods(days=1)
         self.assertGreater(len(periods), 0)
-        # The detected gap should be ~5.5 hours
         gap_hours = [p["duration_hours"] for p in periods]
         self.assertTrue(any(h >= 4.0 for h in gap_hours))
 
