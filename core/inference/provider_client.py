@@ -145,6 +145,26 @@ class ProviderClient:
         except ImportError:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
+        # ── Sensitivity + complexity routing (local-vs-cloud) ────────────────
+        # Sets tier + provider order: security/RED/secret → local Ollama only;
+        # simple → pooled cloud keys; heavy → cloud premium then local fallback.
+        _route_order: list[str] | None = None
+        if not provider:
+            try:
+                from core.inference.route_policy import decide_route
+                _prompt = " ".join(
+                    m.get("content", "") for m in messages if m.get("role") == "user"
+                )
+                _plan = decide_route(_prompt, district=district, sensitive=sensitive)
+                _route_order = _plan.providers
+                tier = _plan.tier
+                logger.debug(
+                    "[VECTOR][provider_client] route: {} tier={} ({})",
+                    _plan.providers, _plan.tier, _plan.reason,
+                )
+            except Exception as _re:
+                logger.debug("[VECTOR][provider_client] route_policy unavailable: {}", _re)
+
         # â"€â"€ Model routing via ModelRouter â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         if not model:
             try:
