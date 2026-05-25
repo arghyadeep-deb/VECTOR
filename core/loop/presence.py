@@ -43,8 +43,10 @@ class PresenceConfig:
 
     @classmethod
     def from_config(cls) -> "PresenceConfig":
+        import os as _os
         cfg = CONFIG.get("presence", {})
-        mode_raw = cfg.get("mode", TriggerMode.PROACTIVE.value)
+        # env vars take precedence over CONFIG snapshot (allows runtime override)
+        mode_raw = _os.environ.get("VECTOR_PRESENCE_MODE", cfg.get("mode", TriggerMode.PROACTIVE.value))
         try:
             mode = TriggerMode(mode_raw)
         except ValueError:
@@ -52,8 +54,8 @@ class PresenceConfig:
             mode = TriggerMode.PROACTIVE
         return cls(
             mode=mode,
-            dnd_start_hour=int(cfg.get("dnd_start_hour", 23)),
-            dnd_end_hour=int(cfg.get("dnd_end_hour", 8)),
+            dnd_start_hour=int(_os.environ.get("VECTOR_DND_START", cfg.get("dnd_start_hour", 23))),
+            dnd_end_hour=int(_os.environ.get("VECTOR_DND_END",   cfg.get("dnd_end_hour", 8))),
             allowed_proactive_agents=cfg.get("allowed_proactive_agents", cls.__dataclass_fields__["allowed_proactive_agents"].default_factory()),
             wake_keywords=cfg.get("wake_keywords", cls.__dataclass_fields__["wake_keywords"].default_factory()),
         )
