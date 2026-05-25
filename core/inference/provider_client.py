@@ -424,7 +424,7 @@ class ProviderClient:
 
         headers = {
             "Content-Type": "application/json",
-            "x-api-key": prov.api_key,
+            "x-api-key": api_key if api_key is not None else prov.api_key,
             "anthropic-version": "2023-06-01",
         }
 
