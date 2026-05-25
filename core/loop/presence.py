@@ -152,4 +152,4 @@ if __name__ == "__main__":
     result = allow_proactive("nudge_engine", cfg=hybrid_cfg)
     print(f"hybrid nudge_engine allowed={result}")
 
-    print("✅ presence OK")
+    print("OK presence")
