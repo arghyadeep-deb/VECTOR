@@ -182,4 +182,4 @@ if __name__ == "__main__":
     out = voice.format(raw, state, user_message="review my code")
     assert "CodingBot" not in out, f"Internal name leaked: {out}"
     assert "I" in out or "found" in out, f"No first-person: {out}"
-    print(f"✅ avatar_voice OK — output: {out[:80]!r}")
+    print(f"OK avatar_voice -- output: {out[:80]!r}")
