@@ -592,10 +592,7 @@ class TestNewsAggregator(unittest.TestCase):
             (vault / "Research").mkdir()
             self.agg._obsidian._vault = vault
             _run(self.agg.morning_brief())
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "news_brief" for r in recent))
+        self.assertTrue(_event_stored("news_brief"))
 
     def test_morning_brief_writes_obsidian(self):
         articles = [
