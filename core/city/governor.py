@@ -373,25 +373,10 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "strategic_gap":                "marketing",
     "market_intelligence":          "marketing",
     # Districts missing from map â€” added to avoid LLM classification overhead
-    "academic":             "academic",
-    "anthropology":         "academic",
-    "geography":            "academic",
-    "history":              "academic",
-    "narratology":          "academic",
-    "psychology":           "academic",
     "call":                 "calls",
     "call_screen":          "calls",
     "transcribe":           "calls",
     "voice_respond":        "calls",
-    "engineering_advice":   "engineering",
-    "backend":              "engineering",
-    "firmware":             "engineering",
-    "smart_contract":       "engineering",
-    "sre":                  "engineering",
-    "game_design":          "game_development",
-    "level_design":         "game_development",
-    "game_audio":           "game_development",
-    "narrative_design":     "game_development",
     "karpathy":             "karpathy_lab",
     "nanogpt":              "karpathy_lab",
     "train_model":          "karpathy_lab",
@@ -400,80 +385,16 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "japanese":             "languages",
     "assamese":             "languages",
     "language_coach":       "languages",
-    "paid_media":           "paid_media",
-    "ppc":                  "paid_media",
-    "programmatic":         "paid_media",
-    "search_query":         "paid_media",
-    "tracking":             "paid_media",
-    "product_strategy":     "product",
-    "sprint":               "product",
-    "product_feedback":     "product",
-    "product_trend":        "product",
-    "project_shepherd":     "project_management",
-    "studio_ops":           "project_management",
-    "jira":                 "project_management",
-    "experiment_track":     "project_management",
     "relationship":         "relationships",
     "contact":              "relationships",
     "communication_style":  "relationships",
-    "sales_coach":          "sales",
-    "deal_strategy":        "sales",
-    "discovery":            "sales",
-    "outbound":             "sales",
-    "sales_pipeline":       "sales",
-    "sales_proposal":       "sales",
     "skill_gap":            "skills",
     "mastery":              "skills",
     "skill_map":            "skills",
-    "visionos":             "spatial_computing",
-    "xr":                   "spatial_computing",
-    "metal":                "spatial_computing",
-    "spatial":              "spatial_computing",
-    "legal":                "specialized",
-    "healthcare":           "specialized",
-    "hr":                   "specialized",
-    "compliance_check":     "specialized",
-    "blockchain_audit":     "specialized",
     "market_scan":          "startups",
     "idea_validate":        "startups",
     "competitor_spy":       "startups",
-    "strategy_brief":       "strategy",
-    "strategy_executive":   "strategy",
-    "customer_support":     "support",
-    "executive_summary":    "support",
-    "qa_test":              "testing",
-    "manual_test":          "testing",
-    "performance_bench":    "testing",
-    "smoke_test":           "testing",
     # 8 previously unreachable districts â€” now mapped
-    "engineering_role":     "engineering",
-    "software_architect":   "engineering",
-    "code_reviewer":        "engineering",
-    "sre_advice":           "engineering",
-    "devops_advice":        "engineering",
-    "paid_media_audit":     "paid_media",
-    "ppc_strategy":         "paid_media",
-    "ad_creative":          "paid_media",
-    "search_query_analysis":"paid_media",
-    "product_manage":       "product",
-    "product_roadmap":      "product",
-    "sprint_plan":          "product",
-    "user_story":           "product",
-    "manage_project":       "project_management",
-    "project_status":       "project_management",
-    "studio_produce":       "project_management",
-    "sales_advice":         "sales",
-    "sales_strategy":       "sales",
-    "sales_outreach":       "sales",
-    "strategic_plan":       "strategy",
-    "strategic_brief":      "strategy",
-    "strategic_competitive": "strategy",
-    "customer_service":     "support",
-    "support_ticket":       "support",
-    "help_desk":            "support",
-    "test_design":          "testing",
-    "performance_test":     "testing",
-    "ux_test":              "testing",
     # 3 LLM-only districts â€” now directly mapped
     "news":                 "news_trends",
     "trending":             "news_trends",
@@ -520,11 +441,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "zk": "personal_growth",
     "knowledge_links": "personal_growth",
     # documentation
-    "write_docs": "documentation",
-    "api_reference": "documentation",
-    "changelog": "documentation",
-    "weekly_summary": "documentation",
-    "generate_doc": "documentation",
     # qa
     "reality_check": "qa",
     "evidence": "qa",
@@ -968,15 +884,24 @@ class Governor:
             agents = self._get_registry().get_by_district(district)
 
             if not agents:
-                logger.warning(f"[VECTOR][governor] no agents in {district}")
-                result = {"status": "no_agents", "district": district}
+                logger.warning(f”[VECTOR][governor] no agents in {district}”)
+                result = {“status”: “no_agents”, “district”: district}
             else:
                 agent = max(agents, key=lambda a: a.health_points)
 
-                if hasattr(agent, "run"):
+                if hasattr(agent, “run”):
                     result = await agent.run(task)
                 else:
-                    result = {"status": "stub", "agent": agent.name}
+                    result = {“status”: “stub”, “agent”: agent.name}
+
+            # ── Avatar layer: format raw district output through AvatarVoice ──
+            try:
+                from core.avatar.avatar_core import AvatarCore
+                _avatar = AvatarCore._instance if hasattr(AvatarCore, “_instance”) and AvatarCore._instance is not None else AvatarCore()
+                user_msg = task.get(“params”, {}).get(“user_message”, “”) or task.get(“params”, {}).get(“query”, “”)
+                result = _avatar.on_act(result, task_context={“task_type”: task_type, “district”: district}, user_message=user_msg)
+            except Exception as _av_err:
+                logger.debug(“[VECTOR][governor] avatar on_act suppressed: {}”, _av_err)
 
             # RULE 9 â€” HP wired to actual task outcomes
             if agent is not None:
