@@ -257,6 +257,9 @@ class DecisionEngine:
         # Neural A2C refinement: 5% blend with RL-derived action-value estimate
         neural_score = self._neural_score(candidate)
 
+        # Causal influence (Gap 6): 5% blend rewarding actions with known consequences
+        causal_score = self._causal_score(candidate)
+
         total = (
             self.W_GOAL   * goal_score
             + self.W_CONF * candidate.confidence
