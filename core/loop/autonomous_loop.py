@@ -651,6 +651,18 @@ class AutonomousLoop:
                 )
             )
 
+        # Avatar on_think: 5% persona nudge based on current mood (mirrors causal_score blending)
+        if getattr(self, '_avatar', None) is not None:
+            try:
+                mood = self._avatar.state.mood_label
+                if mood in ("tense", "subdued"):
+                    for c in candidates:
+                        if any(kw in c.action_type for kw in ("review", "report", "research", "reflect")):
+                            c.urgency = min(1.0, c.urgency + 0.05)
+                            logger.debug("[VECTOR][think] avatar nudge +0.05 urgency for {} (mood={})", c.action_type, mood)
+            except Exception as _av_th_err:
+                logger.debug("[VECTOR][think] avatar on_think suppressed: {}", _av_th_err)
+
         decision = await self._get_decision().evaluate(candidates)
         if decision.winner.total_score > 0.3:
             await self._publish_event(EventType.DECISION_MADE, {
