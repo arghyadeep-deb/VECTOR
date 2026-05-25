@@ -1,4 +1,11 @@
 import sys
+
+__all__ = [
+    "Candidate",
+    "Decision",
+    "DecisionEngine",
+]
+
 import asyncio
 import datetime
 import hashlib
@@ -66,6 +73,7 @@ class DecisionEngine:
         self._memory = None
         self._epistemic = None
         self._reasoning_bank = None
+        self._causal_graph = None
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
