@@ -540,6 +540,15 @@ CONFIG: dict = {
         "prefer_local_for_heavy": os.environ.get("VECTOR_PREFER_LOCAL_HEAVY", "0") in ("1", "true", "True"),
         "distribute_simple": os.environ.get("VECTOR_DISTRIBUTE_SIMPLE", "1") in ("1", "true", "True"),
     },
+    # ── Avatar presence / trigger mode ────────────────────────────────────────
+    # mode: proactive | hybrid | reactive  (see core/loop/presence.py)
+    "presence": {
+        "mode": os.environ.get("VECTOR_PRESENCE_MODE", "proactive"),
+        "dnd_start_hour": int(os.environ.get("VECTOR_DND_START", "23")),
+        "dnd_end_hour":   int(os.environ.get("VECTOR_DND_END",   "8")),
+        "allowed_proactive_agents": ["nudge_engine", "chief_of_staff", "daily_reviewer"],
+        "wake_keywords": ["hey vector", "vector", "ok vector"],
+    },
     "vector_home": _s.VECTOR_HOME,
     "vector_timezone": _s.VECTOR_TIMEZONE,
     "allow_shell_exec": _s.VECTOR_ALLOW_SHELL_EXEC,
