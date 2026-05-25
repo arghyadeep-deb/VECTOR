@@ -53,6 +53,11 @@ class SleepTracker(AgentBase):
             logger.warning(f"[VECTOR][sleep_tracker] fetch failed: {e}")
             return []
 
+        return self._compute_sleep_periods(timestamps)
+
+    def _compute_sleep_periods(self, timestamps: list[str]) -> list[dict]:
+        """Pure gap-detection over an ascending list of ISO timestamps.
+        Split from the DB fetch so the gap logic is deterministically testable."""
         if len(timestamps) < 2:
             return []
 
