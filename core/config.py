@@ -532,6 +532,14 @@ CONFIG: dict = {
     "ldr_data_dir": _s.LDR_DATA_DIR,
     "search_response_limit": int(os.environ.get("VECTOR_SEARCH_LIMIT", "500")),
     "policy_default_score": float(os.environ.get("VECTOR_POLICY_DEFAULT", "0.5")),
+    # ── LLM routing policy (simple→cloud keys, heavy-security→local Ollama) ──
+    # prefer_local_for_heavy=False → COMPLEX/REASONING go cloud-premium first (speed);
+    #   set VECTOR_PREFER_LOCAL_HEAVY=1 to route heavy tasks to local gemma4:26b first.
+    # distribute_simple=True → round-robin simple tasks across configured cloud providers.
+    "routing": {
+        "prefer_local_for_heavy": os.environ.get("VECTOR_PREFER_LOCAL_HEAVY", "0") in ("1", "true", "True"),
+        "distribute_simple": os.environ.get("VECTOR_DISTRIBUTE_SIMPLE", "1") in ("1", "true", "True"),
+    },
     "vector_home": _s.VECTOR_HOME,
     "vector_timezone": _s.VECTOR_TIMEZONE,
     "allow_shell_exec": _s.VECTOR_ALLOW_SHELL_EXEC,
