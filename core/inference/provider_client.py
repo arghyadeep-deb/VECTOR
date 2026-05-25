@@ -296,15 +296,16 @@ class ProviderClient:
         temperature: float,
         max_tokens: int,
         tools: list[dict] | None,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """Route to the right driver based on provider.driver."""
         match prov.driver:
             case "anthropic":
-                return await self._call_anthropic(prov, model, messages, temperature, max_tokens)
+                return await self._call_anthropic(prov, model, messages, temperature, max_tokens, api_key=api_key)
             case "gemini":
-                return await self._call_gemini(prov, model, messages, temperature, max_tokens)
+                return await self._call_gemini(prov, model, messages, temperature, max_tokens, api_key=api_key)
             case "openai_compat" | "ollama":
-                return await self._call_openai_compat(prov, model, messages, temperature, max_tokens, tools)
+                return await self._call_openai_compat(prov, model, messages, temperature, max_tokens, tools, api_key=api_key)
             case _:
                 raise ValueError(f"Unknown driver: {prov.driver}")
 
