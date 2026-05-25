@@ -10,6 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
+from core.security.ssrf_guard import is_safe_url
 from loguru import logger
 
 
