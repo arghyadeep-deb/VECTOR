@@ -141,7 +141,7 @@ class AvatarVoice:
         try:
             sentiment = sa.analyze(user_message)
             # Only acknowledge negative/urgent emotions with intensity > threshold
-            if sentiment.emotion in _EMPATHY_MAP and sentiment.intensity > 0.4:
+            if sentiment.emotion in _EMPATHY_MAP and sentiment.intensity > 0.3:
                 ack = _EMPATHY_MAP[sentiment.emotion]
                 # Don't double-ack if the district already said something empathetic
                 if ack[:15].lower() not in text.lower()[:80]:
