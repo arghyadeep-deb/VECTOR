@@ -364,18 +364,15 @@ class ContextEngine:
         try:
             from core.brain.person_model import PersonModel
             pm = PersonModel()
-            persons = pm.list_persons(limit=3)
-            if persons:
-                summaries = []
-                for person in persons:
-                    s = pm.get_person_summary(person["person_id"])
-                    if s and s.get("trust_score") is not None:
-                        summaries.append(
-                            f"{person['name']} (trust={s['trust_score']:.2f}, "
-                            f"style={s.get('preferred_style','?')})"
-                        )
-                if summaries:
-                    lines.append(f"Known persons: {'; '.join(summaries)}")
+            summary = pm.get_model_summary()
+            if summary.get("total_persons", 0) > 0:
+                persons = pm.get_all_persons()[:3]
+                names = ", ".join(
+                    f"{p['name']} (trust={p['trust_score']:.2f})"
+                    for p in persons if p.get("trust_score") is not None
+                )
+                if names:
+                    lines.append(f"Known persons ({summary['total_persons']} total): {names}")
         except Exception:
             pass
 
