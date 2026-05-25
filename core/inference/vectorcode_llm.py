@@ -441,6 +441,8 @@ def chat(
     *,
     provider: ProviderName = "auto",
     allow_cloud: bool = True,
+    district: str | None = None,
+    sensitive: bool = False,
 ) -> str:
     """Unified LLM call with multi-provider fallback.
 
