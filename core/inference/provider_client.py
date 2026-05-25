@@ -396,6 +396,7 @@ class ProviderClient:
         messages: list[dict],
         temperature: float,
         max_tokens: int,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """Call Anthropic Claude API (native messages format)."""
         try:
