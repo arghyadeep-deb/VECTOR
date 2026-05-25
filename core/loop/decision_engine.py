@@ -119,6 +119,30 @@ class DecisionEngine:
                 logger.debug(f"[VECTOR][decision_engine] EpistemicTracker unavailable: {e}")
         return self._epistemic
 
+    def _get_causal_graph(self):
+        """CausalGraph (Gap 6): downstream-influence lookup for an action type."""
+        if self._causal_graph is None:
+            try:
+                from core.memory.causal_graph import CausalGraph
+                self._causal_graph = CausalGraph()
+            except Exception as e:
+                logger.debug(f"[VECTOR][decision_engine] CausalGraph unavailable: {e}")
+                self._causal_graph = False  # sentinel
+        return self._causal_graph if self._causal_graph is not False else None
+
+    def _causal_score(self, candidate: Candidate) -> float:
+        """0-1 nudge from how many downstream consequences this action is known to cause.
+        A well-understood action (rich causal subgraph) gets a small positive bias.
+        Returns 0.0 when the graph is empty or the action is unknown."""
+        cg = self._get_causal_graph()
+        if cg is None:
+            return 0.0
+        try:
+            influence = cg.get_influence_score(f"action:{candidate.action_type}")
+            return min(1.0, influence / 10.0)
+        except Exception:
+            return 0.0
+
     def _get_neural_trainer(self):
         """VECTORTrainer: RL-based action-value refinement layer (A2C, 64-dim state)."""
         if getattr(self, "_neural_trainer", None) is None:
