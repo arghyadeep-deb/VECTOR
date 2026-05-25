@@ -649,8 +649,8 @@ class AutonomousLoop:
                 from core.loop.loop_state import save_goal
                 if decision.winner.goal_ids:
                     save_goal(decision.winner.goal_ids[0])
-            except Exception:
-                pass
+            except Exception as _sg_err:
+                logger.warning("[VECTOR][loop] save_goal suppressed: {}", _sg_err)
             await self._act_on(decision.winner)
         else:
             logger.debug(
