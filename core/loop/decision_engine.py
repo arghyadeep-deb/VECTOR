@@ -291,6 +291,10 @@ class DecisionEngine:
             f"6. cost_penalty={cost_penalty:.2f} (contrib={-self.W_COST*cost_penalty:.2f})",
             f"FINAL total_score={candidate.total_score:.4f}",
         ]
+        if causal_score > 0.0:
+            candidate.reasoning_steps.append(
+                f"[causal] influence_nudge={causal_score:.2f} (contrib={0.05*causal_score:.3f})"
+            )
 
         # Capture situation for policy memory
         goals = self._get_goals().get_active_goals()
