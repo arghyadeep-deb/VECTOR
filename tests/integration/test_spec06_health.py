@@ -299,8 +299,9 @@ class TestTrendAnalyzer(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_detect_anomalies_finds_outlier(self):
+        # Use threshold=1.5 — with 5 points and one at 130, z≈2.0 which exceeds 1.5
         values = [70.0, 71.0, 69.0, 72.0, 130.0]
-        anomalies = self.analyzer.detect_anomalies("heart_rate", values)
+        anomalies = self.analyzer.detect_anomalies("heart_rate", values, threshold=1.5)
         self.assertGreater(len(anomalies), 0)
         for a in anomalies:
             self.assertIn("metric_name", a)
