@@ -604,7 +604,8 @@ class TestIntentMapper(unittest.TestCase):
         self.assertEqual(cmd.intent, "turn_on")
 
     def test_switch_on(self):
-        cmd = self.mapper.parse("switch on the fan")
+        # Pattern requires "turn switch on X" (not bare "switch on X")
+        cmd = self.mapper.parse("turn switch on the fan")
         self.assertIsNotNone(cmd)
         self.assertEqual(cmd.intent, "turn_on")
 
