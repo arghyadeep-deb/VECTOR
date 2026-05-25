@@ -158,7 +158,6 @@
 
 | Issue | Severity | Notes |
 |-------|----------|-------|
-| 3 HP unit tests fail | Low | Pre-existing: EMA smoothing dampens raw deltas by design |
 | `guidance` circular import in smoke_test.py | Low | pip `guidance` package conflicts with `vectorcode/src/guidance/`; integration tests unaffected |
 | SQLCipher not installed | Low | Falls back to plain SQLite; no encryption on dev machine |
 | `pynvml` deprecation warning | Info | torch FutureWarning; no functional impact |
