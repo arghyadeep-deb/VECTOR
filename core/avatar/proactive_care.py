@@ -42,7 +42,8 @@ class ProactiveCare:
         self._health_monitor = None
         self._fatigue_monitor = None
         self._nudge_engine = None
-        self._last_break_ts: Optional[datetime.datetime] = None
+        # Initialize to now so the timer starts from session boot (not None)
+        self._last_break_ts: Optional[datetime.datetime] = datetime.datetime.now()
 
     def _get_health_monitor(self):
         if self._health_monitor is None:
