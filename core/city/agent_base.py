@@ -144,7 +144,7 @@ class AgentBase:
             from core.security.hp_validator import get_hp_validator
             result = get_hp_validator().validate(
                 delta=delta,
-                agent_id=self.name,
+                agent_id=self.id,
                 source_district=getattr(self, "district", "unknown"),
                 context={"reason": reason},
             )
