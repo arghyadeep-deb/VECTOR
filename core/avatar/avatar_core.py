@@ -106,6 +106,20 @@ class AvatarCore:
 
         # Decay presence when idle
         self._state.decay_presence(delta=0.01)
+
+        # If voice/text present, run SentimentAnalyzer and absorb VAD into state
+        text = obs.get("text", obs.get("intent", ""))
+        if text:
+            try:
+                from core.personality.sentiment import SentimentAnalyzer
+                analyzer = SentimentAnalyzer()
+                sentiment = analyzer.analyze(text)
+                if sentiment:
+                    self._state.absorb_sentiment(sentiment.emotion, sentiment.intensity)
+                    logger.debug("[VECTOR][avatar] absorbed sentiment: {} ({:.2f})", sentiment.emotion, sentiment.intensity)
+            except Exception as e:
+                logger.debug("[VECTOR][avatar] sentiment analysis failed: {}", e)
+
         return obs
 
     def on_think(self, candidates: list[dict]) -> list[dict]:
