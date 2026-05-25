@@ -153,4 +153,4 @@ if __name__ == "__main__":
     state.save()
     loaded = AvatarState.load()
     assert loaded.valence > 0, "Expected positive valence after happy sentiment"
-    print(f"✅ avatar_state OK — mood={loaded.mood_label} valence={loaded.valence:.3f}")
+    print(f"OK avatar_state -- mood={loaded.mood_label} valence={loaded.valence:.3f}")
