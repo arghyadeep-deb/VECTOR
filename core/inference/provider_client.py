@@ -252,13 +252,25 @@ class ProviderClient:
         except ImportError:
             use_reliable = False
 
+        from core.inference.key_pool import get_pool
+        pool = get_pool(prov.api_key_env)
         backoff = 1.0
         for attempt in range(max_retries):
+            key = pool.next_key()
             try:
-                return await self._call(prov, model, messages, temperature, max_tokens, tools)
+                return await self._call(prov, model, messages, temperature, max_tokens, tools, api_key=key)
             except Exception as e:
                 err = str(e)
-                if use_reliable and is_non_retryable(err):
+                low = err.lower()
+                is_key_err = (
+                    "401" in err or "403" in err or "429" in err
+                    or "invalid api key" in low or "unauthorized" in low
+                    or (use_reliable and is_rate_limited(err))
+                )
+                if key and is_key_err:
+                    pool.mark_failed(key)  # bench this key; next attempt rotates to another
+                # auth error on a multi-key pool → try the next key instead of bailing
+                if use_reliable and is_non_retryable(err) and not (is_key_err and pool.size > 1):
                     raise
                 if attempt == max_retries - 1:
                     raise
