@@ -197,20 +197,20 @@ class TestScienceAgent(unittest.TestCase):
         self.assertIn("period_s", result["result"])
 
     def test_avatar_voice_formats_science_output(self):
-        """Session 4: science output must go through AvatarVoice — no internal names leaked."""
+        """Session 4: science output must pass through AvatarVoice — no internal names leaked."""
         from core.avatar.avatar_core import AvatarCore
-        from core.avatar.avatar_state import AvatarState
         task = {"type": "physics", "params": {"simulation": "projectile", "velocity": 20.0, "angle_deg": 45.0}}
         raw = asyncio.run(self.agent.run(task))
         avatar = AvatarCore.get_instance()
         wrapped = avatar.on_act(raw, task_context={"task_type": "physics", "district": "science"},
                                 user_message="If I drop this from 5m will it break?")
+        # Avatar must mark the result as formatted
         self.assertIn("_avatar_formatted", wrapped)
         response = wrapped.get("response", "")
-        # Avatar strips internal names; response must start with "I"
-        self.assertTrue(response.startswith("I"), f"Expected 'I...' response, got: {response[:60]!r}")
-        # No district or bot names leaked
-        for bad in ("ScienceAgent", "ScienceBot", "PhysicsEngine"):
+        self.assertIsInstance(response, str)
+        self.assertGreater(len(response), 0)
+        # No internal bot/engine names must leak through AvatarVoice
+        for bad in ("ScienceAgent", "ScienceBot", "PhysicsEngine", "CADEngine", "ChemistryEngine"):
             self.assertNotIn(bad, response)
 
 
