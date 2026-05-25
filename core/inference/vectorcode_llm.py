@@ -332,7 +332,7 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
     """Tier 2 â€” OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
     if _is_rate_limited("openrouter"):
         return ""
-    api_key = str(CONFIG["api_keys"]["openrouter_key"])
+    api_key = _pool_key("OPENROUTER_API_KEY", str(CONFIG["api_keys"]["openrouter_key"]))
     if not api_key:
         return ""
 
