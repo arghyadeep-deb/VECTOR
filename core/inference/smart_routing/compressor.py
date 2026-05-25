@@ -13,10 +13,18 @@ Reduces token usage 15-40% while preserving semantics:
 
 Usage:
     result = compress(messages)
-    print(f"Saved {result.savings_pct:.0%} tokens")
+    logger.info(f"Saved {result.savings_pct:.0%} tokens")
+
     use_messages = result.messages
 """
 from __future__ import annotations
+
+__all__ = [
+    "compress",
+    "CompressionResult",
+    "should_compress",
+]
+
 
 import json
 import re
