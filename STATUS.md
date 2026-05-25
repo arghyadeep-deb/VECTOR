@@ -9,11 +9,9 @@
 | Suite | Count | Result |
 |-------|-------|--------|
 | Integration tests (`tests/integration/`) | **969** | ✅ All passing |
-| Unit tests (`tests/unit/`) | 297 | ✅ 294 passing (3 pre-existing HP-smoother failures) |
+| Unit tests (`tests/unit/`) | **394** | ✅ All passing (0 failures — HP validator fixed) |
 | Phase 2 district tests (`tests/test_phase2_districts.py`) | 47 | ✅ All passing |
 | **Core coverage** | **80.53%** | ✅ Gate (≥80%) passed |
-
-**Pre-existing HP unit test failures** (3): `test_deduct_points_*` in `tests/unit/test_agent_base.py` — caused by the EMA-smoothing HP validator added in Session 9. Deliberately kept; raw delta tests don't reflect the actual smoothed behavior.
 
 ---
 
