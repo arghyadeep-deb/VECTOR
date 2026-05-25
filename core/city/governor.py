@@ -632,6 +632,16 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "ttfhw": "coding",
     "dx_audit": "coding",
     "tutorial": "coding",
+    # Science district routes
+    "simulate": "science",
+    "physics": "science",
+    "chemistry": "science",
+    "cad": "science",
+    "molecule": "science",
+    "causal_query": "science",
+    "what_if": "science",
+    "experiment": "science",
+    "science": "science",
 }
 
 
