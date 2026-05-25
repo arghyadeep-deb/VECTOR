@@ -1055,6 +1055,52 @@ class AutonomousLoop:
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
+        # Avatar on_reflect: advance relationship state + save mood persistence
+        try:
+            avatar = getattr(self, '_avatar', None)
+            if avatar is not None:
+                avatar.on_reflect(
+                    interaction_summary=f'daily_reflect tick={self._tick_count}',
+                    outcome='ok',
+                )
+        except Exception as _av_ref_err:
+            logger.warning('[VECTOR][reflect] avatar on_reflect failed: {}', _av_ref_err)
+
+        # Proactive care check: emit care interventions after each reflect cycle
+        try:
+            from core.avatar.proactive_care import get_proactive_care
+            _care = get_proactive_care()
+            _interventions = _care.check()
+            for _iv in _interventions:
+                logger.info('[VECTOR][reflect] proactive_care {} (sev={:.2f}): {}',
+                            _iv.kind, _iv.severity, _iv.message[:80])
+        except Exception as _care_err:
+            logger.debug('[VECTOR][reflect] proactive_care suppressed: {}', _care_err)
+
+        # Phase 3 — cross-domain synthesis when anomaly severity >= threshold
+        try:
+            from districts.predictive_analytics.anomaly_predictor import AnomalyPredictor
+            from core.brain.synthesis_bridge import SynthesisBridge
+            from core.brain.hypothesis_engine import HypothesisEngine
+            from core.memory.episodic import EpisodicMemory
+            _anomaly_pred = AnomalyPredictor()
+            _recent = self._get_memory().get_recent_events(limit=20) if hasattr(self._get_memory(), 'get_recent_events') else []
+            _district_outputs = [{'source': e.get('source', 'unknown'), 'content': str(e.get('content', ''))} for e in _recent[:10]]
+            if _district_outputs:
+                _bridge = SynthesisBridge()
+                import asyncio as _asyncio
+                _synthesis = await _bridge.synthesize(_district_outputs, synthesis_type='daily_reflect')
+                if _synthesis:
+                    logger.info('[VECTOR][reflect] cross-domain synthesis ({} chars)', len(_synthesis))
+                    self._get_memory().store(
+                        event_type='cross_domain_synthesis',
+                        content=_synthesis[:500],
+                        tags=['synthesis', 'reflect', 'cross_domain'],
+                        source='synthesis_bridge',
+                    )
+        except Exception as _synth_err:
+            logger.debug('[VECTOR][reflect] cross-domain synthesis suppressed: {}', _synth_err)
+
     # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Sync Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     async def sync_loop(self):
