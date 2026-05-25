@@ -31,6 +31,15 @@ class AvatarCore:
     All four lifecycle hooks are fire-and-forget safe — never raise.
     """
 
+    _instance: "AvatarCore | None" = None
+
+    @classmethod
+    def get_instance(cls) -> "AvatarCore":
+        """Return the shared singleton, creating it on first call."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
     def __init__(self):
         self._state = AvatarState.load()
         self._voice = AvatarVoice()
