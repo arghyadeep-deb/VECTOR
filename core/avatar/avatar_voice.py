@@ -147,8 +147,13 @@ class AvatarVoice:
                 if ack[:15].lower() not in text.lower()[:80]:
                     text = f"{ack}\n\n{text}"
                     logger.debug("[VECTOR][avatar_voice] empathy ack prepended ({})", sentiment.emotion)
-                # Update state with this sentiment observation
-                state.absorb_sentiment(sentiment.emotion, sentiment.intensity)
+                # Update state — use SentimentResult.vad as the authoritative PAD values
+                v, a, d = sentiment.vad
+                alpha = 0.3 * sentiment.intensity
+                state.valence   = state.valence   * (1 - alpha) + v * alpha
+                state.arousal   = state.arousal   * (1 - alpha) + a * alpha
+                state.dominance = state.dominance * (1 - alpha) + d * alpha
+                state.emotional_arc.append(f"{sentiment.emotion}:{sentiment.intensity:.2f}")
         except Exception as e:
             logger.debug("[VECTOR][avatar_voice] empathy check failed: {}", e)
         return text
