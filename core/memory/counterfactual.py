@@ -157,7 +157,7 @@ class CounterfactualMemory:
             ).fetchall()
             return [
                 f"When considering '{r['original_action']}', alternative '{r['alternative']}' "
-                f"was better ({r.get('feedback_reason', '')})"
+                f"was better ({r['feedback_reason'] or ''})"
                 for r in rows
             ]
         except Exception as e:
