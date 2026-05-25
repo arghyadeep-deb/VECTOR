@@ -438,25 +438,13 @@ class TestSleepTracker(unittest.TestCase):
         self.assertIsInstance(periods, list)
 
     def test_infer_sleep_periods_detects_gap(self):
-        import uuid
+        # Deterministic: exercise the pure gap-detection logic with controlled
+        # timestamps. Avoids depending on (and polluting) the shared episodic DB,
+        # which on a live machine has intervening events that break the gap.
         now = datetime.datetime.now()
         ts1 = (now - datetime.timedelta(hours=6)).isoformat()
         ts2 = (now - datetime.timedelta(minutes=30)).isoformat()
-        # Use UUIDs so re-runs don't hit UNIQUE constraint
-        id1 = uuid.uuid4().hex
-        id2 = uuid.uuid4().hex
-        self.tracker._memory.conn.execute(
-            "INSERT INTO episodic_memory (id, event_type, content, source, timestamp, tags) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (id1, "ambient", "working", "sleep_gap_test", ts1, "[]"),
-        )
-        self.tracker._memory.conn.execute(
-            "INSERT INTO episodic_memory (id, event_type, content, source, timestamp, tags) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (id2, "ambient", "wake", "sleep_gap_test", ts2, "[]"),
-        )
-        self.tracker._memory.conn.commit()
-        periods = self.tracker._infer_sleep_periods(days=1)
+        periods = self.tracker._compute_sleep_periods([ts1, ts2])
         self.assertGreater(len(periods), 0)
         gap_hours = [p["duration_hours"] for p in periods]
         self.assertTrue(any(h >= 4.0 for h in gap_hours))
