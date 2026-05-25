@@ -1368,6 +1368,15 @@ class AutonomousLoop:
         except Exception as _ls_err:
             logger.debug("[VECTOR][loop_state] restore skipped: {}", _ls_err)
 
+        # Avatar layer — warm up singleton so governor reuses the same instance
+        try:
+            from core.avatar.avatar_core import AvatarCore
+            self._avatar = AvatarCore.get_instance()
+            logger.info("[VECTOR][autonomous_loop] AvatarCore ready — mood={}", self._avatar.state.mood_label)
+        except Exception as _av_err:
+            self._avatar = None
+            logger.warning("[VECTOR][autonomous_loop] AvatarCore init failed: {}", _av_err)
+
         await asyncio.gather(
             self.observe_loop(),
             self.think_loop(),
