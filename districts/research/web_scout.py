@@ -101,6 +101,9 @@ class WebScout(AgentBase):
         Uses VECTOR Scraper (TLS fingerprint impersonation + adaptive tracking).
         Falls back to stealth mode for Cloudflare-protected sites.
         """
+        if not is_safe_url(url):
+            logger.warning("[VECTOR][web_scout] SSRF blocked: {}", url)
+            return ""
         try:
             from core.scraper.vector_scraper import get_scraper
             scraper = get_scraper()
