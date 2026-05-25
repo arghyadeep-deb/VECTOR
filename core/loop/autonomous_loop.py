@@ -833,6 +833,20 @@ class AutonomousLoop:
             h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
             pm.update_from_outcome(winner.action_type, h, reward)
 
+            # Gap 6: record action -> outcome causal edge so the graph populates over time
+            try:
+                from core.memory.causal_graph import CausalGraph
+                _cg = CausalGraph()
+                _action_id = f"action:{winner.action_type}"
+                _outcome_id = f"outcome:{result.get('status', 'unknown')}"
+                if _cg.get_node(_action_id) is None:
+                    _cg.add_node(_action_id, "action", winner.action_type)
+                if _cg.get_node(_outcome_id) is None:
+                    _cg.add_node(_outcome_id, "outcome", result.get("status", "unknown"))
+                _cg.add_edge(_action_id, _outcome_id, strength=max(0.0, min(1.0, reward)), label="action_outcome")
+            except Exception as _cg_err:
+                logger.warning("[VECTOR][loop] causal_graph record suppressed: {}", _cg_err)
+
             try:
                 from core.loop.loop_state import save_decision
                 save_decision(winner.action_type, winner.params, winner.total_score)
