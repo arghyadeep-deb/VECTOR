@@ -24,6 +24,15 @@ For cloud tasks (when local is deliberately skipped):
 """
 from __future__ import annotations
 
+__all__ = [
+    "chat",
+    "chat_stream",
+    "get_session_usage",
+    "ProviderName",
+    "TokenUsage",
+]
+
+
 import asyncio
 import os
 import sys
@@ -218,6 +227,18 @@ def _try_ollama(model: str, messages: list[dict], timeout: float) -> str:
     return result
 
 
+def _pool_key(env_var: str, fallback: str = "") -> str:
+    """Next key from the multi-key pool (comma-separated env), or a config fallback."""
+    try:
+        from core.inference.key_pool import get_pool
+        k = get_pool(env_var).next_key()
+        if k:
+            return k
+    except Exception:
+        pass
+    return fallback
+
+
 def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
     """Tier 1 â€” Gemini free API. Uses google-generativeai SDK or httpx fallback.
 
@@ -226,10 +247,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
     """
     if _is_rate_limited("gemini"):
         return ""
-    api_key = (
-        os.getenv("GEMINI_API_KEY")
-        or CONFIG.get("api_keys", {}).get("gemini", "")
-    )
+    api_key = _pool_key("GEMINI_API_KEY", str(CONFIG["api_keys"]["gemini_key"]))
     if not api_key:
         return ""
 
@@ -273,10 +291,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
     """Tier 2 â€” Anthropic Claude API (paid). Active when ANTHROPIC_API_KEY is set."""
     if _is_rate_limited("anthropic"):
         return ""
-    api_key = (
-        os.getenv("ANTHROPIC_API_KEY")
-        or CONFIG.get("api_keys", {}).get("anthropic", "")
-    )
+    api_key = str(CONFIG["api_keys"]["anthropic_key"])
     if not api_key:
         return ""
 
@@ -317,10 +332,7 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
     """Tier 2 â€” OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
     if _is_rate_limited("openrouter"):
         return ""
-    api_key = (
-        os.getenv("OPENROUTER_API_KEY")
-        or CONFIG.get("api_keys", {}).get("openrouter", "")
-    )
+    api_key = str(CONFIG["api_keys"]["openrouter_key"])
     if not api_key:
         return ""
 
@@ -522,9 +534,9 @@ if __name__ == "__main__":
     print(f"[OK] session_usage: calls={usage['total_calls']} cost=${usage['total_cost_usd']}")
     providers_available = {
         "ollama": True,  # always local
-        "gemini": bool(os.getenv("GEMINI_API_KEY")),
-        "anthropic": bool(os.getenv("ANTHROPIC_API_KEY")),
-        "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
+        "gemini": bool(CONFIG["api_keys"]["gemini_key"]),
+        "anthropic": bool(CONFIG["api_keys"]["anthropic_key"]),
+        "openrouter": bool(CONFIG["api_keys"]["openrouter_key"]),
     }
     print(f"[OK] providers: {providers_available}")
     print(f"[OK] gemini_model_map: {len(_GEMINI_MAP)} entries")
