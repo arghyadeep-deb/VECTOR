@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "SentimentAnalyzer",
+    "SentimentResult",
+]
+
+
 import re
 import time
 from typing import Any
@@ -19,11 +25,48 @@ class SentimentResult(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     raw_scores: dict[str, float] = Field(default_factory=dict)
 
+    # VAD (Valence-Arousal-Dominance) — computed from emotion+intensity, never stored raw
+    # Populated lazily via the `vad` property so existing callers are unaffected.
+    _vad_cache: tuple[float, float, float] | None = None
+
+    # PAD values per emotion (v, a, d)
+    _EMOTION_PAD: dict[str, tuple[float, float, float]] = {
+        "happy":      ( 0.8,  0.4,  0.3),
+        "frustrated": (-0.6,  0.7, -0.2),
+        "urgent":     ( 0.0,  0.9,  0.0),
+        "curious":    ( 0.4,  0.3,  0.1),
+        "sad":        (-0.5, -0.4, -0.3),
+        "neutral":    ( 0.0,  0.0,  0.0),
+    }
+
     @property
     def label(self) -> str:
         if self.urgency > 0.6:
             return f"urgent_{self.emotion}"
         return self.emotion
+
+    @property
+    def vad(self) -> tuple[float, float, float]:
+        """(valence, arousal, dominance) scaled by intensity. Range -1..1."""
+        base = self._EMOTION_PAD.get(self.emotion, (0.0, 0.0, 0.0))
+        scale = max(0.1, self.intensity)
+        return (
+            round(base[0] * scale, 4),
+            round(base[1] * scale, 4),
+            round(base[2] * scale, 4),
+        )
+
+    @property
+    def valence(self) -> float:
+        return self.vad[0]
+
+    @property
+    def arousal(self) -> float:
+        return self.vad[1]
+
+    @property
+    def dominance(self) -> float:
+        return self.vad[2]
 
 
 _EMOTION_KEYWORDS: dict[str, list[tuple[str, float]]] = {
