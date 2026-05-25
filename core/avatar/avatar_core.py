@@ -234,7 +234,7 @@ if __name__ == "__main__":
 
     loaded = AvatarState.load()
     print(
-        f"✅ avatar_core OK — mood={loaded.mood_label} "
+        f"OK avatar_core -- mood={loaded.mood_label} "
         f"presence={loaded.presence_score:.2f} "
         f"response={result['response'][:60]!r}"
     )
