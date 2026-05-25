@@ -471,32 +471,45 @@ def chat(
     if provider == "ollama":
         return _try_ollama(model, messages, timeout)
 
-    # â”€â”€ Auto chain: local first, cloud fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # Tier 0 â€” local (always)
-    result = _try_ollama(model, messages, timeout)
-    if result:
+    # â”€â”€ Auto chain: sensitivity + complexity aware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # security/privacy/RED/secret-bearing -> local Ollama only (never leaves device);
+    # simple/medium -> cloud-first (gemini free first) for fast replies;
+    # heavy (COMPLEX/REASONING) non-sensitive -> cloud premium (anthropic) first.
+    local_only = False
+    heavy = False
+    try:
+        from core.inference.route_policy import decide_route
+        _prompt = _messages_to_text(messages)
+        _plan = decide_route(_prompt, district=district, sensitive=sensitive)
+        local_only = _plan.local_only
+        heavy = _plan.tier == "reasoning"
+        logger.debug("[VECTOR][vc_llm] route: local_only={} heavy={} ({})",
+                     local_only, heavy, _plan.reason)
+    except Exception as e:
+        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+
+    # Sensitive or cloud-disabled -> strictly local
+    if local_only or not allow_cloud:
+        result = _try_ollama(model, messages, timeout)
+        if not result and not local_only:
+            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
         return result
 
-    if not allow_cloud:
-        logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
-        return ""
+    if heavy:
+        order = ["anthropic", "openrouter", "gemini", "ollama"]   # premium first
+    else:
+        order = ["gemini", "openrouter", "anthropic", "ollama"]   # free/fast first
 
-    logger.info(f"[VECTOR][vc_llm] local {model} unavailable â€” trying cloud providers")
-
-    # Tier 1 â€” Gemini free (no API key cost)
-    result = _try_gemini(model, messages, timeout)
-    if result:
-        return result
-
-    # Tier 2a â€” Anthropic paid
-    result = _try_anthropic(model, messages, timeout)
-    if result:
-        return result
-
-    # Tier 2b â€” OpenRouter paid
-    result = _try_openrouter(model, messages, timeout)
-    if result:
-        return result
+    _try_map = {
+        "ollama": _try_ollama,
+        "gemini": _try_gemini,
+        "anthropic": _try_anthropic,
+        "openrouter": _try_openrouter,
+    }
+    for slug in order:
+        result = _try_map[slug](model, messages, timeout)
+        if result:
+            return result
 
     logger.warning(f"[VECTOR][vc_llm] all providers failed for {model}")
     return ""
