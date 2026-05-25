@@ -280,10 +280,7 @@ class TestResearchHub(unittest.TestCase):
                        "search_arxiv", "get_crypto_prices", "get_tech_news"):
             setattr(self.hub, method, AsyncMock(return_value=[]))
         _run(self.hub.daily_digest())
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=30)
-        self.assertTrue(any(r.get("event_type") == "daily_research_digest" for r in recent))
+        self.assertTrue(_event_stored("daily_research_digest"))
 
     # ── run dispatch ──────────────────────────────────────────────────────────
 
