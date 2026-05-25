@@ -306,21 +306,28 @@ class MetaCognition:
                 })
 
         # --- Confirmation bias (high-conf thoughts cluster in one domain) ---
+        # Compare domain avg against the REST (excluding that domain) to avoid dilution
         domain_counts: dict[str, list[float]] = {}
         for s in reasoning_samples:
             d = s.get("domain", "general")
             domain_counts.setdefault(d, []).append(s.get("confidence", 0.5))
         for domain, confs in domain_counts.items():
-            if len(confs) >= 3:
+            if len(confs) >= 3 and len(confs) / len(reasoning_samples) > 0.5:
                 domain_avg = sum(confs) / len(confs)
-                overall_avg = sum(confidences) / len(confidences)
-                if domain_avg - overall_avg > 0.25 and len(confs) / len(reasoning_samples) > 0.5:
-                    biases.append({
-                        "bias_type": "confirmation",
-                        "severity": round(min(1.0, domain_avg - overall_avg), 3),
-                        "evidence": f"domain '{domain}' avg={domain_avg:.2f} vs overall={overall_avg:.2f}",
-                        "recommendation": f"Diversify reasoning beyond '{domain}' domain",
-                    })
+                other_confs = [
+                    s.get("confidence", 0.5)
+                    for s in reasoning_samples
+                    if s.get("domain", "general") != domain
+                ]
+                if other_confs:
+                    other_avg = sum(other_confs) / len(other_confs)
+                    if domain_avg - other_avg > 0.25:
+                        biases.append({
+                            "bias_type": "confirmation",
+                            "severity": round(min(1.0, domain_avg - other_avg), 3),
+                            "evidence": f"domain '{domain}' avg={domain_avg:.2f} vs other domains={other_avg:.2f}",
+                            "recommendation": f"Diversify reasoning beyond '{domain}' domain",
+                        })
 
         return biases
 
