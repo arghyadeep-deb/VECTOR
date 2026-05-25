@@ -490,7 +490,7 @@ class ProviderClient:
         if system_instruction:
             payload["systemInstruction"] = system_instruction
 
-        url = f"{prov.base_url}/models/{model}:generateContent?key={prov.api_key}"
+        url = f"{prov.base_url}/models/{model}:generateContent?key={api_key if api_key is not None else prov.api_key}"
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(url, json=payload,
