@@ -705,10 +705,7 @@ class TestWebScout(unittest.TestCase):
         ])
         self.scout.fetch_page = AsyncMock(return_value="content")
         _run(self.scout.research("integration test research", save_note=False))
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        recent = mem.retrieve(limit=20)
-        self.assertTrue(any(r.get("event_type") == "research" for r in recent))
+        self.assertTrue(_event_stored("research"))
 
     def test_research_no_results_deducts_hp(self):
         initial_hp = self.scout.health_points
