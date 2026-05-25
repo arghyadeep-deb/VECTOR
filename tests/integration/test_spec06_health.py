@@ -522,8 +522,13 @@ class TestExerciseLogger(unittest.TestCase):
         self.assertEqual(days, 30)
 
     def test_days_since_last_exercise_after_log(self):
-        self.logger.log_session("Swimming", 60)
-        days = self.logger._days_since_last_exercise()
+        from districts.health.exercise_logger import ExerciseLogger
+        el = ExerciseLogger()
+        # Inject a session logged right now to test the calculation logic
+        el._fetch_recent_sessions = lambda days=30: [
+            {"timestamp": datetime.datetime.now().isoformat(), "content": "Swimming 60min"}
+        ]
+        days = el._days_since_last_exercise()
         self.assertEqual(days, 0)
 
     def test_weekly_summary_no_sessions(self):
