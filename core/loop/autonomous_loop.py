@@ -836,8 +836,8 @@ class AutonomousLoop:
             try:
                 from core.loop.loop_state import save_decision
                 save_decision(winner.action_type, winner.params, winner.total_score)
-            except Exception:
-                pass
+            except Exception as _sd_err:
+                logger.warning("[VECTOR][loop] save_decision suppressed: {}", _sd_err)
 
             if winner.reasoning_chain:
                 self._get_memory().store_chain(
