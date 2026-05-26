@@ -49,7 +49,7 @@ export default function App() {
 
   const connectToVector = () => {
     try {
-      const ws = new WebSocket(`ws://127.0.0.1:8000/ws`)
+      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/state`)
       wsRef.current = ws
       ws.onopen = () => setState(s => ({ ...s, status: 'online' }))
       ws.onmessage = (e) => handleMessage(JSON.parse(e.data))
