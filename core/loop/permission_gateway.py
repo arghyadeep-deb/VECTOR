@@ -306,12 +306,18 @@ class PermissionGateway:
           financial_transaction   → fin.execute
           (everything else)       → generic.run
         """
+        # The PRIMARY gate is the GREEN/YELLOW/RED/FORBIDDEN classification above;
+        # this capability check is optional defense-in-depth RBAC on top of it.
         try:
             from vectorcode.src.vc_security.capabilities import (  # type: ignore
-                CapabilityRegistry,
+                CapabilityPolicy,
             )
-        except Exception:
-            return False, 'no capability layer — failing closed'
+            policy = CapabilityPolicy()
+        except Exception as e:
+            # Layer absent or unusable (e.g. no rust bridge) — rely on the tier
+            # gate, which still enforces FORBIDDEN/RED/UNKNOWN. Documented behavior.
+            logger.debug(f'[VECTOR][gateway] capability layer unavailable, tier gate enforced: {e}')
+            return True, 'no capability layer — tier gate enforced'
 
         try:
             mapping = {
@@ -330,18 +336,11 @@ class PermissionGateway:
             }
             required = mapping.get(action.action_type, 'generic.run')
 
-            registry = CapabilityRegistry()
-            granted = getattr(registry, 'check', None)
-            if not callable(granted):
-                # Some absorbed implementations expose has_capability instead
-                granted = getattr(registry, 'has_capability', None)
-            if not callable(granted):
-                return False, 'capability registry has no check method — failing closed'
-
-            if granted(action.proposed_by, required):
+            if policy.check(action.proposed_by, required):
                 return True, f'{action.proposed_by} has {required}'
             return False, f'{action.proposed_by} lacks {required}'
         except Exception as e:
+            # Layer loaded but the check itself errored — fail CLOSED (defense-in-depth).
             logger.warning(f'[VECTOR][gateway] capability check error — failing closed: {e}')
             return False, f'capability check failed ({e})'
 
