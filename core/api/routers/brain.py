@@ -1,5 +1,28 @@
 """VECTOR brain router - /brain/* endpoints."""
 import sys
+
+__all__ = [
+    "active_hypotheses",
+    "add_goal",
+    "AddGoalReq",
+    "epistemic_staleness",
+    "epistemic_summary",
+    "generate_hypothesis",
+    "GenerateHypothesisReq",
+    "get_goals",
+    "get_reasoning_chains",
+    "immediate_actions",
+    "red_team_attack",
+    "red_team_audit",
+    "RedTeamAttackReq",
+    "RedTeamAuditReq",
+    "router",
+    "synthesize",
+    "SynthesizeReq",
+    "test_hypothesis",
+    "TestHypothesisReq",
+]
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from fastapi import APIRouter, HTTPException
