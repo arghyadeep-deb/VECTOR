@@ -63,6 +63,40 @@ class CouncilBrain:
             logger.error(f"[VECTOR][council_brain] Deliberation failed: {e}")
             return {"error": str(e)}
 
+    async def deliberate_action(self, action_type: str, params: dict, context: str = "") -> dict:
+        """Structured deliberation for a specific action proposal.
+        Returns {verdict: proceed|reject|defer, votes: list[str], rationale: str, confidence: float}.
+        Falls back to defer when Ollama is unavailable so the gateway can proceed normally."""
+        question = (
+            f"Proposed action: {action_type}\n"
+            f"Parameters: {params}\n"
+            f"Context: {context[:400] if context else 'none'}\n\n"
+            "Decide: should VECTOR proceed, reject, or defer this action to the owner?\n"
+            "Reply with exactly one of: PROCEED, REJECT, DEFER — then one sentence rationale."
+        )
+        try:
+            raw = await self.deliberate(question)
+            if "error" in raw:
+                return {"verdict": "defer", "votes": [], "rationale": raw["error"][:200], "confidence": 0.0}
+            verdict_text = raw.get("verdict", "")
+            # Parse structured verdict from LLM text
+            upper = verdict_text.upper()
+            if "PROCEED" in upper:
+                verdict = "proceed"
+            elif "REJECT" in upper:
+                verdict = "reject"
+            else:
+                verdict = "defer"
+            return {
+                "verdict": verdict,
+                "votes": raw.get("stage1", []),
+                "rationale": verdict_text[:500],
+                "confidence": raw.get("confidence", 0.75),
+            }
+        except Exception as e:
+            logger.warning("[VECTOR][council_brain] deliberate_action failed: {}", e)
+            return {"verdict": "defer", "votes": [], "rationale": f"Council error: {e!s:.120}", "confidence": 0.0}
+
     def can_afford_deliberation(self, hp: int) -> bool:
         """Check if the requester's HP meets the council gate."""
         gate = CONFIG.get("council", {}).get("hp_gate", 700)
