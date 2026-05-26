@@ -55,6 +55,27 @@ class SynthesisBridge:
             logger.error(f"[VECTOR][synthesis_bridge] Synthesis failed: {e}")
             return None
 
+    def get_recent_patterns(self, days: int = 1) -> list[str]:
+        """Return cross-domain synthesis patterns stored in episodic memory in the last N days.
+        Used by DailyReviewer to include pattern descriptions in the morning briefing."""
+        try:
+            from datetime import timezone, timedelta
+            from core.memory.episodic import EpisodicMemory
+            em = EpisodicMemory()
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            rows = em.conn.execute(
+                """SELECT content FROM episodic_memory
+                   WHERE event_type='cross_domain_synthesis' AND timestamp >= ?
+                   ORDER BY timestamp DESC LIMIT 20""",
+                (cutoff,),
+            ).fetchall()
+            patterns = [r[0] for r in rows if r[0]]
+            logger.debug("[VECTOR][synthesis_bridge] get_recent_patterns: {} found (days={})", len(patterns), days)
+            return patterns
+        except Exception as e:
+            logger.debug("[VECTOR][synthesis_bridge] get_recent_patterns failed: {}", e)
+            return []
+
     def quick_merge(self, texts: list[str], max_len: int = 500) -> str:
         """Quick merge without LLM — concatenate and truncate."""
         merged = "\n---\n".join(texts)
