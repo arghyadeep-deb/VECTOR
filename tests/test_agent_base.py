@@ -103,7 +103,9 @@ def test_inherit_ghost_carries_lessons():
 def test_is_alive_property():
     a = make_agent()
     assert a.is_alive
-    a.deduct_points(9999, "killed")
+    # HP validator clamps each delta to ±200, so drive to death across txns
+    for _ in range(3):
+        a.deduct_points(200, "killed")
     assert not a.is_alive
 
 
