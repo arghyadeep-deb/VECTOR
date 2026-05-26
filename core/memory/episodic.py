@@ -506,6 +506,135 @@ class EpisodicMemory:
             logger.error(f"Get stats failed: {e}")
             return {}
     
+    # ── C2: Semantic search ───────────────────────────────────────────────────
+
+    _EMBED_MODEL = "all-MiniLM-L6-v2"
+    _EMBED_DIM = 384
+
+    def search_semantic(self, query: str, top_k: int = 10) -> list[dict]:
+        """Hybrid semantic + FTS5 search (70% semantic / 30% keyword).
+
+        Falls back to FTS5-only `recall()` when:
+          - sentence-transformers is not installed
+          - the embeddings table is empty (first run before backfill)
+          - query is empty string
+        """
+        if not query:
+            return self.recall("", limit=top_k)
+
+        try:
+            import numpy as np
+            from sentence_transformers import SentenceTransformer  # type: ignore[import]
+        except ImportError:
+            logger.debug("[VECTOR][episodic] sentence-transformers unavailable — FTS5 fallback")
+            return self.recall(query, limit=top_k)
+
+        try:
+            model = SentenceTransformer(self._EMBED_MODEL)
+            query_vec = model.encode(query, normalize_embeddings=True).astype("float32")
+
+            # Lazily backfill embeddings for all un-embedded episodes
+            self._ensure_embeddings(model)
+
+            # Fetch all stored embeddings
+            with get_temp_cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, embedding FROM episodic_embeddings WHERE model = ?",
+                    (self._EMBED_MODEL,),
+                )
+                rows = cursor.fetchall()
+
+            if not rows:
+                return self.recall(query, limit=top_k)
+
+            # Cosine similarity (embeddings are L2-normalised)
+            ids = [r[0] for r in rows]
+            matrix = np.frombuffer(b"".join(r[1] for r in rows), dtype="float32").reshape(
+                len(rows), self._EMBED_DIM
+            )
+            sem_scores = (matrix @ query_vec).tolist()  # shape (N,)
+
+            # FTS5 scores — best effort, ignore on failure
+            fts_map: dict[str, float] = {}
+            try:
+                with get_temp_cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, rank FROM episodic_memory_fts WHERE episodic_memory_fts MATCH ? LIMIT 200",
+                        (query,),
+                    )
+                    fts_rows = cursor.fetchall()
+                if fts_rows:
+                    raw_ranks = [abs(r[1]) for r in fts_rows]
+                    max_rank = max(raw_ranks) or 1.0
+                    fts_map = {r[0]: abs(r[1]) / max_rank for r in fts_rows}
+            except Exception:
+                pass
+
+            # Hybrid score
+            scored = [
+                (ids[i], 0.7 * sem_scores[i] + 0.3 * fts_map.get(ids[i], 0.0))
+                for i in range(len(ids))
+            ]
+            scored.sort(key=lambda x: x[1], reverse=True)
+            top_ids = [s[0] for s in scored[:top_k]]
+
+            # Fetch full records ordered by score
+            results = []
+            for ep_id in top_ids:
+                with get_temp_cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, event_type, content, tags, context_snapshot, timestamp, source "
+                        "FROM episodic_memory WHERE id = ?",
+                        (ep_id,),
+                    )
+                    row = cursor.fetchone()
+                if row:
+                    results.append({
+                        "id": row[0],
+                        "event_type": row[1],
+                        "content": row[2],
+                        "tags": json.loads(row[3]) if row[3] else None,
+                        "context": json.loads(row[4]) if row[4] else None,
+                        "timestamp": row[5],
+                        "source": row[6],
+                    })
+            return results
+
+        except Exception as e:
+            logger.warning("[VECTOR][episodic] search_semantic failed, FTS5 fallback: {}", e)
+            return self.recall(query, limit=top_k)
+
+    def _ensure_embeddings(self, model: object) -> None:
+        """Backfill embeddings for episodic_memory rows not yet embedded."""
+        import numpy as np
+        import datetime as _dt
+
+        try:
+            with get_temp_cursor() as cursor:
+                cursor.execute(
+                    """SELECT e.id, e.content FROM episodic_memory e
+                       LEFT JOIN episodic_embeddings emb ON e.id = emb.id
+                       WHERE emb.id IS NULL LIMIT 500"""
+                )
+                missing = cursor.fetchall()
+
+            if not missing:
+                return
+
+            logger.debug("[VECTOR][episodic] backfilling {} embeddings", len(missing))
+            texts = [row[1] or "" for row in missing]
+            vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+
+            now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+            with get_temp_cursor() as cursor:
+                for (ep_id, _), vec in zip(missing, vectors):
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO episodic_embeddings (id, embedding, model, created_at) VALUES (?, ?, ?, ?)",
+                        (ep_id, vec.astype("float32").tobytes(), self._EMBED_MODEL, now),
+                    )
+        except Exception as e:
+            logger.debug("[VECTOR][episodic] embedding backfill error: {}", e)
+
     def close(self):
         self.conn.close()
         logger.info("Episodic memory connection closed")
