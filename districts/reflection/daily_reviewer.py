@@ -173,10 +173,24 @@ class DailyReviewer(AgentBase):
             source="daily_reviewer",
         )
 
+        # Gap 5: prepend top pending hypotheses as "I noticed" lines (A5)
+        _hyp_section = ""
+        try:
+            from core.brain.suggestion_queue import SuggestionQueue
+            _sq = SuggestionQueue()
+            _top = _sq.get_top_pending(limit=3)
+            if _top:
+                _lines = "\n".join(f"- I noticed: {h['hypothesis'][:120]}" for h in _top)
+                _hyp_section = f"## Proactive Insights\n{_lines}\n\n"
+                logger.info("[VECTOR][daily_reviewer] {} proactive insights added to briefing", len(_top))
+            _sq.close()
+        except Exception as _hq_err:
+            logger.debug("[VECTOR][daily_reviewer] SuggestionQueue briefing skipped: {}", _hq_err)
+
         try:
             self._obsidian.write_note(
                 title=f"Reflection — {date_str}",
-                content=f"## Daily Review — {date_str}\n\n{analysis}",
+                content=f"## Daily Review — {date_str}\n\n{_hyp_section}{analysis}",
                 folder="Reflections",
                 tags=["reflection", "daily", "vector"],
             )
