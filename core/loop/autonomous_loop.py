@@ -1538,6 +1538,7 @@ class AutonomousLoop:
             self.research_loop(),
             self.state_checkpoint_loop(),
             self.sense_loop(),
+            self.anticipation_loop(),
             return_exceptions=True,
         )
 
