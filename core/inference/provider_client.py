@@ -100,6 +100,7 @@ class ProviderClient:
         inject_personality: bool = False,
         sensitive: bool = False,
         district: str | None = None,
+        person_id: str | None = None,
     ) -> CompletionResult:
         """
         Multi-turn chat with automatic provider routing and fallback.
