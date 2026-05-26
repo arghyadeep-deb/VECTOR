@@ -171,7 +171,7 @@ def test_validate_sender_mismatch_raises():
         validate_sender("to@x.com", "other@x.com", "me@x.com")
         assert False, "Should have raised"
     except SenderValidationError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        pass
 
 
 def test_validate_sender_bad_email_raises():
