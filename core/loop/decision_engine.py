@@ -330,6 +330,9 @@ class DecisionEngine:
         # Causal influence (Gap 6): 5% blend rewarding actions with known consequences
         causal_score = self._causal_score(candidate)
 
+        # MetaCognition bias penalty (Gap 8): cached 5 min, -5% for matched bias patterns
+        bias_factor = self._bias_penalty(candidate)
+
         total = (
             self.W_GOAL   * goal_score
             + self.W_CONF * candidate.confidence
