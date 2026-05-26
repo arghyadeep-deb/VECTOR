@@ -69,6 +69,18 @@ export default function App() {
       setState(s => ({ ...s, status: 'online', lastAction: data.content.slice(0, 60) }))
     }
     if (data.type === 'state') setState(s => ({ ...s, ...data.payload }))
+    if (data.type === 'state_event') {
+      const { event_type, data: payload } = data
+      if (event_type === 'decision_made' && payload?.action_type) {
+        setState(s => ({ ...s, status: 'thinking', lastAction: payload.action_type.slice(0, 60) }))
+      } else if (event_type === 'hypothesis_surfaced' && payload?.text) {
+        setState(s => ({ ...s, lastAction: `Hypothesis: ${String(payload.text).slice(0, 50)}` }))
+      } else if (event_type === 'agent_hp_changed') {
+        setState(s => ({ ...s, activeAgents: payload?.alive_count ?? s.activeAgents }))
+      } else if (event_type === 'task_routed') {
+        setState(s => ({ ...s, district: payload?.district ?? s.district }))
+      }
+    }
   }
 
   const updateUptime = () => {
