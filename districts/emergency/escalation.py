@@ -151,6 +151,8 @@ class EscalationManager:
 
     async def _step_escalate(self, step: str, emergency: ScoredEmergency, runbook_actions: list | None = None) -> dict:
         logger.warning("[Escalation] ESCALATING {} — no auto-resolution possible", emergency.event.signal_name)
+        if self._test_mode:
+            return {"action": "escalate", "status": "ok", "message": "test_mode: audio alert skipped"}
         try:
             import winsound
             for _ in range(5):
