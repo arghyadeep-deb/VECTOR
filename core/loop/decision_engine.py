@@ -74,6 +74,9 @@ class DecisionEngine:
         self._epistemic = None
         self._reasoning_bank = None
         self._causal_graph = None
+        self._metacognition = None
+        self._mc_bias_cache: list | None = None
+        self._mc_cache_time: float = 0.0
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
