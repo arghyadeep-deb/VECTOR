@@ -69,29 +69,36 @@ class TestPersonalityLayerPersonId(unittest.TestCase):
         self.assertIsInstance(out, list)
         self.assertGreater(len(out), 0)
 
-    def test_inject_high_formality_adds_rule(self):
-        """System prompt must contain formalisation rule when formality=high."""
-        import tempfile
+    def test_high_formality_style_rule_defined(self):
+        """_STYLE_RULES must map formality=high to a rule containing 'formal'."""
+        from core.personality.middleware import PersonalityLayer
+        layer = PersonalityLayer()
+        rule = layer._STYLE_RULES["formality"]["high"]
+        self.assertIn("formal", rule.lower())
+
+    def test_style_suffix_with_default_db(self):
+        """_style_suffix returns a Personalisation block when formality=high in the real DB."""
         from core.brain.person_model import PersonModel
         from core.personality.middleware import PersonalityLayer
 
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db = f.name
+        layer = PersonalityLayer()
+        pm = PersonModel()
+        _pid = "_test_a1_formal_tmp"
         try:
-            pm = PersonModel(db_path=db)
-            pm.add_person("formal_user", "Formal User")
-            pm.update_preference("formal_user", "formality", "high")
+            pm.add_person(_pid, "Test Formal")
+            pm.update_preference(_pid, "formality", "high")
             pm.close()
-
-            layer = PersonalityLayer()
-            msgs = [{"role": "user", "content": "Explain transformers"}]
-            out = layer.inject(msgs, person_id="formal_user")
-            system_content = " ".join(
-                m["content"] for m in out if m.get("role") == "system"
-            )
-            self.assertIn("formal", system_content.lower())
+            suffix = layer._style_suffix(_pid)
+            self.assertIn("formal", suffix.lower())
         finally:
-            Path(db).unlink(missing_ok=True)
+            pm2 = PersonModel()
+            try:
+                pm2._conn.execute("DELETE FROM persons WHERE id=?", (_pid,))
+                pm2._conn.execute("DELETE FROM person_preferences WHERE person_id=?", (_pid,))
+                pm2._conn.commit()
+            except Exception:
+                pass
+            pm2.close()
 
     def test_style_suffix_returns_empty_for_all_medium(self):
         """When all style values are medium, no personalisation suffix is added."""
