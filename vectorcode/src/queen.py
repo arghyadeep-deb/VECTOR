@@ -31,10 +31,14 @@ if TYPE_CHECKING:
 
 # ── Module-level chat (patchable in tests) ────────────────────────────────────
 
-def chat(model: str, prompt: str) -> str:
+def chat(model: str, prompt: str, timeout: float = 30.0) -> str:
     import ollama
     try:
-        resp = ollama.chat(model=model, messages=[{"role": "user", "content": prompt}])
+        # Use a client with an explicit timeout so a slow/hung Ollama fails
+        # fast into the graceful fallback instead of blocking forever.
+        resp = ollama.Client(timeout=timeout).chat(
+            model=model, messages=[{"role": "user", "content": prompt}]
+        )
         return resp["message"]["content"]
     except Exception as e:
         logger.warning(f"[VECTOR][queen] ollama {model} unavailable: {e}")
