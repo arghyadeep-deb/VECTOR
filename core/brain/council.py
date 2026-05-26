@@ -33,7 +33,7 @@ class CouncilBrain:
         """
         try:
             import ollama
-            client = ollama.Client(host=self._ollama_host)
+            client = ollama.Client(host=self._ollama_host, timeout=5.0)
 
             stage1_responses = []
             for member in self._council_members:
