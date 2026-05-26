@@ -56,7 +56,9 @@ def test_hp_floor_at_zero():
 def test_death_preserves_ghost():
     a = make_agent()
     a.add_lesson("lesson one")
-    a.deduct_points(9999, "killed")
+    # HP validator clamps each delta to ±200, so drive to death across txns
+    for _ in range(3):
+        a.deduct_points(200, "killed")
     assert "died_at" in a.ghost_memory
     assert a.ghost_memory["name"] == "TestAgent"
 
