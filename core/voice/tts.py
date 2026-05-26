@@ -34,7 +34,7 @@ class VoiceTTS:
         self._speaking = False  # barge-in flag
         self._model_dir = Path(CONFIG.get("voice", {}).get("kokoro_model_dir", "./models/kokoro"))
         self._speed = CONFIG.get("voice", {}).get("kokoro_speed", 0.85)
-        self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000))
+        self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
         # ElevenLabs streaming (C4) — opt-in via CONFIG["voice"]["elevenlabs_streaming"]
         self._el_ok = False
         self._el_client = None
