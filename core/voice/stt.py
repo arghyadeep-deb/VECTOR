@@ -15,6 +15,14 @@ The new STT() factory picks the engine; if the chosen one fails to load, falls
 back to Whisper local.
 """
 import sys
+
+__all__ = [
+    "DeepgramSTT",
+    "FasterWhisperSTT",
+    "STT",
+    "WhisperSTT",
+]
+
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -29,20 +37,47 @@ from core.config import CONFIG
 
 
 class WhisperSTT:
-    """OpenAI Whisper, local — no API key, ~6 GB VRAM for large-v3."""
+    """OpenAI Whisper, local — no API key.
+
+    VRAM requirements: large-v3 ~10 GB fp32 (falls back to medium when insufficient).
+    """
 
     name = "whisper"
+
+    # VRAM floor (GB) required to load each model size at fp32.
+    _VRAM_REQUIREMENTS: dict = {"large-v3": 10.0, "large": 10.0, "medium": 5.0, "small": 2.0}
 
     def __init__(self):
         self._model = None
         self._model_name = CONFIG.get("voice", {}).get("whisper_model", "large-v3")
 
+    def _select_model(self) -> str:
+        """Return model name, downgrading to 'medium' when GPU VRAM is insufficient."""
+        name = self._model_name
+        required_gb = self._VRAM_REQUIREMENTS.get(name, 0.0)
+        if required_gb > 0.0:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+                    if vram_gb < required_gb:
+                        logger.warning(
+                            "[VECTOR][stt:whisper] '{}' needs ~{:.0f} GB VRAM; "
+                            "{:.1f} GB available — falling back to 'medium'",
+                            name, required_gb, vram_gb,
+                        )
+                        return "medium"
+            except Exception:
+                pass
+        return name
+
     def _load(self):
         if self._model is None:
             try:
                 import whisper
-                logger.info(f"[VECTOR][stt:whisper] Loading model '{self._model_name}'")
-                self._model = whisper.load_model(self._model_name)
+                effective = self._select_model()
+                logger.info(f"[VECTOR][stt:whisper] Loading model '{effective}'")
+                self._model = whisper.load_model(effective)
                 logger.info("[VECTOR][stt:whisper] ready")
             except Exception as e:
                 logger.error(f"[VECTOR][stt:whisper] Failed to load: {e}")
