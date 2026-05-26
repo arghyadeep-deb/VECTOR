@@ -199,3 +199,81 @@ async def get_reasoning_chains(situation: str = "", limit: int = 20):
     except Exception as e:
         logger.error("[VECTOR][brain] reasoning/chains failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── D3 — Person knowledge graph endpoints ──────────────────────────────────
+
+
+class UpdateBeliefReq(BaseModel):
+    key: str
+    value: str
+    confidence: float = 0.8
+
+
+class UpdateTrustReq(BaseModel):
+    delta: float
+
+
+@router.get("/persons")
+async def get_persons():
+    """D3 — Return all known persons for the knowledge graph nodes."""
+    try:
+        from core.brain.person_model import PersonModel
+        pm = PersonModel()
+        persons = pm.get_all_persons()
+        return {"persons": persons, "count": len(persons)}
+    except Exception as e:
+        logger.error("[VECTOR][brain] persons list failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/persons/{person_id}")
+async def get_person(person_id: str):
+    """D3 — Return full model for one person: beliefs, preferences, interaction_history."""
+    try:
+        from core.brain.person_model import PersonModel
+        pm = PersonModel()
+        model = pm.get_model(person_id)
+        if model is None:
+            raise HTTPException(status_code=404, detail=f"Person '{person_id}' not found")
+        history = pm.get_interaction_history(person_id, limit=20)
+        return {"person": model, "interaction_history": history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[VECTOR][brain] person model failed for %s: %s", person_id, e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/persons/{person_id}/belief")
+async def update_person_belief(person_id: str, body: UpdateBeliefReq):
+    """D3 — Inline-edit a person belief from the dashboard."""
+    try:
+        from core.brain.person_model import PersonModel
+        pm = PersonModel()
+        if not pm.person_exists(person_id):
+            raise HTTPException(status_code=404, detail=f"Person '{person_id}' not found")
+        ok = pm.update_belief(person_id, body.key, body.value, body.confidence)
+        return {"updated": ok, "person_id": person_id, "key": body.key}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[VECTOR][brain] update_belief failed for %s: %s", person_id, e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/persons/{person_id}/trust")
+async def update_person_trust(person_id: str, body: UpdateTrustReq):
+    """D3 — Inline-edit trust level for a person from the dashboard."""
+    try:
+        from core.brain.person_model import PersonModel
+        pm = PersonModel()
+        if not pm.person_exists(person_id):
+            raise HTTPException(status_code=404, detail=f"Person '{person_id}' not found")
+        new_trust = pm.update_trust(person_id, body.delta)
+        return {"updated": True, "person_id": person_id, "new_trust": new_trust}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[VECTOR][brain] update_trust failed for %s: %s", person_id, e)
+        raise HTTPException(status_code=500, detail=str(e))
