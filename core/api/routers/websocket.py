@@ -6,6 +6,20 @@ Frontend receives pure data streams only.
 """
 
 import sys
+
+__all__ = [
+    "broadcast_event",
+    "ConnectionManager",
+    "manager",
+    "require_auth",
+    "router",
+    "vector_ws",
+    "WS_API_KEY",
+    "ws_command_http",
+    "WSCommandRequest",
+    "WSCommandResponse",
+]
+
 import asyncio
 import datetime
 import json
@@ -288,6 +302,68 @@ async def vector_ws(websocket: WebSocket):
         manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"[VECTOR][ws] connection error: {e}")
+        manager.disconnect(websocket)
+
+
+@router.websocket("/state")
+async def vector_ws_state(websocket: WebSocket):
+    """D1 — event_bus bridge: forward autonomous_loop events to dashboard in real time.
+
+    Subscribes to DECISION_MADE, AGENT_HP_CHANGED, TASK_ROUTED,
+    HYPOTHESIS_SURFACED, and ANOMALY_DETECTED; broadcasts each as a
+    state_event JSON frame to the connected client.  Never raises (RULE 2).
+    """
+    await manager.connect(websocket)
+    bus = None
+    subs = []
+    try:
+        from core.event_bus.bus import get_event_bus
+        from core.event_bus.types import Event, EventType as ET
+
+        STATE_EVENTS = {
+            ET.DECISION_MADE,
+            ET.AGENT_HP_CHANGED,
+            ET.TASK_ROUTED,
+            ET.HYPOTHESIS_SURFACED,
+            ET.ANOMALY_DETECTED,
+        }
+
+        bus = await get_event_bus()
+
+        async def _forward(event: Event) -> None:
+            try:
+                await manager.send_personal(websocket, {
+                    "type": "state_event",
+                    "event_type": event.event_type.value,
+                    "data": event.data,
+                    "source": event.source,
+                    "ts": event.timestamp,
+                })
+            except Exception:
+                pass
+
+        subs = [bus.subscribe(et, _forward) for et in STATE_EVENTS]
+
+        # Send initial ping so client knows it's connected
+        await manager.send_personal(websocket, {"type": "state_ready"})
+
+        while True:
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+            except asyncio.TimeoutError:
+                await manager.send_personal(websocket, {"type": "ping"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error("[VECTOR][ws/state] connection error: {}", e)
+    finally:
+        if bus is not None:
+            for sub in subs:
+                try:
+                    bus.unsubscribe(sub)
+                except Exception:
+                    pass
         manager.disconnect(websocket)
 
 
