@@ -429,9 +429,12 @@ class TestQueenCoordinatorAbsorption:
         assert "active_proposals" in status
         assert "capabilities" in status
 
-    def test_build_consensus_falls_back_gracefully(self):
-        """Without Ollama, build_consensus returns a proposal with DEFER verdict."""
+    def test_build_consensus_falls_back_gracefully(self, monkeypatch):
+        """Without Ollama, build_consensus returns a proposal with a valid verdict."""
+        from vectorcode.src import queen
         from vectorcode.src.queen import QueenCoordinator, ConsensusVerdict
+        # Simulate Ollama unavailable: chat() returns its graceful fallback payload.
+        monkeypatch.setattr(queen, "chat", lambda *a, **k: '{"subtasks": []}')
         q = QueenCoordinator()
         proposal = q.build_consensus("delete everything", "test context")
         assert proposal.verdict in (ConsensusVerdict.DEFER, ConsensusVerdict.REJECT, ConsensusVerdict.PROCEED)
