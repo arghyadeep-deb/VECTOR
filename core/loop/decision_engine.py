@@ -342,6 +342,7 @@ class DecisionEngine:
             - self.W_COST * cost_penalty
             + 0.05 * causal_score  # causal-graph influence nudge (Gap 6)
             + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬â€ RL still learning)
+            - 0.05 * bias_factor   # MetaCognition bias penalty (Gap 8)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
 
@@ -367,6 +368,10 @@ class DecisionEngine:
         if causal_score > 0.0:
             candidate.reasoning_steps.append(
                 f"[causal] influence_nudge={causal_score:.2f} (contrib={0.05*causal_score:.3f})"
+            )
+        if bias_factor > 0.0:
+            candidate.reasoning_steps.append(
+                f"[meta_cognition] bias_penalty={bias_factor:.2f} (contrib={-0.05*bias_factor:.3f})"
             )
 
         # Capture situation for policy memory
