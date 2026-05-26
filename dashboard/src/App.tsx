@@ -72,9 +72,17 @@ export default function App() {
     }
     if (data.type === 'state') setState(s => ({ ...s, ...data.payload }))
     if (data.type === 'state_event') {
-      const { event_type, data: payload } = data
+      const { event_type, data: payload, ts } = data
       if (event_type === 'decision_made' && payload?.action_type) {
         setState(s => ({ ...s, status: 'thinking', lastAction: payload.action_type.slice(0, 60) }))
+        const entry: DecisionEvent = {
+          id: `${ts}-${payload.action_type}`,
+          action_type: payload.action_type,
+          score: payload.score ?? 0,
+          goal_ids: payload.goal_ids ?? [],
+          ts: ts ?? Date.now() / 1000,
+        }
+        setDecisions(prev => [entry, ...prev].slice(0, 20))
       } else if (event_type === 'hypothesis_surfaced' && payload?.text) {
         setState(s => ({ ...s, lastAction: `Hypothesis: ${String(payload.text).slice(0, 50)}` }))
       } else if (event_type === 'agent_hp_changed') {
