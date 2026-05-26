@@ -827,6 +827,33 @@ async def _start_background_services() -> None:
     except Exception as e:
         logger.debug("[VECTOR][startup] ChannelRuntime skipped: {}", e)
 
+    # Ambient listener — continuous voice pipeline (opt-in via config)
+    try:
+        from core.config import CONFIG as _cfg
+        if _cfg.get("voice", {}).get("ambient_enabled", False):
+            from core.voice.ambient_listener import AmbientListener, _load_consent, _save_consent
+            _al = AmbientListener()
+            if not _al._consent_given:
+                import sys as _sys
+                if _sys.stdin.isatty():
+                    _ans = input("[VECTOR][voice] Enable ambient listener? (y/N): ").strip().lower()
+                    if _ans == "y":
+                        _save_consent(True)
+                        _al._consent_given = True
+                        logger.info("[VECTOR][startup] Ambient voice consent granted — starting listener")
+                    else:
+                        _save_consent(False)
+                        logger.info("[VECTOR][startup] Ambient voice consent declined")
+                else:
+                    logger.info("[VECTOR][startup] ambient_enabled=true but no consent yet — skipping")
+            if _al._consent_given:
+                _al.start()
+                logger.info("[VECTOR][startup] AmbientListener background loop started")
+        else:
+            logger.debug("[VECTOR][startup] Ambient listener disabled (voice.ambient_enabled=false)")
+    except Exception as e:
+        logger.debug("[VECTOR][startup] AmbientListener skipped: {}", e)
+
 
 # ── Signal handlers for graceful shutdown ──────────────────────────────────────
 
