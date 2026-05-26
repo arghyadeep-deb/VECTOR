@@ -170,7 +170,23 @@ class ProviderClient:
             except Exception as _re:
                 logger.debug("[VECTOR][provider_client] route_policy unavailable: {}", _re)
 
-        # â"€â"€ Model routing via ModelRouter â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+        # ── Cloud budget gate (C1) ─────────────────────────────────────────────
+        # After route_policy decides providers, verify the cloud ones are within budget.
+        # On budget exhaustion the route falls back to Ollama-only.
+        if _route_order and any(p != "ollama" for p in _route_order):
+            try:
+                from core.inference.cloud_router import budget_gate as _bg
+                _cloud_ok, _cloud_reason = _bg(_route_order)
+                if not _cloud_ok:
+                    logger.warning(
+                        "[VECTOR][provider_client] cloud budget gate blocked → local only ({})",
+                        _cloud_reason,
+                    )
+                    _route_order = ["ollama"]
+            except Exception as _bg_err:
+                logger.debug("[VECTOR][provider_client] cloud budget gate skipped: {}", _bg_err)
+
+        # ── Model routing via ModelRouter â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         if not model:
             try:
                 from core.engine.providers.model_router import ModelRouter
