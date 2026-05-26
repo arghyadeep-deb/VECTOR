@@ -116,7 +116,6 @@ def cmd_export(args):
 
     elif args.format == "json":
         import json
-from loguru import logger
 
         data = []
         for row in stats:
