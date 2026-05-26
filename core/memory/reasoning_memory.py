@@ -89,6 +89,40 @@ class ReasoningMemory:
         """
         return self._get_mem().get_training_data(limit=limit)
 
+    def get_recent(self, limit: int = 20, situation: str = "") -> list[dict]:
+        """D2 — Return the most recent reasoning chains for the decision trace panel."""
+        try:
+            conn = self._get_mem().conn
+            if situation:
+                rows = conn.execute(
+                    "SELECT id, situation, steps, action_taken, outcome, reward, created_at "
+                    "FROM reasoning_chains WHERE situation LIKE ? "
+                    "ORDER BY created_at DESC LIMIT ?",
+                    (f"%{situation[:50]}%", limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT id, situation, steps, action_taken, outcome, reward, created_at "
+                    "FROM reasoning_chains ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            result = []
+            for r in rows:
+                steps_list = json.loads(r[2]) if r[2] else []
+                result.append({
+                    "id": r[0],
+                    "situation": r[1],
+                    "steps": steps_list,
+                    "action_taken": r[3],
+                    "outcome": r[4],
+                    "reward": float(r[5]) if r[5] is not None else 0.0,
+                    "created_at": r[6],
+                })
+            return result
+        except Exception as e:
+            logger.error(f"[VECTOR][reasoning_memory] get_recent failed: {e}")
+            return []
+
     def get_stats(self) -> dict:
         try:
             conn = self._get_mem().conn
