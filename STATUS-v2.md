@@ -25,8 +25,8 @@
 | C3 — AnticipationEngine | `anticipation_loop` + `_anticipation_tick` in autonomous_loop | 27/27 |
 | C4 — ElevenLabs streaming TTS | `TextToSpeech` alias, `_init_elevenlabs`, `_speak_elevenlabs_stream`, prosody | 40/40 |
 | D1 — WebSocket bridge | `/ws/state` endpoint, 3 new EventTypes, dashboard wired | 29/29 |
-| D2 — Decision trace timeline | `DecisionTrace.tsx`, `reasoning_memory.get_recent`, `/brain/reasoning/chains` | 28/28 |
-| D3 — Person knowledge graph | `PersonGraph.tsx` (SVG), `/brain/persons` endpoints, inline trust+belief edit | 35/35 |
+| D2 — Decision trace timeline | `DecisionTrace.tsx` (timeline + expand, tier badge, 15s poll), `reasoning_memory.get_recent`, `/brain/reasoning/chains` | 28/28 |
+| D3 — Person knowledge graph | `PersonGraph.tsx` (card grid + side panel, inline belief/trust edit), `/brain/persons` endpoints | 35/35 |
 | E1 — Fly.io brain server | `CONFIG["cloud"]`, `vector_config.py` standalone, `CloudBrainHeartbeat`, `run_vector` wired | 48/48 |
 | E2 — Cloudflare API gateway | TypeScript Worker: `wrangler.toml`, `index.ts`, `router.ts`, `auth.ts`, `rate_limiter.ts` | 39/39 |
 | governor.py fix | Removed U+201C/201D curly-quote mojibake; syntax clean; 5 unit test files unblocked | — |
