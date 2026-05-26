@@ -128,6 +128,9 @@ class EscalationManager:
             from httpx import AsyncClient
             pushover_token = CONFIG.get("pushover_token", "") or CONFIG.get("api_keys", {}).get("pushover_token", "")
             pushover_user = CONFIG.get("pushover_user", "") or CONFIG.get("api_keys", {}).get("pushover_user", "")
+            if not pushover_token or not pushover_user:
+                # No credentials configured — don't POST to the live API (would hang/fail).
+                return {"action": f"pushover_{step}", "status": "skipped", "reason": "no credentials"}
             payload = {
                 "token": str(pushover_token),
                 "user": str(pushover_user),
@@ -139,7 +142,8 @@ class EscalationManager:
             if priority == 2:
                 payload["retry"] = 30
                 payload["expire"] = 3600
-            async with httpx.AsyncClient() as client:
+            # Explicit timeout so a slow/blocked network fails fast instead of hanging.
+            async with AsyncClient(timeout=10.0) as client:
                 resp = await client.post("https://api.pushover.net/1/messages.json", data=payload)
                 return {"action": f"pushover_{step}", "status": "ok" if resp.status_code == 200 else "failed", "http_status": resp.status_code}
         except Exception as e:
