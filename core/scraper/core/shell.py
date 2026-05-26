@@ -12,6 +12,7 @@ __all__ = [
 
 from copy import deepcopy
 from functools import wraps
+from loguru import logger
 from re import sub as re_sub, compile as re_compile
 from collections import namedtuple
 from shlex import split as shlex_split
