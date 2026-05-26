@@ -124,6 +124,9 @@ class EscalationManager:
 
     async def _step_pushover(self, step: str, emergency: ScoredEmergency, runbook_actions: list | None = None) -> dict:
         priority = 2 if "emergency" in step else 1 if "high" in step else 0
+        if self._test_mode:
+            # Never hit the live notification API during tests.
+            return {"action": f"pushover_{step}", "status": "ok", "message": "test_mode: notification skipped"}
         try:
             from httpx import AsyncClient
             pushover_token = CONFIG.get("pushover_token", "") or CONFIG.get("api_keys", {}).get("pushover_token", "")
