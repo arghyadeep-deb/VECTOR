@@ -431,6 +431,10 @@ class StreamingTTS:
         return self._speaking
 
 
+# C4 alias — autonomous_loop and audio_mixer import TextToSpeech
+TextToSpeech = VoiceTTS
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     tts = VoiceTTS()
