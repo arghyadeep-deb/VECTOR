@@ -1,4 +1,18 @@
 import sys
+
+__all__ = [
+    "build_quoted_reply_block",
+    "build_references_chain",
+    "build_threading_headers",
+    "escape_html",
+    "format_email_date",
+    "generate_message_id",
+    "SenderValidationError",
+    "strip_html_to_text",
+    "text_to_html",
+    "validate_sender",
+]
+
 import uuid
 import json
 import re
@@ -6,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from loguru import logger
 from core.config import CONFIG
 from core.email.dates import format_quoted_date
 
