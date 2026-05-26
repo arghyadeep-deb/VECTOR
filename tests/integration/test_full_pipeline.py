@@ -29,6 +29,9 @@ def test_websocket_ui_event_broadcast(client):
     from core.api.routers.websocket import broadcast_event
     
     with client.websocket_connect("/ws") as ws:
+        # The first frame on connect is the status message — consume it so the
+        # next frame we read is the broadcast.
+        assert ws.receive_json()["type"] == "status"
         # Trigger a broadcast from "backend".
         # Python 3.13 removed the implicit loop from asyncio.get_event_loop();
         # drive the coroutine on an explicit loop instead.
@@ -39,7 +42,6 @@ def test_websocket_ui_event_broadcast(client):
             )
         finally:
             loop.close()
-        # The first message after status is the ui_event
         msg = ws.receive_json()
         assert msg["type"] == "ui_event"
 
