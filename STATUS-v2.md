@@ -55,6 +55,8 @@
 ## New Modules Added (Integration Plan Sessions)
 
 ```
+core/ui/dashboard/src/components/DecisionTrace.tsx  — reasoning chain timeline (tier badge, expandable steps, 15s poll)
+core/ui/dashboard/src/components/PersonGraph.tsx    — person model card grid + side panel (inline belief/trust edit)
 core/cloud/__init__.py               — cloud integration package
 core/cloud/heartbeat.py              — CloudBrainHeartbeat (async, 60s interval)
 cloud/brain_server/vector_config.py  — minimal standalone CONFIG for Fly.io Docker
