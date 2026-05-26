@@ -1,4 +1,5 @@
 """CLI shim for init_cmd."""
+from loguru import logger
 try:
     from vectorcode.src.vector_cli.init_cmd import *
 except ImportError:
