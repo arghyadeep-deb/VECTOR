@@ -146,6 +146,73 @@ class DecisionEngine:
         except Exception:
             return 0.0
 
+    def _get_metacognition(self):
+        """MetaCognition (Gap 8): bias-detection accessor with sentinel to skip repeated failures."""
+        if self._metacognition is None:
+            try:
+                from core.city.meta_cognition import MetaCognition
+                self._metacognition = MetaCognition()
+            except Exception as e:
+                logger.debug(f"[VECTOR][decision_engine] MetaCognition unavailable: {e}")
+                self._metacognition = False  # sentinel
+        return self._metacognition if self._metacognition is not False else None
+
+    def _bias_penalty(self, candidate: "Candidate") -> float:
+        """0-1 bias penalty via MetaCognition.detect_bias(); results cached 5 min.
+        Returns 0.0 when MetaCognition is unavailable or no bias matches candidate profile."""
+        import time as _time
+        mc = self._get_metacognition()
+        if mc is None:
+            return 0.0
+        now = _time.monotonic()
+        if self._mc_bias_cache is None or (now - self._mc_cache_time) > 300:
+            try:
+                samples: list[dict] = []
+                try:
+                    recent = self._get_memory().search("decision_candidate", limit=20)
+                    for r in recent:
+                        samples.append({
+                            "thought": r.get("content", ""),
+                            "confidence": r.get("context", {}).get("confidence", 0.5),
+                            "outcome": None,
+                            "domain": r.get("content", "").split(":")[0].strip(),
+                        })
+                except Exception:
+                    pass
+                if not samples:
+                    samples = [{
+                        "thought": candidate.action_type,
+                        "confidence": candidate.confidence,
+                        "outcome": None,
+                        "domain": candidate.action_type.split("_")[0],
+                    }]
+                self._mc_bias_cache = mc.detect_bias(samples)
+                self._mc_cache_time = now
+                if self._mc_bias_cache:
+                    logger.debug(
+                        "[VECTOR][decision_engine] bias types detected: {}",
+                        [b.get("bias_type") for b in self._mc_bias_cache],
+                    )
+            except Exception as _mce:
+                logger.debug("[VECTOR][decision_engine] MetaCognition detect_bias failed: {}", _mce)
+                return 0.0
+
+        bias_list = self._mc_bias_cache or []
+        if not bias_list:
+            return 0.0
+        _SEV = {"low": 0.2, "medium": 0.5, "high": 1.0}
+        penalty = 0.0
+        for bias in bias_list:
+            sev = _SEV.get(bias.get("severity", "low"), 0.2)
+            btype = bias.get("bias_type", "")
+            if btype == "overconfidence" and candidate.confidence > 0.85:
+                penalty = max(penalty, sev)
+            elif btype == "recency":
+                penalty = max(penalty, sev * 0.5)
+            elif btype == "confirmation" and candidate.goal_alignment < 0.3:
+                penalty = max(penalty, sev * 0.5)
+        return min(1.0, penalty)
+
     def _get_neural_trainer(self):
         """VECTORTrainer: RL-based action-value refinement layer (A2C, 64-dim state)."""
         if getattr(self, "_neural_trainer", None) is None:
