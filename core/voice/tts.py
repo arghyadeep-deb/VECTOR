@@ -220,6 +220,10 @@ class VoiceTTS:
     def speak(self, text: str, lang: str = "en") -> None:
         if not text:
             return
+        # C4: ElevenLabs streaming (opt-in cloud TTS, English only)
+        if self._el_ok and lang == "en":
+            if self._speak_elevenlabs_stream(text):
+                return
         # Phase 5A: Piper > Kokoro > gTTS > pyttsx3
         if self._kokoro_ok and getattr(self, '_tts_engine', 'kokoro') == 'piper' and lang == "en":
             self._speak_piper(text)
