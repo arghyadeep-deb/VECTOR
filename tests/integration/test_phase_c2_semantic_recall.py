@@ -111,7 +111,10 @@ class TestSearchSemanticMethod(unittest.TestCase):
             self.assertIsInstance(result, list)
         finally:
             mod._db_connection = None
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except PermissionError:
+                pass
 
     def test_empty_query_falls_back_to_recall(self):
         import core.memory.episodic as mod
@@ -125,7 +128,10 @@ class TestSearchSemanticMethod(unittest.TestCase):
             self.assertIsInstance(result, list)
         finally:
             mod._db_connection = None
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except PermissionError:
+                pass
 
     def test_top_k_limits_results(self):
         import core.memory.episodic as mod
@@ -141,7 +147,10 @@ class TestSearchSemanticMethod(unittest.TestCase):
             self.assertLessEqual(len(result), 3)
         finally:
             mod._db_connection = None
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except PermissionError:
+                pass
 
     def test_no_sentence_transformers_falls_back_to_fts5(self):
         """When sentence-transformers is absent, search_semantic falls back gracefully."""
@@ -158,7 +167,10 @@ class TestSearchSemanticMethod(unittest.TestCase):
             self.assertIsInstance(result, list)
         finally:
             mod._db_connection = None
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except PermissionError:
+                pass
 
 
 # ── Semantic search correctness (mocked embeddings) ───────────────────────────
@@ -397,7 +409,10 @@ class TestEnsureEmbeddingsBackfill(unittest.TestCase):
             mem._ensure_embeddings(mock_model)  # must not raise
         finally:
             mod._db_connection = None
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except PermissionError:
+                pass
 
 
 if __name__ == "__main__":
