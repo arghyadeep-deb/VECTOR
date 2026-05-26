@@ -40,7 +40,7 @@ def test_websocket_ui_event_broadcast(client):
         finally:
             loop.close()
         # The first message after status is the ui_event
-        msg = ws.receive_json(timeout=2.0)
+        msg = ws.receive_json()
         assert msg["type"] == "ui_event"
 
 
