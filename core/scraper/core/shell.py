@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
 from sys import stderr
+
+__all__ = [
+    "Convertor",
+    "CurlParser",
+    "CustomShell",
+    "NoExitArgumentParser",
+    "Request",
+    "show_page_in_browser",
+]
+
 from copy import deepcopy
 from functools import wraps
 from re import sub as re_sub, compile as re_compile
@@ -542,7 +552,8 @@ Type 'exit' or press Ctrl+D to exit.
 
     def show_help(self):  # pragma: no cover
         """Show help information"""
-        print(self.banner())
+        logger.info(self.banner())
+
 
     def start(self):  # pragma: no cover
         """Start the interactive shell"""
