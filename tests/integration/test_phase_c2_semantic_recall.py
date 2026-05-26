@@ -40,7 +40,10 @@ class TestEpisodicEmbeddingsTable(unittest.TestCase):
                 mod._db_connection = None
         except Exception:
             pass
-        self._tmp_path.unlink(missing_ok=True)
+        try:
+            self._tmp_path.unlink(missing_ok=True)
+        except PermissionError:
+            pass  # Windows file lock — cleaned up on process exit
 
     def test_table_created(self):
         import core.memory.episodic as mod
