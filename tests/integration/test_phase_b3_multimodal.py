@@ -237,10 +237,11 @@ class TestSenseTickScreenEnabled(unittest.TestCase):
         async def _run():
             al = AutonomousLoop.__new__(AutonomousLoop)
             al._running = True
-            with patch("core.config.CONFIG") as mock_cfg:
-                mock_cfg.get = MagicMock(side_effect=lambda k, d=None: {
-                    "sensing": {"screen_enabled": False, "camera_enabled": True}
-                }.get(k, d))
+            mock_cfg = MagicMock()
+            mock_cfg.get = MagicMock(side_effect=lambda k, d=None: {
+                "sensing": {"screen_enabled": False, "camera_enabled": True}
+            }.get(k, d))
+            with patch("core.loop.autonomous_loop.CONFIG", mock_cfg):
                 with patch("core.sensing.camera.FaceDetector") as mock_fd:
                     mock_fd.return_value.capture_and_scan.return_value = []
                     await al._sense_tick()
@@ -256,10 +257,11 @@ class TestSenseTickScreenEnabled(unittest.TestCase):
         async def _run():
             al = AutonomousLoop.__new__(AutonomousLoop)
             al._running = True
-            with patch("core.config.CONFIG") as mock_cfg:
-                mock_cfg.get = MagicMock(side_effect=lambda k, d=None: {
-                    "sensing": {"screen_enabled": False, "camera_enabled": True}
-                }.get(k, d))
+            mock_cfg = MagicMock()
+            mock_cfg.get = MagicMock(side_effect=lambda k, d=None: {
+                "sensing": {"screen_enabled": False, "camera_enabled": True}
+            }.get(k, d))
+            with patch("core.loop.autonomous_loop.CONFIG", mock_cfg):
                 with patch("core.sensing.camera.FaceDetector") as mock_fd:
                     mock_fd.return_value.capture_and_scan.return_value = [
                         {"name": "Arghyadeep", "confidence": 0.9, "bbox": (0, 0, 0, 0)},
