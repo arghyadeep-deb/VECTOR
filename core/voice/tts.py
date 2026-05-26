@@ -60,10 +60,8 @@ class VoiceTTS:
 
     def _init_elevenlabs(self) -> bool:
         “””
-        Try ElevenLabs streaming TTS (C4).  Opt-in only — requires both:
-          1. ELEVENLABS_API_KEY set (CONFIG[“api_keys”][“elevenlabs_key”])
-          2. CONFIG[“voice”][“elevenlabs_streaming”] = True
-        Returns True if ready; never raises.
+        Try ElevenLabs streaming TTS (C4). Opt-in: needs ELEVENLABS_API_KEY +
+        CONFIG voice.elevenlabs_streaming = True. Returns True if ready; never raises.
         “””
         if not CONFIG.get(“voice”, {}).get(“elevenlabs_streaming”, False):
             return False
