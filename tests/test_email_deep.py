@@ -180,7 +180,7 @@ def test_validate_sender_bad_email_raises():
         validate_sender("to@x.com", "noemail", "noemail")
         assert False, "Should have raised"
     except SenderValidationError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        pass
 
 
 def test_generate_message_id():
