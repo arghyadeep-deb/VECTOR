@@ -5,8 +5,13 @@ import os
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from core.config import CONFIG
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from core.config import CONFIG
+except Exception:
+    # Fallback when deployed to cloud without full VECTOR codebase
+    from vector_config import CONFIG  # type: ignore[import]
+
 from loguru import logger
 
 from fastapi import FastAPI, HTTPException, Query, Request
