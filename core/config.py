@@ -209,6 +209,8 @@ class SensingConfig(BaseModel):
     camera_index: int = Field(0, ge=0)
     screen_ocr_enabled: bool = True
     fatigue_check_interval_sec: int = Field(30, ge=5, le=3600)
+    screen_enabled: bool = False
+    camera_enabled: bool = False
 
 
 class CodingConfig(BaseModel):
