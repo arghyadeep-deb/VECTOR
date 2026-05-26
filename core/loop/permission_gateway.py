@@ -129,6 +129,60 @@ class PermissionGateway:
         self._write_audit(action, result)
         return result
 
+    async def _handle_red_tier(self, action: "Action") -> str:
+        """Call CouncilBrain.deliberate_action() and persist the result to council_log.jsonl.
+        Returns 'proceed', 'reject', or 'defer'.  Always returns 'defer' on any failure
+        so the existing HumanLayer fallback handles it gracefully."""
+        import json
+        try:
+            from core.brain.council import CouncilBrain
+            from core.loop.context_engine import ContextEngine
+            context = ""
+            try:
+                context = ContextEngine().session_hydration_prompt()
+            except Exception:
+                pass
+            cb = CouncilBrain()
+            deliberation = await cb.deliberate_action(
+                action_type=action.action_type,
+                params=action.params,
+                context=context[:400],
+            )
+            verdict = deliberation.get("verdict", "defer")
+            confidence = deliberation.get("confidence", 0.0)
+            rationale = deliberation.get("rationale", "")
+            # Log to council_log.jsonl
+            try:
+                log_path = Path("data") / "council_log.jsonl"
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                entry = {
+                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "action_type": action.action_type,
+                    "params": action.params,
+                    "verdict": verdict,
+                    "confidence": confidence,
+                    "rationale": rationale[:500],
+                    "votes": deliberation.get("votes", []),
+                }
+                with log_path.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(entry) + "\n")
+            except Exception as _log_err:
+                logger.debug("[VECTOR][gateway] council_log write failed: {}", _log_err)
+            logger.info(
+                "[VECTOR][gateway] Council verdict={} conf={:.2f} for action={}",
+                verdict, confidence, action.action_type,
+            )
+            # Auto-proceed only when council is confident enough
+            if verdict == "proceed" and confidence >= 0.75:
+                return "proceed"
+            if verdict == "reject":
+                logger.warning("[VECTOR][gateway] Council REJECTED {}: {}", action.action_type, rationale[:80])
+                return "reject"
+            return "defer"
+        except Exception as _ce:
+            logger.debug("[VECTOR][gateway] _handle_red_tier failed, deferring to owner: {}", _ce)
+            return "defer"
+
     def _record_unknown_action(self, action_type: str):
         """Track unknown action types for periodic review and classification."""
         if not hasattr(self, '_unknown_actions'):
