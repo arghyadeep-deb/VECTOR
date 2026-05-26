@@ -5,15 +5,31 @@ import sys
 import json
 import inspect
 import asyncio
-import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-class TestCouncilBrainDeliberateAction(unittest.TestCase):
-    """CouncilBrain.deliberate_action() API contract."""
+def _patched_council(verdict_text: str, confidence: float = 0.9):
+    """Return a CouncilBrain subclass whose deliberate() is pre-baked (no Ollama)."""
+    from core.brain.council import CouncilBrain
+
+    class _Patched(CouncilBrain):
+        async def deliberate(self, question, hp_gate=700):
+            return {
+                "stage1": ["vote1", "vote2"],
+                "stage2": ["vote1", "vote2"],
+                "verdict": verdict_text,
+                "confidence": confidence,
+                "timestamp": "2026-01-01T00:00:00",
+            }
+
+    return _Patched()
+
+
+class TestCouncilBrainDeliberateActionSignature(unittest.TestCase):
+    """deliberate_action() signature and static contract — no Ollama needed."""
 
     def setUp(self):
         from core.brain.council import CouncilBrain
@@ -22,125 +38,70 @@ class TestCouncilBrainDeliberateAction(unittest.TestCase):
     def test_method_exists(self):
         self.assertTrue(hasattr(self.cb, "deliberate_action"))
 
-    def test_signature(self):
+    def test_is_coroutine(self):
+        self.assertTrue(inspect.iscoroutinefunction(self.cb.deliberate_action))
+
+    def test_signature_has_required_params(self):
         sig = inspect.signature(self.cb.deliberate_action)
-        params = sig.parameters
-        self.assertIn("action_type", params)
-        self.assertIn("params", params)
-        self.assertIn("context", params)
-        self.assertEqual(params["context"].default, "")
+        for p in ("action_type", "params", "context"):
+            self.assertIn(p, sig.parameters)
 
-    def test_returns_dict_with_required_keys(self):
-        """deliberate_action() must always return a dict with verdict/votes/rationale/confidence."""
-        # Ollama will likely fail (not running in test env) → should return defer gracefully
-        result = asyncio.run(self.cb.deliberate_action("git_status", {}, "test context"))
-        self.assertIsInstance(result, dict)
-        for key in ("verdict", "votes", "rationale", "confidence"):
-            self.assertIn(key, result, f"Missing key: {key}")
-
-    def test_verdict_is_valid_enum(self):
-        result = asyncio.run(self.cb.deliberate_action("git_status", {}, ""))
-        self.assertIn(result["verdict"], ("proceed", "reject", "defer"))
-
-    def test_confidence_is_float(self):
-        result = asyncio.run(self.cb.deliberate_action("git_status", {}, ""))
-        self.assertIsInstance(result["confidence"], float)
-
-    def test_votes_is_list(self):
-        result = asyncio.run(self.cb.deliberate_action("git_status", {}, ""))
-        self.assertIsInstance(result["votes"], list)
-
-    def test_never_raises(self):
-        """Must catch all exceptions and return defer."""
-        try:
-            result = asyncio.run(self.cb.deliberate_action("unknown_action_xyz", {"bad": object()}, ""))
-        except Exception as e:
-            self.fail(f"deliberate_action raised unexpectedly: {e}")
+    def test_context_defaults_to_empty_string(self):
+        sig = inspect.signature(self.cb.deliberate_action)
+        self.assertEqual(sig.parameters["context"].default, "")
 
 
 class TestCouncilBrainVerdictParsing(unittest.TestCase):
-    """Verify that verdict parsing from LLM text works for all 3 paths."""
+    """Verify all 3 verdict paths with a patched council (no Ollama)."""
 
-    def _make_cb_with_mock(self, mock_text: str, confidence: float = 0.8):
-        """Return a CouncilBrain whose deliberate() is patched to return a synthetic result."""
-        from core.brain.council import CouncilBrain
-
-        class PatchedCouncil(CouncilBrain):
-            async def deliberate(self, question, hp_gate=700):
-                return {
-                    "stage1": ["vote1"],
-                    "stage2": ["vote1"],
-                    "verdict": mock_text,
-                    "confidence": confidence,
-                    "timestamp": "2026-01-01",
-                }
-
-        return PatchedCouncil()
-
-    def test_proceed_verdict_parsed(self):
-        cb = self._make_cb_with_mock("PROCEED — this action is safe")
-        result = asyncio.run(cb.deliberate_action("git_status", {}, ""))
+    def test_proceed_parsed(self):
+        cb = _patched_council("PROCEED — this action is safe")
+        result = asyncio.run(cb.deliberate_action("git_status", {}, "ctx"))
         self.assertEqual(result["verdict"], "proceed")
 
-    def test_reject_verdict_parsed(self):
-        cb = self._make_cb_with_mock("REJECT — too destructive")
-        result = asyncio.run(cb.deliberate_action("delete_files", {}, ""))
+    def test_reject_parsed(self):
+        cb = _patched_council("REJECT — too destructive")
+        result = asyncio.run(cb.deliberate_action("delete_files", {}, "ctx"))
         self.assertEqual(result["verdict"], "reject")
 
-    def test_defer_verdict_parsed(self):
-        cb = self._make_cb_with_mock("DEFER — ask the owner")
-        result = asyncio.run(cb.deliberate_action("deploy_production", {}, ""))
+    def test_defer_parsed(self):
+        cb = _patched_council("DEFER — ask the owner")
+        result = asyncio.run(cb.deliberate_action("deploy_production", {}, "ctx"))
         self.assertEqual(result["verdict"], "defer")
 
-    def test_proceed_low_confidence_becomes_defer(self):
-        """proceed + confidence < 0.75 → _handle_red_tier returns defer."""
-        from core.loop.permission_gateway import PermissionGateway, Action
+    def test_result_has_required_keys(self):
+        cb = _patched_council("PROCEED — safe")
+        result = asyncio.run(cb.deliberate_action("git_status", {}, ""))
+        for key in ("verdict", "votes", "rationale", "confidence"):
+            self.assertIn(key, result)
 
-        class PatchedCouncil:
-            async def deliberate_action(self, action_type, params, context=""):
-                return {"verdict": "proceed", "votes": [], "rationale": "test", "confidence": 0.50}
+    def test_votes_is_list(self):
+        cb = _patched_council("PROCEED")
+        result = asyncio.run(cb.deliberate_action("git_status", {}, ""))
+        self.assertIsInstance(result["votes"], list)
 
-        pg = PermissionGateway()
-        # Patch council import inside _handle_red_tier by monkeypatching the module
+    def test_confidence_is_float(self):
+        cb = _patched_council("DEFER", confidence=0.6)
+        result = asyncio.run(cb.deliberate_action("git_status", {}, ""))
+        self.assertIsInstance(result["confidence"], float)
+
+
+class TestHandleRedTierVerdictPaths(unittest.TestCase):
+    """_handle_red_tier returns correct string for each verdict path."""
+
+    def _pg_with_council(self, verdict_text: str, confidence: float = 0.9):
+        from core.loop.permission_gateway import PermissionGateway
         import core.brain.council as council_mod
-        original = council_mod.CouncilBrain
-        council_mod.CouncilBrain = lambda: PatchedCouncil()
-        try:
-            action = Action("deploy_production", {"env": "prod"}, "test")
-            verdict = asyncio.run(pg._handle_red_tier(action))
-            self.assertEqual(verdict, "defer", "Low-confidence 'proceed' must defer to owner")
-        finally:
-            council_mod.CouncilBrain = original
-
-    def test_reject_verdict_returns_reject(self):
-        from core.loop.permission_gateway import PermissionGateway, Action
-        import core.brain.council as council_mod
-
-        class PatchedCouncil:
-            async def deliberate_action(self, action_type, params, context=""):
-                return {"verdict": "reject", "votes": [], "rationale": "Destructive action", "confidence": 0.9}
-
         pg = PermissionGateway()
-        original = council_mod.CouncilBrain
-        council_mod.CouncilBrain = lambda: PatchedCouncil()
-        try:
-            action = Action("delete_files", {"path": "/tmp/x"}, "test")
-            verdict = asyncio.run(pg._handle_red_tier(action))
-            self.assertEqual(verdict, "reject")
-        finally:
-            council_mod.CouncilBrain = original
+        cb = _patched_council(verdict_text, confidence)
+        council_mod.CouncilBrain = lambda: cb
+        return pg, council_mod
 
     def test_proceed_high_confidence_returns_proceed(self):
-        from core.loop.permission_gateway import PermissionGateway, Action
+        from core.loop.permission_gateway import Action
         import core.brain.council as council_mod
-
-        class PatchedCouncil:
-            async def deliberate_action(self, action_type, params, context=""):
-                return {"verdict": "proceed", "votes": ["yes"], "rationale": "Safe action", "confidence": 0.9}
-
-        pg = PermissionGateway()
         original = council_mod.CouncilBrain
-        council_mod.CouncilBrain = lambda: PatchedCouncil()
+        pg, _ = self._pg_with_council("PROCEED — safe", confidence=0.9)
         try:
             action = Action("push_github", {"repo": "x"}, "test")
             verdict = asyncio.run(pg._handle_red_tier(action))
@@ -148,65 +109,134 @@ class TestCouncilBrainVerdictParsing(unittest.TestCase):
         finally:
             council_mod.CouncilBrain = original
 
+    def test_proceed_low_confidence_defers(self):
+        from core.loop.permission_gateway import Action
+        import core.brain.council as council_mod
+        original = council_mod.CouncilBrain
+        pg, _ = self._pg_with_council("PROCEED — unsure", confidence=0.50)
+        try:
+            action = Action("deploy_production", {"env": "prod"}, "test")
+            verdict = asyncio.run(pg._handle_red_tier(action))
+            self.assertEqual(verdict, "defer", "Low-confidence proceed must defer")
+        finally:
+            council_mod.CouncilBrain = original
 
-class TestCouncilLog(unittest.TestCase):
-    """council_log.jsonl is written for every RED-tier deliberation."""
+    def test_reject_returns_reject(self):
+        from core.loop.permission_gateway import Action
+        import core.brain.council as council_mod
+        original = council_mod.CouncilBrain
+        pg, _ = self._pg_with_council("REJECT — destructive", confidence=0.9)
+        try:
+            action = Action("delete_files", {"path": "/tmp"}, "test")
+            verdict = asyncio.run(pg._handle_red_tier(action))
+            self.assertEqual(verdict, "reject")
+        finally:
+            council_mod.CouncilBrain = original
 
-    def test_council_log_written(self):
-        """_handle_red_tier must write a JSON line to data/council_log.jsonl."""
+    def test_defer_returns_defer(self):
+        from core.loop.permission_gateway import Action
+        import core.brain.council as council_mod
+        original = council_mod.CouncilBrain
+        pg, _ = self._pg_with_council("DEFER — ask owner", confidence=0.7)
+        try:
+            action = Action("send_email", {}, "test")
+            verdict = asyncio.run(pg._handle_red_tier(action))
+            self.assertEqual(verdict, "defer")
+        finally:
+            council_mod.CouncilBrain = original
+
+    def test_exception_defers_gracefully(self):
+        """If CouncilBrain raises, _handle_red_tier must return 'defer'."""
         from core.loop.permission_gateway import PermissionGateway, Action
         import core.brain.council as council_mod
 
-        class PatchedCouncil:
-            async def deliberate_action(self, action_type, params, context=""):
-                return {"verdict": "defer", "votes": [], "rationale": "test entry", "confidence": 0.5}
+        class Exploding:
+            async def deliberate_action(self, *a, **kw):
+                raise RuntimeError("Exploded")
 
-        pg = PermissionGateway()
         original = council_mod.CouncilBrain
-        council_mod.CouncilBrain = lambda: PatchedCouncil()
-        log_path = Path("data") / "council_log.jsonl"
-        before_size = log_path.stat().st_size if log_path.exists() else 0
+        council_mod.CouncilBrain = lambda: Exploding()
         try:
-            action = Action("deploy_production", {"env": "test"}, "test")
-            asyncio.run(pg._handle_red_tier(action))
-            self.assertTrue(log_path.exists(), "council_log.jsonl must be created")
-            after_size = log_path.stat().st_size
-            self.assertGreater(after_size, before_size, "council_log.jsonl must grow after deliberation")
-            # Verify it's valid JSONL
-            with log_path.open(encoding="utf-8") as fh:
-                lines = fh.readlines()
-            last = json.loads(lines[-1])
-            for key in ("ts", "action_type", "verdict", "confidence", "rationale"):
-                self.assertIn(key, last)
+            pg = PermissionGateway()
+            action = Action("git_status", {}, "test")
+            verdict = asyncio.run(pg._handle_red_tier(action))
+            self.assertEqual(verdict, "defer")
         finally:
             council_mod.CouncilBrain = original
 
 
-class TestPermissionGatewayRedWiring(unittest.TestCase):
-    """permission_gateway.execute() references _handle_red_tier for RED actions."""
+class TestCouncilLog(unittest.TestCase):
+    """council_log.jsonl is written for each _handle_red_tier call."""
 
-    def test_execute_source_references_handle_red_tier(self):
+    def test_council_log_written(self):
+        from core.loop.permission_gateway import PermissionGateway, Action
+        import core.brain.council as council_mod
+
+        cb = _patched_council("DEFER — log test", confidence=0.5)
+        original = council_mod.CouncilBrain
+        council_mod.CouncilBrain = lambda: cb
+        log_path = Path("data") / "council_log.jsonl"
+        before_size = log_path.stat().st_size if log_path.exists() else 0
+        try:
+            pg = PermissionGateway()
+            action = Action("deploy_production", {"env": "test"}, "test")
+            asyncio.run(pg._handle_red_tier(action))
+            self.assertTrue(log_path.exists(), "council_log.jsonl must exist after _handle_red_tier")
+            after_size = log_path.stat().st_size
+            self.assertGreater(after_size, before_size, "Log must grow after deliberation")
+            with log_path.open(encoding="utf-8") as fh:
+                last = json.loads(fh.readlines()[-1])
+            for key in ("ts", "action_type", "verdict", "confidence", "rationale"):
+                self.assertIn(key, last, f"Log entry missing key: {key}")
+        finally:
+            council_mod.CouncilBrain = original
+
+    def test_council_log_action_type_correct(self):
+        from core.loop.permission_gateway import PermissionGateway, Action
+        import core.brain.council as council_mod
+
+        cb = _patched_council("REJECT — test", confidence=0.9)
+        original = council_mod.CouncilBrain
+        council_mod.CouncilBrain = lambda: cb
+        try:
+            pg = PermissionGateway()
+            action = Action("delete_files_marker_a7", {"path": "/x"}, "test")
+            asyncio.run(pg._handle_red_tier(action))
+            log_path = Path("data") / "council_log.jsonl"
+            with log_path.open(encoding="utf-8") as fh:
+                last = json.loads(fh.readlines()[-1])
+            self.assertEqual(last["action_type"], "delete_files_marker_a7")
+        finally:
+            council_mod.CouncilBrain = original
+
+
+class TestPermissionGatewayWiring(unittest.TestCase):
+    """execute() calls _handle_red_tier for RED actions."""
+
+    def test_execute_references_handle_red_tier(self):
         from core.loop.permission_gateway import PermissionGateway
         src = inspect.getsource(PermissionGateway.execute)
         self.assertIn("_handle_red_tier", src)
 
-    def test_handle_red_tier_exists(self):
-        from core.loop.permission_gateway import PermissionGateway
-        self.assertTrue(hasattr(PermissionGateway, "_handle_red_tier"))
-
     def test_handle_red_tier_is_async(self):
         from core.loop.permission_gateway import PermissionGateway
-        import inspect
         self.assertTrue(inspect.iscoroutinefunction(PermissionGateway._handle_red_tier))
 
     def test_handle_red_tier_returns_string(self):
-        """With council unavailable (Ollama down), must return 'defer' string."""
         from core.loop.permission_gateway import PermissionGateway, Action
-        pg = PermissionGateway()
-        action = Action("git_status", {}, "test")
-        result = asyncio.run(pg._handle_red_tier(action))
-        self.assertIsInstance(result, str)
-        self.assertIn(result, ("proceed", "reject", "defer"))
+        import core.brain.council as council_mod
+
+        cb = _patched_council("DEFER")
+        original = council_mod.CouncilBrain
+        council_mod.CouncilBrain = lambda: cb
+        try:
+            pg = PermissionGateway()
+            action = Action("git_status", {}, "test")
+            result = asyncio.run(pg._handle_red_tier(action))
+            self.assertIsInstance(result, str)
+            self.assertIn(result, ("proceed", "reject", "defer"))
+        finally:
+            council_mod.CouncilBrain = original
 
 
 if __name__ == "__main__":
