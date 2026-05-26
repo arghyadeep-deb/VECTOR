@@ -35,8 +35,9 @@ export default function App() {
     district: 'governance',
   })
   const [messages, setMessages] = useState<Array<{ role: string; content: string; ts: string }>>([])
+  const [decisions, setDecisions] = useState<DecisionEvent[]>([])
   const [input, setInput] = useState('')
-  const [activePanel, setActivePanel] = useState<'chat' | 'agents' | 'metrics' | 'districts'>('chat')
+  const [activePanel, setActivePanel] = useState<'chat' | 'agents' | 'metrics' | 'districts' | 'decisions'>('chat')
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
