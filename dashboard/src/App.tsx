@@ -9,6 +9,7 @@ import { SystemMetrics } from './components/panels/SystemMetrics'
 import { DistrictMap } from './components/panels/DistrictMap'
 import { ContentPanel } from './panels/ContentPanel'
 import { DecisionTrace, DecisionEvent } from './components/panels/DecisionTrace'
+import { PersonGraph } from './components/panels/PersonGraph'
 
 export type AppStatus = 'offline' | 'connecting' | 'online' | 'thinking' | 'speaking'
 
