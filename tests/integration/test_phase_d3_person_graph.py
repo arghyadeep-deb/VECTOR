@@ -49,7 +49,8 @@ class TestPersonModelAPI(unittest.TestCase):
     def test_get_all_persons_has_test_alice(self):
         from core.brain.person_model import PersonModel
         pm = PersonModel()
-        ids = [p["person_id"] for p in pm.get_all_persons()]
+        # get_all_persons uses 'id' field (not 'person_id')
+        ids = [p.get("id") or p.get("person_id") for p in pm.get_all_persons()]
         self.assertIn(_TEST_PID, ids)
 
     def test_get_model_returns_dict(self):
