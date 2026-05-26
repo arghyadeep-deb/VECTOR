@@ -227,7 +227,7 @@ def run_cli(args: argparse.Namespace) -> None:
             ]
             programmatic_prompt = args.prompt or stdin_prompt
             if not programmatic_prompt:
-                logger.info()
+                print(
                     "Error: No prompt provided for programmatic mode", file=sys.stderr
                 )
                 sys.exit(1)
