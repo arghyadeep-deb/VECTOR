@@ -194,21 +194,29 @@ export default function App() {
         </div>
       </main>
 
-      {/* ── Right panel — metrics + content pipeline ── */}
+      {/* ── Right panel — metrics / persons / content ── */}
       <aside style={{ gridColumn: '3', gridRow: '2', display: 'flex', flexDirection: 'column', gap: 0 }}
              className="jarvis-panel corner-tl overflow-hidden">
-        {/* System Metrics (top half) */}
-        <div style={{ flex: '0 0 auto' }}>
-          <div className="py-2 px-3 border-b" style={{ borderColor: 'var(--jarvis-border)' }}>
-            <span className="label">System Metrics</span>
-          </div>
-          <div className="p-2">
-            <SystemMetrics state={state} />
-          </div>
+        <div className="flex border-b" style={{ borderColor: 'var(--jarvis-border)' }}>
+          {(['metrics', 'persons', 'content'] as const).map(p => (
+            <button key={p} onClick={() => setActivePanel(p as any)}
+              className="flex-1 py-2 text-xs tracking-widest uppercase transition-colors"
+              style={{
+                color: activePanel === p ? 'var(--jarvis-cyan)' : 'var(--jarvis-text-dim)',
+                borderBottom: activePanel === p ? '1px solid var(--jarvis-cyan)' : 'none',
+                fontSize: '0.55rem',
+              }}>
+              {p}
+            </button>
+          ))}
         </div>
-        {/* Content Pipeline (bottom half) */}
-        <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid rgba(0,212,255,0.1)', overflow: 'hidden' }}>
-          <ContentPanel />
+        <div className="flex-1 p-2 overflow-hidden">
+          {activePanel === 'metrics' && <SystemMetrics state={state} />}
+          {activePanel === 'persons' && <PersonGraph />}
+          {activePanel === 'content' && <ContentPanel />}
+          {activePanel !== 'metrics' && activePanel !== 'persons' && activePanel !== 'content' && (
+            <SystemMetrics state={state} />
+          )}
         </div>
       </aside>
 
