@@ -8,6 +8,7 @@ import { VectorMascot } from './components/VectorMascot'
 import { SystemMetrics } from './components/panels/SystemMetrics'
 import { DistrictMap } from './components/panels/DistrictMap'
 import { ContentPanel } from './panels/ContentPanel'
+import { DecisionTrace, DecisionEvent } from './components/panels/DecisionTrace'
 
 export type AppStatus = 'offline' | 'connecting' | 'online' | 'thinking' | 'speaking'
 
