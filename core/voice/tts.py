@@ -34,10 +34,23 @@ class VoiceTTS:
         self._speaking = False  # barge-in flag
         self._model_dir = Path(CONFIG.get("voice", {}).get("kokoro_model_dir", "./models/kokoro"))
         self._speed = CONFIG.get("voice", {}).get("kokoro_speed", 0.85)
-        self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
+        self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000))
+        # ElevenLabs streaming (C4) — opt-in via CONFIG["voice"]["elevenlabs_streaming"]
+        self._el_ok = False
+        self._el_client = None
+        self._el_voice_id = ""
+        self._el_model = "eleven_turbo_v2"
+        self._el_prosody: dict = {
+            "stability":        CONFIG.get("voice", {}).get("el_stability", 0.75),
+            "similarity_boost": CONFIG.get("voice", {}).get("el_similarity_boost", 0.85),
+            "style":            CONFIG.get("voice", {}).get("el_style", 0.3),
+            "use_speaker_boost": True,
+        }
         self._init_engines()
 
     def _init_engines(self):
+        # ElevenLabs streaming (opt-in cloud TTS — disabled by default, privacy-safe)
+        self._el_ok = self._init_elevenlabs()
         # Phase 5A: Priority order: Piper > Kokoro > pyttsx3
         self._init_piper()
         if not self._kokoro_ok:
