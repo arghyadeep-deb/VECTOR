@@ -376,6 +376,34 @@ class ContextEngine:
         except Exception:
             pass
 
+        # Deep per-person context when a specific person_id is active (Session A2)
+        _person_id_ctx = extra_context.get("person_id") if extra_context else None
+        if _person_id_ctx:
+            try:
+                from core.brain.person_model import PersonModel
+                _pm = PersonModel()
+                _model = _pm.get_model(_person_id_ctx)
+                if _model:
+                    _style = _pm.infer_communication_style(_person_id_ctx)
+                    _topic = extra_context.get("topic", state.get("screen_activity", "general"))
+                    _stance = _pm.predict_response(_person_id_ctx, str(_topic))
+                    _recent = _model.get("recent_interactions", [])
+                    _recent_topics = [
+                        h.get("summary", "")[:40]
+                        for h in _recent[:3]
+                        if h.get("summary")
+                    ]
+                    lines.append(
+                        f"About {_model.get('name', _person_id_ctx)}: "
+                        f"trust={_model.get('trust_score', 0.5):.2f}, "
+                        f"style={{formality={_style.get('formality', '?')}, "
+                        f"technicality={_style.get('technicality', '?')}}}, "
+                        f"recent_topics=[{', '.join(_recent_topics) or 'none'}], "
+                        f"expected_stance={_stance[:80] if _stance else 'unknown'}"
+                    )
+            except Exception as _pe:
+                logger.debug("[VECTOR][context_engine] per-person context failed: {}", _pe)
+
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
                 e for e in state["recent_episodes"] if e
@@ -384,8 +412,10 @@ class ContextEngine:
                 lines.append(f"Recent context: {episodes_str}")
 
         if extra_context:
+            _skip_keys = {"person_id", "topic"}
             for k, v in extra_context.items():
-                lines.append(f"{k}: {v}")
+                if k not in _skip_keys:
+                    lines.append(f"{k}: {v}")
 
         lines.append("[END SESSION CONTEXT]")
         raw = "\n".join(lines)
