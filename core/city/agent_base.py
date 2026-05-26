@@ -353,10 +353,13 @@ if __name__ == '__main__':
     a = AgentBase(str(uuid.uuid4()), 'TestAgent', 'coding')
     assert a.health_points == 500
     assert a.model == CONFIG['models']['focus']
-    a.award_points(350, 'test award')
-    assert a.health_points == 850
+    # HP validator clamps each delta to ±200, so step across multiple txns
+    for _ in range(2):
+        a.award_points(200, 'test award')
+    assert a.health_points == 900
     assert a.is_elite is True
-    a.deduct_points(900, 'test death')
+    for _ in range(5):
+        a.deduct_points(200, 'test death')
     assert a.health_points == 0
     assert 'died_at' in a.ghost_memory
-    print('âœ… agent_base.py OK')
+    print('agent_base.py OK')
