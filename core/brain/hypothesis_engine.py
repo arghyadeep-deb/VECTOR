@@ -45,9 +45,18 @@ class HypothesisEngine:
                 "text": response["message"]["content"],
                 "timestamp": datetime.utcnow().isoformat(),
                 "status": "generated",
+                "confidence": 0.7,
             }
             self._hypotheses.append(hypothesis)
             logger.info(f"[VECTOR][hypothesis_engine] Generated hypothesis from: {observation[:50]}...")
+            # Enqueue in SuggestionQueue so _reflect_tick can surface top-3 (Gap 5)
+            try:
+                from core.brain.suggestion_queue import SuggestionQueue
+                _sq = SuggestionQueue()
+                _sq.enqueue(hypothesis["text"][:500], confidence=hypothesis["confidence"])
+                _sq.close()
+            except Exception as _sqe:
+                logger.debug("[VECTOR][hypothesis_engine] SuggestionQueue enqueue skipped: {}", _sqe)
             return hypothesis
 
         except Exception as e:
