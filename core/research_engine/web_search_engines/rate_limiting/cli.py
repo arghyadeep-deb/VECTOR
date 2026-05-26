@@ -3,6 +3,16 @@ Command-line interface for rate limiting monitoring and management.
 """
 
 import argparse
+
+__all__ = [
+    "cmd_cleanup",
+    "cmd_export",
+    "cmd_reset",
+    "cmd_status",
+    "format_stats_table",
+    "main",
+]
+
 import sys
 from datetime import datetime
 
@@ -58,12 +68,14 @@ def cmd_status(args):
     if args.engine:
         stats = tracker.get_stats(args.engine)
         if not stats:
-            print(f"No rate limit data found for engine: {args.engine}")
+            logger.info(f"No rate limit data found for engine: {args.engine}")
+
             return
     else:
         stats = tracker.get_stats()
 
-    print(format_stats_table(stats))
+    logger.info(format_stats_table(stats))
+
 
 
 def cmd_reset(args):
@@ -72,9 +84,11 @@ def cmd_reset(args):
 
     if args.engine:
         tracker.reset_engine(args.engine)
-        print(f"Reset rate limit data for {args.engine}")
+        logger.info(f"Reset rate limit data for {args.engine}")
+
     else:
-        print("Error: --engine parameter is required for reset command")
+        logger.info("Error: --engine parameter is required for reset command")
+
         sys.exit(1)
 
 
@@ -82,7 +96,8 @@ def cmd_cleanup(args):
     """Clean up old rate limit data."""
     tracker = get_tracker()
     tracker.cleanup_old_data(days=args.days)
-    print(f"Cleaned up rate limit data older than {args.days} days")
+    logger.info(f"Cleaned up rate limit data older than {args.days} days")
+
 
 
 def cmd_export(args):
@@ -93,13 +108,15 @@ def cmd_export(args):
     stats = tracker.get_stats()
 
     if args.format == "csv":
-        print(
+        logger.info(
             "engine_type,base_wait_seconds,min_wait_seconds,max_wait_seconds,last_updated,total_attempts,success_rate"
         )
         for row in stats:
-            print(",".join(map(str, row)))
+            logger.info(",".join(map(str, row)))
+
     elif args.format == "json":
         import json
+from loguru import logger
 
         data = []
         for row in stats:
@@ -123,9 +140,11 @@ def cmd_export(args):
                     "success_rate": success_rate,
                 }
             )
-        print(json.dumps(data, indent=2))
+        logger.info(json.dumps(data, indent=2))
+
     else:
-        print(format_stats_table(stats))
+        logger.info(format_stats_table(stats))
+
 
 
 def main():
@@ -201,7 +220,8 @@ Examples:
     try:
         args.func(args)
     except Exception as e:
-        print(f"Error: {e}")
+        logger.info(f"Error: {e}")
+
         sys.exit(1)
 
 
