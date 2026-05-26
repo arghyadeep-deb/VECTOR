@@ -173,7 +173,7 @@ class DailyReviewer(AgentBase):
             source="daily_reviewer",
         )
 
-        # Gap 5: prepend top pending hypotheses as "I noticed" lines (A5)
+        # A5: prepend top pending hypotheses as "I noticed" lines
         _hyp_section = ""
         try:
             from core.brain.suggestion_queue import SuggestionQueue
@@ -187,10 +187,23 @@ class DailyReviewer(AgentBase):
         except Exception as _hq_err:
             logger.debug("[VECTOR][daily_reviewer] SuggestionQueue briefing skipped: {}", _hq_err)
 
+        # A6: add cross-domain patterns section from SynthesisBridge
+        _patterns_section = ""
+        try:
+            from core.brain.synthesis_bridge import SynthesisBridge
+            _sb = SynthesisBridge()
+            _patterns = _sb.get_recent_patterns(days=1)
+            if _patterns:
+                _pat_lines = "\n".join(f"- {p[:160]}" for p in _patterns[:5])
+                _patterns_section = f"## Cross-domain patterns\n{_pat_lines}\n\n"
+                logger.info("[VECTOR][daily_reviewer] {} cross-domain patterns added to briefing", len(_patterns))
+        except Exception as _pb_err:
+            logger.debug("[VECTOR][daily_reviewer] SynthesisBridge patterns skipped: {}", _pb_err)
+
         try:
             self._obsidian.write_note(
                 title=f"Reflection — {date_str}",
-                content=f"## Daily Review — {date_str}\n\n{_hyp_section}{analysis}",
+                content=f"## Daily Review — {date_str}\n\n{_hyp_section}{_patterns_section}{analysis}",
                 folder="Reflections",
                 tags=["reflection", "daily", "vector"],
             )
