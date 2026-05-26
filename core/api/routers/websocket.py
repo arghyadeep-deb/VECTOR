@@ -14,6 +14,7 @@ __all__ = [
     "require_auth",
     "router",
     "vector_ws",
+    "vector_ws_state",
     "WS_API_KEY",
     "ws_command_http",
     "WSCommandRequest",
