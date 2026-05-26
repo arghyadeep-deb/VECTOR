@@ -32,7 +32,9 @@ def test_award_points_increases_hp():
 
 def test_hp_capped_at_1000():
     a = make_agent()
-    a.award_points(600, "big award")
+    # HP validator clamps each delta to ±200, so reach the ceiling across txns
+    for _ in range(3):
+        a.award_points(200, "big award")
     assert a.health_points == 1000
 
 
