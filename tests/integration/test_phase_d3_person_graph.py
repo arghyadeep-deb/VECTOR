@@ -199,7 +199,12 @@ class TestUpdateBeliefEndpoint(unittest.TestCase):
         asyncio.run(self._call(_TEST_PID, req))
         detail = asyncio.run(get_person(_TEST_PID))
         beliefs = detail["person"].get("beliefs", {})
-        self.assertEqual(beliefs.get("d3_persistent_key"), "d3_value")
+        # beliefs dict: {topic: {"belief": ..., "confidence": ...}} or {topic: belief_str}
+        entry = beliefs.get("d3_persistent_key")
+        if isinstance(entry, dict):
+            self.assertEqual(entry.get("belief"), "d3_value")
+        else:
+            self.assertEqual(entry, "d3_value")
 
     @staticmethod
     async def _call(pid: str, req) -> dict:
