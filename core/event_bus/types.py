@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+__all__ = [
+    "DirectMessage",
+    "DirectMessagePriority",
+    "Event",
+    "EventType",
+    "generate_correlation_id",
+]
+
+
 import time
 import uuid
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, IntEnum
+from typing import Optional
 
 
 class EventType(str, Enum):
@@ -30,6 +40,15 @@ class EventType(str, Enum):
     ANALYTICS_READY = "analytics_ready"
     CODING_COMPLETE = "coding_complete"
     UPLOAD_COMPLETE = "upload_complete"
+    DIRECT_MESSAGE = "direct_message"
+    HYPOTHESIS_SURFACED = "hypothesis_surfaced"
+
+
+class DirectMessagePriority(IntEnum):
+    LOW = 0
+    NORMAL = 1
+    HIGH = 2
+    CRITICAL = 3
 
 
 @dataclass
@@ -38,6 +57,19 @@ class Event:
     data: dict = field(default_factory=dict)
     source: str = ""
     correlation_id: str = field(default_factory=lambda: generate_correlation_id())
+    timestamp: float = field(default_factory=time.time)
+
+
+@dataclass
+class DirectMessage:
+    recipient: str
+    sender: str
+    message_type: str = "direct"
+    payload: dict = field(default_factory=dict)
+    correlation_id: str = field(default_factory=lambda: generate_correlation_id())
+    reply_to: Optional[str] = None
+    ttl: int = 30
+    priority: DirectMessagePriority = DirectMessagePriority.NORMAL
     timestamp: float = field(default_factory=time.time)
 
 
