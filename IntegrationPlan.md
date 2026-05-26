@@ -380,3 +380,4 @@ A session is complete when:
 | C3 — AnticipationEngine | 2026-05-26 | DONE | anticipation_loop + _anticipation_tick in autonomous_loop; 27/27 tests |
 | C4 — ElevenLabs streaming TTS | 2026-05-26 | DONE | TextToSpeech alias, _init_elevenlabs, _speak_elevenlabs_stream, prosody; 40/40 + 146/146 voice tests |
 | D1 — WebSocket bridge | 2026-05-26 | DONE | /ws/state endpoint, 3 new EventTypes, dashboard wired; 29/29 tests |
+| D2 — Decision trace timeline | 2026-05-26 | DONE | DecisionTrace.tsx, reasoning_memory.get_recent, /brain/reasoning/chains; 28/28 tests |
