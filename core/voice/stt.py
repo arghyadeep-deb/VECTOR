@@ -156,13 +156,39 @@ class WhisperSTT:
 
 
 class FasterWhisperSTT:
-    """faster-whisper — ~4x throughput vs vanilla Whisper, same accuracy."""
+    """faster-whisper — ~4x throughput vs vanilla Whisper, same accuracy.
+
+    VRAM requirements: large-v3 ~6 GB fp16 (falls back to medium when insufficient).
+    """
 
     name = "faster_whisper"
+
+    # VRAM floor (GB) at fp16 for each model size.
+    _VRAM_REQUIREMENTS: dict = {"large-v3": 6.0, "large": 6.0, "medium": 3.0, "small": 1.5}
 
     def __init__(self):
         self._model = None
         self._model_name = CONFIG.get("voice", {}).get("whisper_model", "large-v3")
+
+    def _select_model(self) -> str:
+        """Return model name, downgrading to 'medium' when GPU VRAM is insufficient."""
+        name = self._model_name
+        required_gb = self._VRAM_REQUIREMENTS.get(name, 0.0)
+        if required_gb > 0.0:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+                    if vram_gb < required_gb:
+                        logger.warning(
+                            "[VECTOR][stt:faster_whisper] '{}' needs ~{:.0f} GB VRAM (fp16); "
+                            "{:.1f} GB available — falling back to 'medium'",
+                            name, required_gb, vram_gb,
+                        )
+                        return "medium"
+            except Exception:
+                pass
+        return name
 
     def _load(self):
         if self._model is None:
@@ -170,11 +196,12 @@ class FasterWhisperSTT:
                 from faster_whisper import WhisperModel  # type: ignore[import]
                 device = CONFIG.get("voice", {}).get("device", "cuda")
                 compute = CONFIG.get("voice", {}).get("compute_type", "float16")
+                effective = self._select_model()
                 logger.info(
-                    f"[VECTOR][stt:faster_whisper] Loading '{self._model_name}' "
+                    f"[VECTOR][stt:faster_whisper] Loading '{effective}' "
                     f"on {device} ({compute})"
                 )
-                self._model = WhisperModel(self._model_name, device=device, compute_type=compute)
+                self._model = WhisperModel(effective, device=device, compute_type=compute)
                 logger.info("[VECTOR][stt:faster_whisper] ready")
             except Exception as e:
                 logger.error(f"[VECTOR][stt:faster_whisper] Failed to load: {e}")
