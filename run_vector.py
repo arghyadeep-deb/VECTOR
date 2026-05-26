@@ -854,6 +854,21 @@ async def _start_background_services() -> None:
     except Exception as e:
         logger.debug("[VECTOR][startup] AmbientListener skipped: {}", e)
 
+    # Cloud brain heartbeat — push status to Fly.io brain server if VECTOR_BRAIN_URL is set
+    try:
+        from core.config import CONFIG as _cloud_cfg
+        _brain_url = _cloud_cfg.get("cloud", {}).get("brain_url", "")
+        if _brain_url:
+            from core.cloud.heartbeat import CloudBrainHeartbeat
+            _api_key = str(_cloud_cfg.get("cloud", {}).get("api_key", ""))
+            _hb = CloudBrainHeartbeat(brain_url=_brain_url, api_key=_api_key)
+            asyncio.create_task(_hb.start_loop())
+            logger.info("[VECTOR][startup] CloudBrainHeartbeat started → {}", _brain_url)
+        else:
+            logger.debug("[VECTOR][startup] Cloud heartbeat disabled (set VECTOR_BRAIN_URL to enable)")
+    except Exception as e:
+        logger.debug("[VECTOR][startup] CloudBrainHeartbeat skipped: {}", e)
+
 
 # ── Signal handlers for graceful shutdown ──────────────────────────────────────
 
