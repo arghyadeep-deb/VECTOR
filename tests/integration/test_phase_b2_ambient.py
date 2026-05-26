@@ -198,7 +198,7 @@ class TestListenTickFiresOnSpeech(unittest.TestCase):
                 al._wake_task.cancel()
                 try:
                     await al._wake_task
-                except Exception:
+                except BaseException:
                     pass
             return created
 
