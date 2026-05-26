@@ -7,6 +7,17 @@ from loguru import logger
 from core.config import CONFIG
 
 
+# Module-level sense cache written by autonomous_loop._sense_tick() every 30s.
+# All ContextEngine instances share this (re-instantiation is cheap and common).
+_SENSE_CACHE: dict = {"screen_summary": "", "presence": "unknown"}
+
+
+def update_sense_cache(screen_summary: str = "", presence: str = "unknown") -> None:
+    """Called from autonomous_loop._sense_tick() — updates shared sensing state."""
+    _SENSE_CACHE["screen_summary"] = screen_summary[:300] if screen_summary else ""
+    _SENSE_CACHE["presence"] = presence or "unknown"
+
+
 class ContextEngine:
     """
     Builds VECTOR's world state. session_hydration_prompt() MUST be called before every LLM call.
@@ -120,14 +131,21 @@ class ContextEngine:
             logger.warning(f"[VECTOR][context_engine] vault context failed: {e}")
             return ""
 
-    def get_world_state(self) -> dict:
-        """Gather current world state across 14 domains."""
+    def get_world_state(self, query: str | None = None) -> dict:
+        """Gather current world state across 14 domains.
+
+        When *query* is provided, episodic recall uses hybrid semantic+FTS5 search
+        (C2) so contextually relevant episodes surface instead of just the most recent.
+        """
         now = datetime.datetime.now(datetime.timezone.utc)
         mem = self._get_memory()
 
         recent_episodes = []
         try:
-            recent_episodes = mem.recall("", limit=5)
+            if query:
+                recent_episodes = mem.search_semantic(query, top_k=5)
+            else:
+                recent_episodes = mem.recall("", limit=5)
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] episode recall failed: {e}")
 
@@ -254,6 +272,8 @@ class ContextEngine:
             "personality": personality,
             "predictions": predictions,
             "home_assistant": self._get_ha_snapshot(),
+            "screen_summary": _SENSE_CACHE.get("screen_summary", ""),
+            "presence": _SENSE_CACHE.get("presence", "unknown"),
         }
 
     def _get_ha_snapshot(self) -> dict:
@@ -332,6 +352,11 @@ class ContextEngine:
             )
         if state.get("screen_activity") and state["screen_activity"] != "unknown":
             lines.append(f"Current activity: {state['screen_activity']}")
+
+        if state.get("screen_summary"):
+            lines.append(f"Screen: {state['screen_summary'][:120]}")
+        if state.get("presence") and state["presence"] not in ("unknown", ""):
+            lines.append(f"Presence: {state['presence']}")
 
         if state.get("goal_summary"):
             lines.append(f"Active goals: {state['goal_summary']}")
