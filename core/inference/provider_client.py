@@ -125,7 +125,11 @@ class ProviderClient:
                     if m.get("role") == "user":
                         _user_text_for_validation = m.get("content", "")
                         break
-                messages = _personality_layer.inject(messages, user_text=_user_text_for_validation)
+                messages = _personality_layer.inject(
+                    messages,
+                    user_text=_user_text_for_validation,
+                    person_id=person_id,
+                )
                 _sentiment_result = _personality_layer.analyze_sentiment(_user_text_for_validation)
                 _sentiment_for_validation = _sentiment_result.emotion
             except Exception as _pe:
