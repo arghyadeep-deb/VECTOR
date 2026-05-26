@@ -1,4 +1,15 @@
 import sys
+
+__all__ = [
+    "Action",
+    "FORBIDDEN",
+    "GatewayResult",
+    "GREEN",
+    "PermissionGateway",
+    "RED",
+    "YELLOW",
+]
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
@@ -81,6 +92,18 @@ class PermissionGateway:
             return result
 
         if level == 'RED':
+            # A7: CouncilBrain deliberation before HumanLayer/asyncio fallback
+            _council_verdict = await self._handle_red_tier(action)
+            if _council_verdict == "proceed":
+                exec_result = await self._execute_action(action)
+                result = GatewayResult(True, 'RED', True, exec_result, 'Council approved (auto-proceed)')
+                self._write_audit(action, result)
+                return result
+            if _council_verdict == "reject":
+                result = GatewayResult(False, 'RED', False, {}, 'Council rejected action')
+                self._write_audit(action, result)
+                return result
+            # verdict == "defer" → fall through to owner approval
             if _HUMANLAYER_AVAILABLE:
                 confirmed = await self._request_humanlayer_approval(action)
             else:
