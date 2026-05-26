@@ -28,12 +28,12 @@ async def _emit(domain: str, signal_name: str, value: Any, source: str = "extern
 
 
 class EmergencyResponseSystem:
-    def __init__(self):
+    def __init__(self, test_mode: bool = False):
         self._config = CONFIG.get("emergency", {})
         self._detector = EmergencyDetector()
         self._classifier = SeverityClassifier()
         self._runbook = RunbookExecutor()
-        self._escalation = EscalationManager()
+        self._escalation = EscalationManager(test_mode=test_mode)
         self._log = EmergencyLog()
         self._running = False
         self._tasks: list[asyncio.Task] = []
