@@ -1537,7 +1537,66 @@ class AutonomousLoop:
             self.emergency_detection_cycle(),
             self.research_loop(),
             self.state_checkpoint_loop(),
+            self.sense_loop(),
             return_exceptions=True,
+        )
+
+    async def sense_loop(self) -> None:
+        """Call _sense_tick() every 30s. Skipped when sensing disabled. Never crashes."""
+        _sense_interval = 30.0
+        logger.info("[VECTOR][sense] sense_loop started — 30s interval")
+        while self._running:
+            try:
+                await self._sense_tick()
+            except Exception as _se:
+                logger.error("[VECTOR][sense] sense_loop error: {}", _se)
+            await asyncio.sleep(_sense_interval)
+
+    async def _sense_tick(self) -> None:
+        """Capture screen and camera state; write to context_engine sense cache."""
+        sensing_cfg = CONFIG.get("sensing", {})
+        screen_enabled = sensing_cfg.get("screen_enabled", False)
+        camera_enabled = sensing_cfg.get("camera_enabled", False)
+
+        if not screen_enabled and not camera_enabled:
+            return
+
+        from core.loop.context_engine import update_sense_cache
+
+        screen_summary = ""
+        presence = "unknown"
+
+        if screen_enabled:
+            try:
+                from core.sensing.screen_observer import ScreenObserver
+                obs_result = ScreenObserver().observe()
+                snippet = obs_result.get("text_snippet", "")
+                activity = obs_result.get("activity", "unknown")
+                screen_summary = f"[{activity}] {snippet[:200]}" if snippet else f"[{activity}]"
+            except Exception as _se:
+                logger.debug("[VECTOR][sense] screen observe failed: {}", _se)
+
+        if camera_enabled:
+            try:
+                from core.sensing.camera import FaceDetector
+                faces = FaceDetector().capture_and_scan()
+                if not faces:
+                    presence = "absent"
+                else:
+                    owner_faces = [f for f in faces if f.get("name", "unknown") != "unknown"]
+                    if len(faces) > 1:
+                        presence = "multiple"
+                    elif owner_faces:
+                        presence = "present"
+                    else:
+                        presence = "unknown_visitor"
+            except Exception as _ce:
+                logger.debug("[VECTOR][sense] camera scan failed: {}", _ce)
+
+        update_sense_cache(screen_summary=screen_summary, presence=presence)
+        logger.debug(
+            "[VECTOR][sense] tick — presence={} screen_chars={}",
+            presence, len(screen_summary),
         )
 
     async def state_checkpoint_loop(self) -> None:
@@ -1750,6 +1809,53 @@ class AutonomousLoop:
             except Exception as e:
                 logger.error(f"[VECTOR][research] loop error: {e}")
                 await asyncio.sleep(300)
+
+    # ── Anticipation loop (C3) ────────────────────────────────────────────────
+
+    async def anticipation_loop(self) -> None:
+        """
+        C3 — AnticipationEngine: predict what the owner needs next.
+        Runs every 10 minutes. High-confidence predictions (>= 0.75) are
+        proposed as proactive_* actions through the normal _act_on flow.
+        RULE 2 — never dies.
+        """
+        logger.info("[VECTOR][anticipation] loop starting — 10min cycle")
+        while self._running:
+            try:
+                await asyncio.sleep(600)
+                if not self._running:
+                    break
+                await self._anticipation_tick()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("[VECTOR][anticipation] loop error: {}", e)
+                await asyncio.sleep(60)
+
+    async def _anticipation_tick(self) -> None:
+        """Predict next need and route high-confidence predictions as proactive_* candidates."""
+        try:
+            from core.brain.anticipation import get_anticipation_engine
+            from core.loop.decision_engine import Candidate
+            engine = get_anticipation_engine()
+            predictions = engine.predict_next_need(window_minutes=30)
+            for pred in predictions:
+                if pred.confidence >= 0.75:
+                    candidate = Candidate(
+                        action_type=pred.action_type,
+                        params={"need": pred.need, "description": pred.description, **pred.params},
+                        goal_ids=[],
+                        urgency=pred.confidence,
+                        confidence=pred.confidence,
+                        source="anticipation_engine",
+                    )
+                    logger.info(
+                        "[VECTOR][anticipation] proactive action: {} conf={:.2f} ({})",
+                        pred.action_type, pred.confidence, pred.source,
+                    )
+                    await self._act_on(candidate)
+        except Exception as e:
+            logger.debug("[VECTOR][anticipation] tick skipped: {}", e)
 
     def stop(self) -> None:
         """Graceful stop for tests only. Never call in production."""
