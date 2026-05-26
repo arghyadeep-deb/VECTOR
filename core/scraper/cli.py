@@ -1,4 +1,19 @@
 from pathlib import Path
+
+__all__ = [
+    "delete",
+    "extract",
+    "fetch",
+    "get",
+    "install",
+    "main",
+    "mcp",
+    "post",
+    "put",
+    "shell",
+    "stealthy_fetch",
+]
+
 from subprocess import check_output
 from sys import executable as python_executable
 
@@ -21,7 +36,8 @@ __PACKAGE_DIR__ = Path(__file__).parent
 
 
 def __Execute(cmd: List[str], help_line: str) -> None:  # pragma: no cover
-    print(f"Installing {help_line}...")
+    logger.info(f"Installing {help_line}...")
+
     _ = check_output(cmd, shell=False)  # nosec B603
     # I meant to not use try except here
 
@@ -137,7 +153,8 @@ def install(force):  # pragma: no cover
         # if no errors raised by the above commands, then we add the below file
         __PACKAGE_DIR__.joinpath(".vector_scraper_dependencies_installed").touch()
     else:
-        print("The dependencies are already installed")
+        logger.info("The dependencies are already installed")
+
 
 
 @command(help="Run VECTOR Scraper's MCP server (Check the docs for more info).")
