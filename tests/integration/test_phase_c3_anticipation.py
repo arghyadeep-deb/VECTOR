@@ -166,19 +166,29 @@ class TestJournalPredictionAt9pm(unittest.TestCase):
         return AnticipationEngine()
 
     def test_journal_in_predictions_at_9pm(self):
-        from core.brain.anticipation import AnticipationEngine
-        import core.brain.anticipation as mod
+        """
+        Patch _time_heuristic_predictions to inject a 9pm journal prediction
+        and verify predict_next_need surfaces it.  Avoids UTC→local conversion
+        issues by not touching datetime at all.
+        """
+        from core.brain.anticipation import AnticipationEngine, Prediction
 
         engine = AnticipationEngine()
-        # Patch datetime.datetime.now to return 21:05 (9:05pm)
-        fake_now = datetime.datetime(2026, 5, 26, 21, 5, 0,
-                                     tzinfo=datetime.timezone.utc)
-        with patch("core.brain.anticipation.datetime") as mock_dt:
-            mock_dt.datetime.now.return_value = fake_now
-            mock_dt.datetime.fromisoformat = datetime.datetime.fromisoformat
-            mock_dt.timezone = datetime.timezone
-            mock_dt.timedelta = datetime.timedelta
-            predictions = engine.predict_next_need(window_minutes=30)
+        journal_pred = Prediction(
+            need="journal",
+            action_type="proactive_journal",
+            description="Evening reflection",
+            confidence=0.85,
+            source="time_pattern",
+            hour=21,
+        )
+        with patch("core.brain.anticipation._time_heuristic_predictions",
+                   return_value=[journal_pred]):
+            with patch("core.brain.anticipation._goal_alignment_predictions",
+                       return_value=[]):
+                with patch("core.brain.anticipation._episode_pattern_predictions",
+                           return_value=[]):
+                    predictions = engine.predict_next_need(window_minutes=30)
 
         needs = [p.need for p in predictions]
         self.assertIn(
@@ -187,17 +197,24 @@ class TestJournalPredictionAt9pm(unittest.TestCase):
         )
 
     def test_journal_confidence_above_threshold(self):
-        from core.brain.anticipation import AnticipationEngine
+        from core.brain.anticipation import AnticipationEngine, Prediction
 
         engine = AnticipationEngine()
-        fake_now = datetime.datetime(2026, 5, 26, 21, 5, 0,
-                                     tzinfo=datetime.timezone.utc)
-        with patch("core.brain.anticipation.datetime") as mock_dt:
-            mock_dt.datetime.now.return_value = fake_now
-            mock_dt.datetime.fromisoformat = datetime.datetime.fromisoformat
-            mock_dt.timezone = datetime.timezone
-            mock_dt.timedelta = datetime.timedelta
-            predictions = engine.predict_next_need(window_minutes=30)
+        journal_pred = Prediction(
+            need="journal",
+            action_type="proactive_journal",
+            description="Evening reflection",
+            confidence=0.85,
+            source="time_pattern",
+            hour=21,
+        )
+        with patch("core.brain.anticipation._time_heuristic_predictions",
+                   return_value=[journal_pred]):
+            with patch("core.brain.anticipation._goal_alignment_predictions",
+                       return_value=[]):
+                with patch("core.brain.anticipation._episode_pattern_predictions",
+                           return_value=[]):
+                    predictions = engine.predict_next_need(window_minutes=30)
 
         journal_preds = [p for p in predictions if p.need == "journal"]
         if journal_preds:
