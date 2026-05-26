@@ -109,7 +109,8 @@ class GpuMonitor:
         with mon.sample() as result:
             # ... run inference ...
             pass
-        print(result.energy_joules)
+        logger.info(result.energy_joules)
+
         mon.close()
     """
 
