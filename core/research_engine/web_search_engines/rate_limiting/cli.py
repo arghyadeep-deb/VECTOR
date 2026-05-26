@@ -14,6 +14,7 @@ __all__ = [
 ]
 
 import sys
+from loguru import logger
 from datetime import datetime
 
 from .tracker import get_tracker
