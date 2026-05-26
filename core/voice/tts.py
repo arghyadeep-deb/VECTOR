@@ -58,8 +58,105 @@ class VoiceTTS:
         if not self._kokoro_ok:
             self._init_pyttsx3()
 
+    def _init_elevenlabs(self) -> bool:
+        “””
+        Try ElevenLabs streaming TTS (C4).  Opt-in only — requires both:
+          1. ELEVENLABS_API_KEY set (CONFIG[“api_keys”][“elevenlabs_key”])
+          2. CONFIG[“voice”][“elevenlabs_streaming”] = True
+        Returns True if ready; never raises.
+        “””
+        if not CONFIG.get(“voice”, {}).get(“elevenlabs_streaming”, False):
+            return False
+        api_key = CONFIG.get(“api_keys”, {}).get(“elevenlabs_key”, “”)
+        if not api_key:
+            logger.debug(“[VECTOR][tts] ElevenLabs streaming disabled — no API key”)
+            return False
+        try:
+            from elevenlabs.client import ElevenLabs  # type: ignore
+            self._el_client = ElevenLabs(api_key=api_key)
+            self._el_voice_id = CONFIG.get(“api_keys”, {}).get(
+                “elevenlabs_voice_id”, “pNInz6obpgDQGcFmaJgB”
+            )
+            self._el_model = CONFIG.get(“voice”, {}).get(
+                “elevenlabs_model”, “eleven_turbo_v2”
+            )
+            self._el_prosody = {
+                “stability”:        CONFIG.get(“voice”, {}).get(“el_stability”, 0.75),
+                “similarity_boost”: CONFIG.get(“voice”, {}).get(“el_similarity_boost”, 0.85),
+                “style”:            CONFIG.get(“voice”, {}).get(“el_style”, 0.3),
+                “use_speaker_boost”: True,
+            }
+            logger.info(
+                “[VECTOR][tts] ElevenLabs streaming ready (model={} voice={})”,
+                self._el_model, self._el_voice_id,
+            )
+            return True
+        except ImportError:
+            logger.debug(“[VECTOR][tts] elevenlabs package not installed — skipping”)
+            return False
+        except Exception as e:
+            logger.debug(“[VECTOR][tts] ElevenLabs init failed: {}”, e)
+            return False
+
+    def _speak_elevenlabs_stream(self, text: str) -> bool:
+        “””
+        Stream ElevenLabs audio to sounddevice with barge-in support.
+
+        Collects PCM chunks from the ElevenLabs streaming API, checking the
+        _speaking flag between chunks so stop_speaking() takes effect immediately.
+        Returns True on success, False on any error (caller falls through to local TTS).
+        “””
+        if not self._el_ok or self._el_client is None:
+            return False
+        try:
+            import io
+            import numpy as np
+            import sounddevice as sd
+
+            self._speaking = True
+            buf = io.BytesIO()
+
+            stream = self._el_client.text_to_speech.stream(
+                voice_id=self._el_voice_id,
+                text=text,
+                model_id=self._el_model,
+                voice_settings=self._el_prosody,
+                output_format=”pcm_22050”,
+            )
+
+            for chunk in stream:
+                if not self._speaking:
+                    logger.debug(“[VECTOR][tts] ElevenLabs stream cut by barge-in”)
+                    return True
+                if chunk:
+                    buf.write(chunk)
+
+            if not self._speaking:
+                return True
+
+            buf.seek(0)
+            raw = buf.read()
+            if raw:
+                samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+                sd.play(samples, samplerate=22050)
+                import time
+                while sd.get_stream().active:
+                    if not self._speaking:
+                        sd.stop()
+                        logger.debug(“[VECTOR][tts] ElevenLabs playback cut by barge-in”)
+                        break
+                    time.sleep(0.05)
+
+            self._speaking = False
+            logger.info(“[VECTOR][tts] ElevenLabs stream complete ({} chars)”, len(text))
+            return True
+        except Exception as e:
+            self._speaking = False
+            logger.warning(“[VECTOR][tts] ElevenLabs streaming failed: {} — falling through to local TTS”, e)
+            return False
+
     def _init_piper(self):
-        """Try Piper TTS (piper-tts package) â€” fast, local, high quality."""
+        “””Try Piper TTS (piper-tts package) â€” fast, local, high quality.”””
         try:
             from piper import PiperVoice  # type: ignore
             import wave, io
