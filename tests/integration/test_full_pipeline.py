@@ -53,7 +53,7 @@ def test_voice_intent_parsing():
     assert r1["params"]["query"] == "paris"
     
     r2 = _parse_intent("Where is Tokyo?")
-    assert r2["params"]["query"] == "tokyo?"
+    assert r2["params"]["query"] == "tokyo"  # trailing punctuation is stripped for clean geocoding
     
     r3 = _parse_intent("Map of New York City")
     assert r3["params"]["query"] == "new york city"
