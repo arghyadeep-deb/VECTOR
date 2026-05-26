@@ -42,6 +42,9 @@ class EventType(str, Enum):
     UPLOAD_COMPLETE = "upload_complete"
     DIRECT_MESSAGE = "direct_message"
     HYPOTHESIS_SURFACED = "hypothesis_surfaced"
+    AGENT_HP_CHANGED = "agent_hp_changed"
+    TASK_ROUTED = "task_routed"
+    ANOMALY_DETECTED = "anomaly_detected"
 
 
 class DirectMessagePriority(IntEnum):
