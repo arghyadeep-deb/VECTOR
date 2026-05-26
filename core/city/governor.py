@@ -984,7 +984,7 @@ if __name__ == "__main__":
 
     ok = route == "coding" and "task_id" in result and "coding" in summary
     print(
-        f"✓ governor OK —" route={route}, "
+        f"✓ governor OK — route={route}, "
         f"dispatch status={result.get('status')}, districts={len(summary)}"
-        if ok else "âŒ FAILED"
+        if ok else "❌ FAILED"
     )
