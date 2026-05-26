@@ -124,7 +124,8 @@ class TestGetPersonsEndpoint(unittest.TestCase):
 
     def test_get_persons_includes_alice(self):
         result = asyncio.run(self._call())
-        ids = [p["person_id"] for p in result["persons"]]
+        # get_all_persons returns dicts with 'id' or 'person_id' depending on PersonModel version
+        ids = [p.get("id") or p.get("person_id") for p in result["persons"]]
         self.assertIn(_TEST_PID, ids)
 
     @staticmethod
