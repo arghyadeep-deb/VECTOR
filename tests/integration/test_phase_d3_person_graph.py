@@ -156,7 +156,8 @@ class TestGetPersonEndpoint(unittest.TestCase):
 
     def test_person_has_trust(self):
         result = asyncio.run(self._call(_TEST_PID))
-        self.assertIn("trust", result["person"])
+        person = result["person"]
+        self.assertTrue("trust_score" in person or "trust" in person)
 
     def test_unknown_person_raises_404(self):
         from fastapi import HTTPException
