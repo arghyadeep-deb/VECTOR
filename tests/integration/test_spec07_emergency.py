@@ -437,7 +437,8 @@ class TestEmergencyResponseSystemE2E(unittest.TestCase):
 
     def setUp(self):
         from districts.emergency.main import EmergencyResponseSystem
-        self.system = EmergencyResponseSystem()
+        # test_mode keeps escalation off the live notification API / audio alarms.
+        self.system = EmergencyResponseSystem(test_mode=True)
 
     def test_system_initializes_without_error(self):
         self.assertIsNotNone(self.system)
