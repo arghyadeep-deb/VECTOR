@@ -62,20 +62,9 @@ def test_voice_intent_parsing():
     assert r4 is None
 
 
-def test_store_idle_state():
-    """isIdle state should default to true and update correctly."""
-    from core.ui.dashboard.src.store.vectorStore import useVectorStore
-    
-    store = useVectorStore.getState()
-    assert store.isIdle == True
-    store.setIsIdle(False)
-    assert store.isIdle == False
-    assert store.isAwake == True
-    assert store.hudVisible == True
-    
-    store.setIsIdle(True)
-    assert store.isIdle == True
-    assert store.isAwake == False
+# NOTE: the dashboard idle-state store lives in vectorStore.ts (TypeScript / Zustand)
+# and cannot be imported by pytest. Its behavior is covered by the frontend test
+# runner, not this Python suite, so the former test_store_idle_state was removed.
 
 
 if __name__ == "__main__":
