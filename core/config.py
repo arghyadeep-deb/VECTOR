@@ -523,6 +523,10 @@ CONFIG: dict = {
     "ofp_cert": _s.VECTOR_OFP_CERT,
     "ofp_key": _s.VECTOR_OFP_KEY,
     "cloud_api_url": _s.VECTOR_CLOUD_API_URL,
+    "cloud": {
+        "brain_url": _s.VECTOR_BRAIN_URL,
+        "api_key": _secret(_s.VECTOR_BRAIN_API_KEY.get_secret_value()),
+    },
     "oauth_redirect_base": _s.VECTOR_OAUTH_REDIRECT_BASE,
     "sentry_dsn": _s.SENTRY_DSN,
     "sentry_env": _s.VECTOR_ENV,
