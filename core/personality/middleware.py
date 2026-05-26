@@ -14,7 +14,7 @@ Direct use (advanced):
 """
 from __future__ import annotations
 
-__all__ = ["PersonalityLayer"]
+__all__ = ["PersonalityLayer", "get_personality_layer"]
 
 import sys
 from pathlib import Path
