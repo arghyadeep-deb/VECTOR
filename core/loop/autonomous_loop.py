@@ -585,10 +585,11 @@ class AutonomousLoop:
                         return
                 except Exception as _re_err:
                     logger.debug("[VECTOR][bypass] rules engine failed: {}", _re_err)
+            _person_id = self._handle_user_input(_voice_text)
             logger.info("[VECTOR][think] voice intent dispatched: {}", pending.get("intent"))
             await self._get_governor().dispatch({
                 "type":       pending.get("intent", "respond"),
-                "params":     pending.get("params", {}),
+                "params":     {**pending.get("params", {}), "person_id": _person_id},
                 "source":     "voice",
                 "confidence": pending.get("confidence", 0.8),
             })
@@ -767,6 +768,32 @@ class AutonomousLoop:
 
         # Gap 17: Comms Ã¢â‚¬â€ broadcast action result to configured channels after execution.
         # This is done post-execution (see _broadcast_result below).
+
+        # Gap 4: CounterfactualMemory -- block proposals similar to past rejections
+        try:
+            from core.memory.counterfactual import CounterfactualMemory
+            _proposal = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+            _cf = CounterfactualMemory()
+            _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
+            if _should_avoid and _cf_score > 0.7:
+                logger.warning(
+                    "[VECTOR][counterfactual] action '{}' blocked (score={:.2f}): {}",
+                    winner.action_type, _cf_score, _cf_reason[:80],
+                )
+                _cf.record_rejection(
+                    decision_id=winner.action_type,
+                    proposal=_proposal,
+                    reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
+                )
+                return
+            elif 0.4 < _cf_score <= 0.7 and _cf_reason:
+                logger.info(
+                    "[VECTOR][counterfactual] caution for '{}' (score={:.2f}): {}",
+                    winner.action_type, _cf_score, _cf_reason[:80],
+                )
+                winner.params = {**winner.params, "_cf_caution": _cf_reason[:120]}
+        except Exception as _cf_err:
+            logger.debug("[VECTOR][counterfactual] check skipped: {}", _cf_err)
 
         # ThreatDetector: scan action description before execution (guidance.py)
         action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
@@ -969,6 +996,31 @@ class AutonomousLoop:
 
     # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Reflect Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
+    def _notify_user(self, text: str) -> None:
+        """Send formatted text to user via TTS or log. Never raises."""
+        if not text:
+            return
+        try:
+            from core.voice.tts import TextToSpeech
+            tts = TextToSpeech()
+            tts.speak(text)
+            return
+        except Exception as e:
+            logger.debug('[VECTOR][notify] TTS unavailable: {}', e)
+        logger.info('[VECTOR][RESPONSE] {}', text[:200])
+
+    def _handle_user_input(self, text: str, person_id: str = "owner") -> str:
+        """
+        Tag incoming user voice/text input with person_id so PersonalityLayer
+        can adapt the LLM response style to the addressed person's preferences.
+        Stores person_id as _current_person_id; returns it for testability.
+        Default is 'owner' -- the primary user of this VECTOR instance.
+        Never raises.
+        """
+        self._current_person_id = person_id
+        logger.debug("[VECTOR][loop] user input from person={} len={}", person_id, len(text))
+        return person_id
+
     async def reflect_loop(self):
         """2AM daily reflection. Never crashes."""
         logger.info("[VECTOR][reflect] started Ã¢â‚¬â€ fires at 2:00 AM daily")
@@ -1099,6 +1151,7 @@ class AutonomousLoop:
             for _iv in _interventions:
                 logger.info('[VECTOR][reflect] proactive_care {} (sev={:.2f}): {}',
                             _iv.kind, _iv.severity, _iv.message[:80])
+                self._notify_user(_iv.message)
         except Exception as _care_err:
             logger.debug('[VECTOR][reflect] proactive_care suppressed: {}', _care_err)
 
@@ -1125,6 +1178,24 @@ class AutonomousLoop:
                     )
         except Exception as _synth_err:
             logger.debug('[VECTOR][reflect] cross-domain synthesis suppressed: {}', _synth_err)
+
+        # Gap 5 — SuggestionQueue: drain top-3 pending hypotheses → HYPOTHESIS_SURFACED event
+        try:
+            from core.brain.suggestion_queue import SuggestionQueue
+            from core.event_bus.types import EventType
+            _sq = SuggestionQueue()
+            _pending = _sq.get_top_pending(limit=3)
+            for _item in _pending:
+                await self._publish_event(EventType.HYPOTHESIS_SURFACED, {
+                    "id": _item["id"],
+                    "hypothesis": _item["hypothesis"],
+                    "confidence": _item["confidence"],
+                })
+                _sq.mark_surfaced(_item["id"])
+                logger.info("[VECTOR][reflect] hypothesis surfaced: {}", _item["hypothesis"][:80])
+            _sq.close()
+        except Exception as _sq_err:
+            logger.debug("[VECTOR][reflect] SuggestionQueue drain suppressed: {}", _sq_err)
 
     # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Sync Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
