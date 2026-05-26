@@ -1,4 +1,11 @@
 import sys
+
+__all__ = [
+    "EpisodicMemory",
+    "get_db_connection",
+    "get_temp_cursor",
+]
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
@@ -203,6 +210,13 @@ def _create_tables(conn):
             ghost_memory TEXT,
             died_at TEXT,
             PRIMARY KEY (agent_id, generation)
+        )""",
+        # C2: semantic embeddings for hybrid search (backfilled on first use)
+        """CREATE TABLE IF NOT EXISTS episodic_embeddings (
+            id TEXT PRIMARY KEY,
+            embedding BLOB NOT NULL,
+            model TEXT NOT NULL DEFAULT 'all-MiniLM-L6-v2',
+            created_at TEXT
         )""",
     ]
     for table in tables:
