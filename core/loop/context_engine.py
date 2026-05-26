@@ -320,8 +320,9 @@ class ContextEngine:
         RULE 1 Ã¢â‚¬â€ Call this before EVERY LLM call.
         Returns a context block to prepend to the LLM message.
         """
+        _query = (extra_context or {}).get("query") if extra_context else None
         try:
-            state = self.get_world_state()
+            state = self.get_world_state(query=_query)
         except Exception as e:
             logger.error(f"[VECTOR][context_engine] world state failed: {e}")
             state = {
