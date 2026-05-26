@@ -65,8 +65,10 @@ def test_death_preserves_ghost():
 
 def test_model_upgrades_with_hp():
     a = make_agent()
-    a.award_points(350, "upgrade")
-    assert a.health_points == 850
+    # HP validator clamps each delta to ±200; two awards clear the elite (≥800) tier
+    for _ in range(2):
+        a.award_points(200, "upgrade")
+    assert a.health_points == 900
     assert a.is_elite is True
     assert a.model == CONFIG["models"]["cloud_coder"]
 
