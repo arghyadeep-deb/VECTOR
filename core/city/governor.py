@@ -94,17 +94,17 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "session_persist": "memory_curator",
     "recover_session": "memory_curator",
     "session_recovery": "memory_curator",
-    # core/audit/ —" Merkle audit chain
+    # core/audit/ — Merkle audit chain
     "audit_log": "governance",
     "audit_verify": "governance",
     "audit_search": "governance",
     "audit_tail": "governance",
-    # core/metering/ —" budget + rate limiting
+    # core/metering/ — budget + rate limiting
     "budget_check": "governance",
     "budget_status": "governance",
     "rate_check": "governance",
     "budget_record": "governance",
-    # core/security/ —" injection, SSRF, taint
+    # core/security/ — injection, SSRF, taint
     "scan_prompt": "security",
     "ssrf_check": "security",
     "taint_check": "security",
@@ -119,7 +119,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     # core/loop/loop_guard.py
     "loop_status": "governance",
     "session_repair": "governance",
-    # agents/hands/ —" autonomous hands
+    # agents/hands/ — autonomous hands
     "hand_run": "governance",
     "hand_status": "governance",
     "hand_enable": "governance",
@@ -145,7 +145,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "search_web": "research",
     "daily_digest": "research",
     "find": "research",
-    # core/scraper/ —" VECTOR web scraper (adaptive, stealth, spider)
+    # core/scraper/ — VECTOR web scraper (adaptive, stealth, spider)
     "scrape": "research",
     "scrape_url": "research",
     "scrape_stealth": "research",
@@ -198,7 +198,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "geopolitics_analysis": "investment",
     "quant_backtest":       "investment",
     "launch_terminal":      "investment",
-    # VECTOR Hedge —" autonomous multi-agent hedge fund pipeline
+    # VECTOR Hedge — autonomous multi-agent hedge fund pipeline
     "hedge_run":            "investment",
     "hedge_trade":          "investment",
     "solana_order":         "investment",
@@ -206,21 +206,21 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "solana_holdings":      "investment",
     "token_search":         "investment",
     "token_price":          "investment",
-    # VECTOR Quant Research —" 9-engine backtest, shadow account, 29 swarm presets, 74 skills
+    # VECTOR Quant Research — 9-engine backtest, shadow account, 29 swarm presets, 74 skills
     "vt_research":          "investment",
     "vt_backtest":          "investment",
     "shadow_account":       "investment",
     "vt_swarm":             "investment",
     "vt_skills":            "investment",
     "vt_export":            "investment",
-    # VECTOR ML Engineer —" HF ecosystem: papers, jobs, datasets, hub, GitHub
+    # VECTOR ML Engineer — HF ecosystem: papers, jobs, datasets, hub, GitHub
     "ml_research":          "coding",
     "hf_train":             "coding",
     "hf_dataset":           "coding",
     "hf_hub":               "coding",
     "github_ml":            "coding",
     "ml_plan":              "coding",
-    # VectorIntel —" real-time global surveillance (Shadowbroker)
+    # VectorIntel — real-time global surveillance (Shadowbroker)
     "flights":              "intelligence",
     "aircraft":             "intelligence",
     "track plane":          "intelligence",
@@ -248,7 +248,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "place pin":            "intelligence",
     "intel pin":            "intelligence",
     "global summary":       "intelligence",
-    # VECTOR Social Sim —" swarm intelligence, social simulation, knowledge graphs
+    # VECTOR Social Sim — swarm intelligence, social simulation, knowledge graphs
     "social_simulate":      "intelligence",
     "build_ontology":       "intelligence",
     "build_graph":          "intelligence",
@@ -372,7 +372,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "market_research":              "marketing",
     "strategic_gap":                "marketing",
     "market_intelligence":          "marketing",
-    # Districts missing from map —" added to avoid LLM classification overhead
+    # Districts missing from map — added to avoid LLM classification overhead
     "call":                 "calls",
     "call_screen":          "calls",
     "transcribe":           "calls",
@@ -394,8 +394,8 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "market_scan":          "startups",
     "idea_validate":        "startups",
     "competitor_spy":       "startups",
-    # 8 previously unreachable districts —" now mapped
-    # 3 LLM-only districts —" now directly mapped
+    # 8 previously unreachable districts — now mapped
+    # 3 LLM-only districts — now directly mapped
     "news":                 "news_trends",
     "trending":             "news_trends",
     "ai_news":              "news_trends",
@@ -793,7 +793,7 @@ class Governor:
         except Exception:
             logger.warning("[VECTOR][governor] suppressed exception (degraded mode)", exc_info=True)
 
-        # â"€â"€ Taint tracking —" tag and check user-supplied content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+        # â"€â"€ Taint tracking — tag and check user-supplied content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         task_content = str(task.get("params", {}).get("content", ""))
         if task_content:
             try:
@@ -825,7 +825,7 @@ class Governor:
             except Exception as e:
                 logger.error("[VECTOR][governor] prompt_injection scan crashed task={}: {}", task_id, e)
 
-        # â"€â"€ Budget check before dispatch (non-blocking —" just warns) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+        # â"€â"€ Budget check before dispatch (non-blocking — just warns) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         try:
             from core.metering.budget_meter import get_budget_meter
             meter = get_budget_meter()
@@ -835,7 +835,7 @@ class Governor:
         except Exception:
             logger.warning("[VECTOR][governor] suppressed exception (degraded mode)", exc_info=True)
 
-        # Audit log —" record dispatch
+        # Audit log — record dispatch
         try:
             from core.audit.merkle_chain import get_audit_chain
             get_audit_chain().log(
@@ -870,7 +870,7 @@ class Governor:
             # â"€â"€ Council review for RED-tier task types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
             # Must happen BEFORE we touch any agent so we can pass the best-HP
             # agent to the council (or fall back to hp=500 if no agents yet).
-            # Council failure / timeout never blocks execution —" task proceeds.
+            # Council failure / timeout never blocks execution — task proceeds.
             if await self._should_convene_council(task):
                 _pre_agents = self._get_registry().get_by_district(district)
                 _council_agent = max(_pre_agents, key=lambda a: a.health_points) if _pre_agents else None
@@ -913,7 +913,7 @@ class Governor:
             except Exception as _av_err:
                 logger.debug("[VECTOR][governor] avatar on_act suppressed: {}", _av_err)
 
-            # RULE 9 —" HP wired to actual task outcomes
+            # RULE 9 — HP wired to actual task outcomes
             if agent is not None:
                 if result.get("status") == "ok":
                     agent.award_points(50, "task_completed_by_governor")
