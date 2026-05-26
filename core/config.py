@@ -407,6 +407,8 @@ class VectorSettings(BaseSettings):
     VECTOR_OFP_KEY: str = ""
     VECTOR_PEERS: str = ""
     VECTOR_CLOUD_API_URL: str = ""
+    VECTOR_BRAIN_URL: str = ""
+    VECTOR_BRAIN_API_KEY: SecretStr = SecretStr("")
     VECTOR_OAUTH_REDIRECT_BASE: str = "http://localhost:7788"
 
     # Telemetry
