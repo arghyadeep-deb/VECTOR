@@ -10,6 +10,8 @@ __all__ = [
     "generate_hypothesis",
     "GenerateHypothesisReq",
     "get_goals",
+    "get_person",
+    "get_persons",
     "get_reasoning_chains",
     "immediate_actions",
     "red_team_attack",
@@ -21,6 +23,10 @@ __all__ = [
     "SynthesizeReq",
     "test_hypothesis",
     "TestHypothesisReq",
+    "UpdateBeliefReq",
+    "update_person_belief",
+    "update_person_trust",
+    "UpdateTrustReq",
 ]
 
 from pathlib import Path
