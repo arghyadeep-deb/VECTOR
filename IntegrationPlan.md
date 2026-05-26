@@ -382,3 +382,4 @@ A session is complete when:
 | D1 — WebSocket bridge | 2026-05-26 | DONE | /ws/state endpoint, 3 new EventTypes, dashboard wired; 29/29 tests |
 | D2 — Decision trace timeline | 2026-05-26 | DONE | DecisionTrace.tsx, reasoning_memory.get_recent, /brain/reasoning/chains; 28/28 tests |
 | D3 — Person knowledge graph | 2026-05-26 | DONE | PersonGraph.tsx (SVG), /brain/persons endpoints, inline trust+belief edit; 35/35 tests |
+| E1 — Fly.io brain server wiring | 2026-05-26 | CODE DONE | CONFIG["cloud"]["brain_url"], vector_config.py standalone, CloudBrainHeartbeat, run_vector wired; 48/48 tests; fly deploy pending confirmation |
