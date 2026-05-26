@@ -35,17 +35,59 @@ class PersonalityLayer:
     def card(self) -> CharacterCard:
         return self._engine.card
 
+    # Style phrasing rules: (key, value) → instruction string
+    _STYLE_RULES: dict[str, dict[str, str]] = {
+        "formality": {
+            "low": "Use casual, friendly language with the user.",
+            "high": "Use formal, professional language with the user.",
+        },
+        "verbosity": {
+            "low": "Be concise and brief in responses.",
+            "high": "Provide detailed, thorough responses.",
+        },
+        "technicality": {
+            "low": "Avoid jargon; explain concepts in plain language.",
+            "high": "Use precise technical terminology appropriate for experts.",
+        },
+        "directness": {
+            "low": "Frame suggestions gently and indirectly.",
+            "high": "Be direct and to the point.",
+        },
+    }
+
+    def _style_suffix(self, person_id: str) -> str:
+        """Return a style-personalisation paragraph for the given person. Never raises."""
+        try:
+            from core.brain.person_model import PersonModel
+            style = PersonModel().infer_communication_style(person_id)
+            rules = []
+            for key, val in style.items():
+                rule = self._STYLE_RULES.get(key, {}).get(val, "")
+                if rule:
+                    rules.append(rule)
+            if not rules:
+                return ""
+            return "\n\n## Personalisation\n" + " ".join(rules)
+        except Exception as e:
+            logger.debug("[VECTOR][personality] style lookup failed for {}: {}", person_id, e)
+            return ""
+
     def inject(
         self,
         messages: list[dict],
         user_text: str | None = None,
         context: str = "",
+        person_id: str | None = None,
     ) -> list[dict]:
         """Return a copy of *messages* with the personality system prompt prepended.
 
         If *user_text* is not supplied, it is extracted from the last user message
         in *messages*.  The system prompt is derived from the user's sentiment so
         the character adapts dynamically to each turn.
+
+        If *person_id* is provided, PersonModel.infer_communication_style() is
+        called and its output is appended to the system prompt as style rules so
+        VECTOR adapts its voice to the addressed person.
         """
         if not user_text:
             for m in reversed(messages):
@@ -58,6 +100,10 @@ class PersonalityLayer:
         personality_prompt = process_result.get("system_prompt", "")
         if not personality_prompt:
             return list(messages)
+
+        if person_id:
+            personality_prompt += self._style_suffix(person_id)
+            logger.debug("[VECTOR][personality] style injected for person={}", person_id)
 
         new_messages = []
         system_found = False
