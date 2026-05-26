@@ -147,20 +147,22 @@ export default function App() {
       {/* ── Left panel — agents / districts ── */}
       <aside style={{ gridColumn: '1', gridRow: '2' }} className="jarvis-panel corner-tl overflow-hidden flex flex-col">
         <div className="flex border-b" style={{ borderColor: 'var(--jarvis-border)' }}>
-          {(['agents', 'districts'] as const).map(p => (
+          {(['agents', 'districts', 'decisions'] as const).map(p => (
             <button key={p} onClick={() => setActivePanel(p)}
               className="flex-1 py-2 text-xs tracking-widest uppercase transition-colors"
               style={{
                 color: activePanel === p ? 'var(--jarvis-cyan)' : 'var(--jarvis-text-dim)',
                 borderBottom: activePanel === p ? '1px solid var(--jarvis-cyan)' : 'none',
+                fontSize: '0.55rem',
               }}>
-              {p}
+              {p === 'decisions' ? `trace(${decisions.length})` : p}
             </button>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {activePanel === 'agents' && <AgentPanel activeAgents={state.activeAgents} />}
           {activePanel === 'districts' && <DistrictMap currentDistrict={state.district} />}
+          {activePanel === 'decisions' && <DecisionTrace decisions={decisions} />}
         </div>
       </aside>
 
