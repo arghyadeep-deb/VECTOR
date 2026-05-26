@@ -383,3 +383,5 @@ A session is complete when:
 | D2 — Decision trace timeline | 2026-05-26 | DONE | DecisionTrace.tsx, reasoning_memory.get_recent, /brain/reasoning/chains; 28/28 tests |
 | D3 — Person knowledge graph | 2026-05-26 | DONE | PersonGraph.tsx (SVG), /brain/persons endpoints, inline trust+belief edit; 35/35 tests |
 | E1 — Fly.io brain server wiring | 2026-05-26 | CODE DONE | CONFIG["cloud"]["brain_url"], vector_config.py standalone, CloudBrainHeartbeat, run_vector wired; 48/48 tests; fly deploy pending confirmation |
+| E2 — Cloudflare API gateway | 2026-05-26 | CODE DONE | wrangler.toml, index.ts (Env+auth+CORS), router.ts (ALLOWED_PATHS+503+404), auth.ts (Bearer+401+403), rate_limiter.ts (KV sliding window); 39/39 tests; wrangler deploy pending confirmation |
+| governor.py mojibake fix | 2026-05-26 | DONE | Pre-existing U+201C/201D curly-quote corruption + â€ mojibake in governor.py; 3-pass binary repair; syntax clean; 5 unit test files unblocked |
