@@ -85,7 +85,11 @@ class TestWsRouterPrefix(unittest.TestCase):
     def test_state_route_in_router_routes(self):
         from core.api.routers.websocket import router
         paths = [r.path for r in router.routes]
-        self.assertIn("/state", paths)
+        # FastAPI includes the prefix in the stored path, so full path is /ws/state
+        self.assertTrue(
+            any("/state" in p for p in paths),
+            f"No /state route found in {paths}",
+        )
 
 
 # ── ConnectionManager broadcast ───────────────────────────────────────────────
