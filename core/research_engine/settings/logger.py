@@ -10,11 +10,20 @@ Environment variable LDR_LOG_SETTINGS controls the verbosity:
 """
 
 import os
+
+__all__ = [
+    "create_settings_summary",
+    "get_settings_log_level",
+    "log_settings",
+    "redact_sensitive_keys",
+    "SETTINGS_LOG_LEVEL",
+]
+
 from typing import Any, Dict, Optional
 from loguru import logger
 
 
-# Check environment variable once at module load
+# imported at module init — kept as os.getenv
 SETTINGS_LOG_LEVEL = os.getenv("LDR_LOG_SETTINGS", "none").lower()
 
 # Map various values to standardized levels
@@ -27,6 +36,7 @@ elif SETTINGS_LOG_LEVEL in ("debug", "full", "all"):
 elif SETTINGS_LOG_LEVEL in ("debug_unsafe", "unsafe", "raw"):
     import warnings
 
+    # imported at module init — kept as os.getenv
     warnings.warn(
         f"LDR_LOG_SETTINGS={os.getenv('LDR_LOG_SETTINGS')!r} is deprecated and has been "
         "removed for security. Use 'debug' for full settings with sensitive keys redacted. "
@@ -38,6 +48,7 @@ elif SETTINGS_LOG_LEVEL in ("debug_unsafe", "unsafe", "raw"):
     # (see __init__.py). Write directly to stderr so users actually see this.
     import sys
 
+    # loguru is disabled at module load time, so write directly to stderr.
     print(
         f"WARNING: LDR_LOG_SETTINGS={os.getenv('LDR_LOG_SETTINGS')!r} is deprecated and "
         "has been removed for security. Use 'debug' for full settings with sensitive keys "
