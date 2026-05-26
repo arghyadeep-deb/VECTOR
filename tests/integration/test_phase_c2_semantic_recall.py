@@ -179,7 +179,10 @@ class TestSearchSemanticWithMockedModel(unittest.TestCase):
 
     def _teardown(self, mod, tmp):
         mod._db_connection = None
-        tmp.unlink(missing_ok=True)
+        try:
+            tmp.unlink(missing_ok=True)
+        except PermissionError:
+            pass
 
     def test_stores_and_retrieves_via_semantic(self):
         """Store 'I prefer iced coffee', query 'beverage preference' → returned."""
