@@ -385,3 +385,4 @@ A session is complete when:
 | E1 — Fly.io brain server wiring | 2026-05-26 | CODE DONE | CONFIG["cloud"]["brain_url"], vector_config.py standalone, CloudBrainHeartbeat, run_vector wired; 48/48 tests; fly deploy pending confirmation |
 | E2 — Cloudflare API gateway | 2026-05-26 | CODE DONE | wrangler.toml, index.ts (Env+auth+CORS), router.ts (ALLOWED_PATHS+503+404), auth.ts (Bearer+401+403), rate_limiter.ts (KV sliding window); 39/39 tests; wrangler deploy pending confirmation |
 | governor.py mojibake fix | 2026-05-26 | DONE | Pre-existing U+201C/201D curly-quote corruption + â€ mojibake in governor.py; 3-pass binary repair; syntax clean; 5 unit test files unblocked |
+| F1 — End-to-end smoke + STATUS-v2.md | 2026-05-26 | DONE | 2921/2974 tests pass (51 pre-existing failures, 2 skip); __init__.py added to tests/unit/ + tests/integration/; governor.py fixed; v2.0-integrated tagged |
