@@ -63,12 +63,11 @@ class TestCounterfactualAutonomousLoopIntegration(unittest.TestCase):
 
     def test_act_on_does_not_crash_with_cf_available(self):
         """_act_on must handle CounterfactualMemory without crashing."""
-        from core.loop.decision_engine import DecisionEngine
-        candidate = DecisionEngine.Candidate(
+        from core.loop.decision_engine import Candidate
+        candidate = Candidate(
             action_type="git_status",
             params={},
             goal_ids=[],
-            total_score=0.6,
         )
         # Just verify it doesn't raise; governor will fail gracefully without running loop
         try:
