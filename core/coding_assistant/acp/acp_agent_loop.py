@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+__all__ = [
+    "ForkSessionParams",
+    "logger",
+    "NON_INTERACTIVE_DISABLED_TOOLS",
+    "run_acp_server",
+    "SESSION_CLOSED_FLUSH_TIMEOUT_SECONDS",
+    "SessionSetTitleRequest",
+    "TelemetrySendNotification",
+    "VibeAcpAgentLoop",
+]
+
+
 import asyncio
 from collections.abc import AsyncGenerator, Callable
 from contextlib import aclosing
@@ -1480,7 +1492,8 @@ def run_acp_server() -> None:
         pass
     except Exception as e:
         # Log any unexpected errors
-        print(f"ACP Agent Server error: {e}", file=sys.stderr)
+        logger.info(f"ACP Agent Server error: {e}", file=sys.stderr)
+
         raise
     finally:
         if install_sigterm_flush:
