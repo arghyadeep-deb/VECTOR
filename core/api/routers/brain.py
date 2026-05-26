@@ -177,3 +177,19 @@ async def epistemic_staleness():
     except Exception as e:
         logger.error("[VECTOR][brain] epistemic_staleness failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/reasoning/chains")
+async def get_reasoning_chains(situation: str = "", limit: int = 20):
+    """D2 — Return recent reasoning chains for the decision trace timeline.
+
+    Query param `situation` filters by partial match; `limit` caps results (default 20).
+    """
+    try:
+        from core.memory.reasoning_memory import ReasoningMemory
+        rm = ReasoningMemory()
+        chains = rm.get_recent(limit=limit, situation=situation)
+        return {"chains": chains, "count": len(chains)}
+    except Exception as e:
+        logger.error("[VECTOR][brain] reasoning/chains failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
