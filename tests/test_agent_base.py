@@ -47,7 +47,9 @@ def test_deduct_points_decreases_hp():
 
 def test_hp_floor_at_zero():
     a = make_agent()
-    a.deduct_points(9999, "death")
+    # HP validator clamps each delta to ±200, so reach the floor across txns
+    for _ in range(3):
+        a.deduct_points(200, "death")
     assert a.health_points == 0
 
 
