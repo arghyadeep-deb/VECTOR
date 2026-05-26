@@ -20,17 +20,14 @@ def _ensure_test_persons():
         pm.add_person(
             person_id=_TEST_PID,
             name="Alice D3",
-            trust=0.85,
-            relationship="colleague",
-            communication_style="formal",
+            relationship_type="colleague",
         )
+        pm.update_trust(_TEST_PID, 0.35)  # set trust to 0.85
     if not pm.person_exists(_TEST_PID2):
         pm.add_person(
             person_id=_TEST_PID2,
             name="Bob D3",
-            trust=0.45,
-            relationship="acquaintance",
-            communication_style="casual",
+            relationship_type="acquaintance",
         )
 
 
