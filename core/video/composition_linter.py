@@ -21,9 +21,24 @@ Usage:
     result = lint_composition(html_source, file_path="compositions/intro.html")
     if not result.ok:
         for f in result.errors:
-            print(f"ERROR {f.code}: {f.message}")
+            logger.info(f"ERROR {f.code}: {f.message}")
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "ALL_RULE_SETS",
+    "Block",
+    "lint_composition",
+    "lint_file",
+    "lint_project",
+    "LintContext",
+    "LintFinding",
+    "LintResult",
+    "LintSeverity",
+    "OpenTag",
+]
+
 
 import re
 from dataclasses import dataclass, field
