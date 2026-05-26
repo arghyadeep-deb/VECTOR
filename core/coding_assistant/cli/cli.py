@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "bootstrap_config_files",
+    "get_initial_agent_name",
+    "get_prompt_from_stdin",
+    "load_config_or_exit",
+    "load_session",
+    "run_cli",
+    "warn_if_workdir_trust_is_unset",
+]
+
+
 import argparse
 from pathlib import Path
 import sys
@@ -10,7 +21,7 @@ import tomli_w
 
 from core.coding_assistant import __version__
 from core.coding_assistant.cli.textual_ui.app import StartupOptions, run_textual_ui
-from core.coding_assistant.core.agent_loop import AgentLoop, TeleportError
+from core.coding_assistant.core.agent_loop import AgentLoop
 from core.coding_assistant.core.agents.models import BuiltinAgentName
 from core.coding_assistant.core.config import (
     MissingAPIKeyError,
@@ -216,7 +227,7 @@ def run_cli(args: argparse.Namespace) -> None:
             ]
             programmatic_prompt = args.prompt or stdin_prompt
             if not programmatic_prompt:
-                print(
+                logger.info()
                     "Error: No prompt provided for programmatic mode", file=sys.stderr
                 )
                 sys.exit(1)
@@ -233,21 +244,20 @@ def run_cli(args: argparse.Namespace) -> None:
                     output_format=output_format,
                     previous_messages=loaded_session[0] if loaded_session else None,
                     agent_name=initial_agent_name,
-                    teleport=args.teleport and config.vibe_code_enabled,
                     headless=True,
                     hook_config_result=hook_config_result,
                 )
                 if final_response:
-                    print(final_response)
+                    logger.info(final_response)
+
                 sys.exit(0)
             except ConversationLimitException as e:
-                print(e, file=sys.stderr)
-                sys.exit(1)
-            except TeleportError as e:
-                print(f"Teleport error: {e}", file=sys.stderr)
+                logger.info(e, file=sys.stderr)
+
                 sys.exit(1)
             except (RuntimeError, ValueError) as e:
-                print(f"Error: {e}", file=sys.stderr)
+                logger.info(f"Error: {e}", file=sys.stderr)
+
                 sys.exit(1)
         else:
             try:
@@ -270,7 +280,6 @@ def run_cli(args: argparse.Namespace) -> None:
                 agent_loop=agent_loop,
                 startup=StartupOptions(
                     initial_prompt=args.initial_prompt or stdin_prompt,
-                    teleport_on_start=args.teleport,
                     show_resume_picker=args.resume is True,
                     is_resuming_session=loaded_session is not None,
                 ),
