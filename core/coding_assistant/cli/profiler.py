@@ -13,6 +13,13 @@ Usage:
 
 from __future__ import annotations
 
+__all__ = [
+    "is_enabled",
+    "start",
+    "stop_and_print",
+]
+
+
 import dataclasses
 import os
 from typing import TYPE_CHECKING
@@ -75,15 +82,16 @@ def stop_and_print() -> None:
     text_path = Path(f"{_state.label}-profile.txt")
     text_path.write_text(_state.profiler.output_text(color=False), encoding="utf-8")
 
-    print(
+    logger.info()
         f"\n[profiler:{_state.label}] Saved HTML profile to {output_path.resolve()}",
         file=sys.stderr,
     )
-    print(
+    logger.info()
         f"[profiler:{_state.label}] Saved text profile to {text_path.resolve()}",
         file=sys.stderr,
     )
-    print(_state.profiler.output_text(color=True), file=sys.stderr)
+    logger.info(_state.profiler.output_text(color=True), file=sys.stderr)
+
 
     _state.profiler = None
     _state.label = "default"
