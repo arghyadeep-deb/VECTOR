@@ -282,17 +282,18 @@ class TestWikiParser(unittest.TestCase):
             self.assertTrue(t["id"].startswith("topic:"), f"Bad topic ID: {t['id']}")
 
     def test_empty_wiki_returns_minimal_manifest(self):
+        import shutil
+        from core.knowledge.wiki_parser import WikiParser as WP
         tmp2 = tempfile.mkdtemp()
         try:
             root2 = Path(tmp2)
             (root2 / "wiki").mkdir()
             (root2 / "wiki" / "index.md").write_text("# Empty\n")
             (root2 / "wiki" / "note.md").write_text("# Note\nContent.\n")
-            result = WikiParser().parse(root2)
+            result = WP().parse(root2)
             self.assertIn("nodes", result)
             self.assertIsInstance(result["nodes"], list)
         finally:
-            import shutil
             shutil.rmtree(tmp2, ignore_errors=True)
 
 
