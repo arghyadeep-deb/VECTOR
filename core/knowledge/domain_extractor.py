@@ -413,6 +413,6 @@ if __name__ == "__main__":
 
         d2 = ctx.to_dict()
         assert d2["fileCount"] == ctx.file_count
-        assert d2["projectRoot"] == str(root)
+        assert d2["projectRoot"] == str(root.resolve())
 
     print("OK domain_extractor.py — entry points, signatures, metadata, truncation verified")
