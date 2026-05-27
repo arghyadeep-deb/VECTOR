@@ -45,6 +45,9 @@ class EventType(str, Enum):
     AGENT_HP_CHANGED = "agent_hp_changed"
     TASK_ROUTED = "task_routed"
     ANOMALY_DETECTED = "anomaly_detected"
+    RECORD_CREATED = "record_created"
+    RECORD_UPDATED = "record_updated"
+    RECORD_DELETED = "record_deleted"
 
 
 class DirectMessagePriority(IntEnum):
