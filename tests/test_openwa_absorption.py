@@ -407,4 +407,4 @@ class TestWhatsAppBusinessChannel:
 
     def test_registered_in_registry(self):
         from vectorcode.src.core.registry import ChannelRegistry
-        assert "whatsapp_business" in ChannelRegistry._registry
+        assert "whatsapp_business" in ChannelRegistry._entries()
