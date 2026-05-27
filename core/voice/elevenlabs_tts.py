@@ -101,8 +101,36 @@ class ElevenLabsTTS:
             output_format: "mp3_44100_128" | "pcm_44100" | "opus_48000_32"
 
         Returns:
-            Audio bytes (MP3 by default)
+            Audio bytes (MP3 by default — or WAV when local cloner is used)
         """
+        _prefer = prefer_local if prefer_local is not None else bool(
+            (CONFIG.get("voice", {}) or {}).get("prefer_local_voice", True)
+        )
+        if _prefer:
+            try:
+                from core.voice.cloning import VoiceCloner, get_cloner
+                from core.voice.voice_profiles import get_profile_store
+                from core.voice.effects import AudioEffects
+                import io, wave, numpy as np
+                if VoiceCloner.available():
+                    store = get_profile_store()
+                    profile = store.get_default()
+                    if profile is not None:
+                        ref_bytes = store.get_reference_bytes(profile.name) if profile.reference_key else None
+                        arr, sr = get_cloner().synthesize_long(text, reference_wav=ref_bytes)
+                        if profile.effects:
+                            arr = AudioEffects().apply(arr, sr, profile.effects)
+                        buf = io.BytesIO()
+                        with wave.open(buf, "wb") as wf:
+                            wf.setnchannels(1)
+                            wf.setsampwidth(2)
+                            wf.setframerate(sr)
+                            wf.writeframes((arr * 32767).astype(np.int16).tobytes())
+                        logger.info("[VECTOR][elevenlabs] local clone used for synthesize()")
+                        return buf.getvalue()
+            except Exception as e:
+                logger.debug("[VECTOR][elevenlabs] local synthesize failed, using cloud: {}", e)
+
         if not self._api_key:
             raise RuntimeError("ELEVENLABS_API_KEY not set")
 
