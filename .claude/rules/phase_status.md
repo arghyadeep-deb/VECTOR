@@ -240,6 +240,7 @@ Phase 3: All 10 districts built                                 ✅ startups/inv
 
 ### Must-do (blocks autonomous operation)
 1. **Download Kokoro TTS model** — `pip install kokoro` + model weights
+1b. **[Optional] Activate local voice cloning** — `pip install chatterbox-tts` (torch/CUDA), then record a 10–20s reference WAV and POST it to `POST /voice/profiles/{name}/sample` + `POST /voice/profiles/{name}/default`. After that VECTOR speaks in your voice locally with no ElevenLabs.
 2. **Train "Hey VECTOR" wake word** — record 10 samples, openWakeWord training
 3. **`fly launch`** in `cloud/brain_server/` → VECTOR has a cloud brain
 4. **`setup.sh`** on Android Termux → ambient phone node active
