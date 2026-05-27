@@ -273,6 +273,7 @@ def create_app() -> FastAPI:
     app.include_router(sb.router)
     app.include_router(ticker.router)
     app.include_router(queue.router)
+    app.include_router(collections.router)
 
     # External task ingestion API — phone, cloud, ESP32
     from core.api import tasks as external_tasks
