@@ -598,10 +598,12 @@ class TestPostJobDataclass(unittest.TestCase):
 class TestPostJobTracker(unittest.TestCase):
     def _tracker(self):
         from districts.content.post_job import PostJobTracker
-        self._tmp = tempfile.TemporaryDirectory()
+        self._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         return PostJobTracker(db_path=Path(self._tmp.name) / "jobs.db")
 
     def tearDown(self):
+        import gc
+        gc.collect()  # flush SQLite WAL connections before cleanup (Windows WAL lock)
         if hasattr(self, "_tmp"):
             self._tmp.cleanup()
 
