@@ -22,6 +22,12 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "create_app",
+    "run_server",
+]
+
+
 import base64
 import hashlib
 import os
@@ -44,8 +50,9 @@ except ImportError:
     _FASTAPI_AVAILABLE = False
 
 from core.config import CONFIG
-from core.engine.oauth.flows import OAuthFlowManager, OAuthToken
+from core.engine.oauth.flows import OAuthFlowManager, OAuthToken, _expires_at_from_seconds
 from core.engine.oauth.providers import get_provider, PROVIDERS, configured_providers
+from core.engine.oauth.refresh_scheduler import start_scheduler as _start_oauth_scheduler
 
 _REDIRECT_BASE = CONFIG.get("oauth_redirect_base", "http://localhost:7788")
 _CALLBACK_PATH = "/oauth/callback"
