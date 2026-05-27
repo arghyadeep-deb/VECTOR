@@ -51,4 +51,9 @@ __all__ = [
     "RuleEngine",
     "PasswordHasher",
     "AuthError",
+    # hooks
+    "CollectionHooks",
+    "HookContext",
+    "HookCancelled",
+    "get_hooks",
 ]
