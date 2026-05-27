@@ -501,6 +501,61 @@ def test_api_auth_flow_and_token_gated_create(api_client):
     assert r.status_code == 200, r.text
 
 
+def test_api_auth_with_oauth2(api_client):
+    api_client.post("/api/collections", json={
+        "name": "users", "type": "auth", "fields": [{"name": "name", "type": "text"}]})
+    r = api_client.post("/api/collections/users/auth-with-oauth2",
+                        json={"identity": {"email": "oauth@b.com", "name": "OAuthUser"}})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["token"] and body["record"]["email"] == "oauth@b.com"
+    assert "password" not in body["record"]
+    # second login finds the same record (no duplicate created)
+    r2 = api_client.post("/api/collections/users/auth-with-oauth2",
+                         json={"identity": {"email": "oauth@b.com"}})
+    assert r2.status_code == 200
+    assert r2.json()["record"]["id"] == body["record"]["id"]
+
+
+def test_mcp_collection_tools(conn, monkeypatch):
+    import asyncio
+    pytest.importorskip("fastmcp")
+    from fastmcp import FastMCP
+    import core.memory.episodic as ep
+
+    # point the engine the MCP tools build at our isolated in-memory DB
+    monkeypatch.setattr(ep, "get_db_connection", lambda: conn)
+    eng = CollectionEngine(conn)
+    eng.create_collection(Collection(name="notes", fields=[{"name": "title", "type": "text"}]))
+    eng.create_record("notes", {"title": "hello"})
+
+    from core.mcp_server import _add_collections_tools
+    mcp = FastMCP("test")
+    _add_collections_tools(mcp)
+
+    def _text(res):
+        out = str(res)
+        for attr in ("content", "data", "structured_content"):
+            v = getattr(res, attr, None)
+            if v:
+                out += str(v)
+        return out
+
+    async def run():
+        listed = await mcp.list_tools()
+        names = set(listed.keys()) if isinstance(listed, dict) else {t.name for t in listed}
+        assert {"collection_list", "collection_query", "collection_record_create"} <= names
+        q = await mcp.call_tool("collection_query", {"name": "notes"})
+        c = await mcp.call_tool("collection_record_create",
+                                {"name": "notes", "data_json": '{"title": "made-via-mcp"}'})
+        return _text(q), _text(c)
+
+    q_text, c_text = asyncio.run(run())
+    assert "hello" in q_text
+    assert "made-via-mcp" in c_text
+    assert eng.list_records("notes")["total_items"] == 2
+
+
 def test_api_file_upload_download(api_client):
     api_client.post("/api/collections", json={
         "name": "docs", "fields": [{"name": "attachment", "type": "file"}],
