@@ -222,7 +222,7 @@ class VoiceProfileStore:
         """Return all stored profiles."""
         if self._collection_ready and self._engine is not None:
             try:
-                result = self._engine.list_records(_COLLECTION_NAME, page_size=200)
+                result = self._engine.list_records(_COLLECTION_NAME, per_page=200)
                 return [VoiceProfile.from_dict(r) for r in result.get("items", [])]
             except Exception as e:
                 logger.debug("[VECTOR][voice] collection list failed, using in-memory: {}", e)
