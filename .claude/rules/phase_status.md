@@ -1,6 +1,16 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-17 after Phase 3 repo absorptions + full module expansion
+> Last updated: 2026-05-27 — PocketBase absorption (collections engine)
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+---
+
+## Absorbed Repos — Session 2026-05-27 ✅ COMPLETE
+
+| Repo | What was absorbed (reimplemented in Python — zero Go copied) | Python Location | Status |
+|------|-------------------------------------------------------------|-----------------|--------|
+| pocketbase (Go BaaS) | Collections/schema engine (14 field types + validators, dynamic tables, generic validated CRUD, SAFE parameterized filter parser, sort/paginate/relation-expand), versioned migration runner (`_migrations`, up/down, bootstrap apply), pluggable file storage (local + S3 + Pillow thumbnails, path-traversal-safe), JWT access+refresh auth + bcrypt/PBKDF2 hashing + per-collection RBAC rule DSL (safe AST interpreter, never `eval()`) + OAuth2 login (delegates to existing `core/engine/oauth`), per-collection before/after CRUD hooks bridged to `core/event_bus`. **Only the gaps** — VECTOR already had encrypted SQLite, FastAPI, WebSocket/EventBus realtime, dashboards (those were NOT duplicated). | `core/collections/` (fields, schema, store, migrations, storage, auth, hooks) + `core/api/routers/collections.py` + `core/config.py` (`collections` section) + `core/api/app.py` (router + lifespan bootstrap) | ✅ |
+
+Verified: `tests/test_collections.py` 53 passed (data CRUD, safe-filter injection rejection, migrations up/down, storage round-trip+thumbnails, JWT/RBAC, hooks, end-to-end HTTP via TestClient). 5 sacred memory tables confirmed untouched; collections live in their own `_collections` / `col_<name>` namespace. Reused `core.memory.episodic.get_db_connection` (SQLCipher), `core.event_bus`, `core.engine.oauth`.
 
 ---
 
