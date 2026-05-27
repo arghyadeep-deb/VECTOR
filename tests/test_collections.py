@@ -24,7 +24,9 @@ from core.collections import (
 
 @pytest.fixture()
 def conn():
-    c = sqlite3.connect(":memory:")
+    # check_same_thread=False mirrors VECTOR's get_db_connection and lets the FastAPI
+    # TestClient (which runs endpoints in a threadpool) share this connection.
+    c = sqlite3.connect(":memory:", check_same_thread=False)
     c.execute("PRAGMA journal_mode=WAL")
     yield c
     c.close()
