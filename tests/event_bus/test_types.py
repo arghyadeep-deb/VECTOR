@@ -28,7 +28,8 @@ class TestEventType:
         assert EventType.EMERGENCY_SIGNAL.value == "emergency_signal"
 
     def test_total_event_types(self):
-        assert len(EventType) == 23
+        # 28 base types + 3 collections record events (RECORD_CREATED/UPDATED/DELETED)
+        assert len(EventType) == 31
 
 
 class TestEvent:
