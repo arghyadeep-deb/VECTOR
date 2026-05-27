@@ -10,6 +10,14 @@ API key: set ELEVENLABS_API_KEY in .env
 """
 from __future__ import annotations
 
+__all__ = [
+    "CONTENT_VOICES",
+    "ElevenLabsTTS",
+    "get_elevenlabs",
+    "speak_content",
+]
+
+
 import os
 import sys
 from pathlib import Path
@@ -21,7 +29,7 @@ from core.config import CONFIG
 _API_KEY = CONFIG.get("elevenlabs_key", "")
 
 # VECTOR-personalized voice profile
-_VECTOR_VOICE_ID = CONFIG.get("api_keys", {}).get("elevenlabs_voice_id", os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB"))  # Adam — deep, authoritative
+_VECTOR_VOICE_ID = CONFIG.get("api_keys", {}).get("elevenlabs_voice_id", "pNInz6obpgDQGcFmaJgB")  # Adam — deep, authoritative
 _VECTOR_VOICE_SETTINGS = {
     "stability": 0.75,           # Consistent, professional
     "similarity_boost": 0.85,    # Close to voice character
@@ -180,13 +188,58 @@ def get_elevenlabs() -> ElevenLabsTTS:
     return _default_tts
 
 
-def speak_content(text: str, output_path: str | Path | None = None, voice: str = "vector_default") -> bytes | Path:
+def speak_content(
+    text: str,
+    output_path: str | Path | None = None,
+    voice: str = "vector_default",
+    *,
+    prefer_local: bool | None = None,
+) -> bytes | Path:
     """
-    High-level content TTS. Saves to file if output_path given, else returns bytes.
+    High-level content TTS. Local cloning first when available; ElevenLabs cloud as fallback.
 
-    Note: For VECTOR's runtime voice (Hey VECTOR, responses), use core/voice/tts.py (Kokoro).
-    This function is for content creation (YouTube, podcasts, audio blogs).
+    prefer_local: override CONFIG["voice"]["prefer_local_voice"] (default True).
     """
+    _prefer = prefer_local if prefer_local is not None else bool(
+        (CONFIG.get("voice", {}) or {}).get("prefer_local_voice", True)
+    )
+
+    # Try local cloning first when enabled
+    if _prefer:
+        try:
+            from core.voice.cloning import VoiceCloner, get_cloner
+            from core.voice.voice_profiles import get_profile_store
+            from core.voice.effects import AudioEffects
+            import io, wave
+            if VoiceCloner.available():
+                store = get_profile_store()
+                profile = store.get_default()
+                if profile is not None:
+                    ref_bytes = store.get_reference_bytes(profile.name) if profile.reference_key else None
+                    cloner = get_cloner()
+                    audio_arr, sr = cloner.synthesize_long(text, reference_wav=ref_bytes)
+                    if profile.effects:
+                        audio_arr = AudioEffects().apply(audio_arr, sr, profile.effects)
+                    # Encode to WAV bytes
+                    import numpy as np
+                    buf = io.BytesIO()
+                    with wave.open(buf, "wb") as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(sr)
+                        wf.writeframes((audio_arr * 32767).astype(np.int16).tobytes())
+                    audio_bytes = buf.getvalue()
+                    if output_path:
+                        p = Path(output_path)
+                        p.parent.mkdir(parents=True, exist_ok=True)
+                        p.write_bytes(audio_bytes)
+                        logger.info("[VECTOR][elevenlabs] local clone saved: {}", p)
+                        return p
+                    return audio_bytes
+        except Exception as e:
+            logger.debug("[VECTOR][elevenlabs] local clone failed, falling back to ElevenLabs: {}", e)
+
+    # ElevenLabs cloud fallback
     tts = get_elevenlabs()
     voice_id = CONTENT_VOICES.get(voice, voice)
     audio = tts.synthesize(text, voice_id=voice_id)
