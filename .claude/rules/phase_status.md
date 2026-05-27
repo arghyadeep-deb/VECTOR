@@ -1,5 +1,5 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-27 — PocketBase absorption (collections engine)
+> Last updated: 2026-05-27 — voicebox absorption (local voice cloning, replaces ElevenLabs)
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
 
 ---
