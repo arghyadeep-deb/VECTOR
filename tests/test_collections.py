@@ -344,5 +344,79 @@ def test_auth_service_authorize_rule(conn):
     assert svc.authorize("docs", "update", record={"owner": "u1"}, auth={"id": "u2"}) is False
 
 
+# ── hooks ──────────────────────────────────────────────────────────────────
+def test_hook_priority_and_mutation_order():
+    from core.collections.hooks import CollectionHooks, HookContext
+    hooks = CollectionHooks(publish_events=False)
+    order = []
+    hooks.before_create(lambda c: order.append("hi"), priority=10)
+    hooks.before_create(lambda c: order.append("lo"), priority=0)
+    hooks.fire("before_create", HookContext("notes", "create", "before", data={}))
+    assert order == ["lo", "hi"]
+
+
+def test_engine_fires_hooks_around_crud(conn):
+    from core.collections.hooks import CollectionHooks, HookCancelled
+    hooks = CollectionHooks(publish_events=False)
+    events = []
+    hooks.before_create(lambda c: c.data.update(slug="auto"))
+    hooks.after_create(lambda c: events.append(("after_create", c.record_id)))
+    hooks.after_update(lambda c: events.append(("after_update", c.record_id)))
+    hooks.after_delete(lambda c: events.append(("after_delete", c.record_id)))
+
+    eng = CollectionEngine(conn, hooks=hooks)
+    eng.create_collection(Collection(name="notes", fields=[
+        {"name": "title", "type": "text", "required": True},
+        {"name": "slug", "type": "text"},
+    ]))
+    rec = eng.create_record("notes", {"title": "Hi"})
+    assert rec["slug"] == "auto"                      # before-hook mutation persisted
+    eng.update_record("notes", rec["id"], {"title": "Bye"})
+    eng.delete_record("notes", rec["id"])
+    assert events == [
+        ("after_create", rec["id"]),
+        ("after_update", rec["id"]),
+        ("after_delete", rec["id"]),
+    ]
+
+
+def test_before_hook_can_cancel_create(conn):
+    from core.collections.hooks import CollectionHooks, HookCancelled
+    hooks = CollectionHooks(publish_events=False)
+    hooks.before_create(lambda c: c.cancel("not allowed"))
+    eng = CollectionEngine(conn, hooks=hooks)
+    eng.create_collection(Collection(name="notes", fields=[{"name": "title", "type": "text"}]))
+    with pytest.raises(HookCancelled):
+        eng.create_record("notes", {"title": "x"})
+    assert eng.list_records("notes")["total_items"] == 0
+
+
+@pytest.mark.anyio
+async def _unused():  # placeholder to avoid importing anyio; real async test below
+    pass
+
+
+def test_hook_broadcasts_to_event_bus():
+    import asyncio
+
+    async def run():
+        from core.event_bus import AsyncEventBus, EventType
+        from core.collections.hooks import CollectionHooks, HookContext
+        bus = AsyncEventBus()
+        await bus.start()
+        got = []
+        bus.subscribe(EventType.RECORD_CREATED, lambda e: got.append(e))
+        hooks = CollectionHooks(bus=bus, publish_events=True)
+        hooks.fire("after_create", HookContext("notes", "create", "after",
+                                               record_id="r1", record={"id": "r1"}))
+        await asyncio.sleep(0.2)
+        await bus.stop()
+        return got
+
+    delivered = asyncio.run(run())
+    assert len(delivered) == 1
+    assert delivered[0].data["record_id"] == "r1"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
