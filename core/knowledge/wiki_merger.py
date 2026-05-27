@@ -207,7 +207,7 @@ class WikiMerger:
         dedup_remap: dict[str, str],
         report: dict[str, int],
     ) -> None:
-        for node in batch.get("nodes", []):
+        for node in (batch.get("nodes") or []):
             node_type = _normalize_node_type(node.get("type", ""))
             if node_type not in _VALID_NODE_TYPES:
                 logger.warning("[VECTOR][knowledge] WikiMerger: unknown node type '{}' — skipping", node.get("type"))
@@ -231,7 +231,7 @@ class WikiMerger:
             node.setdefault("complexity", "simple")
             nodes[node_id] = node
 
-        for edge in batch.get("edges", []):
+        for edge in (batch.get("edges") or []):
             edge_type = _normalize_edge_type(edge.get("type", ""))
             if edge_type not in _VALID_EDGE_TYPES:
                 edge_type = "related"
