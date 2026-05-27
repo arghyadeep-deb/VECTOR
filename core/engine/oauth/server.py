@@ -59,8 +59,9 @@ _CALLBACK_PATH = "/oauth/callback"
 _CALLBACK_URL = f"{_REDIRECT_BASE}{_CALLBACK_PATH}"
 
 _flow_manager = OAuthFlowManager()
-_state_store: dict[str, str] = {}   # state → slug (in-memory, short-lived)
-_pkce_store: dict[str, str] = {}    # state → code_verifier
+_state_store: dict[str, str] = {}            # state → slug (in-memory, short-lived)
+_pkce_store: dict[str, str] = {}             # state → code_verifier
+_oauth1_secrets: dict[str, str] = {}         # oauth_token → oauth_token_secret (OAuth1 step 1→3)
 
 
 def _generate_pkce() -> tuple[str, str]:
