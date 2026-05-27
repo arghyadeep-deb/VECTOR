@@ -470,6 +470,7 @@ def _make_server():
     _add_research_tools(mcp)
     _add_collections_tools(mcp)
     _add_voice_profile_tools(mcp)
+    _add_browser_tools(mcp)
     return mcp
 
 
