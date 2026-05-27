@@ -107,7 +107,8 @@ class TestScrubText:
         assert r.scrubbed
 
     def test_aws_access_key_detected(self):
-        r = self.scrub("Key: AKIAIOSFODNN7EXAMPLE is the access key id")
+        # 19-char key (A + [KSIARP] + [IDA] + 16 alphanumeric) followed by space
+        r = self.scrub("Key: AKIABCDEFGHIJKLMNOP is the access key id")
         assert r.scrubbed
 
     def test_pem_header_detected(self):
