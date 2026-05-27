@@ -126,10 +126,10 @@ class MigrationRunner:
                 applied.append(mig.id)
                 logger.info(f"[VECTOR][migrations] applied {mig.id} ({mig.description})")
             except Exception as e:
-                logger.error(f"[VECTOR][migrations] FAILED {mig.id}: {e} — halting (earlier ones kept)")
+                logger.error(f"[VECTOR][migrations] FAILED {mig.id}: {e} - halting (earlier ones kept)")
                 raise
         if not applied:
-            logger.debug("[VECTOR][migrations] nothing to apply — schema current")
+            logger.debug("[VECTOR][migrations] nothing to apply - schema current")
         return applied
 
     def revert(self, steps: int = 1) -> list[str]:
