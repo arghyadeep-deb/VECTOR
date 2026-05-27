@@ -411,6 +411,9 @@ class VectorSettings(BaseSettings):
     VECTOR_BRAIN_API_KEY: SecretStr = SecretStr("")
     VECTOR_OAUTH_REDIRECT_BASE: str = "http://localhost:7788"
 
+    # Collections engine (PocketBase-style data layer) — JWT auth secret
+    VECTOR_JWT_SECRET: SecretStr = SecretStr("")
+
     # Telemetry
     SENTRY_DSN: str = ""
     VECTOR_BUILD_SHA: str = "dev"
