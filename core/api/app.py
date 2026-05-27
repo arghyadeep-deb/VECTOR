@@ -6,6 +6,13 @@ Usage:
 """
 
 import sys
+
+__all__ = [
+    "create_app",
+    "get_app",
+    "lifespan",
+]
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -144,6 +151,7 @@ def create_app() -> FastAPI:
         allow_origins=list(CONFIG.get("allowed_origins", [
             "https://localhost:8000", "https://127.0.0.1:8000",
             "http://localhost:8000", "http://127.0.0.1:8000",
+            "http://localhost:5173", "http://127.0.0.1:5173",
         ])),
         allow_credentials=True,
         allow_methods=["GET", "POST"],
@@ -186,6 +194,8 @@ def create_app() -> FastAPI:
         brain, city, control,
         # VECTOR feature routers
         camera, location, gesture, sb, ticker, queue,
+        # Collections engine (PocketBase absorption)
+        collections,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
