@@ -211,6 +211,8 @@ def create_app() -> FastAPI:
         camera, location, gesture, sb, ticker, queue,
         # Collections engine (PocketBase absorption)
         collections,
+        # Knowledge layer (Understand-Anything-main absorption)
+        knowledge,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
