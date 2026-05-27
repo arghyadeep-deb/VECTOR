@@ -12,6 +12,8 @@ Reuses VECTOR's existing encrypted SQLite connection (core.memory.episodic.get_d
 The 5 sacred memory tables are never touched — collections live in their own namespace.
 """
 
+from __future__ import annotations
+
 import sys
 
 __all__ = [
