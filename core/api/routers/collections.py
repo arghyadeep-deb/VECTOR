@@ -215,6 +215,16 @@ async def auth_refresh(name: str, body: dict = Body(...)):
         raise HTTPException(status_code=401, detail=str(e))
 
 
+@router.post("/collections/{name}/auth-with-oauth2")
+async def auth_with_oauth2(name: str, body: dict = Body(...)):
+    # body: {"identity": {"email": ..., "name": ...}} — identity already resolved by the
+    # existing core.engine.oauth flow (see AuthService.oauth_login docstring).
+    try:
+        return auth().oauth_login(name, body.get("identity", {}))
+    except (AuthError, ValidationError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/collections/{name}/records-auth")
 async def register_auth_record(name: str, body: dict = Body(...)):
     try:
