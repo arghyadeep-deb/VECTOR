@@ -391,11 +391,6 @@ def test_before_hook_can_cancel_create(conn):
     assert eng.list_records("notes")["total_items"] == 0
 
 
-@pytest.mark.anyio
-async def _unused():  # placeholder to avoid importing anyio; real async test below
-    pass
-
-
 def test_hook_broadcasts_to_event_bus():
     import asyncio
 
