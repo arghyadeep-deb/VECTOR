@@ -355,6 +355,15 @@ def create_app() -> "FastAPI":
     app = FastAPI(title="VECTOR OAuth Server", version="1.0.0")
     app.include_router(oauth_router, prefix="/oauth")
 
+    @app.on_event("startup")
+    async def _on_startup() -> None:
+        _start_oauth_scheduler(interval_minutes=30)
+
+    @app.on_event("shutdown")
+    async def _on_shutdown() -> None:
+        from core.engine.oauth.refresh_scheduler import stop_scheduler
+        stop_scheduler()
+
     @app.get("/health")
     async def health():
         return {"status": "ok", "service": "VECTOR OAuth Server"}
