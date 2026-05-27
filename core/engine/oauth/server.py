@@ -259,6 +259,53 @@ if _FASTAPI_AVAILABLE:
             "configured": len(configured_providers()),
         })
 
+    @oauth_router.get("/oauth1/authorize/{slug}")
+    async def oauth1_authorize(slug: str, callback_url: str = Query(default="")):
+        """OAuth 1.0a step 1 — get a request token and redirect to provider."""
+        provider = get_provider(slug)
+        if not provider or provider.auth_mode != "oauth1":
+            raise HTTPException(400, f"{slug} is not an OAuth 1.0a provider")
+        cb = callback_url or f"{_REDIRECT_BASE}/oauth/oauth1/callback/{slug}"
+        try:
+            result = _flow_manager.get_oauth1_request_token(slug, callback_url=cb)
+            _oauth1_secrets[result["oauth_token"]] = result["oauth_token_secret"]
+            return RedirectResponse(result["auth_url"])
+        except ImportError as e:
+            raise HTTPException(501, str(e))
+        except Exception as e:
+            logger.error("[VECTOR][oauth1] request token failed for {}: {}", slug, e)
+            return HTMLResponse(_error_html(str(e)))
+
+    @oauth_router.get("/oauth1/callback/{slug}")
+    async def oauth1_callback(
+        slug: str,
+        oauth_token: str = Query(default=""),
+        oauth_verifier: str = Query(default=""),
+        denied: str = Query(default=""),
+    ):
+        """OAuth 1.0a step 3 — exchange verifier for access token."""
+        if denied:
+            return HTMLResponse(_error_html("OAuth 1.0a authorization was denied."))
+        oauth_token_secret = _oauth1_secrets.pop(oauth_token, "")
+        if not oauth_token_secret:
+            return HTMLResponse(_error_html("Unknown or expired OAuth1 request token."))
+        provider = get_provider(slug)
+        if not provider:
+            return HTMLResponse(_error_html(f"Unknown provider: {slug}"))
+        try:
+            _flow_manager.complete_oauth1(
+                slug=slug,
+                oauth_token=oauth_token,
+                oauth_token_secret=oauth_token_secret,
+                oauth_verifier=oauth_verifier,
+            )
+            return HTMLResponse(_success_html(provider.name))
+        except ImportError as e:
+            raise HTTPException(501, str(e))
+        except Exception as e:
+            logger.error("[VECTOR][oauth1] callback failed for {}: {}", slug, e)
+            return HTMLResponse(_error_html(str(e)))
+
     @oauth_router.get("/refresh/{slug}")
     async def refresh_token(slug: str):
         """Refresh an expired access token using stored refresh_token."""
