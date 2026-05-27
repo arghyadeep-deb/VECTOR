@@ -240,7 +240,7 @@ class VoiceProfileStore:
         if self._collection_ready and self._engine is not None:
             try:
                 result = self._engine.list_records(
-                    _COLLECTION_NAME, filter_str=f"name='{name}'", page_size=1
+                    _COLLECTION_NAME, filter=f"name='{name}'", page_size=1
                 )
                 items = result.get("items", [])
                 if items:
