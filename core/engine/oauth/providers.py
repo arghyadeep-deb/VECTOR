@@ -1,244 +1,169 @@
 """
-VECTOR OAuth Provider Configs — OAuth2 credentials and endpoint definitions.
+VECTOR OAuth Provider Registry — loads 80+ providers from providers.yaml.
 
-Covers 20 major providers with full authorization + token URLs.
+Auth modes: oauth2 | oauth1 | api_key | basic
 Credentials stored in core/config.py CONFIG dict (never hardcoded).
-Add your OAuth app credentials to .env:
+Add credentials to .env:
 
   OAUTH_GITHUB_CLIENT_ID=...
   OAUTH_GITHUB_CLIENT_SECRET=...
-  OAUTH_GOOGLE_CLIENT_ID=...
-  etc.
+  OAUTH_OPENAI_API_KEY=...      # for api_key providers
 """
 from __future__ import annotations
 
+__all__ = [
+    "ProviderConfig",
+    "OAuthProviderConfig",    # backward-compat alias
+    "OAuth1ProviderConfig",   # backward-compat alias
+    "PROVIDERS",
+    "configured_providers",
+    "get_provider",
+]
+
 import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+try:
+    import yaml as _yaml
+    _YAML_AVAILABLE = True
+except ImportError:
+    _YAML_AVAILABLE = False
+
+_YAML_PATH = Path(__file__).parent / "providers.yaml"
 
 
 @dataclass
-class OAuthProviderConfig:
+class ProviderConfig:
     slug: str
     name: str
-    auth_url: str
-    token_url: str
-    scopes: list[str]
+    category: str = "other"
+    auth_mode: str = "oauth2"          # oauth2 | oauth1 | api_key | basic
+
+    # OAuth2 fields
+    auth_url: str = ""
+    token_url: str = ""
+    scopes: list[str] = field(default_factory=list)
+    user_info_url: str = ""
+    extra_params: dict = field(default_factory=dict)
+    pkce: bool = False
+
+    # OAuth1 fields
+    request_token_url: str = ""
+    access_token_url: str = ""
+
+    # API key / basic fields
+    api_base: str = ""
+    key_env: str = ""
+
+    # Runtime credentials (populated by load_from_env)
     client_id: str = ""
     client_secret: str = ""
-    extra_params: dict = field(default_factory=dict)
-    pkce: bool = False          # True = use PKCE (no client_secret needed)
-    user_info_url: str = ""
 
-    def is_configured(self) -> bool:
-        return bool(self.client_id and self.client_secret) or self.pkce
-
-    def load_from_env(self) -> "OAuthProviderConfig":
+    def load_from_env(self) -> "ProviderConfig":
         slug_upper = self.slug.upper()
-        self.client_id = os.getenv(f"OAUTH_{slug_upper}_CLIENT_ID", self.client_id)
-        self.client_secret = os.getenv(f"OAUTH_{slug_upper}_CLIENT_SECRET", self.client_secret)
+        if self.auth_mode in ("oauth2", "oauth1", "basic"):
+            self.client_id = os.getenv(f"OAUTH_{slug_upper}_CLIENT_ID", self.client_id)
+            self.client_secret = os.getenv(f"OAUTH_{slug_upper}_CLIENT_SECRET", self.client_secret)
+        elif self.auth_mode == "api_key" and self.key_env:
+            self.client_id = os.getenv(self.key_env, self.client_id)
         return self
 
+    def is_configured(self) -> bool:
+        if self.auth_mode == "api_key":
+            return bool(self.client_id)
+        if self.auth_mode == "basic":
+            return bool(self.client_id and self.client_secret)
+        # oauth2 / oauth1
+        return bool(self.client_id and self.client_secret) or self.pkce
 
-# ── Provider definitions ───────────────────────────────────────────────────────
+    @property
+    def is_oauth1(self) -> bool:
+        return self.auth_mode == "oauth1"
 
-PROVIDERS: dict[str, OAuthProviderConfig] = {p.slug: p for p in [
-
-    OAuthProviderConfig(
-        slug="github",
-        name="GitHub",
-        auth_url="https://github.com/login/oauth/authorize",
-        token_url="https://github.com/login/oauth/access_token",
-        scopes=["repo", "read:user", "user:email", "notifications"],
-        user_info_url="https://api.github.com/user",
-    ),
-
-    OAuthProviderConfig(
-        slug="google",
-        name="Google (Gmail + Calendar + Drive)",
-        auth_url="https://accounts.google.com/o/oauth2/v2/auth",
-        token_url="https://oauth2.googleapis.com/token",
-        scopes=[
-            "openid", "email", "profile",
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.send",
-            "https://www.googleapis.com/auth/calendar",
-            "https://www.googleapis.com/auth/drive.readonly",
-        ],
-        extra_params={"access_type": "offline", "prompt": "consent"},
-        user_info_url="https://www.googleapis.com/oauth2/v2/userinfo",
-    ),
-
-    OAuthProviderConfig(
-        slug="slack",
-        name="Slack",
-        auth_url="https://slack.com/oauth/v2/authorize",
-        token_url="https://slack.com/api/oauth.v2.access",
-        scopes=["channels:read", "chat:write", "users:read", "im:read", "im:write"],
-        user_info_url="https://slack.com/api/auth.test",
-    ),
-
-    OAuthProviderConfig(
-        slug="discord",
-        name="Discord",
-        auth_url="https://discord.com/api/oauth2/authorize",
-        token_url="https://discord.com/api/oauth2/token",
-        scopes=["identify", "email", "guilds", "messages.read"],
-        user_info_url="https://discord.com/api/users/@me",
-    ),
-
-    OAuthProviderConfig(
-        slug="notion",
-        name="Notion",
-        auth_url="https://api.notion.com/v1/oauth/authorize",
-        token_url="https://api.notion.com/v1/oauth/token",
-        scopes=[],  # Notion doesn't use scopes, uses internal integration
-        extra_params={"response_type": "code", "owner": "user"},
-    ),
-
-    OAuthProviderConfig(
-        slug="linear",
-        name="Linear",
-        auth_url="https://linear.app/oauth/authorize",
-        token_url="https://api.linear.app/oauth/token",
-        scopes=["read", "write", "issues:create"],
-    ),
-
-    OAuthProviderConfig(
-        slug="twitter",
-        name="Twitter / X",
-        auth_url="https://twitter.com/i/oauth2/authorize",
-        token_url="https://api.twitter.com/2/oauth2/token",
-        scopes=["tweet.read", "tweet.write", "users.read", "offline.access"],
-        pkce=True,
-    ),
-
-    OAuthProviderConfig(
-        slug="linkedin",
-        name="LinkedIn",
-        auth_url="https://www.linkedin.com/oauth/v2/authorization",
-        token_url="https://www.linkedin.com/oauth/v2/accessToken",
-        scopes=["r_liteprofile", "r_emailaddress", "w_member_social"],
-        user_info_url="https://api.linkedin.com/v2/me",
-    ),
-
-    OAuthProviderConfig(
-        slug="spotify",
-        name="Spotify",
-        auth_url="https://accounts.spotify.com/authorize",
-        token_url="https://accounts.spotify.com/api/token",
-        scopes=["user-read-playback-state", "user-read-currently-playing",
-                "playlist-read-private", "user-library-read"],
-    ),
-
-    OAuthProviderConfig(
-        slug="jira",
-        name="Jira (Atlassian)",
-        auth_url="https://auth.atlassian.com/authorize",
-        token_url="https://auth.atlassian.com/oauth/token",
-        scopes=["read:jira-work", "write:jira-work", "offline_access"],
-        extra_params={"audience": "api.atlassian.com", "prompt": "consent"},
-    ),
-
-    OAuthProviderConfig(
-        slug="confluence",
-        name="Confluence (Atlassian)",
-        auth_url="https://auth.atlassian.com/authorize",
-        token_url="https://auth.atlassian.com/oauth/token",
-        scopes=["read:confluence-content.all", "write:confluence-content", "offline_access"],
-        extra_params={"audience": "api.atlassian.com", "prompt": "consent"},
-    ),
-
-    OAuthProviderConfig(
-        slug="asana",
-        name="Asana",
-        auth_url="https://app.asana.com/-/oauth_authorize",
-        token_url="https://app.asana.com/-/oauth_token",
-        scopes=[],
-    ),
-
-    OAuthProviderConfig(
-        slug="trello",
-        name="Trello",
-        auth_url="https://trello.com/1/authorize",
-        token_url="https://trello.com/1/OAuthGetAccessToken",
-        scopes=["read", "write"],
-        extra_params={"expiration": "never", "name": "VECTOR"},
-    ),
-
-    OAuthProviderConfig(
-        slug="dropbox",
-        name="Dropbox",
-        auth_url="https://www.dropbox.com/oauth2/authorize",
-        token_url="https://api.dropboxapi.com/oauth2/token",
-        scopes=[],
-        pkce=True,
-        extra_params={"token_access_type": "offline"},
-    ),
-
-    OAuthProviderConfig(
-        slug="stripe",
-        name="Stripe",
-        auth_url="https://connect.stripe.com/oauth/authorize",
-        token_url="https://connect.stripe.com/oauth/token",
-        scopes=["read_only"],
-    ),
-
-    OAuthProviderConfig(
-        slug="microsoft",
-        name="Microsoft (Outlook + OneDrive + Teams)",
-        auth_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-        token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
-        scopes=[
-            "User.Read", "Mail.Read", "Mail.Send",
-            "Calendars.Read", "Files.Read.All", "offline_access",
-        ],
-        user_info_url="https://graph.microsoft.com/v1.0/me",
-    ),
-
-    OAuthProviderConfig(
-        slug="zoom",
-        name="Zoom",
-        auth_url="https://zoom.us/oauth/authorize",
-        token_url="https://zoom.us/oauth/token",
-        scopes=["meeting:read", "meeting:write", "recording:read", "user:read"],
-    ),
-
-    OAuthProviderConfig(
-        slug="airtable",
-        name="Airtable",
-        auth_url="https://airtable.com/oauth2/v1/authorize",
-        token_url="https://airtable.com/oauth2/v1/token",
-        scopes=["data.records:read", "data.records:write", "schema.bases:read"],
-        pkce=True,
-    ),
-
-    OAuthProviderConfig(
-        slug="reddit",
-        name="Reddit",
-        auth_url="https://www.reddit.com/api/v1/authorize",
-        token_url="https://www.reddit.com/api/v1/access_token",
-        scopes=["read", "submit", "identity", "privatemessages"],
-        extra_params={"duration": "permanent"},
-    ),
-
-    OAuthProviderConfig(
-        slug="hubspot",
-        name="HubSpot",
-        auth_url="https://app.hubspot.com/oauth/authorize",
-        token_url="https://api.hubapi.com/oauth/v1/token",
-        scopes=["crm.objects.contacts.read", "crm.objects.deals.read", "content"],
-    ),
-]}
+    @property
+    def is_api_key(self) -> bool:
+        return self.auth_mode == "api_key"
 
 
-def get_provider(slug: str) -> OAuthProviderConfig | None:
+# Backward-compat type aliases
+OAuthProviderConfig = ProviderConfig
+OAuth1ProviderConfig = ProviderConfig
+
+
+def _load_providers_from_yaml() -> dict[str, ProviderConfig]:
+    if not _YAML_AVAILABLE:
+        raise ImportError("PyYAML required: pip install pyyaml")
+    if not _YAML_PATH.exists():
+        raise FileNotFoundError(f"providers.yaml not found at {_YAML_PATH}")
+
+    with open(_YAML_PATH, encoding="utf-8") as fh:
+        raw: dict = _yaml.safe_load(fh)
+
+    providers: dict[str, ProviderConfig] = {}
+    for slug, data in raw.items():
+        if not isinstance(data, dict):
+            continue
+        scopes_raw = data.get("scopes", [])
+        scopes = list(scopes_raw) if scopes_raw else []
+
+        providers[slug] = ProviderConfig(
+            slug=slug,
+            name=data.get("name", slug),
+            category=data.get("category", "other"),
+            auth_mode=data.get("auth_mode", "oauth2"),
+            auth_url=data.get("auth_url", ""),
+            token_url=data.get("token_url", ""),
+            scopes=scopes,
+            user_info_url=data.get("user_info_url", ""),
+            extra_params=data.get("extra_params") or {},
+            pkce=bool(data.get("pkce", False)),
+            request_token_url=data.get("request_token_url", ""),
+            access_token_url=data.get("access_token_url", data.get("token_url", "")),
+            api_base=data.get("api_base", ""),
+            key_env=data.get("key_env", ""),
+        )
+    return providers
+
+
+def _load_providers_fallback() -> dict[str, ProviderConfig]:
+    """Minimal hardcoded fallback when PyYAML is unavailable."""
+    return {p.slug: p for p in [
+        ProviderConfig(
+            slug="github", name="GitHub", category="dev_tools",
+            auth_url="https://github.com/login/oauth/authorize",
+            token_url="https://github.com/login/oauth/access_token",
+            scopes=["repo", "read:user", "user:email"],
+            user_info_url="https://api.github.com/user",
+        ),
+        ProviderConfig(
+            slug="google", name="Google", category="social",
+            auth_url="https://accounts.google.com/o/oauth2/v2/auth",
+            token_url="https://oauth2.googleapis.com/token",
+            scopes=["openid", "email", "profile"],
+            extra_params={"access_type": "offline", "prompt": "consent"},
+            user_info_url="https://www.googleapis.com/oauth2/v2/userinfo",
+        ),
+    ]}
+
+
+try:
+    PROVIDERS: dict[str, ProviderConfig] = _load_providers_from_yaml()
+except Exception:
+    PROVIDERS = _load_providers_fallback()
+
+
+def get_provider(slug: str) -> ProviderConfig | None:
     cfg = PROVIDERS.get(slug)
     if cfg:
         cfg.load_from_env()
     return cfg
 
 
-def configured_providers() -> list[OAuthProviderConfig]:
+def configured_providers() -> list[ProviderConfig]:
     result = []
     for cfg in PROVIDERS.values():
         cfg.load_from_env()
@@ -248,7 +173,13 @@ def configured_providers() -> list[OAuthProviderConfig]:
 
 
 if __name__ == "__main__":
-    assert len(PROVIDERS) == 20
+    assert len(PROVIDERS) >= 80, f"Expected 80+ providers, got {len(PROVIDERS)}"
     gh = get_provider("github")
     assert gh is not None and "github.com" in gh.auth_url
-    print(f"OK oauth/providers.py — {len(PROVIDERS)} providers defined")
+    tw1 = get_provider("twitter_v1")
+    assert tw1 is not None and tw1.auth_mode == "oauth1"
+    oai = get_provider("openai")
+    assert oai is not None and oai.auth_mode == "api_key"
+    cats = {p.category for p in PROVIDERS.values()}
+    assert "dev_tools" in cats and "ai" in cats
+    print(f"OK oauth/providers.py — {len(PROVIDERS)} providers loaded from YAML")
