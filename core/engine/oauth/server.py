@@ -290,7 +290,7 @@ if _FASTAPI_AVAILABLE:
                 slug=slug,
                 access_token=data.get("access_token", token.access_token),
                 refresh_token=data.get("refresh_token", token.refresh_token),
-                expires_at=str(data.get("expires_in", "")),
+                expires_at=_expires_at_from_seconds(data.get("expires_in")),
                 scope=data.get("scope", token.scope),
             )
             _flow_manager.store_token(slug, new_token)
