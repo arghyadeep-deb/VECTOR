@@ -15,8 +15,12 @@ from core.collections.store import (
     parse_filter,
     parse_sort,
 )
+from core.collections.migrations import MigrationRunner, Migration, migration, get_runner
+from core.collections.storage import FileStorage, LocalDriver, S3Driver, StorageError, safe_key
+from core.collections.auth import AuthService, JWTManager, RuleEngine, PasswordHasher, AuthError
 
 __all__ = [
+    # data layer
     "Field",
     "FieldType",
     "ValidationError",
@@ -29,4 +33,21 @@ __all__ = [
     "FilterError",
     "parse_filter",
     "parse_sort",
+    # migrations
+    "MigrationRunner",
+    "Migration",
+    "migration",
+    "get_runner",
+    # storage
+    "FileStorage",
+    "LocalDriver",
+    "S3Driver",
+    "StorageError",
+    "safe_key",
+    # auth
+    "AuthService",
+    "JWTManager",
+    "RuleEngine",
+    "PasswordHasher",
+    "AuthError",
 ]
