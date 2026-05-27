@@ -303,14 +303,15 @@ def test_create_app_builds():
 
 # ── MCP voice profile tools ───────────────────────────────────────────────────
 
-def test_mcp_list_voice_profiles_tool_exists():
+def test_mcp_voice_tools_exist():
+    import asyncio
     from core.mcp_server import _make_server
     server = _make_server()
-    tool_names = {t.name for t in server.list_tools()}
-    assert "list_voice_profiles" in tool_names
 
-def test_mcp_speak_as_tool_exists():
-    from core.mcp_server import _make_server
-    server = _make_server()
-    tool_names = {t.name for t in server.list_tools()}
-    assert "speak_as" in tool_names
+    async def _check():
+        listed = await server.list_tools()
+        names = set(listed.keys()) if isinstance(listed, dict) else {t.name for t in listed}
+        assert "list_voice_profiles" in names, f"list_voice_profiles missing from {names}"
+        assert "speak_as" in names, f"speak_as missing from {names}"
+
+    asyncio.run(_check())
