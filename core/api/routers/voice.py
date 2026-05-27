@@ -1,10 +1,18 @@
-"""Voice router â€” /voice endpoint.
+"""Voice router — /voice endpoint.
 
 Pipeline: audio -> Whisper (local) -> language detect -> intent classify -> action -> TTS
 All audio is processed locally (RULE 5 - audio never leaves device).
 """
 
 import sys
+
+__all__ = [
+    "router",
+    "voice_endpoint",
+    "voice_speak",
+    "voice_status",
+]
+
 import time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -172,6 +180,54 @@ async def voice_speak(body: dict):
         return {"status": "error", "error": str(e)}
 
 
+# ── Voice profile endpoints (voicebox absorption) ─────────────────────────────
+
+@router.get("/profiles")
+async def list_voice_profiles():
+    """List all stored voice profiles."""
+    try:
+        from core.voice.voice_profiles import get_profile_store
+        store = get_profile_store()
+        return {"profiles": [p.to_dict() for p in store.list_all()]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/profiles")
+async def create_voice_profile(body: dict):
+    """Create a new voice profile. Body: VoiceProfile fields as JSON."""
+    try:
+        from core.voice.voice_profiles import VoiceProfile, get_profile_store
+        profile = VoiceProfile(**body)
+        get_profile_store().create(profile)
+        return {"status": "created", "name": profile.name}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@router.post("/profiles/{name}/sample")
+async def upload_reference_sample(name: str, audio: "UploadFile" = File(...)):
+    """Upload a reference WAV clip for a cloned voice profile."""
+    try:
+        from core.voice.voice_profiles import get_profile_store
+        raw = await audio.read()
+        key = get_profile_store().upload_reference(name, raw, audio.filename or "reference.wav")
+        return {"status": "stored", "key": key}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@router.post("/profiles/{name}/default")
+async def set_default_profile(name: str):
+    """Set the given profile as the active default voice."""
+    try:
+        from core.voice.voice_profiles import get_profile_store
+        get_profile_store().set_default(name)
+        return {"status": "ok", "default": name}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("âœ… voice.py OK")
+    print("✅ voice.py OK")
