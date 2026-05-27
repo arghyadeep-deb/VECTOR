@@ -1,4 +1,4 @@
-"""WebhookChannel — generic outbound webhook adapter (zero extra deps)."""
+"""WebhookChannel — generic outbound webhook adapter with HMAC-SHA256 signing."""
 
 from __future__ import annotations
 
@@ -14,6 +14,12 @@ from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
+
+try:
+    from core.engine.webhook.hmac_signer import WebhookSigner as _Signer
+    _signer = _Signer()
+except Exception:
+    _signer = None  # type: ignore[assignment]
 
 
 @ChannelRegistry.register("webhook")
