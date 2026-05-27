@@ -379,14 +379,19 @@ class CollectionStore:
 
 
 class CollectionEngine:
-    """Top-level facade: persists collection definitions and owns their tables."""
+    """Top-level facade: persists collection definitions and owns their tables.
 
-    def __init__(self, conn=None):
+    If `hooks` is provided, record create/update/delete fire before/after hooks; a
+    before-hook may mutate the payload or cancel (raising HookCancelled).
+    """
+
+    def __init__(self, conn=None, hooks=None):
         if conn is None:
             from core.memory.episodic import get_db_connection
             conn = get_db_connection()
         self.conn = conn
         self.store = CollectionStore(conn)
+        self.hooks = hooks
         self._ensure_registry()
 
     def _ensure_registry(self):
