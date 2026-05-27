@@ -679,9 +679,10 @@ class TestGraphMerger(unittest.TestCase):
         self.assertEqual(tb_edges[0]["source"], "file:pkg/server.go")
 
     def test_tested_by_path_convention_python(self):
+        # Convention: tests/test_utils.py → src/utils.py (mirrored tree)
         b = {
             "nodes": [
-                self._node("file:myapp/utils.py", filePath="myapp/utils.py"),
+                self._node("file:src/utils.py", filePath="src/utils.py"),
                 self._node("file:tests/test_utils.py", filePath="tests/test_utils.py"),
             ],
             "edges": [],
@@ -689,7 +690,7 @@ class TestGraphMerger(unittest.TestCase):
         assembled, _ = self.gm.merge([b])
         tb_edges = [e for e in assembled["edges"] if e["type"] == "tested_by"]
         self.assertEqual(len(tb_edges), 1)
-        self.assertEqual(tb_edges[0]["source"], "file:myapp/utils.py")
+        self.assertEqual(tb_edges[0]["source"], "file:src/utils.py")
 
     def test_tested_by_path_convention_ts(self):
         b = {
