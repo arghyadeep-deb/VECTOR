@@ -279,6 +279,7 @@ if __name__ == "__main__":
         "/api/collections/{name}/records",
         "/api/collections/{name}/records/{record_id}",
         "/api/collections/{name}/auth-with-password",
+        "/api/collections/{name}/auth-with-oauth2",
         "/api/files/{name}/{record_id}/{field}",
     }
     ok = expected.issubset(paths)
