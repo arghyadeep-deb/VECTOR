@@ -413,5 +413,106 @@ def test_hook_broadcasts_to_event_bus():
     assert delivered[0].data["record_id"] == "r1"
 
 
+# ── end-to-end HTTP (FastAPI TestClient, isolated in-memory DB) ───────────────
+@pytest.fixture()
+def api_client(conn, tmp_path, monkeypatch):
+    fastapi = pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from core.api.routers import collections as col_router
+    from core.collections import (
+        CollectionEngine, AuthService, JWTManager, FileStorage, CollectionHooks,
+    )
+    from core.collections.storage import LocalDriver
+
+    eng = CollectionEngine(conn, hooks=CollectionHooks(publish_events=False))
+    svc = AuthService(eng, jwt=JWTManager(secret="x" * 40))
+    store = FileStorage(LocalDriver(str(tmp_path / "files")))
+    monkeypatch.setattr(col_router, "_engine", eng)
+    monkeypatch.setattr(col_router, "_auth", svc)
+    monkeypatch.setattr(col_router, "_storage", store)
+
+    app = FastAPI()
+    app.include_router(col_router.router)
+    return TestClient(app)
+
+
+def test_api_collection_and_record_crud(api_client):
+    r = api_client.post("/api/collections", json={
+        "name": "notes", "type": "base",
+        "fields": [{"name": "title", "type": "text", "required": True},
+                   {"name": "views", "type": "number", "options": {"only_int": True}}],
+        "list_rule": "", "view_rule": "", "create_rule": "", "update_rule": "", "delete_rule": "",
+    })
+    assert r.status_code == 200, r.text
+
+    r = api_client.post("/api/collections/notes/records", json={"title": "hello", "views": 3})
+    assert r.status_code == 200, r.text
+    rec_id = r.json()["id"]
+
+    r = api_client.get("/api/collections/notes/records", params={"filter": "views >= 2"})
+    assert r.status_code == 200 and r.json()["total_items"] == 1
+
+    r = api_client.patch(f"/api/collections/notes/records/{rec_id}", json={"views": 50})
+    assert r.status_code == 200 and r.json()["views"] == 50
+
+    r = api_client.delete(f"/api/collections/notes/records/{rec_id}")
+    assert r.status_code == 200
+    assert api_client.get("/api/collections/notes/records").json()["total_items"] == 0
+
+
+def test_api_bad_filter_returns_400(api_client):
+    api_client.post("/api/collections", json={"name": "notes",
+                    "fields": [{"name": "title", "type": "text"}], "list_rule": ""})
+    r = api_client.get("/api/collections/notes/records", params={"filter": "bogus = 1"})
+    assert r.status_code == 400
+
+
+def test_api_rbac_blocks_anonymous_create(api_client):
+    # create_rule requires an authenticated identity
+    api_client.post("/api/collections", json={
+        "name": "secure", "fields": [{"name": "title", "type": "text"}],
+        "create_rule": "@request.auth.id != ''", "list_rule": "",
+    })
+    # anonymous create → 403
+    r = api_client.post("/api/collections/secure/records", json={"title": "x"})
+    assert r.status_code == 403
+
+
+def test_api_auth_flow_and_token_gated_create(api_client):
+    api_client.post("/api/collections", json={"name": "users", "type": "auth", "fields": []})
+    api_client.post("/api/collections", json={
+        "name": "secure", "fields": [{"name": "title", "type": "text"}],
+        "create_rule": "@request.auth.id != ''",
+    })
+    reg = api_client.post("/api/collections/users/records-auth",
+                          json={"email": "a@b.com", "password": "longpass123"})
+    assert reg.status_code == 200, reg.text
+
+    login = api_client.post("/api/collections/users/auth-with-password",
+                            json={"email": "a@b.com", "password": "longpass123"})
+    assert login.status_code == 200, login.text
+    token = login.json()["token"]
+
+    r = api_client.post("/api/collections/secure/records", json={"title": "ok"},
+                        headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+
+
+def test_api_file_upload_download(api_client):
+    api_client.post("/api/collections", json={
+        "name": "docs", "fields": [{"name": "attachment", "type": "file"}],
+        "update_rule": "", "create_rule": "", "view_rule": "",
+    })
+    rec = api_client.post("/api/collections/docs/records", json={}).json()
+    up = api_client.post(
+        f"/api/files/docs/{rec['id']}/attachment",
+        files={"file": ("hi.txt", b"file bytes", "text/plain")},
+    )
+    assert up.status_code == 200, up.text
+    dl = api_client.get(f"/api/files/docs/{rec['id']}/attachment/hi.txt")
+    assert dl.status_code == 200 and dl.content == b"file bytes"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
