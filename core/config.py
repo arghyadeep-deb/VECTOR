@@ -890,6 +890,16 @@ CONFIG: dict = {
             "refresh_ttl_sec": int(os.environ.get("VECTOR_JWT_REFRESH_TTL", "1209600")),
         },
     },
+    "knowledge": {
+        # Output directory for domain-context.json and assembled-graph.json files
+        "output_dir": os.environ.get("VECTOR_KNOWLEDGE_OUTPUT_DIR",
+                                     str(Path(_s.VECTOR_HOME) / "knowledge_graphs")),
+        # Maximum output JSON size in bytes (default 512 KB)
+        "max_output_bytes": int(os.environ.get("VECTOR_KNOWLEDGE_MAX_BYTES", str(512 * 1024))),
+        # Karpathy wiki root (Obsidian brain vault)
+        "wiki_root": os.environ.get("VECTOR_WIKI_ROOT",
+                                    str(Path(_s.VECTOR_HOME).parent / "V.E.C.T.O.R. Brain")),
+    },
 }
 
 # ── Afterburner: inject CONFIG values into os.environ for absorbed code ──────
