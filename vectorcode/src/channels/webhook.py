@@ -97,7 +97,12 @@ class WebhookChannel(BaseChannel):
                 payload["metadata"] = metadata
 
             headers: Dict[str, str] = {}
-            if self._secret:
+            if self._secret and _signer is not None:
+                # HMAC-SHA256 signed — receivers verify with their copy of the secret
+                body_bytes = __import__("json").dumps(payload, separators=(",", ":"), ensure_ascii=False).encode()
+                headers = _signer.signed_headers(body_bytes, self._secret)
+            elif self._secret:
+                # Fallback: plain secret header when signer unavailable
                 headers["X-Webhook-Secret"] = self._secret
 
             resp = httpx.request(
