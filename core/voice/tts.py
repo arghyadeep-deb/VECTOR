@@ -153,6 +153,54 @@ class VoiceTTS:
             logger.warning("[VECTOR][tts] ElevenLabs streaming failed: {} — falling through to local TTS", e)
             return False
 
+    def _speak_clone(self, text: str, *, profile_name: str | None = None) -> bool:
+        """Try local cloned-voice synthesis. Returns True on success, False to fall through."""
+        try:
+            from core.voice.cloning import VoiceCloner, get_cloner
+            from core.voice.voice_profiles import get_profile_store, ProfileType
+            from core.voice.effects import AudioEffects
+        except ImportError:
+            return False
+
+        if not VoiceCloner.available():
+            return False
+
+        try:
+            store = get_profile_store()
+            if profile_name:
+                profile = store.get(profile_name)
+            else:
+                # Use CONFIG override or the store default
+                cfg_profile = (CONFIG.get("voice", {}) or {}).get("default_voice_profile", "")
+                profile = store.get(cfg_profile) if cfg_profile else store.get_default()
+
+            if profile is None or profile.type not in (ProfileType.CLONED, ProfileType.DESIGNED):
+                return False
+            if profile.engine not in ("chatterbox", "cloned"):
+                return False
+
+            ref_bytes = store.get_reference_bytes(profile.name) if profile.reference_key else None
+            cloner = get_cloner()
+            audio, sr = cloner.synthesize_long(text, reference_wav=ref_bytes)
+
+            if profile.effects:
+                fx = AudioEffects()
+                audio = fx.apply(audio, sr, profile.effects)
+
+            import sounddevice as sd
+            self._speaking = True
+            sd.play(audio, samplerate=sr)
+            sd.wait()
+            self._speaking = False
+            logger.info(
+                "[VECTOR][tts] cloned-voice spoke profile={} ({:.1f}s)", profile.name, len(audio) / sr
+            )
+            return True
+        except Exception as e:
+            self._speaking = False
+            logger.warning("[VECTOR][tts] clone speak failed, falling through: {}", e)
+            return False
+
     def _init_piper(self):
         """Try Piper TTS (piper-tts package)  -  fast, local, high quality."""
         try:
