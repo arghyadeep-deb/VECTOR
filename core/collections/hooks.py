@@ -15,6 +15,7 @@ import sys
 __all__ = [
     "HookContext",
     "CollectionHooks",
+    "HookCancelled",
     "get_hooks",
     "HOOK_EVENTS",
 ]
