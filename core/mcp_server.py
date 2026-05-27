@@ -1,5 +1,5 @@
 """
-VECTOR MCP Server â€” exposes district capabilities as MCP tools.
+VECTOR MCP Server — exposes district capabilities as MCP tools.
 
 Run:  python core/mcp_server.py
 Transport: stdio (default) â†’ works with Claude Code, Cursor, any MCP client.
@@ -11,7 +11,7 @@ RULE 3:  All write/execute actions gate through permission_gateway.
 MCP Client (outbound):
   To consume EXTERNAL MCP servers from VECTOR's Python code, use:
     from core.mcp.client import MCPClient
-  This is the opposite direction â€” VECTOR as MCP consumer, not server.
+  This is the opposite direction — VECTOR as MCP consumer, not server.
 """
 import sys
 
@@ -33,9 +33,9 @@ try:
     _FASTMCP_AVAILABLE = True
 except ImportError:
     _FASTMCP_AVAILABLE = False
-    logger.warning("[VECTOR][mcp] fastmcp not installed â€” run: pip install fastmcp")
+    logger.warning("[VECTOR][mcp] fastmcp not installed — run: pip install fastmcp")
 
-# Absorbed OJ MCP layer â€” provides transport fallback when FastMCP is absent
+# Absorbed OJ MCP layer — provides transport fallback when FastMCP is absent
 try:
     from vectorcode.src.vc_mcp import MCPServer, MCPClient, StreamableHTTPTransport
     _VC_MCP_AVAILABLE = True
@@ -78,12 +78,12 @@ def _make_server():
         if _VC_MCP_AVAILABLE:
             extra = " (OJ MCP fallback available at vectorcode.src.vc_mcp)"
         raise ImportError(
-            "fastmcp not installed â€” run: pip install fastmcp" + extra
+            "fastmcp not installed — run: pip install fastmcp" + extra
         )
     mcp = FastMCP(
         "VECTOR",
         instructions=(
-            "You are connected to VECTOR â€” a Darwinian multi-agent AI system "
+            "You are connected to VECTOR — a Darwinian multi-agent AI system "
             "running on Arghyadeep's Legion Pro 5. "
             "Use these tools to access VECTOR's memory, research, goals, and districts."
         ),
@@ -407,7 +407,7 @@ def _make_server():
                 return f"No APIs found for '{query}'. Catalog has {stats['total']} total APIs."
             lines = [f"Found {len(results)} APIs for '{query}':"]
             for r in results:
-                lines.append(f"â€¢ {r['name']} ({r['category']}): {r['description'][:80]}")
+                lines.append(f"• {r['name']} ({r['category']}): {r['description'][:80]}")
                 if r.get("url"):
                     lines.append(f"  URL: {r['url']}")
             return "\n".join(lines)
@@ -468,6 +468,7 @@ def _make_server():
     _add_kanban_tools(mcp)
     _add_email_tools(mcp)
     _add_research_tools(mcp)
+    _add_collections_tools(mcp)
     return mcp
 
 
@@ -478,7 +479,7 @@ create_mcp_app = _make_server
 def _reg(mcp, name: str, doc: str = "") -> None:
     """Register a named stub tool on mcp so it appears in list_tools()."""
     def _fn(input: str = "") -> str:
-        return f"[{name}] not yet implemented â€” backend module missing"
+        return f"[{name}] not yet implemented — backend module missing"
     _fn.__name__ = name
     _fn.__doc__ = doc or f"VectorCode {name} tool."
     mcp.tool(_fn)
@@ -503,7 +504,7 @@ def _add_expansion_tools(mcp) -> None:
 
     ROOT = _Path(__file__).parent.parent
 
-    # â”€â”€ agent_* (8) â€” wired to core/city/agent_registry.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ agent_* (8) — wired to core/city/agent_registry.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.city.agent_registry import get_registry as _get_reg
         from core.city.agent_base import AgentBase as _AgentBase
@@ -557,7 +558,7 @@ def _add_expansion_tools(mcp) -> None:
         @mcp.tool
         def agent_spawn(agent_type: str, name: str = "") -> str:
             """Spawn a new agent by type. Returns agent_id or error."""
-            return _safe_json({"status": "stub", "message": f"agent_spawn for '{agent_type}' requires district-specific factory â€” use agent_list to see existing agents"})
+            return _safe_json({"status": "stub", "message": f"agent_spawn for '{agent_type}' requires district-specific factory — use agent_list to see existing agents"})
 
         @mcp.tool
         def agent_metrics(agent_id: str) -> str:
@@ -583,7 +584,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("agent_list", "List all active agents"), ("agent_status", "Get agent status"), ("agent_stop", "Stop an agent"), ("agent_pool", "Show agent pool"), ("agent_health", "Check agent health"), ("agent_spawn", "Spawn a new agent"), ("agent_metrics", "Get agent metrics"), ("agent_logs", "Get agent logs")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ swarm_* (9) â€” wired to core/swarm/orchestrator.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ swarm_* (9) — wired to core/swarm/orchestrator.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.swarm.orchestrator import get_orchestrator as _get_orch
 
@@ -668,7 +669,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("swarm_init", "Init swarm"), ("swarm_submit", "Submit task"), ("swarm_execute", "Execute tasks"), ("swarm_status", "Swarm status"), ("swarm_topology", "Get topology"), ("swarm_agents", "List agents"), ("swarm_report", "Execution report"), ("swarm_assign", "Assign task"), ("swarm_shutdown", "Shutdown swarms")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ memory_* (12) â€” wired to core/memory/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ memory_* (12) — wired to core/memory/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.memory.episodic import EpisodicMemory, get_db_connection, get_temp_cursor
         from core.memory.semantic import SemanticMemory
@@ -820,19 +821,19 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def memory_faiss_add(text: str) -> str:
-            """FAISS not available â€” VECTOR uses SQLite-based semantic memory. Use memory_semantic_search instead."""
+            """FAISS not available — VECTOR uses SQLite-based semantic memory. Use memory_semantic_search instead."""
             return _safe_json({"status": "not_available", "alternative": "memory_semantic_search"})
 
         @mcp.tool
         def memory_faiss_search(query: str) -> str:
-            """FAISS not available â€” VECTOR uses SQLite-based semantic memory. Use memory_semantic_search instead."""
+            """FAISS not available — VECTOR uses SQLite-based semantic memory. Use memory_semantic_search instead."""
             return _safe_json({"status": "not_available", "alternative": "memory_semantic_search"})
     except ImportError as e:
         logger.warning(f"[VECTOR][mcp] memory tools unavailable: {e}")
         for n, d in [("memory_stats", "Memory stats"), ("memory_semantic_search", "Semantic search"), ("memory_pattern_save", "Save pattern"), ("memory_pattern_recall", "Recall pattern"), ("memory_recent", "Recent entries"), ("memory_categories", "List categories"), ("memory_clear", "Clear memory"), ("memory_export", "Export memory"), ("memory_import", "Import memory"), ("memory_bridge_sync", "Bridge sync"), ("memory_faiss_add", "FAISS add (unavailable)"), ("memory_faiss_search", "FAISS search (unavailable)")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ hook_* (17) â€” wired to core/brain_hooks/ and core/coding_assistant/ â”€â”€â”€
+    # â”€â”€ hook_* (17) — wired to core/brain_hooks/ and core/coding_assistant/ â”€â”€â”€
     try:
         from core.brain_hooks import run_hook as _run_hook
 
@@ -893,7 +894,7 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def hook_register(hook_name: str, handler: str) -> str:
-            """Register a handler for a hook (stub â€” requires hooks manager config)."""
+            """Register a handler for a hook (stub — requires hooks manager config)."""
             return _safe_json({"status": "registered", "hook": hook_name, "handler": handler[:100]})
 
         @mcp.tool
@@ -940,7 +941,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("hook_fire", "Fire hook"), ("hook_session_start", "Session start"), ("hook_session_end", "Session end"), ("hook_intelligence", "Intelligence hook"), ("hook_session_restore", "Session restore"), ("hook_notify", "Notify hook"), ("hook_task_complete", "Task complete"), ("hook_list", "List hooks"), ("hook_register", "Register hook"), ("hook_pre_edit", "Pre-edit hook"), ("hook_post_edit", "Post-edit hook"), ("hook_pre_task", "Pre-task hook"), ("hook_post_task", "Post-task hook"), ("hook_route", "Route hook"), ("hook_explain", "Explain hook"), ("hook_post_command", "Post-command hook"), ("hook_transfer", "Transfer hook")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ task_* (8) â€” wired to core/loop/task_queue.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ task_* (8) — wired to core/loop/task_queue.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.loop.task_queue import get_task_queue as _get_tq, Priority as _Priority
 
@@ -1000,19 +1001,19 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def task_assign(task_id: str, district: str) -> str:
-            """Assign a task to a district (stub â€” assign at creation time)."""
+            """Assign a task to a district (stub — assign at creation time)."""
             return _safe_json({"status": "stub", "message": "Use task_create with district parameter instead"})
 
         @mcp.tool
         def task_complete(task_id: str) -> str:
-            """Mark a task as complete (stub â€” tasks complete automatically)."""
-            return _safe_json({"status": "stub", "message": "VECTOR tasks complete automatically â€” use task_delete to remove"})
+            """Mark a task as complete (stub — tasks complete automatically)."""
+            return _safe_json({"status": "stub", "message": "VECTOR tasks complete automatically — use task_delete to remove"})
     except ImportError as e:
         logger.warning(f"[VECTOR][mcp] task tools unavailable: {e}")
         for n, d in [("task_list", "List tasks"), ("task_status", "Task status"), ("task_update", "Update task"), ("task_delete", "Delete task"), ("task_submit_bg", "Submit BG task"), ("task_create", "Create task"), ("task_assign", "Assign task"), ("task_complete", "Complete task")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ security_* (10) â€” wired to districts/security/ and core/security/ â”€â”€â”€â”€â”€
+    # â”€â”€ security_* (10) — wired to districts/security/ and core/security/ â”€â”€â”€â”€â”€
     try:
         @mcp.tool
         def security_scan(path: str) -> str:
@@ -1116,7 +1117,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("security_scan", "Scan for threats"), ("security_audit", "Security audit"), ("security_validate", "Validate input"), ("security_path_check", "Path check"), ("security_threats", "List threats"), ("security_report", "Security report"), ("security_input_validate", "Input validation"), ("security_executor_check", "Executor check"), ("security_allowlist", "View allowlist"), ("security_cve_scan", "CVE scan")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ neural_* (8) â€” wired to core/memory/reasoning_memory.py + core/training/ â”€
+    # â”€â”€ neural_* (8) — wired to core/memory/reasoning_memory.py + core/training/ â”€
     try:
         from core.memory.reasoning_memory import ReasoningMemory as _ReasoningMemory
         from core.memory.episodic import get_db_connection as _get_neural_conn
@@ -1198,7 +1199,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("neural_pattern_save", "Save pattern"), ("neural_pattern_recall", "Recall pattern"), ("neural_reward", "Update reward"), ("neural_stats", "Neural stats"), ("neural_train", "Trigger training"), ("neural_status", "PatternStore status"), ("neural_predict", "Predict plan"), ("neural_optimize", "Optimize patterns")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ file_* (10) â€” wired to districts/coding/coding_tools.py + stdlib â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ file_* (10) — wired to districts/coding/coding_tools.py + stdlib â”€â”€â”€â”€â”€â”€â”€
     try:
         from districts.coding.coding_tools import read_code_file, write_code_file, apply_search_replace, grep_code
 
@@ -1285,7 +1286,7 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def file_delete(file_path: str) -> str:
-            """Delete a file (RED gate â€” requires confirmation)."""
+            """Delete a file (RED gate — requires confirmation)."""
             resolved = (ROOT / file_path).resolve()
             if not str(resolved).startswith(str(ROOT.resolve())):
                 return _safe_json({"error": "Path traversal denied"})
@@ -1308,7 +1309,7 @@ def _add_expansion_tools(mcp) -> None:
         for n, d in [("file_read", "Read file"), ("file_write", "Write file"), ("file_edit", "Edit file"), ("file_grep", "Grep files"), ("file_glob", "Glob files"), ("file_exists", "File exists"), ("file_list_dir", "List directory"), ("file_copy", "Copy file"), ("file_delete", "Delete file"), ("file_diff", "File diff")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ git_* (12) â€” wired via subprocess git â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ git_* (12) — wired via subprocess git â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     @mcp.tool
     def git_commit(message: str, files: str = "") -> str:
         """Create a git commit with a message."""
@@ -1386,7 +1387,7 @@ def _add_expansion_tools(mcp) -> None:
 
     @mcp.tool
     def git_merge(branch: str) -> str:
-        """Merge a branch (RED gate â€” use with caution)."""
+        """Merge a branch (RED gate — use with caution)."""
         try:
             result = _subprocess.run(["git", "merge", branch], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
             return _safe_json({"ok": result.returncode == 0, "output": result.stdout.strip() or result.stderr.strip()})
@@ -1395,7 +1396,7 @@ def _add_expansion_tools(mcp) -> None:
 
     @mcp.tool
     def git_rebase(onto: str) -> str:
-        """Rebase onto a branch (RED gate â€” use with caution)."""
+        """Rebase onto a branch (RED gate — use with caution)."""
         try:
             result = _subprocess.run(["git", "rebase", onto], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
             return _safe_json({"ok": result.returncode == 0, "output": result.stdout.strip() or result.stderr.strip()})
@@ -1428,7 +1429,7 @@ def _add_expansion_tools(mcp) -> None:
         except Exception as e:
             return _safe_json({"error": str(e)})
 
-    # â”€â”€ test_* (30) â€” wired to pytest subprocess + core/training/benchmarks/ â”€â”€â”€
+    # â”€â”€ test_* (30) — wired to pytest subprocess + core/training/benchmarks/ â”€â”€â”€
     @mcp.tool
     def test_run(path: str = "") -> str:
         """Run the full test suite or a specific path."""
@@ -1609,7 +1610,7 @@ def _add_expansion_tools(mcp) -> None:
                 result = _subprocess.run(["pytest", "-q", "--tb=short"], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
                 return _safe_json({"changed_files": changed, "test_output": result.stdout[-2000:], "passed": result.returncode == 0})
             mtimes = new_mtimes
-        return _safe_json({"status": "timed_out", "cycles": cycles, "note": "Watched for 60s â€” no changes detected"})
+        return _safe_json({"status": "timed_out", "cycles": cycles, "note": "Watched for 60s — no changes detected"})
 
     @mcp.tool
     def test_coverage(path: str = "tests/") -> str:
@@ -1619,7 +1620,7 @@ def _add_expansion_tools(mcp) -> None:
             html_report = str(ROOT / "htmlcov" / "index.html")
             return _safe_json({"passed": result.returncode == 0, "coverage_output": result.stdout[-3000:], "html_report": html_report if (ROOT / "htmlcov").exists() else None})
         except FileNotFoundError:
-            return _safe_json({"error": "pytest-cov not installed â€” pip install pytest-cov"})
+            return _safe_json({"error": "pytest-cov not installed — pip install pytest-cov"})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -1656,7 +1657,7 @@ class Test{cls_name}:
             result = _chat(f"Generate pytest test cases for this module:\n\n{source[:3000]}")
             return _safe_json({"module": module, "generated_tests": result[:5000]})
         except ImportError:
-            return _safe_json({"status": "stub", "note": "Requires vectorcode_llm â€” run: pip install -e vectorcode"})
+            return _safe_json({"status": "stub", "note": "Requires vectorcode_llm — run: pip install -e vectorcode"})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -1735,7 +1736,7 @@ class Test{cls_name}:
             return _safe_json({"error": f"Fixture '{name}' not found in {fixtures_dir}"})
         return _safe_json({"fixture": name, "content": fixture_path.read_text()[:5000]})
 
-    # â”€â”€ doc_* (28) â€” wired to districts/documentation/ + stdlib â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ doc_* (28) — wired to districts/documentation/ + stdlib â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from districts.qa.doc_generator import DocGenerator
 
@@ -1828,7 +1829,7 @@ class Test{cls_name}:
                 html = _md.markdown(content)
                 return _safe_json({"html": html[:5000], "length": len(html)})
             except ImportError:
-                return _safe_json({"error": "markdown package not installed â€” pip install markdown"})
+                return _safe_json({"error": "markdown package not installed — pip install markdown"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
@@ -2002,7 +2003,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def doc_version(doc_path: str, version: str = "") -> str:
-            """Version or tag documentation â€” create a dated copy in docs/archive/."""
+            """Version or tag documentation — create a dated copy in docs/archive/."""
             try:
                 resolved = (ROOT / doc_path).resolve()
                 if not resolved.exists():
@@ -2019,7 +2020,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def doc_review(module: str) -> str:
-            """Review documentation for accuracy â€” scans source and suggests improvements."""
+            """Review documentation for accuracy — scans source and suggests improvements."""
             try:
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
@@ -2034,7 +2035,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def doc_approve(doc_path: str) -> str:
-            """Approve and finalise documentation â€” move from draft to docs/."""
+            """Approve and finalise documentation — move from draft to docs/."""
             try:
                 resolved = (ROOT / doc_path).resolve()
                 if not resolved.exists():
@@ -2079,7 +2080,7 @@ class Test{cls_name}:
         for n, d in [("doc_generate", "Generate docs"), ("doc_update", "Update docs"), ("doc_search", "Search docs"), ("doc_export", "Export docs"), ("doc_import", "Import docs"), ("doc_render", "Render markdown"), ("doc_validate", "Validate docs"), ("doc_lint", "Lint docs"), ("doc_publish", "Publish docs"), ("doc_draft", "Draft doc"), ("doc_archive", "Archive doc"), ("doc_index", "Doc index"), ("doc_tag", "Tag doc"), ("doc_link", "Link docs"), ("doc_move", "Move doc"), ("doc_copy", "Copy doc"), ("doc_delete", "Delete doc"), ("doc_format", "Format doc"), ("doc_translate", "Translate doc"), ("doc_summarize", "Summarize doc"), ("doc_extract", "Extract facts"), ("doc_embed", "Embed doc"), ("doc_compare", "Compare docs"), ("doc_version", "Version doc"), ("doc_review", "Review doc"), ("doc_approve", "Approve doc"), ("doc_unlink", "Unlink doc"), ("doc_restore", "Restore doc")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ browser_* (28) â€” wired to core/stealth_browser/client.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ browser_* (28) — wired to core/stealth_browser/client.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.stealth_browser.client import StealthBrowserClient
 
@@ -2318,7 +2319,7 @@ class Test{cls_name}:
 
         @mcp.tool
         async def browser_record(tab_id: str = "") -> str:
-            """Record a browser session â€” stores screenshots in session replay file."""
+            """Record a browser session — stores screenshots in session replay file."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
@@ -2344,7 +2345,7 @@ class Test{cls_name}:
 
         @mcp.tool
         async def browser_assert(condition: str, tab_id: str = "") -> str:
-            """Assert a page condition â€” checks URL matches or element exists."""
+            """Assert a page condition — checks URL matches or element exists."""
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"
@@ -2447,7 +2448,7 @@ class Test{cls_name}:
         for n, d in [("browser_open", "Open browser"), ("browser_close", "Close browser"), ("browser_navigate", "Navigate"), ("browser_screenshot", "Screenshot"), ("browser_click", "Click"), ("browser_type", "Type"), ("browser_scroll", "Scroll"), ("browser_extract", "Extract"), ("browser_wait", "Wait"), ("browser_element", "Element info"), ("browser_form", "Fill form"), ("browser_back", "Go back"), ("browser_forward", "Go forward"), ("browser_eval", "Eval JS"), ("browser_cookie", "Cookies"), ("browser_storage", "Storage"), ("browser_network", "Network"), ("browser_console", "Console"), ("browser_pdf", "PDF export"), ("browser_record", "Record"), ("browser_replay", "Replay"), ("browser_assert", "Assert"), ("browser_select", "Select"), ("browser_hover", "Hover"), ("browser_drag", "Drag"), ("browser_upload", "Upload"), ("browser_download", "Download"), ("browser_resize", "Resize")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ graph_* (28) â€” wired to core/memory/knowledge_graph.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ graph_* (28) — wired to core/memory/knowledge_graph.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.memory.knowledge_graph import get_knowledge_graph as _get_kg
 
@@ -2607,7 +2608,7 @@ class Test{cls_name}:
             kg = _get_kg()
             all_ents = kg.all_entities() if hasattr(kg, "all_entities") else []
             stale = [e for e in all_ents if getattr(e, "created_at", 0) < cutoff]
-            return _safe_json({"removed_count": len(stale), "older_than_days": older_than_days, "note": "Entities are informational â€” use graph_index to add fresh data"})
+            return _safe_json({"removed_count": len(stale), "older_than_days": older_than_days, "note": "Entities are informational — use graph_index to add fresh data"})
 
         @mcp.tool
         def graph_rebuild(scan_path: str = "core/") -> str:
@@ -2725,7 +2726,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def graph_highlight(entity: str) -> str:
-            """Highlight a symbol's connections â€” show neighbors with relation types."""
+            """Highlight a symbol's connections — show neighbors with relation types."""
             kg = _get_kg()
             neighbors = kg.get_neighbors(entity) if hasattr(kg, "get_neighbors") else []
             connections = []
@@ -2784,7 +2785,7 @@ class Test{cls_name}:
         for n, d in [("graph_index", "Index entity"), ("graph_query", "Query graph"), ("graph_dependents", "Get dependents"), ("graph_stats", "Graph stats"), ("graph_search", "Search graph"), ("graph_filter", "Filter graph"), ("graph_trace", "Trace path"), ("graph_annotate", "Annotate"), ("graph_path", "Find path"), ("graph_symbols", "List symbols"), ("graph_export", "Export graph"), ("graph_import", "Import graph"), ("graph_blast_radius", "Blast radius"), ("graph_distance", "Graph distance"), ("graph_report", "Graph report"), ("graph_visualize", "Visualize"), ("graph_clean", "Clean graph"), ("graph_rebuild", "Rebuild graph"), ("graph_diff", "Graph diff"), ("graph_callers", "Callers"), ("graph_callees", "Callees"), ("graph_cycles", "Cycles"), ("graph_merge", "Merge graphs"), ("graph_compare", "Compare graphs"), ("graph_highlight", "Highlight"), ("graph_cluster", "Cluster"), ("graph_centrality", "Centrality"), ("graph_rank", "Rank")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ perf_* (28) â€” wired to stdlib + core/training/benchmarks/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ perf_* (28) — wired to stdlib + core/training/benchmarks/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     @mcp.tool
     def perf_profile(file_path: str, function: str = "") -> str:
         """Profile a Python file or function."""
@@ -2863,7 +2864,7 @@ class Test{cls_name}:
             import psutil
             return _safe_json({"cpu_percent": psutil.cpu_percent(interval=1), "cpu_count": psutil.cpu_count(), "per_cpu": psutil.cpu_percent(interval=1, percpu=True)})
         except ImportError:
-            return _safe_json({"error": "psutil not installed â€” pip install psutil"})
+            return _safe_json({"error": "psutil not installed — pip install psutil"})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -3155,7 +3156,7 @@ class Test{cls_name}:
         for t in threads: t.join()
         return _safe_json({"workers": workers, "duration_sec": duration_sec, "results": results})
 
-    # â”€â”€ worker_* (26) â€” wired to core/loop/task_queue.py + core/scheduler/ â”€â”€â”€â”€â”€
+    # â”€â”€ worker_* (26) — wired to core/loop/task_queue.py + core/scheduler/ â”€â”€â”€â”€â”€
     try:
         from core.loop.task_queue import get_task_queue as _get_wtq
 
@@ -3219,7 +3220,7 @@ class Test{cls_name}:
             tq = _get_wtq()
             if hasattr(tq, "cancel"):
                 tq.cancel(task_id)
-            return _safe_json({"ok": True, "task_id": task_id, "message": "cancelled â€” re-submit to restart"})
+            return _safe_json({"ok": True, "task_id": task_id, "message": "cancelled — re-submit to restart"})
 
         @mcp.tool
         def worker_retry(task_id: str) -> str:
@@ -3304,13 +3305,13 @@ class Test{cls_name}:
             try:
                 from core.config import CONFIG as _C
                 _C.setdefault("task_queue", {})["max_concurrent"] = count
-                return _safe_json({"ok": True, "max_concurrent": count, "note": "Runtime change only â€” restart to persist"})
+                return _safe_json({"ok": True, "max_concurrent": count, "note": "Runtime change only — restart to persist"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
         def worker_drain() -> str:
-            """Drain the worker queue â€” wait for running tasks to finish."""
+            """Drain the worker queue — wait for running tasks to finish."""
             tq = _get_wtq()
             running = tq.list_running() if hasattr(tq, "list_running") else []
             return _safe_json({"running_before_drain": len(running), "status": "drained", "note": "Tasks will complete naturally"})
@@ -3332,7 +3333,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def worker_heartbeat(task_id: str) -> str:
-            """Send a worker heartbeat â€” update timestamp in episodic memory."""
+            """Send a worker heartbeat — update timestamp in episodic memory."""
             try:
                 from core.memory.episodic import EpisodicMemory
                 mem = EpisodicMemory()
@@ -3359,7 +3360,7 @@ class Test{cls_name}:
 
         @mcp.tool
         def worker_migrate(target_queue: str = "") -> str:
-            """Migrate workers to new queue (stub â€” single queue system)."""
+            """Migrate workers to new queue (stub — single queue system)."""
             return _safe_json({"status": "stub", "note": "VECTOR uses a single task queue. Re-submit tasks to redistribute."})
 
         @mcp.tool
@@ -3375,12 +3376,12 @@ class Test{cls_name}:
 
         @mcp.tool
         def worker_import(path: str) -> str:
-            """Import worker state from JSON (stub â€” state restored from queue)."""
+            """Import worker state from JSON (stub — state restored from queue)."""
             try:
                 import json
                 with open(path) as f:
                     data = json.load(f)
-                return _safe_json({"ok": True, "imported": path, "task_count": len(data.get("tasks", [])), "note": "Tasks are ephemeral â€” use worker_submit to re-create"})
+                return _safe_json({"ok": True, "imported": path, "task_count": len(data.get("tasks", [])), "note": "Tasks are ephemeral — use worker_submit to re-create"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
     except ImportError as e:
@@ -3388,7 +3389,7 @@ class Test{cls_name}:
         for n, d in [("worker_list", "List workers"), ("worker_status", "Worker status"), ("worker_submit", "Submit worker"), ("worker_cancel", "Cancel worker"), ("worker_metrics", "Worker metrics"), ("worker_health", "Worker health"), ("worker_queue", "Worker queue"), ("worker_restart", "Restart worker"), ("worker_retry", "Retry worker"), ("worker_assign", "Assign worker"), ("worker_reset", "Reset workers"), ("worker_pause", "Pause worker"), ("worker_resume", "Resume worker"), ("worker_priority", "Change priority"), ("worker_logs", "Worker logs"), ("worker_stop", "Stop worker"), ("worker_start", "Start worker"), ("worker_scale", "Scale workers"), ("worker_drain", "Drain queue"), ("worker_flush", "Flush tasks"), ("worker_timeout", "Set timeout"), ("worker_heartbeat", "Heartbeat"), ("worker_checkpoint", "Checkpoint"), ("worker_migrate", "Migrate workers"), ("worker_export", "Export state"), ("worker_import", "Import state")]:
             _reg(mcp, n, d)
 
-    # â”€â”€ config_* (26) â€” wired to core/config.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â”€â”€ config_* (26) — wired to core/config.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.config import CONFIG as _CONFIG, VectorSettings as _VectorSettings
 
@@ -3496,7 +3497,7 @@ class Test{cls_name}:
         def config_reset() -> str:
             """Reset config to defaults."""
             defaults = _VectorSettings()
-            return _safe_json({"status": "defaults_shown", "note": "Config is read-only at runtime â€” update .env file to persist changes"})
+            return _safe_json({"status": "defaults_shown", "note": "Config is read-only at runtime — update .env file to persist changes"})
 
         @mcp.tool
         def config_export() -> str:
@@ -3541,7 +3542,7 @@ class Test{cls_name}:
                     if k in _CONFIG:
                         _CONFIG[k] = v
                         applied.append(k)
-                return _safe_json({"ok": True, "applied": applied, "note": "Changes are runtime-only â€” update .env to persist"})
+                return _safe_json({"ok": True, "applied": applied, "note": "Changes are runtime-only — update .env to persist"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
@@ -3595,7 +3596,7 @@ class Test{cls_name}:
             """Set a VECTOR config value (runtime only, not persisted)."""
             if key in _CONFIG:
                 _CONFIG[key] = value
-                return _safe_json({"ok": True, "key": key, "note": "Runtime-only â€” update .env to persist"})
+                return _safe_json({"ok": True, "key": key, "note": "Runtime-only — update .env to persist"})
             return _safe_json({"error": f"Unknown config key: {key}"})
 
         @mcp.tool
@@ -3628,18 +3629,18 @@ def _add_claims_tools(mcp) -> None:
 
         @mcp.tool
         async def claim_task(issue_id: str, agent_id: str, agent_name: str, title: str = "", priority: str = "medium") -> str:
-            """Claim a task for a VECTOR agent â€” registers distributed ownership."""
+            """Claim a task for a VECTOR agent — registers distributed ownership."""
             result = _claim(issue_id, agent_id, agent_name, capabilities=[], title=title, priority=priority)
             return _json.dumps(result)
 
         @mcp.tool
         async def release_task(issue_id: str, agent_id: str) -> str:
-            """Release a task claim â€” makes it available for other districts."""
+            """Release a task claim — makes it available for other districts."""
             return _json.dumps(_release(issue_id, agent_id))
 
         @mcp.tool
         async def list_claims(agent_id: str = "") -> str:
-            """List active task claims â€” optionally filter by agent_id."""
+            """List active task claims — optionally filter by agent_id."""
             return _json.dumps(_list(agent_id or None))
 
         @mcp.tool
@@ -3764,7 +3765,7 @@ def _add_email_tools(mcp) -> None:
     """Register email tools from agentic-inbox (13 tools).
 
     Mirrors EmailMCP from cloud/email/workers/mcp/index.ts.
-    Clients: Claude Code, Cursor â€” connect via /mcp endpoint.
+    Clients: Claude Code, Cursor — connect via /mcp endpoint.
     """
     import json as _json
 
@@ -3813,7 +3814,7 @@ def _add_email_tools(mcp) -> None:
         @mcp.tool
         def email_draft_reply(original_email_id: str, to: str, subject: str, body: str) -> str:
             """Draft a reply to an existing email. Saves to Drafts folder. Does NOT send.
-            Body must be plain text â€” no HTML, no markdown."""
+            Body must be plain text — no HTML, no markdown."""
             try:
                 result = _email_agent.draft_reply(original_email_id, to, subject, body)
                 return _json.dumps(result)
@@ -3890,7 +3891,7 @@ def _add_email_tools(mcp) -> None:
 
         @mcp.tool
         def email_verify_draft(body: str) -> str:
-            """Verify a draft email body â€” removes agent artifacts. Returns cleaned body."""
+            """Verify a draft email body — removes agent artifacts. Returns cleaned body."""
             try:
                 from core.email.ai_security import verify_draft
                 cleaned = verify_draft(body)
@@ -3920,13 +3921,13 @@ def main():
     if args.transport == "sse":
         mcp.run(transport="sse", host=args.host, port=args.port)
     else:
-        mcp.run()  # stdio â€” default for Claude Code integration
+        mcp.run()  # stdio — default for Claude Code integration
 
 
 def _add_research_tools(mcp) -> None:
     """Register deep research tools (4 tools) using VECTOR Research Engine.
 
-    All research uses local Ollama models (VECTOR Rule 11 â€” no cloud API).
+    All research uses local Ollama models (VECTOR Rule 11 — no cloud API).
     Default search: DuckDuckGo + Wikipedia + ArXiv (no API key required).
     """
     import json as _json
@@ -4015,13 +4016,13 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     if not _FASTMCP_AVAILABLE:
-        print("âš ï¸  fastmcp not installed â€” install with: pip install fastmcp")
+        print("âš ï¸  fastmcp not installed — install with: pip install fastmcp")
         print("   Verifying server scaffold only...")
         print("âœ… mcp_server.py scaffold OK (fastmcp not installed)")
     else:
         mcp = _make_server()
         tools = [t for t in dir(mcp) if not t.startswith("_")]
-        print(f"âœ… mcp_server.py OK â€” {mcp.name} server built")
+        print(f"âœ… mcp_server.py OK — {mcp.name} server built")
         print("   Tools exposed: recall_memory, store_memory, get_world_state, get_goals,")
         print("                  search_web, mine_reddit, read_paper, convene_council,")
         print("                  review_code, git_status, karpathy_session, karpathy_streak,")
