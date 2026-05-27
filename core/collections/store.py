@@ -443,9 +443,13 @@ class CollectionEngine:
         logger.info(f"[VECTOR][collections] deleted collection {name!r}")
         return True
 
-    # delegation helpers used by the API router
+    # delegation helpers used by the API router (fire hooks when configured)
     def create_record(self, name: str, data: dict, record_id=None) -> dict:
-        return self.store.create(self._require(name), data, record_id)
+        coll = self._require(name)
+        data = self._before("create", name, data=dict(data))
+        rec = self.store.create(coll, data, record_id)
+        self._after("create", name, record_id=rec["id"], record=rec)
+        return rec
 
     def get_record(self, name: str, record_id: str):
         return self.store.get(self._require(name), record_id)
@@ -454,10 +458,40 @@ class CollectionEngine:
         return self.store.list(self._require(name), **kw)
 
     def update_record(self, name: str, record_id: str, data: dict):
-        return self.store.update(self._require(name), record_id, data)
+        coll = self._require(name)
+        data = self._before("update", name, record_id=record_id, data=dict(data))
+        rec = self.store.update(coll, record_id, data)
+        if rec is not None:
+            self._after("update", name, record_id=record_id, record=rec)
+        return rec
 
     def delete_record(self, name: str, record_id: str) -> bool:
-        return self.store.delete(self._require(name), record_id)
+        coll = self._require(name)
+        self._before("delete", name, record_id=record_id)
+        ok = self.store.delete(coll, record_id)
+        if ok:
+            self._after("delete", name, record_id=record_id)
+        return ok
+
+    # ── hook firing (no-ops when self.hooks is None) ──────────────────────────
+    def _before(self, action: str, name: str, *, record_id=None, data=None):
+        if not self.hooks:
+            return data
+        from core.collections.hooks import HookContext, HookCancelled
+        ctx = HookContext(collection=name, action=action, phase="before",
+                          record_id=record_id, data=data)
+        self.hooks.fire(f"before_{action}", ctx)
+        if ctx.cancelled:
+            raise HookCancelled(ctx.cancel_reason or f"{action} cancelled by hook")
+        return ctx.data
+
+    def _after(self, action: str, name: str, *, record_id=None, record=None):
+        if not self.hooks:
+            return
+        from core.collections.hooks import HookContext
+        self.hooks.fire(f"after_{action}", HookContext(
+            collection=name, action=action, phase="after",
+            record_id=record_id, record=record))
 
     def _require(self, name: str) -> Collection:
         coll = self.get_collection(name)
