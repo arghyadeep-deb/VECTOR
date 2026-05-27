@@ -1,6 +1,16 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-27 — nango OAuth improvements (80+ provider YAML registry, absolute expiry timestamps, auto-refresh, OAuth 1.0a)
+> Last updated: 2026-05-28 — OpenWA-main absorption (HMAC webhook signing, bulk message sender, WhatsApp Business Cloud API extensions)
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+---
+
+## Absorbed Repos — Session 2026-05-28 ✅ COMPLETE
+
+| Repo | What was absorbed (reimplemented in Python — zero foreign code copied) | Python Location | Status |
+|------|----------------------------------------------------------------------|-----------------|--------|
+| OpenWA-main (TypeScript/Node.js NestJS, MIT) | **Not absorbable as a whole** — core is `whatsapp-web.js` (Puppeteer reverse-engineering of WhatsApp Web; TypeScript-only, violates WhatsApp ToS for production, would require 200–400h to reimplement). VECTOR already has: `core/audit/` (MerkleAuditChain), `core/collections/storage.py` (Local+S3), 30+ channel adapters including WhatsApp Cloud API. Three genuine Python-portable gaps absorbed: **(1) HMAC-SHA256 webhook signing** (`core/engine/webhook/hmac_signer.py`) — `WebhookSigner.sign(body, secret)` → `sha256=<hex>`, constant-time `verify()`, `signed_headers()` producing X-Signature-256+X-Delivery-Id+X-Timestamp; `WebhookDelivery` with retry+backoff; upgraded `vectorcode/src/channels/webhook.py` to use HMAC instead of raw secret header. **(2) Bulk message scheduler** (`vectorcode/src/channels/bulk_sender.py`) — `BulkSender(channel)` with per-provider rate limits (WhatsApp 80msg/s, Telegram 30, Slack 1, Discord 5, default 2); `send_bulk(messages, dry_run=False)` → `BulkResult(sent, failed, skipped, success_rate, elapsed_seconds)`; `fail_fast` mode; configurable rate_limit_override. **(3) WhatsApp Business Cloud API extensions** (`vectorcode/src/channels/whatsapp_business.py`) — `WhatsAppBusinessChannel` extends `WhatsAppChannel` with: `send_template()` (HSM), `send_image/video/audio/document/sticker()` (media types), `send_reaction()/remove_reaction()` (emoji reactions), `send_interactive_buttons()` (max 3, caps at 3), `send_interactive_list()` (list picker), `send_channel_message()` (Channels/Newsletter API). Skipped: whatsapp-web.js Puppeteer engine, React dashboard, TypeORM migrations, NestJS DI patterns, QR lifecycle (all tied to unofficial reverse-engineering). | `core/engine/webhook/__init__.py`, `core/engine/webhook/hmac_signer.py`, `vectorcode/src/channels/bulk_sender.py`, `vectorcode/src/channels/whatsapp_business.py`, upgraded `vectorcode/src/channels/webhook.py` | ✅ |
+
+Verified: `tests/test_openwa_absorption.py` 50 passed (WebhookSigner sign/verify/constant-time/headers; WebhookDelivery success/4xx-no-retry/5xx-retry/signature-in-headers/fan-out/network-error; WebhookChannel HMAC upgrade; BulkSender dry-run/success/partial/fail-fast/empty/success-rate/rate-limits/override/exception/elapsed; WhatsAppBusinessChannel no-token graceful/template/image/reaction/button-cap/video/document/remove-reaction/api-error/inheritance/registry).
 
 ---
 
