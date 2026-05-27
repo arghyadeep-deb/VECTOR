@@ -21,6 +21,7 @@ if not Path("tests").exists():
 FAST_TESTS = [
     "tests/test_voice_cloning.py",
     "tests/test_collections.py",
+    "tests/test_browser_absorption.py",
 ]
 # Filter to tests that actually exist
 targets = [t for t in FAST_TESTS if Path(t).exists()]
