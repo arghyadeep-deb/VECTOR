@@ -343,11 +343,13 @@ def get_profile_store() -> VoiceProfileStore:
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import tempfile, os
+    import sqlite3 as _sqlite3
     sys.stdout.reconfigure(encoding="utf-8")
 
-    # Use a clean in-memory-only store for the self-test so no DB/disk state leaks
-    store = VoiceProfileStore(engine=None, storage=None)
+    # Use a fresh in-memory CollectionEngine so no persistent DB state leaks
+    from core.collections import CollectionEngine as _CE
+    _conn = _sqlite3.connect(":memory:", check_same_thread=False)
+    store = VoiceProfileStore(engine=_CE(conn=_conn), storage=None)
 
     # create
     p = VoiceProfile(
