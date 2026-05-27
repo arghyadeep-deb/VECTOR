@@ -163,5 +163,56 @@ def test_auth_collection_has_identity_fields(engine):
     assert "password" not in rec            # password never returned
 
 
+# ── migrations ─────────────────────────────────────────────────────────────
+def _make_runner(conn):
+    from core.collections.migrations import MigrationRunner, Migration, add_column_if_missing
+    reg = {}
+    r = MigrationRunner(conn, registry=reg)
+    r.register(Migration(
+        id="0001_create",
+        up=lambda c: c.execute("CREATE TABLE widgets (id TEXT PRIMARY KEY)"),
+        down=lambda c: c.execute("DROP TABLE widgets"),
+    ))
+    r.register(Migration(
+        id="0002_add_color",
+        up=lambda c: add_column_if_missing(c, "widgets", "color", "TEXT"),
+        down=lambda c: None,
+    ))
+    return r
+
+
+def test_migration_apply_pending(conn):
+    from core.collections.migrations import table_exists, column_exists
+    r = _make_runner(conn)
+    applied = r.apply_pending()
+    assert applied == ["0001_create", "0002_add_color"]
+    assert table_exists(conn, "widgets")
+    assert column_exists(conn, "widgets", "color")
+    assert r.apply_pending() == []          # idempotent
+
+
+def test_migration_revert_and_reapply(conn):
+    r = _make_runner(conn)
+    r.apply_pending()
+    assert r.revert(steps=1) == ["0002_add_color"]
+    assert "0002_add_color" not in r.applied_ids()
+    assert r.apply_pending() == ["0002_add_color"]
+
+
+def test_migration_full_revert_drops_table(conn):
+    from core.collections.migrations import table_exists
+    r = _make_runner(conn)
+    r.apply_pending()
+    r.revert(steps=2)
+    assert not table_exists(conn, "widgets")
+
+
+def test_add_column_if_missing_idempotent(conn):
+    from core.collections.migrations import add_column_if_missing
+    conn.execute("CREATE TABLE t (id TEXT)")
+    assert add_column_if_missing(conn, "t", "extra", "INTEGER") is True
+    assert add_column_if_missing(conn, "t", "extra", "INTEGER") is False
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
