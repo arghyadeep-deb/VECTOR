@@ -786,6 +786,23 @@ CONFIG: dict = {
         "admin_key":  os.environ.get("STEALTH_BROWSER_ADMIN_KEY", ""),
         "timeout_sec": 30,
     },
+    "browser": {
+        # Named Playwright auth profiles (login-once, reuse-later)
+        "auth_profiles_dir": os.environ.get(
+            "VECTOR_BROWSER_AUTH_DIR",
+            str(Path.home() / ".vector" / "browser_auth"),
+        ),
+        # DOM pruner — max interactive elements kept per observation (18k→~500 tokens)
+        "dom_pruner_max_elements": 20,
+        # PII scrubber switches
+        "pii_scrub_enabled":      True,
+        "pii_scrub_screenshot":   True,
+        "pii_scrub_network":      True,
+        "pii_scrub_console":      True,
+        "pii_scrub_replacement":  "[REDACTED]",
+        "pii_scrub_patterns":     "",   # empty = all default patterns (excludes noisy generic_hex_token)
+        "pii_scrub_audit_report": True,
+    },
     "vision_control": {
         "max_loop":  25,
         "factors":   [1000, 1000],   # coordinate normalization (VLM outputs 0-1000 range)
