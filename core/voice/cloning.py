@@ -335,7 +335,7 @@ if __name__ == "__main__":
     a = np.ones(5000, dtype=np.float32)
     b = np.ones(5000, dtype=np.float32) * 0.5
     merged = crossfade_arrays(a, b, overlap_samples=500)
-    assert merged.shape[0] == 5000 + 5000 - 500 + 500  # a[:-n] + blend + b[n:]
+    assert merged.shape[0] == 5000 + 5000 - 500  # a[:-n]=4500 + blend=500 + b[n:]=4500
 
     # crossfade with very short arrays (no-overlap fallback)
     short = crossfade_arrays(np.array([1.0], dtype=np.float32), np.array([2.0], dtype=np.float32), 5000)
