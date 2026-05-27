@@ -78,6 +78,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] episodic_memory failed: {e}")
 
+    # Collections engine (PocketBase absorption): run pending migrations + expose engine.
+    try:
+        if (CONFIG.get("collections", {}) or {}).get("enabled", True):
+            from core.collections.migrations import MigrationRunner
+            from core.collections import CollectionEngine, AuthService, get_hooks
+            MigrationRunner().apply_pending()
+            app.state.collection_engine = CollectionEngine(hooks=get_hooks())
+            app.state.collection_auth = AuthService(app.state.collection_engine)
+            logger.info(
+                f"[VECTOR][api] collections engine ready - "
+                f"{len(app.state.collection_engine.list_collections())} collection(s)"
+            )
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] collections engine failed: {e}")
+
     try:
         import httpx
         async with httpx.AsyncClient(timeout=5.0) as client:
