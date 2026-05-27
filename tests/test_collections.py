@@ -258,5 +258,91 @@ def test_storage_thumbnail():
     assert w <= 50 and h <= 50
 
 
+# ── auth + RBAC ──────────────────────────────────────────────────────────────
+_SECRET = "x" * 40   # >=32 bytes to satisfy PyJWT HS256
+
+
+def test_password_hash_roundtrip():
+    from core.collections.auth import PasswordHasher
+    h = PasswordHasher.hash("hunter2pass")
+    assert h != "hunter2pass"
+    assert PasswordHasher.verify("hunter2pass", h)
+    assert not PasswordHasher.verify("wrong", h)
+
+
+def test_jwt_issue_verify_refresh():
+    from core.collections.auth import JWTManager
+    jm = JWTManager(secret=_SECRET, access_ttl=3600)
+    pair = jm.issue_pair("rec1", "users", extra={"email": "a@b.com"})
+    claims = jm.verify(pair["token"], expected_type="access")
+    assert claims["sub"] == "rec1" and claims["email"] == "a@b.com"
+    new = jm.refresh(pair["refresh_token"])
+    assert jm.verify(new["token"], expected_type="access")["sub"] == "rec1"
+
+
+def test_jwt_expired_rejected():
+    from core.collections.auth import JWTManager, AuthError
+    expired = JWTManager(secret=_SECRET, access_ttl=-10).issue_pair("r", "users")
+    with pytest.raises(AuthError):
+        JWTManager(secret=_SECRET).verify(expired["token"])
+
+
+def test_jwt_wrong_type_rejected():
+    from core.collections.auth import JWTManager, AuthError
+    jm = JWTManager(secret=_SECRET)
+    pair = jm.issue_pair("r", "users")
+    with pytest.raises(AuthError):
+        jm.verify(pair["refresh_token"], expected_type="access")
+
+
+@pytest.mark.parametrize("rule,record,auth,expected", [
+    ("", None, None, True),                                              # public
+    (None, None, None, False),                                          # admin-only
+    ("@request.auth.id != ''", None, {"id": "u1"}, True),
+    ("@request.auth.id != ''", None, None, False),
+    ("owner = @request.auth.id", {"owner": "u1"}, {"id": "u1"}, True),
+    ("owner = @request.auth.id", {"owner": "u2"}, {"id": "u1"}, False),
+    ('status = "public" || @request.auth.role = "admin"', {"status": "x"}, {"role": "admin"}, True),
+    ("views >= 10", {"views": 12}, None, True),
+    ("views >= 10", {"views": 3}, None, False),
+    ('title ~ "ell"', {"title": "hello"}, None, True),
+])
+def test_rule_engine(rule, record, auth, expected):
+    from core.collections.auth import RuleEngine
+    assert RuleEngine().evaluate(rule, record=record, auth=auth) is expected
+
+
+def test_rule_engine_rejects_code_injection():
+    from core.collections.auth import RuleEngine, AuthError
+    with pytest.raises(AuthError):
+        RuleEngine().evaluate("__import__('os').system('echo pwned')")
+
+
+def test_auth_service_register_authenticate(conn):
+    from core.collections.auth import AuthService, JWTManager, AuthError
+    eng = CollectionEngine(conn)
+    eng.create_collection(Collection(name="users", type="auth",
+                                     fields=[{"name": "name", "type": "text"}]))
+    svc = AuthService(eng, jwt=JWTManager(secret=_SECRET))
+    user = svc.register("users", {"email": "a@b.com", "password": "longpass123", "name": "A"})
+    assert "password" not in user
+    res = svc.authenticate("users", "a@b.com", "longpass123")
+    assert res["record"]["email"] == "a@b.com"
+    assert svc.identity(res["token"])["email"] == "a@b.com"
+    with pytest.raises(AuthError):
+        svc.authenticate("users", "a@b.com", "wrongpass")
+
+
+def test_auth_service_authorize_rule(conn):
+    from core.collections.auth import AuthService, JWTManager
+    eng = CollectionEngine(conn)
+    eng.create_collection(Collection(
+        name="docs", fields=[{"name": "owner", "type": "text"}],
+        update_rule="owner = @request.auth.id"))
+    svc = AuthService(eng, jwt=JWTManager(secret=_SECRET))
+    assert svc.authorize("docs", "update", record={"owner": "u1"}, auth={"id": "u1"}) is True
+    assert svc.authorize("docs", "update", record={"owner": "u1"}, auth={"id": "u2"}) is False
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
