@@ -89,6 +89,8 @@ class ElevenLabsTTS:
         text: str,
         voice_id: str | None = None,
         output_format: str = "mp3_44100_128",
+        *,
+        prefer_local: bool | None = None,
     ) -> bytes:
         """
         Synthesize text to audio bytes.
