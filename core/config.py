@@ -844,6 +844,26 @@ CONFIG: dict = {
         "pagespeed_key":         _s.PAGESPEED_API_KEY.get_secret_value(),
     },
     "home_assistant": _s.home_assistant.model_dump(),
+    # ── Collections engine (PocketBase absorption) ───────────────────────────
+    "collections": {
+        "enabled": os.environ.get("VECTOR_COLLECTIONS_ENABLED", "1") in ("1", "true", "True"),
+        "storage": {
+            "backend":       os.environ.get("VECTOR_COLLECTIONS_BACKEND", "local"),  # local | s3
+            "local_root":    os.environ.get("VECTOR_COLLECTIONS_ROOT",
+                                            str(Path(_s.VECTOR_HOME) / "collections_files")),
+            "s3_bucket":     os.environ.get("VECTOR_S3_BUCKET", ""),
+            "s3_region":     os.environ.get("VECTOR_S3_REGION", ""),
+            "s3_endpoint":   os.environ.get("VECTOR_S3_ENDPOINT", ""),
+            "s3_access_key": os.environ.get("VECTOR_S3_ACCESS_KEY", ""),
+            "s3_secret_key": os.environ.get("VECTOR_S3_SECRET_KEY", ""),
+            "s3_public_base": os.environ.get("VECTOR_S3_PUBLIC_BASE", ""),
+        },
+        "jwt": {
+            "secret":          _s.VECTOR_JWT_SECRET.get_secret_value(),
+            "access_ttl_sec":  int(os.environ.get("VECTOR_JWT_ACCESS_TTL", "900")),
+            "refresh_ttl_sec": int(os.environ.get("VECTOR_JWT_REFRESH_TTL", "1209600")),
+        },
+    },
 }
 
 # ── Afterburner: inject CONFIG values into os.environ for absorbed code ──────
