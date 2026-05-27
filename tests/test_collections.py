@@ -214,5 +214,49 @@ def test_add_column_if_missing_idempotent(conn):
     assert add_column_if_missing(conn, "t", "extra", "INTEGER") is False
 
 
+# ── file storage ─────────────────────────────────────────────────────────────
+@pytest.fixture()
+def storage(tmp_path):
+    from core.collections.storage import FileStorage, LocalDriver
+    return FileStorage(LocalDriver(str(tmp_path / "files")))
+
+
+def test_storage_put_get_delete(storage):
+    meta = storage.put("docs/a.txt", b"hello", content_type="text/plain")
+    assert meta["size"] == 5
+    assert storage.get("docs/a.txt") == b"hello"
+    assert storage.exists("docs/a.txt")
+    assert "docs/a.txt" in storage.list()
+    assert storage.delete("docs/a.txt") is True
+    assert not storage.exists("docs/a.txt")
+
+
+@pytest.mark.parametrize("bad", ["../escape", "/etc/passwd", "C:/windows", "a/../../b"])
+def test_storage_rejects_unsafe_keys(bad):
+    from core.collections.storage import safe_key, StorageError
+    with pytest.raises(StorageError):
+        safe_key(bad)
+
+
+def test_storage_normalizes_key():
+    from core.collections.storage import safe_key
+    assert safe_key("a//b/./c") == "a/b/c"
+
+
+def test_storage_thumbnail():
+    import io
+    PIL = pytest.importorskip("PIL")
+    from PIL import Image
+    import tempfile
+    from core.collections.storage import FileStorage, LocalDriver
+    fs = FileStorage(LocalDriver(tempfile.mkdtemp()))
+    buf = io.BytesIO()
+    Image.new("RGB", (200, 100), (0, 128, 255)).save(buf, format="PNG")
+    fs.put("p.png", buf.getvalue(), content_type="image/png")
+    thumb = fs.thumbnail("p.png", 50, 50)
+    w, h = Image.open(io.BytesIO(thumb)).size
+    assert w <= 50 and h <= 50
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
