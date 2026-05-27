@@ -141,7 +141,7 @@ class MigrationRunner:
         for mig_id in done[:max(0, steps)]:
             mig = self.registry.get(mig_id)
             if mig is None or mig.down is None:
-                logger.warning(f"[VECTOR][migrations] no down() for {mig_id} — skipping revert")
+                logger.warning(f"[VECTOR][migrations] no down() for {mig_id} - skipping revert")
                 continue
             with self.conn:
                 mig.down(self.conn)
