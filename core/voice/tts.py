@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
-# Kokoro-supported voices only. bn/as not supported by Kokoro â€” routed to pyttsx3 fallback.
+# Kokoro-supported voices only. bn/as not supported by Kokoro  -  routed to pyttsx3 fallback.
 _KOKORO_VOICE_MAP = {
     "en": "bf_emma",
     "hi": "hf_alpha",
@@ -59,51 +59,51 @@ class VoiceTTS:
             self._init_pyttsx3()
 
     def _init_elevenlabs(self) -> bool:
-        “””
+        """
         Try ElevenLabs streaming TTS (C4). Opt-in: needs ELEVENLABS_API_KEY +
         CONFIG voice.elevenlabs_streaming = True. Returns True if ready; never raises.
-        “””
-        if not CONFIG.get(“voice”, {}).get(“elevenlabs_streaming”, False):
+        """
+        if not CONFIG.get("voice", {}).get("elevenlabs_streaming", False):
             return False
-        api_key = CONFIG.get(“api_keys”, {}).get(“elevenlabs_key”, “”)
+        api_key = CONFIG.get("api_keys", {}).get("elevenlabs_key", "")
         if not api_key:
-            logger.debug(“[VECTOR][tts] ElevenLabs streaming disabled — no API key”)
+            logger.debug("[VECTOR][tts] ElevenLabs streaming disabled — no API key")
             return False
         try:
             from elevenlabs.client import ElevenLabs  # type: ignore
             self._el_client = ElevenLabs(api_key=api_key)
-            self._el_voice_id = CONFIG.get(“api_keys”, {}).get(
-                “elevenlabs_voice_id”, “pNInz6obpgDQGcFmaJgB”
+            self._el_voice_id = CONFIG.get("api_keys", {}).get(
+                "elevenlabs_voice_id", "pNInz6obpgDQGcFmaJgB"
             )
-            self._el_model = CONFIG.get(“voice”, {}).get(
-                “elevenlabs_model”, “eleven_turbo_v2”
+            self._el_model = CONFIG.get("voice", {}).get(
+                "elevenlabs_model", "eleven_turbo_v2"
             )
             self._el_prosody = {
-                “stability”:        CONFIG.get(“voice”, {}).get(“el_stability”, 0.75),
-                “similarity_boost”: CONFIG.get(“voice”, {}).get(“el_similarity_boost”, 0.85),
-                “style”:            CONFIG.get(“voice”, {}).get(“el_style”, 0.3),
-                “use_speaker_boost”: True,
+                "stability":        CONFIG.get("voice", {}).get("el_stability", 0.75),
+                "similarity_boost": CONFIG.get("voice", {}).get("el_similarity_boost", 0.85),
+                "style":            CONFIG.get("voice", {}).get("el_style", 0.3),
+                "use_speaker_boost": True,
             }
             logger.info(
-                “[VECTOR][tts] ElevenLabs streaming ready (model={} voice={})”,
+                "[VECTOR][tts] ElevenLabs streaming ready (model={} voice={})",
                 self._el_model, self._el_voice_id,
             )
             return True
         except ImportError:
-            logger.debug(“[VECTOR][tts] elevenlabs package not installed — skipping”)
+            logger.debug("[VECTOR][tts] elevenlabs package not installed — skipping")
             return False
         except Exception as e:
-            logger.debug(“[VECTOR][tts] ElevenLabs init failed: {}”, e)
+            logger.debug("[VECTOR][tts] ElevenLabs init failed: {}", e)
             return False
 
     def _speak_elevenlabs_stream(self, text: str) -> bool:
-        “””
+        """
         Stream ElevenLabs audio to sounddevice with barge-in support.
 
         Collects PCM chunks from the ElevenLabs streaming API, checking the
         _speaking flag between chunks so stop_speaking() takes effect immediately.
         Returns True on success, False on any error (caller falls through to local TTS).
-        “””
+        """
         if not self._el_ok or self._el_client is None:
             return False
         try:
@@ -119,12 +119,12 @@ class VoiceTTS:
                 text=text,
                 model_id=self._el_model,
                 voice_settings=self._el_prosody,
-                output_format=”pcm_22050”,
+                output_format="pcm_22050",
             )
 
             for chunk in stream:
                 if not self._speaking:
-                    logger.debug(“[VECTOR][tts] ElevenLabs stream cut by barge-in”)
+                    logger.debug("[VECTOR][tts] ElevenLabs stream cut by barge-in")
                     return True
                 if chunk:
                     buf.write(chunk)
@@ -141,20 +141,20 @@ class VoiceTTS:
                 while sd.get_stream().active:
                     if not self._speaking:
                         sd.stop()
-                        logger.debug(“[VECTOR][tts] ElevenLabs playback cut by barge-in”)
+                        logger.debug("[VECTOR][tts] ElevenLabs playback cut by barge-in")
                         break
                     time.sleep(0.05)
 
             self._speaking = False
-            logger.info(“[VECTOR][tts] ElevenLabs stream complete ({} chars)”, len(text))
+            logger.info("[VECTOR][tts] ElevenLabs stream complete ({} chars)", len(text))
             return True
         except Exception as e:
             self._speaking = False
-            logger.warning(“[VECTOR][tts] ElevenLabs streaming failed: {} — falling through to local TTS”, e)
+            logger.warning("[VECTOR][tts] ElevenLabs streaming failed: {} — falling through to local TTS", e)
             return False
 
     def _init_piper(self):
-        “””Try Piper TTS (piper-tts package) â€” fast, local, high quality.”””
+        """Try Piper TTS (piper-tts package)  -  fast, local, high quality."""
         try:
             from piper import PiperVoice  # type: ignore
             import wave, io
@@ -184,7 +184,7 @@ class VoiceTTS:
             fp16_model = self._model_dir / "kokoro-v1.0.fp16-gpu.onnx"
             model_file = fp16_model if fp16_model.exists() else cpu_model
             if not model_file.exists() or not voices_file.exists():
-                logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir} â€” using pyttsx3 fallback")
+                logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir}  -  using pyttsx3 fallback")
                 return
             self._kokoro = Kokoro(str(model_file), str(voices_file))
             self._kokoro_ok = True
@@ -215,8 +215,11 @@ class VoiceTTS:
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-    def speak(self, text: str, lang: str = "en") -> None:
+    def speak(self, text: str, lang: str = "en", profile_name: str | None = None) -> None:
         if not text:
+            return
+        # Local voice cloning — highest priority when a cloned profile is active
+        if self._speak_clone(text, profile_name=profile_name):
             return
         # C4: ElevenLabs streaming (opt-in cloud TTS, English only)
         if self._el_ok and lang == "en":
@@ -229,7 +232,7 @@ class VoiceTTS:
             self._speak_kokoro(text, lang)
         else:
             if lang in _KOKORO_UNSUPPORTED:
-                logger.info(f"[VECTOR][tts] {lang} not in Kokoro â€” using gTTS fallback")
+                logger.info(f"[VECTOR][tts] {lang} not in Kokoro  -  using gTTS fallback")
                 self._speak_gtts(text, lang)
             else:
                 self._speak_pyttsx3(text)
@@ -253,7 +256,7 @@ class VoiceTTS:
             sd.wait()
             self._speaking = False
         except Exception as e:
-            logger.warning(f"[VECTOR][tts] Piper speak failed: {e} â€” falling back to pyttsx3")
+            logger.warning(f"[VECTOR][tts] Piper speak failed: {e}  -  falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_kokoro(self, text: str, lang: str) -> None:
@@ -286,7 +289,7 @@ class VoiceTTS:
             self._speaking = False
         except Exception as e:
             self._speaking = False
-            logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} â€” falling back to pyttsx3")
+            logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e}  -  falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_gtts(self, text: str, lang: str) -> None:
@@ -303,7 +306,7 @@ class VoiceTTS:
 
             cache_key = (text, lang)
             if cache_key in _GTTS_CACHE:
-                # Cache hit â€” no HTTP call needed
+                # Cache hit  -  no HTTP call needed
                 mp3_bytes = _GTTS_CACHE[cache_key]
                 logger.debug(f"[VECTOR][tts] gTTS cache hit for '{text[:30]}'")
             else:
@@ -329,7 +332,7 @@ class VoiceTTS:
                 except Exception:
                     logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         except Exception as e:
-            logger.error(f"[VECTOR][tts] gTTS speak failed: {e} â€” falling back to pyttsx3")
+            logger.error(f"[VECTOR][tts] gTTS speak failed: {e}  -  falling back to pyttsx3")
             self._speak_pyttsx3(text)
 
     def _speak_pyttsx3(self, text: str) -> None:
