@@ -161,9 +161,10 @@ class VoiceProfileStore:
 
     def _ensure_collection(self, engine):
         try:
+            from core.collections import Collection
             col = engine.get_collection(_COLLECTION_NAME)
             if col is None:
-                engine.create_collection({"name": _COLLECTION_NAME, "fields": _PROFILE_FIELDS})
+                engine.create_collection(Collection(name=_COLLECTION_NAME, fields=_PROFILE_FIELDS))
                 logger.info("[VECTOR][voice] created voice_profiles collection")
             self._collection_ready = True
         except Exception as e:
