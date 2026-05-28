@@ -192,7 +192,7 @@ districts:
     - name: malware_hunter
       class: districts.security.malware_hunter.MalwareHunter
       model: vector-focus
-      description: 3-layer malware detection: VT + MIME + LightGBM
+      description: "3-layer malware detection: VT + MIME + LightGBM"
       capabilities: [security, malware, detection]
 
   time_calendar:
