@@ -6,12 +6,9 @@ Offline queue persisted to ~/.vector/messages/pending.json.
 Cron scheduling via APScheduler.
 """
 import json
-import sys
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
