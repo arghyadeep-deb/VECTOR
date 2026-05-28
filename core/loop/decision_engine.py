@@ -11,8 +11,6 @@ import datetime
 import hashlib
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -53,13 +51,13 @@ class DecisionEngine:
     """
     Scores 4 candidates per decision using the 5-factor weighted formula.
     RULE 7: policy.get_score() BEFORE. policy.update_from_outcome() AFTER.
-    ALL candidates logged Ã¢â‚¬â€ including rejected. No silent drops.
+    ALL candidates logged Ã¢â‚¬— including rejected. No silent drops.
 
     Scoring: goal_alignment(30%) + confidence(25%) + policy(20%) +
              urgency(15%) + timing(10%) - cost(5%)
     """
 
-    # Scoring weights Ã¢â‚¬â€ override via CONFIG["decision_weights"] dict
+    # Scoring weights Ã¢â‚¬— override via CONFIG["decision_weights"] dict
     W_GOAL    = CONFIG.get("decision_weights", {}).get("goal",    0.30)
     W_CONF    = CONFIG.get("decision_weights", {}).get("conf",    0.25)
     W_POLICY  = CONFIG.get("decision_weights", {}).get("policy",  0.20)
@@ -83,9 +81,6 @@ class DecisionEngine:
         """ReasoningBank: inject past reasoning chains before scoring (RULE 8)."""
         if self._reasoning_bank is None:
             try:
-                import sys as _sys
-                from pathlib import Path as _Path
-                _sys.path.insert(0, str(_Path(__file__).parent.parent.parent / "vectorcode" / "src"))
                 from reasoning_bank import ReasoningBank
                 self._reasoning_bank = ReasoningBank()
                 self._reasoning_bank.load()
@@ -242,7 +237,7 @@ class DecisionEngine:
             state[2] = candidate.timing_score
             state[3] = candidate.goal_alignment if hasattr(candidate, "goal_alignment") else 0.5
             state[4] = min(1.0, candidate.estimated_cost_inr / 10.0)
-            # Map action_type to index Ã¢â‚¬â€ derive from governor's live task map so new districts are included
+            # Map action_type to index Ã¢â‚¬— derive from governor's live task map so new districts are included
             try:
                 from core.city.governor import DISTRICT_TASK_MAP
                 _ACTION_TYPES = sorted(set(DISTRICT_TASK_MAP.keys()))
@@ -319,7 +314,7 @@ class DecisionEngine:
                     if abs(blended_conf - raw_conf) > 0.05:
                         logger.debug(
                             f"[VECTOR][decision_engine] Epistemic blend {candidate.action_type}: "
-                            f"{raw_conf:.2f} Ã¢â€ â€™ {blended_conf:.2f}"
+                            f"{raw_conf:.2f} Ã¢â€ ’ {blended_conf:.2f}"
                         )
                     candidate.confidence = round(blended_conf, 4)
             except Exception: logger.debug("[VECTOR][decision] exception suppressed")  # epistemic tracker never blocks a decision
@@ -341,7 +336,7 @@ class DecisionEngine:
             + self.W_TIMING * candidate.timing_score
             - self.W_COST * cost_penalty
             + 0.05 * causal_score  # causal-graph influence nudge (Gap 6)
-            + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬â€ RL still learning)
+            + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬— RL still learning)
             - 0.05 * bias_factor   # MetaCognition bias penalty (Gap 8)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
@@ -400,7 +395,7 @@ class DecisionEngine:
         ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
         winner = ranked[0]
 
-        # Log ALL candidates including rejected Ã¢â‚¬â€ RULE 8
+        # Log ALL candidates including rejected Ã¢â‚¬— RULE 8
         mem = self._get_memory()
         for c in ranked:
             status = "winner" if c is winner else "rejected"
@@ -508,7 +503,7 @@ if __name__ == "__main__":
         and 0.0 <= decision.winner.total_score <= 1.0
     )
     print(
-        f"Ã¢Å“â€¦ decision_engine OK Ã¢â‚¬â€ winner={decision.winner.action_type} "
+        f"Ã¢Å“… decision_engine OK Ã¢â‚¬— winner={decision.winner.action_type} "
         f"score={decision.winner.total_score}, {decision.evaluated} evaluated"
         if ok else "Ã¢ÂÅ’ FAILED"
     )
