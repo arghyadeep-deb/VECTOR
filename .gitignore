@@ -71,3 +71,37 @@ vectorcode/code_intel/dist/
 
 # One-time install logs
 aqtinstall.log
+
+# Build artifacts
+build/
+*.egg-info/
+dist/
+
+# Qt/CMake build artifacts inside absorbed repos
+districts/investment/vector_finagent/qt/build/
+
+# Cryptographic key files — never commit private keys
+districts/intelligence/**/*.key
+districts/intelligence/**/wormhole_secure_store.key
+
+# Stale analysis artifacts
+scripts/dead_code_report.json
+scripts/import_graph_report.txt
+baseline_test_results.txt
+_result.json
+
+# Debug/scratch files
+debug*.py
+test_script.py
+add_all_exports.py
+
+# OpenCode artifacts
+.opencode/node_modules/
+.opencode/package-lock.json
+
+# Production verification artifacts
+data/verification/
+
+# Archived prompts (Session 1 cleanup)
+data/archived_prompts/
+
