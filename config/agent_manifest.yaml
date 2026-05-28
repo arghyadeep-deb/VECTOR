@@ -1,0 +1,405 @@
+# VECTOR Agent Manifest — declarative registry of all 57+ district agents
+# Format: each agent maps to a Python class via its fully-qualified import path.
+# ManifestLoader in core/city/declarative_manifest.py reads this file.
+version: "1.0"
+
+districts:
+
+  coding:
+    - name: git_bot
+      class: districts.coding.git_bot.GitBot
+      model: vector-coder
+      description: Git operations — commit, push, diff, PR management
+      capabilities: [git, code_review, github]
+
+    - name: code_reviewer
+      class: districts.coding.code_reviewer.CodeReviewer
+      model: vector-coder
+      description: AST-based code review; circular imports, security patterns
+      capabilities: [code_review, ast_analysis, security]
+
+    - name: architect_bot
+      class: districts.coding.architect_bot.ArchitectBot
+      model: vector-coder
+      description: System design, architecture decisions, dependency graphs
+      capabilities: [architecture, design, diagrams]
+
+    - name: bug_hunter
+      class: districts.coding.bug_hunter.BugHunter
+      model: vector-coder
+      description: Root-cause bug analysis and systematic debugging
+      capabilities: [debugging, root_cause, testing]
+
+    - name: test_writer
+      class: districts.coding.test_writer.TestWriter
+      model: vector-coder
+      description: TDD test generation for Python modules
+      capabilities: [testing, pytest, tdd]
+
+  research:
+    - name: research_hub
+      class: districts.research.research_hub.ResearchHub
+      model: vector-reasoning
+      description: Orchestrates multi-source research workflows
+      capabilities: [research, synthesis, web_search]
+
+    - name: reddit_miner
+      class: districts.research.reddit_miner.RedditMiner
+      model: vector-focus
+      description: Reddit thread mining for signals and trends
+      capabilities: [reddit, social, trends]
+
+    - name: news_aggregator
+      class: districts.research.news_aggregator.NewsAggregator
+      model: vector-focus
+      description: RSS + news API aggregation and summarisation
+      capabilities: [news, rss, summarisation]
+
+    - name: paper_reader
+      class: districts.research.paper_reader.PaperReader
+      model: vector-deep
+      description: ArXiv paper reading and key-insight extraction
+      capabilities: [arxiv, papers, research]
+
+    - name: web_scout
+      class: districts.research.web_scout.WebScout
+      model: vector-focus
+      description: DuckDuckGo search + scrape + summarise
+      capabilities: [web_search, scraping, summarisation]
+
+  governance:
+    - name: llm_council
+      class: districts.governance.llm_council.LLMCouncil
+      model: vector-chairman
+      description: 3-stage deliberative council for high-stakes decisions
+      capabilities: [deliberation, voting, high_stakes]
+      hp_gate: 700
+
+  reflection:
+    - name: daily_reviewer
+      class: districts.reflection.daily_reviewer.DailyReviewer
+      model: vector-reasoning
+      description: 2AM daily review — what happened, what to improve
+      capabilities: [reflection, review, obsidian]
+
+    - name: journal_writer
+      class: districts.reflection.journal_writer.JournalWriter
+      model: vector-reasoning
+      description: Daily journal entry writer → Obsidian vault
+      capabilities: [journaling, obsidian, writing]
+
+    - name: growth_analyst
+      class: districts.reflection.growth_analyst.GrowthAnalyst
+      model: vector-reasoning
+      description: Long-term growth pattern analysis from journal history
+      capabilities: [growth, patterns, analytics]
+
+  finance:
+    - name: expense_tracker
+      class: districts.finance.expense_tracker.ExpenseTracker
+      model: vector-focus
+      description: Tracks and categorises expenses from UPI/SMS data
+      capabilities: [finance, expenses, upi]
+
+    - name: budget_analyst
+      class: districts.finance.budget_analyst.BudgetAnalyst
+      model: vector-reasoning
+      description: Budget analysis, variance tracking, savings projections
+      capabilities: [finance, budgeting, analytics]
+
+    - name: upi_parser
+      class: districts.finance.upi_parser.UPIParser
+      model: vector-ambient
+      description: Parses UPI transaction SMS messages via ADB
+      capabilities: [upi, sms, parsing]
+
+    - name: tax_calendar
+      class: districts.finance.tax_calendar.TaxCalendar
+      model: vector-focus
+      description: Indian FY tax deadlines and reminder system
+      capabilities: [tax, calendar, india]
+
+  health:
+    - name: fatigue_monitor
+      class: districts.health.fatigue_monitor.FatigueMonitor
+      model: vector-focus
+      description: EAR-based eye fatigue scoring from camera feed
+      capabilities: [health, camera, fatigue]
+
+    - name: sleep_tracker
+      class: districts.health.sleep_tracker.SleepTracker
+      model: vector-focus
+      description: Sleep duration inference and quality scoring
+      capabilities: [health, sleep, biometrics]
+
+    - name: exercise_logger
+      class: districts.health.exercise_logger.ExerciseLogger
+      model: vector-focus
+      description: Exercise session logging and streak tracking
+      capabilities: [health, exercise, logging]
+
+  memory_curator:
+    - name: consolidation_bot
+      class: districts.memory_curator.consolidation_bot.ConsolidationBot
+      model: vector-deep
+      description: LightRAG knowledge consolidation from episodic memory
+      capabilities: [memory, lightrag, consolidation]
+
+    - name: pattern_finder
+      class: districts.memory_curator.pattern_finder.PatternFinder
+      model: vector-reasoning
+      description: Cross-memory pattern detection and insight surfacing
+      capabilities: [memory, patterns, insights]
+
+  projects:
+    - name: deadline_watcher
+      class: districts.projects.deadline_watcher.DeadlineWatcher
+      model: vector-focus
+      description: T-7/3/1/0 deadline alerts for active projects
+      capabilities: [projects, deadlines, alerts]
+
+    - name: progress_tracker
+      class: districts.projects.progress_tracker.ProgressTracker
+      model: vector-focus
+      description: Milestone and task completion tracking
+      capabilities: [projects, progress, tracking]
+
+    - name: doc_writer
+      class: districts.projects.doc_writer.DocWriter
+      model: vector-reasoning
+      description: Technical documentation generation (5 doc types)
+      capabilities: [documentation, writing, projects]
+
+    - name: project_planner
+      class: districts.projects.project_planner.ProjectPlanner
+      model: vector-reasoning
+      description: Project scaffolding, timeline, and milestone planning
+      capabilities: [projects, planning, milestones]
+
+  security:
+    - name: threat_scout
+      class: districts.security.threat_scout.ThreatScout
+      model: vector-focus
+      description: Process and network threat scanning
+      capabilities: [security, threat_detection, monitoring]
+
+    - name: node_guard
+      class: districts.security.node_guard.NodeGuard
+      model: vector-focus
+      description: Registry and process integrity monitoring
+      capabilities: [security, registry, processes]
+
+    - name: malware_hunter
+      class: districts.security.malware_hunter.MalwareHunter
+      model: vector-focus
+      description: 3-layer malware detection: VT + MIME + LightGBM
+      capabilities: [security, malware, detection]
+
+  time_calendar:
+    - name: kiit_scraper
+      class: districts.time_calendar.kiit_scraper.KIITScraper
+      model: vector-focus
+      description: Playwright-based KIIT schedule scraper
+      capabilities: [scheduling, playwright, kiit]
+
+    - name: deadline_manager
+      class: districts.time_calendar.deadline_manager.DeadlineManager
+      model: vector-focus
+      description: KIIT deadlines and academic calendar management
+      capabilities: [scheduling, deadlines, academic]
+
+    - name: time_blocker
+      class: districts.time_calendar.time_blocker.TimeBlocker
+      model: vector-focus
+      description: Deep-work time block scheduling via Google Calendar
+      capabilities: [scheduling, calendar, productivity]
+
+  relationships:
+    - name: contact_manager
+      class: districts.relationships.contact_manager.ContactManager
+      model: vector-focus
+      description: Contact book with interaction history tracking
+      capabilities: [relationships, contacts, crm]
+
+    - name: communication_analyst
+      class: districts.relationships.communication_analyst.CommunicationAnalyst
+      model: vector-reasoning
+      description: Communication style analysis and relationship health
+      capabilities: [relationships, communication, analytics]
+
+  privacy:
+    - name: privacy_enforcer
+      class: districts.privacy.privacy_enforcer.PrivacyEnforcer
+      model: vector-focus
+      description: Enforces local-vs-cloud data flow policy
+      capabilities: [privacy, data_flow, enforcement]
+
+    - name: data_flow_auditor
+      class: districts.privacy.data_flow_auditor.DataFlowAuditor
+      model: vector-reasoning
+      description: Audits what data leaves the device and to where
+      capabilities: [privacy, audit, data_flow]
+
+  pattern_detective:
+    - name: habit_finder
+      class: districts.pattern_detective.habit_finder.HabitFinder
+      model: vector-reasoning
+      description: Behaviour pattern detection from daily activity logs
+      capabilities: [patterns, habits, analytics]
+
+    - name: behavior_analyst
+      class: districts.pattern_detective.behavior_analyst.BehaviorAnalyst
+      model: vector-reasoning
+      description: Long-range behaviour analysis and anomaly flagging
+      capabilities: [patterns, behavior, analytics]
+
+  intelligence:
+    - name: vectorintel_agent
+      class: districts.intelligence.vectorintel_agent.VectorIntelAgent
+      model: vector-reasoning
+      description: Cross-district intelligence synthesis (Shadowbroker)
+      capabilities: [intelligence, synthesis, signals]
+
+  news_trends:
+    - name: ai_news_bot
+      class: districts.news_trends.ai_news_bot.AINewsBot
+      model: vector-focus
+      description: Daily AI research news aggregation and briefing
+      capabilities: [news, ai_research, briefing]
+
+    - name: market_trends_bot
+      class: districts.news_trends.market_trends_bot.MarketTrendsBot
+      model: vector-focus
+      description: Market signal monitoring from Reddit, HN, G2
+      capabilities: [news, markets, trends]
+
+    - name: opportunity_spotter
+      class: districts.news_trends.opportunity_spotter.OpportunitySpotter
+      model: vector-reasoning
+      description: Opportunity detection from news and trend signals
+      capabilities: [intelligence, opportunities, signals]
+
+  learning:
+    - name: course_tracker
+      class: districts.learning.course_tracker.CourseTracker
+      model: vector-focus
+      description: Course completion tracking and spaced repetition
+      capabilities: [learning, courses, tracking]
+
+    - name: video_ingestor
+      class: districts.learning.video_ingestor.VideoIngestor
+      model: vector-deep
+      description: Any-URL video ingestion with concept extraction
+      capabilities: [learning, video, yt_dlp]
+
+  startups:
+    - name: market_scanner
+      class: districts.startups.market_scanner.MarketScanner
+      model: vector-reasoning
+      description: Nightly HN/Reddit/G2 market opportunity scan
+      capabilities: [startups, market_research, scanning]
+
+    - name: idea_validator
+      class: districts.startups.idea_validator.IdeaValidator
+      model: vector-reasoning
+      description: Startup idea validation against market signals
+      capabilities: [startups, validation, ideas]
+
+    - name: competitor_spy
+      class: districts.startups.competitor_spy.CompetitorSpy
+      model: vector-focus
+      description: Competitor monitoring and feature-gap analysis
+      capabilities: [startups, competitive_intelligence, monitoring]
+
+    - name: revenue_modeler
+      class: districts.startups.revenue_modeler.RevenueModeler
+      model: vector-reasoning
+      description: Revenue model projection and unit economics
+      capabilities: [startups, finance, modeling]
+
+  calls:
+    - name: call_screener
+      class: districts.calls.call_screener.CallScreener
+      model: vector-focus
+      description: Inbound call screening and priority classification
+      capabilities: [calls, voice, screening]
+
+  karpathy_lab:
+    - name: autoresearch_runner
+      class: districts.karpathy_lab.autoresearch_runner.AutoresearchRunner
+      model: vector-deep
+      description: Automated 30min Karpathy study session runner
+      capabilities: [learning, research, karpathy]
+
+    - name: code_typer
+      class: districts.karpathy_lab.code_typer.CodeTyper
+      model: vector-coder
+      description: Deliberate code practice and typing drill tracker
+      capabilities: [learning, coding, practice]
+
+  languages:
+    - name: japanese_coach
+      class: districts.languages.japanese_coach.JapaneseCoach
+      model: vector-multilingual
+      description: Japanese language coaching and vocabulary practice
+      capabilities: [languages, japanese, coaching]
+
+  interview_prep:
+    - name: mock_interviewer
+      class: districts.interview_prep.mock_interviewer.MockInterviewer
+      model: vector-reasoning
+      description: 50-100 page technical interview mock sessions
+      capabilities: [interview, mock, assessment]
+
+    - name: company_researcher
+      class: districts.interview_prep.company_researcher.CompanyResearcher
+      model: vector-reasoning
+      description: Company background research for interview prep
+      capabilities: [interview, research, companies]
+
+  agency:
+    - name: content_strategist
+      class: districts.agency.content_strategist.ContentStrategist
+      model: vector-reasoning
+      description: Content strategy and editorial calendar planning
+      capabilities: [agency, content, strategy]
+
+  investment:
+    - name: stock_analyst
+      class: districts.investment.stock_analyst.StockAnalyst
+      model: vector-reasoning
+      description: NSE/BSE fundamental and technical analysis (ANALYSIS ONLY)
+      capabilities: [investment, stocks, analysis]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: sentiment_bot
+      class: districts.investment.sentiment_bot.SentimentBot
+      model: vector-focus
+      description: Market sentiment analysis from news and social data
+      capabilities: [investment, sentiment, nlp]
+
+  content:
+    - name: script_generator
+      class: districts.content.script_generator.ScriptGenerator
+      model: vector-reasoning
+      description: YouTube/Reel script generation with SEO hooks
+      capabilities: [content, scripts, youtube]
+
+    - name: comfyui_adapter
+      class: districts.content.comfyui_adapter.ComfyUIAdapter
+      model: vector-focus
+      description: ComfyUI workflow adapter for image/video generation
+      capabilities: [content, comfyui, image_generation]
+
+  skills:
+    - name: skill_mapper
+      class: districts.skills.skill_mapper.SkillMapper
+      model: vector-reasoning
+      description: Skill graph construction and gap identification
+      capabilities: [skills, mapping, gaps]
+
+    - name: mastery_tracker
+      class: districts.skills.mastery_tracker.MasteryTracker
+      model: vector-focus
+      description: Skill mastery progression and plateau detection
+      capabilities: [skills, mastery, tracking]
