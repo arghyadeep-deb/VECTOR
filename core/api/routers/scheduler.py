@@ -1,8 +1,14 @@
 """Scheduler router — /scheduler/jobs."""
 
 import sys
+
+__all__ = [
+    "router",
+    "scheduler_jobs",
+]
+
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter
 from loguru import logger
@@ -15,6 +21,7 @@ router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 async def scheduler_jobs():
     try:
         from core.scheduler.store import SchedulerStore
+from pathlib import Path
         store = SchedulerStore(Path.home() / ".vector" / "scheduler.db")
         all_tasks = store.list_tasks()
         active_tasks = store.list_tasks(status="active")
