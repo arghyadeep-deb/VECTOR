@@ -20,15 +20,8 @@ Requires: ANTHROPIC_API_KEY or OPENAI_API_KEY for research agent.
 from __future__ import annotations
 
 import asyncio
-import sys
 import uuid
 from pathlib import Path
-
-
-# Activate districts/coding/vector_mlops/ path so "from agent.X" imports resolve
-_ML_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_mlops"
-if str(_ML_DIR) not in sys.path:
-    sys.path.insert(0, str(_ML_DIR))
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
