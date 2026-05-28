@@ -24,7 +24,6 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Activate districts/coding/vector_mlops/ path so "from agent.X" imports resolve
 _ML_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_mlops"
