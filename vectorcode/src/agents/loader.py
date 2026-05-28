@@ -1,9 +1,6 @@
 """Load agent definitions from YAML/TOML files, and from legacy agent_types.py."""
-import sys
 import re
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 try:
     from core.config import CONFIG  # noqa: F401
