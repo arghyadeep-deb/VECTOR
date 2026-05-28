@@ -10,9 +10,6 @@ import argparse
 import asyncio
 import signal
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent))
 
 from loguru import logger
 
@@ -562,6 +559,19 @@ def bootstrap_agents() -> int:
 
     logger.info(f"[VECTOR][bootstrap] {created} agents registered across all districts")
 
+    # ── Declarative manifest registration — supplements legacy bootstrap ──
+    try:
+        from core.city.declarative_manifest import ManifestLoader
+        from pathlib import Path as _Path
+        _manifest = _Path(__file__).parent / "config" / "agent_manifest.yaml"
+        if _manifest.exists():
+            _loader = ManifestLoader()
+            _defs = _loader.load(_manifest)
+            _added = _loader.register_all(_defs, registry)
+            logger.info("[VECTOR][bootstrap] manifest: {} additional agents registered", _added)
+    except Exception as e:
+        logger.debug("[VECTOR][bootstrap] manifest registration skipped: {}", e)
+
     # ── Agent-to-Agent event wiring — auto-subscribe by district name ─────
     try:
         from core.event_bus.wiring import auto_subscribe_all as _wire_events
@@ -917,21 +927,25 @@ async def run_loop() -> None:
     await AutonomousLoop().run_forever()
 
 
-def run_api(host: str, port: int) -> None:
-    """Start the local FastAPI server using the modular API over HTTPS."""
+def run_api(host: str, port: int, ssl_cert: str = None, ssl_key: str = None) -> None:
+    """Start the local FastAPI server using the modular API."""
     import uvicorn
     from core.api import create_app
 
-    # Generate self-signed cert if not present
-    cert_file, key_file = _ensure_ssl_cert()
-
     app = create_app()
-    if cert_file and key_file:
-        logger.info(f"[VECTOR][api] Starting HTTPS server at https://{host}:{port}")
-        uvicorn.run(app, host=host, port=port, reload=False,
-                    ssl_certfile=str(cert_file), ssl_keyfile=str(key_file))
+    if ssl_cert and ssl_key:
+        # Verify cert/key files exist before passing to uvicorn
+        import os
+        if not (os.path.isfile(ssl_cert) and os.path.isfile(ssl_key)):
+            logger.warning(f"[VECTOR][api] SSL cert/key not found ({ssl_cert}, {ssl_key}) — falling back to HTTP")
+            logger.info(f"[VECTOR][api] Starting HTTP server at http://{host}:{port}")
+            uvicorn.run(app, host=host, port=port, reload=False)
+        else:
+            logger.info(f"[VECTOR][api] Starting HTTPS server at https://{host}:{port}")
+            uvicorn.run(app, host=host, port=port, reload=False,
+                        ssl_certfile=ssl_cert, ssl_keyfile=ssl_key)
     else:
-        logger.warning("[VECTOR][api] SSL cert generation failed — falling back to HTTP")
+        logger.info(f"[VECTOR][api] Starting HTTP server at http://{host}:{port}")
         uvicorn.run(app, host=host, port=port, reload=False)
 
 
@@ -1034,6 +1048,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--http", action="store_true", help="Run in HTTP mode (no SSL)")
     parser.add_argument("--ha", action="store_true", help="Enable Home Assistant district integration")
     return parser.parse_args()
 
@@ -1052,7 +1067,11 @@ def main() -> int:
         ha_startup()
 
     if args.mode == "api":
-        run_api(args.host, args.port)
+        if getattr(args, 'http', False):
+            run_api(args.host, args.port)
+        else:
+            cert_file, key_file = _ensure_ssl_cert()
+            run_api(args.host, args.port, str(cert_file) if cert_file else None, str(key_file) if key_file else None)
         return 0
 
     if args.mode == "smoke":
