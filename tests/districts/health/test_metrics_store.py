@@ -70,7 +70,7 @@ class TestMetricsStoreTables:
         assert len(evs2) == 0
 
     def test_daily_summaries(self, store: MetricsStore):
-        summary = {"summary_date": "2026-05-21", "avg_heart_rate": 72.0, "avg_hrv": 45.0, "total_steps": 8000, "total_sleep_h": 7.5, "avg_spo2": 97.0, "avg_stress": 0.3, "anomaly_count": 0, "rec_count": 2}
+        summary = {"summary_date": datetime.date.today().isoformat(), "avg_heart_rate": 72.0, "avg_hrv": 45.0, "total_steps": 8000, "total_sleep_h": 7.5, "avg_spo2": 97.0, "avg_stress": 0.3, "anomaly_count": 0, "rec_count": 2}
         rid = store.store_daily_summary(summary)
         assert rid is not None
         summaries = store.get_daily_summaries(days=7)
