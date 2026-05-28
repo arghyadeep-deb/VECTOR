@@ -131,7 +131,7 @@ if __name__ == "__main__":
         agents = loader.load()
         print(f"OK — {len(agents)} agents defined across all districts")
         for a in agents[:5]:
-            print(f"  {a['district']}/{a['name']} → {a['class']}")
+            print(f"  {a['district']}/{a['name']} -> {a['class']}")
         if len(agents) > 5:
             print(f"  ... and {len(agents) - 5} more")
     except Exception as e:
