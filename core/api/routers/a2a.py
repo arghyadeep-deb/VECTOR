@@ -299,10 +299,23 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
     """Try multiple paths to actually run the agent.
 
     Order:
+      0. Existence check — raise 404 immediately if agent not in registry
       1. Direct vectorcode.src.a2a.client.invoke (if absorbed module wired)
       2. Look up agent in registry, instantiate via class_name, call .run()
       3. Return placeholder if nothing succeeds
     """
+    # 0) Fast existence check — prevents A2AClient from returning 200 for unknown agents
+    try:
+        from vectorcode.src.agents.registry import get_registry
+        if get_registry().get(agent_name) is None:
+            raise HTTPException(
+                status_code=404, detail=f"agent '{agent_name}' not in registry",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Registry unavailable — fall through to A2AClient attempt
+
     # 1) Try absorbed A2A client
     try:
         from vectorcode.src.a2a.client import A2AClient  # type: ignore
