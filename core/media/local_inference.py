@@ -1,8 +1,8 @@
 """
-VECTOR Local Inference â€” Python port of Open-Generative-AI/electron/lib/localInference.js
+VECTOR Local Inference — Python port of Open-Generative-AI/electron/lib/localInference.js
 
 Manages sd.cpp binary for offline Stable Diffusion image generation.
-No ComfyUI needed â€” direct subprocess inference with platform-specific binaries.
+No ComfyUI needed — direct subprocess inference with platform-specific binaries.
 
 Supported models: SD 1.5 (512px), SDXL (1024px), Flux (requires LLM + VAE).
 
@@ -10,7 +10,8 @@ Usage:
     inf = LocalInference()
     if inf.is_available():
         result = asyncio.run(inf.generate("A futuristic city", model="sdxl"))
-        print(result["image_path"])
+        logger.info(result["image_path"])
+
 """
 from __future__ import annotations
 
@@ -25,7 +26,6 @@ from typing import Optional
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 # Directories
@@ -45,7 +45,7 @@ _ARCH       = platform.machine().lower()
 _BIN_NAME   = "sd-cli.exe" if _IS_WINDOWS else "sd-cli"
 _BIN_PATH   = _BIN_DIR / _BIN_NAME
 
-# Model catalog â€” id â†’ {name, sd_version, base_dim, hf_repo, filename}
+# Model catalog — id â†’ {name, sd_version, base_dim, hf_repo, filename}
 LOCAL_MODEL_CATALOG: dict[str, dict] = {
     "sd15": {
         "name": "Stable Diffusion 1.5",
@@ -119,7 +119,7 @@ def _select_binary_variant() -> str | None:
 class LocalInference:
     """
     VECTOR's local Stable Diffusion inference via sd.cpp binary.
-    Works without ComfyUI â€” useful as offline fallback.
+    Works without ComfyUI — useful as offline fallback.
     """
 
     def is_available(self) -> bool:
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     inf = LocalInference()
     available = inf.is_available()
     models = inf.list_models()
-    print(f"OK local_inference.py â€” binary={'present' if available else 'missing (run download_binary())'}")
+    print(f"OK local_inference.py — binary={'present' if available else 'missing (run download_binary())'}")
     print(f"  data_dir={_DATA_DIR}")
     for m in models:
         dl = "downloaded" if m["downloaded"] else "not downloaded"
-        print(f"  {m['id']}: {m['name']} â€” {dl}")
+        print(f"  {m['id']}: {m['name']} — {dl}")
