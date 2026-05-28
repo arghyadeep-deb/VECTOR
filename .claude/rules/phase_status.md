@@ -1,6 +1,14 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-28 — Postiz-app-main + OpenWA-main + Understand-Anything-main absorbed
+> Last updated: 2026-05-29 — All docs/plans/ items resolved; cloud failover + remote_sync added; manifest wired into bootstrap
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+## Deferred (post-v1 — explicitly not production-blocking)
+
+| Item | What remains | Why deferred |
+|------|-------------|--------------|
+| SysPath S3-S5 | Remove remaining 16 `sys.path.insert` calls in `districts/` and `vectorcode/` | All are legitimate runtime or architecture uses (bare imports, optional SDK paths); removing them requires editable-install verification per-file |
+| RunVectorRefactor S2-S3 | Delete `bootstrap_agents()` and replace fully with manifest-driven loading | Manifest co-exists; full rewrite is a breaking refactor requiring migration testing |
+| CloudDeployGaps S3 | Cloudflare KV namespace binding, Supabase migrations, dashboard panels for failover | Multi-region HA — not applicable for local-first single-owner VECTOR |
 
 ---
 
