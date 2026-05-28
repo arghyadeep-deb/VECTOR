@@ -2,16 +2,15 @@
 CommunicationsAdapter — canonical comms adapter.
 Re-exports MessagingHub from VectorCode (vectorcode/src/).
 """
-import sys
 from pathlib import Path
 
 _CODEBASE_ROOT = Path(__file__).parent.parent.parent.parent   # agents/../../../ = codebase root
 _VC_SRC = _CODEBASE_ROOT / "vectorcode" / "src"
 
 # Add codebase root so `from core.config import CONFIG` works
-sys.path.insert(0, str(_CODEBASE_ROOT))
 # Add vectorcode/src so `from comms.messenger import MessagingHub` works
 if _VC_SRC.exists():
+    import sys
     sys.path.insert(0, str(_VC_SRC))
 
 from loguru import logger
