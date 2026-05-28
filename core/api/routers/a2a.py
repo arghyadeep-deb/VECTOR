@@ -3,19 +3,36 @@
 Exposes every district registered in VECTOR's agent registry as an A2A
 endpoint compatible with Google's A2A protocol spec. External agents can:
 
-  GET  /a2a/.well-known/agent.json    â€” discovery manifest
-  GET  /a2a/agents                    â€” list of all available agents
-  GET  /a2a/districts/{name}             â€” single agent's manifest
-  POST /a2a/districts/{name}/invoke      â€” dispatch a task to an agent
-  GET  /a2a/districts/{name}/tasks/{id}  â€” fetch task status
-  POST /a2a/sessions                  â€” create a session (multi-turn)
-  POST /a2a/sessions/{id}/messages    â€” send a message in session
+  GET  /a2a/.well-known/agent.json    — discovery manifest
+  GET  /a2a/agents                    — list of all available agents
+  GET  /a2a/districts/{name}             — single agent's manifest
+  POST /a2a/districts/{name}/invoke      — dispatch a task to an agent
+  GET  /a2a/districts/{name}/tasks/{id}  — fetch task status
+  POST /a2a/sessions                  — create a session (multi-turn)
+  POST /a2a/sessions/{id}/messages    — send a message in session
 
 Backed by vectorcode.src.a2a if absorbed, with VECTOR-native fallback that
 uses the existing agent registry. Always returns 200 OK with structured
 responses; never crashes the API surface.
 """
 from __future__ import annotations
+
+__all__ = [
+    "agent_event_stream",
+    "create_session",
+    "get_agent",
+    "get_task",
+    "invoke_agent",
+    "InvokeRequest",
+    "InvokeResponse",
+    "list_agents",
+    "router",
+    "session_message",
+    "SessionMessageRequest",
+    "SessionRequest",
+    "well_known",
+]
+
 
 import asyncio
 import secrets
@@ -93,7 +110,7 @@ async def well_known() -> dict:
     return {
         "schema_version": "1.0",
         "name": "VECTOR",
-        "description": "Personal AI city â€” 27+ districts, local-first, energy-aware",
+        "description": "Personal AI city — 27+ districts, local-first, energy-aware",
         "url": "/a2a",
         "version": "1.0.0",
         "owner": "Arghyadeep Deb",
@@ -119,7 +136,7 @@ async def well_known() -> dict:
 async def list_agents() -> dict:
     """Return every district agent that VECTOR exposes via A2A."""
     try:
-        from vectorcode.src.districts.registry import get_registry
+        from vectorcode.src.agents.registry import get_registry
         reg = get_registry()
         agents_list = []
         for defn in reg.list_all():
@@ -141,7 +158,7 @@ async def list_agents() -> dict:
 async def get_agent(name: str) -> dict:
     """Single-agent manifest."""
     try:
-        from vectorcode.src.districts.registry import get_registry
+        from vectorcode.src.agents.registry import get_registry
         reg = get_registry()
         defn = reg.get(name)
         if defn is None:
@@ -159,8 +176,9 @@ async def get_agent(name: str) -> dict:
         }
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        # Registry unavailable — treat as unknown agent, not server error
+        raise HTTPException(status_code=404, detail=f”agent '{name}' not found”)
 
 
 # â”€â”€ Invocation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -298,9 +316,9 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
     except Exception as e:
         logger.debug(f"[VECTOR][a2a] A2A client unavailable: {e}")
 
-    # 2) Try VECTOR's own agent registry â€” instantiate + call .run()
+    # 2) Try VECTOR's own agent registry — instantiate + call .run()
     try:
-        from vectorcode.src.districts.registry import get_registry
+        from vectorcode.src.agents.registry import get_registry
         reg = get_registry()
         defn = reg.get(agent_name)
         if defn is None:
