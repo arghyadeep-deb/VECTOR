@@ -43,10 +43,24 @@ jobs:
           python core/memory/reasoning_memory.py
           python core/city/agent_registry.py
 
-      - name: Run pytest (if tests exist)
+      - name: Run pytest
+        run: python -m pytest tests/ --tb=short -q
+
+  coverage:
+    name: Coverage Gate
+    needs: [smoke-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
         run: |
-          python -m pytest tests/ -v --tb=short -x 2>/dev/null || echo "No tests yet — skipping"
-        continue-on-error: true
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+      - name: Check coverage
+        run: python scripts/check_coverage.py
 
   build-dashboard:
     name: Build Holographic HUD
