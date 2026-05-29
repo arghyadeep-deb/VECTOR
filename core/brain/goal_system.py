@@ -1,9 +1,13 @@
 import sys
+
+__all__ = [
+    "GoalSystem",
+    "PRESEEDED_GOALS",
+]
+
 import json
 import uuid
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -100,8 +104,53 @@ class GoalSystem:
         except Exception as e:
             logger.error(f"[VECTOR][goal_system] persist failed: {e}")
 
+    # Max days without a progress update before a goal is auto-expired
+    _STALE_DAYS: dict[str, int] = {"SHORT": 7, "MID": 30, "LONG": 90}
+
+    def _prune_expired(self) -> int:
+        """Mark stale and past-due goals as expired. Returns count pruned."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        pruned = 0
+        for goal in self._goals:
+            if goal.get("status") != "active":
+                continue
+            # Explicit due_date past → expire
+            due = goal.get("due_date")
+            if due:
+                try:
+                    due_dt = datetime.datetime.fromisoformat(due)
+                    if due_dt.tzinfo is None:
+                        due_dt = due_dt.replace(tzinfo=datetime.timezone.utc)
+                    if now > due_dt:
+                        goal["status"] = "expired"
+                        goal["expired_at"] = now.isoformat()
+                        logger.info("[VECTOR][goal_system] goal expired (past due): {} — {}", goal["id"], goal["title"])
+                        pruned += 1
+                        continue
+                except Exception:
+                    pass
+            # Stale: no update in horizon-appropriate days
+            last = goal.get("last_updated") or goal.get("created_at")
+            if last:
+                try:
+                    last_dt = datetime.datetime.fromisoformat(last)
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=datetime.timezone.utc)
+                    stale_days = self._STALE_DAYS.get(goal.get("horizon", "LONG"), 90)
+                    if (now - last_dt).days > stale_days and goal.get("progress", 0) == 0.0:
+                        goal["status"] = "expired"
+                        goal["expired_at"] = now.isoformat()
+                        logger.info("[VECTOR][goal_system] goal expired (stale {}d): {} — {}", stale_days, goal["id"], goal["title"])
+                        pruned += 1
+                except Exception:
+                    pass
+        if pruned:
+            self._persist()
+        return pruned
+
     def get_active_goals(self, horizon: str | None = None) -> list[dict]:
-        """Return active goals sorted by priority. Filter by horizon if provided."""
+        """Return active goals sorted by priority. Prunes expired goals first."""
+        self._prune_expired()
         goals = [g for g in self._goals if g.get("status") == "active"]
         if horizon:
             goals = [g for g in goals if g.get("horizon") == horizon.upper()]
