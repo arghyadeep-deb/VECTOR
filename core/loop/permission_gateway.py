@@ -11,7 +11,6 @@ __all__ = [
 ]
 
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 import asyncio, datetime, httpx
@@ -111,7 +110,11 @@ class PermissionGateway:
                     f'VECTOR needs approval for: {action.action_type}. Confirm in dashboard.',
                     priority=2,
                 )
-                confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+                try:
+                    confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+                except asyncio.TimeoutError:
+                    confirmed = False
+                    logger.warning(f"[VECTOR][gateway] RED action {action.action_type} timed out waiting for owner — rejected for safety")
             if confirmed:
                 exec_result = await self._execute_action(action)
                 result = GatewayResult(True, 'RED', True, exec_result, 'Owner confirmed')
