@@ -11,12 +11,18 @@ Pipeline (wired per Architecture.md Rule 1, 3, 6, 7, 8):
 """
 
 import sys
+
+__all__ = [
+    "command_endpoint",
+    "feedback_endpoint",
+    "router",
+    "START_TIME_DICT",
+]
+
 import asyncio
 import time
 import hashlib
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
@@ -58,6 +64,18 @@ async def command_endpoint(
     start = time.perf_counter()
 
     try:
+        # Security: scan for prompt injection before any processing
+        try:
+            from core.security.prompt_injection import scan_text
+            _scan = scan_text(body.text, context="command_endpoint")
+            if _scan.has_critical:
+                logger.warning("[VECTOR][commands] prompt injection blocked: {}", _scan)
+                raise HTTPException(status_code=400, detail="Input blocked: prompt injection detected")
+        except HTTPException:
+            raise
+        except Exception as _scan_err:
+            logger.debug("[VECTOR][commands] prompt injection scan skipped: {}", _scan_err)
+
         # Step 1: Get session hydration context (RULE 1)
         hydration = ctx_engine.session_hydration_prompt()
 
