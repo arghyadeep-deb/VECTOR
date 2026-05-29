@@ -18,6 +18,19 @@
 
 **Verification:** 101 unit tests pass (permission gateway × 63+, memory stores × 38). Wake word already `hey_vector` (no change needed).
 
+## Logic Fixes — Session 2026-05-29 (second pass) ✅ COMPLETE
+
+| Fix | File | What changed |
+|-----|------|-------------|
+| ReasoningBank import path | `core/loop/decision_engine.py:81-92` | Changed `from reasoning_bank import` → `from vectorcode.src.reasoning_bank import` with fallback; RULE 8 was silently disabled — now online with 57 entries |
+| ReasoningBank failure visibility | `core/loop/decision_engine.py:90` | `logger.debug` → `logger.warning` so RULE 8 failure is always visible |
+| Guidance/ThreatDetector failure visibility | `core/loop/autonomous_loop.py:203` | `logger.debug` → `logger.warning`; self-defense layer loss is now logged at warning level |
+| ContinueGate failure visibility | `core/loop/autonomous_loop.py:214` | Same: `logger.debug` → `logger.warning` |
+| Goal expiry | `core/brain/goal_system.py` | Added `_prune_expired()`: expires goals past `due_date` or stale (SHORT 7d, MID 30d, LONG 90d with zero progress); `add_goal()` now accepts `due_date`; `get_active_goals()` prunes first |
+| NSSM graceful shutdown | `scripts/install_service.ps1` | Added `AppStopMethodConsole=1` so NSSM sends CTRL+C → Python asyncio drains cleanly before exit |
+
+**Verification:** 112 decision/goal tests pass. ReasoningBank loads 57 entries live. Goal expiry confirmed: expired goals excluded from active list.
+
 **Remaining manual steps (one-time setup):**
 - `pip install face-recognition mediapipe openwakeword` — activates vision + voice
 - Train "Hey VECTOR" ONNX wake word (10 samples → openWakeWord)
