@@ -208,10 +208,11 @@ class GoalSystem:
         horizon: str,
         priority: int = 5,
         tags: list[str] | None = None,
+        due_date: str | None = None,
     ) -> str:
-        """Add a new goal. Returns goal_id."""
+        """Add a new goal. Returns goal_id. due_date: ISO-8601 string (optional)."""
         goal_id = f"g_{uuid.uuid4().hex[:8]}"
-        self._goals.append({
+        entry: dict = {
             "id": goal_id,
             "title": title,
             "horizon": horizon.upper(),
@@ -220,7 +221,10 @@ class GoalSystem:
             "progress": 0.0,
             "tags": tags or [],
             "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        })
+        }
+        if due_date:
+            entry["due_date"] = due_date
+        self._goals.append(entry)
         self._persist()
         logger.info(f"[VECTOR][goal_system] new goal: {goal_id} — {title}")
         return goal_id
