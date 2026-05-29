@@ -1,6 +1,31 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-29 — All docs/plans/ items resolved; cloud failover + remote_sync added; manifest wired into bootstrap
+> Last updated: 2026-05-29 — Production hardening sprint complete (8 security/reliability fixes); NSSM service installer added
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+## Production Hardening — Session 2026-05-29 ✅ COMPLETE
+
+| Fix | File | What changed |
+|-----|------|-------------|
+| HumanLayer timeout → REJECT | `core/loop/permission_gateway.py:113,282` | `asyncio.wait_for` timeout now catches `asyncio.TimeoutError` → returns `False` (reject) instead of propagating exception |
+| DB key fail-fast | `core/memory/episodic.py:58-63` | Removed hardcoded `"vector_dev_fallback_change_me"` fallback; raises `RuntimeError` if SQLCipher is active but no key is found |
+| SSRF guard wired | `core/inference/provider_client.py` | Added `_ssrf_check()` helper; called before every httpx POST in `_call_openai_compat`, `_call_anthropic`, `_call_gemini` |
+| Prompt injection at API boundary | `core/api/routers/commands.py` | `scan_text()` called on `body.text` before any processing; CRITICAL findings raise HTTP 400 |
+| asyncio.timeout on observe loop | `core/loop/autonomous_loop.py:458-473` | `async with asyncio.timeout(15)` wraps `_observe_tick()`; `TimeoutError` caught and logged |
+| asyncio.timeout on think loop | `core/loop/autonomous_loop.py:547-556` | `async with asyncio.timeout(60)` wraps `_think_tick()`; `TimeoutError` caught and logged |
+| ScreenObserver/FaceDetector non-blocking | `core/loop/autonomous_loop.py:1572,1582` | `ScreenObserver().observe` and `FaceDetector().capture_and_scan` moved to `asyncio.to_thread()` in `_sense_tick` |
+| CI enforces tests | `.github/workflows/ci.yml:46-49` | Removed `continue-on-error: true`; pytest now blocks merges on failure |
+| NSSM service installer | `scripts/install_service.ps1` | PowerShell script: installs VECTOR as Windows service (auto-restart on crash, log rotation) via NSSM |
+
+**Verification:** 101 unit tests pass (permission gateway × 63+, memory stores × 38). Wake word already `hey_vector` (no change needed).
+
+**Remaining manual steps (one-time setup):**
+- `pip install face-recognition mediapipe openwakeword` — activates vision + voice
+- Train "Hey VECTOR" ONNX wake word (10 samples → openWakeWord)
+- `fly launch && fly deploy` in `cloud/brain_server/` — cloud brain
+- `bash phone_node/setup.sh` on old Android (Termux)
+- `powershell -File scripts/install_service.ps1` (as Admin) — supervised Windows service
+
+---
 
 ## Deferred (post-v1 — explicitly not production-blocking)
 
