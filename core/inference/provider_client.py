@@ -373,6 +373,7 @@ class ProviderClient:
 
         base_url = prov.effective_base_url
         url = f"{base_url.rstrip('/')}/chat/completions"
+        self._ssrf_check(url)
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(url, json=payload, headers=headers)
