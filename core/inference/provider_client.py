@@ -33,11 +33,8 @@ __all__ = [
 import asyncio
 import json
 import os
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 from core.inference.llm_providers import (
@@ -329,6 +326,16 @@ class ProviderClient:
                 return await self._call_openai_compat(prov, model, messages, temperature, max_tokens, tools, api_key=api_key)
             case _:
                 raise ValueError(f"Unknown driver: {prov.driver}")
+
+    def _ssrf_check(self, url: str) -> None:
+        """Block SSRF attacks before any outbound HTTP request. Allows private IPs so Ollama (localhost) works."""
+        try:
+            from core.security.ssrf_guard import SSRFGuard
+            result = SSRFGuard(allow_private=True).check_url(url)
+            if not result:
+                raise RuntimeError(f"[VECTOR][ssrf] blocked provider URL: {result.reason}")
+        except ImportError:
+            pass
 
     async def _call_openai_compat(
         self,
