@@ -82,12 +82,15 @@ class DecisionEngine:
         """ReasoningBank: inject past reasoning chains before scoring (RULE 8)."""
         if self._reasoning_bank is None:
             try:
-                from reasoning_bank import ReasoningBank
+                try:
+                    from vectorcode.src.reasoning_bank import ReasoningBank
+                except ImportError:
+                    from reasoning_bank import ReasoningBank  # fallback when vectorcode/src on sys.path
                 self._reasoning_bank = ReasoningBank()
                 self._reasoning_bank.load()
-                logger.info("[VECTOR][decision_engine] ReasoningBank online")
+                logger.info("[VECTOR][decision_engine] ReasoningBank online — RULE 8 active")
             except Exception as e:
-                logger.debug(f"[VECTOR][decision_engine] ReasoningBank unavailable: {e}")
+                logger.warning(f"[VECTOR][decision_engine] ReasoningBank unavailable — RULE 8 disabled: {e}")
                 self._reasoning_bank = False  # sentinel
         return self._reasoning_bank if self._reasoning_bank is not False else None
 
