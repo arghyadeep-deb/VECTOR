@@ -41,6 +41,13 @@ Write-Host "Installing VECTOR as Windows service..."
 & $NSSMPath set $ServiceName Start SERVICE_AUTO_START
 & $NSSMPath set $ServiceName AppRestartDelay 5000      # restart 5s after crash
 
+# Graceful shutdown: send CTRL+C (Python handles as KeyboardInterrupt → asyncio drain)
+# instead of TerminateProcess (which kills Python mid-loop without flushing memory/logs)
+& $NSSMPath set $ServiceName AppStopMethodConsole 1    # CTRL+C first
+& $NSSMPath set $ServiceName AppStopMethodWindow  0    # no WM_CLOSE
+& $NSSMPath set $ServiceName AppStopMethodThreads 0    # no thread inject
+& $NSSMPath set $ServiceName AppKillProcessTree   1    # kill child procs on stop
+
 Write-Host "Starting VECTOR service..."
 & $NSSMPath start $ServiceName
 
