@@ -457,6 +457,7 @@ class ProviderClient:
             "anthropic-version": "2023-06-01",
         }
 
+        self._ssrf_check(f"{prov.base_url}/messages")
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
                 f"{prov.base_url}/messages",
