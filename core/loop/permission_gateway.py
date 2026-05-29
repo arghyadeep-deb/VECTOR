@@ -283,7 +283,11 @@ class PermissionGateway:
                 f'VECTOR needs approval for: {action.action_type}. Confirm in dashboard.',
                 priority=2,
             )
-            return await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+            try:
+                return await asyncio.wait_for(self._wait_for_confirmation(action), timeout=30)
+            except asyncio.TimeoutError:
+                logger.warning(f"[VECTOR][gateway] RED action {action.action_type} confirmation timed out — rejected for safety")
+                return False
 
     def _classify(self, action_type) -> str:
         if action_type in FORBIDDEN: return 'FORBIDDEN'
