@@ -1340,3 +1340,12 @@
 {"ts": "2026-05-30T13:40:19.116432+00:00", "action_type": "send_email", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T13:40:25.461573+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T13:40:29.524537+00:00", "action_type": "delete_files", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:39.963004+00:00", "action_type": "execute_code", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:50.376465+00:00", "action_type": "financial_transaction", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:52.505472+00:00", "action_type": "send_email", "params": {"to": "test@test.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:41:00.784086+00:00", "action_type": "push_github", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:41:11.180182+00:00", "action_type": "deploy_production", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:41:21.593824+00:00", "action_type": "overwrite_note_personal", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:41:32.017906+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:41:42.420430+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:44:36.694639+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
