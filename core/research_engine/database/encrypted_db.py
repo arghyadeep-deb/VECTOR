@@ -531,13 +531,9 @@ class DatabaseManager:
         # Validate the encryption key
         if not self._is_valid_encryption_key(password):
             logger.error(
-                f"Invalid encryption key when opening database for user {username}: password is None or empty"
-            )
-            # TODO: Fix the root cause - research threads are not getting the correct password
-            logger.error(
-                "TODO: This usually means the research thread is not receiving the user's "
-                "password for database encryption. Need to ensure password is passed from "
-                "the main thread to research threads."
+                f"Invalid encryption key when opening database for user {username}: "
+                "password is None or empty. Ensure the caller wraps worker callables "
+                "with preserve_research_context() so the ContextVar propagates across thread boundaries."
             )
             raise ValueError(
                 "Invalid encryption key: password cannot be None or empty"
