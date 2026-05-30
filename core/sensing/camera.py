@@ -19,7 +19,6 @@ from loguru import logger
 
 from core.config import CONFIG
 
-# ── typing helpers ────────────────────────────────────────────────────────────
 from typing import Optional
 
 
@@ -209,9 +208,9 @@ class FatigueMonitor:
     """Real-time fatigue scoring (0-10) using mediapipe Face Mesh EAR.
 
     Eye Aspect Ratio (EAR) thresholds:
-        EAR < 0.20  → fatigue 8-10   (heavy drooping / closing)
-        EAR 0.20-0.25 → fatigue 4-7  (moderate tiredness)
-        EAR > 0.25  → fatigue 0-3    (alert)
+        EAR < 0.20  -> fatigue 8-10   (heavy drooping / closing)
+        EAR 0.20-0.25 -> fatigue 4-7  (moderate tiredness)
+        EAR > 0.25  -> fatigue 0-3    (alert)
     """
 
     # Mediapipe landmark indices for left / right eye
@@ -251,10 +250,8 @@ class FatigueMonitor:
     def _ear(landmarks, indices: list[int], w: int, h: int) -> float:
         """Compute Eye Aspect Ratio from 6 landmark indices."""
         pts = [(landmarks[i].x * w, landmarks[i].y * h) for i in indices]
-        # vertical distances
         v1 = np.linalg.norm(np.array(pts[1]) - np.array(pts[5]))
         v2 = np.linalg.norm(np.array(pts[2]) - np.array(pts[4]))
-        # horizontal distance
         h_dist = np.linalg.norm(np.array(pts[0]) - np.array(pts[3]))
         if h_dist < 1e-6:
             return 0.25  # default neutral
@@ -266,12 +263,9 @@ class FatigueMonitor:
         if ear < 0.15:
             return 10.0
         if ear < 0.20:
-            # linear 8-10
             return round(8.0 + (0.20 - ear) / (0.20 - 0.15) * 2.0, 1)
         if ear < 0.25:
-            # linear 4-7
             return round(4.0 + (0.25 - ear) / (0.25 - 0.20) * 3.0, 1)
-        # linear 0-3 (cap at 0.35 for fully alert)
         return round(max(0.0, 3.0 - (ear - 0.25) / (0.35 - 0.25) * 3.0), 1)
 
     # ── public API ─────────────────────────────────────────────────────────────
@@ -297,7 +291,7 @@ class FatigueMonitor:
             score     = self._ear_to_fatigue(avg_ear)
 
             logger.debug(
-                f"[VECTOR][camera] EAR={avg_ear:.3f} → fatigue={score}"
+                f"[VECTOR][camera] EAR={avg_ear:.3f} -> fatigue={score}"
             )
             return score
 
@@ -352,7 +346,6 @@ if __name__ == "__main__":
 
     try:
         fatigue_mon = FatigueMonitor()
-        # Test with a synthetic blank frame (no camera needed)
         dummy = np.zeros((480, 640, 3), dtype=np.uint8)
         score = fatigue_mon.score_frame(dummy)
         assert isinstance(score, float), "score_frame must return float"
@@ -365,4 +358,4 @@ if __name__ == "__main__":
         logger.error(f"[VECTOR][camera] FatigueMonitor smoke test FAILED: {exc}")
         ok = False
 
-    print("✅ camera.py OK" if ok else "❌ camera.py FAILED")
+    print("camera.py OK" if ok else "camera.py FAILED")

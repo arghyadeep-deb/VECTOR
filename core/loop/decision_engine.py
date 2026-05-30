@@ -1,17 +1,10 @@
 import sys
-
-__all__ = [
-    "Candidate",
-    "Decision",
-    "DecisionEngine",
-]
-
 import asyncio
 import datetime
 import hashlib
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -31,9 +24,7 @@ class Candidate:
     goal_alignment: float = 0.0
     policy_score: float = 0.5
     total_score: float = 0.0
-    # Reasoning chain populated by _act_on()
-    reasoning_chain: list[dict] = field(default_factory=list)
-    situation: dict = field(default_factory=dict)
+    # RULE 8 — past reasoning injected before scoring
     reasoning_steps: list[str] = field(default_factory=list)
 
 
@@ -42,40 +33,32 @@ class Decision:
     winner: Candidate
     all_candidates: list[Candidate]
     reasoning: str
-    timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.datetime.utcnow().isoformat())
     evaluated: int = 0
-    reasoning_chain: list[dict] = field(default_factory=list)
-    situation: dict = field(default_factory=dict)
 
 
 class DecisionEngine:
     """
     Scores 4 candidates per decision using the 5-factor weighted formula.
     RULE 7: policy.get_score() BEFORE. policy.update_from_outcome() AFTER.
-    ALL candidates logged Ã¢â‚¬— including rejected. No silent drops.
+    ALL candidates logged — including rejected. No silent drops.
 
     Scoring: goal_alignment(30%) + confidence(25%) + policy(20%) +
              urgency(15%) + timing(10%) - cost(5%)
     """
 
-    # Scoring weights Ã¢â‚¬— override via CONFIG["decision_weights"] dict
-    W_GOAL    = CONFIG.get("decision_weights", {}).get("goal",    0.30)
-    W_CONF    = CONFIG.get("decision_weights", {}).get("conf",    0.25)
-    W_POLICY  = CONFIG.get("decision_weights", {}).get("policy",  0.20)
-    W_URGENCY = CONFIG.get("decision_weights", {}).get("urgency", 0.15)
-    W_TIMING  = CONFIG.get("decision_weights", {}).get("timing",  0.10)
-    W_COST    = CONFIG.get("decision_weights", {}).get("cost",    0.05)
+    W_GOAL = 0.30
+    W_CONF = 0.25
+    W_POLICY = 0.20
+    W_URGENCY = 0.15
+    W_TIMING = 0.10
+    W_COST = 0.05
 
     def __init__(self):
         self._policy = None
         self._goals = None
         self._memory = None
-        self._epistemic = None
         self._reasoning_bank = None
-        self._causal_graph = None
-        self._metacognition = None
-        self._mc_bias_cache: list | None = None
-        self._mc_cache_time: float = 0.0
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
@@ -85,13 +68,25 @@ class DecisionEngine:
                 try:
                     from vectorcode.src.reasoning_bank import ReasoningBank
                 except ImportError:
-                    from reasoning_bank import ReasoningBank  # fallback when vectorcode/src on sys.path
+                    # importlib fallback: load by absolute file path so sys.path gaps never disable RULE 8
+                    import importlib.util as _ilu
+                    _rb_path = Path(__file__).parent.parent.parent / "vectorcode" / "src" / "reasoning_bank.py"
+                    _spec = _ilu.spec_from_file_location("vectorcode.src.reasoning_bank", _rb_path)
+                    _mod = _ilu.module_from_spec(_spec)  # type: ignore[arg-type]
+                    _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+                    ReasoningBank = _mod.ReasoningBank
                 self._reasoning_bank = ReasoningBank()
                 self._reasoning_bank.load()
-                logger.info("[VECTOR][decision_engine] ReasoningBank online — RULE 8 active")
+                _entry_count = len(self._reasoning_bank._entries)
+                logger.info(
+                    "[VECTOR][decision_engine] ReasoningBank online — RULE 8 active ({} entries)",
+                    _entry_count,
+                )
             except Exception as e:
-                logger.warning(f"[VECTOR][decision_engine] ReasoningBank unavailable — RULE 8 disabled: {e}")
-                self._reasoning_bank = False  # sentinel
+                logger.warning(
+                    "[VECTOR][decision_engine] ReasoningBank unavailable — RULE 8 disabled: {}", e
+                )
+                self._reasoning_bank = False  # sentinel: do not retry
         return self._reasoning_bank if self._reasoning_bank is not False else None
 
     def _get_policy(self):
@@ -112,158 +107,6 @@ class DecisionEngine:
             self._memory = EpisodicMemory()
         return self._memory
 
-    def _get_epistemic(self):
-        if self._epistemic is None:
-            try:
-                from core.brain.epistemic_tracker import EpistemicTracker
-                self._epistemic = EpistemicTracker()
-            except Exception as e:
-                logger.debug(f"[VECTOR][decision_engine] EpistemicTracker unavailable: {e}")
-        return self._epistemic
-
-    def _get_causal_graph(self):
-        """CausalGraph (Gap 6): downstream-influence lookup for an action type."""
-        if self._causal_graph is None:
-            try:
-                from core.memory.causal_graph import CausalGraph
-                self._causal_graph = CausalGraph()
-            except Exception as e:
-                logger.debug(f"[VECTOR][decision_engine] CausalGraph unavailable: {e}")
-                self._causal_graph = False  # sentinel
-        return self._causal_graph if self._causal_graph is not False else None
-
-    def _causal_score(self, candidate: Candidate) -> float:
-        """0-1 nudge from how many downstream consequences this action is known to cause.
-        A well-understood action (rich causal subgraph) gets a small positive bias.
-        Returns 0.0 when the graph is empty or the action is unknown."""
-        cg = self._get_causal_graph()
-        if cg is None:
-            return 0.0
-        try:
-            influence = cg.get_influence_score(f"action:{candidate.action_type}")
-            return min(1.0, influence / 10.0)
-        except Exception:
-            return 0.0
-
-    def _get_metacognition(self):
-        """MetaCognition (Gap 8): bias-detection accessor with sentinel to skip repeated failures."""
-        if self._metacognition is None:
-            try:
-                from core.city.meta_cognition import MetaCognition
-                self._metacognition = MetaCognition()
-            except Exception as e:
-                logger.debug(f"[VECTOR][decision_engine] MetaCognition unavailable: {e}")
-                self._metacognition = False  # sentinel
-        return self._metacognition if self._metacognition is not False else None
-
-    def _bias_penalty(self, candidate: "Candidate") -> float:
-        """0-1 bias penalty via MetaCognition.detect_bias(); results cached 5 min.
-        Returns 0.0 when MetaCognition is unavailable or no bias matches candidate profile."""
-        import time as _time
-        mc = self._get_metacognition()
-        if mc is None:
-            return 0.0
-        now = _time.monotonic()
-        if self._mc_bias_cache is None or (now - self._mc_cache_time) > 300:
-            try:
-                samples: list[dict] = []
-                try:
-                    recent = self._get_memory().search("decision_candidate", limit=20)
-                    for r in recent:
-                        samples.append({
-                            "thought": r.get("content", ""),
-                            "confidence": r.get("context", {}).get("confidence", 0.5),
-                            "outcome": None,
-                            "domain": r.get("content", "").split(":")[0].strip(),
-                        })
-                except Exception:
-                    pass
-                if not samples:
-                    samples = [{
-                        "thought": candidate.action_type,
-                        "confidence": candidate.confidence,
-                        "outcome": None,
-                        "domain": candidate.action_type.split("_")[0],
-                    }]
-                self._mc_bias_cache = mc.detect_bias(samples)
-                self._mc_cache_time = now
-                if self._mc_bias_cache:
-                    logger.debug(
-                        "[VECTOR][decision_engine] bias types detected: {}",
-                        [b.get("bias_type") for b in self._mc_bias_cache],
-                    )
-            except Exception as _mce:
-                logger.debug("[VECTOR][decision_engine] MetaCognition detect_bias failed: {}", _mce)
-                return 0.0
-
-        bias_list = self._mc_bias_cache or []
-        if not bias_list:
-            return 0.0
-        _SEV = {"low": 0.2, "medium": 0.5, "high": 1.0}
-        penalty = 0.0
-        for bias in bias_list:
-            sev = _SEV.get(bias.get("severity", "low"), 0.2)
-            btype = bias.get("bias_type", "")
-            if btype == "overconfidence" and candidate.confidence > 0.85:
-                penalty = max(penalty, sev)
-            elif btype == "recency":
-                penalty = max(penalty, sev * 0.5)
-            elif btype == "confirmation" and candidate.goal_alignment < 0.3:
-                penalty = max(penalty, sev * 0.5)
-        return min(1.0, penalty)
-
-    def _get_neural_trainer(self):
-        """VECTORTrainer: RL-based action-value refinement layer (A2C, 64-dim state)."""
-        if getattr(self, "_neural_trainer", None) is None:
-            try:
-                from vectorcode.src.neural_training import VECTORTrainer
-                self._neural_trainer = VECTORTrainer(algorithm="a2c", state_dim=64, action_dim=20, use_curiosity=False)
-                ckpt = Path.home() / ".vector" / "neural_trainer.json"
-                if ckpt.exists():
-                    self._neural_trainer.load_checkpoint(ckpt)
-                logger.info("[VECTOR][decision_engine] VECTORTrainer online (A2C)")
-            except Exception as e:
-                logger.debug(f"[VECTOR][decision_engine] VECTORTrainer unavailable: {e}")
-                self._neural_trainer = None
-        return self._neural_trainer
-
-    def _neural_score(self, candidate: Candidate) -> float:
-        """Get A2C Q-value estimate for this action type. Returns 0.5 if unavailable."""
-        trainer = self._get_neural_trainer()
-        if trainer is None:
-            return 0.5
-        try:
-            import numpy as np
-            # Encode candidate into a 64-dim state vector
-            state = np.zeros(64, dtype=np.float32)
-            state[0] = candidate.confidence
-            state[1] = candidate.urgency
-            state[2] = candidate.timing_score
-            state[3] = candidate.goal_alignment if hasattr(candidate, "goal_alignment") else 0.5
-            state[4] = min(1.0, candidate.estimated_cost_inr / 10.0)
-            # Map action_type to index Ã¢â‚¬— derive from governor's live task map so new districts are included
-            try:
-                from core.city.governor import DISTRICT_TASK_MAP
-                _ACTION_TYPES = sorted(set(DISTRICT_TASK_MAP.keys()))
-            except Exception:
-                _ACTION_TYPES = ["answer_question", "set_reminder", "search_web", "commit_code",
-                                  "send_message_routine", "create_calendar_event", "download_file",
-                                  "send_email", "delete_files", "execute_code", "push_github",
-                                  "deploy_production", "send_message_important", "financial_transaction",
-                                  "read_calendar", "play_music", "take_screenshot", "check_weather",
-                                  "review_code", "write_note"]
-            try:
-                action_idx = _ACTION_TYPES.index(candidate.action_type)
-                state[5] = action_idx / len(_ACTION_TYPES)
-            except ValueError:
-                state[5] = 0.5
-            action = trainer.select_action(state)
-            # Interpret: correct action prediction = higher score
-            predicted_correct = (action == (state[5] * len(_ACTION_TYPES)))
-            return 0.6 if predicted_correct else 0.45
-        except Exception:
-            return 0.5
-
     def _score_goal_alignment(self, candidate: Candidate) -> float:
         """How well does this action serve active goals? 0.0-1.0"""
         if not candidate.goal_ids:
@@ -281,23 +124,14 @@ class DecisionEngine:
         return min(1.0, score)
 
     def _make_situation_hash(self, candidate: Candidate) -> str:
-        key = f"{candidate.action_type}:{json.dumps(candidate.params, sort_keys=True, default=str)}"
-        return hashlib.sha256(key.encode()).hexdigest()[:12]
+        key = f"{candidate.action_type}:{sorted(candidate.params.items())}"
+        return hashlib.md5(key.encode()).hexdigest()[:12]
 
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula. Mutates candidate with computed scores."""
         situation_hash = self._make_situation_hash(candidate)
 
-        # RULE 8: inject past reasoning before scoring (ReasoningBank)
-        reasoning_bank = self._get_reasoning_bank()
-        if reasoning_bank is not None:
-            try:
-                past = reasoning_bank.inject_past_reasoning(candidate.action_type, top_k=2)
-                if past:
-                    candidate.reasoning_steps = [f"[ReasoningBank] {past[:200]}"] + candidate.reasoning_steps
-            except Exception as _rbe:
-                logger.debug("[VECTOR][decision_engine] ReasoningBank inject suppressed: %s", _rbe)
-
+        # RULE 7 — get_score() BEFORE every decision
         policy_score = self._get_policy().get_score(candidate.action_type, situation_hash)
         candidate.policy_score = policy_score
 
@@ -306,84 +140,15 @@ class DecisionEngine:
 
         cost_penalty = min(1.0, candidate.estimated_cost_inr / 10.0)
 
-        # EpistemicTracker: blend raw confidence with epistemic belief (70/30 split)
-        raw_conf = candidate.confidence
-        epistemic = self._get_epistemic()
-        if epistemic is not None:
-            try:
-                belief = epistemic.get_belief(candidate.action_type)
-                if belief is not None:
-                    epistemic_conf = belief.get("confidence", raw_conf)
-                    blended_conf = (raw_conf * 0.7) + (epistemic_conf * 0.3)
-                    if abs(blended_conf - raw_conf) > 0.05:
-                        logger.debug(
-                            f"[VECTOR][decision_engine] Epistemic blend {candidate.action_type}: "
-                            f"{raw_conf:.2f} Ã¢â€ ’ {blended_conf:.2f}"
-                        )
-                    candidate.confidence = round(blended_conf, 4)
-            except Exception: logger.debug("[VECTOR][decision] exception suppressed")  # epistemic tracker never blocks a decision
-
-        # Neural A2C refinement: 5% blend with RL-derived action-value estimate
-        neural_score = self._neural_score(candidate)
-
-        # Causal influence (Gap 6): 5% blend rewarding actions with known consequences
-        causal_score = self._causal_score(candidate)
-
-        # MetaCognition bias penalty (Gap 8): cached 5 min, -5% for matched bias patterns
-        bias_factor = self._bias_penalty(candidate)
-
         total = (
-            self.W_GOAL   * goal_score
+            self.W_GOAL * goal_score
             + self.W_CONF * candidate.confidence
             + self.W_POLICY * policy_score
             + self.W_URGENCY * candidate.urgency
             + self.W_TIMING * candidate.timing_score
             - self.W_COST * cost_penalty
-            + 0.05 * causal_score  # causal-graph influence nudge (Gap 6)
-            + 0.05 * neural_score  # A2C Q-value nudge (small weight Ã¢â‚¬— RL still learning)
-            - 0.05 * bias_factor   # MetaCognition bias penalty (Gap 8)
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
-
-        # Build reasoning chain for audit/replay
-        candidate.reasoning_chain = [
-            {"step": 1, "factor": "goal_alignment", "score": round(goal_score, 4), "weight": self.W_GOAL, "contribution": round(self.W_GOAL * goal_score, 4)},
-            {"step": 2, "factor": "confidence", "score": candidate.confidence, "weight": self.W_CONF, "contribution": round(self.W_CONF * candidate.confidence, 4)},
-            {"step": 3, "factor": "policy_score", "score": round(policy_score, 4), "weight": self.W_POLICY, "contribution": round(self.W_POLICY * policy_score, 4)},
-            {"step": 4, "factor": "urgency", "score": candidate.urgency, "weight": self.W_URGENCY, "contribution": round(self.W_URGENCY * candidate.urgency, 4)},
-            {"step": 5, "factor": "timing_score", "score": candidate.timing_score, "weight": self.W_TIMING, "contribution": round(self.W_TIMING * candidate.timing_score, 4)},
-            {"step": 6, "factor": "cost_penalty", "score": round(cost_penalty, 4), "weight": self.W_COST, "contribution": round(-self.W_COST * cost_penalty, 4)},
-        ]
-
-        candidate.reasoning_steps = [
-            f"1. goal_alignment={goal_score:.2f} (contrib={self.W_GOAL*goal_score:.2f})",
-            f"2. confidence={candidate.confidence:.2f} (contrib={self.W_CONF*candidate.confidence:.2f})",
-            f"3. policy_score={policy_score:.2f} (contrib={self.W_POLICY*policy_score:.2f})",
-            f"4. urgency={candidate.urgency:.2f} (contrib={self.W_URGENCY*candidate.urgency:.2f})",
-            f"5. timing_score={candidate.timing_score:.2f} (contrib={self.W_TIMING*candidate.timing_score:.2f})",
-            f"6. cost_penalty={cost_penalty:.2f} (contrib={-self.W_COST*cost_penalty:.2f})",
-            f"FINAL total_score={candidate.total_score:.4f}",
-        ]
-        if causal_score > 0.0:
-            candidate.reasoning_steps.append(
-                f"[causal] influence_nudge={causal_score:.2f} (contrib={0.05*causal_score:.3f})"
-            )
-        if bias_factor > 0.0:
-            candidate.reasoning_steps.append(
-                f"[meta_cognition] bias_penalty={bias_factor:.2f} (contrib={-0.05*bias_factor:.3f})"
-            )
-
-        # Capture situation for policy memory
-        goals = self._get_goals().get_active_goals()
-        candidate.situation = {
-            "action_type": candidate.action_type,
-            "situation_hash": situation_hash,
-            "goal_ids": candidate.goal_ids,
-            "goal_priorities": [g.get("priority", 5) for g in goals if g.get("id") in candidate.goal_ids],
-            "active_goal_count": len(goals),
-            "policy_score": round(policy_score, 4),
-        }
-
         return candidate.total_score
 
     async def evaluate(self, candidates: list[Candidate]) -> Decision:
@@ -393,13 +158,25 @@ class DecisionEngine:
             noop = Candidate("noop", {}, source="fallback")
             return Decision(winner=noop, all_candidates=[], reasoning="No candidates", evaluated=0)
 
+        # RULE 8 — inject past reasoning before scoring
+        bank = self._get_reasoning_bank()
+        if bank is not None:
+            try:
+                for c in candidates:
+                    query = f"{c.action_type} {' '.join(str(v) for v in c.params.values())}"
+                    past_snippet = bank.inject_past_reasoning(query, top_k=3)
+                    if past_snippet:
+                        c.reasoning_steps = [past_snippet]
+            except Exception as _rb_err:
+                logger.warning("[VECTOR][decision_engine] RULE 8 inject failed: {}", _rb_err)
+
         for c in candidates:
             self._score_candidate(c)
 
         ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
         winner = ranked[0]
 
-        # Log ALL candidates including rejected Ã¢â‚¬— RULE 8
+        # Log ALL candidates including rejected — RULE 8
         mem = self._get_memory()
         for c in ranked:
             status = "winner" if c is winner else "rejected"
@@ -425,69 +202,11 @@ class DecisionEngine:
         )
         logger.info(f"[VECTOR][decision_engine] {reasoning}")
 
-        # Update epistemic tracker with outcome of this decision
-        epistemic = self._get_epistemic()
-        if epistemic is not None:
-            try:
-                epistemic.update_belief(
-                    topic=winner.action_type,
-                    confidence=winner.total_score,
-                    evidence=f"decision_winner: score={winner.total_score}",
-                )
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-
-        # RULE 8: store winning decision reasoning in ReasoningBank
-        # High-reward decisions (score > 0.7) become training data
-        reasoning_bank = self._get_reasoning_bank()
-        if reasoning_bank is not None:
-            try:
-                reasoning_bank.store(
-                    task=winner.action_type,
-                    reasoning="\n".join(winner.reasoning_steps) if winner.reasoning_steps else reasoning,
-                    outcome=f"score={winner.total_score:.3f} goal_align={winner.goal_alignment:.2f}",
-                    reward=winner.total_score,
-                    task_type=winner.action_type,
-                )
-                if winner.total_score > 0.7:
-                    reasoning_bank.save()
-            except Exception as _rbe:
-                logger.debug("[VECTOR][decision_engine] ReasoningBank store suppressed: %s", _rbe)
-
-        # Persist neural trainer checkpoint every 50 decisions so learning survives restart
-        trainer = self._get_neural_trainer()
-        if trainer is not None:
-            try:
-                self._neural_decision_count = getattr(self, "_neural_decision_count", 0) + 1
-                if self._neural_decision_count % 50 == 0:
-                    ckpt = Path.home() / ".vector" / "neural_trainer.json"
-                    trainer.save_checkpoint(ckpt)
-                    logger.debug(f"[VECTOR][decision_engine] Neural trainer checkpoint saved (n={self._neural_decision_count})")
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-
         return Decision(
             winner=winner,
             all_candidates=ranked,
             reasoning=reasoning,
             evaluated=len(candidates),
-            reasoning_chain=[
-                {
-                    "rank": i + 1,
-                    "action_type": c.action_type,
-                    "goal_ids": c.goal_ids,
-                    "total_score": c.total_score,
-                    "goal_alignment": c.goal_alignment,
-                    "policy_score": c.policy_score,
-                    "confidence": c.confidence,
-                    "urgency": c.urgency,
-                    "timing_score": c.timing_score,
-                    "reasoning_steps": c.reasoning_steps,
-                    "winner": c is winner,
-                }
-                for i, c in enumerate(ranked)
-            ],
-            situation=winner.situation,
         )
 
 
@@ -507,7 +226,7 @@ if __name__ == "__main__":
         and 0.0 <= decision.winner.total_score <= 1.0
     )
     print(
-        f"Ã¢Å“… decision_engine OK Ã¢â‚¬— winner={decision.winner.action_type} "
+        f"✅ decision_engine OK — winner={decision.winner.action_type} "
         f"score={decision.winner.total_score}, {decision.evaluated} evaluated"
-        if ok else "Ã¢ÂÅ’ FAILED"
+        if ok else "❌ FAILED"
     )

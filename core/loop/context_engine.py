@@ -1,39 +1,37 @@
 import sys
 import datetime
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
 
 
-# Module-level sense cache written by autonomous_loop._sense_tick() every 30s.
-# All ContextEngine instances share this (re-instantiation is cheap and common).
-_SENSE_CACHE: dict = {"screen_summary": "", "presence": "unknown"}
-
-
-def update_sense_cache(screen_summary: str = "", presence: str = "unknown") -> None:
-    """Called from autonomous_loop._sense_tick() — updates shared sensing state."""
-    _SENSE_CACHE["screen_summary"] = screen_summary[:300] if screen_summary else ""
-    _SENSE_CACHE["presence"] = presence or "unknown"
-
-
 class ContextEngine:
     """
     Builds VECTOR's world state. session_hydration_prompt() MUST be called before every LLM call.
-    RULE 1 Ã¢â‚¬— Skip this = VECTOR has amnesia every session. Never skip.
+    RULE 1 — Skip this = VECTOR has amnesia every session. Never skip.
     """
 
     def __init__(self):
         self._memory = None
         self._goals = None
-        self._health = None
-        self._screen = None
-        self._obsidian = None
-        self._deadline_mgr = None
-        self._expense_tracker = None
-        self._kiit_scraper = None
-        self._comms_hub = None
-        self._personality = None
+        # Sense cache: populated by autonomous_loop._sense_tick() or update_sense_cache().
+        # Keys written by FaceDetector: face.detected, face.identity, face.fatigue
+        # Keys written by ScreenObserver: screen_summary
+        self._sense_cache: dict = {}
         logger.info("[VECTOR][context_engine] initialized")
+
+    def update_sense_cache(self, data: dict) -> None:
+        """Update the sense cache with latest sensing results.
+
+        Called by autonomous_loop._sense_tick() after every FaceDetector /
+        ScreenObserver pass. May also be called directly in tests.
+        Expected keys (all optional):
+          face.detected (bool), face.identity (str), face.fatigue (float)
+          screen_summary (str)
+        """
+        self._sense_cache.update(data)
 
     def _get_memory(self):
         if self._memory is None:
@@ -47,103 +45,14 @@ class ContextEngine:
             self._goals = GoalSystem()
         return self._goals
 
-    def _get_health(self):
-        if self._health is None:
-            try:
-                from core.sensing.health_monitor import HealthMonitor
-                self._health = HealthMonitor()
-            except Exception: logger.debug("[VECTOR][context] exception suppressed")
-        return self._health
-
-    def _get_screen(self):
-        if self._screen is None:
-            try:
-                from core.sensing.screen_observer import ScreenObserver
-                self._screen = ScreenObserver()
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        return self._screen
-
-    def _get_obsidian(self):
-        if self._obsidian is None:
-            try:
-                from core.memory.obsidian_sync import ObsidianSync
-                self._obsidian = ObsidianSync()
-            except Exception as e:
-                logger.warning(f"[VECTOR][context_engine] ObsidianSync init failed: {e}")
-        return self._obsidian
-
-    def _get_deadline_mgr(self):
-        if self._deadline_mgr is None:
-            try:
-                from districts.time_calendar.deadline_manager import DeadlineManager
-                self._deadline_mgr = DeadlineManager()
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        return self._deadline_mgr
-
-    def _get_expense_tracker(self):
-        if self._expense_tracker is None:
-            try:
-                from districts.finance.expense_tracker import ExpenseTracker
-                self._expense_tracker = ExpenseTracker()
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        return self._expense_tracker
-
-    def _get_kiit_scraper(self):
-        if self._kiit_scraper is None:
-            try:
-                from districts.time_calendar.kiit_scraper import KIITScraper
-                self._kiit_scraper = KIITScraper()
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        return self._kiit_scraper
-
-    def _get_comms_hub(self):
-        if self._comms_hub is None:
-            try:
-                from vectorcode.src.comms.messenger import MessagingHub as _VCCommsHub
-                self._comms_hub = _VCCommsHub()
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        return self._comms_hub
-
-    def _get_personality(self):
-        if self._personality is None and CONFIG.get("personality", {}).get("enabled", True):
-            try:
-                from core.personality import PersonalityEngine
-                self._personality = PersonalityEngine()
-            except Exception as e:
-                logger.warning(f"[VECTOR][context_engine] PersonalityEngine init failed: {e}")
-        return self._personality
-
-    async def get_vault_context(self, query: str) -> str:
-        """LightRAG hybrid query over Obsidian vault. Returns '' if not ready."""
-        try:
-            obs = self._get_obsidian()
-            if obs is None:
-                return ""
-            return await obs.query(query, mode="hybrid")
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] vault context failed: {e}")
-            return ""
-
-    def get_world_state(self, query: str | None = None) -> dict:
-        """Gather current world state across 14 domains.
-
-        When *query* is provided, episodic recall uses hybrid semantic+FTS5 search
-        (C2) so contextually relevant episodes surface instead of just the most recent.
-        """
-        now = datetime.datetime.now(datetime.timezone.utc)
+    def get_world_state(self) -> dict:
+        """Gather current world state across 9 domains."""
+        now = datetime.datetime.now()
         mem = self._get_memory()
 
         recent_episodes = []
         try:
-            if query:
-                recent_episodes = mem.search_semantic(query, top_k=5)
-            else:
-                recent_episodes = mem.recall("", limit=5)
+            recent_episodes = mem.recall("", limit=5)
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] episode recall failed: {e}")
 
@@ -159,91 +68,18 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] mem stats failed: {e}")
 
-        health_snapshot = {}
-        try:
-            h = self._get_health()
-            if h:
-                health_snapshot = h.get_health_snapshot()
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] health snapshot failed: {e}")
+        # --- Presence / face detection from sense cache ---
+        face_data: dict = self._sense_cache.get("face", {})
+        if face_data.get("detected"):
+            presence = "present"
+        elif "detected" in face_data:
+            # detected key exists but is False — camera ran, no face found
+            presence = "absent"
+        else:
+            presence = self._sense_cache.get("presence", "unknown")
 
-        screen_activity = "unknown"
-        try:
-            s = self._get_screen()
-            if s:
-                result = s.observe()
-                screen_activity = result.get("activity", "unknown")
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
-
-        # Ã¢—â‚¬Ã¢—â‚¬ Extended domain fields Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
-        calendar_upcoming: list = []
-        try:
-            dm = self._get_deadline_mgr()
-            if dm and hasattr(dm, "get_upcoming_events"):
-                calendar_upcoming = dm.get_upcoming_events(hours=168) or []  # 7 days = 168 hours
-            elif dm and hasattr(dm, "get_upcoming_deadlines"):
-                calendar_upcoming = dm.get_upcoming_deadlines(days=7) or []
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] calendar fetch failed: {e}")
-
-        finance_summary: dict = {}
-        try:
-            et = self._get_expense_tracker()
-            if et and hasattr(et, "get_monthly_summary"):
-                finance_summary = et.get_monthly_summary() or {}
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] finance fetch failed: {e}")
-
-        academic_info: dict = {}
-        try:
-            ks = self._get_kiit_scraper()
-            if ks:
-                # Only call sync methods Ã¢â‚¬— get_schedule() is async and cannot be called here
-                if hasattr(ks, "get_cached_schedule"):
-                    academic_info = ks.get_cached_schedule() or {}
-                elif hasattr(ks, "schedule_cache") and ks.schedule_cache:
-                    academic_info = ks.schedule_cache
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] academic fetch failed: {e}")
-
-        comms_status: dict = {"urgent": 0, "unread": 0, "pending": 0}
-        try:
-            ha = self._get_comms_hub()
-            if ha:
-                if hasattr(ha, "get_comms_status"):
-                    comms_status = ha.get_comms_status()
-                else:
-                    n = ha.get_pending_count()
-                    comms_status = {"urgent": 0, "unread": n, "pending": n}
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] comms fetch failed: {e}")
-
-        personality = {}
-        try:
-            pe = self._get_personality()
-            if pe:
-                personality = {
-                    "enabled": True,
-                    "active_traits": dict(pe.card.traits),
-                    "traits_summary": pe.card.get_traits_summary(),
-                    "tone_profiles": list(pe.card.tone_mapping.keys()),
-                }
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] personality data failed: {e}")
-
-        predictions = {}
-        try:
-            from districts.predictive_analytics.prediction_store import PredictionStore
-            ps = PredictionStore()
-            predictions = {
-                "recent_forecasts": len(ps.get_recent_forecasts(limit=5)),
-                "active_anomalies": len(ps.get_recent_anomalies(limit=20)),
-                "pending_recommendations": len(ps.get_pending_recommendations()),
-                "recent_simulations": len(ps.get_recent_simulations(limit=5)),
-            }
-        except Exception as e:
-            logger.debug(f"[VECTOR][context_engine] predictions fetch failed: {e}")
+        owner_identity: str = face_data.get("identity", "")
+        fatigue_score: float = float(face_data.get("fatigue", 0.0))
 
         return {
             "timestamp": now.isoformat(),
@@ -259,72 +95,24 @@ class ContextEngine:
             "goal_summary": goal_summary,
             "memory_stats": mem_stats,
             "loop_status": "running",
-            "health": health_snapshot,
-            "screen_activity": screen_activity,
-            # Extended fields
-            "location": CONFIG.get("location", "home"),
-            "calendar": calendar_upcoming,
-            "finance": finance_summary,
-            "academic": academic_info,
-            "comms": comms_status,
-            "personality": personality,
-            "predictions": predictions,
-            "home_assistant": self._get_ha_snapshot(),
-            "screen_summary": _SENSE_CACHE.get("screen_summary", ""),
-            "presence": _SENSE_CACHE.get("presence", "unknown"),
+            # Presence fields — sourced from FaceDetector via _sense_cache
+            "presence": presence,
+            "owner_identity": owner_identity,
+            "fatigue_score": fatigue_score,
+            "screen_summary": self._sense_cache.get("screen_summary", ""),
         }
-
-    def _get_ha_snapshot(self) -> dict:
-        if not CONFIG.get("home_assistant", {}).get("enabled", False):
-            return {"enabled": False}
-        try:
-            from districts.home_assistant.entity_manager import EntityManager
-            mgr = EntityManager()
-            from districts.home_assistant.connector import HAConfig, HAConnector
-            cfg = HAConfig(
-                host=CONFIG["home_assistant"]["host"],
-                port=CONFIG["home_assistant"]["port"],
-                token=CONFIG["home_assistant"]["token"],
-            )
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                if loop.is_running():
-                    asyncio.ensure_future(self._async_ha_snapshot(mgr, cfg))
-                    return {"enabled": True, "status": "pending"}
-            except RuntimeError:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-            return {"enabled": True}
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] HA snapshot failed: {e}")
-            return {"enabled": False, "error": str(e)}
-
-    async def _async_ha_snapshot(self, mgr, cfg):
-        try:
-            from districts.home_assistant.connector import HAConnector
-            connector = HAConnector(cfg)
-            await connector.connect()
-            count = await mgr.discover(connector)
-            await connector.disconnect()
-            lights = [{"id": e.entity_id, "state": e.state} for e in mgr.get_by_domain("light")[:5]]
-            sensors = [{"id": e.entity_id, "state": e.state} for e in mgr.get_by_domain("sensor")[:5]]
-            logger.info("[VECTOR][context_engine] HA snapshot: {} entities, {} lights, {} sensors",
-                        count, len(lights), len(sensors))
-        except Exception as e:
-            logger.warning(f"[VECTOR][context_engine] async HA snapshot failed: {e}")
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
         """
-        RULE 1 Ã¢â‚¬— Call this before EVERY LLM call.
+        RULE 1 — Call this before EVERY LLM call.
         Returns a context block to prepend to the LLM message.
         """
-        _query = (extra_context or {}).get("query") if extra_context else None
         try:
-            state = self.get_world_state(query=_query)
+            state = self.get_world_state()
         except Exception as e:
             logger.error(f"[VECTOR][context_engine] world state failed: {e}")
             state = {
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "timestamp": datetime.datetime.now().isoformat(),
                 "owner": CONFIG["owner_name"],
                 "env": CONFIG["env"],
                 "version": CONFIG["version"],
@@ -335,98 +123,26 @@ class ContextEngine:
             }
 
         lines = [
-            f"[SESSION CONTEXT Ã¢â‚¬— {state['timestamp']}]",
+            f"[SESSION CONTEXT — {state['timestamp']}]",
             f"Owner: {state['owner']} | Env: {state['env']} | VECTOR v{state['version']}",
             f"Time: {state['time_of_day']} ({state['day_of_week']})",
         ]
 
-        if state.get("location"):
-            lines.append(f"Location: {state['location']}")
-
-        if state.get("health"):
-            h = state["health"]
-            lines.append(
-                f"Owner health: energy={h.get('energy_level','?')} fatigue={h.get('fatigue_score','?')} "
-                f"cpu={h.get('cpu_percent','?')}% ram={h.get('ram_percent','?')}%"
-            )
-        if state.get("screen_activity") and state["screen_activity"] != "unknown":
-            lines.append(f"Current activity: {state['screen_activity']}")
+        if state.get("presence") and state["presence"] not in ("unknown", ""):
+            identity = state.get("owner_identity", "")
+            fatigue = state.get("fatigue_score", 0.0)
+            presence_line = f"Presence: {state['presence']}"
+            if identity:
+                presence_line += f" ({identity})"
+            if fatigue > 0.0:
+                presence_line += f" fatigue={fatigue:.2f}"
+            lines.append(presence_line)
 
         if state.get("screen_summary"):
             lines.append(f"Screen: {state['screen_summary'][:120]}")
-        if state.get("presence") and state["presence"] not in ("unknown", ""):
-            lines.append(f"Presence: {state['presence']}")
 
         if state.get("goal_summary"):
             lines.append(f"Active goals: {state['goal_summary']}")
-
-        if state.get("calendar"):
-            lines.append(f"Upcoming deadlines: {len(state['calendar'])} in next 7 days")
-
-        if state.get("finance"):
-            spent = state["finance"].get("total_spent", state["finance"].get("total", ""))
-            if spent:
-                lines.append(f"Finance: monthly spend={spent}")
-
-        if state.get("academic"):
-            acad = str(state["academic"])[:80]
-            if acad and acad != "{}":
-                lines.append(f"Academic: {acad}")
-
-        comms = state.get("comms", {})
-        urgent = comms.get("urgent", 0)
-        unread = comms.get("unread", 0)
-        if urgent or unread:
-            lines.append(f"Comms: {urgent} urgent, {unread} unread")
-
-        if state.get("personality", {}).get("enabled"):
-            p = state["personality"]
-            lines.append(f"Personality: {p.get('traits_summary', 'active')}")
-            if p.get("tone_profiles"):
-                lines.append(f"Tone profiles: {', '.join(p['tone_profiles'])}")
-
-        try:
-            from core.brain.person_model import PersonModel
-            pm = PersonModel()
-            summary = pm.get_model_summary()
-            if summary.get("total_persons", 0) > 0:
-                persons = pm.get_all_persons()[:3]
-                names = ", ".join(
-                    f"{p['name']} (trust={p['trust_score']:.2f})"
-                    for p in persons if p.get("trust_score") is not None
-                )
-                if names:
-                    lines.append(f"Known persons ({summary['total_persons']} total): {names}")
-        except Exception:
-            pass
-
-        # Deep per-person context when a specific person_id is active (Session A2)
-        _person_id_ctx = extra_context.get("person_id") if extra_context else None
-        if _person_id_ctx:
-            try:
-                from core.brain.person_model import PersonModel
-                _pm = PersonModel()
-                _model = _pm.get_model(_person_id_ctx)
-                if _model:
-                    _style = _pm.infer_communication_style(_person_id_ctx)
-                    _topic = extra_context.get("topic", state.get("screen_activity", "general"))
-                    _stance = _pm.predict_response(_person_id_ctx, str(_topic))
-                    _recent = _model.get("recent_interactions", [])
-                    _recent_topics = [
-                        h.get("summary", "")[:40]
-                        for h in _recent[:3]
-                        if h.get("summary")
-                    ]
-                    lines.append(
-                        f"About {_model.get('name', _person_id_ctx)}: "
-                        f"trust={_model.get('trust_score', 0.5):.2f}, "
-                        f"style={{formality={_style.get('formality', '?')}, "
-                        f"technicality={_style.get('technicality', '?')}}}, "
-                        f"recent_topics=[{', '.join(_recent_topics) or 'none'}], "
-                        f"expected_stance={_stance[:80] if _stance else 'unknown'}"
-                    )
-            except Exception as _pe:
-                logger.debug("[VECTOR][context_engine] per-person context failed: {}", _pe)
 
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
@@ -436,35 +152,11 @@ class ContextEngine:
                 lines.append(f"Recent context: {episodes_str}")
 
         if extra_context:
-            _skip_keys = {"person_id", "topic"}
             for k, v in extra_context.items():
-                if k not in _skip_keys:
-                    lines.append(f"{k}: {v}")
+                lines.append(f"{k}: {v}")
 
         lines.append("[END SESSION CONTEXT]")
-        raw = "\n".join(lines)
-
-        # Ã¢—â‚¬Ã¢—â‚¬ TokenJuice compression Ã¢â‚¬— strip noise before injecting into LLM Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
-        try:
-            from core.engine.token_juice.compressor import reduce_text
-            compressed = reduce_text(
-                raw,
-                strip_boilerplate=True,
-                strip_log_noise=True,
-                compress_repeated_lines=True,
-                max_chars=2000,
-            )
-            if len(compressed) < len(raw):
-                logger.debug(
-                    "[VECTOR][context_engine] TokenJuice: {} Ã¢â€ ’ {} chars ({:.0f}% reduction)",
-                    len(raw), len(compressed),
-                    (1 - len(compressed) / len(raw)) * 100,
-                )
-                return compressed
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-
-        return raw
+        return "\n".join(lines)
 
     def _time_of_day(self, now: datetime.datetime) -> str:
         h = now.hour
@@ -489,25 +181,13 @@ if __name__ == "__main__":
     engine = ContextEngine()
     state = engine.get_world_state()
     prompt = engine.session_hydration_prompt({"task": "smoke test"})
-    comms = state.get("comms", {})
-    personality = state.get("personality", {})
     ok = (
         "SESSION CONTEXT" in prompt
         and "Arghyadeep" in prompt
         and "[END SESSION CONTEXT]" in prompt
-        and len(state) >= 15
-        and "location" in state
-        and "calendar" in state
-        and "finance" in state
-        and "academic" in state
-        and "comms" in state
-        and "urgent" in comms
-        and "unread" in comms
-        and "pending" in comms
-        and "personality" in state
-        and ("enabled" in personality or personality == {})
+        and len(state) >= 8
     )
     print(
-        f"Ã¢Å“… context_engine OK Ã¢â‚¬— {len(state)} domains, prompt={len(prompt)} chars"
-        if ok else "Ã¢ÂÅ’ FAILED"
+        f"✅ context_engine OK — {len(state)} domains, prompt={len(prompt)} chars"
+        if ok else "❌ FAILED"
     )

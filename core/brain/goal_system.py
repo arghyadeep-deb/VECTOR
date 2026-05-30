@@ -1,13 +1,9 @@
 import sys
-
-__all__ = [
-    "GoalSystem",
-    "PRESEEDED_GOALS",
-]
-
 import json
 import uuid
 import datetime
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -124,12 +120,15 @@ class GoalSystem:
                     if now > due_dt:
                         goal["status"] = "expired"
                         goal["expired_at"] = now.isoformat()
-                        logger.info("[VECTOR][goal_system] goal expired (past due): {} — {}", goal["id"], goal["title"])
+                        logger.info(
+                            "[VECTOR][goal_system] goal expired (past due): {} — {}",
+                            goal["id"], goal["title"],
+                        )
                         pruned += 1
                         continue
                 except Exception:
                     pass
-            # Stale: no update in horizon-appropriate days
+            # Stale: no update in horizon-appropriate days with zero progress
             last = goal.get("last_updated") or goal.get("created_at")
             if last:
                 try:
@@ -140,7 +139,10 @@ class GoalSystem:
                     if (now - last_dt).days > stale_days and goal.get("progress", 0) == 0.0:
                         goal["status"] = "expired"
                         goal["expired_at"] = now.isoformat()
-                        logger.info("[VECTOR][goal_system] goal expired (stale {}d): {} — {}", stale_days, goal["id"], goal["title"])
+                        logger.info(
+                            "[VECTOR][goal_system] goal expired (stale {}d): {} — {}",
+                            stale_days, goal["id"], goal["title"],
+                        )
                         pruned += 1
                 except Exception:
                     pass
@@ -156,6 +158,10 @@ class GoalSystem:
             goals = [g for g in goals if g.get("horizon") == horizon.upper()]
         return sorted(goals, key=lambda g: g.get("priority", 0), reverse=True)
 
+    def get_expired_goals(self) -> list[dict]:
+        """Return all expired goals for observability. No side effects."""
+        return [g for g in self._goals if g.get("status") == "expired"]
+
     def generate_immediate_actions(self, limit: int = 5) -> list[dict]:
         """
         RULE 6 — Planner reads this. Not world state. Not user commands. Goals.
@@ -167,21 +173,19 @@ class GoalSystem:
             actions.append({
                 "goal_id": goal["id"],
                 "title": goal["title"],
-                "action": "progress_goal",
+                "action": f"progress_{goal['id']}",
                 "urgency": "high",
                 "source": "SHORT_goal",
-                "tags": goal.get("tags", []),
             })
 
         for goal in self.get_active_goals():
-            if goal.get("progress", 0) < 1.0 and goal["horizon"] in ("LONG", "MID"):
+            if goal.get("progress", 0) == 0.0 and goal["horizon"] in ("LONG", "MID"):
                 actions.append({
                     "goal_id": goal["id"],
                     "title": f"Start: {goal['title']}",
-                    "action": "kickstart_goal",
+                    "action": f"kickstart_{goal['id']}",
                     "urgency": "medium",
                     "source": f"{goal['horizon']}_unstarter",
-                    "tags": goal.get("tags", []),
                 })
 
         return actions[:limit]
@@ -194,7 +198,7 @@ class GoalSystem:
                 if progress >= 1.0:
                     goal["status"] = "completed"
                     logger.info(f"[VECTOR][goal_system] GOAL COMPLETED: {goal['title']}")
-                goal["last_updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                goal["last_updated"] = datetime.datetime.utcnow().isoformat()
                 if note:
                     goal["last_note"] = note
                 self._persist()

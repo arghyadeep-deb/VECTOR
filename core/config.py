@@ -71,6 +71,7 @@ class PermissionConfig(BaseModel):
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
         "download_file", "set_reminder", "write_note_personal",
+        "launch_app", "run_shell_command",
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
         # VectorCode write/execute actions
