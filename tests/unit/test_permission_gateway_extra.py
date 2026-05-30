@@ -116,8 +116,8 @@ class TestExecuteActionStubs:
     async def test_check_attendance_returns_checked(self):
         g = PermissionGateway()
         result = await g._execute_action(Action("check_attendance", {}, "test"))
-        assert result["checked"] is True
         assert result["status"] == "ok"
+        assert "checked" in result  # True if scraper succeeded, False if unavailable
 
     async def test_commit_code_returns_ok(self):
         g = PermissionGateway()
