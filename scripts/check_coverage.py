@@ -4,7 +4,7 @@ import sys
 import os
 
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-THRESHOLD = 20.0
+THRESHOLD = 50.0
 
 
 def main():
