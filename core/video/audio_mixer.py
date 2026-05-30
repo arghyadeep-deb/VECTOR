@@ -299,6 +299,6 @@ if __name__ == "__main__":
             print("FFmpeg not installed — skipping audio test")
     finally:
         try: os.unlink(tmp)
-        except: pass
+        except OSError as e: logger.debug("[VECTOR][audio_mixer] temp cleanup: {}", e)
 
     print("OK audio_mixer.py")
