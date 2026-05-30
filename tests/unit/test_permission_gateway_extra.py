@@ -108,11 +108,19 @@ class TestExecuteActionStubs:
         assert result["set"] == 60
 
     async def test_check_weather_returns_ok(self):
-        # check_weather now makes a real HTTP call — accept ok (network available) or error (CI/offline)
+        from unittest.mock import AsyncMock, MagicMock, patch
         g = PermissionGateway()
-        result = await g._execute_action(Action("check_weather", {"location": "Kolkata"}, "test"))
+        mock_response = MagicMock()
+        mock_response.text = "Kolkata: Sunny +35°C"
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_response)
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await g._execute_action(Action("check_weather", {"location": "Kolkata"}, "test"))
         assert result["location"] == "Kolkata"
-        assert result["status"] in ("ok", "error")  # error when network unavailable in CI
+        assert result["status"] == "ok"
+        assert "weather" in result
 
     async def test_check_attendance_returns_checked(self):
         g = PermissionGateway()
