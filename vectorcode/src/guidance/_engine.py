@@ -2,31 +2,30 @@
 vectorcode/src/guidance/_engine.py
 All VECTOR Guidance Engine components.
 
-Imports from the canonical guidance.py monolith until inline decomposition
-is done in a later cleanup pass. This gives the package the correct public
-surface immediately without duplicating ~1600 lines of logic.
+Loads the canonical guidance.py monolith via importlib by file path to avoid
+the package/module name collision: both vectorcode/src/guidance.py (monolith)
+and vectorcode/src/guidance/ (this package) exist. A bare `from guidance import`
+resolves to this package instead of the monolith, causing a circular import.
+Using spec_from_file_location bypasses module-name resolution entirely.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import importlib.util as _ilu
+from pathlib import Path as _Path
 
-# Ensure vectorcode/src is on the path so the monolith can be imported directly
-_src = Path(__file__).parent.parent
-if str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
+_monolith_path = _Path(__file__).parent.parent / "guidance.py"
+_spec = _ilu.spec_from_file_location("_guidance_monolith", _monolith_path)
+_mod = _ilu.module_from_spec(_spec)  # type: ignore[arg-type]
+_spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
-# Import all engine classes from the monolith
-from guidance import (  # type: ignore[import]  # noqa: F401
-    ThreatDetector,
-    CollusionDetector,
-    MemoryQuorum,
-    AuthorityGate,
-    CoherenceScheduler,
-    EconomicGovernor,
-    ContinueGate,
-    create_guidance_system,
-)
+ThreatDetector = _mod.ThreatDetector
+CollusionDetector = _mod.CollusionDetector
+MemoryQuorum = _mod.MemoryQuorum
+AuthorityGate = _mod.AuthorityGate
+CoherenceScheduler = _mod.CoherenceScheduler
+EconomicGovernor = _mod.EconomicGovernor
+ContinueGate = _mod.ContinueGate
+create_guidance_system = _mod.create_guidance_system
 
 __all__ = [
     "ThreatDetector",
