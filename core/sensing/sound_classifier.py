@@ -21,11 +21,11 @@ class SoundClassifier:
         Zero-Crossing Rate (ZCR) — frequency proxy
 
     Decision logic:
-        rms < 0.01                       â†’ "silence"
-        rms > 0.30                       â†’ "alert"    (loud transient)
-        zcr > 0.20                       â†’ "speech"   (rapid sign changes typical of voice)
-        spectral_flatness > 0.15         â†’ "music"    (tonal harmonic content vs noise)
-        otherwise                        â†’ "background"
+        rms < 0.01                       -> "silence"
+        rms > 0.30                       -> "alert"    (loud transient)
+        zcr > 0.20                       -> "speech"   (rapid sign changes typical of voice)
+        spectral_peak_ratio > 50         -> "music"    (strong tonal content, low ZCR)
+        otherwise                        -> "background"
 
     Optional: set CONFIG["sound_model_path"] to a YAMNet ONNX file path for
     521-class ML-based classification. Falls back to heuristics when absent.
