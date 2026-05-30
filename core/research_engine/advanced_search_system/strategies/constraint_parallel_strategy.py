@@ -228,7 +228,7 @@ class ConstraintParallelStrategy(DualConfidenceWithRejectionStrategy):
 
             # Submit search task
             future = self.search_executor.submit(
-                self._run_constraint_search,
+                preserve_research_context(self._run_constraint_search),
                 constraint,
                 i,
                 len(self.constraint_ranking),
