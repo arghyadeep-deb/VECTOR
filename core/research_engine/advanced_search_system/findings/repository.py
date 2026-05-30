@@ -15,6 +15,7 @@ from langchain_core.documents import Document
 from langchain_core.language_models import BaseLanguageModel
 
 from ...utilities.search_utilities import format_findings
+from ...utilities.thread_context import preserve_research_context
 from .base_findings import BaseFindingsRepository
 
 
