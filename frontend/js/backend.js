@@ -338,6 +338,16 @@
 
     } else if (type === 'HYPOTHESIS_SURFACED') {
       V.emit('notify', ev);
+
+    } else if (type === 'CITY_UPDATE') {
+      // From websocket_broadcaster.city_update() — bulk district HP update
+      const districts = data.districts || [];
+      districts.forEach(d => {
+        const agent = D.agents.find(a => a.district === d.name);
+        if (agent) { agent.health_points = d.hp ?? agent.health_points; agent.tier = hpTier(agent.health_points); }
+      });
+      refreshDistricts();
+      if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
     }
   });
 
