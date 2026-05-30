@@ -39,27 +39,37 @@ class BroadcastSystem:
     async def city_update(
         districts: list[dict],
     ) -> None:
-        """Broadcast district HP/status changes."""
-        if broadcast_event is None:
-            return
-        payload = {
-            "type": "city_update",
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "districts": [
-                {
-                    "name": d.get("name", "unknown"),
-                    "hp": d.get("hp", 500),
-                    "color": d.get("color", "#00CFFF"),
-                    "position": d.get("position", [0, 0, 0]),
-                    "agents": d.get("agents", []),
-                }
-                for d in districts
-            ],
-        }
-        try:
-            await broadcast_event(payload)
-        except Exception as e:
-            logger.debug(f"[BroadcastSystem] city_update failed: {e}")
+        """Broadcast district HP/status changes to main /ws and /ws/state."""
+        ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        district_list = [
+            {
+                "name": d.get("name", "unknown"),
+                "hp": d.get("hp", 500),
+                "color": d.get("color", "#00CFFF"),
+                "position": d.get("position", [0, 0, 0]),
+                "agents": d.get("agents", []),
+            }
+            for d in districts
+        ]
+
+        # Main /ws channel (consumed by old React dashboard)
+        if broadcast_event is not None:
+            try:
+                await broadcast_event({"type": "city_update", "timestamp": ts, "districts": district_list})
+            except Exception as e:
+                logger.debug(f"[BroadcastSystem] city_update broadcast failed: {e}")
+
+        # Also emit CITY_UPDATE through event_bus so /ws/state forwards it to HUD frontend
+        if _event_bus_ok:
+            try:
+                bus = _get_bus()
+                await bus.emit(_Event(
+                    event_type="CITY_UPDATE",
+                    data={"districts": district_list},
+                    source="websocket_broadcaster",
+                ))
+            except Exception as e:
+                logger.debug(f"[BroadcastSystem] city_update event_bus emit failed: {e}")
 
     @staticmethod
     async def agent_movement(
