@@ -68,7 +68,7 @@ class SoundClassifier:
 
     @staticmethod
     def _zcr(audio: np.ndarray) -> float:
-        “””Zero-Crossing Rate — fraction of samples where sign changes.”””
+        “””Zero-Crossing Rate - fraction of samples where sign changes.”””
         if len(audio) < 2:
             return 0.0
         audio_f = audio.astype(np.float32)
