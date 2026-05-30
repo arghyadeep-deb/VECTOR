@@ -460,6 +460,35 @@ class LibraryRAGService:
         )
         return faiss_index
 
+    def _add_documents_to_faiss(self, chunks, ids=None):
+        """Add documents, training the IVF index first if required."""
+        import numpy as np
+        raw_index = self.faiss_index.index
+        if isinstance(raw_index, IndexIVFFlat) and not raw_index.is_trained:
+            # Need at least nlist vectors to train IVF; fall back to Flat when too small.
+            nlist = raw_index.nlist
+            if len(chunks) < nlist:
+                logger.warning(
+                    f"IVF training requires >= {nlist} vectors but only {len(chunks)} provided; "
+                    "falling back to Flat index for this collection."
+                )
+                dim = raw_index.d
+                if self.distance_metric in ("cosine", "dot_product"):
+                    self.faiss_index.index = IndexFlatIP(dim)
+                else:
+                    self.faiss_index.index = IndexFlatL2(dim)
+            else:
+                # Embed the training vectors and train the IVF index.
+                texts = [c.page_content for c in chunks]
+                train_vecs = self.embedding_manager.embeddings.embed_documents(texts)
+                train_arr = np.array(train_vecs, dtype="float32")
+                raw_index.train(train_arr)
+                logger.info(f"IVF index trained on {len(chunks)} vectors (nlist={nlist})")
+        if ids is not None:
+            self.faiss_index.add_documents(chunks, ids=ids)
+        else:
+            self.faiss_index.add_documents(chunks)
+
     def get_current_index_info(
         self, collection_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
