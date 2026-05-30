@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core.loop.permission_gateway import PermissionGateway, Action
@@ -8,10 +9,23 @@ def make_action(action_type, params=None, proposed_by="test_agent"):
     return Action(action_type=action_type, params=params or {}, proposed_by=proposed_by)
 
 
+def _mock_httpx():
+    """Return a context manager that mocks httpx.AsyncClient to avoid real network calls in unit tests."""
+    mock_resp = MagicMock()
+    mock_resp.text = '{"Results": []}'
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.get = AsyncMock(return_value=mock_resp)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+    return patch("httpx.AsyncClient", return_value=mock_client)
+
+
 @pytest.mark.asyncio
 async def test_green_action_auto_executes():
     gw = PermissionGateway()
-    result = await gw.execute(make_action("search_web", {"query": "test"}))
+    with _mock_httpx():
+        result = await gw.execute(make_action("search_web", {"query": "test"}))
     assert result.approved is True
     assert result.level == "GREEN"
     assert result.executed is True
