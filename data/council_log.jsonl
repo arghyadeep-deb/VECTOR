@@ -1220,3 +1220,4 @@
 {"ts": "2026-05-30T12:10:34.722115+00:00", "action_type": "execute_code", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:10:45.383052+00:00", "action_type": "financial_transaction", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:10:55.966555+00:00", "action_type": "push_github", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T12:11:06.564724+00:00", "action_type": "deploy_production", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
