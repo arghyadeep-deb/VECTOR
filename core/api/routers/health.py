@@ -104,7 +104,9 @@ async def system_health():
     try:
         import httpx
         from core.config import CONFIG
-        ollama_host = CONFIG["ollama_host"]  # e.g. "http://127.0.0.1:11434"
+        ollama_host = CONFIG["ollama_host"]
+        if not ollama_host.startswith(("http://", "https://")):
+            ollama_host = f"http://{ollama_host}"
         async with httpx.AsyncClient(timeout=3) as client:
             r = await client.get(f"{ollama_host}/api/tags")
             model_count = len(r.json().get("models", []))
