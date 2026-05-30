@@ -90,11 +90,11 @@ class TestGatewayExecute:
 class TestExecuteActionStubs:
     """Test _execute_action() directly for all stub action types."""
 
-    async def test_play_music_returns_ok(self):
+    async def test_play_music_not_implemented(self):
+        # play_music not wired to a media player — not_implemented prevents phantom RL reward
         g = PermissionGateway()
         result = await g._execute_action(Action("play_music", {"track": "jazz"}, "test"))
-        assert result["status"] == "ok"
-        assert "played" in result
+        assert result["status"] == "not_implemented"
 
     async def test_set_timer_returns_duration(self):
         g = PermissionGateway()
