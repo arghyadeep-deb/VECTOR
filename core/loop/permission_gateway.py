@@ -703,6 +703,27 @@ class PermissionGateway:
                     result.update(_shell)
                 except Exception as _e:
                     result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type.startswith("proactive_"):
+                # Anticipation engine prediction — surface to owner as a nudge.
+                # Proactive actions never auto-execute; they suggest, owner decides.
+                _desc = action.params.get("description", action.params.get("need", action.action_type))
+                _need = action.params.get("need", action.action_type.replace("proactive_", ""))
+                try:
+                    from core.loop.nudge_engine import nudge_engine
+                    nudge_engine.push(_desc, source="anticipation", need=_need)
+                    from core.memory.episodic import EpisodicMemory
+                    EpisodicMemory().store(
+                        event_type="proactive_suggestion",
+                        content=_desc,
+                        tags=["proactive", "anticipation", _need],
+                        source="anticipation_engine",
+                    )
+                    result["status"] = "ok"
+                    result["surfaced"] = True
+                    result["need"] = _need
+                except Exception as _pe:
+                    result["status"] = "error"
+                    result["error"] = str(_pe)
             else:
                 # Unknown action — not_implemented prevents phantom RL reward
                 result["status"] = "not_implemented"
