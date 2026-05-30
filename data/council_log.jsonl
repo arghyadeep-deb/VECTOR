@@ -1231,3 +1231,5 @@
 {"ts": "2026-05-30T12:12:52.805880+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:14:26.827366+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:16:38.697450+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T12:17:12.756908+00:00", "action_type": "send_email", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T12:17:23.335621+00:00", "action_type": "delete_files", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
