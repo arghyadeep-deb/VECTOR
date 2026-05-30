@@ -1,18 +1,22 @@
 # VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
-# Ingested: 2026-05-15T02:57:36+00:00
 
-"""LoRA fine-tuning stub — deferred to v2.
+"""LoRA fine-tuning applier.
 
-The planner can emit LORA_FINETUNE edits so the diagnosis surfaces
-"this should be a weight update" pressure to the user, but the executor
-refuses them in v1.
-
-See spec §4.1.
+On machines with CUDA + PEFT + transformers installed this runs a real LoRA
+fine-tune.  When the dependencies or GPU are unavailable it degrades
+gracefully: validate() returns ok=False with a clear reason and apply()
+records the requested edit to a queue artifact instead of raising.
 """
 
 from __future__ import annotations
+
+import json
+import uuid
+from pathlib import Path
+
+from loguru import logger
 
 from vectorcode.src.learning.distillation.execute.base import (
     ApplyContext,
@@ -22,21 +26,167 @@ from vectorcode.src.learning.distillation.execute.base import (
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
 
+# --- Dependency availability check (done once at import time) ---------------
+
+def _check_lora_deps() -> tuple[bool, str]:
+    """Return (available, reason_if_not)."""
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return False, "CUDA not available (torch.cuda.is_available() is False)"
+    except ImportError:
+        return False, "torch not installed"
+    try:
+        import peft  # noqa: F401
+    except ImportError:
+        return False, "peft not installed (pip install peft)"
+    try:
+        import transformers  # noqa: F401
+    except ImportError:
+        return False, "transformers not installed (pip install transformers)"
+    return True, ""
+
+
+_LORA_AVAILABLE, _LORA_UNAVAIL_REASON = _check_lora_deps()
+
+
+# --- Queue file for deferred edits when LoRA is unavailable -----------------
+
+def _queue_edit(edit: Edit, ctx: ApplyContext) -> Path:
+    """Persist the edit to a queue JSON file and return the path."""
+    queue_dir = ctx.vector_home / "lora_queue"
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    path = queue_dir / f"{edit.id}.json"
+    path.write_text(json.dumps(edit.model_dump(), indent=2, default=str))
+    return path
+
+
+# --- Main applier ------------------------------------------------------------
+
 class LoraStubApplier(EditApplier):
-    """Refuses LORA_FINETUNE with a clear v2 message."""
+    """Apply LORA_FINETUNE edits.
+
+    Real fine-tune when GPU + PEFT + transformers are present; graceful
+    degradation to a queue artifact otherwise.
+    """
 
     op = EditOp.LORA_FINETUNE
 
     def validate(self, edit: Edit, ctx: ApplyContext) -> ValidationResult:
-        return ValidationResult(
-            ok=False,
-            reason="LORA_FINETUNE is deferred to v2. "
-            "The planner emitted this edit to signal that weight updates "
-            "would help, but the executor cannot apply them yet.",
-        )
+        if not _LORA_AVAILABLE:
+            return ValidationResult(
+                ok=False,
+                reason=(
+                    f"LoRA fine-tuning requires CUDA + peft + transformers: "
+                    f"{_LORA_UNAVAIL_REASON}. "
+                    "The edit will be queued for when these dependencies are available."
+                ),
+            )
+        # Deps present — check payload has the minimum required fields
+        payload = edit.payload or {}
+        if not payload.get("base_model"):
+            return ValidationResult(
+                ok=False,
+                reason="payload.base_model is required for LORA_FINETUNE",
+            )
+        return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        raise NotImplementedError("LORA_FINETUNE deferred to v2")
+        if not _LORA_AVAILABLE:
+            # Graceful degradation: queue the edit instead of raising
+            queue_path = _queue_edit(edit, ctx)
+            logger.warning(
+                f"[LoRA] Dependencies unavailable ({_LORA_UNAVAIL_REASON}). "
+                f"Edit {edit.id} queued at {queue_path}"
+            )
+            return ApplyResult(changed_files=[str(queue_path)])
+
+        return _run_lora_finetune(edit, ctx)
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        # Remove queue artifact if it exists
+        queue_path = ctx.vector_home / "lora_queue" / f"{edit.id}.json"
+        if queue_path.exists():
+            queue_path.unlink()
+            logger.info(f"[LoRA] Rolled back queued edit {edit.id}")
+        # If a real adapter was written, remove it
+        adapter_dir = ctx.vector_home / "lora_adapters" / edit.id
+        if adapter_dir.exists():
+            import shutil
+            shutil.rmtree(adapter_dir)
+            logger.info(f"[LoRA] Removed adapter at {adapter_dir}")
+
+
+def _run_lora_finetune(edit: Edit, ctx: ApplyContext) -> ApplyResult:
+    """Execute a real LoRA fine-tune (only called when deps are present)."""
+    import torch
+    from peft import LoraConfig, TaskType, get_peft_model
+    from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
+    from datasets import Dataset
+
+    payload = edit.payload
+    base_model_name: str = payload["base_model"]
+    training_data: list = payload.get("training_data", [])
+    r: int = int(payload.get("lora_r", 8))
+    lora_alpha: int = int(payload.get("lora_alpha", 16))
+    epochs: int = int(payload.get("epochs", 1))
+    adapter_dir = ctx.vector_home / "lora_adapters" / edit.id
+
+    if not training_data:
+        logger.warning(f"[LoRA] No training_data in payload for edit {edit.id}; skipping")
+        return ApplyResult(changed_files=[])
+
+    logger.info(
+        f"[LoRA] Fine-tuning {base_model_name} | r={r} | alpha={lora_alpha} | "
+        f"samples={len(training_data)} | epochs={epochs}"
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model_name,
+        torch_dtype=torch.float16,
+        device_map="auto",
+    )
+
+    lora_config = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        r=r,
+        lora_alpha=lora_alpha,
+        lora_dropout=0.05,
+        bias="none",
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
+
+    # Build dataset from training_data list of {"input": ..., "output": ...}
+    def tokenize(example):
+        text = f"{example.get('input', '')}\n{example.get('output', '')}"
+        enc = tokenizer(text, truncation=True, max_length=512, padding="max_length")
+        enc["labels"] = enc["input_ids"][:]
+        return enc
+
+    dataset = Dataset.from_list(training_data).map(tokenize)
+
+    training_args = TrainingArguments(
+        output_dir=str(adapter_dir),
+        num_train_epochs=epochs,
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=4,
+        save_strategy="no",
+        logging_steps=10,
+        fp16=True,
+        report_to="none",
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset,
+    )
+    trainer.train()
+    model.save_pretrained(str(adapter_dir))
+    logger.info(f"[LoRA] Adapter saved at {adapter_dir}")
+    return ApplyResult(changed_files=[str(adapter_dir)])
