@@ -87,7 +87,7 @@ class ParallelExplorer(BaseCandidateExplorer):
                 # Submit all queries for parallel execution
                 future_to_query = {
                     executor.submit(
-                        thread_cleanup(self._execute_search), query
+                        preserve_research_context(thread_cleanup(self._execute_search)), query
                     ): query
                     for query in current_queries
                 }
