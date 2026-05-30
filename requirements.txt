@@ -64,6 +64,7 @@ flatbuffers==25.12.19
 fsspec==2026.4.0
 gitdb==4.0.12
 GitPython==3.1.49
+google-api-python-client>=2.100.0
 googleapis-common-protos==1.74.0
 greenlet==3.5.0
 grpcio==1.80.0
