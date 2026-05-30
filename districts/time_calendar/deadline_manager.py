@@ -57,11 +57,13 @@ class DeadlineManager(AgentBase):
 
             # Strategy 2: OAuth token stored in collections DB (from /oauth/callback/google)
             try:
-                from core.collections.store import CollectionStore
-                token_records = CollectionStore("google_calendar_tokens").list_records(per_page=1)
-                if token_records:
+                from core.collections.store import CollectionEngine
+                _engine = CollectionEngine()
+                token_records = _engine.list_records("google_calendar_tokens")
+                _items = token_records.get("items", []) if isinstance(token_records, dict) else token_records
+                if _items:
                     import google.oauth2.credentials as _gcreds
-                    token_data = token_records[0].get("token", {})
+                    token_data = _items[0].get("token", {})
                     credentials = _gcreds.Credentials(
                         token=token_data.get("access_token"),
                         refresh_token=token_data.get("refresh_token"),
