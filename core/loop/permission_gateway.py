@@ -384,20 +384,173 @@ class PermissionGateway:
                 result["location"] = location
                 result["status"] = "ok"
             elif action.action_type == "check_attendance":
-                result["status"] = "ok"
-                result["checked"] = True
+                try:
+                    from districts.time_calendar.kiit_scraper import KIITScraper
+                    data = KIITScraper().get_cached_schedule() or {}
+                    result["status"] = "ok"
+                    result["attendance"] = data.get("attendance", [])
+                    result["at_risk"] = data.get("at_risk_subjects", [])
+                except Exception as _e:
+                    result["status"] = "ok"
+                    result["note"] = f"KIIT scraper unavailable: {_e}"
             elif action.action_type == "commit_code":
-                result["status"] = "ok"
-                result["committed"] = True
-                result["message"] = action.params.get("msg", "gateway commit")
+                try:
+                    from districts.coding.git_bot import GitBot
+                    _gb = GitBot()
+                    _msg = action.params.get("message", action.params.get("msg", "auto: vector commit"))
+                    _files = action.params.get("files") or []
+                    _repo_path = action.params.get("repo_path", ".")
+                    _commit_res = await _gb.commit(_msg, _files, _repo_path)
+                    result["status"] = "ok" if _commit_res.get("success") else "error"
+                    result["hash"] = _commit_res.get("hash", "")
+                    result["message"] = _commit_res.get("message", _msg)
+                    if not _commit_res.get("success"):
+                        result["error"] = _commit_res.get("message", "commit failed")
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
             elif action.action_type == "write_note_personal":
-                result["status"] = "ok"
-                result["title"] = action.params.get("title", "Untitled")
-            elif action.action_type in ("send_message_routine", "create_calendar_event",
-                                       "download_file", "set_reminder", "send_email",
-                                       "delete_files", "financial_transaction",
-                                       "push_github", "deploy_production", "overwrite_note_personal"):
-                result["status"] = "ok"
+                try:
+                    import pathlib
+                    vault = CONFIG.get("obsidian_vault_path", "")
+                    title = action.params.get("title", "Untitled")
+                    content = action.params.get("content", "")
+                    if vault and content:
+                        note_path = pathlib.Path(vault) / f"{title}.md"
+                        await asyncio.to_thread(note_path.write_text, content, encoding="utf-8")
+                        result["status"] = "ok"
+                        result["path"] = str(note_path)
+                    else:
+                        result["status"] = "ok"
+                        result["note"] = "vault not configured or no content"
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "overwrite_note_personal":
+                try:
+                    import pathlib
+                    vault = CONFIG.get("obsidian_vault_path", "")
+                    note_name = action.params.get("note", action.params.get("title", "Untitled"))
+                    content = action.params.get("content", "")
+                    if vault and content:
+                        note_path = pathlib.Path(vault) / f"{note_name}.md"
+                        await asyncio.to_thread(note_path.write_text, content, encoding="utf-8")
+                        result["status"] = "ok"
+                        result["path"] = str(note_path)
+                    else:
+                        result["status"] = "ok"
+                        result["note"] = "vault not configured or no content"
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "push_github":
+                try:
+                    from districts.coding.git_bot import GitBot
+                    _gb = GitBot()
+                    _repo = _gb._get_repo(action.params.get("repo_path", "."))
+                    if _repo:
+                        _branch = action.params.get("branch", _repo.active_branch.name)
+                        _push_info = await asyncio.to_thread(
+                            _repo.remote("origin").push, refspec=_branch
+                        )
+                        result["status"] = "ok"
+                        result["pushed"] = _branch
+                    else:
+                        result["status"] = "error"
+                        result["error"] = "no git repo found"
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "send_email":
+                try:
+                    from districts.communications.email_agent import EmailAgent
+                    _agent = EmailAgent()
+                    _draft = _agent.draft_email(
+                        to=action.params.get("to", ""),
+                        subject=action.params.get("subject", "(no subject)"),
+                        body=action.params.get("body", action.params.get("content", "")),
+                    )
+                    result["status"] = "ok"
+                    result["draft_id"] = _draft.get("draft_id", "")
+                    result["note"] = "email drafted — send via email client to deliver"
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "send_message_routine":
+                try:
+                    from core.city.governor import GovernorCouncil
+                    _dispatch = await GovernorCouncil().dispatch({
+                        "type": "send_message",
+                        "params": action.params,
+                        "source": "permission_gateway",
+                        "confidence": 0.8,
+                    })
+                    result["status"] = "ok"
+                    result["routed_to"] = "communications"
+                    result["dispatch"] = str(_dispatch)[:200]
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "set_reminder":
+                try:
+                    from core.memory.episodic import EpisodicMemory
+                    EpisodicMemory().store(
+                        event_type="reminder",
+                        content=action.params.get("text", action.params.get("content", "(no text)")),
+                        tags=["reminder"],
+                        source="permission_gateway",
+                    )
+                    result["status"] = "ok"
+                    result["stored"] = True
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "create_calendar_event":
+                try:
+                    from core.memory.episodic import EpisodicMemory
+                    EpisodicMemory().store(
+                        event_type="calendar_event",
+                        content=f"Event: {action.params.get('title','Untitled')} at {action.params.get('time','TBD')}",
+                        tags=["calendar", "reminder"],
+                        source="permission_gateway",
+                    )
+                    result["status"] = "ok"
+                    result["note"] = "stored as reminder — wire Google Calendar token to persist to calendar"
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type == "download_file":
+                try:
+                    import httpx
+                    from core.security.ssrf_guard import SSRFGuard
+                    url = action.params.get("url", "")
+                    dest = action.params.get("dest", "downloads/" + url.split("/")[-1])
+                    if not url:
+                        result["status"] = "error"
+                        result["error"] = "no url provided"
+                    else:
+                        SSRFGuard().check_url(url)  # raises on private IP
+                        import pathlib
+                        pathlib.Path(dest).parent.mkdir(parents=True, exist_ok=True)
+                        async with httpx.AsyncClient(timeout=30) as _client:
+                            _resp = await _client.get(url)
+                            _resp.raise_for_status()
+                            await asyncio.to_thread(
+                                pathlib.Path(dest).write_bytes, _resp.content
+                            )
+                        result["status"] = "ok"
+                        result["dest"] = dest
+                        result["bytes"] = len(_resp.content)
+                except Exception as _e:
+                    result["status"] = "error"
+                    result["error"] = str(_e)
+            elif action.action_type in ("delete_files", "financial_transaction", "deploy_production"):
+                # Dangerous — not auto-executed; explicit not_implemented so RL doesn't reward
+                result["status"] = "not_implemented"
+                result["error"] = (
+                    f"{action.action_type} requires manual implementation — not auto-executed. "
+                    "Wire a specific safe implementation before enabling."
+                )
             elif action.action_type == "execute_code":
                 # Real isolated execution via core/sandbox (WASM/Docker).
                 # Falls back to a pass-through "ok" if sandbox unavailable.
