@@ -56,7 +56,7 @@ async def send_message(payload: dict):
         "telegram": "vectorcode.src.channels.telegram.TelegramChannel",
         "whatsapp": "vectorcode.src.channels.whatsapp.WhatsAppChannel",
         "discord": "vectorcode.src.channels.discord_channel.DiscordChannel",
-        "slack": "vectorcode.src.channels.slack_daemon.SlackChannel",
+        "slack": "vectorcode.src.channels.slack.SlackChannel",
         "email": "vectorcode.src.channels.email_channel.EmailChannel",
         "gmail": "vectorcode.src.channels.gmail.GmailChannel",
     }
