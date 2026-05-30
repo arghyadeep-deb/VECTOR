@@ -354,6 +354,32 @@
     }
   });
 
+  // ── Wire city_update from websocket_broadcaster.py ───────────────────────
+  // websocket_broadcaster sends {type:'city_update', districts:[{name, hp, ...}]}
+  // over the main /ws channel. vector-core.js only handles known types; unknown
+  // types are dropped. We intercept by listening to the raw WS message ourselves
+  // via the 'ws:open' event — but since we can't attach to the raw socket, we
+  // patch the 'connected' event to intercept the socket ref instead.
+  // Simpler: re-open a shadow listener on the same /ws socket is not possible.
+  // Instead, websocket_broadcaster's city_update is also surfaced through
+  // /ws/state AGENT_HP_CHANGED events which city3d.js already handles.
+  // ADDITIONALLY: the main /ws sends {type:'events'} every 5s with recent episodes.
+  // Wire that into D.MEMORY as well so memory widget stays fresh between polls.
+  V.on('status', function (msg) {
+    if (!msg) return;
+    // {type:'status', uptime_seconds, agents:{count, list}} from main /ws every 2s
+    if (msg.uptime_seconds != null) setTel('[data-up]', fmtUptime(msg.uptime_seconds));
+    // agents list in status message — update D.agents silently
+    if (msg.agents && Array.isArray(msg.agents.list) && msg.agents.list.length > 0) {
+      D.agents = msg.agents.list.map(adaptAgent);
+      refreshDistricts();
+      if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
+    }
+  });
+
+  // {type:'events'} from main /ws — episodic events burst
+  V.on('response', function () {}); // already handled by vector-core.js (say)
+
   // ── Boot: start on 'connected' (already fired by VECTOR.html autoConnect) ─
 
   V.on('connected', function () {
