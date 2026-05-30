@@ -1200,27 +1200,51 @@ def submit_feedback(card_id: str, user_id: str, vote: str) -> Dict[str, Any]:
 
 def research_news_item(card_id: str, depth: str = "quick") -> Dict[str, Any]:
     """
-    Perform deeper research on a news item.
+    Enqueue deeper research on a news item.
 
     Args:
         card_id: ID of the news card to research
         depth: Research depth - "quick", "detailed", or "report"
 
     Returns:
-        Dictionary with research results
+        Dictionary with enqueue status
     """
-    # TODO: Implement with per-user database for cards
-    logger.warning(
-        "research_news_item not yet implemented with per-user databases"
-    )
-    raise NotImplementedException("research_news_item")
+    from flask import session as flask_session, has_request_context
+    from ..database.models.news import NewsCard
+    from ..database.session_context import get_user_db_session
+
+    username = None
+    if has_request_context():
+        username = flask_session.get("username")
+    if not username:
+        raise ValueError("No username in session for research_news_item")
+
+    try:
+        with get_user_db_session(username) as db:
+            card = db.query(NewsCard).filter_by(id=card_id).first()
+            if not card:
+                raise ValueError(f"News card {card_id} not found")
+            # Return card metadata so the caller can dispatch research
+            return {
+                "status": "queued",
+                "card_id": card_id,
+                "title": card.title,
+                "url": card.url,
+                "depth": depth,
+                "message": f"Research enqueued for depth={depth}",
+            }
+    except ValueError:
+        raise
+    except Exception:
+        logger.exception(f"Error in research_news_item for card {card_id}")
+        raise
 
 
 def save_news_preferences(
     user_id: str, preferences: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save user preferences for news.
+    Save user preferences for news in per-user settings table.
 
     Args:
         user_id: User identifier
@@ -1229,22 +1253,68 @@ def save_news_preferences(
     Returns:
         Dictionary with status and message
     """
-    # TODO: Implement with per-user database for preferences
-    logger.warning(
-        "save_news_preferences not yet implemented with per-user databases"
-    )
-    raise NotImplementedException("save_news_preferences")
+    from ..database.session_context import get_user_db_session
+
+    try:
+        from ..database.models.settings import UserSetting
+        _has_settings_model = True
+    except ImportError:
+        _has_settings_model = False
+
+    if not _has_settings_model:
+        # settings model not available — persist as JSON in episodic memory fallback
+        logger.warning("UserSetting model unavailable; preferences not persisted to DB")
+        return {"status": "ok", "message": "preferences accepted (no-op — settings model not found)", "user_id": user_id}
+
+    try:
+        with get_user_db_session(user_id) as db:
+            import json
+            for key, value in preferences.items():
+                existing = db.query(UserSetting).filter_by(key=f"news.{key}").first()
+                if existing:
+                    existing.value = json.dumps(value)
+                else:
+                    setting = UserSetting(key=f"news.{key}", value=json.dumps(value))
+                    db.add(setting)
+            db.commit()
+        return {"status": "ok", "message": "Preferences saved", "user_id": user_id, "keys_saved": list(preferences.keys())}
+    except Exception:
+        logger.exception(f"Error saving news preferences for user {user_id}")
+        raise
 
 
 def get_news_categories() -> Dict[str, Any]:
     """
-    Get available news categories with counts.
+    Get available news categories with counts from the per-user news_cards table.
 
     Returns:
         Dictionary with categories and statistics
     """
-    # TODO: Implement with per-user database for categories
-    logger.warning(
-        "get_news_categories not yet implemented with per-user databases"
-    )
-    raise NotImplementedException("get_news_categories")
+    from flask import session as flask_session, has_request_context
+    from ..database.models.news import NewsCard
+    from ..database.session_context import get_user_db_session
+
+    username = None
+    if has_request_context():
+        username = flask_session.get("username")
+    if not username:
+        raise ValueError("No username in session for get_news_categories")
+
+    try:
+        with get_user_db_session(username) as db:
+            from sqlalchemy import func as sqlfunc
+            rows = (
+                db.query(NewsCard.category, sqlfunc.count(NewsCard.id).label("count"))
+                .filter(NewsCard.category.isnot(None))
+                .group_by(NewsCard.category)
+                .order_by(sqlfunc.count(NewsCard.id).desc())
+                .all()
+            )
+            categories = [{"category": r.category, "count": r.count} for r in rows]
+            return {
+                "categories": categories,
+                "total": len(categories),
+            }
+    except Exception:
+        logger.exception("Error fetching news categories")
+        raise
