@@ -396,21 +396,35 @@ class PermissionGateway:
                     result["checked"] = True
                     result["note"] = f"KIIT scraper unavailable: {_e}"
             elif action.action_type == "commit_code":
+                # Use gitpython directly — NOT GitBot.commit() which would
+                # call back to gateway.execute("commit_code") causing recursion.
                 try:
-                    from districts.coding.git_bot import GitBot
-                    _gb = GitBot()
+                    import git as _git
+                    _repo_path = action.params.get("repo_path", ".")
                     _msg = action.params.get("message", action.params.get("msg", "auto: vector commit"))
                     _files = action.params.get("files") or []
-                    _repo_path = action.params.get("repo_path", ".")
-                    _commit_res = await _gb.commit(_msg, _files, _repo_path)
-                    result["status"] = "ok" if _commit_res.get("success") else "error"
-                    result["committed"] = _commit_res.get("success", False)
-                    result["hash"] = _commit_res.get("hash", "")
-                    result["message"] = _commit_res.get("message", _msg)
-                    if not _commit_res.get("success"):
-                        result["error"] = _commit_res.get("message", "commit failed")
+                    _repo = _git.Repo(_repo_path, search_parent_directories=True)
+                    if _files:
+                        _repo.index.add(_files)
+                    else:
+                        _repo.git.add(A=True)
+                    _has_changes = bool(
+                        _repo.index.diff("HEAD") or
+                        _repo.git.diff("--cached", "--name-only")
+                    )
+                    if not _has_changes:
+                        result["status"] = "ok"
+                        result["committed"] = False
+                        result["message"] = "nothing to commit"
+                    else:
+                        _commit_obj = await asyncio.to_thread(_repo.index.commit, _msg)
+                        result["status"] = "ok"
+                        result["committed"] = True
+                        result["hash"] = _commit_obj.hexsha[:8]
+                        result["message"] = _msg
                 except Exception as _e:
                     result["status"] = "error"
+                    result["committed"] = False
                     result["error"] = str(_e)
             elif action.action_type == "write_note_personal":
                 try:
