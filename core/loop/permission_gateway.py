@@ -534,19 +534,17 @@ class PermissionGateway:
                             result["status"] = "error"
                             result["error"] = f"SSRF blocked: {_ssrf.reason}"
                         else:
-                         pass  # continue to download below
-                    if result.get("status") != "error":
-                        import pathlib
-                        pathlib.Path(dest).parent.mkdir(parents=True, exist_ok=True)
-                        async with httpx.AsyncClient(timeout=30) as _client:
-                            _resp = await _client.get(url)
-                            _resp.raise_for_status()
-                            await asyncio.to_thread(
-                                pathlib.Path(dest).write_bytes, _resp.content
-                            )
-                        result["status"] = "ok"
-                        result["dest"] = dest
-                        result["bytes"] = len(_resp.content)
+                            import pathlib
+                            pathlib.Path(dest).parent.mkdir(parents=True, exist_ok=True)
+                            async with httpx.AsyncClient(timeout=30) as _client:
+                                _resp = await _client.get(url)
+                                _resp.raise_for_status()
+                                await asyncio.to_thread(
+                                    pathlib.Path(dest).write_bytes, _resp.content
+                                )
+                            result["status"] = "ok"
+                            result["dest"] = dest
+                            result["bytes"] = len(_resp.content)
                 except Exception as _e:
                     result["status"] = "error"
                     result["error"] = str(_e)
