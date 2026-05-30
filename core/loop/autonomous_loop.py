@@ -751,8 +751,7 @@ class AutonomousLoop:
                         _gw_result = await gw.execute(_GWAction(
                             action_type=winner.action_type,
                             params=winner.params,
-                            source="think_loop",
-                            confidence=getattr(winner, "confidence", 0.7),
+                            proposed_by="think_loop",
                         ))
                         if not _gw_result.approved:
                             logger.warning(f"[VECTOR][act] RED VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
