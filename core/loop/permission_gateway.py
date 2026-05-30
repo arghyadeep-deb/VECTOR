@@ -423,17 +423,14 @@ class PermissionGateway:
                     _files = action.params.get("files") or []
                     _repo = _git.Repo(_repo_path, search_parent_directories=True)
                     if _files:
+                        # Only stage the explicit files requested
                         _repo.index.add(_files)
-                    else:
-                        _repo.git.add(A=True)
-                    _has_changes = bool(
-                        _repo.index.diff("HEAD") or
-                        _repo.git.diff("--cached", "--name-only")
-                    )
+                    # Never do git add -A automatically — that would stage unrelated changes
+                    _has_changes = bool(_repo.git.diff("--cached", "--name-only"))
                     if not _has_changes:
                         result["status"] = "ok"
                         result["committed"] = False
-                        result["message"] = "nothing to commit"
+                        result["message"] = "nothing staged to commit"
                     else:
                         _commit_obj = await asyncio.to_thread(_repo.index.commit, _msg)
                         result["status"] = "ok"
