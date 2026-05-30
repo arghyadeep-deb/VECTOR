@@ -789,8 +789,8 @@ class Governor:
                 if wait_ms > 10_000:
                     return {"status": "rate_limited", "wait_ms": wait_ms,
                             "district": district, "task_id": task_id}
-        except Exception:
-            logger.warning("[VECTOR][governor] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as _rl_err:
+            logger.warning("[VECTOR][governor] rate_limiter unavailable — running without rate limit: {}", _rl_err)
 
         # â"€â"€ Taint tracking — tag and check user-supplied content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         task_content = str(task.get("params", {}).get("content", ""))
@@ -808,8 +808,8 @@ class Governor:
                     v = tt.check_sink(tainted, TaintSink.NET_FETCH)
                     if v:
                         logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
-            except Exception:
-                logger.warning("[VECTOR][governor] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as _tt_err:
+                logger.warning("[VECTOR][governor] taint_tracker unavailable — content not checked for taint: {}", _tt_err)
 
         # â"€â"€ Prompt injection scan â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         if task_content:
@@ -831,8 +831,8 @@ class Governor:
             allowed, budget_reason = meter.check_quota(f"district_{district}")
             if not allowed:
                 logger.warning(f"[VECTOR][governor] budget warning for {district}: {budget_reason}")
-        except Exception:
-            logger.warning("[VECTOR][governor] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as _bm_err:
+            logger.warning("[VECTOR][governor] budget_meter unavailable — proceeding without quota check: {}", _bm_err)
 
         # Audit log — record dispatch
         try:
