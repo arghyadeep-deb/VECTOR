@@ -685,8 +685,10 @@ class PermissionGateway:
                 result["status"] = "ok"
                 result["message"] = action.params.get("message", "Standing by, sir.")
             else:
-                result["status"] = "ok"
-                result["note"] = "action acknowledged"
+                # Unknown action — not_implemented prevents phantom RL reward
+                result["status"] = "not_implemented"
+                result["note"] = f"action '{action.action_type}' not implemented — no RL reward granted"
+                self._record_unknown_action(action.action_type)
         except Exception as e:
             logger.warning(f"[VECTOR][gateway] action exec partial failure: {e}")
             result["status"] = "executed_with_warnings"
