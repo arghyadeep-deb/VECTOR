@@ -289,6 +289,7 @@ def create_app() -> FastAPI:
     app.include_router(gesture.router)
     app.include_router(sb.router)
     app.include_router(ticker.router)
+    app.include_router(notifications.router)
     app.include_router(queue.router)
     app.include_router(collections.router)
     app.include_router(knowledge.router)
