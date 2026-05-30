@@ -742,10 +742,22 @@ class AutonomousLoop:
                 # RULE 3: gate through permission_gateway before executing
                 gw = self._get_gateway()
                 if gw is not None:
-                    allowed, reason = await gw.evaluate(winner)
-                    if not allowed:
-                        logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' blocked by gateway: {reason}")
+                    _level = gw.classify(winner.action_type)
+                    if _level == "FORBIDDEN":
+                        logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' is FORBIDDEN — blocked")
                         return
+                    if _level == "RED":
+                        from core.loop.permission_gateway import Action as _GWAction
+                        _gw_result = await gw.execute(_GWAction(
+                            action_type=winner.action_type,
+                            params=winner.params,
+                            source="think_loop",
+                            confidence=getattr(winner, "confidence", 0.7),
+                        ))
+                        if not _gw_result.approved:
+                            logger.warning(f"[VECTOR][act] RED VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
+                            return
+                    # GREEN / YELLOW / UNKNOWN → proceed to bridge
                 from districts.coding.vectorcode_bridge import get_bridge
                 bridge = get_bridge()
                 if bridge.is_available():
