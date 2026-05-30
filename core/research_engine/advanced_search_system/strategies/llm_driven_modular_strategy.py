@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...database.thread_local_session import thread_cleanup
+from ...utilities.thread_context import preserve_research_context
 from ...utilities.json_utils import extract_json
 
 from ..candidate_exploration import AdaptiveExplorer
