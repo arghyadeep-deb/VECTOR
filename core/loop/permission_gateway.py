@@ -418,6 +418,7 @@ class PermissionGateway:
                     vault = CONFIG.get("obsidian_vault_path", "")
                     title = action.params.get("title", "Untitled")
                     content = action.params.get("content", "")
+                    result["title"] = title
                     if vault and content:
                         note_path = pathlib.Path(vault) / f"{title}.md"
                         await asyncio.to_thread(note_path.write_text, content, encoding="utf-8")
