@@ -38,8 +38,8 @@ async def status():
 @app.post("/send")
 async def send_message(payload: dict):
     """
-    Route a message through VectorCode.
-    payload: {"platform": "whatsapp"|"telegram"|"discord", "to": "...", "message": "..."}
+    Route a message through VectorCode channel adapters.
+    payload: {"platform": "whatsapp"|"telegram"|"discord"|"slack", "to": "...", "message": "..."}
     RULE 3: all outgoing messages are YELLOW actions — notify immediately.
     """
     platform = payload.get("platform", "unknown")
@@ -49,14 +49,52 @@ async def send_message(payload: dict):
     if not message:
         return {"ok": False, "error": "empty message"}
 
-    # Log the outgoing message intent (actual delivery via VectorCode)
     logger.info(f"[VECTOR][comms] → {platform}:{to} — {message[:50]}")
 
+    # Attempt real delivery via VectorCode ChannelRuntime
+    try:
+        from vectorcode.src.channels.runtime import ChannelRuntime
+        runtime = ChannelRuntime()
+        result = await runtime.send(
+            channel=platform,
+            recipient=to,
+            message=message,
+        )
+        delivered = bool(result and result.get("ok", False))
+        logger.info(f"[VECTOR][comms] delivered via ChannelRuntime: {result}")
+        return {
+            "ok": delivered,
+            "platform": platform,
+            "delivered_at": datetime.datetime.now().isoformat(),
+            "result": result,
+        }
+    except ImportError:
+        logger.warning("[VECTOR][comms] ChannelRuntime not available — falling back to VectorCode bridge")
+    except Exception as e:
+        logger.error(f"[VECTOR][comms] ChannelRuntime delivery failed: {e}")
+
+    # Fallback: route through VectorCode bridge if available
+    if _vc_bridge is not None:
+        try:
+            bridge_result = await asyncio.to_thread(
+                _vc_bridge.send_message, platform, to, message
+            )
+            return {
+                "ok": True,
+                "platform": platform,
+                "delivered_at": datetime.datetime.now().isoformat(),
+                "via": "vc_bridge",
+                "result": bridge_result,
+            }
+        except Exception as _bridge_err:
+            logger.error(f"[VECTOR][comms] bridge delivery failed: {_bridge_err}")
+
+    # All delivery paths failed
     return {
-        "ok": True,
+        "ok": False,
         "platform": platform,
+        "error": "No delivery channel available — VectorCode not running",
         "queued_at": datetime.datetime.now().isoformat(),
-        "note": "Delivered via VectorCode",
     }
 
 
