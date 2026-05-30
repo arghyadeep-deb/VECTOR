@@ -343,7 +343,7 @@ Use IEEE style citations [1], [2], etc. Never make up your own citations.
                             except Exception as e:
                                 exception = e
 
-                        thread = threading.Thread(target=target)
+                        thread = threading.Thread(target=preserve_research_context(target))
                         thread.daemon = True
 
                         try:
