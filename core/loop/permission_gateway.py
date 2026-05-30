@@ -372,17 +372,35 @@ class PermissionGateway:
                     _limit = CONFIG.get("search_response_limit", 500)
                     result["response"] = r.text[:_limit]
             elif action.action_type == "play_music":
-                result["status"] = "ok"
-                result["played"] = action.params.get("track", "default playlist")
+                # No media player wired yet — not_implemented prevents phantom RL reward
+                result["status"] = "not_implemented"
+                result["note"] = "play_music not wired to media player"
             elif action.action_type == "set_timer":
                 duration = action.params.get("duration_sec", 60)
                 result["set"] = duration
+                try:
+                    from core.memory.episodic import EpisodicMemory
+                    EpisodicMemory().store(
+                        event_type="timer",
+                        content=f"Timer set for {duration}s",
+                        tags=["timer"],
+                        source="permission_gateway",
+                    )
+                except Exception:
+                    pass
                 result["status"] = "ok"
             elif action.action_type == "check_weather":
-                import httpx
                 location = action.params.get("location", "Kolkata")
                 result["location"] = location
-                result["status"] = "ok"
+                try:
+                    import httpx
+                    async with httpx.AsyncClient(timeout=5) as _wc:
+                        _wr = await _wc.get(f"https://wttr.in/{location}?format=3")
+                        result["weather"] = _wr.text.strip()
+                        result["status"] = "ok"
+                except Exception as _we:
+                    result["status"] = "error"
+                    result["error"] = str(_we)
             elif action.action_type == "check_attendance":
                 try:
                     from districts.time_calendar.kiit_scraper import KIITScraper
