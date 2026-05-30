@@ -1286,9 +1286,9 @@ class AutonomousLoop:
                             cmd_params = cmd.get("params", {})
                             logger.info(f"[VECTOR][sync] remote command: {cmd_type} {cmd_params}")
                             if cmd_type == "research":
-                                self._pending_voice.append(cmd_params.get("query", ""))
+                                self._pending_voice = {"intent": "research", "text": cmd_params.get("query", ""), "source": "brain_server"}
                             elif cmd_type == "voice_broadcast":
-                                self._pending_voice.append(cmd_params.get("text", ""))
+                                self._pending_voice = {"intent": "voice_broadcast", "text": cmd_params.get("text", ""), "source": "brain_server"}
                             elif cmd_type == "deploy":
                                 logger.warning(f"[VECTOR][sync] deploy command received Ã¢â‚¬— routing to permission gateway")
                                 from core.loop.permission_gateway import PermissionGateway, Action
