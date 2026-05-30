@@ -15855,6 +15855,318 @@
       },
       "created_at": "2026-05-30T08:03:03.566341+00:00",
       "weight": 0.0
+    },
+    "sim_system_load_2026-05-30T12:59:04.379904+00:00": {
+      "id": "sim_system_load_2026-05-30T12:59:04.379904+00:00",
+      "type": "simulation",
+      "label": "MC simulation of system_load",
+      "metadata": {
+        "mean": 106.00725934631402,
+        "ci_lower": 101.39540538846705,
+        "ci_upper": 110.51674178058431
+      },
+      "created_at": "2026-05-30T12:59:04.379913+00:00",
+      "weight": 0.0
+    },
+    "sim_minimal_2026-05-30T12:59:04.387853+00:00": {
+      "id": "sim_minimal_2026-05-30T12:59:04.387853+00:00",
+      "type": "simulation",
+      "label": "MC simulation of minimal",
+      "metadata": {
+        "mean": 50.0,
+        "ci_lower": 50.0,
+        "ci_upper": 50.0
+      },
+      "created_at": "2026-05-30T12:59:04.387859+00:00",
+      "weight": 0.0
+    },
+    "sim_convergent_2026-05-30T12:59:04.395024+00:00": {
+      "id": "sim_convergent_2026-05-30T12:59:04.395024+00:00",
+      "type": "simulation",
+      "label": "MC simulation of convergent",
+      "metadata": {
+        "mean": 100.0,
+        "ci_lower": 100.0,
+        "ci_upper": 100.0
+      },
+      "created_at": "2026-05-30T12:59:04.395030+00:00",
+      "weight": 0.0
+    },
+    "sim_risk_test_2026-05-30T12:59:04.402844+00:00": {
+      "id": "sim_risk_test_2026-05-30T12:59:04.402844+00:00",
+      "type": "simulation",
+      "label": "MC simulation of risk_test",
+      "metadata": {
+        "mean": 105.94295563949956,
+        "ci_lower": 101.44633907759949,
+        "ci_upper": 110.27264302614817
+      },
+      "created_at": "2026-05-30T12:59:04.402850+00:00",
+      "weight": 0.0
+    },
+    "sim_custom_test_2026-05-30T12:59:04.417162+00:00": {
+      "id": "sim_custom_test_2026-05-30T12:59:04.417162+00:00",
+      "type": "simulation",
+      "label": "MC simulation of custom_test",
+      "metadata": {
+        "mean": 209.8953159872982,
+        "ci_lower": 208.1511601501351,
+        "ci_upper": 211.80279875076735
+      },
+      "created_at": "2026-05-30T12:59:04.417169+00:00",
+      "weight": 0.0
+    },
+    "sim_system_load_2026-05-30T13:04:21.900709+00:00": {
+      "id": "sim_system_load_2026-05-30T13:04:21.900709+00:00",
+      "type": "simulation",
+      "label": "MC simulation of system_load",
+      "metadata": {
+        "mean": 105.9310469131255,
+        "ci_lower": 101.85626170632926,
+        "ci_upper": 110.30279122437392
+      },
+      "created_at": "2026-05-30T13:04:21.900722+00:00",
+      "weight": 0.0
+    },
+    "sim_minimal_2026-05-30T13:04:21.911191+00:00": {
+      "id": "sim_minimal_2026-05-30T13:04:21.911191+00:00",
+      "type": "simulation",
+      "label": "MC simulation of minimal",
+      "metadata": {
+        "mean": 50.0,
+        "ci_lower": 50.0,
+        "ci_upper": 50.0
+      },
+      "created_at": "2026-05-30T13:04:21.911200+00:00",
+      "weight": 0.0
+    },
+    "sim_convergent_2026-05-30T13:04:21.920895+00:00": {
+      "id": "sim_convergent_2026-05-30T13:04:21.920895+00:00",
+      "type": "simulation",
+      "label": "MC simulation of convergent",
+      "metadata": {
+        "mean": 100.0,
+        "ci_lower": 100.0,
+        "ci_upper": 100.0
+      },
+      "created_at": "2026-05-30T13:04:21.920902+00:00",
+      "weight": 0.0
+    },
+    "sim_risk_test_2026-05-30T13:04:21.931249+00:00": {
+      "id": "sim_risk_test_2026-05-30T13:04:21.931249+00:00",
+      "type": "simulation",
+      "label": "MC simulation of risk_test",
+      "metadata": {
+        "mean": 105.98529467958356,
+        "ci_lower": 101.46422598043755,
+        "ci_upper": 110.52921039542764
+      },
+      "created_at": "2026-05-30T13:04:21.931258+00:00",
+      "weight": 0.0
+    },
+    "sim_custom_test_2026-05-30T13:04:21.950385+00:00": {
+      "id": "sim_custom_test_2026-05-30T13:04:21.950385+00:00",
+      "type": "simulation",
+      "label": "MC simulation of custom_test",
+      "metadata": {
+        "mean": 209.94595765540973,
+        "ci_lower": 208.3805405224335,
+        "ci_upper": 211.6219570919391
+      },
+      "created_at": "2026-05-30T13:04:21.950393+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.192175+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.192175+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.35538253734781,
+        "ci_lower": 99.80281834377911,
+        "ci_upper": 108.60642953207052
+      },
+      "created_at": "2026-05-30T13:15:13.192182+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.204109+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.204109+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.48103613532439,
+        "ci_lower": 100.67855683102383,
+        "ci_upper": 108.17377723421204
+      },
+      "created_at": "2026-05-30T13:15:13.204117+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.215327+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.215327+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.41771819307455,
+        "ci_lower": 100.73835188478922,
+        "ci_upper": 107.88828084112421
+      },
+      "created_at": "2026-05-30T13:15:13.215334+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.225437+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.225437+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.54215439934814,
+        "ci_lower": 100.67611968503049,
+        "ci_upper": 108.58539192909767
+      },
+      "created_at": "2026-05-30T13:15:13.225444+00:00",
+      "weight": 0.0
+    },
+    "sim_custom_test_2026-05-30T13:15:13.245950+00:00": {
+      "id": "sim_custom_test_2026-05-30T13:15:13.245950+00:00",
+      "type": "simulation",
+      "label": "MC simulation of custom_test",
+      "metadata": {
+        "mean": 100.15725968854802,
+        "ci_lower": 97.8958206725636,
+        "ci_upper": 102.24605436048574
+      },
+      "created_at": "2026-05-30T13:15:13.245956+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.257542+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.257542+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.38557450071674,
+        "ci_lower": 100.9511801743619,
+        "ci_upper": 108.18904072413049
+      },
+      "created_at": "2026-05-30T13:15:13.257551+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.266187+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.266187+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.86256591248002,
+        "ci_lower": 101.38454841570548,
+        "ci_upper": 108.6376218778378
+      },
+      "created_at": "2026-05-30T13:15:13.266194+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.274861+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.274861+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.44487399344239,
+        "ci_lower": 100.79403031673218,
+        "ci_upper": 108.89499283554244
+      },
+      "created_at": "2026-05-30T13:15:13.274868+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.283419+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.283419+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.61135653608977,
+        "ci_lower": 99.77340867660824,
+        "ci_upper": 108.09722157910053
+      },
+      "created_at": "2026-05-30T13:15:13.283427+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.292928+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.292928+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 105.17910260472655,
+        "ci_lower": 101.21684188173485,
+        "ci_upper": 108.89790100465484
+      },
+      "created_at": "2026-05-30T13:15:13.292936+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.301654+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.301654+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.52665089159865,
+        "ci_lower": 101.29164846401063,
+        "ci_upper": 108.72311718831541
+      },
+      "created_at": "2026-05-30T13:15:13.301660+00:00",
+      "weight": 0.0
+    },
+    "sim_test_2026-05-30T13:15:13.311872+00:00": {
+      "id": "sim_test_2026-05-30T13:15:13.311872+00:00",
+      "type": "simulation",
+      "label": "MC simulation of test",
+      "metadata": {
+        "mean": 104.20530313700249,
+        "ci_lower": 99.8821478932328,
+        "ci_upper": 108.67607067569857
+      },
+      "created_at": "2026-05-30T13:15:13.311878+00:00",
+      "weight": 0.0
+    },
+    "sim_my_metric_2026-05-30T13:15:13.321753+00:00": {
+      "id": "sim_my_metric_2026-05-30T13:15:13.321753+00:00",
+      "type": "simulation",
+      "label": "MC simulation of my_metric",
+      "metadata": {
+        "mean": 104.49811295259802,
+        "ci_lower": 101.88590743502861,
+        "ci_upper": 107.58332127381402
+      },
+      "created_at": "2026-05-30T13:15:13.321760+00:00",
+      "weight": 0.0
+    },
+    "sim_triangular_test_2026-05-30T13:15:13.330735+00:00": {
+      "id": "sim_triangular_test_2026-05-30T13:15:13.330735+00:00",
+      "type": "simulation",
+      "label": "MC simulation of triangular_test",
+      "metadata": {
+        "mean": 52.00369530208648,
+        "ci_lower": 49.99556093874532,
+        "ci_upper": 54.25410604383354
+      },
+      "created_at": "2026-05-30T13:15:13.330741+00:00",
+      "weight": 0.0
+    },
+    "sim_risk_test_2026-05-30T13:15:18.228700+00:00": {
+      "id": "sim_risk_test_2026-05-30T13:15:18.228700+00:00",
+      "type": "simulation",
+      "label": "MC simulation of risk_test",
+      "metadata": {
+        "mean": 105.58275011457442,
+        "ci_lower": 85.31178184369547,
+        "ci_upper": 125.28665044789722
+      },
+      "created_at": "2026-05-30T13:15:18.228707+00:00",
+      "weight": 0.0
+    },
+    "sim_integration_test_2026-05-30T13:15:18.370569+00:00": {
+      "id": "sim_integration_test_2026-05-30T13:15:18.370569+00:00",
+      "type": "simulation",
+      "label": "MC simulation of integration_test",
+      "metadata": {
+        "mean": 101.9120151815792,
+        "ci_lower": 99.92685604961156,
+        "ci_upper": 103.76540167899824
+      },
+      "created_at": "2026-05-30T13:15:18.370575+00:00",
+      "weight": 0.0
     }
   },
   "edges": [
@@ -16214,7 +16526,21 @@
       "strength": 0.545,
       "label": "action_outcome",
       "created_at": "2026-05-30T07:47:19.616970+00:00"
+    },
+    {
+      "from": "action:git_status",
+      "to": "outcome:no_agents",
+      "strength": 0.545,
+      "label": "action_outcome",
+      "created_at": "2026-05-30T13:01:52.322472+00:00"
+    },
+    {
+      "from": "action:git_status",
+      "to": "outcome:no_agents",
+      "strength": 0.545,
+      "label": "action_outcome",
+      "created_at": "2026-05-30T13:07:10.352121+00:00"
     }
   ],
-  "saved_at": "2026-05-30T08:03:03.566346+00:00"
+  "saved_at": "2026-05-30T13:15:18.370585+00:00"
 }

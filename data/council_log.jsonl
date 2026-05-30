@@ -1288,3 +1288,55 @@
 {"ts": "2026-05-30T12:55:07.446668+00:00", "action_type": "send_email", "params": {"q": "t"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:55:18.155293+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
 {"ts": "2026-05-30T12:55:28.770818+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T12:56:02.584820+00:00", "action_type": "send_email", "params": {"to": "test@test.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:01:58.132532+00:00", "action_type": "send_email", "params": {}, "verdict": "defer", "confidence": 0.7, "rationale": "DEFER \u2014 ask owner", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:08.681168+00:00", "action_type": "push_github", "params": {"repo": "x"}, "verdict": "proceed", "confidence": 0.9, "rationale": "PROCEED \u2014 safe", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:13.951176+00:00", "action_type": "deploy_production", "params": {"env": "prod"}, "verdict": "proceed", "confidence": 0.5, "rationale": "PROCEED \u2014 unsure", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:19.233705+00:00", "action_type": "delete_files", "params": {"path": "/tmp"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 destructive", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:24.500417+00:00", "action_type": "delete_files_marker_a7", "params": {"path": "/x"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:29.775725+00:00", "action_type": "deploy_production", "params": {"env": "test"}, "verdict": "defer", "confidence": 0.5, "rationale": "DEFER \u2014 log test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:02:35.048752+00:00", "action_type": "git_status", "params": {}, "verdict": "defer", "confidence": 0.9, "rationale": "DEFER", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:15.987384+00:00", "action_type": "send_email", "params": {}, "verdict": "defer", "confidence": 0.7, "rationale": "DEFER \u2014 ask owner", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:26.537664+00:00", "action_type": "push_github", "params": {"repo": "x"}, "verdict": "proceed", "confidence": 0.9, "rationale": "PROCEED \u2014 safe", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:31.807360+00:00", "action_type": "deploy_production", "params": {"env": "prod"}, "verdict": "proceed", "confidence": 0.5, "rationale": "PROCEED \u2014 unsure", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:37.073199+00:00", "action_type": "delete_files", "params": {"path": "/tmp"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 destructive", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:42.352909+00:00", "action_type": "delete_files_marker_a7", "params": {"path": "/x"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:47.636769+00:00", "action_type": "deploy_production", "params": {"env": "test"}, "verdict": "defer", "confidence": 0.5, "rationale": "DEFER \u2014 log test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:07:52.913862+00:00", "action_type": "git_status", "params": {}, "verdict": "defer", "confidence": 0.9, "rationale": "DEFER", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:20:05.852401+00:00", "action_type": "send_email", "params": {"to": "test@test.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:22:29.962987+00:00", "action_type": "send_email", "params": {"to": "test@test.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:17.593693+00:00", "action_type": "send_email", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:23.093886+00:00", "action_type": "delete_files", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:28.518839+00:00", "action_type": "execute_code", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:33.930884+00:00", "action_type": "financial_transaction", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:39.353042+00:00", "action_type": "push_github", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:44.767040+00:00", "action_type": "deploy_production", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:50.197889+00:00", "action_type": "overwrite_note_personal", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:23:55.655697+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:24:01.102533+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:24:06.575960+00:00", "action_type": "financial_transaction", "params": {"amt": 100}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:24:12.111616+00:00", "action_type": "send_email", "params": {"q": "t"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:24:17.761539+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:24:23.264849+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:28:45.047490+00:00", "action_type": "send_email", "params": {}, "verdict": "defer", "confidence": 0.7, "rationale": "DEFER \u2014 ask owner", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:28:55.589262+00:00", "action_type": "push_github", "params": {"repo": "x"}, "verdict": "proceed", "confidence": 0.9, "rationale": "PROCEED \u2014 safe", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:29:00.883777+00:00", "action_type": "deploy_production", "params": {"env": "prod"}, "verdict": "proceed", "confidence": 0.5, "rationale": "PROCEED \u2014 unsure", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:29:06.153619+00:00", "action_type": "delete_files", "params": {"path": "/tmp"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 destructive", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:29:11.426143+00:00", "action_type": "delete_files_marker_a7", "params": {"path": "/x"}, "verdict": "reject", "confidence": 0.9, "rationale": "REJECT \u2014 test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:29:16.703911+00:00", "action_type": "deploy_production", "params": {"env": "test"}, "verdict": "defer", "confidence": 0.5, "rationale": "DEFER \u2014 log test", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:29:21.964554+00:00", "action_type": "git_status", "params": {}, "verdict": "defer", "confidence": 0.9, "rationale": "DEFER", "votes": ["vote1", "vote2"]}
+{"ts": "2026-05-30T13:37:49.180383+00:00", "action_type": "send_email", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:37:59.624544+00:00", "action_type": "delete_files", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:38:10.041972+00:00", "action_type": "execute_code", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:38:20.447528+00:00", "action_type": "financial_transaction", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:38:30.856688+00:00", "action_type": "push_github", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:38:41.252356+00:00", "action_type": "deploy_production", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:38:51.661051+00:00", "action_type": "overwrite_note_personal", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:39:02.091816+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:39:12.493362+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:39:54.189052+00:00", "action_type": "financial_transaction", "params": {"amt": 100}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:04.621476+00:00", "action_type": "send_email", "params": {"q": "t"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:15.038295+00:00", "action_type": "send_email", "params": {"to": "t@t.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:19.116432+00:00", "action_type": "send_email", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:25.461573+00:00", "action_type": "push_github", "params": {}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
+{"ts": "2026-05-30T13:40:29.524537+00:00", "action_type": "delete_files", "params": {"to": "a@b.com"}, "verdict": "defer", "confidence": 0.0, "rationale": "timed out", "votes": []}
