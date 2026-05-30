@@ -35,7 +35,7 @@ from ...web_search_engines.engines.local_embedding_manager import (
 )
 from ...security.file_integrity import FileIntegrityManager, FAISSIndexVerifier
 import hashlib
-from faiss import IndexFlatL2, IndexFlatIP, IndexHNSWFlat
+from faiss import IndexFlatL2, IndexFlatIP, IndexHNSWFlat, IndexIVFFlat
 from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
 
