@@ -1902,6 +1902,10 @@ class AutonomousLoop:
         except Exception as e:
             logger.debug("[VECTOR][anticipation] tick skipped: {}", e)
 
+    def active_task_count(self) -> int:
+        """Return the number of in-flight act_loop tasks. Used by graceful shutdown."""
+        return self._active_task_count
+
     def stop(self) -> None:
         """Graceful stop for tests only. Never call in production."""
         self._running = False
