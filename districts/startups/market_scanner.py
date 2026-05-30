@@ -2,42 +2,21 @@
 Module: agents/startups/market_scanner.py
 District: startups | Focus: Scan market, analyze trends, identify gaps
 """
-
 import sys
-from core.config import CONFIG
-from core.city.agent_base import AgentBase
-from core.memory.episodic import EpisodicMemory
-from core.memory.obsidian_sync import ObsidianSync
+import asyncio
+import datetime
+
 from loguru import logger
-import uuid, asyncio, json, datetime
-from typing import Optional
+
+from core.config import CONFIG
+from districts.startups._base import StartupAgentBase
 
 
-class MarketScanner(AgentBase):
+class MarketScanner(StartupAgentBase):
     def __init__(self):
-        super().__init__(
-            agent_id=str(uuid.uuid4()),
-            name="MarketScanner",
-            district="startups",
-            generation=1
-        )
-        self.memory = EpisodicMemory()
-        self.obsidian = ObsidianSync()
+        super().__init__("MarketScanner")
         self.scan_history = []
         logger.info("[VECTOR][startups] MarketScanner ready")
-
-    def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        from core.inference.vectorcode_llm import chat as ollama_chat
-        from core.loop.context_engine import ContextEngine
-        hydration = ContextEngine().session_hydration_prompt()
-        return ollama_chat(
-            model=model or self.model,
-            messages=[
-                {"role": "system", "content": hydration},
-                {"role": "user", "content": prompt},
-            ],
-            timeout=120,
-        )
 
     def scan_market(self, niche: str) -> dict:
         logger.info(f"[VECTOR][startups] Scanning market: {niche}")
@@ -52,16 +31,9 @@ class MarketScanner(AgentBase):
 
 Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_players}}], pain_points: string[], emerging_niches: string[], successful_models: string[]}}"""
         scan = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', scan, re.DOTALL)
-            if json_match:
-                scan_data = json.loads(json_match.group(0))
-            else:
-                scan_data = {"segments": [], "pain_points": [scan[:300]], "successful_models": []}
-        except json.JSONDecodeError:
-            scan_data = {"segments": [], "pain_points": [scan[:300]], "successful_models": []}
+        scan_data = self._parse_json_response(scan, {
+            "segments": [], "pain_points": [scan[:300]], "successful_models": [],
+        })
 
         result = {
             "niche": niche,
@@ -70,19 +42,16 @@ Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_play
             "emerging_niches": scan_data.get("emerging_niches", []),
             "successful_models": scan_data.get("successful_models", []),
             "opportunities_count": len(scan_data.get("segments", [])),
-            "scanned_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "scanned_at": self._now_iso(),
         }
-
         self.scan_history.append(result)
-        self.memory.store(
-            event_type="market_scanned",
-            content=f"Scanned {niche} market: {len(scan_data.get('segments', []))} segments found",
-            tags=["startups", "market_scan", niche],
-            context=result,
-            source="MarketScanner"
+        self._store_result(
+            "market_scanned",
+            f"Scanned {niche} market: {len(scan_data.get('segments', []))} segments found",
+            ["startups", "market_scan", niche],
+            result,
         )
-
-        logger.info(f"[VECTOR][startups] Market scan for '{niche}': {len(scan_data.get('segments', []))} segments")
+        logger.info(f"[VECTOR][startups] Market scan for '{niche}': {len(result['segments'])} segments")
         return result
 
     def analyze_trends(self, niche: str) -> dict:
@@ -100,32 +69,22 @@ Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_play
 
 Return JSON: {{momentum: string, key_drivers: string[], technologies: string[], regulatory: string[], consumer_shifts: string[], investment_trend: string, forecast: string, confidence: float}}"""
         trends = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', trends, re.DOTALL)
-            if json_match:
-                trend_data = json.loads(json_match.group(0))
-            else:
-                trend_data = {"momentum": "stable", "forecast": trends[:200], "confidence": 0.5}
-        except json.JSONDecodeError:
-            trend_data = {"momentum": "stable", "forecast": trends[:200], "confidence": 0.5}
+        trend_data = self._parse_json_response(trends, {
+            "momentum": "stable", "forecast": trends[:200], "confidence": 0.5,
+        })
 
         result = {
             "niche": niche,
             "trends": trend_data,
             "trend_score": 8 if trend_data.get("momentum") == "accelerating" else 5 if trend_data.get("momentum") == "stable" else 3,
-            "analyzed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "analyzed_at": self._now_iso(),
         }
-
-        self.memory.store(
-            event_type="trends_analyzed",
-            content=f"Trend analysis for '{niche}': momentum={trend_data.get('momentum', 'unknown')}",
-            tags=["startups", "trends", niche],
-            context=result,
-            source="MarketScanner"
+        self._store_result(
+            "trends_analyzed",
+            f"Trend analysis for '{niche}': momentum={trend_data.get('momentum', 'unknown')}",
+            ["startups", "trends", niche],
+            result,
         )
-
         return result
 
     def identify_gaps(self, niche: str) -> dict:
@@ -143,36 +102,25 @@ Return JSON: {{momentum: string, key_drivers: string[], technologies: string[], 
 
 Return JSON: {{gaps: [{{type, description, severity: high/medium/low, opportunity_score: 1-10, target_customer: string}}]}}"""
         gaps_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', gaps_text, re.DOTALL)
-            if json_match:
-                gaps_data = json.loads(json_match.group(0))
-            else:
-                gaps_data = {"gaps": [{"type": "general", "description": gaps_text[:200], "severity": "medium", "opportunity_score": 6}]}
-        except json.JSONDecodeError:
-            gaps_data = {"gaps": [{"type": "general", "description": gaps_text[:200], "severity": "medium", "opportunity_score": 6}]}
+        gaps_data = self._parse_json_response(gaps_text, {
+            "gaps": [{"type": "general", "description": gaps_text[:200], "severity": "medium", "opportunity_score": 6}],
+        })
 
         result = {
             "niche": niche,
             "gaps": gaps_data.get("gaps", []),
             "high_priority_gaps": [g for g in gaps_data.get("gaps", []) if g.get("opportunity_score", 5) >= 8],
             "total_gaps": len(gaps_data.get("gaps", [])),
-            "identified_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "identified_at": self._now_iso(),
         }
-
-        self.memory.store(
-            event_type="gaps_identified",
-            content=f"Identified {len(gaps_data.get('gaps', []))} market gaps in '{niche}'",
-            tags=["startups", "gaps", niche],
-            context=result,
-            source="MarketScanner"
+        self._store_result(
+            "gaps_identified",
+            f"Identified {len(result['gaps'])} market gaps in '{niche}'",
+            ["startups", "gaps", niche],
+            result,
         )
-
-        logger.info(f"[VECTOR][startups] Identified {len(gaps_data.get('gaps', []))} gaps in '{niche}'")
+        logger.info(f"[VECTOR][startups] Identified {result['total_gaps']} gaps in '{niche}'")
         return result
-
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
@@ -184,18 +132,10 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = MarketScanner()
     assert agent.district == "startups"
-
     scan = agent.scan_market("AI SaaS")
-    assert "segments" in scan
-    assert "opportunities_count" in scan
-
+    assert "segments" in scan and "opportunities_count" in scan
     trends = agent.analyze_trends("AI SaaS")
-    assert "trends" in trends
-    assert "momentum" in trends["trends"]
-
+    assert "trends" in trends and "momentum" in trends["trends"]
     gaps = agent.identify_gaps("AI SaaS")
-    assert "gaps" in gaps
-    assert "total_gaps" in gaps
-    assert gaps["total_gaps"] >= 1
-
-    print("✅ market_scanner.py OK")
+    assert "gaps" in gaps and gaps["total_gaps"] >= 1
+    print("OK market_scanner.py")
