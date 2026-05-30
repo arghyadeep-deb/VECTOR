@@ -13,9 +13,12 @@ from __future__ import annotations
 import importlib.util as _ilu
 from pathlib import Path as _Path
 
+import sys as _sys
+
 _monolith_path = _Path(__file__).parent.parent / "guidance.py"
 _spec = _ilu.spec_from_file_location("_guidance_monolith", _monolith_path)
 _mod = _ilu.module_from_spec(_spec)  # type: ignore[arg-type]
+_sys.modules["_guidance_monolith"] = _mod  # must register before exec so @dataclass resolves __module__
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 ThreatDetector = _mod.ThreatDetector
