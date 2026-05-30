@@ -11,25 +11,25 @@ langchain-ollama==1.1.0    # Ollama LangChain integration
 langchain-community==0.4.1 # DuckDuckGo + other search integrations
 langchain-openai==0.3.35   # OpenAI-compatible endpoint support
 langchain-text-splitters==0.3.11  # document chunking
-arxiv>=2.1.0               # ArXiv academic paper search
-wikipedia>=1.4.0           # Wikipedia search engine
-trafilatura>=2.0.0         # web content extraction (best quality)
-readabilipy>=0.2.0         # article text extraction fallback
-justext>=3.0.0             # boilerplate removal
-pypdf>=5.0.0               # PDF reading
-platformdirs>=4.0.0        # cross-platform config paths
-defusedxml>=0.7.1          # safe XML parsing
-sentence-transformers>=3.0.0  # local embeddings for semantic search
-pdfplumber>=0.11.0         # advanced PDF extraction
+arxiv==3.0.0               # ArXiv academic paper search
+wikipedia==1.4.0           # Wikipedia search engine
+trafilatura==2.0.0         # web content extraction (best quality)
+# OPTIONAL (not installed by default): readabilipy>=0.2.0         # article text extraction fallback
+justext==3.0.2             # boilerplate removal
+pypdf==6.11.0               # PDF reading
+platformdirs==4.9.6        # cross-platform config paths
+defusedxml==0.7.1          # safe XML parsing
+# OPTIONAL (not installed by default): sentence-transformers>=3.0.0  # local embeddings for semantic search
+# OPTIONAL (not installed by default): pdfplumber>=0.11.0         # advanced PDF extraction
 # ─────────────────────────────────────────────────────────────────────────────
-fastmcp>=2.0.0
-humanlayer>=0.5.0
-markitdown>=0.0.1
-mem0ai>=0.1.0
-rag-anything>=0.1.0
+fastmcp==3.2.4
+# OPTIONAL (not installed by default): humanlayer>=0.5.0
+# OPTIONAL (not installed by default): markitdown>=0.0.1
+# OPTIONAL (not installed by default): mem0ai>=0.1.0
+# OPTIONAL (not installed by default): rag-anything>=0.1.0
 # ── GitHub repo integrations ──────────────────────────────────────────────────
-airllm>=2.10.0          # AirLLM: layer-wise 70B+ model inference on RTX 5070 Ti
-code-review-graph>=2.1.0  # code-review-graph: graph-based code review + blast-radius
+# OPTIONAL (not installed by default): airllm>=2.10.0          # AirLLM: layer-wise 70B+ model inference on RTX 5070 Ti
+# OPTIONAL (not installed by default): code-review-graph>=2.1.0  # code-review-graph: graph-based code review + blast-radius
 # ─────────────────────────────────────────────────────────────────────────────
 annotated-types==0.7.0
 anthropic==0.97.0
@@ -121,7 +121,7 @@ numpy==2.4.4
 oauthlib==3.3.1
 ollama==0.6.2
 onnxruntime==1.25.1
-rembg>=2.0.57
+# OPTIONAL (not installed by default): rembg>=2.0.57
 openai-whisper==20250625
 opencv-python==4.13.0.92
 opentelemetry-api==1.41.1
@@ -229,22 +229,21 @@ yt-dlp==2026.3.17
 zipp==3.23.1
 zstandard==0.25.0
 
-pywebview>=4.4.1
-aiofiles>=23.2.1
+aiofiles==25.1.0
 
 # core/scraper/ — VECTOR Web Scraper (adaptive, stealth, spider framework)
-curl_cffi>=0.15.0
+curl_cffi==0.15.0
 playwright==1.59.0
 patchright==1.59.1
-browserforge>=1.2.4
-mcp>=1.27.0
-markdownify>=1.2.0
-msgspec>=0.21.1
-protego>=0.6.0
-apify-fingerprint-datapoints>=0.13.0
-tld>=0.13.2
-w3lib>=2.4.1
-cssselect>=1.4.0
+browserforge==1.2.4
+mcp==1.27.1
+markdownify==1.2.2
+msgspec==0.21.1
+protego==0.6.0
+apify-fingerprint-datapoints==0.13.0
+tld==0.13.2
+w3lib==2.4.1
+cssselect==1.4.0
 
 # ── SQLite encryption (Phase 1D) ─────────────────────────────────────────────
 # Optional: install to encrypt vector_memory.db at rest.
