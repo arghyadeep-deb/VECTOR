@@ -23,13 +23,10 @@ import re
 import json
 import time
 import math
-import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 try:
     from core.config import CONFIG
 except ImportError:
@@ -345,8 +342,6 @@ class GNNRouter(NeuralRouter):
     def _get_moe_router(self):
         if getattr(self, "_moe_router", None) is None:
             try:
-                import sys as _sys
-                _sys.path.insert(0, str(Path(__file__).parent))
                 from neural_moe_router import MoERouter as _MoE
                 import numpy as _np
                 self._moe_router = _MoE()
@@ -521,10 +516,5 @@ if __name__ == "__main__":
     assert isinstance(opts, dict)
 
     print(f"router.py (GNNRouter) OK — nodes={len(r._nodes)}, edges={len(r._edges)}")
-
-
-
-
-
 
 
