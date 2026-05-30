@@ -681,6 +681,28 @@ class PermissionGateway:
                 # Conversational reply — no side effect; just echo the message back.
                 result["status"] = "ok"
                 result["message"] = action.params.get("message", "Standing by, sir.")
+            elif action.action_type == "launch_app":
+                try:
+                    from core.control.pc_controller import PCController
+                    _launch = PCController().launch_app(
+                        action.params.get("app_name", ""),
+                        action.params.get("args", []),
+                    )
+                    result["status"] = "ok" if _launch.get("launched") else "error"
+                    result.update(_launch)
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type == "run_shell_command":
+                try:
+                    from core.control.pc_controller import PCController
+                    _shell = PCController().run_shell_command(
+                        action.params.get("command", ""),
+                        action.params.get("timeout", 30),
+                    )
+                    result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
+                    result.update(_shell)
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
             else:
                 # Unknown action — not_implemented prevents phantom RL reward
                 result["status"] = "not_implemented"
