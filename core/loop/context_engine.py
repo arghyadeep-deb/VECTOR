@@ -103,7 +103,7 @@ class ContextEngine:
     def _get_comms_hub(self):
         if self._comms_hub is None:
             try:
-                from districts.communications.communications_adapter import CommunicationsAdapter as _VCCommsHub
+                from vectorcode.src.comms.messenger import MessagingHub as _VCCommsHub
                 self._comms_hub = _VCCommsHub()
             except Exception:
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
