@@ -225,8 +225,9 @@
     });
 
     // /memory/recent — 6s — memory panel
+    // endpoint returns {memories:[...]} (confirmed by web_ui.py)
     poll('/memory/recent?limit=25', 6000, data => {
-      const events = data.events || data.items || data || [];
+      const events = data.memories || data.events || data.items || (Array.isArray(data) ? data : []);
       if (!Array.isArray(events) || events.length === 0) return;
       D.MEMORY = adaptMemory(events);
       refreshMemory();
