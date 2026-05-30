@@ -371,8 +371,8 @@
       if (cost != null) setTelLabel('INR COST', '₹' + cost.toFixed(4));
     });
 
-    // /ticker/finance/ticker — 30s — live NSE market data
-    poll('/ticker/finance/ticker?symbols=^NSEI,RELIANCE.NS,TCS.NS,NVDA', 30000, data => {
+    // /finance/ticker — 30s — live NSE market data
+    poll('/finance/ticker?symbols=^NSEI,RELIANCE.NS,TCS.NS,NVDA', 30000, data => {
       const quotes = data && (data.quotes || (Array.isArray(data) ? data : []));
       if (quotes && quotes.length) {
         D.STOCKS_LIVE = quotes;
