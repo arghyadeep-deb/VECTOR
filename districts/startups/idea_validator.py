@@ -2,57 +2,31 @@
 Module: agents/startups/idea_validator.py
 District: startups | Focus: Validate startup ideas, analyze market size, assess competition
 """
-
 import sys
-from core.config import CONFIG
-from core.city.agent_base import AgentBase
-from core.memory.episodic import EpisodicMemory
-from core.memory.obsidian_sync import ObsidianSync
+import asyncio
+
 from loguru import logger
-import uuid, asyncio, json, datetime
-from typing import Optional
+
+from core.config import CONFIG
+from districts.startups._base import StartupAgentBase
 
 
-class IdeaValidator(AgentBase):
+class IdeaValidator(StartupAgentBase):
     def __init__(self):
-        super().__init__(
-            agent_id=str(uuid.uuid4()),
-            name="IdeaValidator",
-            district="startups",
-            generation=1
-        )
-        self.memory = EpisodicMemory()
-        self.obsidian = ObsidianSync()
+        super().__init__("IdeaValidator")
         self.validated_ideas = {}
         logger.info("[VECTOR][startups] IdeaValidator ready")
 
-    def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        from core.inference.vectorcode_llm import chat as ollama_chat
-        from core.loop.context_engine import ContextEngine
-        hydration = ContextEngine().session_hydration_prompt()
-        return ollama_chat(
-            model=model or self.model,
-            messages=[
-                {"role": "system", "content": hydration},
-                {"role": "user", "content": prompt},
-            ],
-            timeout=120,
-        )
-
     def validate_idea(self, idea: dict) -> dict:
-        logger.info(f"[VECTOR][startups] Validating idea: {idea.get('name', 'unnamed')}")
-        self.add_lesson({"action": "validate_idea", "idea": idea.get("name", "unknown")})
-
         idea_name = idea.get("name", idea.get("concept", "Unknown idea"))
-        description = idea.get("description", "")
-        problem = idea.get("problem", "")
-        solution = idea.get("solution", "")
+        logger.info(f"[VECTOR][startups] Validating idea: {idea_name}")
+        self.add_lesson({"action": "validate_idea", "idea": idea_name})
 
         prompt = f"""Validate this startup idea across 8 dimensions using the VECTOR framework:
 Idea: {idea_name}
-Description: {description}
-Problem: {problem}
-Solution: {solution}
+Description: {idea.get('description', '')}
+Problem: {idea.get('problem', '')}
+Solution: {idea.get('solution', '')}
 
 Score each dimension 1-10:
 1. Viability: Can it work technically and commercially?
@@ -66,20 +40,13 @@ Score each dimension 1-10:
 
 Return JSON: {{scores: {{viability, edge, timing, recourse, outlook, team_fit, passion, risk}}, overall_score: float, verdict: string, pros: string[], cons: string[], must_fix_before_launch: string[]}}"""
         validation = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', validation, re.DOTALL)
-            if json_match:
-                result_data = json.loads(json_match.group(0))
-            else:
-                result_data = {"scores": {"viability": 5, "edge": 5, "timing": 5, "recourse": 5, "outlook": 5, "team_fit": 5, "passion": 5, "risk": 5}, "overall_score": 5.0}
-        except json.JSONDecodeError:
-            result_data = {"scores": {"viability": 5, "edge": 5, "timing": 5, "recourse": 5, "outlook": 5, "team_fit": 5, "passion": 5, "risk": 5}, "overall_score": 5.0}
+        result_data = self._parse_json_response(validation, {
+            "scores": {k: 5 for k in ("viability", "edge", "timing", "recourse", "outlook", "team_fit", "passion", "risk")},
+            "overall_score": 5.0,
+        })
 
         scores = result_data.get("scores", {})
         overall = result_data.get("overall_score", sum(scores.values()) / max(len(scores), 1) if scores else 5.0)
-        verdict_text = result_data.get("verdict", "")
         verdict = "STRONG" if overall >= 7 else "PROMISING" if overall >= 5 else "WEAK" if overall >= 3 else "REJECT"
 
         validated = {
@@ -90,107 +57,66 @@ Return JSON: {{scores: {{viability, edge, timing, recourse, outlook, team_fit, p
             "pros": result_data.get("pros", []),
             "cons": result_data.get("cons", []),
             "must_fix": result_data.get("must_fix_before_launch", []),
-            "validation_details": verdict_text,
-            "validated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "validation_details": result_data.get("verdict", ""),
+            "validated_at": self._now_iso(),
         }
-
         self.validated_ideas[idea_name] = validated
-
-        self.memory.store(
-            event_type="idea_validated",
-            content=f"Idea '{idea_name}' validated: {verdict} ({overall:.1f}/10)",
-            tags=["startups", "validation", "idea"],
-            context=validated,
-            source="IdeaValidator"
+        self._store_result(
+            "idea_validated",
+            f"Idea '{idea_name}' validated: {verdict} ({overall:.1f}/10)",
+            ["startups", "validation", "idea"],
+            validated,
         )
-
         logger.info(f"[VECTOR][startups] Idea '{idea_name}' validated: {verdict} ({overall:.1f})")
         return validated
 
     def analyze_market_size(self, idea: dict) -> dict:
-        logger.info(f"[VECTOR][startups] Analyzing market size for: {idea.get('name', 'unnamed')}")
-        self.add_lesson({"action": "analyze_market_size", "idea": idea.get("name")})
-
         idea_name = idea.get("name", "Unknown")
+        logger.info(f"[VECTOR][startups] Analyzing market size for: {idea_name}")
+        self.add_lesson({"action": "analyze_market_size", "idea": idea_name})
 
         prompt = f"""Analyze market size for: {idea_name}
 Description: {idea.get('description', idea.get('solution', ''))}
 Target market: {idea.get('target_market', 'general consumers')}
 
-Estimate: 1) TAM (Total Addressable Market), 2) SAM (Serviceable Available Market), 3) SOM (Serviceable Obtainable Market).
-Include: market growth rate, key segments, pricing strategy, revenue model, competitor pricing.
+Estimate: 1) TAM, 2) SAM, 3) SOM. Include growth rate, segments, pricing model.
 Return JSON: {{tam: string, sam: string, som: string, growth_rate: string, segments: string[], pricing_model: string}}"""
         market = self._call_ollama(prompt)
+        market_data = self._parse_json_response(market, {
+            "tam": "Unable to estimate", "sam": "Unable to estimate", "som": "Unable to estimate",
+        })
 
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', market, re.DOTALL)
-            if json_match:
-                market_data = json.loads(json_match.group(0))
-            else:
-                market_data = {"tam": "Unable to estimate", "sam": "Unable to estimate", "som": "Unable to estimate"}
-        except json.JSONDecodeError:
-            market_data = {"tam": "Parsing error", "sam": "Parsing error", "som": "Parsing error"}
-
-        result = {
-            "idea_name": idea_name,
-            "market_size": market_data,
-            "analyzed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        }
-
-        self.memory.store(
-            event_type="market_size_analyzed",
-            content=f"Market size analysis for '{idea_name}'",
-            tags=["startups", "market", "analysis"],
-            context=result,
-            source="IdeaValidator"
-        )
-
+        result = {"idea_name": idea_name, "market_size": market_data, "analyzed_at": self._now_iso()}
+        self._store_result("market_size_analyzed", f"Market size analysis for '{idea_name}'",
+                           ["startups", "market", "analysis"], result)
         return result
 
     def assess_competition(self, idea: dict) -> dict:
-        logger.info(f"[VECTOR][startups] Assessing competition for: {idea.get('name', 'unnamed')}")
-        self.add_lesson({"action": "assess_competition", "idea": idea.get("name")})
-
         idea_name = idea.get("name", "Unknown")
+        logger.info(f"[VECTOR][startups] Assessing competition for: {idea_name}")
+        self.add_lesson({"action": "assess_competition", "idea": idea_name})
 
         prompt = f"""Assess competitive landscape for: {idea_name}
 Solution: {idea.get('solution', '')}
 Target market: {idea.get('target_market', '')}
 
-For each major competitor: name, strength, weakness, pricing, market share.
-Identify: 1) Direct competitors, 2) Indirect competitors, 3) Substitute products, 4) Potential new entrants.
-Provide: competitive advantages, barriers to entry, differentiation strategy.
+Identify: direct/indirect competitors, substitutes, moat factors, differentiation.
 Return JSON: {{direct_competitors: [{{name, strength, weakness, pricing, market_share}}], indirect: string[], substitutes: string[], moat_factors: string[], differentiation: string}}"""
         competition = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', competition, re.DOTALL)
-            if json_match:
-                comp_data = json.loads(json_match.group(0))
-            else:
-                comp_data = {"direct_competitors": [], "moat_factors": [competition[:300]]}
-        except json.JSONDecodeError:
-            comp_data = {"direct_competitors": [], "moat_factors": [competition[:300]]}
+        comp_data = self._parse_json_response(competition, {
+            "direct_competitors": [], "moat_factors": [competition[:300]],
+        })
 
         result = {
             "idea_name": idea_name,
             "competition": comp_data,
             "competitive_intensity": "HIGH" if len(comp_data.get("direct_competitors", [])) >= 5 else "MEDIUM" if len(comp_data.get("direct_competitors", [])) >= 2 else "LOW",
-            "assessed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "assessed_at": self._now_iso(),
         }
-
-        self.memory.store(
-            event_type="competition_assessed",
-            content=f"Competition assessment for '{idea_name}': {result['competitive_intensity']}",
-            tags=["startups", "competition", "analysis"],
-            context=result,
-            source="IdeaValidator"
-        )
-
+        self._store_result("competition_assessed",
+                           f"Competition assessment for '{idea_name}': {result['competitive_intensity']}",
+                           ["startups", "competition", "analysis"], result)
         return result
-
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
@@ -203,24 +129,12 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     agent = IdeaValidator()
     assert agent.district == "startups"
-
-    idea = {
-        "name": "AI-powered code review",
-        "description": "Automated code review using LLMs",
-        "problem": "Developers spend 20% of time on code review",
-        "solution": "AI agent that reviews code and suggests fixes",
-        "target_market": "software development teams",
-    }
-
-    validation = agent.validate_idea(idea)
-    assert "verdict" in validation
-    assert "scores" in validation
-    assert "overall_score" in validation
-
-    market = agent.analyze_market_size(idea)
-    assert "market_size" in market
-
-    comp = agent.assess_competition(idea)
-    assert "competition" in comp
-
-    print("✅ idea_validator.py OK")
+    idea = {"name": "AI-powered code review", "description": "LLM-based automated code review",
+            "problem": "Developers spend 20% of time on code review", "solution": "AI agent"}
+    v = agent.validate_idea(idea)
+    assert "verdict" in v and "scores" in v and "overall_score" in v
+    m = agent.analyze_market_size(idea)
+    assert "market_size" in m
+    c = agent.assess_competition(idea)
+    assert "competition" in c
+    print("OK idea_validator.py")
