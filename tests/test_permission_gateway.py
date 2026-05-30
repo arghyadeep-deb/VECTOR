@@ -43,7 +43,8 @@ async def test_forbidden_action_blocked():
 @pytest.mark.asyncio
 async def test_yellow_action_executes_with_notification():
     gw = PermissionGateway()
-    result = await gw.execute(make_action("commit_code", {"msg": "test"}))
+    with _mock_httpx():
+        result = await gw.execute(make_action("commit_code", {"msg": "test"}))
     assert result.level == "YELLOW"
     assert result.executed is True
 
@@ -51,8 +52,9 @@ async def test_yellow_action_executes_with_notification():
 @pytest.mark.asyncio
 async def test_audit_log_grows():
     gw = PermissionGateway()
-    await gw.execute(make_action("search_web", {"query": "q1"}))
-    await gw.execute(make_action("search_web", {"query": "q2"}))
+    with _mock_httpx():
+        await gw.execute(make_action("search_web", {"query": "q1"}))
+        await gw.execute(make_action("search_web", {"query": "q2"}))
     log = gw.get_audit_log()
     assert len(log) == 2
     assert log[0]["action_type"] == "search_web"
