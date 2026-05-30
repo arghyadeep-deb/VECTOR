@@ -364,7 +364,7 @@ class PermissionGateway:
                 import httpx
                 from urllib.parse import quote_plus
                 query = action.params.get("query", "")[:500]  # truncate to prevent abuse
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=5.0) as client:
                     r = await client.get(
                         "https://duckduckgo.com/",
                         params={"q": query, "format": "json"},
