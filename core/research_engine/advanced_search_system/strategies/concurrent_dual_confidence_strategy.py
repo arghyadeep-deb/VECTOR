@@ -215,7 +215,7 @@ class ConcurrentDualConfidenceStrategy(DualConfidenceWithRejectionStrategy):
 
                     # Submit for evaluation
                     future = self.evaluation_executor.submit(
-                        self._evaluate_candidate_thread, candidate
+                        preserve_research_context(self._evaluate_candidate_thread), candidate
                     )
                     self.state.evaluation_futures.append(future)
                     self.state.total_evaluated += 1
