@@ -20,6 +20,7 @@ from pathlib import Path
 # Ensure districts/investment/vector_backtest/ is on sys.path so src.* and backtest.* resolve
 _VIBE_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_backtest"
 if str(_VIBE_DIR) not in sys.path:
+    sys.path.insert(0, str(_VIBE_DIR))
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
