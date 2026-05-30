@@ -100,12 +100,39 @@ class ConversationManager:
 
     def end_session(self) -> None:
         if self._session_id:
-            dur = time.monotonic() - self._session_start
+            dur = time.monotonic() - (self._session_start or time.monotonic())
             logger.info(f"[VECTOR][conversation] session ended (duration={dur:.1f}s)")
+            # Persist session metadata so future sessions know context was active
+            try:
+                from core.memory.episodic import EpisodicMemory
+                EpisodicMemory().store(
+                    event_type="conversation_session",
+                    content=f"session={self._session_id} user={self._user_id} duration={dur:.0f}s",
+                    tags=["session", "conversation"],
+                    source="conversation_manager",
+                )
+            except Exception as _e:
+                logger.debug("[VECTOR][conversation] session persist failed: {}", _e)
         self._session_id = None
         self._user_id = None
         self._session_start = None
         self._state = ConversationState(_IDLE)
+
+    def last_session_id(self) -> str | None:
+        """Return the session_id of the most recent completed session from episodic memory."""
+        try:
+            from core.memory.episodic import EpisodicMemory
+            events = EpisodicMemory().recall(
+                query="conversation_session", event_type="conversation_session", limit=1
+            )
+            if events:
+                content = events[0].get("content", "")
+                for part in content.split():
+                    if part.startswith("session="):
+                        return part.split("=", 1)[1]
+        except Exception:
+            pass
+        return None
 
     def interrupt(self) -> None:
         if self._state.state == _VECTOR_SPEAKING:
