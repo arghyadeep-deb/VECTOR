@@ -529,7 +529,13 @@ class PermissionGateway:
                         result["status"] = "error"
                         result["error"] = "no url provided"
                     else:
-                        SSRFGuard().check_url(url)  # raises on private IP
+                        _ssrf = SSRFGuard().check_url(url)
+                        if not _ssrf.safe:
+                            result["status"] = "error"
+                            result["error"] = f"SSRF blocked: {_ssrf.reason}"
+                        else:
+                         pass  # continue to download below
+                    if result.get("status") != "error":
                         import pathlib
                         pathlib.Path(dest).parent.mkdir(parents=True, exist_ok=True)
                         async with httpx.AsyncClient(timeout=30) as _client:
