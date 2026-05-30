@@ -137,8 +137,9 @@ class SoundClassifier:
 
             rms = self._rms(audio)
             zcr = self._zcr(audio)
+            sf  = self._spectral_flatness(audio)
 
-            logger.debug(f"[VECTOR][sound] rms={rms:.4f} zcr={zcr:.4f}")
+            logger.debug(f"[VECTOR][sound] rms={rms:.4f} zcr={zcr:.4f} sf={sf:.4f}")
 
             if rms < 0.01:
                 return "silence"
@@ -147,6 +148,9 @@ class SoundClassifier:
                 return "alert"
             if zcr > 0.20:
                 return "speech"
+            # Music: moderate energy, low ZCR (not speech), tonal content
+            if sf > 0.15 and rms > 0.02:
+                return "music"
             return "background"
 
         except Exception as exc:
