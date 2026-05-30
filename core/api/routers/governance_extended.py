@@ -1,14 +1,21 @@
 """VECTOR governance router - /governance/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "autopilot_status",
+    "autopilot_trigger",
+    "AutopilotTriggerReq",
+    "delegate_task",
+    "DelegateTaskReq",
+    "product_roadmap",
+    "ProductRoadmapReq",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/governance", tags=["governance"])
-
-
 
 
 class ProductRoadmapReq(BaseModel):

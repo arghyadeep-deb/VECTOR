@@ -1,6 +1,5 @@
 """Audit script for hyperframes absorption into core/video/"""
 import sys, os, ast, asyncio, tempfile
-sys.path.insert(0, r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
 sys.stdout.reconfigure(encoding="utf-8")
 
 results = []

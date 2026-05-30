@@ -12,6 +12,7 @@ Run from codebase root:
   python -X utf8 scripts/deabsorb.py
 """
 from __future__ import annotations
+from loguru import logger
 
 import re
 import sys

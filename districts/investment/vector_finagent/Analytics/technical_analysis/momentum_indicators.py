@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Momentum Indicators Calculator
 Calculates various momentum indicators for technical analysis
 """
@@ -285,6 +286,8 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.technical_analysis.momentum_indicators] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.technical_analysis.momentum_indicators] caught Exception: %s", _sve)
         error_msg = {'error': str(e)}
         print(json.dumps(error_msg))
         sys.exit(1)

@@ -31,12 +31,10 @@ __all__ = ["GraphMerger", "SubgraphMerger"]
 import json
 import os
 import re
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 # ── Node / edge type registries ────────────────────────────────────────────

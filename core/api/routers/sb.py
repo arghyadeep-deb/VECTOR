@@ -15,12 +15,25 @@ Endpoints:
     GET  /sb/pins                      -> list AI-intel pins
 """
 import os
-import sys
+
+__all__ = [
+    "router",
+    "sb_cmd",
+    "sb_geocode",
+    "sb_health",
+    "SB_HMAC",
+    "sb_layer",
+    "sb_pins",
+    "sb_place_pin",
+    "sb_sse",
+    "sb_summary",
+    "SB_TIMEOUT",
+    "SB_URL",
+]
+
 import asyncio
 import json
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse

@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Quantitative Base Calculator Module
 =================================
@@ -122,6 +123,8 @@ class BaseCalculator(ABC):
                     raise ValueError(f"{name} DataFrame has no numeric columns")
                 return numeric_data.astype(float)
             except Exception:
+                logger.debug("[VECTOR][Analytics.quant.base_calculator] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.quant.base_calculator] caught Exception: %s", _sve)
                 raise ValueError(f"{name} DataFrame cannot be converted to numeric")
 
         else:

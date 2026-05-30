@@ -1,14 +1,22 @@
 """VECTOR startups router - /startups/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "competitor_analysis",
+    "CompetitorAnalysisReq",
+    "market_scan",
+    "MarketScanReq",
+    "revenue_model",
+    "RevenueModelReq",
+    "router",
+    "validate_idea",
+    "ValidateIdeaReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/startups", tags=["startups"])
-
-
 
 
 class ValidateIdeaReq(BaseModel):

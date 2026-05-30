@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FFN Service - Python backend for analytics
 ========================================================
 
@@ -14,7 +15,6 @@ from datetime import datetime
 # Add this script's directory to Python path for local imports
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
 
 import pandas as pd
 import numpy as np
@@ -170,6 +170,8 @@ def calculate_performance(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] caught Exception: %s", _sve)
         return {"success": False, "error": str(e)}
 
 
@@ -626,10 +628,8 @@ def benchmark_comparison(params: Dict[str, Any]) -> Dict[str, Any]:
                 if pd.isna(val):
                     return None
                 return float(val)
-            except:
-                return None
-
-        # Calculate performance metrics for both
+            except Exception:
+                logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] suppressed Exception in fallback")  # bare except
         portfolio_stats = {
             'total_return': safe_float(ffn.calc_total_return(portfolio_prices)),
             'cagr': safe_float(ffn.calc_cagr(portfolio_prices)),

@@ -13,6 +13,15 @@ Security Features:
 """
 
 import importlib
+
+__all__ = [
+    "ALLOWED_MODULES",
+    "get_safe_module_class",
+    "ModuleNotAllowedError",
+    "SecurityError",
+    "validate_module_import",
+]
+
 from typing import Optional, Type
 
 from loguru import logger

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Zipline-Reloaded Provider - Event-Driven Backtesting
 
 Comprehensive implementation covering Zipline's full API surface:
@@ -861,6 +862,8 @@ class ZiplineProvider(BacktestingProviderBase):
             import zipline
             return zipline.__version__
         except Exception:
+            logger.debug("[VECTOR][Analytics.backtesting.zipline.zipline_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.zipline.zipline_provider] caught Exception: %s", _sve)
             return "pure-numpy"
 
     @property

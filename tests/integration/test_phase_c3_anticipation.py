@@ -3,12 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import sys
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 # ── AnticipationEngine unit tests ─────────────────────────────────────────────

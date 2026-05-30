@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Trading Economics Data Fetcher
 Fetches sovereign credit ratings and government bond yields from the Trading Economics API.
 Returns JSON output for Qt/C++ integration.
@@ -235,6 +236,8 @@ def get_country_financial_data(country: str) -> Dict[str, Any]:
 
         return result
     except Exception as e:
+        logger.debug("[VECTOR][trading_economics_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][trading_economics_data] caught Exception: %s", _sve)
         return {"error": f"Failed to get comprehensive data for {country}: {str(e)}"}
 
 def get_global_summary() -> Dict[str, Any]:

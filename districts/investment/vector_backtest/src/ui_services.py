@@ -10,6 +10,7 @@ This module centralizes the data shaping needed by the frontend workbench:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import csv
 import json

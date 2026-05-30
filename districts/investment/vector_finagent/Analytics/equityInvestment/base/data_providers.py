@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Equity Investment Data Providers Module
 ======================================
@@ -117,6 +118,8 @@ class YahooFinanceProvider(DataProvider):
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.equityInvestment.base.data_providers] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.base.data_providers] caught Exception: %s", _sve)
             raise DataProviderError(f"Failed to retrieve company data for {symbol}: {str(e)}")
 
     def get_market_data(self, symbol: str) -> MarketData:

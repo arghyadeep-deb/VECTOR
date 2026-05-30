@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Models Registry - Unified access to 40+ LLM providers
 
 Provides lazy loading and standardized model creation.
@@ -466,6 +467,8 @@ class ModelsRegistry:
         except ImportError as e:
             raise ImportError(f"Failed to import model provider '{provider}': {e}")
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.registries.models_registry] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.registries.models_registry] caught Exception: %s", _sve)
             raise RuntimeError(f"Failed to create model '{provider}/{final_model_id}': {e}")
 
     @classmethod

@@ -1,6 +1,7 @@
 # FMP (Financial Modeling Prep) Data Wrapper
 # Modular, fault-tolerant design - each endpoint works independently
 # Requires API key from https://financialmodelingprep.com/developer/docs/
+from loguru import logger
 
 import sys
 import json
@@ -119,6 +120,8 @@ class FMPDataWrapper:
                         results.append(data)
 
                 except Exception as e:
+                    logger.debug("[VECTOR][fmp_data] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][fmp_data] caught Exception: %s", _sve)
                     # Continue with other symbols if one fails
                     continue
 

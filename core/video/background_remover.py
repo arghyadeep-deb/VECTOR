@@ -10,13 +10,24 @@ Supported output formats:
   .png  â†’ single RGBA still
 
 Models (auto-downloaded):
-  u2net       â€” general purpose (best quality)
-  u2net_human â€” optimized for people (faster + better for portraits)
-  isnet-dis   â€” DIS (Highly Accurate Dichotomous Image Segmentation, newer)
+  u2net       — general purpose (best quality)
+  u2net_human — optimized for people (faster + better for portraits)
+  isnet-dis   — DIS (Highly Accurate Dichotomous Image Segmentation, newer)
 
 RTX 5070 Ti: uses CUDA execution provider for ~10x speedup.
 """
 from __future__ import annotations
+
+__all__ = [
+    "BackgroundRemover",
+    "BGSession",
+    "DEFAULT_MODEL",
+    "ProgressEvent",
+    "remove_background",
+    "RemoveResult",
+    "VECTOR_MODELS_DIR",
+]
+
 
 import os
 import subprocess
@@ -459,6 +470,6 @@ if __name__ == "__main__":
         import rembg  # type: ignore
         print("rembg available (will be used as primary backend)")
     except ImportError:
-        print("rembg NOT installed (pip install rembg) â€” will use manual ONNX")
+        print("rembg NOT installed (pip install rembg) — will use manual ONNX")
 
     print("OK background_remover.py")

@@ -7,6 +7,14 @@ It receives a connection via config.attributes set by alembic_runner.py.
 
 from alembic import context
 
+__all__ = [
+    "config",
+    "run_migrations_offline",
+    "run_migrations_online",
+    "target_metadata",
+]
+
+
 # Import models metadata for autogenerate support
 from core.research_engine.database.models import Base
 

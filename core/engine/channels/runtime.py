@@ -1,5 +1,5 @@
 """
-VECTOR Channel Runtime â€” async message dispatch loop.
+VECTOR Channel Runtime — async message dispatch loop.
 
 Ported from vector's channels/runtime/dispatch.rs.
 
@@ -14,14 +14,20 @@ Integrates with VECTOR's existing vectorcode channel adapters.
 """
 from __future__ import annotations
 
+__all__ = [
+    "AgentHandler",
+    "ChannelMessage",
+    "ChannelRuntime",
+    "select_ack_reaction",
+    "SendMessage",
+]
+
+
 import asyncio
-import sys
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Awaitable
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 
@@ -297,6 +303,6 @@ if __name__ == "__main__":
         assert select_ack_reaction("thanks so much") in _ACK_REACTIONS["gratitude"]
         assert select_ack_reaction("debug this error") in _ACK_REACTIONS["technical"]
 
-        print("OK channel_runtime.py â€” dispatch + ack selection verified")
+        print("OK channel_runtime.py — dispatch + ack selection verified")
 
     asyncio.run(_test())

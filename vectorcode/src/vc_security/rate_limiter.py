@@ -6,6 +6,7 @@
 """Rate limiter -- token bucket algorithm for per-agent/per-tool throttling."""
 
 from __future__ import annotations
+from loguru import logger
 
 import threading
 import time

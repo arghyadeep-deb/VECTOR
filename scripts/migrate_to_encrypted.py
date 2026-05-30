@@ -11,7 +11,6 @@ Rename manually after verifying: mv vector_memory.db vector_memory_plain.db && m
 import os, sys, shutil
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 DB_KEY = os.environ.get("VECTOR_DB_KEY", "")
 if not DB_KEY:

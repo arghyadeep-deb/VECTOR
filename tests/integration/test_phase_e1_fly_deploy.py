@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _CLOUD_DIR = Path(__file__).parent.parent.parent / "cloud" / "brain_server"
 _CORE_CLOUD = Path(__file__).parent.parent.parent / "core" / "cloud"

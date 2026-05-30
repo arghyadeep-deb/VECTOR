@@ -15,20 +15,35 @@ Dependencies (optional — falls back gracefully):
 Usage:
     mnemonic = generate_mnemonic()
     keys = derive_all_keys(mnemonic)
-    print(keys["evm_address"])
-    print(keys["solana_address"])
+    logger.info(keys["evm_address"])
+
+    logger.info(keys["solana_address"])
+
 """
 from __future__ import annotations
 
+__all__ = [
+    "derive_all_keys",
+    "derive_evm_key",
+    "derive_solana_key_bytes",
+    "DerivedKeys",
+    "ensure_wallet",
+    "generate_mnemonic",
+    "load_wallet",
+    "mnemonic_to_seed",
+    "save_wallet",
+    "validate_mnemonic",
+]
+
+
+from pathlib import Path
 import hashlib
 import hmac
 import os
 import struct
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 _WALLET_DIR = Path.home() / ".vector" / "wallet"

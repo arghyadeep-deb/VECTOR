@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 py_vollib Worker Handler
 Provides a main() function interface for worker pool execution.
 Covers all 3 models: Black, Black-Scholes, Black-Scholes-Merton.
@@ -8,9 +9,7 @@ Each model supports: price, greeks, implied_volatility.
 
 import json
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
 
 from black import calculate_black_price, calculate_black_greeks, calculate_black_iv
 from black_scholes import calculate_bs_price, calculate_bs_greeks, calculate_bs_iv
@@ -52,6 +51,8 @@ def main(args):
         return handler(data)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.py_vollib_wrapper.vollib_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.py_vollib_wrapper.vollib_service] caught Exception: %s", _sve)
         import traceback
         return json.dumps({
             "error": f"py_vollib error: {str(e)}",

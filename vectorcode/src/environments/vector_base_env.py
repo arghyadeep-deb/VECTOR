@@ -31,7 +31,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 # regardless of where the script is invoked from.
 _repo_root = Path(__file__).resolve().parent.parent
 if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
 
 from dotenv import load_dotenv
 from pydantic import Field

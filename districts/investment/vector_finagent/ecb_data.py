@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 ECB (European Central Bank) Data Wrapper
 
 This script provides access to ECB statistical data including:
@@ -21,7 +22,10 @@ Usage:
 import sys
 import json
 import asyncio
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union, Literal
 import aiohttp
@@ -85,6 +89,8 @@ class ECBDataWrapper:
         except aiohttp.ClientError as e:
             raise ECBError(f"Network error: {str(e)}")
         except Exception as e:
+            logger.debug("[VECTOR][ecb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ecb_data] caught Exception: %s", _sve)
             raise ECBError(f"Unexpected error: {str(e)}")
 
     def get_yield_curve_series_id(self, maturity: str, rating: str = "aaa", yield_curve_type: str = "spot_rate") -> str:

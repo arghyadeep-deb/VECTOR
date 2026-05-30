@@ -1,3 +1,4 @@
+from loguru import logger
 import math
 from typing import Any
 from fastapi import APIRouter, Request, Response, Query, Depends

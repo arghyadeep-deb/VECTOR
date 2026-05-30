@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Seasonality Analysis Module
 ============================
 
@@ -215,6 +216,8 @@ def decompose_stl(
                 'seasonal_strength': _calculate_seasonal_strength(result.seasonal, result.resid)
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.functime_wrapper.seasonality] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.functime_wrapper.seasonality] caught Exception: %s", _sve)
             results[entity_id] = {
                 'error': str(e),
                 'trend': values.tolist(),

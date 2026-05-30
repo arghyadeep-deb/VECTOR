@@ -1,6 +1,12 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
+
+__all__ = [
+    "mock_llm_client",
+    "pytest_configure",
+]
+
 from unittest.mock import MagicMock, patch
 
 import pytest

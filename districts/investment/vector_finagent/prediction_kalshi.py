@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Kalshi trading bridge for VECTOR Financial Terminal.
+from loguru import logger
 
 Invocation:
     python prediction_kalshi.py <command> <json_payload>
@@ -61,6 +62,8 @@ def _require_crypto():
         import requests  # noqa: F401
         return True
     except Exception as exc:
+        logger.debug("[VECTOR][prediction_kalshi] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][prediction_kalshi] caught Exception: %s", _sve)
         _fail("cryptography / requests is not installed", detail=str(exc))
         return False
 

@@ -17,13 +17,20 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "apply_patch",
+    "read_files",
+    "str_replace",
+    "write_file",
+]
+
+
 import difflib
 import os
 import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _MAX_FILE_SIZE = 500_000  # 500KB — skip binary/large files

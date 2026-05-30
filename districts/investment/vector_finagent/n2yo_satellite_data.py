@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 N2YO Satellite Tracking API Wrapper
 Complete coverage of all N2YO.com REST API v1 endpoints for satellite tracking and orbital data.
 
@@ -253,6 +254,8 @@ def _make_request(endpoint: str, params: Optional[Dict[str, str]] = None,
             "error": "Failed to decode API response"
         }
     except Exception as e:
+        logger.debug("[VECTOR][n2yo_satellite_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][n2yo_satellite_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {"source": "N2YO"},

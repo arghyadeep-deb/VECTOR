@@ -1,11 +1,21 @@
 """Background task management REST endpoints."""
-import sys
+from loguru import logger
+
+__all__ = [
+    "cancel_task",
+    "ExternalTaskRequest",
+    "get_task",
+    "ingest_external_task",
+    "list_tasks",
+    "router",
+    "submit_task",
+    "SubmitRequest",
+]
+
 import os
 import secrets
 import time
 from collections import defaultdict
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
@@ -95,7 +105,7 @@ async def ingest_external_task(
         loop = AutonomousLoop.get_instance()
         if loop is not None and hasattr(loop, "_pending_voice"):
             loop._pending_voice.append(req.text)
-    except Exception: logger.warning("[VECTOR][tasks] loop not running, task executed via gateway") # loop not running â€” task still executed via gateway above
+    except Exception: logger.warning("[VECTOR][tasks] loop not running, task executed via gateway") # loop not running — task still executed via gateway above
 
     return {
         "accepted": True,
@@ -103,7 +113,6 @@ async def ingest_external_task(
         "gateway_level": result.level if hasattr(result, "level") else str(result),
         "message": result.result.get("message", "Task queued.") if hasattr(result, "result") else "Task queued.",
     }
-
 
 
 class SubmitRequest(BaseModel):

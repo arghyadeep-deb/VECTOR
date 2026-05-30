@@ -1,14 +1,22 @@
 """VECTOR agency router - /agency/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "analyze_trends",
+    "AnalyzeTrendsReq",
+    "create_content_plan",
+    "CreateContentPlanReq",
+    "roi_analysis",
+    "RoiAnalysisReq",
+    "router",
+    "suggest_topics",
+    "SuggestTopicsReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/agency", tags=["agency"])
-
-
 
 
 class AnalyzeTrendsReq(BaseModel):

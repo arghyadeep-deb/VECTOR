@@ -12,19 +12,10 @@ symbols  : one row per function/class/method in each file
 calls    : directed edge caller_symbol → callee_name (intra-file for now)
 """
 
-import sys
 import ast
 import sqlite3
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 from core.config import CONFIG  # noqa: F401 — keeps CONFIG available for future use
 from loguru import logger
 
@@ -296,8 +287,5 @@ if __name__ == "__main__":
 
         cg.close()
         print("✅ code_graph OK")
-
-
-
 
 

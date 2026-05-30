@@ -760,7 +760,7 @@ def _nous_api_key(provider: dict) -> str:
 
 def _nous_base_url() -> str:
     """Resolve the Nous inference base URL from env or default."""
-    return os.getenv("NOUS_INFERENCE_BASE_URL", _NOUS_DEFAULT_BASE_URL)
+    return os.environ.get("NOUS_INFERENCE_BASE_URL", _NOUS_DEFAULT_BASE_URL)
 
 
 def _resolve_nous_runtime_api(*, force_refresh: bool = False) -> Optional[tuple[str, str]]:
@@ -775,8 +775,8 @@ def _resolve_nous_runtime_api(*, force_refresh: bool = False) -> Optional[tuple[
         from vector_cli.auth import resolve_nous_runtime_credentials
 
         creds = resolve_nous_runtime_credentials(
-            min_key_ttl_seconds=max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
-            timeout_seconds=float(os.getenv("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
+            min_key_ttl_seconds=max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
+            timeout_seconds=float(os.environ.get("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
             force_mint=force_refresh,
         )
     except Exception as exc:
@@ -931,7 +931,7 @@ def _try_openrouter() -> Tuple[Optional[OpenAI], Optional[str]]:
         return OpenAI(api_key=or_key, base_url=base_url,
                        default_headers=_OR_HEADERS), _OPENROUTER_MODEL
 
-    or_key = os.getenv("OPENROUTER_API_KEY")
+    or_key = os.environ.get("OPENROUTER_API_KEY")
     if not or_key:
         return None, None
     logger.debug("Auxiliary client: OpenRouter")
@@ -947,7 +947,7 @@ def _describe_openrouter_unavailable() -> str:
             return "OpenRouter credential pool has no usable entries (credentials may be exhausted)"
         if not _pool_runtime_api_key(entry):
             return "OpenRouter credential pool entry is missing a runtime API key"
-    if not str(os.getenv("OPENROUTER_API_KEY") or "").strip():
+    if not str(os.environ.get("OPENROUTER_API_KEY") or "").strip():
         return "OPENROUTER_API_KEY not set"
     return "no usable OpenRouter credentials found"
 
@@ -1074,8 +1074,8 @@ def _resolve_custom_runtime() -> Tuple[Optional[str], Optional[str], Optional[st
         runtime = None
 
     if not isinstance(runtime, dict):
-        openai_base = os.getenv("OPENAI_BASE_URL", "").strip().rstrip("/")
-        openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+        openai_base = os.environ.get("OPENAI_BASE_URL", "").strip().rstrip("/")
+        openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
         if not openai_base:
             return None, None, None
         runtime = {
@@ -1447,8 +1447,8 @@ def _refresh_provider_credentials(provider: str) -> bool:
             from vector_cli.auth import resolve_nous_runtime_credentials
 
             creds = resolve_nous_runtime_credentials(
-                min_key_ttl_seconds=max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
-                timeout_seconds=float(os.getenv("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
+                min_key_ttl_seconds=max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
+                timeout_seconds=float(os.environ.get("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
                 force_mint=True,
             )
             if not str(creds.get("api_key", "") or "").strip():
@@ -1547,7 +1547,7 @@ def _resolve_auto(main_runtime: Optional[Dict[str, Any]] = None) -> Tuple[Option
     #    scenario where a user switches providers via `vector model` but the
     #    old OPENAI_BASE_URL lingers in ~/.vectorcode/.env. ──
     if not _stale_base_url_warned:
-        _env_base = os.getenv("OPENAI_BASE_URL", "").strip()
+        _env_base = os.environ.get("OPENAI_BASE_URL", "").strip()
         _cfg_provider = runtime_provider or _read_main_provider()
         if (_env_base and _cfg_provider
                 and _cfg_provider != "custom"
@@ -1838,7 +1838,7 @@ def resolve_provider_client(
             custom_base = explicit_base_url.strip()
             custom_key = (
                 (explicit_api_key or "").strip()
-                or os.getenv("OPENAI_API_KEY", "").strip()
+                or os.environ.get("OPENAI_API_KEY", "").strip()
                 or "no-key-required"  # local servers don't need auth
             )
             if not custom_base:
@@ -1889,7 +1889,7 @@ def resolve_provider_client(
             custom_key = custom_entry.get("api_key", "").strip()
             custom_key_env = custom_entry.get("key_env", "").strip()
             if not custom_key and custom_key_env:
-                custom_key = os.getenv(custom_key_env, "").strip()
+                custom_key = os.environ.get(custom_key_env, "").strip()
             custom_key = custom_key or "no-key-required"
             # An explicit per-task api_mode override (from _resolve_task_provider_model)
             # wins; otherwise fall back to what the provider entry declared.
@@ -2351,7 +2351,7 @@ def auxiliary_max_tokens_param(value: int) -> dict:
     for it as well.
     """
     custom_base = _current_custom_base_url()
-    or_key = os.getenv("OPENROUTER_API_KEY")
+    or_key = os.environ.get("OPENROUTER_API_KEY")
     # Only use max_completion_tokens for direct OpenAI custom endpoints
     if (not or_key
             and _read_nous_auth() is None

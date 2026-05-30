@@ -6,10 +6,6 @@ DALL-E, Stable Diffusion API). Falls back to VECTOR's local ComfyUI adapter.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 

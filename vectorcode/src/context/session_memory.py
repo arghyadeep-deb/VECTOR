@@ -6,15 +6,6 @@ Sections: Build Commands, Known Issues, Architecture Notes, Preferences.
 
 import sys
 import re
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from config import VECTOR_DATA_DIR
@@ -118,8 +109,5 @@ if __name__ == "__main__":
     content = read_memory_md()
     assert "# Vector Code Memory" in content
     print(f"session_memory.py OK\n{content[:300]}")
-
-
-
 
 

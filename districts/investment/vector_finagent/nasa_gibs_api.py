@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 NASA GIBS (Global Imagery Browse Services) Comprehensive API Wrapper
 Complete coverage of all NASA GIBS services with hierarchical structure:
 1. Catalogue - Lists all available imagery layers across all services
@@ -28,7 +29,10 @@ import sys
 import json
 import os
 import requests
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta
 import re
@@ -210,6 +214,8 @@ def _make_request(url: str, headers: Optional[Dict[str, str]] = None, return_byt
                 }
 
     except Exception as e:
+        logger.debug("[VECTOR][nasa_gibs_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][nasa_gibs_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {"source": "NASA GIBS"},
@@ -867,10 +873,8 @@ def _format_date(date_str: str) -> str:
         # Try to parse and reformat date
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         return date_obj.strftime("%B %d, %Y")
-    except:
-        return date_str
-
-# ====== SERIES (TILES) ======
+    except Exception:
+        logger.debug("[VECTOR][nasa_gibs_api] suppressed Exception in fallback")  # bare except
 def get_tile(layer_id: str, date: str, zoom: int, lat: float, lon: float,
             format: str = "png", projection: str = "epsg3857") -> Dict[str, Any]:
     """

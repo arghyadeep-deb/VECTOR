@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FFN (Financial Functions) Analysis — Deep analytics per symbol.
 Input:  JSON via stdin: {"symbols": ["AAPL","MSFT"], "weights": {"AAPL": 0.6, "MSFT": 0.4}}
 Output: JSON to stdout with per-symbol stats, rebased series, drawdown series,
@@ -160,6 +161,8 @@ def compute_ffn(symbols, weights, period="1y"):
                     if not (isinstance(v, float) and (np.isnan(v) or np.isinf(v)))
                 }
     except Exception:
+        logger.debug("[VECTOR][ffn_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ffn_analysis] caught Exception: %s", _sve)
         # ffn not available — compute manually
         try:
             base = valid_close.dropna().tail(LIMIT)

@@ -1,4 +1,5 @@
 """SEC Data Adapter - Maps edgartools data to DCF model inputs"""
+from loguru import logger
 from typing import Dict, Any, Optional, List
 import sys
 from datetime import datetime, timedelta
@@ -52,6 +53,8 @@ class SECDataAdapter:
                 'filing_date': latest_10k.filing_date
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] caught Exception: %s", _sve)
             raise ValueError(f"Failed to fetch company data: {str(e)}")
 
     def extract_financials_from_10k(self, filing) -> Dict[str, Any]:
@@ -116,9 +119,8 @@ class SECDataAdapter:
 
             if all(v is not None for v in [revenue, cogs, opex]):
                 return float(revenue - cogs - opex)
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
         raise ValueError("Could not extract EBIT from income statement")
 
     def _extract_depreciation(self, cash_flow) -> float:
@@ -165,9 +167,8 @@ class SECDataAdapter:
                 return 0.0  # TODO: Implement prior year comparison
 
             return 0.0
-        except:
-            return 0.0
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def _extract_cash(self, balance_sheet) -> float:
         """Extract cash and cash equivalents"""
         tags = [
@@ -250,9 +251,8 @@ class SECDataAdapter:
                     return float(value)
 
             return None
-        except:
-            return None
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def calculate_beta(self, period: str = "2y") -> float:
         """Calculate beta using market data (yfinance)"""
         if not YFINANCE_AVAILABLE:
@@ -346,9 +346,8 @@ class SECDataAdapter:
                 return max(0.005, min(cost_of_debt, 0.15))
 
             return default
-        except:
-            return default
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def estimate_tax_rate(self, filing, default: float = 0.21) -> float:
         """Extract effective tax rate from 10-K
 
@@ -370,9 +369,8 @@ class SECDataAdapter:
                 return max(0.0, min(tax_rate, 0.50))
 
             return default
-        except:
-            return default
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def estimate_growth_rates(self, years: int = 5, default_growth: float = 0.05,
                              taper: bool = True) -> List[float]:
         """Estimate revenue growth rates
@@ -405,9 +403,8 @@ class SECDataAdapter:
                     return [max(0.02, min(base_growth, 0.30))] * years
 
             return [default_growth] * years
-        except:
-            return [default_growth] * years
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def get_market_cap(self) -> float:
         """Get current market capitalization"""
         if not YFINANCE_AVAILABLE:
@@ -421,9 +418,8 @@ class SECDataAdapter:
                 return float(info['marketCap'])
 
             return 0.0
-        except:
-            return 0.0
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
     def build_dcf_inputs(self, fred_api_key: Optional[str] = None,
                         overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Build complete DCF model inputs from SEC filings and market data

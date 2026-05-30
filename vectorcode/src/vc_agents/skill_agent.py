@@ -8,10 +8,8 @@ This agent resolves skill names, loads the SKILL.md, and executes via LLM
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

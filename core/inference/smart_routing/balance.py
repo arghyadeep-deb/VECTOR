@@ -12,13 +12,17 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "BalanceMonitor",
+    "BalanceSufficiency",
+]
+
+
 import asyncio
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 # USDC contract addresses

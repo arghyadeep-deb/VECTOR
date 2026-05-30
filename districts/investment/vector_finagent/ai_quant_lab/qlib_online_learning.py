@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Online Learning Module
 Real-time model updates, incremental learning, and online prediction for live trading
 Supports rolling updates, concept drift detection, and adaptive retraining
@@ -75,6 +76,8 @@ class OnlineLearningManager:
                     self.online_models = data.get('models', {})
                     self.drift_detectors = data.get('detectors', {})
             except Exception as e:
+                logger.debug("[VECTOR][ai_quant_lab.qlib_online_learning] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][ai_quant_lab.qlib_online_learning] caught Exception: %s", _sve)
                 print(f"Warning: Could not load cached models: {e}", file=sys.stderr)
 
     def _save_models(self):

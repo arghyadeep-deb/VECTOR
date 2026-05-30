@@ -1,8 +1,6 @@
-﻿"""Code Intelligence router Ã¢â‚¬â€ /code-intel/* endpoints for the CodeIntelAgent (VectorCode Intelligence)."""
+"""Code Intelligence router  --  /code-intel/* endpoints for the CodeIntelAgent (VectorCode Intelligence)."""
 
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
@@ -22,7 +20,7 @@ def _safe_path(v: str) -> str:
         return v
     resolved = Path(v).resolve()
     if not str(resolved).startswith(str(_PROJECT_ROOT)):
-        raise ValueError(f"Path '{v}' is outside the VECTOR codebase Ã¢â‚¬â€ access denied.")
+        raise ValueError(f"Path '{v}' is outside the VECTOR codebase  --  access denied.")
     return v
 
 
@@ -34,7 +32,7 @@ def _get_intel_agent():
     return _intel_agent
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Request models Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+#  --  Request models  -- 
 
 class _PathMixin(BaseModel):
     @field_validator("project_path", "file_path", "file", mode="before", check_fields=False)
@@ -84,7 +82,7 @@ class WatchRequest(_PathMixin):
     action: str = "start"
 
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+#  --  Endpoints  -- 
 
 @router.post("/search")
 async def code_search(body: SearchRequest):
@@ -108,7 +106,7 @@ async def code_index(body: IndexRequest):
 
 @router.post("/update")
 async def code_update(body: IndexRequest):
-    """Incrementally update index Ã¢â‚¬â€ only re-indexes changed files."""
+    """Incrementally update index  --  only re-indexes changed files."""
     try:
         return await _get_intel_agent().run({"type": "vc_update", "params": body.model_dump()})
     except Exception as e:
@@ -168,7 +166,7 @@ async def graph_visualize(project_path: str = _PROJECT_PATH, mode: str = "html")
 
 @router.post("/impact")
 async def code_impact(body: ImpactRequest):
-    """Blast radius analysis Ã¢â‚¬â€ what breaks if you change a function or class?"""
+    """Blast radius analysis  --  what breaks if you change a function or class?"""
     try:
         return await _get_intel_agent().run({"type": "vc_impact", "params": body.model_dump()})
     except Exception as e:

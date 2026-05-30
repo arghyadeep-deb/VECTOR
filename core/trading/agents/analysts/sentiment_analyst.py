@@ -21,6 +21,12 @@ See: https://github.com/TauricResearch/VectorTrading/issues/557
 
 from datetime import datetime, timedelta
 
+__all__ = [
+    "create_sentiment_analyst",
+    "create_social_media_analyst",
+]
+
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from core.trading.agents.utils.agent_utils import (
     build_instrument_context,

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Investment Residual Income Module
 ======================================
 
@@ -437,6 +438,8 @@ class ResidualIncomeAnalyzer:
                     quality_score -= 10
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.residual_income] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.residual_income] caught Exception: %s", _sve)
             quality_issues.append(f"Error in accounting quality assessment: {str(e)}")
             quality_score -= 30
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Sovereign and Non-Sovereign Government Credit Analysis
 CFA Fixed Income - Sovereign Credit Risk Module
 
@@ -961,6 +962,8 @@ def main():
             print(json.dumps({"error": f"Unknown command: {command}"}))
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.fixedIncome.sovereign_credit] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.sovereign_credit] caught Exception: %s", _sve)
         print(json.dumps({"error": str(e)}))
 
 

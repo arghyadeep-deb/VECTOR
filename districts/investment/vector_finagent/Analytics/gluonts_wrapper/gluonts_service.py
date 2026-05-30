@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GluonTS Service (probabilistic forecasting backend)
 ====================================================
 Self-contained probabilistic-forecasting + distributional-modeling service for
@@ -347,6 +348,8 @@ def op_distribution_fit(data):
             # KS test against fitted distribution
             ks_stat, ks_p = scstats.kstest(arr, dist.cdf, args=params)
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service] caught Exception: %s", _sve)
             params = ()
             log_lik = float("nan")
             aic = float("inf")

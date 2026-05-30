@@ -24,8 +24,6 @@ __all__ = [
 import asyncio
 import datetime
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel

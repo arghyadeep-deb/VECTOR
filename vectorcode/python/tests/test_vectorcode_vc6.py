@@ -7,14 +7,10 @@ Run:
     pytest tests/test_vectorcode_vc6.py -k "browser"    -v
 """
 
-import sys
 import textwrap
 import asyncio
-from pathlib import Path
 from unittest.mock import patch, AsyncMock, MagicMock
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent / 'vectorcode'))  # vectorcode package
 
 from vectorcode.tools.code_graph import CodeGraph
 from vectorcode.tools.browser_tools import BrowserTools

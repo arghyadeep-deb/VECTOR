@@ -3,6 +3,12 @@ Registry for dynamically registering LangChain retrievers as search engines.
 """
 
 from threading import Lock
+
+__all__ = [
+    "retriever_registry",
+    "RetrieverRegistry",
+]
+
 from typing import Dict, Optional
 
 from langchain_core.retrievers import BaseRetriever

@@ -10,8 +10,8 @@ Why bulk snapshot instead of the REST API
 -----------------------------------------
 
 The previous implementation cursor-paginated ``/api/institutions`` at
-200/page with 100 ms polite sleeps â€” ~550 requests + ~55 s of sleep +
-actual transfer. Wall-clock was 5â€“10 minutes per "Download Data"
+200/page with 100 ms polite sleeps — ~550 requests + ~55 s of sleep +
+actual transfer. Wall-clock was 5–10 minutes per "Download Data"
 click, which dominated the user-facing latency. The S3 dump is the
 documented bulk path, CC0, no auth, no rate limits, and finishes
 much faster.
@@ -38,7 +38,7 @@ _OPENALEX_INSTITUTIONS_MANIFEST = (
     f"{OPENALEX_S3_BASE}/data/institutions/manifest"
 )
 
-# Safety floor â€” OpenAlex has ~120K institutions. Refuse to overwrite
+# Safety floor — OpenAlex has ~120K institutions. Refuse to overwrite
 # good data if the fetch produced far fewer records (likely schema
 # change, empty partitions, or broken manifest).
 _MIN_INSTITUTIONS = 50_000
@@ -73,7 +73,7 @@ class InstitutionSource(DataSource):
             f"Fetching OpenAlex institutions manifest: "
             f"{_OPENALEX_INSTITUTIONS_MANIFEST}"
         )
-        # consume_body=True: small JSON but serial bottleneck â€” a body
+        # consume_body=True: small JSON but serial bottleneck — a body
         # transient here aborts the whole 10-min institutions pull.
         manifest_resp = safe_get(
             _OPENALEX_INSTITUTIONS_MANIFEST, timeout=30, consume_body=True
@@ -83,7 +83,7 @@ class InstitutionSource(DataSource):
 
         entries = manifest.get("entries", [])
 
-        # Validate every part URL before fetching any part â€” SSRF
+        # Validate every part URL before fetching any part — SSRF
         # defense in depth. If any entry points outside the OpenAlex
         # bucket we refuse the whole fetch rather than partially trust.
         validate_manifest_entries(entries, "Institutions")

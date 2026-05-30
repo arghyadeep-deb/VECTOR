@@ -12,7 +12,8 @@ Quick start:
   # Check if GitHub is connected
   from core.engine.oauth import OAuthFlowManager
   mgr = OAuthFlowManager()
-  print(mgr.is_connected("github"))
+  logger.info(mgr.is_connected("github"))
+
 
   # Route to authorization page
   # GET http://localhost:7788/oauth/authorize/github
@@ -20,6 +21,7 @@ Quick start:
 from core.engine.oauth.registry import OAuthRegistry, Integration, get_integration, list_integrations
 from core.engine.oauth.flows import OAuthFlowManager, OAuthToken
 from core.engine.oauth.providers import get_provider, PROVIDERS, configured_providers
+from loguru import logger
 
 __all__ = [
     "OAuthRegistry", "Integration", "get_integration", "list_integrations",

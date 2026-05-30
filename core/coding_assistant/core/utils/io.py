@@ -1,4 +1,13 @@
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "decode_safe",
+    "read_safe",
+    "read_safe_async",
+    "ReadSafeResult",
+]
+
 
 from collections.abc import Iterator
 import locale
@@ -37,7 +46,7 @@ def _encoding_from_best_match(raw: bytes) -> str | None:
 
 
 def _get_candidate_encodings(raw: bytes) -> Iterator[str]:
-    """Yield candidate encodings lazily â€” expensive detection runs only if needed."""
+    """Yield candidate encodings lazily — expensive detection runs only if needed."""
     seen: set[str] = set()
     yield "utf-8"
     if (bom := _encodings_from_bom(raw)) and bom not in seen:

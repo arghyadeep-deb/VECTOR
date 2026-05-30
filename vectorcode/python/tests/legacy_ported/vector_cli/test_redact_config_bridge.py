@@ -45,7 +45,6 @@ def test_redact_secrets_false_in_config_yaml_is_honored(tmp_path):
         import sys, os
         # Make absolutely sure the env var is not pre-set
         os.environ.pop("VECTOR_REDACT_SECRETS", None)
-        sys.path.insert(0, %r)
         import vector_cli.main  # triggers the bridge + setup_logging
         import agent.redact
         print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
@@ -87,7 +86,6 @@ def test_redact_secrets_default_false_when_unset(tmp_path):
         """\
         import sys, os
         os.environ.pop("VECTOR_REDACT_SECRETS", None)
-        sys.path.insert(0, %r)
         import vector_cli.main
         import agent.redact
         print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
@@ -129,7 +127,6 @@ def test_redact_secrets_true_in_config_yaml_is_honored(tmp_path):
         """\
         import sys, os
         os.environ.pop("VECTOR_REDACT_SECRETS", None)
-        sys.path.insert(0, %r)
         import vector_cli.main
         import agent.redact
         print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
@@ -175,7 +172,6 @@ def test_dotenv_redact_secrets_beats_config_yaml(tmp_path):
         """\
         import sys, os
         os.environ.pop("VECTOR_REDACT_SECRETS", None)
-        sys.path.insert(0, %r)
         import vector_cli.main
         import agent.redact
         print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")

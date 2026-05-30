@@ -7,7 +7,7 @@ from typing import Optional
 
 
 def _vector_home() -> Path:
-    return Path(os.path.expanduser(os.getenv("VECTOR_HOME", "~/.vectorcode")))
+    return Path(os.path.expanduser(os.environ.get("VECTOR_HOME", "~/.vectorcode")))
 
 
 def build_write_denied_paths(home: str) -> set[str]:
@@ -61,7 +61,7 @@ def is_write_denied(path: str) -> bool:
     for prefix in build_write_denied_prefixes(home):
         if resolved.startswith(prefix):
             return True
-    safe_root = os.getenv("VECTOR_WRITE_SAFE_ROOT", "")
+    safe_root = os.environ.get("VECTOR_WRITE_SAFE_ROOT", "")
     if safe_root:
         safe_root = os.path.realpath(os.path.expanduser(safe_root))
         if not (resolved == safe_root or resolved.startswith(safe_root + os.sep)):

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VBT Indicators & Signal Generation Module
 
 Covers all VectorBT built-in indicators:
@@ -710,6 +711,8 @@ class IndicatorFactory:
                 output = self.run(*inputs, **params)
                 results.append({'params': params, 'output': output})
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_indicators] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_indicators] caught Exception: %s", _sve)
                 print(f"[IndicatorFactory.run_combs] Exception for params {params}: {e}")
                 import traceback
                 traceback.print_exc()

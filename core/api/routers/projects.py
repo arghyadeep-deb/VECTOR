@@ -1,14 +1,20 @@
 """VECTOR projects router - /projects/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "create_project",
+    "CreateProjectReq",
+    "list_projects",
+    "router",
+    "track_experiment",
+    "TrackExperimentReq",
+    "upcoming_deadlines",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/projects", tags=["projects"])
-
-
 
 
 class CreateProjectReq(BaseModel):

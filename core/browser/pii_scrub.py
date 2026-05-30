@@ -14,12 +14,9 @@ from __future__ import annotations
 
 import io
 import re
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

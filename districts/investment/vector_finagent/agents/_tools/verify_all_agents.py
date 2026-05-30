@@ -1,4 +1,5 @@
 """
+from loguru import logger
 verify_all_agents.py
 
 End-to-end verification pass for the full agent corpus after the v2.0.0
@@ -36,7 +37,6 @@ logging.disable(logging.CRITICAL)
 HERE = Path(__file__).resolve().parent
 AGENTS_ROOT = HERE.parent
 
-sys.path.insert(0, str(AGENTS_ROOT))
 
 from finagent_core.agent_loader import AgentLoader, AgentCard        # noqa: E402
 from finagent_core.registries.tools_registry import ToolsRegistry    # noqa: E402
@@ -84,6 +84,8 @@ def _iter_all_raw_entries():
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
         except Exception as e:
+            logger.debug("[VECTOR][agents._tools.verify_all_agents] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents._tools.verify_all_agents] caught Exception: %s", _sve)
             yield (p, {"__parse_error__": str(e)})
             continue
         if isinstance(d, dict) and "id" in d:

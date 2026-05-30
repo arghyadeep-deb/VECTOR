@@ -1,5 +1,6 @@
 """Typed configuration via pydantic-settings."""
 
+from loguru import logger
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fetch mark price and index price for liquidation calculations.
 Usage: python fetch_mark_price.py <exchange_id> <symbol>
 """
@@ -25,6 +26,8 @@ def main():
             "timestamp": rate.get("timestamp"),
         })
     except Exception as e:
+        logger.debug("[VECTOR][exchange.fetch_mark_price] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.fetch_mark_price] caught Exception: %s", _sve)
         output_error(f"Mark price not available: {e}", "NOT_SUPPORTED")
 
 if __name__ == "__main__":

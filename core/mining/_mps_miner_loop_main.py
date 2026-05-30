@@ -17,6 +17,13 @@ kernel.
 
 from __future__ import annotations
 
+__all__ = [
+    "logger",
+    "MpsNoisyGemmAdapter",
+    "parse_args",
+]
+
+
 import argparse
 import asyncio
 import base64

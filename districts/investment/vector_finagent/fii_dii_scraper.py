@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 fii_dii_scraper.py — NSE cash-market FII/DII daily flows.
 
 NSE publishes the daily institutional buy/sell numbers on
@@ -55,6 +56,8 @@ def _make_session():
     try:
         s.get("https://www.nseindia.com/", timeout=8)
     except Exception as e:
+        logger.debug("[VECTOR][fii_dii_scraper] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fii_dii_scraper] caught Exception: %s", _sve)
         print(f"warn: homepage visit failed: {e}", file=sys.stderr)
     return s
 

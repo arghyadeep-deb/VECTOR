@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VisionQuant Multi-Factor Scorer
 Combines Vision (V), Fundamental (F), and Technical (Q) scores.
 
@@ -21,7 +22,6 @@ import pandas as pd
 import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
 
 from utils import fetch_ohlcv, json_response, output_json, parse_args
 
@@ -80,6 +80,8 @@ def compute_fundamental_score(symbol: str, config: dict = None) -> dict:
         ticker = yf.Ticker(symbol)
         info = ticker.info or {}
     except Exception as e:
+        logger.debug("[VECTOR][vision_quant.scorer] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][vision_quant.scorer] caught Exception: %s", _sve)
         return {
             "score": 2.0,  # neutral default
             "max": 4,

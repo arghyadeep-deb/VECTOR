@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BIS (Bank for International Settlements) SDMX API wrapper
 Provides access to global economic and financial statistics data from BIS
 
@@ -17,7 +18,10 @@ import asyncio
 import json
 import sys
 import re
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 from urllib.parse import urlencode, quote
@@ -116,7 +120,9 @@ class BISAPI:
                         try:
                             data = await response.json()
                             return self._format_response(data, endpoint)
-                        except:
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][bis_data] caught Exception: %s", _sve)
+                            logger.debug("[VECTOR][bis_data] caught Exception: %s", _sve)
                             text_data = await response.text()
                             return {
                                 "success": True,

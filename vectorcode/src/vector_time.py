@@ -42,7 +42,7 @@ def _resolve_timezone_name() -> str:
     should cache the result rather than calling on every ``now()``.
     """
     # 1. Environment variable (highest priority — set by Supervisor, etc.)
-    tz_env = os.getenv("VECTOR_TIMEZONE", "").strip()
+    tz_env = os.environ.get("VECTOR_TIMEZONE", "").strip()
     if tz_env:
         return tz_env
 

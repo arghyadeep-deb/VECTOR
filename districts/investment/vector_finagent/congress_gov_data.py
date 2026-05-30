@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Congress.gov Data Fetcher
 Modular, fault-tolerant wrapper for US Congressional data based on OpenBB congress_gov provider
 Sources: Congress.gov API
@@ -96,6 +97,8 @@ class CongressGovWrapper:
         except requests.exceptions.RequestException as e:
             return {"error": f"Request error: {e}", "request_error": True, "status_code": None}
         except Exception as e:
+            logger.debug("[VECTOR][congress_gov_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][congress_gov_data] caught Exception: %s", _sve)
             return {"error": f"Unexpected error: {e}", "general_error": True, "status_code": None}
 
     def _year_to_congress(self, year: int) -> int:
@@ -120,14 +123,14 @@ class CongressGovWrapper:
             try:
                 start_year = datetime.fromisoformat(start_date).year
                 return self._year_to_congress(start_year)
-            except:
-                return current_congress
+            except Exception:
+                logger.debug("[VECTOR][congress_gov_data] suppressed Exception in fallback")  # bare except
         elif end_date and not start_date:
             try:
                 end_year = datetime.fromisoformat(end_date).year
                 return self._year_to_congress(end_year)
-            except:
-                return current_congress
+            except Exception:
+                logger.debug("[VECTOR][congress_gov_data] suppressed Exception in fallback")  # bare except
         else:
             return current_congress
 
@@ -513,11 +516,8 @@ class CongressGovWrapper:
             text = re.sub(r'<[^>]+>', '', html_text)  # Remove HTML tags
             text = re.sub(r'\s+', ' ', text).strip()  # Clean up whitespace
             return text
-        except:
-            return html_text
-
-    # ===== BILL TEXT ENDPOINT =====
-
+        except Exception:
+            logger.debug("[VECTOR][congress_gov_data] suppressed Exception in fallback")  # bare except
     def get_bill_text(self, bill_url: str) -> Dict[str, Any]:
         """
         Get available text versions for a bill

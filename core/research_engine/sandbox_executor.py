@@ -1,4 +1,4 @@
-"""Sandbox executor â€” runs experiment code in an isolated subprocess."""
+"""Sandbox executor — runs experiment code in an isolated subprocess."""
 
 import asyncio
 import ast

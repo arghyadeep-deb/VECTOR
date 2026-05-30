@@ -1,11 +1,9 @@
 """Test script for fortitudo_service.py"""
 
-import sys
 import os
 import json
 
 # Add this directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fortitudo_service as fs
 import numpy as np

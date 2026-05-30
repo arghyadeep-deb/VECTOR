@@ -3,7 +3,6 @@ VECTOR Full Smoke Test — runtime correctness verification.
 Run: python -X utf8 scripts/smoke_test.py
 """
 import sys, asyncio, tempfile, time, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 # Import core BEFORE vectorcode/src (to avoid core/ shadowing)
 import core.config
@@ -17,7 +16,6 @@ from core.city.governor import Governor
 from core.city.agent_base import AgentBase
 from core.city.evolution_engine import EvolutionEngine
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "vectorcode" / "src"))
 import numpy as np
 from vectorcode.src.claims import ClaimService, Claimant
 from vectorcode.src.guidance import create_guidance_system

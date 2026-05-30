@@ -1,4 +1,5 @@
 """
+from loguru import logger
 mcp_server.py — Fincept MCP HTTP server for RD-Agent tool use.
 
 Provides financial data tools that rdagent loops can call via
@@ -156,6 +157,8 @@ def build_mcp_server() -> Any:
             return result
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.rdagents.mcp_server] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.rdagents.mcp_server] caught Exception: %s", _sve)
             logger.exception("market_data(%s) failed", symbol)
             return {"error": str(e), "symbol": symbol}
 
@@ -382,11 +385,28 @@ def build_mcp_server() -> Any:
             })
             df["returns"] = df["close"].pct_change()
 
-            # Evaluate factor expression safely
+            # Evaluate factor expression with restricted builtins
+            _safe_builtins = {
+                "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+                "complex": complex, "dict": dict, "enumerate": enumerate,
+                "filter": filter, "float": float, "frozenset": frozenset,
+                "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+                "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+                "iter": iter, "len": len, "list": list, "map": map, "max": max,
+                "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+                "pow": pow, "print": print, "range": range, "repr": repr,
+                "reversed": reversed, "round": round, "set": set, "slice": slice,
+                "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+                "type": type, "zip": zip,
+            }
             try:
+                logger.warning(
+                    "[VECTOR][security] eval factor expression in %s: %.100s",
+                    __name__, factor_expr,
+                )
                 factor_vals = eval(  # noqa: S307
                     factor_expr,
-                    {"__builtins__": {}},
+                    {"__builtins__": _safe_builtins},
                     {**{col: df[col] for col in df.columns},
                      "pd": pd, "np": np},
                 )

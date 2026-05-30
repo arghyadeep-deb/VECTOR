@@ -1,14 +1,24 @@
 """VECTOR coding router - /coding/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "architect_advice",
+    "ArchitectAdviceReq",
+    "code_review",
+    "CodeReviewReq",
+    "db_optimize",
+    "DbOptimizeReq",
+    "rapid_prototype",
+    "RapidPrototypeReq",
+    "router",
+    "write_tests",
+    "WriteTestsReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/coding", tags=["coding"])
-
-
 
 
 class CodeReviewReq(BaseModel):

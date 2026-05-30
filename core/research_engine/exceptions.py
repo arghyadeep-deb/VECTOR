@@ -1,6 +1,12 @@
 """Project-wide exception classes."""
 
 
+
+__all__ = [
+    "DuplicateResearchError",
+    "ResearchTerminatedException",
+]
+
 class ResearchTerminatedException(BaseException):
     """Raised when a user cancels an in-progress research process.
 

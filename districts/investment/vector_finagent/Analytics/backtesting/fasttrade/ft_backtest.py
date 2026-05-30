@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fast-Trade Backtest Module
 
 Core backtesting engine wrapper covering:
@@ -100,6 +101,8 @@ def validate_backtest(backtest: Dict[str, Any]) -> Dict[str, Any]:
             }
         return {'valid': True, 'errors': [], 'warnings': []}
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_backtest] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_backtest] caught Exception: %s", _sve)
         return {'valid': False, 'errors': [str(e)], 'warnings': []}
 
 

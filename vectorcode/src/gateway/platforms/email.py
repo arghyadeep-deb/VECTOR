@@ -79,10 +79,10 @@ def _is_automated_sender(address: str, headers: dict) -> bool:
     
 def check_email_requirements() -> bool:
     """Check if email platform dependencies are available."""
-    addr = os.getenv("EMAIL_ADDRESS")
-    pwd = os.getenv("EMAIL_PASSWORD")
-    imap = os.getenv("EMAIL_IMAP_HOST")
-    smtp = os.getenv("EMAIL_SMTP_HOST")
+    addr = os.environ.get("EMAIL_ADDRESS")
+    pwd = os.environ.get("EMAIL_PASSWORD")
+    imap = os.environ.get("EMAIL_IMAP_HOST")
+    smtp = os.environ.get("EMAIL_SMTP_HOST")
     if not all([addr, pwd, imap, smtp]):
         return False
     return True
@@ -226,13 +226,13 @@ class EmailAdapter(BasePlatformAdapter):
     def __init__(self, config: PlatformConfig):
         super().__init__(config, Platform.EMAIL)
 
-        self._address = os.getenv("EMAIL_ADDRESS", "")
-        self._password = os.getenv("EMAIL_PASSWORD", "")
-        self._imap_host = os.getenv("EMAIL_IMAP_HOST", "")
-        self._imap_port = int(os.getenv("EMAIL_IMAP_PORT", "993"))
-        self._smtp_host = os.getenv("EMAIL_SMTP_HOST", "")
-        self._smtp_port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
-        self._poll_interval = int(os.getenv("EMAIL_POLL_INTERVAL", "15"))
+        self._address = os.environ.get("EMAIL_ADDRESS", "")
+        self._password = os.environ.get("EMAIL_PASSWORD", "")
+        self._imap_host = os.environ.get("EMAIL_IMAP_HOST", "")
+        self._imap_port = int(os.environ.get("EMAIL_IMAP_PORT", "993"))
+        self._smtp_host = os.environ.get("EMAIL_SMTP_HOST", "")
+        self._smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
+        self._poll_interval = int(os.environ.get("EMAIL_POLL_INTERVAL", "15"))
 
         # Skip attachments — configured via config.yaml:
         #   platforms:

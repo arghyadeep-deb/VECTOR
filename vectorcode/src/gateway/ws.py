@@ -1,13 +1,9 @@
 """WebSocket transport for VectorCode gateway — real-time streaming."""
-import sys
 import asyncio
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
 
 from loguru import logger
 

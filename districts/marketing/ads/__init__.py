@@ -15,10 +15,8 @@ Platform coverage: Google Ads (80 checks), Meta (50), LinkedIn, TikTok, Microsof
 YouTube, Apple Ads — 250+ weighted checks total.
 """
 
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 _ADS_DIR = Path(__file__).parent
 _SCRIPTS_DIR = _ADS_DIR / "scripts"

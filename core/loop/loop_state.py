@@ -8,12 +8,9 @@ Ctrl+C and process restarts:
 
 Uses EpisodicMemory.remember() / recall_fact() — no new tables needed.
 """
-import sys
 import json
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

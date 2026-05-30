@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "ParsedSkillCommand",
+    "SkillInfo",
+    "SkillMetadata",
+]
+
+
 from pathlib import Path
 from typing import Any
 

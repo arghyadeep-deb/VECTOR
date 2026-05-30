@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Data Processors Module
 Complete implementation of Qlib data preprocessing and normalization
 
@@ -452,6 +453,8 @@ class DataProcessingService:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_data_processors] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_data_processors] caught Exception: %s", _sve)
             return {
                 "success": False,
                 "error": f"Pipeline creation failed: {str(e)}"

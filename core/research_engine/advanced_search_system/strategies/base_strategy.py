@@ -65,7 +65,7 @@ class BaseSearchStrategy(ABC):
         Note: This is called by AdvancedSearchSystem.close() which is
         called in run_research_process()'s finally block. Strategies
         should also clean up in their own finally blocks (as they already
-        do) â€” this close() is a second line of defense.
+        do) — this close() is a second line of defense.
         """
         pass
 
@@ -218,7 +218,7 @@ class BaseSearchStrategy(ABC):
         """
         if iteration == 1:
             self._update_progress(
-                f"Generating initial search questions:\nâ€¢ {query}",
+                f"Generating initial search questions:\n• {query}",
                 progress_percent,
                 {
                     "phase": "question_generation",
@@ -229,7 +229,7 @@ class BaseSearchStrategy(ABC):
         else:
             # Show previous questions and source count
             prev_questions = self.questions_by_iteration.get(iteration - 1, [])
-            prev_display = "\n".join(f"â€¢ {q}" for q in prev_questions[:3])
+            prev_display = "\n".join(f"• {q}" for q in prev_questions[:3])
             if len(prev_questions) > 3:
                 prev_display += f"\n... and {len(prev_questions) - 3} more"
             self._update_progress(
@@ -257,7 +257,7 @@ class BaseSearchStrategy(ABC):
             questions: List of questions being searched
             progress_percent: Current progress percentage
         """
-        questions_display = "\n".join(f"â€¢ {q}" for q in questions[:5])
+        questions_display = "\n".join(f"• {q}" for q in questions[:5])
         if len(questions) > 5:
             questions_display += f"\n... and {len(questions) - 5} more"
         self._update_progress(

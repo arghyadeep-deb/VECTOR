@@ -91,7 +91,7 @@ class ToolContext:
             Dict with 'exit_code' (int) and 'output' (str)
         """
         import os
-        backend = os.getenv("TERMINAL_ENV", "local")
+        backend = os.environ.get("TERMINAL_ENV", "local")
         logger.debug("ToolContext.terminal [%s backend] task=%s: %s", backend, self.task_id[:8], command[:100])
 
         # Run via thread helper so modal/docker/daytona backends' asyncio.run() doesn't deadlock

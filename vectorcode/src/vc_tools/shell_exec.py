@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Any, List
@@ -164,8 +165,7 @@ class ShellExecTool(BaseTool):
             )
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                shlex.split(command),
                 capture_output=True,
                 text=True,
                 timeout=timeout,

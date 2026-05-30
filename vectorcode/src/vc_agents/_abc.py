@@ -12,6 +12,7 @@ base for agents that accept tools.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import re
 from abc import ABC, abstractmethod

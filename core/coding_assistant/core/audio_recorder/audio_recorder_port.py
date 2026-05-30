@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "AlreadyRecordingError",
+    "AudioBackendUnavailableError",
+    "AudioRecorderPort",
+    "AudioRecording",
+    "IncompatibleSampleRateError",
+    "NoAudioInputDeviceError",
+    "RecordingMode",
+]
+
+
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from enum import StrEnum, auto

@@ -3,11 +3,7 @@ from model output before it is shown to the user.
 
 Preserves the reasoning content for trajectory saving.
 """
-import sys
 import re
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 try:
     from core.config import CONFIG  # noqa: F401

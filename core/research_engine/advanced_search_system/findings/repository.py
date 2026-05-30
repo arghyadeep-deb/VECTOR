@@ -3,6 +3,12 @@ Findings repository for managing research findings.
 """
 
 from loguru import logger
+
+__all__ = [
+    "FindingsRepository",
+    "format_links",
+]
+
 from typing import Dict, List, Union
 
 from langchain_core.documents import Document
@@ -386,7 +392,7 @@ Use IEEE style citations [1], [2], etc. Never make up your own citations.
                     @contextmanager
                     def timeout(seconds, message="Operation timed out"):
                         def signal_handler(signum, frame):
-                            raise TimeoutError(message)  # noqa: TRY301 â€” signal handler, not caught by enclosing try
+                            raise TimeoutError(message)  # noqa: TRY301 — signal handler, not caught by enclosing try
 
                         signal.signal(signal.SIGALRM, signal_handler)
                         signal.alarm(seconds)

@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-C16FBA05
 # Category: Historical Data
@@ -130,6 +131,8 @@ class PandasDataFrameHistoryAlgorithm(QCAlgorithm):
             self.assert_history_count(f"df3.get({ticker})", df3.get(ticker), expected)
 
         except Exception as e:
+            logger.debug("[VECTOR][strategies.PandasDataFrameHistoryAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.PandasDataFrameHistoryAlgorithm] caught Exception: %s", _sve)
             symbols = set(df.index.get_level_values(level='symbol'))
             raise Exception(f"{symbols}, {symbol.id}, {symbol}, {ticker}. {e}")
 

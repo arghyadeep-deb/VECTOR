@@ -9,6 +9,15 @@ from being sent to the frontend.
 """
 
 import json
+
+__all__ = [
+    "DataSanitizer",
+    "filter_research_metadata",
+    "redact_data",
+    "sanitize_data",
+    "strip_settings_snapshot",
+]
+
 from typing import Any, Set
 
 

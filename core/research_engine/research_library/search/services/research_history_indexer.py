@@ -8,6 +8,12 @@ Enables semantic search over research history by:
 """
 
 import hashlib
+
+__all__ = [
+    "auto_convert_research",
+    "ResearchHistoryIndexer",
+]
+
 import uuid
 from datetime import datetime, UTC
 from typing import Any, Dict, Optional

@@ -1,4 +1,5 @@
 """risk_analyzer Module"""
+from loguru import logger
 
 import numpy as np
 import pandas as pd
@@ -810,6 +811,8 @@ class RiskAnalyzer:
                 return exposures
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.alternateInvestment.risk_analyzer] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.risk_analyzer] caught Exception: %s", _sve)
             logger.error(f"Error calculating factor exposures: {str(e)}")
             return {}
 

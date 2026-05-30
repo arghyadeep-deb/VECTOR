@@ -1,4 +1,4 @@
-"""Result analyzer â€” statistical analysis and plot generation for experiments."""
+"""Result analyzer — statistical analysis and plot generation for experiments."""
 
 import math
 import tempfile
@@ -23,19 +23,19 @@ class ResultAnalyzer:
             import numpy
             self._numpy = numpy
         except ImportError:
-            logger.warning("numpy not available â€” stats will be limited")
+            logger.warning("numpy not available — stats will be limited")
         try:
             import scipy.stats as sp_stats
             self._scipy = sp_stats
         except ImportError:
-            logger.warning("scipy not available â€” using numpy-based stats")
+            logger.warning("scipy not available — using numpy-based stats")
         try:
             import matplotlib
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
             self._matplotlib = plt
         except ImportError:
-            logger.warning("matplotlib not available â€” plots disabled")
+            logger.warning("matplotlib not available — plots disabled")
 
     def analyze(self, experiment_result: ExperimentResult) -> AnalysisResult:
         exp_id = experiment_result.experiment_id
@@ -174,7 +174,7 @@ class ResultAnalyzer:
             parts.append("Negligible effect size")
 
         parts.append(f"Based on {num_tests} statistical test(s)")
-        return " â€” ".join(parts)
+        return " — ".join(parts)
 
     def _generate_plots(self, result: ExperimentResult, data: list[float]) -> list[str]:
         if self._matplotlib is None:
@@ -192,7 +192,7 @@ class ResultAnalyzer:
                 ax.hist(data, bins=min(30, max(10, len(data) // 5)), edgecolor="black", alpha=0.7)
                 ax.set_xlabel("Value")
                 ax.set_ylabel("Frequency")
-                ax.set_title(f"Histogram â€” {result.experiment_id}")
+                ax.set_title(f"Histogram — {result.experiment_id}")
                 path = str(plot_dir / "histogram.png")
                 fig.savefig(path, dpi=100, bbox_inches="tight")
                 plt.close(fig)
@@ -205,7 +205,7 @@ class ResultAnalyzer:
                 fig, ax = plt.subplots(figsize=(8, 4))
                 ax.boxplot(data, vert=True)
                 ax.set_ylabel("Value")
-                ax.set_title(f"Box Plot â€” {result.experiment_id}")
+                ax.set_title(f"Box Plot — {result.experiment_id}")
                 path = str(plot_dir / "boxplot.png")
                 fig.savefig(path, dpi=100, bbox_inches="tight")
                 plt.close(fig)
@@ -219,7 +219,7 @@ class ResultAnalyzer:
                 ax.scatter(list(range(len(data))), data, alpha=0.6)
                 ax.set_xlabel("Index")
                 ax.set_ylabel("Value")
-                ax.set_title(f"Scatter Plot â€” {result.experiment_id}")
+                ax.set_title(f"Scatter Plot — {result.experiment_id}")
                 path = str(plot_dir / "scatter.png")
                 fig.savefig(path, dpi=100, bbox_inches="tight")
                 plt.close(fig)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Signal Discovery Workflow
 
 Workflow for discovering trading signals from market data.
@@ -271,6 +272,8 @@ Include your reasoning and any conditions.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_discovery] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_discovery] caught Exception: %s", _sve)
             end_time = datetime.utcnow()
             return RunResponse(
                 content=f"Signal discovery workflow failed: {str(e)}",

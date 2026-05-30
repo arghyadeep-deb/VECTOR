@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Financial Data Extraction (XBRL)
 =================================
 
@@ -76,6 +77,8 @@ def get_financials(ticker: str, periods: int = 4, annual: bool = True) -> Dict[s
             }
         }
     except Exception as e:
+        logger.debug("[VECTOR][mcp.edgar.financials] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.financials] caught Exception: %s", _sve)
         return {"error": EdgarError("get_financials", str(e), traceback.format_exc()).to_dict()}
 
 
@@ -99,63 +102,44 @@ def get_financial_metrics(ticker: str) -> Dict[str, Any]:
         # Revenue
         try:
             metrics["revenue"] = financials.get_revenue()
-        except:
-            metrics["revenue"] = None
-
-        # Net Income
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["net_income"] = financials.get_net_income()
-        except:
-            metrics["net_income"] = None
-
-        # Operating Cash Flow
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["operating_cash_flow"] = financials.get_operating_cash_flow()
-        except:
-            metrics["operating_cash_flow"] = None
-
-        # Free Cash Flow
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["free_cash_flow"] = financials.get_free_cash_flow()
-        except:
-            metrics["free_cash_flow"] = None
-
-        # Total Assets
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["total_assets"] = financials.get_total_assets()
-        except:
-            metrics["total_assets"] = None
-
-        # Total Liabilities
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["total_liabilities"] = financials.get_total_liabilities()
-        except:
-            metrics["total_liabilities"] = None
-
-        # Stockholders Equity
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["stockholders_equity"] = financials.get_stockholders_equity()
-        except:
-            metrics["stockholders_equity"] = None
-
-        # Current Assets
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["current_assets"] = financials.get_current_assets()
-        except:
-            metrics["current_assets"] = None
-
-        # Current Liabilities
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["current_liabilities"] = financials.get_current_liabilities()
-        except:
-            metrics["current_liabilities"] = None
-
-        # Capital Expenditures
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         try:
             metrics["capital_expenditures"] = financials.get_capital_expenditures()
-        except:
-            metrics["capital_expenditures"] = None
-
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.financials] suppressed Exception in fallback")  # bare except
         return {
             "success": True,
             "data": {

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 EIU Democracy Index Data Fetcher
 EIU Democracy Index + Economist open data: democracy scores, regime types for 167 countries.
 """
@@ -56,6 +57,8 @@ def _fetch_via_worldbank(indicator: str, country: str, year: int) -> Any:
         response.raise_for_status()
         return response.json()
     except Exception as e:
+        logger.debug("[VECTOR][eiu_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][eiu_data] caught Exception: %s", _sve)
         return {"error": str(e)}
 
 

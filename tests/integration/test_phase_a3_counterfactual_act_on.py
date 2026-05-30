@@ -1,13 +1,10 @@
 """Integration tests — Session A3: CounterfactualMemory.should_avoid() in _act_on."""
 from __future__ import annotations
 
-import sys
 import tempfile
 import asyncio
 import unittest
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestCounterfactualShouldAvoid(unittest.TestCase):

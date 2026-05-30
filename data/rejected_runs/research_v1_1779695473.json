@@ -1,0 +1,7 @@
+{
+  "adapter": "research_v1",
+  "reason": "overall_score 0.00 < 0.5 baseline",
+  "val_loss": 0.0,
+  "initial_loss": 1.0,
+  "score": 0.0
+}

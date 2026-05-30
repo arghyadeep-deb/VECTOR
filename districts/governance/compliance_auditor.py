@@ -3,10 +3,7 @@ Compliance Auditor — SOC2, GDPR, privacy policy compliance checking.
 Loaded from: vectorcode/agents/vector-compliance-auditor.md
 District: governance
 """
-import sys
 import asyncio
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

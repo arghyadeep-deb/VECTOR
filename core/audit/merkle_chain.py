@@ -1,5 +1,5 @@
 """
-VECTOR Merkle Audit Chain â€” cryptographic append-only audit trail.
+VECTOR Merkle Audit Chain — cryptographic append-only audit trail.
 
 Every agent action is hashed and chained. Each entry contains:
   - SHA-256 hash of its own content
@@ -12,14 +12,20 @@ Ported from the agent OS kernel AuditLog system.
 """
 from __future__ import annotations
 
+__all__ = [
+    "AuditEntry",
+    "AuditVerification",
+    "get_audit_chain",
+    "MerkleAuditChain",
+]
+
+
 import hashlib
 import json
-import sys
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _CHAIN_DIR = Path.home() / ".vector_ca" / "audit"
@@ -77,7 +83,7 @@ class AuditVerification:
 
     def __str__(self) -> str:
         if self.valid:
-            return f"Chain OK â€” {self.total_entries} entries verified"
+            return f"Chain OK — {self.total_entries} entries verified"
         return f"Chain BROKEN at seq={self.broken_at}: {self.reason}"
 
 
@@ -90,7 +96,8 @@ class MerkleAuditChain:
         audit.log("agent_001", "tool_call", "coding",
                   {"tool": "bash", "cmd": "git status"})
         result = audit.verify()
-        print(result)  # Chain OK â€” 1 entries verified
+        logger.info(result)  # Chain OK — 1 entries verified
+
     """
 
     _SENSITIVE_KEYS = frozenset({
@@ -273,4 +280,4 @@ if __name__ == "__main__":
         coding_entries = chain.search(district="coding")
         assert len(coding_entries) == 2
 
-        print(f"OK merkle_chain.py â€” {chain.count()} entries, chain verified, tamper detected")
+        print(f"OK merkle_chain.py — {chain.count()} entries, chain verified, tamper detected")

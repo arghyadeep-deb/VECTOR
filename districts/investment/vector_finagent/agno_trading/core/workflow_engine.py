@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Workflow Engine
 
 This module manages deterministic trading workflows.
@@ -116,6 +117,8 @@ class WorkflowEngine:
             return execution
 
         except Exception as e:
+            logger.debug("[VECTOR][agno_trading.core.workflow_engine] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.workflow_engine] caught Exception: %s", _sve)
             return {
                 "workflow_id": workflow_id,
                 "status": "failed",

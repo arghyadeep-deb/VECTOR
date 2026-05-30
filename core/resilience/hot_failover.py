@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "HotFailover",
+    "StateDigest",
+]
+
+
 import asyncio
 import json
 import time

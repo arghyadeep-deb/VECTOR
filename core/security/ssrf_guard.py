@@ -1,9 +1,9 @@
 """
-VECTOR SSRF Guard â€” blocks Server-Side Request Forgery attacks.
+VECTOR SSRF Guard — blocks Server-Side Request Forgery attacks.
 
 Prevents agents from making requests to:
   - Private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x)
-  - Link-local addresses (169.254.x â€” AWS/GCP metadata endpoints)
+  - Link-local addresses (169.254.x — AWS/GCP metadata endpoints)
   - IPv6 loopback and link-local
   - Cloud metadata services (169.254.169.254, metadata.google.internal)
   - Internal VECTOR services
@@ -14,15 +14,20 @@ Ported from the agent OS runtime web_fetch.rs SSRF protection layer.
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_ssrf_guard",
+    "is_safe_url",
+    "SSRFCheckResult",
+    "SSRFGuard",
+]
+
+
 import ipaddress
 import re
 import socket
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from urllib.parse import urlparse
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -74,7 +79,7 @@ _BLOCKED_PORTS = frozenset({22, 23, 25, 110, 143, 3306, 5432, 6379, 27017})  # S
 
 class SSRFGuard:
     """
-    URL safety checker â€” blocks SSRF attacks before HTTP requests.
+    URL safety checker — blocks SSRF attacks before HTTP requests.
 
     Usage:
         guard = SSRFGuard()
@@ -145,7 +150,7 @@ class SSRFGuard:
                             reason=f"Private/reserved IP address: {host}"
                         )
             except ValueError:
-                pass  # hostname, not IP â€” continue
+                pass  # hostname, not IP — continue
 
         # 4. Port check
         port = parsed.port
@@ -173,7 +178,7 @@ class SSRFGuard:
                     except ValueError:
                         logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
             except OSError:
-                pass  # DNS failure â€” let request handle it
+                pass  # DNS failure — let request handle it
 
         return SSRFCheckResult(safe=True, url=url)
 
@@ -230,4 +235,4 @@ if __name__ == "__main__":
     safe, blocked = guard.filter_urls(urls)
     assert len(safe) == 2 and len(blocked) == 1
 
-    print("OK ssrf_guard.py â€” private IPs, metadata endpoints, scheme check all blocked")
+    print("OK ssrf_guard.py — private IPs, metadata endpoints, scheme check all blocked")

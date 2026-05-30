@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Bank of England (BoE) Statistical Interactive Database (IADB) Wrapper
 
 Provides programmatic access to the Bank of England's IADB covering:
@@ -1446,6 +1447,8 @@ def main(args: Optional[List[str]] = None) -> None:
     except KeyboardInterrupt:
         sys.exit(0)
     except Exception as exc:
+        logger.debug("[VECTOR][boe_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][boe_data] caught Exception: %s", _sve)
         print(json.dumps({"success": False, "error": str(exc)}, indent=2))
         sys.exit(1)
 

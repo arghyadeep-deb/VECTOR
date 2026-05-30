@@ -4,8 +4,6 @@ import io
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                # vectorcode/python (package parent)
 
 # Re-wrap stdout/stderr as UTF-8 on Windows so emoji/box-drawing output works
 if hasattr(sys.stdout, "buffer"):

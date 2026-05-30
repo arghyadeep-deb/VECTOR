@@ -1,4 +1,14 @@
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "FileSource",
+    "get_harness_files_manager",
+    "HarnessFilesManager",
+    "init_harness_files_manager",
+    "reset_harness_files_manager",
+]
+
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -220,7 +230,7 @@ def init_harness_files_manager(*sources: FileSource) -> None:
 def get_harness_files_manager() -> HarnessFilesManager:
     if _manager is None:
         raise RuntimeError(
-            "HarnessFilesManager not initialized â€” call init_harness_files_manager() first"
+            "HarnessFilesManager not initialized — call init_harness_files_manager() first"
         )
     return _manager
 

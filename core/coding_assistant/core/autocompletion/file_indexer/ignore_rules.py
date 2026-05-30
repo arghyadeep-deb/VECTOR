@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "CompiledPattern",
+    "IgnoreRules",
+]
+
+
 from dataclasses import dataclass
 import fnmatch
 from pathlib import Path

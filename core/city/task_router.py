@@ -2,9 +2,12 @@
 V.E.C.T.O.R. TaskRouter.
 Routes incoming tasks to the appropriate district districts.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+__all__ = [
+    "DISTRICT_KEYWORDS",
+    "TaskRouter",
+]
+
 from loguru import logger
 from core.config import CONFIG
 

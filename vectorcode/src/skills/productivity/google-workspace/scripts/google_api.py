@@ -34,7 +34,6 @@ from pathlib import Path
 # Ensure sibling modules (_vector_home) are importable when run standalone.
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPTS_DIR)
 
 from _vector_home import get_vector_home
 
@@ -76,7 +75,7 @@ def _stored_token_scopes() -> list[str]:
     return list(SCOPES)
 
 def _gws_binary() -> str | None:
-    override = os.getenv("VECTOR_GWS_BIN")
+    override = os.environ.get("VECTOR_GWS_BIN")
     if override:
         return override
     return shutil.which("gws")

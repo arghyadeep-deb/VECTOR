@@ -1,14 +1,11 @@
 """Wave 2 agent subsystem tests — providers, credentials, context, display."""
 import json
-import sys
 import tempfile
 import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "vectorcode" / "python"))
 
 
 # ── Providers ─────────────────────────────────────────────────────────────────

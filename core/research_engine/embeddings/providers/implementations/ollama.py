@@ -178,7 +178,7 @@ class OllamaEmbeddingsProvider(BaseEmbeddingProvider):
             if caps is not None:
                 is_embed = "embedding" in caps
             else:
-                # Older Ollama without capabilities â€” use name heuristic
+                # Older Ollama without capabilities — use name heuristic
                 is_embed = _name_looks_like_embedding(model_name)
 
             model["is_embedding"] = is_embed  # type: ignore[assignment]

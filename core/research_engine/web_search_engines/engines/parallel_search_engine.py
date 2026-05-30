@@ -1,4 +1,10 @@
 import os
+
+__all__ = [
+    "ParallelSearchEngine",
+    "shutdown_global_executor",
+]
+
 import concurrent.futures
 from typing import Any, Dict, List, Optional
 from threading import Lock

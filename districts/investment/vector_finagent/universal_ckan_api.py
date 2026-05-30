@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Universal CKAN Data Portals API Wrapper
 
 A comprehensive wrapper for accessing multiple CKAN-based data portals worldwide.
@@ -239,6 +240,8 @@ def _make_request(country_code: str, action: str, params: Optional[Dict[str, Any
                 }
 
     except Exception as e:
+        logger.debug("[VECTOR][universal_ckan_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][universal_ckan_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {},

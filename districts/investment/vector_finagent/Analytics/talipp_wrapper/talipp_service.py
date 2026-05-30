@@ -1,4 +1,5 @@
 """
+from loguru import logger
 TALIpp Worker Handler - Dispatches indicator calculations by category.
 Usage: python worker_handler.py <operation> <json_data>
 """
@@ -217,6 +218,8 @@ def dispatch(operation, data):
             return {"error": f"Unknown operation: {operation}"}
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.talipp_wrapper.talipp_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.talipp_wrapper.talipp_service] caught Exception: %s", _sve)
         return {"error": str(e)}
 
 if __name__ == "__main__":

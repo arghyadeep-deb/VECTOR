@@ -874,7 +874,7 @@ class ProcessRegistry:
         from tools.interrupt import is_interrupted as _is_interrupted
 
         try:
-            default_timeout = int(os.getenv("TERMINAL_TIMEOUT", "180"))
+            default_timeout = int(os.environ.get("TERMINAL_TIMEOUT", "180"))
         except (ValueError, TypeError):
             default_timeout = 180
         max_timeout = default_timeout

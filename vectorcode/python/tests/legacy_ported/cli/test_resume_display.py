@@ -6,13 +6,10 @@ conversation with correct formatting, truncation, and config behavior.
 """
 
 import os
-import sys
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 def _make_cli(config_overrides=None, env_overrides=None, **kwargs):

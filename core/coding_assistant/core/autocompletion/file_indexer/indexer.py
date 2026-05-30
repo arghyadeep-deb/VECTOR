@@ -1,4 +1,5 @@
 from __future__ import annotations
+from loguru import logger
 
 import atexit
 from collections.abc import Callable, Iterable

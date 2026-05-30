@@ -3,6 +3,13 @@ Base Academic Content Downloader Abstract Class
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BaseDownloader",
+    "ContentType",
+    "DownloadResult",
+]
+
 from typing import Optional, Dict, Any, NamedTuple
 from enum import Enum
 import requests

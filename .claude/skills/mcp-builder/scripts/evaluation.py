@@ -10,7 +10,10 @@ import re
 import sys
 import time
 import traceback
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 

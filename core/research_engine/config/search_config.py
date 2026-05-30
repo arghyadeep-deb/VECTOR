@@ -1,6 +1,12 @@
 # vector_research_engine/config.py
 from loguru import logger
 
+__all__ = [
+    "get_search",
+    "QUALITY_CHECK_DDG_URLS",
+]
+
+
 from ..web_search_engines.search_engine_factory import (
     get_search as factory_get_search,
 )

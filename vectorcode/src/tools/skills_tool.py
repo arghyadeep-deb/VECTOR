@@ -363,14 +363,14 @@ def _capture_required_environment_variables(
 
 
 def _is_gateway_surface() -> bool:
-    if os.getenv("VECTOR_GATEWAY_SESSION"):
+    if os.environ.get("VECTOR_GATEWAY_SESSION"):
         return True
     from gateway.session_context import get_session_env
     return bool(get_session_env("VECTOR_SESSION_PLATFORM"))
 
 
 def _get_terminal_backend_name() -> str:
-    return str(os.getenv("TERMINAL_ENV", "local")).strip().lower() or "local"
+    return str(os.environ.get("TERMINAL_ENV", "local")).strip().lower() or "local"
 
 
 def _is_env_var_persisted(
@@ -380,7 +380,7 @@ def _is_env_var_persisted(
         env_snapshot = load_env()
     if var_name in env_snapshot:
         return bool(env_snapshot.get(var_name))
-    return bool(os.getenv(var_name))
+    return bool(os.environ.get(var_name))
 
 
 def _remaining_required_environment_names(
@@ -534,7 +534,7 @@ def _is_skill_disabled(name: str, platform: str = None) -> bool:
         from vector_cli.config import load_config
         config = load_config()
         skills_cfg = config.get("skills", {})
-        resolved_platform = platform or os.getenv("VECTOR_PLATFORM") or _get_session_platform()
+        resolved_platform = platform or os.environ.get("VECTOR_PLATFORM") or _get_session_platform()
         if resolved_platform:
             platform_disabled = skills_cfg.get("platform_disabled", {}).get(resolved_platform)
             if platform_disabled is not None:

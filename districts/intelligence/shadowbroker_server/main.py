@@ -1,4 +1,4 @@
-﻿import os
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -158,7 +158,7 @@ def _gate_privileged_access_status_snapshot_local() -> dict[str, Any]:
 # Docker Swarm Secrets support
 # For each VAR below, if VAR_FILE is set (e.g. AIS_API_KEY_FILE=/run/secrets/AIS_API_KEY),
 # the file is read and its trimmed content is placed into VAR.
-# This MUST run before service imports â€” modules read os.environ at import time.
+# This MUST run before service imports — modules read os.environ at import time.
 # ---------------------------------------------------------------------------
 _SECRET_VARS = [
     "AIS_API_KEY",
@@ -1422,8 +1422,8 @@ def _hydrate_gate_store_from_chain(events: list[dict]) -> int:
     """Copy any gate_message chain events into the local gate_store for read/decrypt.
 
     Only events that are resident in the local infonet (accepted or already
-    present) are hydrated.  The canonical infonet-resident event is used â€”
-    never the raw batch event â€” so a forged batch entry carrying a valid
+    present) are hydrated.  The canonical infonet-resident event is used —
+    never the raw batch event — so a forged batch entry carrying a valid
     event_id but attacker-chosen payload cannot pollute gate_store.
     """
     import copy
@@ -2283,9 +2283,9 @@ async def lifespan(app: FastAPI):
     validate_env(strict=not _MESH_ONLY)
 
     if _MESH_ONLY:
-        logger.info("MESH_ONLY enabled â€” skipping global data fetchers/schedulers.")
+        logger.info("MESH_ONLY enabled — skipping global data fetchers/schedulers.")
     else:
-        # Start AIS stream first â€” it loads the disk cache (instant ships) then
+        # Start AIS stream first — it loads the disk cache (instant ships) then
         # begins accumulating live vessel data via WebSocket in the background.
         start_ais_stream()
 
@@ -2293,7 +2293,7 @@ async def lifespan(app: FastAPI):
         # in _scheduler_loop, so we do NOT call it again in the preload thread.
         start_carrier_tracker()
 
-        # Start SIGINT grid eagerly â€” APRS-IS TCP + Meshtastic MQTT connections
+        # Start SIGINT grid eagerly — APRS-IS TCP + Meshtastic MQTT connections
         # take a few seconds to handshake and start receiving packets. By starting
         # now, the bridges are already accumulating signals by the time the first
         # fetch_sigint() reads them during the preload cycle.
@@ -2424,7 +2424,7 @@ async def lifespan(app: FastAPI):
             delay_s = float(os.environ.get("SHADOWBROKER_STARTUP_PRELOAD_DELAY_S", "2.0") or 0)
             if delay_s > 0:
                 time.sleep(delay_s)
-            logger.info("=== PRELOADING DATA (background â€” server already accepting requests) ===")
+            logger.info("=== PRELOADING DATA (background — server already accepting requests) ===")
             try:
                 update_all_data(startup_mode=True)
                 logger.info("=== PRELOAD COMPLETE ===")
@@ -2438,7 +2438,7 @@ async def lifespan(app: FastAPI):
     try:
         from services.tor_hidden_service import tor_service, HOSTNAME_PATH
         if HOSTNAME_PATH.exists():
-            logger.info("Previous Tor hidden service detected â€” auto-restarting...")
+            logger.info("Previous Tor hidden service detected — auto-restarting...")
             threading.Thread(
                 target=tor_service.start, daemon=True
             ).start()
@@ -2780,7 +2780,7 @@ def _strip_gate_identity_privileged(event: dict) -> dict:
 
 
 def _strip_gate_identity(event: dict) -> dict:
-    """Legacy alias â€” defaults to member (narrowed) view."""
+    """Legacy alias — defaults to member (narrowed) view."""
     return _strip_gate_identity_member(event)
 
 
@@ -3432,7 +3432,7 @@ def _queue_viirs_change_refresh() -> None:
 @limiter.limit("60/minute")
 async def update_viewport(vp: ViewportUpdate, request: Request):  # noqa: ARG001
     """Receive frontend map bounds. AIS stream stays global so open-ocean
-    vessels are never dropped â€” the frontend worker handles viewport culling."""
+    vessels are never dropped — the frontend worker handles viewport culling."""
     return {"status": "ok"}
 
 
@@ -3576,7 +3576,7 @@ def _json_safe(value):
 def _sanitize_payload(value):
     """Thread-safe snapshot with NaNâ†’None. Cheaper than _json_safe: only deep-
     copies dicts (for thread safety) and replaces non-finite floats. Lists are
-    shallow-copied â€” orjson handles the leaf serialisation natively."""
+    shallow-copied — orjson handles the leaf serialisation natively."""
     if isinstance(value, float):
         return value if math.isfinite(value) else None
     if isinstance(value, dict):
@@ -3753,7 +3753,7 @@ def _cap_fast_dashboard_payload(payload: dict) -> dict:
 @limiter.limit("120/minute")
 async def live_data_fast(
     request: Request,
-    # bbox params accepted for backward compat but no longer used for filtering â€”
+    # bbox params accepted for backward compat but no longer used for filtering —
     # all cached data is returned and the frontend culls off-screen entities via MapLibre.
     s: float = Query(None, description="South bound (ignored)", ge=-90, le=90),
     w: float = Query(None, description="West bound (ignored)", ge=-180, le=180),
@@ -4106,7 +4106,7 @@ def _check_throttle(
 
 
 def _check_gate_post_cooldown(sender_id: str, gate_id: str) -> tuple[bool, str]:
-    """Check cooldown â€” does NOT record it.  Call _record_gate_post_cooldown() after success."""
+    """Check cooldown — does NOT record it.  Call _record_gate_post_cooldown() after success."""
     gate_key = str(gate_id or "").strip().lower()
     sender_key = str(sender_id or "").strip()
     if not gate_key or not sender_key:
@@ -4308,7 +4308,7 @@ def _prepared_signed_write(request: Request):
 @limiter.limit("10/minute")
 @requires_signed_write(kind=SignedWriteKind.MESH_SEND)
 async def mesh_send(request: Request):
-    """Unified mesh message endpoint â€” auto-routes via optimal transport.
+    """Unified mesh message endpoint — auto-routes via optimal transport.
 
     Body: { destination, message, priority?, channel?, node_id?, credentials? }
     The router picks APRS, Meshtastic, or Internet based on gate logic.
@@ -4353,7 +4353,7 @@ async def mesh_send(request: Request):
 
             reputation_ledger.register_node(node_id, public_key, public_key_algo)
         except Exception:
-            pass  # Non-critical â€” don't block sends if reputation module fails
+            pass  # Non-critical — don't block sends if reputation module fails
 
     # â”€â”€â”€ Per-identity throttle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     priority_str = signed_payload["priority"]
@@ -4602,14 +4602,14 @@ async def mesh_messages(
 @app.get("/api/mesh/channels")
 @limiter.limit("30/minute")
 async def mesh_channels(request: Request):
-    """Get Meshtastic channel population stats â€” nodes per region/channel."""
+    """Get Meshtastic channel population stats — nodes per region/channel."""
     stats = get_latest_data().get("mesh_channel_stats", {})
     return stats
 
 
 # â”€â”€â”€ Reputation Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-# Cached root node_id â€” avoids 5 encrypted disk reads per vote.
+# Cached root node_id — avoids 5 encrypted disk reads per vote.
 _root_node_id_cache: dict[str, object] = {"value": None, "ts": 0.0}
 _ROOT_NODE_ID_TTL = 30.0  # seconds
 
@@ -4666,7 +4666,7 @@ async def mesh_vote(request: Request):
     vote_payload = {"target_id": target_id, "vote": vote, "gate": gate}
 
     # Resolve stable local operator ID for duplicate-vote prevention.
-    # Personas generate unique keypairs, so voter_id alone is insufficient â€”
+    # Personas generate unique keypairs, so voter_id alone is insufficient —
     # use the root identity's node_id as a stable anchor so switching personas
     # doesn't let the same operator vote multiple times on the same post.
     stable_voter_id = voter_id
@@ -5026,7 +5026,7 @@ async def gate_create(request: Request):
 @app.get("/api/mesh/gate/list")
 @limiter.limit("30/minute")
 async def gate_list(request: Request):
-    """List all known gates (public catalog â€” secrets are never included)."""
+    """List all known gates (public catalog — secrets are never included)."""
     from services.mesh.mesh_reputation import gate_manager
 
     return {"gates": gate_manager.list_gates()}
@@ -5129,7 +5129,7 @@ def _submit_gate_message_envelope(request: Request, gate_id: str, body: dict[str
     payload_ok, payload_reason = validate_event_payload("gate_message", gate_payload)
     if not payload_ok:
         return {"ok": False, "detail": payload_reason}
-    # gate_envelope is not part of the signed payload â€” envelope_hash binds it.
+    # gate_envelope is not part of the signed payload — envelope_hash binds it.
     # reply_to is signed for new compose flows; if only the legacy no-reply_to
     # signature verifies, strip it rather than accepting unauthenticated
     # threading metadata.
@@ -5206,7 +5206,7 @@ def _submit_gate_message_envelope(request: Request, gate_id: str, body: dict[str
         return {"ok": False, "detail": cooldown_reason}
 
     # Advance sequence counter (replay protection) without appending to
-    # the public infonet chain â€” gate messages are private.
+    # the public infonet chain — gate messages are private.
     try:
         from services.mesh.mesh_hashchain import infonet, gate_store
 
@@ -5228,7 +5228,7 @@ def _submit_gate_message_envelope(request: Request, gate_id: str, body: dict[str
     _record_gate_post_cooldown(sender_id, gate_id)
     logger.info("Encrypted gate message accepted on obfuscated gate plane")
 
-    # Build gate event and store in gate_store (private â€” not on public chain).
+    # Build gate event and store in gate_store (private — not on public chain).
     try:
         from services.mesh.mesh_hashchain import _private_gate_event_id
         import time as _time
@@ -5297,7 +5297,7 @@ def _submit_gate_message_envelope(request: Request, gate_id: str, body: dict[str
 @app.get("/api/mesh/infonet/status")
 @limiter.limit("30/minute")
 async def infonet_status(request: Request, verify_signatures: bool = False):
-    """Get Infonet metadata â€” event counts, head hash, chain size."""
+    """Get Infonet metadata — event counts, head hash, chain size."""
     from services.mesh.mesh_hashchain import infonet
     from services.wormhole_supervisor import get_wormhole_state
 
@@ -5444,7 +5444,7 @@ async def infonet_sync_post(
     elif matched_hash == GENESIS_HASH and len(locator) > 1:
         forked = True
 
-    # Filter out legacy gate_message events â€” not part of the public sync surface.
+    # Filter out legacy gate_message events — not part of the public sync surface.
     events = [_redact_public_event(e) for e in events if e.get("event_type") != "gate_message"]
 
     response = {
@@ -5477,7 +5477,7 @@ async def mesh_metrics(request: Request):
     ok, detail = _check_scoped_auth(request, "mesh.audit")
     if not ok:
         if detail == "insufficient scope":
-            raise HTTPException(status_code=403, detail="Forbidden â€” insufficient scope")
+            raise HTTPException(status_code=403, detail="Forbidden — insufficient scope")
         raise HTTPException(status_code=403, detail=detail)
     return snapshot()
 
@@ -5546,7 +5546,7 @@ async def infonet_sync(
         )
     base = after_hash or GENESIS_HASH
     events = infonet.get_events_after(base, limit=limit)
-    # Filter out legacy gate_message events â€” not part of the public sync surface.
+    # Filter out legacy gate_message events — not part of the public sync surface.
     events = [_redact_public_event(e) for e in events if e.get("event_type") != "gate_message"]
     return {
         "events": events,
@@ -5815,7 +5815,7 @@ async def gate_peer_pull(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# Peer Management API â€” operator endpoints for adding / removing / listing
+# Peer Management API — operator endpoints for adding / removing / listing
 # peers without editing peer_store.json by hand.
 # ---------------------------------------------------------------------------
 
@@ -5872,7 +5872,7 @@ async def add_peer(request: Request):
     if not transport:
         transport = peer_transport_kind(peer_url)
     if not transport:
-        return {"ok": False, "detail": "Cannot determine transport for peer_url â€” provide transport explicitly"}
+        return {"ok": False, "detail": "Cannot determine transport for peer_url — provide transport explicitly"}
 
     label = str(body.get("label", "") or "").strip()
     role = str(body.get("role", "") or "").strip().lower() or "relay"
@@ -6293,7 +6293,7 @@ async def oracle_predict(request: Request):
         if m.get("title", "").lower() == market_title.lower():
             matched = m
             break
-    # Fuzzy fallback â€” partial match
+    # Fuzzy fallback — partial match
     if not matched:
         for m in markets:
             if market_title.lower() in m.get("title", "").lower():
@@ -6324,13 +6324,13 @@ async def oracle_predict(request: Request):
             probability = 100.0 - probability
 
     if stake_amount > 0:
-        # STAKED prediction â€” risk rep for bigger reward
+        # STAKED prediction — risk rep for bigger reward
         ok, detail = oracle_ledger.place_market_stake(
             node_id, matched["title"], side, stake_amount, probability
         )
         mode = "staked"
     else:
-        # FREE prediction â€” no rep risked
+        # FREE prediction — no rep risked
         ok, detail = oracle_ledger.place_prediction(node_id, matched["title"], side, probability)
         mode = "free"
 
@@ -6553,7 +6553,7 @@ async def oracle_resolve(request: Request):
 @app.get("/api/mesh/oracle/consensus")
 @limiter.limit("30/minute")
 async def oracle_consensus(request: Request, market_title: str = ""):
-    """Get network consensus for a market â€” picks + staked rep per side."""
+    """Get network consensus for a market — picks + staked rep per side."""
     from services.mesh.mesh_oracle import oracle_ledger
 
     if not market_title:
@@ -6642,7 +6642,7 @@ async def oracle_stakes_for_message(request: Request, message_id: str):
 @app.get("/api/mesh/oracle/profile")
 @limiter.limit("30/minute")
 async def oracle_profile(request: Request, node_id: str = ""):
-    """Get full oracle profile â€” rep, prediction history, win rate, farming score."""
+    """Get full oracle profile — rep, prediction history, win rate, farming score."""
     from services.mesh.mesh_oracle import oracle_ledger
 
     if not node_id:
@@ -8440,12 +8440,12 @@ def api_region_dossier(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
 ):
-    """Sync def so FastAPI runs it in a threadpool â€” prevents blocking the event loop."""
+    """Sync def so FastAPI runs it in a threadpool — prevents blocking the event loop."""
     return get_region_dossier(lat, lng)
 
 
 # ---------------------------------------------------------------------------
-# Geocoding â€” proxy to Nominatim with caching and proper headers
+# Geocoding — proxy to Nominatim with caching and proper headers
 # ---------------------------------------------------------------------------
 from services.geocode import search_geocode, reverse_geocode
 
@@ -8618,7 +8618,7 @@ async def api_sentinel_tile(request: Request):
     evalscript = evalscripts.get(preset, evalscripts["TRUE-COLOR"])
 
     # Adaptive time range: wider window at lower zoom for better coverage.
-    # Sentinel-2 has 5-day revisit â€” a single day often has gaps.
+    # Sentinel-2 has 5-day revisit — a single day often has gaps.
     # At low zoom we mosaic over more days to fill gaps.
     from datetime import datetime as _dt, timedelta as _td
 
@@ -8688,7 +8688,7 @@ async def api_sentinel_tile(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# API Settings â€” key registry & management
+# API Settings — key registry & management
 # ---------------------------------------------------------------------------
 from services.api_settings import get_api_keys, get_env_path_info
 from services.shodan_connector import (
@@ -8763,7 +8763,7 @@ async def api_shodan_host(request: Request, body: ShodanHostRequest):
 
 
 # ---------------------------------------------------------------------------
-# Finnhub â€” free market intelligence (quotes, congress trades, insider txns)
+# Finnhub — free market intelligence (quotes, congress trades, insider txns)
 # ---------------------------------------------------------------------------
 from services.unusual_whales_connector import (
     FinnhubConnectorError,
@@ -8848,7 +8848,7 @@ async def api_reset_news_feeds(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# Wormhole Settings â€” local agent toggle
+# Wormhole Settings — local agent toggle
 # ---------------------------------------------------------------------------
 from services.wormhole_settings import read_wormhole_settings, write_wormhole_settings
 from services.wormhole_status import read_wormhole_status
@@ -9647,7 +9647,7 @@ def decrypt_wormhole_dm_envelope(
     if str(current_tier or "").startswith("private_"):
         return {
             "ok": False,
-            "detail": "MLS format required in private transport mode â€” legacy DM decrypt blocked",
+            "detail": "MLS format required in private transport mode — legacy DM decrypt blocked",
         }
     if not _legacy_dm1_allowed():
         return {
@@ -9801,7 +9801,7 @@ async def api_wormhole_join(request: Request):
     )
 
     # Enable node participation so the sync/push workers connect to peers.
-    # This is the voluntary opt-in â€” the node only joins the network when
+    # This is the voluntary opt-in — the node only joins the network when
     # the user explicitly opens the Wormhole.
     from services.node_settings import write_node_settings
 
@@ -11629,7 +11629,7 @@ async def api_set_privacy_profile(request: Request, body: PrivacyProfileUpdate):
 
 
 # ---------------------------------------------------------------------------
-# System â€” self-update
+# System — self-update
 # ---------------------------------------------------------------------------
 from pathlib import Path
 from services.updater import perform_update, schedule_restart
@@ -11654,7 +11654,7 @@ async def system_update(request: Request):
             status_code=500,
             media_type="application/json",
         )
-    # Docker: skip restart â€” user must pull new images manually
+    # Docker: skip restart — user must pull new images manually
     if result.get("status") == "docker":
         return result
     # Schedule restart AFTER response flushes (2s delay)

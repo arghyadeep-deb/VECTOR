@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-F09974A0
 # Category: Futures
@@ -27,7 +28,9 @@ class BasicTemplateCryptoFutureAlgorithm(QCAlgorithm):
 
         try:
             self.set_brokerage_model(BrokerageName.BINANCE_FUTURES, AccountType.CASH)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][strategies.BasicTemplateCryptoFutureAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.BasicTemplateCryptoFutureAlgorithm] caught Exception: %s", _sve)
             # expected, we don't allow cash account type
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

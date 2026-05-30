@@ -1,14 +1,22 @@
 """VECTOR finance router - /finance/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "budget_analyze",
+    "BudgetAnalyzeReq",
+    "list_expenses",
+    "llm_cost_summary",
+    "log_expense",
+    "LogExpenseReq",
+    "router",
+    "tax_plan",
+    "TaxPlanReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/finance", tags=["finance"])
-
-
 
 
 class BudgetAnalyzeReq(BaseModel):

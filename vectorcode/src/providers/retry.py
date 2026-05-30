@@ -8,9 +8,6 @@ import sys
 import random
 import threading
 import time
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 _jitter_counter = 0
 _jitter_lock = threading.Lock()

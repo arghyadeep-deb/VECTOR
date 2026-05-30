@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Edgar Base Utilities
 ====================
 
@@ -95,6 +96,8 @@ def set_user_identity(identity: str) -> Dict[str, Any]:
             "message": "Identity set successfully"
         }
     except Exception as e:
+        logger.debug("[VECTOR][mcp.edgar.base] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.base] caught Exception: %s", _sve)
         return {"error": EdgarError("set_identity", str(e)).to_dict()}
 
 
@@ -232,10 +235,8 @@ def resolve_ticker(query: str) -> Optional[str]:
             company = Company(query)
             if company and company.tickers:
                 return company.tickers[0]
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-        # Search by name
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.base] suppressed Exception in fallback")  # bare except
         results = find_company(query)
         if results:
             first = results[0] if hasattr(results, '__getitem__') else next(iter(results))
@@ -243,10 +244,8 @@ def resolve_ticker(query: str) -> Optional[str]:
                 return first.tickers[0]
 
         return None
-    except:
-        return None
-
-
+    except Exception:
+        logger.debug("[VECTOR][mcp.edgar.base] suppressed Exception in fallback")  # bare except
 def get_company_info(ticker: str) -> Dict[str, Any]:
     """
     Get detailed company information by ticker

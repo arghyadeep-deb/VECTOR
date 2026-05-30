@@ -1,7 +1,5 @@
 """Tests for _stream_delta's handling of <think> tags in prose vs real reasoning blocks."""
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import pytest
 

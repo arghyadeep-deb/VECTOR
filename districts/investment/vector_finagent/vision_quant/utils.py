@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VisionQuant Utilities - Shared helpers for Pattern Intelligence
 """
 
@@ -78,6 +79,8 @@ def normalize_ohlcv(df):
         try:
             df.index = pd.to_datetime(df.index)
         except Exception:
+            logger.debug("[VECTOR][vision_quant.utils] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][vision_quant.utils] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     return df

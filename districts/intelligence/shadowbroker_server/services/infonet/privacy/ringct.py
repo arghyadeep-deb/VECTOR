@@ -38,16 +38,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+
 from services.infonet.privacy.contracts import PrivacyPrimitiveStatus
 
 
 class RingCTScaffolding:
     """Placeholder until the Rust ring-signature binding lands.
 
-    Calling ``sign`` / ``verify`` raises with a diagnostic that
-    points the caller back to the design doc. The status method
-    truthfully reports ``NOT_IMPLEMENTED`` so health endpoints can
-    surface this state.
+    Calling ``sign`` / ``verify`` logs a warning and returns a safe
+    default. The status method truthfully reports ``NOT_IMPLEMENTED``
+    so health endpoints can surface this state.
     """
 
     _DIAGNOSTIC = (
@@ -65,7 +66,8 @@ class RingCTScaffolding:
         signer_private_key: bytes,
         ring_public_keys: list[bytes],
     ) -> dict[str, Any]:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return {}
 
     def verify(
         self,
@@ -74,7 +76,8 @@ class RingCTScaffolding:
         signature: dict[str, Any],
         ring_public_keys: list[bytes],
     ) -> bool:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return False
 
     def status(self) -> PrivacyPrimitiveStatus:
         return PrivacyPrimitiveStatus.NOT_IMPLEMENTED

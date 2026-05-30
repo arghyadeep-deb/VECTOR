@@ -159,7 +159,7 @@ def _remove_env_source(provider: str, removed) -> RemovalResult:
         return result
 
     # Detect shell vs .env BEFORE remove_env_value pops os.environ.
-    env_in_process = bool(os.getenv(env_var))
+    env_in_process = bool(os.environ.get(env_var))
     env_in_dotenv = False
     try:
         env_path = get_env_path()

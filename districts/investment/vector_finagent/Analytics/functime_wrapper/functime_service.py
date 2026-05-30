@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Functime Service (pandas/sklearn/statsmodels backend)
 ======================================================
 Self-contained time-series analytics service for the VECTOR Financial Terminal
@@ -248,6 +249,8 @@ def op_forecast(data):
         try:
             mdl = ExponentialSmoothing(arr, **kwargs).fit(optimized=True)
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service] caught Exception: %s", _sve)
             raise ValidationError(f"holt_winters fit failed: {e}")
         in_sample[:] = mdl.fittedvalues
         forecast = [float(v) for v in mdl.forecast(horizon)]

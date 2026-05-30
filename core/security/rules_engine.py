@@ -9,16 +9,21 @@ get filled at execution time ({time}, {date}, {ram_free}, etc.).
 """
 from __future__ import annotations
 
+__all__ = [
+    "BypassRule",
+    "get_rules_engine",
+    "RulesEngine",
+]
+
+
 import json
 import re
-import sys
 import time as time_module
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

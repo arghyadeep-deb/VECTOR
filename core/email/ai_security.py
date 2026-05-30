@@ -14,11 +14,14 @@ Two tools:
 """
 from __future__ import annotations
 
-import re
-import sys
-from pathlib import Path
+__all__ = [
+    "is_prompt_injection",
+    "verify_draft",
+]
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+import re
+
 
 from loguru import logger
 from core.inference.vectorcode_llm import chat

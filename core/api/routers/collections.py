@@ -18,7 +18,6 @@ from pathlib import Path
 # the stdlib resolves correctly; harmless when imported normally as a package module.
 _HERE = Path(__file__).resolve().parent
 sys.path = [p for p in sys.path if p and Path(p).resolve() != _HERE]
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, Query, HTTPException, Request, Body, UploadFile, File, Form
 from fastapi.responses import Response, JSONResponse

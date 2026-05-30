@@ -178,7 +178,6 @@ if __name__ == "__main__":
     print(json.dumps(migrated, indent=2))
 
     # Validate via AgentCard
-    sys.path.insert(0, ".")
     from finagent_core.agent_loader import AgentCard
     from finagent_core.registries.tools_registry import ToolsRegistry
 

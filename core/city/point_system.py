@@ -2,9 +2,6 @@
 V.E.C.T.O.R. PointSystem.
 HP point system for agent health and evolution tracking.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 

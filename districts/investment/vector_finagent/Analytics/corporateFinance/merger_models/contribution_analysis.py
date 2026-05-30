@@ -1,11 +1,11 @@
 """Contribution Analysis for M&A"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.merger_models.pro_forma_builder import CompanyFinancials
@@ -125,6 +125,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.merger_models.contribution_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.merger_models.contribution_analysis] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

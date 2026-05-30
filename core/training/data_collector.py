@@ -1,12 +1,10 @@
 """Training data collection from episodic memory, user feedback, and domain sources."""
 
-import sys
 import json
 import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Any
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

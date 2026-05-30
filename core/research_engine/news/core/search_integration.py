@@ -3,6 +3,12 @@ Integration with LDR's search system to track searches and manage priorities.
 """
 
 import uuid
+
+__all__ = [
+    "create_search_wrapper",
+    "NewsSearchCallback",
+]
+
 from typing import Optional, Dict, Any, Callable
 from datetime import datetime, timezone
 from loguru import logger

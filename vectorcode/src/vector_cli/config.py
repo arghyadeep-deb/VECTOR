@@ -81,7 +81,7 @@ _MANAGED_SYSTEM_NAMES = {
 
 def get_managed_system() -> Optional[str]:
     """Return the package manager owning this install, if any."""
-    raw = os.getenv("VECTOR_MANAGED", "").strip()
+    raw = os.environ.get("VECTOR_MANAGED", "").strip()
     if raw:
         normalized = raw.lower()
         if normalized in _MANAGED_TRUE_VALUES:
@@ -122,7 +122,7 @@ def recommended_update_command() -> str:
 def format_managed_message(action: str = "modify this VectorCode installation") -> str:
     """Build a user-facing error for managed installs."""
     managed_system = get_managed_system() or "a package manager"
-    raw = os.getenv("VECTOR_MANAGED", "").strip().lower()
+    raw = os.environ.get("VECTOR_MANAGED", "").strip().lower()
 
     if managed_system == "NixOS":
         env_hint = "true" if raw in _MANAGED_TRUE_VALUES else raw or "true"
@@ -2703,7 +2703,7 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
     if current_ver < 5:
         config = load_config()
         if "timezone" not in config:
-            old_tz = os.getenv("VECTOR_TIMEZONE", "")
+            old_tz = os.environ.get("VECTOR_TIMEZONE", "")
             if old_tz and old_tz.strip():
                 config["timezone"] = old_tz.strip()
                 results["config_added"].append(f"timezone={old_tz.strip()} (from VECTOR_TIMEZONE)")
@@ -4018,7 +4018,7 @@ def edit_config():
         print(f"Created {config_path}")
     
     # Find editor
-    editor = os.getenv('EDITOR') or os.getenv('VISUAL')
+    editor = os.environ.get('EDITOR') or os.environ.get('VISUAL')
     
     if not editor:
         # Try common editors

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Zipline Metrics Extraction
 
 Extracts performance metrics, trade records, and equity curves from
@@ -118,6 +119,8 @@ def extract_performance(
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_metrics] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_metrics] caught Exception: %s", _sve)
         print(f'[ZL-METRICS] Error extracting metrics: {e}', file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)

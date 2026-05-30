@@ -5,6 +5,12 @@ Similar to token_counter.py but tracks search engine usage.
 
 from typing import Any, Dict, List, Optional
 
+__all__ = [
+    "get_search_tracker",
+    "SearchTracker",
+]
+
+
 from loguru import logger
 from sqlalchemy import case, func
 

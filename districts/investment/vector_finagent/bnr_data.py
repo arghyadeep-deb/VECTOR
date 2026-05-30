@@ -1,4 +1,5 @@
 """
+from loguru import logger
 National Bank of Romania (BNR) Data Wrapper
 Fetches data from the BNR public XML API.
 
@@ -28,7 +29,10 @@ import sys
 import json
 import requests
 import traceback
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta, timezone
 
@@ -167,6 +171,8 @@ class BNRWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BNRError("today", str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][bnr_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bnr_data] caught Exception: %s", _sve)
             return BNRError("today", str(e)).to_dict()
 
     def get_date(self, rate_date: str) -> Dict[str, Any]:

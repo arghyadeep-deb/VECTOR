@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+__all__ = [
+    "ALT_KEY",
+    "Command",
+    "CommandAvailability",
+    "CommandAvailabilityContext",
+    "CommandRegistry",
+]
+
+
 from collections.abc import Callable
 from dataclasses import dataclass
 import sys
@@ -13,9 +22,6 @@ ALT_KEY = "⌥" if sys.platform == "darwin" else "Alt"
 class CommandAvailabilityContext:
     vibe_code_enabled: bool = False
     is_active_model_mistral: bool = False
-
-    def is_teleport_available(self) -> bool:
-        return False  # Teleport (Mistral cloud) not available in VECTOR
 
 
 CommandAvailability = Callable[[CommandAvailabilityContext], bool]
@@ -105,12 +111,6 @@ class CommandRegistry:
                 aliases=frozenset(["/status"]),
                 description="Display agent statistics",
                 handler="_show_status",
-            ),
-            "teleport": Command(
-                aliases=frozenset(["/teleport"]),
-                description="Teleport session to Vibe Code",
-                handler="_teleport_command",
-                is_available=CommandAvailabilityContext.is_teleport_available,
             ),
             "proxy-setup": Command(
                 aliases=frozenset(["/proxy-setup"]),

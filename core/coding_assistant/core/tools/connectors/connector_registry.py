@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "ConnectorRegistry",
+    "create_connector_proxy_tool_class",
+]
+
+
 import asyncio
 from collections.abc import AsyncGenerator
 import re

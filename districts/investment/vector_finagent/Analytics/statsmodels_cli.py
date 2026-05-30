@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Statsmodels CLI - Unified Command Line Interface for Statsmodels Analytics
 Provides a unified entry point for all statsmodels functionality in VECTOR Financial Terminal.
 
@@ -18,7 +19,6 @@ import os
 # Add the script's directory to Python path to find statsmodels_wrapper
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
 
 import json
 import numpy as np
@@ -812,6 +812,8 @@ class StatsmodelsEngine:
         try:
             return handler(params)
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.statsmodels_cli] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.statsmodels_cli] caught Exception: %s", _sve)
             import traceback
             return {
                 "error": str(e),

@@ -9,6 +9,12 @@ Key improvements:
 """
 
 import itertools
+
+__all__ = [
+    "ImprovedEvidenceBasedStrategy",
+    "SearchAttempt",
+]
+
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, UTC

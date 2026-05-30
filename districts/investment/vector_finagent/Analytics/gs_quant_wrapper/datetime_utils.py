@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant DateTime Utilities Wrapper
 ===================================
 
@@ -93,6 +94,8 @@ class DateTimeUtils:
             cal = calendar or self.config.calendar
             return business_day_count(start_date, end_date, cal)
         except Exception:
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.datetime_utils] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.datetime_utils] caught Exception: %s", _sve)
             # Fallback to pandas if GS session not available
             return pd.bdate_range(start_date, end_date).size
 

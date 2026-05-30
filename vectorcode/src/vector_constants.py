@@ -114,7 +114,7 @@ def get_optional_skills_dir(default: Path | None = None) -> Path:
     Packaged installs may ship ``optional-skills`` outside the Python package
     tree and expose it via ``HERMES_OPTIONAL_SKILLS``.
     """
-    override = os.getenv("HERMES_OPTIONAL_SKILLS", "").strip()
+    override = os.environ.get("HERMES_OPTIONAL_SKILLS", "").strip()
     if override:
         return Path(override)
     if default is not None:
@@ -180,7 +180,7 @@ def get_subprocess_home() -> str | None:
     Activation is directory-based: if the ``home/`` subdirectory doesn't
     exist, returns ``None`` and behavior is unchanged.
     """
-    vector_home = os.getenv("VECTOR_HOME")
+    vector_home = os.environ.get("VECTOR_HOME")
     if not vector_home:
         return None
     profile_home = os.path.join(vector_home, "home")
@@ -216,8 +216,8 @@ def is_termux() -> bool:
     Checks ``TERMUX_VERSION`` (set by Termux) or the Termux-specific
     ``PREFIX`` path.  Import-safe — no heavy deps.
     """
-    prefix = os.getenv("PREFIX", "")
-    return bool(os.getenv("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
+    prefix = os.environ.get("PREFIX", "")
+    return bool(os.environ.get("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
 
 
 _wsl_detected: bool | None = None

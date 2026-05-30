@@ -5,6 +5,7 @@ Converts engine-specific field names and formats into CSL-JSON vocabulary.
 Each engine has its own dict shape; this module handles the differences.
 """
 
+from loguru import logger
 import re
 from datetime import date
 from typing import Any, Optional
@@ -34,7 +35,7 @@ def normalize_issn(s: Optional[str]) -> Optional[str]:
         normalize_issn("bad") is None
         normalize_issn(None) is None
 
-    This is a structural canonicalization â€” it does not verify the ISSN
+    This is a structural canonicalization — it does not verify the ISSN
     checksum. The goal is format-independent equality for lookup.
     """
     if not s:
@@ -216,14 +217,14 @@ def _extract_doi(source: dict) -> Optional[str]:
     """Extract a DOI string from a result/source dict.
 
     Tries (in order):
-      1. ``source["doi"]`` â€” set by ArXiv, NASA ADS, OpenAlex
-      2. ``source["external_ids"]["DOI"]`` / ``externalIds["DOI"]`` â€” Semantic
+      1. ``source["doi"]`` — set by ArXiv, NASA ADS, OpenAlex
+      2. ``source["external_ids"]["DOI"]`` / ``externalIds["DOI"]`` — Semantic
          Scholar style
       3. A DOI embedded in ``source["link"]`` (https://doi.org/...)
 
     URL prefixes (``https://doi.org/``, ``http://doi.org/``, ``doi:``) are
     stripped so the returned value is a bare DOI like ``10.1038/...``. This
-    is the single source of truth for DOI extraction across the codebase â€”
+    is the single source of truth for DOI extraction across the codebase —
     `openalex_enrichment` and other modules import it from here.
     """
     doi = source.get("doi")
@@ -236,7 +237,7 @@ def _extract_doi(source: dict) -> Optional[str]:
         if isinstance(ext_ids, dict):
             doi = ext_ids.get("DOI") or ext_ids.get("doi")
 
-    # DOI embedded in a link URL â€” anchor on scheme to avoid CodeQL
+    # DOI embedded in a link URL — anchor on scheme to avoid CodeQL
     # py/incomplete-url-substring-sanitization (an attacker-controlled
     # URL path could contain "doi.org/" otherwise).
     if not doi:
@@ -285,7 +286,7 @@ def normalize_citation(source: dict) -> Optional[dict]:
     doi = _extract_doi(source)
 
     # Guard against source["metadata"] being a non-dict truthy value
-    # (e.g., a string) â€” .get({}).get() crashes with AttributeError
+    # (e.g., a string) — .get({}).get() crashes with AttributeError
     # in that case because the default only applies when the key is
     # absent/None.
     nested_meta = source.get("metadata")
@@ -317,7 +318,7 @@ def normalize_citation(source: dict) -> Optional[dict]:
     )
     # Placeholder sentinels from upstream engines (e.g. OpenAlex /
     # NASA ADS set these when no venue is indexed). Filter them out
-    # so they don't become container_title literals â€” there's an
+    # so they don't become container_title literals — there's an
     # actual OpenAlex source named "unknown" (Q1, h_index=5) that
     # would otherwise get hit by the name-based lookup.
     if isinstance(container, str) and container.strip().lower() in (

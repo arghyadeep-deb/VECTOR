@@ -4,6 +4,15 @@ This manages the central vre_auth.db which only stores usernames.
 """
 
 import threading
+
+__all__ = [
+    "auth_db_session",
+    "dispose_auth_engine",
+    "get_auth_db_path",
+    "get_auth_db_session",
+    "init_auth_database",
+]
+
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -72,7 +81,7 @@ def _get_auth_engine() -> Engine:
         if not auth_db_path.exists():
             init_auth_database()
 
-        # Moderate pool â€” auth DB is unencrypted SQLite used by every
+        # Moderate pool — auth DB is unencrypted SQLite used by every
         # authenticated request via before_request middleware.
         # See ADR-0004 for pool sizing rationale.
         _auth_engine = create_engine(
@@ -114,7 +123,7 @@ def init_auth_database():
     # Create the database with a temporary engine
     engine = create_engine(f"sqlite:///{auth_db_path}")
 
-    # Use SQL-level IF NOT EXISTS â€” idempotent and atomic, safe for
+    # Use SQL-level IF NOT EXISTS — idempotent and atomic, safe for
     # concurrent calls without Python-level locking.
     with engine.begin() as conn:
         conn.execute(CreateTable(User.__table__, if_not_exists=True))

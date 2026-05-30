@@ -8,11 +8,6 @@ Manages up to 4 cache breakpoints per the Anthropic prompt caching spec:
 Reference: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import copy
 from typing import Union

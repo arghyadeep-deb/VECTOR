@@ -1,4 +1,5 @@
 """
+from loguru import logger
 News Correlation Engine — Signal detection, Country Instability Index,
 baseline tracking, and deviation analysis.
 
@@ -372,6 +373,8 @@ def resolve_arg(arg):
                 import os
                 os.remove(path)
             except Exception:
+                logger.debug("[VECTOR][news_correlation] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][news_correlation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return data
         except Exception:

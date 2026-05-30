@@ -1,4 +1,5 @@
 """
+from loguru import logger
 cli.py — C++ entry point for Fincept Deep Agents.
 
 Single responsibility:
@@ -45,7 +46,6 @@ logging.basicConfig(
 # Add parent dirs to path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
-    sys.path.insert(0, str(_HERE))
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +169,8 @@ def cmd_stream_task(params: dict[str, Any]) -> None:
             _print_json({"success": True, "chunk": _serialise_chunk(chunk), "thread_id": thread_id})
 
     except Exception as exc:
+        logger.debug("[VECTOR][agents.deepagents.cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.deepagents.cli] caught Exception: %s", _sve)
         _print_json({"success": False, "error": str(exc), "thread_id": thread_id})
 
 

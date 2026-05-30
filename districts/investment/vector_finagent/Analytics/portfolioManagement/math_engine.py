@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Portfolio Math Engine Module
 ===============================
@@ -438,7 +439,9 @@ class OptimizationEngine:
                     frontier_stds.append(portfolio_std)
                     frontier_sharpe.append(sharpe)
 
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][Analytics.portfolioManagement.math_engine] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.portfolioManagement.math_engine] caught Exception: %s", _sve)
                 continue
 
         return {

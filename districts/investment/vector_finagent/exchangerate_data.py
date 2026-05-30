@@ -1,4 +1,5 @@
 """
+from loguru import logger
 ExchangeRate Data Fetcher
 200+ currencies, no key, no rate limit.
 Uses open.er-api.com and fawazahmed0 CDN as fallback.
@@ -43,6 +44,8 @@ def _make_cdn_request(url: str) -> Any:
             response.raise_for_status()
             return response.json()
         except Exception:
+            logger.debug("[VECTOR][exchangerate_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][exchangerate_data] caught Exception: %s", _sve)
             continue
     return {"error": "Both CDN endpoints failed"}
 

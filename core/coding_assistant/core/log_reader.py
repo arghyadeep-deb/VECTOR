@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+__all__ = [
+    "DEFAULT_LOG_PATTERN",
+    "LOG_POLL_INTERVAL",
+    "LogConsumer",
+    "LogEntry",
+    "LogReader",
+    "PaginatedLogs",
+]
+
+
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime

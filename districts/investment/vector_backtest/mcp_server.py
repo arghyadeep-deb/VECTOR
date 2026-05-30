@@ -36,7 +36,6 @@ from typing import Any
 # Ensure agent/ is on sys.path
 VIBE_DIR = Path(__file__).resolve().parent
 if str(VIBE_DIR) not in sys.path:
-    sys.path.insert(0, str(VIBE_DIR))
 
 from fastmcp import FastMCP
 

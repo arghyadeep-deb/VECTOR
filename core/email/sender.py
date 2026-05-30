@@ -1,4 +1,9 @@
-import sys
+
+__all__ = [
+    "send_email",
+    "SendEmailParams",
+]
+
 import smtplib
 import base64
 from email.mime.multipart import MIMEMultipart
@@ -6,11 +11,9 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from email.utils import formataddr
-from pathlib import Path
 from typing import Any, Optional
 from dataclasses import dataclass, field
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

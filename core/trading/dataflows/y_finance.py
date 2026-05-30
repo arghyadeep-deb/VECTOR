@@ -1,4 +1,17 @@
+from loguru import logger
 from typing import Annotated
+
+__all__ = [
+    "get_balance_sheet",
+    "get_cashflow",
+    "get_fundamentals",
+    "get_income_statement",
+    "get_insider_transactions",
+    "get_stock_stats_indicators_window",
+    "get_stockstats_indicator",
+    "get_YFin_data_online",
+]
+
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
@@ -164,7 +177,7 @@ def get_stock_stats_indicators_window(
             ind_string += f"{date_str}: {value}\n"
         
     except Exception as e:
-        print(f"Error getting bulk stockstats data: {e}")
+        logger.error("Error getting bulk stockstats data: {}", e)
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -237,9 +250,7 @@ def get_stockstats_indicator(
             curr_date,
         )
     except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
-        )
+        logger.error("Error getting stockstats indicator data for indicator {} on {}: {}", indicator, curr_date, e)
         return ""
 
     return str(indicator_value)

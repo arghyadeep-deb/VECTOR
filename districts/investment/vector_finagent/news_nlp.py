@@ -1,4 +1,5 @@
 """
+from loguru import logger
 News NLP Pipeline — Entity extraction, semantic clustering, batch sentiment.
 Called by NewsNlpService via PythonRunner.
 
@@ -429,6 +430,8 @@ def resolve_arg(arg):
                 import os
                 os.remove(path)
             except Exception:
+                logger.debug("[VECTOR][news_nlp] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][news_nlp] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return data
         except Exception as e:

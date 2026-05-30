@@ -50,14 +50,14 @@ _COSIGN_ISSUER = "https://token.actions.githubusercontent.com"
 # ---------------------------------------------------------------------------
 
 def _env_bool(key: str, default: bool) -> bool:
-    val = os.getenv(key)
+    val = os.environ.get(key)
     if val is None:
         return default
     return val.lower() in ("1", "true", "yes")
 
 
 def _env_int(key: str, default: int) -> int:
-    val = os.getenv(key)
+    val = os.environ.get(key)
     if val is None:
         return default
     try:
@@ -82,7 +82,7 @@ def _load_security_config() -> dict:
 
     return {
         "tirith_enabled": _env_bool("TIRITH_ENABLED", cfg.get("tirith_enabled", defaults["tirith_enabled"])),
-        "tirith_path": os.getenv("TIRITH_BIN", cfg.get("tirith_path", defaults["tirith_path"])),
+        "tirith_path": os.environ.get("TIRITH_BIN", cfg.get("tirith_path", defaults["tirith_path"])),
         "tirith_timeout": _env_int("TIRITH_TIMEOUT", cfg.get("tirith_timeout", defaults["tirith_timeout"])),
         "tirith_fail_open": _env_bool("TIRITH_FAIL_OPEN", cfg.get("tirith_fail_open", defaults["tirith_fail_open"])),
     }
@@ -208,7 +208,7 @@ def _detect_target() -> str | None:
 def _download_file(url: str, dest: str, timeout: int = 10):
     """Download a URL to a local file."""
     req = urllib.request.Request(url)
-    token = os.getenv("GITHUB_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"token {token}")
     with urllib.request.urlopen(req, timeout=timeout) as resp, open(dest, "wb") as f:

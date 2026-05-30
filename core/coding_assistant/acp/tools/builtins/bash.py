@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "AcpBashState",
+    "Bash",
+]
+
+
 import asyncio
 from collections.abc import AsyncGenerator
 from pathlib import Path

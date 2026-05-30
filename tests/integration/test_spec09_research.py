@@ -4,7 +4,6 @@ Covers: ResearchHub, PaperReader, NewsAggregator, WebScout, OpenCLIAdapter,
         RedditMiner, APICatalog, and cross-cutting episodic_memory storage.
 All tests run without live network or live LLM (mocked where required).
 """
-import sys
 import asyncio
 import datetime
 import tempfile
@@ -12,8 +11,6 @@ import unittest
 import uuid
 from pathlib import Path
 from unittest.mock import patch, AsyncMock, MagicMock
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def _run(coro):

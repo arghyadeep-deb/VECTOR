@@ -1,4 +1,5 @@
 """M&A Deal Tracker - Main API for deal tracking and analysis"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -7,7 +8,6 @@ import json
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.deal_database.database_schema import MADatabase
@@ -59,6 +59,8 @@ class MADealTracker:
                     'parsed_flag': 0,
                 })
             except Exception:
+                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_tracker] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_tracker] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Try to parse high-confidence filings into actual deals

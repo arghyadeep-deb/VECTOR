@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Signal Evaluation
 
 Evaluates the quality and performance of trading signals:
@@ -231,7 +232,9 @@ class SignalEvaluator(Evaluator):
                     target=self.target_ic,
                     warning_threshold=0.02,
                 ))
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.signal_evaluation] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.signal_evaluation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     def _calculate_ic(self, predictions: List[float], outcomes: List[float]) -> float:

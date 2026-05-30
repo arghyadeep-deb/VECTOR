@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Scanner Engine
 
 One-shot scanner: evaluates conditions across multiple symbols.
@@ -23,7 +24,6 @@ import argparse
 import sqlite3
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from condition_evaluator import load_candles_from_db, evaluate_condition_group
 
 
@@ -84,6 +84,8 @@ def main():
         debug_log.append(f'[scanner] candle_cache rows for tf={timeframe}: {total_rows}')
         conn_check.close()
     except Exception as e:
+        logger.debug("[VECTOR][algo_trading.scanner_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.scanner_engine] caught Exception: %s", _sve)
         debug_log.append(f'[scanner] DB check skipped: {e}')
 
     for symbol in symbols:

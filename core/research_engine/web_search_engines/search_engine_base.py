@@ -1,4 +1,10 @@
 import json
+
+__all__ = [
+    "AdaptiveWait",
+    "BaseSearchEngine",
+]
+
 import re
 import time
 from abc import ABC, abstractmethod
@@ -48,7 +54,7 @@ class BaseSearchEngine(ABC):
             super().__init__(max_results=max_results, **kwargs)
             self.my_param = my_param
 
-    Many existing engines accept ``**kwargs`` but don't forward â€” that
+    Many existing engines accept ``**kwargs`` but don't forward — that
     silently drops ``programmatic_mode`` (and used to bind the wrong rate
     tracker). The factory has a post-construction safety net that calls
     ``_configure_programmatic_mode`` when the engine's mode doesn't match
@@ -63,7 +69,7 @@ class BaseSearchEngine(ABC):
 
     # Class attribute to indicate if this is a generic search engine (vs specialized)
     # Generic engines are general web search (Google, Bing, etc) vs specialized (arXiv, PubMed).
-    # Note: generic does NOT imply good native ranking â€” see is_lexical.
+    # Note: generic does NOT imply good native ranking — see is_lexical.
     is_generic = False
 
     # Class attribute to indicate if this is a scientific/academic search engine
@@ -96,7 +102,7 @@ class BaseSearchEngine(ABC):
     # Behavioral: should the factory auto-enable LLM relevance filtering?
     # When True, the factory sets enable_llm_relevance_filter=True on the engine
     # instance, causing _filter_for_relevance() to run after previews are fetched.
-    # Typically set alongside is_lexical=True, but can be set independently â€”
+    # Typically set alongside is_lexical=True, but can be set independently —
     # e.g. a non-lexical engine with noisy results could opt in.
     needs_llm_relevance_filter = False
 
@@ -307,7 +313,7 @@ class BaseSearchEngine(ABC):
 
         Called from ``__init__`` and from the factory as a fallback when an
         engine subclass swallows the ``programmatic_mode`` kwarg without
-        forwarding it to ``super().__init__``. Safe to call after init â€”
+        forwarding it to ``super().__init__``. Safe to call after init —
         rebinding ``rate_tracker`` discards the previous tracker (no
         resources to release) and the new one starts with empty in-memory
         caches.
@@ -1035,7 +1041,7 @@ class BaseSearchEngine(ABC):
 
         if hasattr(self, "session") and self.session is not None:
             safe_close(self.session, "HTTP session")
-        # Close preview filters as well as content filters â€” the journal
+        # Close preview filters as well as content filters — the journal
         # reputation filter is registered as a preview filter on academic
         # engines (arxiv, pubmed, openalex, nasa_ads, semantic_scholar)
         # and holds a SearXNG engine + LLM client that need releasing.

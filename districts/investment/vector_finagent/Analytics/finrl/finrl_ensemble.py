@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FinRL Ensemble Strategies
 Wrapper around finrl.agents.stablebaselines3.models.DRLEnsembleAgent
 and finrl.applications.stock_trading.ensemble_stock_trading.
@@ -176,6 +177,8 @@ def train_ensemble(
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.finrl.finrl_ensemble] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.finrl.finrl_ensemble] caught Exception: %s", _sve)
         return {"error": str(e), "status": "failed"}
 
 

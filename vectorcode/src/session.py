@@ -2,8 +2,6 @@ import sys
 import json
 import uuid
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 try:
     from core.config import CONFIG
 except ImportError:
@@ -134,8 +132,5 @@ if __name__ == "__main__":
     a.reset()
     assert a.history == [] and a.cost_usd == 0.0
     print("session.py OK")
-
-
-
 
 

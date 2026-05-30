@@ -1,14 +1,24 @@
 """VECTOR qa router - /qa/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "accessibility_audit",
+    "AccessibilityAuditReq",
+    "analyze_test_results",
+    "AnalyzeTestResultsReq",
+    "api_test",
+    "ApiTestReq",
+    "qa_write_tests",
+    "QaWriteTestsReq",
+    "reality_check",
+    "RealityCheckReq",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/qa", tags=["qa"])
-
-
 
 
 class QaWriteTestsReq(BaseModel):

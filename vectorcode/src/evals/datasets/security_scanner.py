@@ -15,6 +15,7 @@ Difficulty tiers:
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import random
 from typing import Any, Dict, Iterable, List, Optional

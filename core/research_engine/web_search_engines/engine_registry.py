@@ -11,6 +11,12 @@ Engines NOT in this registry (registered at runtime instead):
 """
 
 from dataclasses import dataclass
+
+__all__ = [
+    "EngineEntry",
+    "get_engine_entry",
+]
+
 from typing import Dict, Optional
 
 

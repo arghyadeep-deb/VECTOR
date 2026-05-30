@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Qlib Service
 Microsoft Qlib integration for quantitative research, model training, backtesting and analysis
 Full-featured implementation with all Qlib capabilities
@@ -37,73 +38,73 @@ if QLIB_AVAILABLE:
         from qlib.contrib.model.gbdt import LGBModel
         MODELS_AVAILABLE['lightgbm'] = True
         MODEL_CLASSES['lightgbm'] = LGBModel
-    except: MODELS_AVAILABLE['lightgbm'] = False
+    except ImportError: MODELS_AVAILABLE['lightgbm'] = False
 
     try:
         from qlib.contrib.model.xgboost import XGBModel
         MODELS_AVAILABLE['xgboost'] = True
         MODEL_CLASSES['xgboost'] = XGBModel
-    except: MODELS_AVAILABLE['xgboost'] = False
+    except ImportError: MODELS_AVAILABLE['xgboost'] = False
 
     try:
         from qlib.contrib.model.catboost_model import CatBoostModel
         MODELS_AVAILABLE['catboost'] = True
         MODEL_CLASSES['catboost'] = CatBoostModel
-    except: MODELS_AVAILABLE['catboost'] = False
+    except ImportError: MODELS_AVAILABLE['catboost'] = False
 
     try:
         from qlib.contrib.model.linear import LinearModel
         MODELS_AVAILABLE['linear'] = True
         MODEL_CLASSES['linear'] = LinearModel
-    except: MODELS_AVAILABLE['linear'] = False
+    except ImportError: MODELS_AVAILABLE['linear'] = False
 
     try:
         from qlib.contrib.model.pytorch_lstm import LSTM
         MODELS_AVAILABLE['lstm'] = True
         MODEL_CLASSES['lstm'] = LSTM
-    except: MODELS_AVAILABLE['lstm'] = False
+    except ImportError: MODELS_AVAILABLE['lstm'] = False
 
     try:
         from qlib.contrib.model.pytorch_gru import GRU
         MODELS_AVAILABLE['gru'] = True
         MODEL_CLASSES['gru'] = GRU
-    except: MODELS_AVAILABLE['gru'] = False
+    except ImportError: MODELS_AVAILABLE['gru'] = False
 
     try:
         from qlib.contrib.model.pytorch_alstm import ALSTM
         MODELS_AVAILABLE['alstm'] = True
         MODEL_CLASSES['alstm'] = ALSTM
-    except: MODELS_AVAILABLE['alstm'] = False
+    except ImportError: MODELS_AVAILABLE['alstm'] = False
 
     try:
         from qlib.contrib.model.pytorch_transformer import Transformer
         MODELS_AVAILABLE['transformer'] = True
         MODEL_CLASSES['transformer'] = Transformer
-    except: MODELS_AVAILABLE['transformer'] = False
+    except ImportError: MODELS_AVAILABLE['transformer'] = False
 
     try:
         from qlib.contrib.model.pytorch_tcn import TCN
         MODELS_AVAILABLE['tcn'] = True
         MODEL_CLASSES['tcn'] = TCN
-    except: MODELS_AVAILABLE['tcn'] = False
+    except ImportError: MODELS_AVAILABLE['tcn'] = False
 
     try:
         from qlib.contrib.model.pytorch_adarnn import ADARNN
         MODELS_AVAILABLE['adarnn'] = True
         MODEL_CLASSES['adarnn'] = ADARNN
-    except: MODELS_AVAILABLE['adarnn'] = False
+    except ImportError: MODELS_AVAILABLE['adarnn'] = False
 
     try:
         from qlib.contrib.model.pytorch_hist import HIST
         MODELS_AVAILABLE['hist'] = True
         MODEL_CLASSES['hist'] = HIST
-    except: MODELS_AVAILABLE['hist'] = False
+    except ImportError: MODELS_AVAILABLE['hist'] = False
 
     try:
         from qlib.contrib.model.pytorch_tabnet import TabnetModel
         MODELS_AVAILABLE['tabnet'] = True
         MODEL_CLASSES['tabnet'] = TabnetModel
-    except: MODELS_AVAILABLE['tabnet'] = False
+    except ImportError: MODELS_AVAILABLE['tabnet'] = False
 
     # SFM_Model is a raw nn.Module - wrap it with fit/predict interface
     try:
@@ -236,19 +237,19 @@ if QLIB_AVAILABLE:
         from qlib.contrib.model.pytorch_gats import GATs
         MODELS_AVAILABLE['gats'] = True
         MODEL_CLASSES['gats'] = GATs
-    except: MODELS_AVAILABLE['gats'] = False
+    except ImportError: MODELS_AVAILABLE['gats'] = False
 
     try:
         from qlib.contrib.model.pytorch_add import ADD
         MODELS_AVAILABLE['add'] = True
         MODEL_CLASSES['add'] = ADD
-    except: MODELS_AVAILABLE['add'] = False
+    except ImportError: MODELS_AVAILABLE['add'] = False
 
     try:
         from qlib.contrib.model.double_ensemble import DEnsembleModel
         MODELS_AVAILABLE['densemble'] = True
         MODEL_CLASSES['densemble'] = DEnsembleModel
-    except: MODELS_AVAILABLE['densemble'] = False
+    except ImportError: MODELS_AVAILABLE['densemble'] = False
 
 # Data handler imports
 HANDLERS_AVAILABLE = {}
@@ -274,7 +275,8 @@ if QLIB_AVAILABLE:
         STRATEGIES_AVAILABLE['weight_base'] = WeightStrategyBase
         STRATEGIES_AVAILABLE['enhanced_indexing'] = EnhancedIndexingStrategy
         STRATEGIES_AVAILABLE['base_signal'] = BaseSignalStrategy
-    except: pass
+    except Exception:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_service] strategy import failed")
 
 # Backtest imports
 if QLIB_AVAILABLE:
@@ -283,18 +285,14 @@ if QLIB_AVAILABLE:
         from qlib.backtest.exchange import Exchange
         from qlib.backtest.position import Position
         BACKTEST_AVAILABLE = True
-    except:
-        BACKTEST_AVAILABLE = False
-
-# Report/Analysis imports
+    except Exception:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_service] suppressed Exception in fallback")  # bare except
 if QLIB_AVAILABLE:
     try:
         from qlib.contrib.report import analysis_position, analysis_model
         ANALYSIS_AVAILABLE = True
-    except:
-        ANALYSIS_AVAILABLE = False
-
-
+    except Exception:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_service] suppressed Exception in fallback")  # bare except
 class QlibService:
     """
     Full-featured Qlib service with comprehensive quantitative research capabilities.

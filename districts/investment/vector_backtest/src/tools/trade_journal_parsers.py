@@ -8,6 +8,7 @@ Excel (.xlsx/.xls) always opens as utf-8 internally via openpyxl/xlrd.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 from dataclasses import asdict, dataclass
 from pathlib import Path

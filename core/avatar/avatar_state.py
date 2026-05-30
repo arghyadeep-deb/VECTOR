@@ -3,9 +3,7 @@ Persistent cross-session mood/presence state for the Avatar layer.
 Owns: valence, arousal, dominance, emotional_arc, presence_score.
 Does NOT own: trust, intimacy, relationship_stage — those live in PersonModel.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import json
 import sqlite3

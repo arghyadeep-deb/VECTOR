@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "AcpSearchReplaceState",
+    "SearchReplace",
+]
+
+
 from pathlib import Path
 
 try:

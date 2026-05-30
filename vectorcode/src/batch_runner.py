@@ -258,7 +258,7 @@ def _process_single_prompt(
         # Verify the image is accessible before spending tokens on the agent loop.
         # For Docker: check local cache, then try pulling.
         # For Modal: skip local check (Modal pulls server-side).
-        env_type = os.getenv("TERMINAL_ENV", "local")
+        env_type = os.environ.get("TERMINAL_ENV", "local")
         if env_type == "docker":
             import subprocess as _sp
             try:

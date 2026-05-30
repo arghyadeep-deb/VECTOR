@@ -1,6 +1,5 @@
 """Final audit: composition_linter + studio_server + VectorPlayer + studio UI"""
 import sys, os, ast, re, asyncio, tempfile
-sys.path.insert(0, r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
 sys.stdout.reconfigure(encoding="utf-8")
 
 results = []

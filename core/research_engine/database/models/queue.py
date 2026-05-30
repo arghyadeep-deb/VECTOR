@@ -3,6 +3,12 @@ Queue-related database models stored in each user's encrypted database.
 """
 
 from sqlalchemy import Column, Integer, String, JSON
+
+__all__ = [
+    "QueueStatus",
+    "TaskMetadata",
+]
+
 from sqlalchemy_utc import UtcDateTime, utcnow
 
 from .base import Base

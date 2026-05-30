@@ -30,6 +30,15 @@ Quick usage (District 18 content generation):
 """
 from __future__ import annotations
 
+__all__ = [
+    "ComposerJob",
+    "ComposerResult",
+    "CompositionTemplate",
+    "render_html_to_video",
+    "VectorComposer",
+]
+
+
 import asyncio
 import os
 import shutil

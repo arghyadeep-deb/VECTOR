@@ -1,14 +1,21 @@
 """VECTOR skills router - /skills/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "gap_analysis",
+    "GapAnalysisReq",
+    "router",
+    "skill_map",
+    "suggest_practice",
+    "SuggestPracticeReq",
+    "track_mastery",
+    "TrackMasteryReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/skills", tags=["skills"])
-
-
 
 
 @router.get("/map")

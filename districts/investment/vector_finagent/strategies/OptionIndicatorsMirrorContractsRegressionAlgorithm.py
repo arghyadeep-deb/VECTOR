@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-CFC8C48B
 # Category: Options
@@ -69,7 +70,9 @@ class CustomImpliedVolatility(ImpliedVolatility):
     def calculate_iv(self, time_till_expiry: float) -> float:
         try:
             return brentq(self.f, 1e-7, 2.0, args=(time_till_expiry), xtol=1e-4, maxiter=100)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][strategies.OptionIndicatorsMirrorContractsRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.OptionIndicatorsMirrorContractsRegressionAlgorithm] caught Exception: %s", _sve)
             print("ImpliedVolatility.calculate_i_v(): Fail to converge, returning 0.")
             return 0.0
 

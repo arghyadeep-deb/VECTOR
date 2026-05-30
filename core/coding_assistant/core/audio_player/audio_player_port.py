@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+__all__ = [
+    "AlreadyPlayingError",
+    "AudioBackendUnavailableError",
+    "AudioFormat",
+    "AudioPlayerPort",
+    "NoAudioOutputDeviceError",
+    "UnsupportedAudioFormatError",
+]
+
+
 from collections.abc import Callable
 from enum import StrEnum, auto
 from typing import Protocol

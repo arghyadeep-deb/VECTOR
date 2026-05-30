@@ -1,4 +1,5 @@
 """
+from loguru import logger
 loops.py — Real FactorRDLoop and ModelRDLoop execution for Fincept rdagents.
 
 Responsibilities:
@@ -99,6 +100,8 @@ def _try_inject_mcp(loop: Any, mcp_port: int) -> bool:
             logger.info("MCP tools injected into loop (port=%d)", mcp_port)
         return ok
     except Exception as e:
+        logger.debug("[VECTOR][agents.rdagents.loops] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.rdagents.loops] caught Exception: %s", _sve)
         logger.warning("MCP injection failed (non-fatal): %s", e)
         return False
 

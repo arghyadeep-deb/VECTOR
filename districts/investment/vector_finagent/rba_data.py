@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Reserve Bank of Australia (RBA) Data Wrapper
 Fetches statistical data from RBA published CSV tables.
 
@@ -262,6 +263,8 @@ class RBAWrapper:
         except requests.exceptions.HTTPError as e:
             return RBAError(table_code, str(e), e.response.status_code if e.response else None).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][rba_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][rba_data] caught Exception: %s", _sve)
             return RBAError(table_code, str(e)).to_dict()
 
     def _fetch_group(self, tables: List[str], start_date: Optional[str] = None,

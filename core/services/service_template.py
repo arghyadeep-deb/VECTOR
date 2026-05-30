@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "MicroService",
+    "ServiceRegistry",
+]
+
+
 import time
 from abc import ABC, abstractmethod
 from typing import Any

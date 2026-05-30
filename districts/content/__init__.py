@@ -4,8 +4,6 @@ V.E.C.T.O.R. Content District - Video creation and content generation agents
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

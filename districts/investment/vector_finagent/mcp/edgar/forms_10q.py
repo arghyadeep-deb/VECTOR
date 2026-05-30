@@ -1,4 +1,5 @@
 """
+from loguru import logger
 10-Q Quarterly Report Extraction
 =================================
 
@@ -65,6 +66,8 @@ def get_latest_10q(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
+        logger.debug("[VECTOR][mcp.edgar.forms_10q] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_10q] caught Exception: %s", _sve)
         return {"error": EdgarError("get_latest_10q", str(e), traceback.format_exc()).to_dict()}
 
 
@@ -305,9 +308,8 @@ def extract_10q_sections(ticker: str, sections: Optional[List[str]] = None) -> D
             items = tenq.items if hasattr(tenq, 'items') else []
             result["available_items"] = items
             result["items_count"] = len(items) if items else 0
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+        except Exception:
+            logger.debug("[VECTOR][mcp.edgar.forms_10q] suppressed Exception in fallback")  # bare except
         return {
             "success": True,
             "data": result

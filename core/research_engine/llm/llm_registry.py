@@ -5,6 +5,17 @@ LLMs that can be used with VECTOR Research Engine.
 """
 
 import threading
+
+__all__ = [
+    "clear_llm_registry",
+    "get_llm_from_registry",
+    "is_llm_registered",
+    "list_registered_llms",
+    "LLMRegistry",
+    "register_llm",
+    "unregister_llm",
+]
+
 from typing import Callable, Dict, Optional, Union
 
 from langchain.chat_models.base import BaseChatModel

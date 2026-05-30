@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Databento Data Explorer
 Script to explore and analyze the raw data saved in databento_raw_data.bin
 Shows data structure, sample records, and statistics
@@ -147,6 +148,8 @@ def explore_raw_data():
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][explore_databento_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][explore_databento_data] caught Exception: %s", _sve)
         return {
             "success": False,
             "error": str(e),

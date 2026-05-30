@@ -1,4 +1,5 @@
 """
+from loguru import logger
 NBER Data Fetcher
 Fetches NBER (National Bureau of Economic Research) business cycle dates,
 macroeconomic datasets, and public-use datasets.
@@ -171,6 +172,8 @@ def get_recession_indicator(start_date: str = "2000-01", end_date: str = "2024-1
             else:
                 current = current.replace(month=current.month + 1)
     except Exception as e:
+        logger.debug("[VECTOR][nber_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][nber_data] caught Exception: %s", _sve)
         return {"error": f"Date processing error: {str(e)}"}
     return {
         "start_date": start_date,

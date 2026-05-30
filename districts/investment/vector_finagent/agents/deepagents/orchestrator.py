@@ -1,4 +1,5 @@
 """
+from loguru import logger
 orchestrator.py — Fallback for non-tool-calling LLMs (Fincept API, Ollama).
 
 Single responsibility:
@@ -135,6 +136,8 @@ class FinAgentOrchestrator:
             }
 
         except Exception as exc:
+            logger.debug("[VECTOR][agents.deepagents.orchestrator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.deepagents.orchestrator] caught Exception: %s", _sve)
             logger.error("Orchestrator execute failed: %s", exc)
             return {
                 "success": False,

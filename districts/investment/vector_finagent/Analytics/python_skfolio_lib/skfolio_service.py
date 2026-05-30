@@ -1,4 +1,5 @@
 """
+from loguru import logger
 skfolio Worker Handler - Advanced Portfolio Optimization
 Usage: python worker_handler.py <operation> <json_data>
 
@@ -27,7 +28,6 @@ import pandas as pd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
 
 
 def _parse_prices(data):
@@ -218,8 +218,9 @@ def op_optimize(data):
             val = getattr(portfolio, attr, None)
             if val is not None:
                 metrics[attr] = float(val)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_service] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_service] suppressed Exception: %s", _sve)
 
     return {
         "status": "success",
@@ -276,6 +277,7 @@ def op_efficient_frontier(data):
             frontier_sharpe.append(sharpe)
             frontier_weights.append(w.tolist())
         except Exception:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_service] caught Exception: %s", _sve)
             continue
 
     # Sort by volatility

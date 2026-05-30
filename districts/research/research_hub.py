@@ -23,11 +23,12 @@ RULE 11: no external LLM APIs.
 import sys
 import asyncio
 import datetime
-import xml.etree.ElementTree as ET
-from pathlib import Path
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import httpx
 from loguru import logger

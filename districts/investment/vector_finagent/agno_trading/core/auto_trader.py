@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Auto Trading Engine
 
 Implements automatic trading loop inspired by Alpha Arena.
@@ -129,6 +130,8 @@ class AutoTrader:
                 await asyncio.sleep(self.execution_interval)
 
         except Exception as e:
+            logger.debug("[VECTOR][agno_trading.core.auto_trader] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.auto_trader] caught Exception: %s", _sve)
             print(f"[AutoTrader] Error in trading loop: {e}")
             self.state.is_running = False
 

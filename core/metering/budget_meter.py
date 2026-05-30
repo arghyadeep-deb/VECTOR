@@ -12,15 +12,23 @@ VECTOR uses Ollama locally (free) but budget tracking still applies for:
 """
 from __future__ import annotations
 
+__all__ = [
+    "AgentBudget",
+    "BudgetMeter",
+    "BudgetStatus",
+    "DEFAULT_PRICING",
+    "estimate_cost",
+    "get_budget_meter",
+]
+
+
 import json
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 from typing import Literal
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _METER_DIR = Path.home() / ".vector_ca" / "metering"

@@ -1,6 +1,7 @@
 """Wormhole-owned DM contact and alias graph state."""
 
 from __future__ import annotations
+from loguru import logger
 
 import time
 from pathlib import Path

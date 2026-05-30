@@ -11,14 +11,20 @@ Runs a sub-agent with:
 """
 from __future__ import annotations
 
+__all__ = [
+    "LLMCallable",
+    "run_subagent",
+    "SubagentOptions",
+    "SubagentOutcome",
+    "SubagentRunner",
+]
+
+
 import asyncio
-import sys
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable, Awaitable
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 from core.engine.agents.roles import get_agent_prompt, list_agents
 
@@ -65,7 +71,8 @@ class SubagentRunner:
             task="Find latest papers on LLM quantization",
             allowed_tools=["web_search", "memory_query"],
         ))
-        print(outcome.result)
+        logger.info(outcome.result)
+
     """
 
     def __init__(self, llm: LLMCallable | None = None) -> None:

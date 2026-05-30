@@ -1,5 +1,6 @@
 # EIA (U.S. Energy Information Administration) Data Wrapper
 # Provides access to Weekly Petroleum Status Report and Short Term Energy Outlook data
+from loguru import logger
 
 import sys
 import json
@@ -117,6 +118,8 @@ class EIADataFetcher:
         except requests.exceptions.RequestException as e:
             raise EIAError(f"HTTP request failed for {url}: {str(e)}")
         except Exception as e:
+            logger.debug("[VECTOR][eia_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][eia_data] caught Exception: %s", _sve)
             raise EIAError(f"Unexpected error fetching {url}: {str(e)}")
 
     def _parse_petroleum_excel(self, excel_data: bytes, category: str, tables: List[str]) -> List[Dict]:

@@ -38,7 +38,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 # Ensure repo root is on sys.path for imports
 _repo_root = Path(__file__).resolve().parent.parent.parent
 if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
 
 from atroposlib.envs.base import ScoredDataGroup
 from atroposlib.envs.server_handling.server_manager import APIServerConfig
@@ -149,7 +148,7 @@ class TerminalTestEnv(VectorAgentBaseEnv):
                 base_url="https://openrouter.ai/api/v1",
                 model_name="anthropic/claude-opus-4.6",
                 server_type="openai",
-                api_key=os.getenv("OPENROUTER_API_KEY", ""),
+                api_key=os.environ.get("OPENROUTER_API_KEY", ""),
                 health_check=False,  # OpenRouter doesn't have a /health endpoint
             )
         ]

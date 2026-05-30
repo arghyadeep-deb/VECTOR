@@ -4,6 +4,18 @@ Each thread gets its own database session that persists for the thread's lifetim
 """
 
 import functools
+
+__all__ = [
+    "cleanup_current_thread",
+    "cleanup_dead_threads",
+    "get_current_thread_session",
+    "get_metrics_session",
+    "thread_cleanup",
+    "thread_session_manager",
+    "ThreadLocalSessionManager",
+    "ThreadSessionContext",
+]
+
 import threading
 from contextlib import ContextDecorator
 from typing import Optional, Dict, Tuple
@@ -136,7 +148,7 @@ class ThreadLocalSessionManager:
         """Clean up the current thread's session.
 
         Sessions are bound to the shared per-user QueuePool engine, so
-        closing the session returns its connection to the pool â€” there
+        closing the session returns its connection to the pool — there
         are no per-thread engines to dispose.
         """
         thread_id = threading.get_ident()
@@ -236,7 +248,7 @@ def get_current_thread_session() -> Optional[Session]:
 def cleanup_current_thread():
     """Clean up the current thread's database session and cached credentials.
 
-    Also clears any passwords cached by ``metrics_writer`` on this thread â€”
+    Also clears any passwords cached by ``metrics_writer`` on this thread —
     pooled worker threads must not retain plaintext credentials across tasks.
     """
     thread_session_manager.cleanup_thread()

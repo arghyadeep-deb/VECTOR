@@ -7,12 +7,9 @@ Tests for Phase 3b districts:
 
 All tests use unittest.mock to avoid real LLM/network/IO calls.
 """
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

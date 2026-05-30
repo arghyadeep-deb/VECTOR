@@ -6,10 +6,16 @@ from typing import Any
 from loguru import logger
 
 from core.config import CONFIG
+from core.city.agent_base import AgentBase
 
 
-class HealthAdvisor:
+class HealthAdvisor(AgentBase):
     def __init__(self) -> None:
+        super().__init__(
+            agent_id=f"health_advisor_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",
+            name="health_advisor",
+            district="health",
+        )
         self._use_llm: bool = CONFIG.get("health", {}).get("advisor_use_llm", False)
         self._max_recs: int = CONFIG.get("health", {}).get("advisor_max_recommendations", 5)
 
@@ -177,3 +183,27 @@ class HealthAdvisor:
         except Exception as exc:
             logger.warning(f"[VECTOR][health_advisor] LLM insight unavailable: {exc}")
         return None
+
+    async def handle(self, event: dict) -> dict:
+        if event.get("type") == "health_recommendations":
+            metrics = event.get("params", {}).get("metrics", {})
+            trends = event.get("params", {}).get("trends", {})
+            recs = self.generate_recommendations(metrics, trends)
+            return {"status": "ok", "recommendations": recs}
+        return await super().handle(event)
+
+    def health_check(self) -> dict[str, Any]:
+        monitors = ["sleep_hygiene", "activity_exercise", "stress_management",
+                     "hydration_nutrition", "ergonomics", "medical_attention",
+                     "lifestyle_balance", "routine_optimization"]
+        return {
+            "agent": self.name,
+            "district": self.district,
+            "hp": self.health_points,
+            "status": self.get_status(),
+            "monitors": monitors,
+            "llm_enabled": self._use_llm,
+        }
+
+    def fallback_chain(self) -> list[str]:
+        return ["local_rules", "llm_advisor"]

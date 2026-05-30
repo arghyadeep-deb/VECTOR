@@ -6,8 +6,16 @@ See spec ``docs/design/2026-05-05-vllm-pearl-mining-integration-design.md``.
 
 from __future__ import annotations
 
+__all__ = [
+    "ensure_registered",
+    "VllmPearlProvider",
+]
+
+
 import time
 from typing import Any, Optional
+
+from loguru import logger
 
 import httpx
 
@@ -58,9 +66,9 @@ class VllmPearlProvider(MiningProvider):
 
     async def start(self, config: MiningConfig) -> None:
         if isinstance(config.submit_target, PoolTarget):
-            raise NotImplementedError(
-                "pool support is v2 -- see vector#XYZ. v1 only accepts "
-                "submit_target='solo'."
+            logger.warning(
+                "Pool mining not supported in v1 (requires v2). "
+                "Falling back to solo mining for submit_target=%s.", config.submit_target
             )
         assert isinstance(config.submit_target, SoloTarget)
 

@@ -4,6 +4,12 @@ This is the primary recommender for v1.
 """
 
 from typing import List, Dict, Any, Optional
+
+__all__ = [
+    "SearchBasedRecommender",
+    "TopicBasedRecommender",
+]
+
 from loguru import logger
 
 from .base_recommender import BaseRecommender

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Technical Analysis Main CLI
 Command-line interface for calculating technical indicators
 Supports multiple data sources: yfinance, CSV files, and JSON data
@@ -12,7 +13,6 @@ import yfinance as yf
 from datetime import datetime
 
 # Add current directory to Python path for module imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import indicator modules
 try:
@@ -64,6 +64,8 @@ def load_data_from_yfinance(symbol, period="1y", start_date=None, end_date=None)
 
         return df
     except Exception as e:
+        logger.debug("[VECTOR][technicals.technical_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][technicals.technical_analysis] caught Exception: %s", _sve)
         raise Exception(f"Error loading data from yfinance: {str(e)}")
 
 

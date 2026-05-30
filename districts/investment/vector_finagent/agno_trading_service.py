@@ -52,7 +52,6 @@ os.environ['LOGURU_LEVEL'] = 'CRITICAL'
 os.environ['LOGURU_AUTOINIT'] = 'False'
 
 # Add to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'agno_trading'))
 
 try:
     from loguru import logger
@@ -174,6 +173,8 @@ def create_competition_command(args: list) -> Dict[str, Any]:
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][agno_trading_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agno_trading_service] caught Exception: %s", _sve)
         print(f"[ERROR] create_competition failed: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)

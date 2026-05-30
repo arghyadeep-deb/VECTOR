@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-A0A879A8
 # Category: Universe Selection
@@ -27,7 +28,9 @@ class CoarseFineAsyncUniverseRegressionAlgorithm(QCAlgorithm):
         threw_exception = False
         try:
             self.add_universe(self.coarse_selection_function, self.fine_selection_function)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][strategies.CoarseFineAsyncUniverseRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.CoarseFineAsyncUniverseRegressionAlgorithm] caught Exception: %s", _sve)
             # expected
             threw_exception = True
             pass

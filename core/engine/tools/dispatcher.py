@@ -1,5 +1,5 @@
 """
-VECTOR Tool Dispatcher â€” three pluggable tool-call formats.
+VECTOR Tool Dispatcher — three pluggable tool-call formats.
 
 Ported from vector's agent/dispatcher.rs.
 
@@ -14,16 +14,26 @@ PFormat is for ultra-compact prompts to small models.
 """
 from __future__ import annotations
 
+__all__ = [
+    "make_dispatcher",
+    "NativeDispatcher",
+    "ParsedToolCall",
+    "PermissionLevel",
+    "PFormatDispatcher",
+    "ToolDispatcher",
+    "ToolExecutionResult",
+    "ToolScope",
+    "XmlDispatcher",
+]
+
+
 import json
 import re
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 
@@ -265,7 +275,7 @@ class PFormatDispatcher(ToolDispatcher):
         lines = ["Available tools (format: tool_name[arg1|arg2|...]):"]
         for spec in tool_specs:
             params = list(spec.get("parameters", {}).get("properties", {}).keys())
-            lines.append(f"  {spec['name']}[{'|'.join(params)}] â€” {spec.get('description','')[:60]}")
+            lines.append(f"  {spec['name']}[{'|'.join(params)}] — {spec.get('description','')[:60]}")
         return "\n" + "\n".join(lines)
 
 
@@ -283,7 +293,7 @@ def make_dispatcher(format_name: str = "native", **kwargs) -> ToolDispatcher:
 
 
 if __name__ == "__main__":
-    # Native â€” no structured calls, falls back to XML
+    # Native — no structured calls, falls back to XML
     nd = NativeDispatcher()
     text = 'Let me help. <tool_call>{"name": "read_file", "arguments": {"path": "x.py"}}</tool_call>'
     clean, calls = nd.parse_response(text)
@@ -305,4 +315,4 @@ if __name__ == "__main__":
     msg = xd.format_results([result])
     assert "bash" in msg["content"]
 
-    print("OK dispatcher.py â€” Native/XML/PFormat all verified")
+    print("OK dispatcher.py — Native/XML/PFormat all verified")

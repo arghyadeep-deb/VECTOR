@@ -24,7 +24,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     url_setting = None  # Settings key for URL (e.g., "llm.lmstudio.url")
     default_base_url = "https://api.openai.com/v1"  # Default endpoint URL
     default_model = (
-        ""  # User must explicitly configure llm.model â€” no silent fallback
+        ""  # User must explicitly configure llm.model — no silent fallback
     )
 
     @classmethod
@@ -64,7 +64,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             # Provider doesn't require API key (e.g., LM Studio)
             api_key = kwargs.get("api_key", "dummy-key")
 
-        # Require an explicit model â€” no silent fallback to a hardcoded default.
+        # Require an explicit model — no silent fallback to a hardcoded default.
         if not model_name or not model_name.strip():
             logger.error(f"{cls.provider_name} model name not provided")
             raise ValueError(
@@ -147,7 +147,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         """
         settings_snapshot = kwargs.get("settings_snapshot")
 
-        # Require an explicit model â€” no silent fallback to a hardcoded default.
+        # Require an explicit model — no silent fallback to a hardcoded default.
         if not model_name or not model_name.strip():
             logger.error(f"{cls.provider_name} model name not provided")
             raise ValueError(
@@ -262,7 +262,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         try:
             # Defense-in-depth: never send a non-string credential to the SDK.
             # The OpenAI client coerces the api_key into "Authorization: Bearer
-            # <repr(api_key)>" â€” passing a dict would leak its contents to the
+            # <repr(api_key)>" — passing a dict would leak its contents to the
             # endpoint we're listing models from.
             if api_key is not None and not isinstance(api_key, str):
                 logger.error(

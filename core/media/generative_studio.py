@@ -1,5 +1,5 @@
 """
-VECTOR Generative Studio â€” Unified orchestrator for AI creative media generation.
+VECTOR Generative Studio — Unified orchestrator for AI creative media generation.
 
 Priority chain: Wan2GP (free local GPU) â†’ LocalInference (sd.cpp offline) â†’ Muapi (cloud)
 
@@ -9,7 +9,8 @@ Muapi.ai cloud credits. Pass prefer_local=False to skip directly to cloud.
 Usage:
     studio = GenerativeStudio()
     result = asyncio.run(studio.generate_image("A cyberpunk cityscape at night"))
-    print(result["url"])
+    logger.info(result["url"])
+
 """
 from __future__ import annotations
 
@@ -20,7 +21,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.media.models import get_model, list_by_category, all_models
 from core.media.muapi_client import MuapiClient
 from core.media.wan2gp_client import Wan2GPClient, WAN2GP_CATALOG
@@ -145,7 +145,7 @@ class GenerativeStudio:
         model: str = "nano-banana-edit",
         **kwargs,
     ) -> dict:
-        """Image-to-image editing (always cloud â€” Muapi.ai)."""
+        """Image-to-image editing (always cloud — Muapi.ai)."""
         image_url = await self._resolve_url(image, prefer_local=False)
         if not self._has_muapi():
             raise RuntimeError("Image-to-image requires MUAPI_API_KEY")
@@ -219,7 +219,7 @@ class GenerativeStudio:
         model: str = "infinite-talk",
         is_video: bool = False,
     ) -> dict:
-        """Lip sync â€” portrait image or video + narration audio â†’ talking head video."""
+        """Lip sync — portrait image or video + narration audio â†’ talking head video."""
         portrait_url = await self._resolve_url(portrait, prefer_local=False)
         audio_url    = await self._resolve_url(audio, prefer_local=False)
         if not self._has_muapi():

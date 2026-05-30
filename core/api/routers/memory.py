@@ -1,8 +1,18 @@
 """Memory router — /memory endpoints."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "backup_memory",
+    "council_history",
+    "goals_endpoint",
+    "recent_memory",
+    "recent_memory_by_type",
+    "restore_memory",
+    "router",
+    "training_data",
+]
+
 
 from fastapi import APIRouter, Query, HTTPException
 from loguru import logger
@@ -91,7 +101,6 @@ async def restore_memory(backup_path: str, overwrite: bool = False):
     except Exception as e:
         logger.error(f"[VECTOR][api][memory] restore failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 if __name__ == "__main__":

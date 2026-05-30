@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Bank of Israel (BOI) Data Wrapper
 Fetches data from the Bank of Israel public APIs.
 
@@ -193,6 +194,8 @@ class BOIWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BOIError("GetExchangeRates", str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][boi_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boi_data] caught Exception: %s", _sve)
             return BOIError("GetExchangeRates", str(e)).to_dict()
 
     def get_exchange_rate_history(self, currencies: Optional[List[str]] = None,

@@ -22,6 +22,7 @@ Agent workflow:
 """
 
 from __future__ import annotations  # allow PEP 604 `X | None` on Python 3.9+
+from loguru import logger
 
 import argparse
 import json
@@ -33,7 +34,6 @@ from pathlib import Path
 # Ensure sibling modules (_vector_home) are importable when run standalone.
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPTS_DIR)
 
 from _vector_home import display_vector_home, get_vector_home
 

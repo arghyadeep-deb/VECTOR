@@ -11,13 +11,10 @@ Absorbed from reference v2/src/swarm/strategies/:
 
 Per-agent state now tracked: status, current_task, task_started_at, hp snapshot.
 """
-import sys
 import time
 import random
 from enum import Enum
-from pathlib import Path
 from typing import List, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))  # project root for core.*
 
 from loguru import logger
 
@@ -375,7 +372,5 @@ if __name__ == "__main__":
     assert "status" in report["agents"][0]
 
     print(f"swarm.py OK — topologies: {[t.value for t in Topology]}")
-
-
 
 

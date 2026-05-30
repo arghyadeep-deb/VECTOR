@@ -1,4 +1,5 @@
 """
+from loguru import logger
 U.S. Treasury FiscalData API Wrapper
 Fetches U.S. government financial data from the Treasury's FiscalData platform
 Returns JSON output for Qt/C++ integration
@@ -152,6 +153,8 @@ def _make_request(endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][fiscal_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fiscal_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

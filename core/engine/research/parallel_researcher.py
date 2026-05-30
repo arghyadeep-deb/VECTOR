@@ -1,5 +1,5 @@
 """
-VECTOR Parallel Researcher â€” concurrent multi-source research.
+VECTOR Parallel Researcher — concurrent multi-source research.
 
 Runs multiple search queries simultaneously and merges results.
 Ported from vector's integrations/parallel.rs ParallelSearchTool.
@@ -11,12 +11,18 @@ Modes:
 """
 from __future__ import annotations
 
-import asyncio
-import sys
-from dataclasses import dataclass, field
-from pathlib import Path
+__all__ = [
+    "parallel_extract",
+    "parallel_search",
+    "ParallelResearcher",
+    "ParallelSearchResult",
+    "ResearchReport",
+]
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+import asyncio
+from dataclasses import dataclass, field
+
 from loguru import logger
 
 
@@ -140,7 +146,8 @@ class ParallelResearcher:
             objective="latest advances in LLM compression",
             queries=["LLM quantization 2024", "token compression techniques"],
         )
-        print(report.to_markdown())
+        logger.info(report.to_markdown())
+
     """
 
     MODES = {
@@ -280,6 +287,6 @@ if __name__ == "__main__":
     async def _test():
         r = ParallelResearcher(mode="fast")
         report = await r.research("Python asyncio", queries=["Python asyncio tutorial"])
-        print(f"OK parallel_researcher.py â€” {report.result_count} results")
+        print(f"OK parallel_researcher.py — {report.result_count} results")
 
     asyncio.run(_test())

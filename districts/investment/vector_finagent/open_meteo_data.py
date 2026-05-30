@@ -2,6 +2,7 @@
 Open-Meteo Data Fetcher
 Global weather forecasts + 80yr historical for any lat/lon, free, no API key.
 """
+from loguru import logger
 import sys
 import json
 import os

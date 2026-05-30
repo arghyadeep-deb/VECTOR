@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Reflector — post-step LLM critic that decides whether to continue, re-plan,
 ask the user a clarifying question, or stop early.
 
@@ -159,6 +160,8 @@ class Reflector:
             raw = (agent.get_response_content(response) or "").strip()
             return _parse_decision(raw)  # source="llm-critic" baked in
         except Exception:
+            logger.debug("[VECTOR][agents.finagent_core.agentic.reflector] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.agentic.reflector] caught Exception: %s", _sve)
             # Reflector failures must NOT break the task. Default to continue.
             return ReflectorDecision(decision="continue", reason="reflector_error",
                                      source="reflector_error")

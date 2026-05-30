@@ -11,16 +11,14 @@ Usage:
 """
 
 import os
-import sys
 import shutil
 from pathlib import Path
 
 # Resolve project root
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
-VECTOR_HOME = Path(os.getenv("VECTOR_HOME", Path.home() / ".vector"))
+VECTOR_HOME = Path(os.environ.get("VECTOR_HOME", Path.home() / ".vector"))
 ENV_FILE = VECTOR_HOME / ".env"
 
 OK = "\033[92m\u2713\033[0m"
@@ -185,7 +183,7 @@ def check_env_vars():
 
     ok = True
 
-    token = os.getenv("DISCORD_BOT_TOKEN", "")
+    token = os.environ.get("DISCORD_BOT_TOKEN", "")
     if token:
         check("DISCORD_BOT_TOKEN", True, mask(token))
     else:
@@ -193,7 +191,7 @@ def check_env_vars():
         ok = False
 
     # Allowed users — resolve usernames if possible
-    allowed = os.getenv("DISCORD_ALLOWED_USERS", "")
+    allowed = os.environ.get("DISCORD_ALLOWED_USERS", "")
     if allowed:
         users = [u.strip() for u in allowed.split(",") if u.strip()]
         user_labels = []
@@ -216,8 +214,8 @@ def check_env_vars():
     else:
         warn("DISCORD_ALLOWED_USERS", "not set — all users can use voice")
 
-    groq_key = os.getenv("GROQ_API_KEY", "")
-    eleven_key = os.getenv("ELEVENLABS_API_KEY", "")
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    eleven_key = os.environ.get("ELEVENLABS_API_KEY", "")
 
     if groq_key:
         check("GROQ_API_KEY (STT)", True, mask(groq_key))
@@ -250,11 +248,11 @@ def check_config(groq_key, eleven_key):
 
             if stt_provider == "groq" and not groq_key:
                 warn("STT config says groq but GROQ_API_KEY is missing")
-            if stt_provider == "mistral" and not os.getenv("MISTRAL_API_KEY"):
+            if stt_provider == "mistral" and not os.environ.get("MISTRAL_API_KEY"):
                 warn("STT config says mistral but MISTRAL_API_KEY is missing")
             if tts_provider == "elevenlabs" and not eleven_key:
                 warn("TTS config says elevenlabs but ELEVENLABS_API_KEY is missing")
-            if tts_provider == "mistral" and not os.getenv("MISTRAL_API_KEY"):
+            if tts_provider == "mistral" and not os.environ.get("MISTRAL_API_KEY"):
                 warn("TTS config says mistral but MISTRAL_API_KEY is missing")
         except Exception as e:
             warn("config.yaml", f"parse error: {e}")

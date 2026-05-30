@@ -1,9 +1,12 @@
 """Coding benchmark: 20 prompts covering function writing, bug fixing, code review, refactoring, API design."""
 
-import sys
-from pathlib import Path
+
+__all__ = [
+    "CODING_PROMPTS",
+    "CodingBenchmark",
+]
+
 from typing import Callable
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 

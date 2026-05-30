@@ -11,10 +11,12 @@ Usage:
 
     fetcher = ContentFetcher()
     result = fetcher.fetch("https://arxiv.org/abs/2301.12345")
-    print(result["content"])
+    logger.info(result["content"])
+
 """
 
 from .fetcher import ContentFetcher
 from .url_classifier import URLClassifier, URLType
+from loguru import logger
 
 __all__ = ["ContentFetcher", "URLClassifier", "URLType"]

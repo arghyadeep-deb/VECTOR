@@ -2,7 +2,6 @@ import sys
 import uuid
 import asyncio
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -221,8 +220,7 @@ class GitBot(AgentBase):
 
             token = CONFIG["api_keys"].get("github_token", "")
             if not token:
-                import os
-                token = os.getenv("GITHUB_TOKEN", "")
+                token = CONFIG.get("api_keys", {}).get("github_token", "")
             if not token:
                 logger.error("[VECTOR][git_bot] GITHUB_TOKEN not configured")
                 return {"error": "GITHUB_TOKEN not configured"}

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Quant Reporting Service (factor / model report builder)
 ========================================================
 Self-contained reporting service for the VECTOR Financial Terminal "Quant Reporting"
@@ -132,6 +133,8 @@ def _correlation(x, y):
         try:
             pr, pp = pearsonr(x_arr, y_arr)
         except Exception:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting] caught Exception: %s", _sve)
             pr, pp = float("nan"), 1.0
         try:
             sr, sp = spearmanr(x_arr, y_arr)

@@ -2,11 +2,9 @@ import sys
 import time
 import datetime
 import os
-from pathlib import Path
 from typing import Optional
 
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from core.config import CONFIG
 except Exception:
     # Fallback when deployed to cloud without full VECTOR codebase

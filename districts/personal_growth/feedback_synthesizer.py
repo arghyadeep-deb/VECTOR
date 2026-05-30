@@ -4,13 +4,11 @@ Feedback Synthesizer — collects and synthesizes feedback about VECTOR itself.
 Takes feedback from Arghyadeep (voice notes, Obsidian entries, episodic memory)
 and converts it into prioritized improvement recommendations for VECTOR.
 """
-import sys
 import asyncio
 import datetime
 import re
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

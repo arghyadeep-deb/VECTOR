@@ -5,9 +5,6 @@ Rules:
   - Empathy-first: if user is frustrated/sad, acknowledge before solving
   - Tone driven by AvatarState.tone_hint + personality system
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import re
 from typing import Any

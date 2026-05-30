@@ -14,6 +14,7 @@ Key patterns absorbed from VectorCode:
   - _sanitize_surrogates() for clipboard paste safety
   - _SafeWriter for daemon mode (OSError/ValueError from broken pipes)
 """
+from pathlib import Path
 import sys
 import json
 import os
@@ -22,10 +23,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package (engine's parent)
 
 from loguru import logger
 

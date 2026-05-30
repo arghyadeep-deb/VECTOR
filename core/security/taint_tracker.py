@@ -21,13 +21,20 @@ Ported from agent OS types/taint.rs.
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "get_taint_tracker",
+    "TaintedValue",
+    "TaintLabel",
+    "TaintSink",
+    "TaintTracker",
+    "TaintViolation",
+]
+
+
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

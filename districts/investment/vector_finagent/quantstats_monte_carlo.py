@@ -1,4 +1,5 @@
 """
+from loguru import logger
 QuantStats Monte Carlo Simulation
 Input (stdin JSON): {"symbols": ["AAPL","MSFT"], "weights": [0.6, 0.4], "num_simulations": 1000}
 Output (stdout JSON): {
@@ -179,6 +180,8 @@ def main():
         print(json.dumps(convert_numpy(result)))
 
     except Exception as exc:
+        logger.debug("[VECTOR][quantstats_monte_carlo] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][quantstats_monte_carlo] caught Exception: %s", _sve)
         print(json.dumps({"error": str(exc)}))
 
 

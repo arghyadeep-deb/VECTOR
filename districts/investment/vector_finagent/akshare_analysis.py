@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Stock Analysis Wrapper
 Comprehensive wrapper for AKShare stock technical analysis, fund flow, and fundamental data
 Returns JSON output for Qt/C++ integration
@@ -138,6 +139,8 @@ class StockAnalysisWrapper:
                 else:
                     break
             except Exception as e:
+                logger.debug("[VECTOR][akshare_analysis] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_analysis] caught Exception: %s", _sve)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay ** attempt)

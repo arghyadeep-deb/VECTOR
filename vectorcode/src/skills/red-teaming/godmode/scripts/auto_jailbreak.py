@@ -35,7 +35,7 @@ try:
     _SKILL_DIR = Path(__file__).resolve().parent.parent
 except NameError:
     # __file__ not defined when loaded via exec() -- search standard paths
-    _SKILL_DIR = Path(os.getenv("VECTOR_HOME", Path.home() / ".vector")) / "skills" / "red-teaming" / "godmode"
+    _SKILL_DIR = Path(os.environ.get("VECTOR_HOME", Path.home() / ".vector")) / "skills" / "red-teaming" / "godmode"
 
 _SCRIPTS_DIR = _SKILL_DIR / "scripts"
 _TEMPLATES_DIR = _SKILL_DIR / "templates"
@@ -57,7 +57,7 @@ if _race_path.exists():
 # VectorCode config paths
 # ===================================================================
 
-VECTOR_HOME = Path(os.getenv("VECTOR_HOME", Path.home() / ".vector"))
+VECTOR_HOME = Path(os.environ.get("VECTOR_HOME", Path.home() / ".vector"))
 CONFIG_PATH = VECTOR_HOME / "config.yaml"
 PREFILL_PATH = VECTOR_HOME / "prefill.json"
 
@@ -336,13 +336,13 @@ def _get_current_model() -> tuple:
 def _get_api_key(base_url: str = None) -> str:
     """Get the appropriate API key."""
     if base_url and "openrouter" in base_url:
-        return os.getenv("OPENROUTER_API_KEY", "")
+        return os.environ.get("OPENROUTER_API_KEY", "")
     if base_url and "anthropic" in base_url:
-        return os.getenv("ANTHROPIC_API_KEY", "")
+        return os.environ.get("ANTHROPIC_API_KEY", "")
     if base_url and "openai" in base_url:
-        return os.getenv("OPENAI_API_KEY", "")
+        return os.environ.get("OPENAI_API_KEY", "")
     # Default to OpenRouter
-    return os.getenv("OPENROUTER_API_KEY", "")
+    return os.environ.get("OPENROUTER_API_KEY", "")
 
 def _test_query(client, model, messages, timeout=45):
     """Send a test query and return (content, latency, error)."""

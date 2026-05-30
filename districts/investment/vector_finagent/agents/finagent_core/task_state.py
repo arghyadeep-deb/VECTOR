@@ -1,4 +1,5 @@
 """
+from loguru import logger
 TaskState - Persistent task state for autonomous multi-step agent operations.
 
 Enables true agentic behavior by:
@@ -289,6 +290,8 @@ class ResumableTaskRunner:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.task_state] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.task_state] caught Exception: %s", _sve)
             self.state_mgr.fail_task(task_id, str(e))
             return {"success": False, "task_id": task_id, "error": str(e)}
 

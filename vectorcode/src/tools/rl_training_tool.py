@@ -364,7 +364,7 @@ async def _spawn_training_run(run_state: RunState, config_path: Path):
             stdout=trainer_log_file,
             stderr=subprocess.STDOUT,
             cwd=str(TINKER_ATROPOS_ROOT),
-            env={**os.environ, "TINKER_API_KEY": os.getenv("TINKER_API_KEY", "")},
+            env={**os.environ, "TINKER_API_KEY": os.environ.get("TINKER_API_KEY", "")},
         )
         
         # Wait for trainer to initialize (it starts FastAPI inference server on 8001)
@@ -732,7 +732,7 @@ async def rl_start_training() -> str:
         }, indent=2)
     
     # Check API keys
-    if not os.getenv("TINKER_API_KEY"):
+    if not os.environ.get("TINKER_API_KEY"):
         return json.dumps({
             "error": "TINKER_API_KEY not set. Add it to ~/.vectorcode/.env",
         }, indent=2)
@@ -884,7 +884,7 @@ async def rl_check_status(run_id: str) -> str:
         import wandb
         api = wandb.Api()
         runs = api.runs(
-            f"{os.getenv('WANDB_ENTITY', 'vector')}/{run_state.wandb_project}",
+            f"{os.environ.get('WANDB_ENTITY', 'vector')}/{run_state.wandb_project}",
             filters={"display_name": run_state.wandb_run_name}
         )
         if runs:
@@ -964,7 +964,7 @@ async def rl_get_results(run_id: str) -> str:
         import wandb
         api = wandb.Api()
         runs = api.runs(
-            f"{os.getenv('WANDB_ENTITY', 'vector')}/{run_state.wandb_project}",
+            f"{os.environ.get('WANDB_ENTITY', 'vector')}/{run_state.wandb_project}",
             filters={"display_name": run_state.wandb_run_name}
         )
         if runs:
@@ -1052,7 +1052,7 @@ async def rl_test_inference(
             "error": "No environment selected. Use rl_select_environment(name) first.",
         }, indent=2)
     
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         return json.dumps({
             "error": "OPENROUTER_API_KEY not set. Required for inference testing.",
@@ -1337,8 +1337,8 @@ def check_rl_api_keys() -> bool:
     """
     if not check_rl_python_version():
         return False
-    tinker_key = os.getenv("TINKER_API_KEY")
-    wandb_key = os.getenv("WANDB_API_KEY")
+    tinker_key = os.environ.get("TINKER_API_KEY")
+    wandb_key = os.environ.get("WANDB_API_KEY")
     return bool(tinker_key) and bool(wandb_key)
 
 
@@ -1349,9 +1349,9 @@ def get_missing_keys() -> List[str]:
     missing = []
     if not check_rl_python_version():
         missing.append(f"Python >= 3.11 (current: {sys.version_info.major}.{sys.version_info.minor})")
-    if not os.getenv("TINKER_API_KEY"):
+    if not os.environ.get("TINKER_API_KEY"):
         missing.append("TINKER_API_KEY")
-    if not os.getenv("WANDB_API_KEY"):
+    if not os.environ.get("WANDB_API_KEY"):
         missing.append("WANDB_API_KEY")
     return missing
 

@@ -16,9 +16,6 @@ from __future__ import annotations
 
 __all__ = ["PersonalityLayer", "get_personality_layer"]
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.personality import PersonalityEngine
@@ -100,6 +97,17 @@ class PersonalityLayer:
         personality_prompt = process_result.get("system_prompt", "")
         if not personality_prompt:
             return list(messages)
+
+        try:
+            from core.persona import PersonaManager
+            pm = PersonaManager.get()
+            personality_prompt = pm.inject_persona(
+                personality_prompt,
+                person_id=person_id,
+            )
+            logger.debug("[VECTOR][personality] persona injected")
+        except Exception as e:
+            logger.debug("[VECTOR][personality] persona injection skipped: {}", e)
 
         if person_id:
             personality_prompt += self._style_suffix(person_id)

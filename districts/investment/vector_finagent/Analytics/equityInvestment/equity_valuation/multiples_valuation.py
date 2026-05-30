@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Investment Multiples Valuation Module
 ======================================
 
@@ -243,8 +244,8 @@ class ComparablesAnalyzer:
                 multiples['ev_sales'] = self.ev_model.calculate_ev_sales(company_data.enterprise_value,
                                                                          company_data.revenue)
 
-        except ValidationError:
-            pass  # Skip ratios that can't be calculated
+        except ValidationError as _sve:
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] suppressed ValidationError: %s", _sve)
 
         return multiples
 
@@ -439,6 +440,8 @@ class MultiplesValuationSuite:
                 )
 
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] caught Exception: %s", _sve)
                 results[multiple_type] = f"Error: {str(e)}"
 
         return results

@@ -7,6 +7,12 @@ with the provided password.
 """
 
 import threading
+
+__all__ = [
+    "metrics_writer",
+    "ThreadSafeMetricsWriter",
+]
+
 from contextlib import contextmanager
 from typing import Optional
 

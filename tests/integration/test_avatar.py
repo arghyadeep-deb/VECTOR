@@ -1,11 +1,8 @@
 """Integration tests for Phase 1 Avatar layer (AvatarCore, AvatarVoice, AvatarState)."""
-import sys
 import os
 import unittest
 import tempfile
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestAvatarState(unittest.TestCase):

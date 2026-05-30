@@ -4,8 +4,13 @@ Model fine-tuning pipeline - trains custom Ollama models.
 """
 
 import sys
+
+__all__ = [
+    "main",
+    "TrainingPipeline",
+]
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.config import CONFIG
 from loguru import logger
@@ -366,7 +371,7 @@ class TrainingPipeline:
 async def main():
     """Test the training pipeline."""
     pipeline = TrainingPipeline()
-    print(f"Training runs: {pipeline.list_training_runs()}")
+    logger.info(f"Training runs: {pipeline.list_training_runs()}")
 
 
 if __name__ == "__main__":

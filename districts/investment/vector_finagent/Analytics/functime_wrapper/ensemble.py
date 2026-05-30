@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Ensemble Forecasting Methods
 ============================
 
@@ -299,6 +300,8 @@ def ensemble_stacking(
                     preds = [f['value'] for f in forecast_result['forecast']]
                     base_preds.append(preds)
             except Exception:
+                logger.debug("[VECTOR][Analytics.functime_wrapper.ensemble] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.functime_wrapper.ensemble] caught Exception: %s", _sve)
                 continue
 
         if len(base_preds) < 2:

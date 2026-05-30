@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Government of Canada Open Government Portal API Wrapper
 Fetches Canadian government data using hierarchical structure:
 1. Catalogue - Lists all data publishers (organizations)
@@ -106,6 +107,8 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
             "error": "Invalid JSON response from Government of Canada API"
         }
     except Exception as e:
+        logger.debug("[VECTOR][canada_gov_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][canada_gov_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {},
@@ -523,9 +526,8 @@ def download_resource_preview(resource_url: str, max_lines: int = 10) -> Dict[st
                     "rows": csv_data[1:] if len(csv_data) > 1 else [],
                     "total_columns": len(csv_data[0]) if csv_data else 0
                 }
-            except:
-                pass  # Keep raw lines if CSV parsing fails
-
+            except Exception:
+                logger.warning("[VECTOR][canada_gov_api] suppressed Exception")  # bare except
         return {
             "data": preview_data,
             "metadata": {
@@ -584,10 +586,8 @@ def get_popular_publishers(limit: int = 20) -> Dict[str, Any]:
                         "name": publisher["name"],
                         "dataset_count": total_count
                     })
-            except:
-                continue  # Skip if publisher fails
-
-        # Sort by dataset count
+            except Exception:
+                logger.debug("[VECTOR][canada_gov_api] suppressed Exception in fallback")  # bare except
         popular_publishers.sort(key=lambda x: x["dataset_count"], reverse=True)
 
         return {

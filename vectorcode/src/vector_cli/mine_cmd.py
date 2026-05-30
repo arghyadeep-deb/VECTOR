@@ -1,6 +1,7 @@
 """``jarvis mine`` command group."""
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import json

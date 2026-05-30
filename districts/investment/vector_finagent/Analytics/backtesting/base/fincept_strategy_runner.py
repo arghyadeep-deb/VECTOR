@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 VECTOR Financial Terminal - Universal Strategy Runner
 Executes strategies from the Fincept Engine registry across all backtesting providers.
 
@@ -9,13 +10,15 @@ Supports: VectorBT, Backtesting.py, Fast-Trade, Zipline, BT
 import sys
 import json
 import os
+import logging
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
+logger = logging.getLogger(__name__)
+
 # Add strategies directory to path
 STRATEGIES_DIR = Path(__file__).resolve().parent.parent.parent.parent / "strategies"
-sys.path.insert(0, str(STRATEGIES_DIR))
 
 # Import Fincept Engine
 from fincept_engine import QCAlgorithm, Symbol, TradeBar, Slice
@@ -52,7 +55,21 @@ class FinAgentStrategyRunner:
             code = f.read()
 
         # Create namespace for execution
+        _safe_builtins = {
+            "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+            "complex": complex, "dict": dict, "enumerate": enumerate,
+            "filter": filter, "float": float, "frozenset": frozenset,
+            "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+            "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+            "iter": iter, "len": len, "list": list, "map": map, "max": max,
+            "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+            "pow": pow, "print": print, "range": range, "repr": repr,
+            "reversed": reversed, "round": round, "set": set, "slice": slice,
+            "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+            "type": type, "zip": zip,
+        }
         namespace = {
+            '__builtins__': _safe_builtins,
             'QCAlgorithm': QCAlgorithm,
             'Symbol': Symbol,
             'TradeBar': TradeBar,
@@ -62,7 +79,10 @@ class FinAgentStrategyRunner:
         }
 
         # Execute strategy file
-        namespace.setdefault("__builtins__", {})
+        logger.warning(
+            "[VECTOR][security] exec strategy file in %s: %.100s",
+            __name__, code[:100],
+        )
         exec(code, namespace)
 
         # Find the algorithm class (inherits from QCAlgorithm)
@@ -118,6 +138,8 @@ class FinAgentStrategyRunner:
                 historical_data[symbol] = bars
 
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.backtesting.base.fincept_strategy_runner] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.base.fincept_strategy_runner] caught Exception: %s", _sve)
                 print(f"Error fetching data for {symbol}: {e}", file=sys.stderr)
 
         return historical_data

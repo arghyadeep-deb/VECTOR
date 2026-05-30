@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Eurostat SDMX 2.1 Data Fetcher
 GDP, employment, trade, prices, population for all EU/EEA countries.
 No API key required.
@@ -80,6 +81,8 @@ def _parse_eurostat_sdmx(data: Any, label: str = "series") -> Any:
 
         return {label: series_list, "total_series": len(series_list)}
     except Exception as e:
+        logger.debug("[VECTOR][eurostat_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][eurostat_data] caught Exception: %s", _sve)
         return {"error": f"Parse error: {str(e)}"}
 
 

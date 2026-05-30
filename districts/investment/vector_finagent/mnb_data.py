@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Magyar Nemzeti Bank (MNB) — National Bank of Hungary Data Wrapper
 Fetches exchange rate data from the MNB SOAP web service.
 
@@ -37,7 +38,10 @@ import html
 import json
 import requests
 import traceback
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta, timezone
 
@@ -175,6 +179,8 @@ class MNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return MNBError("GetCurrentExchangeRates", str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][mnb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][mnb_data] caught Exception: %s", _sve)
             return MNBError("GetCurrentExchangeRates", str(e)).to_dict()
 
     def get_range(self, start_date: str, end_date: Optional[str] = None,

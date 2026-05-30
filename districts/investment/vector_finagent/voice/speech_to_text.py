@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 speech_to_text.py — Microphone → Google Speech Recognition → JSON stdout.
 
 Protocol (one JSON object per line on stdout):
@@ -66,6 +67,8 @@ def main() -> None:
         with mic as source:
             recognizer.adjust_for_ambient_noise(source, duration=1)
     except Exception as e:
+        logger.debug("[VECTOR][voice.speech_to_text] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.speech_to_text] caught Exception: %s", _sve)
         emit({"fatal": f"Microphone calibration failed: {e}"})
         sys.exit(1)
 

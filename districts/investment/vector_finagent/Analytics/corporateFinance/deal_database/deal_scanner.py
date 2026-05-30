@@ -1,4 +1,5 @@
 """SEC Filing Scanner for M&A Deal Detection
+from loguru import logger
 
 Real data sources (no mocks, no demo data):
   1. SEC EDGAR Full-Text Search API  (efts.sec.gov)  — primary, no key needed
@@ -24,7 +25,6 @@ scripts_path = Path(__file__).parent.parent.parent.parent
 sys.path.append(str(scripts_path))
 
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 from corporateFinance.config import MA_FILING_FORMS, MATERIAL_EVENT_ITEMS
 from corporateFinance.deal_database.database_schema import MADatabase
@@ -62,6 +62,8 @@ def _get_text(url: str, timeout: int = 20) -> str:
             except UnicodeDecodeError:
                 return raw.decode("latin-1")[:80000]
     except Exception:
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_scanner] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_scanner] caught Exception: %s", _sve)
         return ""
 
 

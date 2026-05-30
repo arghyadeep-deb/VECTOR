@@ -1,3 +1,4 @@
+from loguru import logger
 """CLI shim for _bg_state."""
 try:
     from vectorcode.src.vector_cli._bg_state import *

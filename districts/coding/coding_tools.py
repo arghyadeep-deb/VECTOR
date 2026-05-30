@@ -15,9 +15,7 @@ Usage from any district:
         apply_search_replace, grep_code, read_code_file
     )
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

@@ -1,14 +1,22 @@
 """VECTOR design router - /design/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "generate_tokens",
+    "GenerateTokensReq",
+    "image_prompt",
+    "ImagePromptReq",
+    "router",
+    "spec_component",
+    "SpecComponentReq",
+    "ux_research",
+    "UxResearchReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/design", tags=["design"])
-
-
 
 
 class SpecComponentReq(BaseModel):

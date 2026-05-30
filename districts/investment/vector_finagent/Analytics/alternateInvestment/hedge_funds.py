@@ -1,4 +1,5 @@
 """hedge_funds Module"""
+from loguru import logger
 
 import numpy as np
 import pandas as pd
@@ -398,6 +399,8 @@ class HedgeFundAnalyzer(AlternativeInvestmentBase):
             return exposures
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.alternateInvestment.hedge_funds] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.hedge_funds] caught Exception: %s", _sve)
             logger.error(f"Error in multi-factor regression: {str(e)}")
             return {}
 

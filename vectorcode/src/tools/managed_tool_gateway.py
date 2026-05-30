@@ -75,7 +75,7 @@ def _access_token_is_expiring(expires_at: object, skew_seconds: int) -> bool:
 
 def read_nous_access_token() -> Optional[str]:
     """Read a Nous Subscriber OAuth access token from auth store or env override."""
-    explicit = os.getenv("TOOL_GATEWAY_USER_TOKEN")
+    explicit = os.environ.get("TOOL_GATEWAY_USER_TOKEN")
     if isinstance(explicit, str) and explicit.strip():
         return explicit.strip()
 
@@ -105,7 +105,7 @@ def read_nous_access_token() -> Optional[str]:
 
 def get_tool_gateway_scheme() -> str:
     """Return configured shared gateway URL scheme."""
-    scheme = os.getenv("TOOL_GATEWAY_SCHEME", "").strip().lower()
+    scheme = os.environ.get("TOOL_GATEWAY_SCHEME", "").strip().lower()
     if not scheme:
         return _DEFAULT_TOOL_GATEWAY_SCHEME
 
@@ -118,12 +118,12 @@ def get_tool_gateway_scheme() -> str:
 def build_vendor_gateway_url(vendor: str) -> str:
     """Return the gateway origin for a specific vendor."""
     vendor_key = f"{vendor.upper().replace('-', '_')}_GATEWAY_URL"
-    explicit_vendor_url = os.getenv(vendor_key, "").strip().rstrip("/")
+    explicit_vendor_url = os.environ.get(vendor_key, "").strip().rstrip("/")
     if explicit_vendor_url:
         return explicit_vendor_url
 
     shared_scheme = get_tool_gateway_scheme()
-    shared_domain = os.getenv("TOOL_GATEWAY_DOMAIN", "").strip().strip("/")
+    shared_domain = os.environ.get("TOOL_GATEWAY_DOMAIN", "").strip().strip("/")
     if shared_domain:
         return f"{shared_scheme}://{vendor}-gateway.{shared_domain}"
 

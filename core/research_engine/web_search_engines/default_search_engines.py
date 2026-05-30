@@ -4,6 +4,12 @@ This file can be used to initialize the search engine configurations.
 """
 
 
+
+__all__ = [
+    "get_default_elasticsearch_config",
+    "get_default_search_engine_configs",
+]
+
 def get_default_elasticsearch_config():
     """
     Returns the default Elasticsearch search engine configuration.

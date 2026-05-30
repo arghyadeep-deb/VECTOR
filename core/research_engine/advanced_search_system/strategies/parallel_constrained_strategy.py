@@ -9,6 +9,12 @@ Key improvements:
 """
 
 import concurrent.futures
+
+__all__ = [
+    "ParallelConstrainedStrategy",
+    "SearchCombination",
+]
+
 from dataclasses import dataclass
 from typing import List
 

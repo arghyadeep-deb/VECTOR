@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Portfolio Portfolio Management Module
 ===============================
@@ -1312,6 +1313,8 @@ if __name__ == "__main__":
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_management] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_management] caught Exception: %s", _sve)
         import traceback
         print(json.dumps({"error": str(e), "traceback": traceback.format_exc()}))
         sys.exit(1)

@@ -130,7 +130,7 @@ class XAIImageGenProvider(ImageGenProvider):
         return "xAI (Grok)"
 
     def is_available(self) -> bool:
-        return bool(os.getenv("XAI_API_KEY"))
+        return bool(os.environ.get("XAI_API_KEY"))
 
     def list_models(self) -> List[Dict[str, Any]]:
         return [
@@ -164,7 +164,7 @@ class XAIImageGenProvider(ImageGenProvider):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate an image using xAI's grok-imagine-image."""
-        api_key = os.getenv("XAI_API_KEY", "").strip()
+        api_key = os.environ.get("XAI_API_KEY", "").strip()
         if not api_key:
             return error_response(
                 error="XAI_API_KEY not set. Get one at https://console.x.ai/",
@@ -192,7 +192,7 @@ class XAIImageGenProvider(ImageGenProvider):
             "User-Agent": vector_xai_user_agent(),
         }
 
-        base_url = (os.getenv("XAI_BASE_URL") or "https://api.x.ai/v1").strip().rstrip("/")
+        base_url = (os.environ.get("XAI_BASE_URL") or "https://api.x.ai/v1").strip().rstrip("/")
 
         try:
             response = requests.post(

@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+__all__ = [
+    "list_local_resume_sessions",
+    "list_remote_resume_sessions",
+    "ResumeSessionInfo",
+    "ResumeSessionSource",
+    "short_session_id",
+]
+
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal

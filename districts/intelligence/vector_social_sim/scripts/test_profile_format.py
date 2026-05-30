@@ -6,13 +6,11 @@
 """
 
 import os
-import sys
 import json
 import csv
 import tempfile
 
 # 添加项目路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 

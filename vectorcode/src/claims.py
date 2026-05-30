@@ -26,8 +26,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

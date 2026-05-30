@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Functime Service - Python backend for analytics
 =================================================================
 
@@ -17,7 +18,6 @@ from datetime import datetime, timedelta
 # Add this script's directory to Python path for local imports
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
 
 import numpy as np
 
@@ -54,7 +54,9 @@ try:
             config = toml.load(f)
             if config.get('token_id') and config.get('token_secret'):
                 FUNCTIME_CLOUD_AVAILABLE = True
-except:
+except Exception as _sve:
+    logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service_polars_legacy] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service_polars_legacy] caught Exception: %s", _sve)
     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 # Use local sklearn implementation as default

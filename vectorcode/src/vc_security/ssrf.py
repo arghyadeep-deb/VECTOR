@@ -6,6 +6,7 @@
 """SSRF protection — block requests to private IPs and cloud metadata endpoints."""
 
 from __future__ import annotations
+from loguru import logger
 
 import ipaddress
 import socket

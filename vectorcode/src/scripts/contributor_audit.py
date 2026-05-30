@@ -28,7 +28,6 @@ from pathlib import Path
 # Import AUTHOR_MAP and resolve_author from the sibling release.py module
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
 
 from release import AUTHOR_MAP, resolve_author  # noqa: E402
 

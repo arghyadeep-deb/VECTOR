@@ -7,9 +7,11 @@ subprocess/pathlib instead of going through a remote sandbox.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import re
+import shlex
 import subprocess
 import tempfile
 from pathlib import Path
@@ -100,6 +102,21 @@ def _truncate_output(
 # ── Handlers ────────────────────────────────────────────────────────────
 
 
+def _validate_command_safe(command: str) -> None:
+    _DANGEROUS_PATTERNS = [
+        (";", "command chaining"),
+        ("|", "pipe injection"),
+        ("&&", "operator chaining"),
+        ("||", "operator chaining"),
+        ("`", "subshell injection"),
+        ("$(", "command substitution"),
+    ]
+    for pattern, reason in _DANGEROUS_PATTERNS:
+        if pattern in command:
+            raise ValueError(
+                f"Command contains {pattern!r} — rejected for security ({reason})"
+            )
+
 async def _bash_handler(
     args: dict[str, Any], session: Any = None, **_kw
 ) -> tuple[str, bool]:
@@ -109,13 +126,15 @@ async def _bash_handler(
     import os as _os
     if not _os.environ.get("VECTOR_ALLOW_SHELL_EXEC"):
         return "Shell execution disabled. Set VECTOR_ALLOW_SHELL_EXEC=true to enable.", False
+    _validate_command_safe(command)
     command = wrap_shell_command_with_hub_artifact_bootstrap(command, session)
+    cmd_list = shlex.split(command)
     work_dir = args.get("work_dir", ".")
     timeout = min(args.get("timeout") or DEFAULT_TIMEOUT, MAX_TIMEOUT)
     try:
         result = subprocess.run(
-            command,
-            shell=True,
+            cmd_list,
+            shell=False,
             capture_output=True,
             text=True,
             cwd=work_dir,

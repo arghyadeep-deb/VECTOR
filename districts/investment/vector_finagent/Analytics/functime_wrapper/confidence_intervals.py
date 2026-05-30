@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Confidence Intervals and Prediction Intervals Module
 ====================================================
 
@@ -78,6 +79,8 @@ def bootstrap_prediction_intervals(
                     fc_times = [f['time'] for f in fc_result['forecast']]
                     bootstrap_forecasts.append(fc_values)
             except Exception:
+                logger.debug("[VECTOR][Analytics.functime_wrapper.confidence_intervals] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.functime_wrapper.confidence_intervals] caught Exception: %s", _sve)
                 continue
 
         if len(bootstrap_forecasts) < 10:

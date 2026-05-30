@@ -1,0 +1,6 @@
+{
+  "rule_id": "T1485_data_destruction",
+  "event": "{'source': 'log_aggregator', 'level': 'CRITICAL', 'message': 'shred /dev/sda executed'}",
+  "pattern": "(?i)(rm -rf|shred|DROP TABLE|TRUNCATE|format.*drive|wipe.*disk|del /f /s)",
+  "matched_on": "shred"
+}

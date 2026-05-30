@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+__all__ = [
+    "create_formatter",
+    "JsonOutputFormatter",
+    "OutputFormatter",
+    "StreamingJsonOutputFormatter",
+    "TextOutputFormatter",
+]
+
+
 from abc import ABC, abstractmethod
 import json
 import sys
@@ -17,6 +26,7 @@ from typing import TextIO
 # [VECTOR] removed:     TeleportWaitingForGitHubEvent,
 # [VECTOR] removed: )
 from core.coding_assistant.core.types import AssistantEvent, BaseEvent, LLMMessage, OutputFormat
+from loguru import logger
 
 
 class OutputFormatter(ABC):
@@ -48,7 +58,8 @@ class TextOutputFormatter(OutputFormatter):
         self._messages.append(message)
 
     def _print(self, text: str) -> None:
-        print(text, file=self.stream)
+        logger.info(text, file=self.stream)
+
 
     def on_event(self, event: BaseEvent) -> None:
         match event:

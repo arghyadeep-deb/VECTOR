@@ -54,7 +54,6 @@ from pydantic import Field
 # Ensure vectorcode root is on path
 _repo_root = Path(__file__).resolve().parent.parent
 if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
 
 # ---------------------------------------------------------------------------
 # Optional HuggingFace datasets import
@@ -244,7 +243,7 @@ class WebResearchEnv(VectorAgentBaseEnv):
                 base_url="https://openrouter.ai/api/v1",
                 model_name="anthropic/claude-sonnet-4.5",
                 server_type="openai",
-                api_key=os.getenv("OPENROUTER_API_KEY", ""),
+                api_key=os.environ.get("OPENROUTER_API_KEY", ""),
                 health_check=False,
             )
         ]

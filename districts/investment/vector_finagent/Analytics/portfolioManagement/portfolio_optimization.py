@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Portfolio Optimization — Multiple strategies using scipy optimization.
 Input: JSON via stdin: {"symbols": ["AAPL","MSFT"], "strategy": "max_sharpe"}
 Output: JSON to stdout with weights and performance metrics
@@ -137,6 +138,8 @@ def optimize_portfolio(symbols, strategy, params=None):
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_optimization] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_optimization] caught Exception: %s", _sve)
         import traceback
         return {"error": str(e), "traceback": traceback.format_exc()}
 

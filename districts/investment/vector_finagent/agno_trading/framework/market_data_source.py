@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Market data source using CCXT for fetching candles and snapshots.
 """
 
@@ -114,6 +115,8 @@ class CCXTMarketDataSource:
                 result[symbol] = candles
 
             except Exception as e:
+                logger.debug("[VECTOR][agno_trading.framework.market_data_source] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agno_trading.framework.market_data_source] caught Exception: %s", _sve)
                 print(f"Error fetching candles for {symbol}: {e}", flush=True)
                 result[symbol] = []
 

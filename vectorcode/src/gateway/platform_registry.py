@@ -128,7 +128,7 @@ class PlatformEntry:
     # Signature: (yaml_cfg: dict, platform_cfg: dict) -> Optional[dict]
     # Called from ``load_gateway_config()`` after the generic shared-key loop
     # and before ``_apply_env_overrides``.  Mutating ``os.environ`` is allowed
-    # (use ``not os.getenv(...)`` guards to preserve env > YAML precedence);
+    # (use ``not os.environ.get(...)`` guards to preserve env > YAML precedence);
     # any returned dict is merged into ``PlatformConfig.extra``.  Exceptions
     # are caught and logged at debug level.
     # See website/docs/developer-guide/adding-platform-adapters.md for the

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BudgetGuard — layered ceilings for an agentic task.
 
 Four independent caps; the first to breach aborts the task with a `budget_stop`
@@ -98,8 +99,9 @@ class BudgetGuard:
                 # Pydantic-style attrs.
                 in_tok = int(getattr(metrics, "input_tokens", 0) or 0)
                 out_tok = int(getattr(metrics, "output_tokens", 0) or 0)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][agents.finagent_core.agentic.budget] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.agentic.budget] suppressed Exception: %s", _sve)
 
         if in_tok == 0 and out_tok == 0:
             # Best-effort estimation.
@@ -107,6 +109,7 @@ class BudgetGuard:
             try:
                 content = getattr(response_obj, "content", "") or ""
             except Exception:
+                logger.debug("[VECTOR][agents.finagent_core.agentic.budget] caught Exception: %s", _sve)
                 content = ""
             in_tok = _estimate_tokens(prompt_text)
             out_tok = _estimate_tokens(str(content))

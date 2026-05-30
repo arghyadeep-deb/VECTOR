@@ -28,6 +28,18 @@ loader.
 """
 
 import sqlalchemy as sa
+
+__all__ = [
+    "branch_labels",
+    "depends_on",
+    "DEPRECATED_KEYS",
+    "down_revision",
+    "downgrade",
+    "RESCOPE_MAPPINGS",
+    "revision",
+    "upgrade",
+]
+
 from alembic import op
 from sqlalchemy import inspect
 

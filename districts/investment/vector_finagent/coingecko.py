@@ -1,4 +1,5 @@
 """
+from loguru import logger
 CoinGecko Exhaustive API Wrapper
 A complete and literal wrapper for all 75+ public CoinGecko API endpoints.
 This is a comprehensive utility for accessing the full range of CoinGecko's data.
@@ -176,6 +177,8 @@ def main(args=None):
     except IndexError:
         result = {"error": f"Missing arguments for command '{cmd}'."}
     except Exception as e:
+        logger.debug("[VECTOR][coingecko] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][coingecko] caught Exception: %s", _sve)
         result = {"error": f"An unexpected error occurred: {e}"}
 
     print(json.dumps(result, indent=2))

@@ -6,8 +6,6 @@ RULE 5 — screenshot data stays local, never transmitted externally.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from datetime import datetime, timezone

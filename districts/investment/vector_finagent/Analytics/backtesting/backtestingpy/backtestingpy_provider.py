@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Backtesting.py Provider Implementation
 
 Lightweight, fast backtesting using the backtesting.py library.
@@ -111,7 +112,9 @@ class BacktestingPyProvider(BacktestingProviderBase):
         try:
             import backtesting
             return backtesting.__version__
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] caught Exception: %s", _sve)
             return "0.3.3"
 
     @property
@@ -831,16 +834,14 @@ class BacktestingPyProvider(BacktestingProviderBase):
                         try:
                             start_ts = pd.Timestamp(start_date)
                             data = data[data.index >= start_ts]
-                        except:
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+                        except Exception:
+                            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] suppressed Exception in fallback")  # bare except
                     if end_date and end_date != '':
                         try:
                             end_ts = pd.Timestamp(end_date)
                             data = data[data.index <= end_ts]
-                        except:
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+                        except Exception:
+                            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] suppressed Exception in fallback")  # bare except
                     self._log(f'Loaded {len(data)} bars of GOOG test data (from {data.index[0]} to {data.index[-1]})')
                     if len(data) > 0:
                         self._last_load_was_real = True
@@ -949,25 +950,31 @@ class BacktestingPyProvider(BacktestingProviderBase):
             if validation_error:
                 self._error(f'Strategy code validation failed: {validation_error}')
                 return _strat.STRATEGY_BUILDERS['sma_crossover'](params, opt_params)
+            _safe_builtins = {
+                "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+                "complex": complex, "dict": dict, "enumerate": enumerate,
+                "filter": filter, "float": float, "frozenset": frozenset,
+                "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+                "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+                "iter": iter, "len": len, "list": list, "map": map, "max": max,
+                "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+                "pow": pow, "print": print, "range": range, "repr": repr,
+                "reversed": reversed, "round": round, "set": set, "slice": slice,
+                "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+                "type": type, "zip": zip, "True": True, "False": False, "None": None,
+            }
             exec_globals = {
-                '__builtins__': {
-                    'range': range, 'len': len, 'abs': abs, 'min': min, 'max': max,
-                    'sum': sum, 'round': round, 'int': int, 'float': float, 'bool': bool,
-                    'str': str, 'list': list, 'dict': dict, 'tuple': tuple,
-                    'enumerate': enumerate, 'zip': zip, 'map': map, 'filter': filter,
-                    'sorted': sorted, 'reversed': reversed, 'isinstance': isinstance,
-                    'issubclass': issubclass, 'hasattr': hasattr, 'getattr': getattr,
-                    'setattr': setattr, 'property': property, 'staticmethod': staticmethod,
-                    'classmethod': classmethod, 'super': super, 'type': type,
-                    'True': True, 'False': False, 'None': None,
-                },
+                '__builtins__': _safe_builtins,
                 'Strategy': Strategy,
                 'crossover': crossover,
                 'pd': pd,
                 'np': np,
-                '__builtins__': {},
             }
             try:
+                logger.warning(
+                    "[VECTOR][security] exec strategy code in %s: %.100s",
+                    __name__, code,
+                )
                 exec(code, exec_globals)
                 for _name, obj in exec_globals.items():
                     if isinstance(obj, type) and issubclass(obj, Strategy) and obj is not Strategy:
@@ -1241,10 +1248,8 @@ class BacktestingPyProvider(BacktestingProviderBase):
                         else:
                             try:
                                 duration_bars = int(dur)
-                            except:
-                                duration_bars = 0
-
-                    # Size determines direction
+                            except Exception:
+                                logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] suppressed Exception in fallback")  # bare except
                     size = float(row.get('Size', 0)) if 'Size' in trades_df.columns else 0
                     side = 'long' if size > 0 else 'short'
 

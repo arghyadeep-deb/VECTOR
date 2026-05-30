@@ -8,37 +8,37 @@ from loguru import logger
 # Tool group definitions (from VectorCode mcp-bridge/index.js)
 TOOL_GROUPS: Dict[str, dict] = {
     "intelligence": {
-        "enabled": os.getenv("MCP_GROUP_INTELLIGENCE", "true") != "false",
+        "enabled": os.environ.get("MCP_GROUP_INTELLIGENCE", "true") != "false",
         "description": "Self-learning intelligence — routing, memory, pattern training",
         "prefixes": ["hooks_"],
     },
     "agents": {
-        "enabled": os.getenv("MCP_GROUP_AGENTS", "true") != "false",
+        "enabled": os.environ.get("MCP_GROUP_AGENTS", "true") != "false",
         "description": "Agent lifecycle, swarm coordination, task management",
         "prefixes": ["agent_", "swarm_", "task_", "session_", "workflow_", "coordination_"],
     },
     "memory": {
-        "enabled": os.getenv("MCP_GROUP_MEMORY", "true") != "false",
+        "enabled": os.environ.get("MCP_GROUP_MEMORY", "true") != "false",
         "description": "Vector memory, AgentDB, embeddings, semantic search",
         "prefixes": ["memory_", "agentdb_", "embeddings_"],
     },
     "devtools": {
-        "enabled": os.getenv("MCP_GROUP_DEVTOOLS", "true") != "false",
+        "enabled": os.environ.get("MCP_GROUP_DEVTOOLS", "true") != "false",
         "description": "Hooks, code analysis, performance profiling, GitHub integration",
         "prefixes": ["hooks_", "analyze_", "performance_", "github_", "terminal_", "config_"],
     },
     "security": {
-        "enabled": os.getenv("MCP_GROUP_SECURITY", "false") == "true",
+        "enabled": os.environ.get("MCP_GROUP_SECURITY", "false") == "true",
         "description": "AI defence, PII detection, claims management",
         "prefixes": ["aidefence_", "claims_", "transfer_"],
     },
     "browser": {
-        "enabled": os.getenv("MCP_GROUP_BROWSER", "false") == "true",
+        "enabled": os.environ.get("MCP_GROUP_BROWSER", "false") == "true",
         "description": "Headless browser control",
         "prefixes": ["browser_"],
     },
     "neural": {
-        "enabled": os.getenv("MCP_GROUP_NEURAL", "false") == "true",
+        "enabled": os.environ.get("MCP_GROUP_NEURAL", "false") == "true",
         "description": "Neural network operations, DAA",
         "prefixes": ["neural_", "daa_"],
     },

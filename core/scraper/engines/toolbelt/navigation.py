@@ -4,6 +4,14 @@ Functions related to files and URLs
 
 from urllib.parse import urlparse
 
+__all__ = [
+    "construct_proxy_dict",
+    "create_async_intercept_handler",
+    "create_intercept_handler",
+    "ProxyDict",
+]
+
+
 from playwright.async_api import Route as async_Route
 from msgspec import Struct, structs, convert, ValidationError
 from playwright.sync_api import Route

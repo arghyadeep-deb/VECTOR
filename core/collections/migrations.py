@@ -24,7 +24,6 @@ __all__ = [
 ]
 
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import importlib.util
 from dataclasses import dataclass

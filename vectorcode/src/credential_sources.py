@@ -14,8 +14,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))               # vectorcode pkg parent
 
 try:
     from core.config import CONFIG  # noqa: F401

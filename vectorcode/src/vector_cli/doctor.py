@@ -738,7 +738,7 @@ def run_doctor(args):
         check_info(f"Install for faster search: {_system_package_install_cmd('ripgrep')}")
     
     # Docker (optional)
-    terminal_env = os.getenv("TERMINAL_ENV", "local")
+    terminal_env = os.environ.get("TERMINAL_ENV", "local")
     if terminal_env == "docker":
         if shutil.which("docker"):
             # Check if docker daemon is running
@@ -765,7 +765,7 @@ def run_doctor(args):
     
     # SSH (if using ssh backend)
     if terminal_env == "ssh":
-        ssh_host = os.getenv("TERMINAL_SSH_HOST")
+        ssh_host = os.environ.get("TERMINAL_SSH_HOST")
         if ssh_host:
             # Try to connect
             try:
@@ -788,7 +788,7 @@ def run_doctor(args):
     
     # Daytona (if using daytona backend)
     if terminal_env == "daytona":
-        daytona_key = os.getenv("DAYTONA_API_KEY")
+        daytona_key = os.environ.get("DAYTONA_API_KEY")
         if daytona_key:
             check_ok("Daytona API key", "(configured)")
         else:
@@ -868,7 +868,7 @@ def run_doctor(args):
     print()
     print(color("◆ API Connectivity", Colors.CYAN, Colors.BOLD))
     
-    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     if openrouter_key:
         print("  Checking OpenRouter API...", end="", flush=True)
         try:
@@ -956,7 +956,7 @@ def run_doctor(args):
     for _pname, _env_vars, _default_url, _base_env, _supports_health_check in _apikey_providers:
         _key = ""
         for _ev in _env_vars:
-            _key = os.getenv(_ev, "")
+            _key = os.environ.get(_ev, "")
             if _key:
                 break
         if _key:
@@ -968,7 +968,7 @@ def run_doctor(args):
             print(f"  Checking {_pname} API...", end="", flush=True)
             try:
                 import httpx
-                _base = os.getenv(_base_env, "") if _base_env else ""
+                _base = os.environ.get(_base_env, "") if _base_env else ""
                 # Auto-detect Kimi Code keys (sk-kimi-) → api.kimi.com/coding/v1
                 # (OpenAI-compat surface, which exposes /models for health check).
                 if not _base and _key.startswith("sk-kimi-"):
@@ -1058,7 +1058,6 @@ def run_doctor(args):
     
     try:
         # Add project root to path for imports
-        sys.path.insert(0, str(PROJECT_ROOT))
         from model_tools import check_tool_availability, TOOLSET_REQUIREMENTS
         
         available, unavailable = check_tool_availability()

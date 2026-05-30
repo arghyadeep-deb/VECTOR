@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fast-Trade Evaluate Module
 
 Rule evaluation engine for post-backtest filtering and analysis.
@@ -61,6 +62,8 @@ def evaluate_rules(
                 else:
                     failed.append(rule)
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_evaluate] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_evaluate] caught Exception: %s", _sve)
                 errors.append(f"Rule {rule}: {str(e)}")
                 failed.append(rule)
 

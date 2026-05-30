@@ -4,13 +4,11 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))               # vectorcode pkg parent
 
 from loguru import logger
+from pathlib import Path
 
 
 class LogLevel(IntEnum):

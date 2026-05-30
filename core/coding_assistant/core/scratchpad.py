@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "get_scratchpad_dir",
+    "init_scratchpad",
+    "is_scratchpad_path",
+]
+
+
 from pathlib import Path
 import tempfile
 

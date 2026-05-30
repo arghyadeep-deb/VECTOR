@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Equity Investment Calculations Module
 ======================================
@@ -540,7 +541,9 @@ class OptionCalculations:
 
             return implied_vol
 
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.equityInvestment.utils.calculations] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.utils.calculations] caught Exception: %s", _sve)
             return np.nan
 
 

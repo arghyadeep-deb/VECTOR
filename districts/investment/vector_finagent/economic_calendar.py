@@ -1,3 +1,4 @@
+from loguru import logger
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -82,6 +83,8 @@ def scrape_forex_calendar(date_str="oct15.2026"):
                     events.append(event)
 
             except Exception as e:
+                logger.debug("[VECTOR][economic_calendar] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][economic_calendar] caught Exception: %s", _sve)
                 continue
 
     finally:

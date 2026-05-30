@@ -6,6 +6,12 @@ where specific clues need to be matched to find a location, person, or event.
 """
 
 from dataclasses import dataclass, field
+
+__all__ = [
+    "BrowseCompOptimizedStrategy",
+    "QueryClues",
+]
+
 from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 

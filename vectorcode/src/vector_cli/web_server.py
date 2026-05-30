@@ -30,7 +30,6 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from vector_cli import __version__, __release_date__
 from vector_cli.config import (
@@ -435,13 +434,13 @@ class EnvVarReveal(BaseModel):
     key: str
 
 
-_GATEWAY_HEALTH_URL = os.getenv("GATEWAY_HEALTH_URL")
+_GATEWAY_HEALTH_URL = os.environ.get("GATEWAY_HEALTH_URL")
 try:
-    _GATEWAY_HEALTH_TIMEOUT = float(os.getenv("GATEWAY_HEALTH_TIMEOUT", "3"))
+    _GATEWAY_HEALTH_TIMEOUT = float(os.environ.get("GATEWAY_HEALTH_TIMEOUT", "3"))
 except (ValueError, TypeError):
     _log.warning(
         "Invalid GATEWAY_HEALTH_TIMEOUT value %r — using default 3.0s",
-        os.getenv("GATEWAY_HEALTH_TIMEOUT"),
+        os.environ.get("GATEWAY_HEALTH_TIMEOUT"),
     )
     _GATEWAY_HEALTH_TIMEOUT = 3.0
 
@@ -1130,7 +1129,7 @@ def _anthropic_oauth_status() -> Dict[str, Any]:
             "has_refresh_token": bool(cc_creds.get("refreshToken")),
         }
 
-    env_token = os.getenv("ANTHROPIC_TOKEN") or os.getenv("CLAUDE_CODE_OAUTH_TOKEN")
+    env_token = os.environ.get("ANTHROPIC_TOKEN") or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
     if env_token:
         return {
             "logged_in": True,
@@ -1575,8 +1574,8 @@ async def _start_device_code_flow(provider_id: str) -> Dict[str, Any]:
         import httpx
         pconfig = PROVIDER_REGISTRY["nous"]
         portal_base_url = (
-            os.getenv("VECTOR_PORTAL_BASE_URL")
-            or os.getenv("NOUS_PORTAL_BASE_URL")
+            os.environ.get("VECTOR_PORTAL_BASE_URL")
+            or os.environ.get("NOUS_PORTAL_BASE_URL")
             or pconfig.portal_base_url
         ).rstrip("/")
         client_id = pconfig.client_id
@@ -1814,7 +1813,7 @@ def _codex_full_login_worker(session_id: str) -> None:
         import uuid as _uuid
         pool = load_pool("openai-codex")
         base_url = (
-            os.getenv("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
+            os.environ.get("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
             or DEFAULT_CODEX_BASE_URL
         )
         entry = PooledCredential(

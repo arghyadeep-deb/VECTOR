@@ -9,6 +9,18 @@ Tables: folders, emails, attachments
 """
 from __future__ import annotations
 
+__all__ = [
+    "CREATE_ATTACHMENTS",
+    "CREATE_EMAILS",
+    "CREATE_FOLDERS",
+    "CREATE_INDEXES",
+    "DEFAULT_FOLDERS",
+    "EMAIL_DB_PATH",
+    "get_connection",
+    "init_schema",
+]
+
+
 import sqlite3
 from pathlib import Path
 

@@ -7,12 +7,9 @@ other sensitive patterns from any text before it leaves the device.
 Enforces VECTOR's local-first privacy (Rule 11) by preventing accidental
 PII leakage to cloud providers.
 """
-import sys
 import asyncio
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

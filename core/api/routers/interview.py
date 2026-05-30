@@ -1,14 +1,24 @@
 """VECTOR interview router - /interview/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "company_research",
+    "CompanyResearchReq",
+    "evaluate_answer",
+    "EvaluateAnswerReq",
+    "generate_question",
+    "GenerateQuestionReq",
+    "interview_report",
+    "InterviewReportReq",
+    "router",
+    "start_interview",
+    "StartInterviewReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/interview", tags=["interview"])
-
-
 
 
 class StartInterviewReq(BaseModel):

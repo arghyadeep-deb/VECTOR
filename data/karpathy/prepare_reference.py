@@ -9,6 +9,7 @@ Usage:
 Data and tokenizer are stored in ~/.cache/autoresearch/.
 """
 
+from loguru import logger
 import os
 import sys
 import time

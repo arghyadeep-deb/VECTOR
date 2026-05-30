@@ -1,6 +1,7 @@
 """Guard against stray native writes to fd 2 corrupting the Textual TUI."""
 
 from __future__ import annotations
+from loguru import logger
 
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -41,7 +42,7 @@ def stderr_guard() -> Generator[None]:
 
     Textual renders to ``sys.__stderr__`` (fd 2) and captures Python-level
     ``sys.stderr`` via ``contextlib.redirect_stderr``.  Native C code (e.g.
-    macOS ``libsystem_malloc``) that calls ``write(2, â€¦)`` bypasses that
+    macOS ``libsystem_malloc``) that calls ``write(2, …)`` bypasses that
     redirect and corrupts the TUI.
 
     This guard:

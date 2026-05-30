@@ -10,6 +10,7 @@ Usage:
     python analyze_landing.py https://example.com/landing --json
 """
 
+from loguru import logger
 import argparse
 import json
 import sys

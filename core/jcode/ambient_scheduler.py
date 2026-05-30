@@ -12,16 +12,25 @@ Ported from the high-performance agent harness ambient.rs.
 """
 from __future__ import annotations
 
+__all__ = [
+    "AmbientScheduler",
+    "AmbientState",
+    "AmbientStatus",
+    "CycleStatus",
+    "Priority",
+    "ScheduledItem",
+    "ScheduleTarget",
+]
+
+
 import json
 import uuid
-import sys
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _AMBIENT_DIR = Path.home() / ".vector_ca" / "ambient"

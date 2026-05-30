@@ -3,6 +3,12 @@ Rate-limited wrapper for LLM calls.
 """
 
 from typing import Optional
+
+__all__ = [
+    "AdaptiveLLMWait",
+    "create_rate_limited_llm_wrapper",
+]
+
 from urllib.parse import urlparse
 
 from loguru import logger

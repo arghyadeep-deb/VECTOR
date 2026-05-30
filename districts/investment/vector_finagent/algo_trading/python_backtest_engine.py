@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Python Strategy Backtest Engine
 
 Loads and executes QCAlgorithm-compatible Python strategies from the Fincept
@@ -23,9 +24,12 @@ import sys
 import argparse
 import os
 import traceback
+import logging
 import importlib.util
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 # Debug log collector
 DEBUG_LOG = []
@@ -41,7 +45,6 @@ debug(f"Working directory: {os.getcwd()}")
 # Add strategies folder to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 STRATEGIES_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "strategies")
-sys.path.insert(0, STRATEGIES_DIR)
 debug(f"Strategies dir: {STRATEGIES_DIR}")
 
 try:
@@ -67,8 +70,22 @@ def load_registry() -> Dict[str, Any]:
         raise FileNotFoundError(f"Registry not found: {registry_path}")
 
     # Execute registry file to get STRATEGY_REGISTRY dict
-    registry_globals = {"__builtins__": {}}
+    _safe_builtins = {
+        "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+        "complex": complex, "dict": dict, "enumerate": enumerate,
+        "filter": filter, "float": float, "frozenset": frozenset,
+        "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+        "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+        "iter": iter, "len": len, "list": list, "map": map, "max": max,
+        "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+        "pow": pow, "print": print, "range": range, "repr": repr,
+        "reversed": reversed, "round": round, "set": set, "slice": slice,
+        "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+        "type": type, "zip": zip,
+    }
+    registry_globals = {"__builtins__": _safe_builtins}
     with open(registry_path, 'r', encoding='utf-8') as f:
+        logger.warning("[VECTOR][security] exec registry in %s", __name__)
         exec(f.read(), registry_globals)
 
     return registry_globals.get('STRATEGY_REGISTRY', {})
@@ -98,7 +115,24 @@ def load_strategy_class(strategy_id: str, custom_code: Optional[str] = None):
     if custom_code:
         debug("Loading from custom code")
         # Execute custom code to get the strategy class
-        strategy_globals = {"__builtins__": {}}
+        _safe_builtins = {
+            "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+            "complex": complex, "dict": dict, "enumerate": enumerate,
+            "filter": filter, "float": float, "frozenset": frozenset,
+            "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+            "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+            "iter": iter, "len": len, "list": list, "map": map, "max": max,
+            "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+            "pow": pow, "print": print, "range": range, "repr": repr,
+            "reversed": reversed, "round": round, "set": set, "slice": slice,
+            "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+            "type": type, "zip": zip,
+        }
+        strategy_globals = {"__builtins__": _safe_builtins}
+        logger.warning(
+            "[VECTOR][security] exec custom strategy code in %s: %.100s",
+            __name__, custom_code,
+        )
         exec(custom_code, strategy_globals)
         # Find the QCAlgorithm subclass
         for name, obj in strategy_globals.items():
@@ -342,6 +376,8 @@ def run_backtest(
     try:
         algo.initialize()
     except Exception as e:
+        logger.debug("[VECTOR][algo_trading.python_backtest_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.python_backtest_engine] caught Exception: %s", _sve)
         debug(f"initialize() error: {e}\n{traceback.format_exc()}")
         return {
             'success': False,

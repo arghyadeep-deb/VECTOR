@@ -12,13 +12,11 @@ holds end-to-end.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 
 # ── Tier 1 — novel-value modules ─────────────────────────────────────────────
@@ -195,7 +193,7 @@ class TestVectorWiring:
         _record_telemetry("vector-coder", 0.5, {}, None)  # should be a silent no-op
 
     def test_agent_registry_loads(self):
-        from vectorcode.src.districts.registry import get_registry
+        from vectorcode.src.agents.registry import get_registry
         reg = get_registry()
         agents = reg.list_all()
         assert isinstance(agents, list)

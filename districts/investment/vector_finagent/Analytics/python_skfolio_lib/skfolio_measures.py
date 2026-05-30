@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Complete skfolio Measures Implementation
 ======================================
 
@@ -305,6 +306,8 @@ class MeasuresExtended:
             return float(result) if not np.isnan(result) else np.nan
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_measures] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_measures] caught Exception: %s", _sve)
             logger.error(f"Error calculating {measure_name}: {e}")
             return np.nan
 

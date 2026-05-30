@@ -1,14 +1,23 @@
 """VECTOR calls router - /calls/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "add_call_contact",
+    "AddCallContactReq",
+    "list_call_contacts",
+    "router",
+    "screen_call",
+    "ScreenCallReq",
+    "transcribe_call",
+    "TranscribeCallReq",
+    "voice_respond",
+    "VoiceRespondReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/calls", tags=["calls"])
-
-
 
 
 class ScreenCallReq(BaseModel):

@@ -5,9 +5,6 @@ HealthMonitor + NudgeEngine. Only fires in PROACTIVE/HYBRID + outside DND.
 
 Spec §2 (Phase 2 empathy wiring).
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import datetime
 from dataclasses import dataclass

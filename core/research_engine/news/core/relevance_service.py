@@ -4,6 +4,12 @@ Handles business logic for calculating relevance scores and trending metrics.
 """
 
 from typing import Optional, Dict, List
+
+__all__ = [
+    "get_relevance_service",
+    "RelevanceService",
+]
+
 from .base_card import BaseCard
 
 

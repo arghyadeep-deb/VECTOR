@@ -9,6 +9,13 @@ This strategy addresses common issues with candidate discovery and evidence gath
 """
 
 import math
+
+__all__ = [
+    "EnhancedEvidenceBasedStrategy",
+    "QueryPattern",
+    "SourceProfile",
+]
+
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional, Set, Tuple

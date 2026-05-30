@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Algo Live Runner
 
 Long-running Python process spawned by the host for strategy deployment.
@@ -20,7 +21,6 @@ import uuid
 import logging
 from datetime import datetime
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from condition_evaluator import load_candles_from_db, evaluate_condition_group
 
 # ── Heavy debug logging ──────────────────────────────────────────────
@@ -309,6 +309,8 @@ def main():
                         prices = conn.execute("SELECT symbol, price, updated_at FROM strategy_price_cache ORDER BY updated_at DESC LIMIT 10").fetchall()
                         log.warning(f"  strategy_price_cache recent entries: {prices}")
                     except Exception as dbg_e:
+                        logger.debug("[VECTOR][algo_trading.algo_live_runner] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][algo_trading.algo_live_runner] caught Exception: %s", _sve)
                         log.warning(f"  could not read cache tables: {dbg_e}")
                 time.sleep(check_interval)
                 continue

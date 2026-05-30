@@ -18,7 +18,8 @@ Quick start:
     # Scrape a bot-protected page
     async with StealthBrowserClient() as client:
         result = await client.scrape_page("https://linkedin.com/in/someone")
-        print(result["snapshot"])   # token-efficient accessibility tree
+        logger.info(result["snapshot"])   # token-efficient accessibility tree
+
 
     # Search without getting blocked
         result = await client.search("AI startups 2026", engine="google")
@@ -29,6 +30,7 @@ from core.stealth_browser.client import StealthBrowserClient
 from core.stealth_browser.server_manager import StealthBrowserServer, get_server
 from core.stealth_browser.macros import macro_url, SEARCH_MACROS, list_engines
 from core.stealth_browser.transcripts import get_youtube_transcript
+from loguru import logger
 
 __all__ = [
     "StealthBrowserClient",

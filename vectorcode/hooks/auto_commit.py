@@ -7,6 +7,7 @@ VECTOR Auto-Commit Hook — PostToolUse on Edit|Write|MultiEdit
 Stages + commits every successful file change so you never lose work.
 Silent on failure — never blocks the session.
 """
+from loguru import logger
 import json
 import subprocess
 import sys

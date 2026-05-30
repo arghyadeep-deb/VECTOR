@@ -337,7 +337,7 @@ def _scrape_client_credentials() -> Tuple[str, str]:
 
 
 def _get_client_id() -> str:
-    env_val = (os.getenv(ENV_CLIENT_ID) or "").strip()
+    env_val = (os.environ.get(ENV_CLIENT_ID) or "").strip()
     if env_val:
         return env_val
     if _DEFAULT_CLIENT_ID:
@@ -347,7 +347,7 @@ def _get_client_id() -> str:
 
 
 def _get_client_secret() -> str:
-    env_val = (os.getenv(ENV_CLIENT_SECRET) or "").strip()
+    env_val = (os.environ.get(ENV_CLIENT_SECRET) or "").strip()
     if env_val:
         return env_val
     if _DEFAULT_CLIENT_SECRET:
@@ -815,7 +815,7 @@ def _bind_callback_server(preferred_port: int = DEFAULT_REDIRECT_PORT) -> Tuple[
 
 
 def _is_headless() -> bool:
-    return any(os.getenv(k) for k in _HEADLESS_ENV_VARS)
+    return any(os.environ.get(k) for k in _HEADLESS_ENV_VARS)
 
 
 # =============================================================================
@@ -1043,7 +1043,7 @@ def resolve_project_id_from_env() -> str:
         "GOOGLE_CLOUD_PROJECT",
         "GOOGLE_CLOUD_PROJECT_ID",
     ):
-        val = (os.getenv(var) or "").strip()
+        val = (os.environ.get(var) or "").strip()
         if val:
             return val
     return ""

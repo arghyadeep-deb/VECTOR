@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Complete skfolio Optimization Models Implementation
 ================================================
 
@@ -867,6 +868,8 @@ class OptimizationEngine:
             return result
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_optimization] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_optimization] caught Exception: %s", _sve)
             logger.error(f"Optimization failed: {e}")
 
             # Return error result

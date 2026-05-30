@@ -1,4 +1,5 @@
 """
+from loguru import logger
 SuperAgent - Triage routing for query distribution
 
 Routes queries to appropriate sub-agents based on intent classification.
@@ -235,6 +236,8 @@ class LLMRouter:
             try:
                 return self._llm_classify(query, provider, model_id)
             except Exception as e:
+                logger.debug("[VECTOR][agents.finagent_core.super_agent] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.super_agent] caught Exception: %s", _sve)
                 logger.warning(f"LLM routing failed, using keyword fallback: {e}")
 
         # Keyword fallback

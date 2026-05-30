@@ -8,6 +8,12 @@ Provides a single interface to fetch content from various sources:
 """
 
 from typing import Any, Dict, List, Optional
+
+__all__ = [
+    "ContentFetcher",
+    "DEFAULT_MAX_CONTENT_LENGTH",
+]
+
 from loguru import logger
 
 from .url_classifier import URLClassifier, URLType
@@ -188,7 +194,7 @@ class ContentFetcher:
         if not downloader:
             # Fall back to generic HTML downloader.  This triggers when a
             # specialized downloader (ArXiv, SemanticScholar, etc.) failed
-            # to import â€” playwright_html may still be available.
+            # to import — playwright_html may still be available.
             # Use _get_downloader so the instance is cached and cleaned up
             # by close().
             downloader = self._get_downloader(URLType.HTML)
@@ -209,7 +215,7 @@ class ContentFetcher:
 
             # HTML fallback: when a specialized downloader fails (e.g.
             # arXiv PDF unavailable, PubMed paywalled), try generic HTML
-            # extraction â€” the abstract/landing page often has useful content.
+            # extraction — the abstract/landing page often has useful content.
             if not result.is_success and url_type not in _NO_HTML_FALLBACK:
                 logger.warning(
                     f"Specialized downloader failed for {url}, "
@@ -226,7 +232,7 @@ class ContentFetcher:
                     downloader = html_downloader
 
             if result.is_success and result.content:
-                # Decode content â€” check PDF magic bytes first, then try
+                # Decode content — check PDF magic bytes first, then try
                 # UTF-8, and reject anything that is neither.
                 if result.content[:4] == b"%PDF":
                     from ..research_library.downloaders.base import (

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Banco Central do Brasil (BCB) Data Wrapper
 Fetches data from the BCB SGS (Sistema Gerenciador de Series Temporais) API.
 
@@ -216,6 +217,8 @@ class BCBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BCBError(series_key, str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][bcb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bcb_data] caught Exception: %s", _sve)
             return BCBError(series_key, str(e)).to_dict()
 
     def _get_by_id(self, series_id: int, name: str, start_date: Optional[str] = None,

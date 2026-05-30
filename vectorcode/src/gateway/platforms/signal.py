@@ -152,7 +152,7 @@ def _looks_like_e164_number(value: str) -> bool:
 
 def check_signal_requirements() -> bool:
     """Check if Signal is configured (has URL and account)."""
-    return bool(os.getenv("SIGNAL_HTTP_URL") and os.getenv("SIGNAL_ACCOUNT"))
+    return bool(os.environ.get("SIGNAL_HTTP_URL") and os.environ.get("SIGNAL_ACCOUNT"))
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ class SignalAdapter(BasePlatformAdapter):
         self.ignore_stories = extra.get("ignore_stories", True)
 
         # Parse allowlists — group policy is derived from presence of group allowlist
-        group_allowed_str = os.getenv("SIGNAL_GROUP_ALLOWED_USERS", "")
+        group_allowed_str = os.environ.get("SIGNAL_GROUP_ALLOWED_USERS", "")
         self.group_allow_from = set(_parse_comma_list(group_allowed_str))
 
         # HTTP client

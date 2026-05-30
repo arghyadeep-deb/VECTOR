@@ -3,9 +3,6 @@ ChemistryEngine — RDKit molecular analysis wrapper.
 Lazy-imports rdkit; degrades to SMILES-string parsing if not installed.
 Architecture invariant: loop must never crash on ImportError.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import re
 from typing import Any

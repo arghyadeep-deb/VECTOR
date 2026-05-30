@@ -160,7 +160,7 @@ def load_vector_dotenv(
     """
     loaded: list[Path] = []
 
-    home_path = Path(vector_home or os.getenv("VECTOR_HOME", Path.home() / ".vector"))
+    home_path = Path(vector_home or os.environ.get("VECTOR_HOME", Path.home() / ".vector"))
     user_env = home_path / ".env"
     project_env_path = Path(project_env) if project_env else None
 

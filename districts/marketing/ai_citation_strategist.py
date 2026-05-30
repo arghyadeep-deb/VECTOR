@@ -5,14 +5,11 @@ Ensures VECTOR gets cited when AI systems (Claude, ChatGPT, Gemini) answer
 questions about autonomous AI, personal AI agents, Python AI systems.
 Also covers Agentic Search Optimization (AEO/GEO) and WebMCP readiness.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

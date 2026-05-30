@@ -2,12 +2,18 @@
 Structured metadata extraction using extruct.
 
 Extracts JSON-LD, OpenGraph, and microdata from HTML pages.
-Used to enrich text extraction with structured data â€” especially
+Used to enrich text extraction with structured data — especially
 useful for product pages, articles, and other schema.org-annotated
 content where text extraction alone misses key information.
 """
 
 from typing import Any, Dict, Optional
+
+__all__ = [
+    "extract_metadata",
+    "metadata_to_text",
+]
+
 
 from loguru import logger
 
@@ -37,7 +43,7 @@ def extract_metadata(html: str, url: str = "") -> Dict[str, Any]:
     try:
         import extruct
     except ImportError:
-        logger.warning("extruct not installed â€” skipping metadata extraction")
+        logger.warning("extruct not installed — skipping metadata extraction")
         return result
 
     try:
@@ -71,7 +77,7 @@ def metadata_to_text(metadata: Dict[str, Any]) -> Optional[str]:
     """
     parts = []
 
-    # JSON-LD â€” richest source (Schema.org types)
+    # JSON-LD — richest source (Schema.org types)
     for item in metadata.get("json_ld", []):
         item_type = item.get("@type", "")
         if isinstance(item_type, list):
@@ -91,7 +97,7 @@ def metadata_to_text(metadata: Dict[str, Any]) -> Optional[str]:
         elif item_type in ("Dataset", "CreativeWork"):
             parts.extend(_format_generic(item))
 
-    # Microdata â€” check for types not covered by JSON-LD
+    # Microdata — check for types not covered by JSON-LD
     for item in metadata.get("microdata", []):
         item_type = item.get("@type", "")
         if isinstance(item_type, list):
@@ -106,7 +112,7 @@ def metadata_to_text(metadata: Dict[str, Any]) -> Optional[str]:
         ):
             parts.extend(_format_software(item))
 
-    # OpenGraph â€” fallback when JSON-LD/microdata don't have structured types
+    # OpenGraph — fallback when JSON-LD/microdata don't have structured types
     if not parts:
         for item in metadata.get("opengraph", []):
             og_parts = _format_opengraph(item)

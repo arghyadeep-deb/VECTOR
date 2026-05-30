@@ -2,7 +2,10 @@
 
 import hashlib
 import logging
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Optional
 
 logger = logging.getLogger(__name__)

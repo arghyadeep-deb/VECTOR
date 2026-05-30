@@ -1,4 +1,5 @@
 """
+from loguru import logger
 News Geolocation — Extract locations from headlines and geocode them.
 Also queries nearby infrastructure via OpenStreetMap Overpass API.
 
@@ -205,6 +206,8 @@ def nearby_infrastructure(lat, lon, radius_km):
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][news_geolocation] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][news_geolocation] caught Exception: %s", _sve)
         return {"success": False, "error": f"Overpass API error: {str(e)}"}
 
 

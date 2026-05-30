@@ -7,11 +7,15 @@ Ported from the high-performance agent harness multiedit.rs.
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "EditOperation",
+    "multiedit",
+]
+
+
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 

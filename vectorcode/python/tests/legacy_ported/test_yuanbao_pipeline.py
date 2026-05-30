@@ -18,7 +18,6 @@ import asyncio
 # Ensure project root is on the path
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
@@ -850,7 +849,6 @@ class TestPipelineIntegration:
         adapter = make_adapter()
         assert hasattr(adapter, "_inbound_pipeline")
         assert isinstance(adapter._inbound_pipeline, InboundPipeline)
-
 
 
 if __name__ == "__main__":

@@ -69,7 +69,7 @@ def _save_snapshots(data: dict) -> None:
 
 
 def _get_scratch_dir() -> Path:
-    custom_scratch = os.getenv("TERMINAL_SCRATCH_DIR")
+    custom_scratch = os.environ.get("TERMINAL_SCRATCH_DIR")
     if custom_scratch:
         scratch_path = Path(custom_scratch)
         scratch_path.mkdir(parents=True, exist_ok=True)
@@ -80,7 +80,7 @@ def _get_scratch_dir() -> Path:
 
     scratch = Path("/scratch")
     if scratch.exists() and os.access(scratch, os.W_OK):
-        user_scratch = scratch / os.getenv("USER", "vector") / "vectorcode"
+        user_scratch = scratch / os.environ.get("USER", "vector") / "vectorcode"
         user_scratch.mkdir(parents=True, exist_ok=True)
         logger.info("Using /scratch for sandboxes: %s", user_scratch)
         return user_scratch
@@ -90,7 +90,7 @@ def _get_scratch_dir() -> Path:
 
 
 def _get_apptainer_cache_dir() -> Path:
-    cache_dir = os.getenv("APPTAINER_CACHEDIR")
+    cache_dir = os.environ.get("APPTAINER_CACHEDIR")
     if cache_dir:
         cache_path = Path(cache_dir)
         cache_path.mkdir(parents=True, exist_ok=True)

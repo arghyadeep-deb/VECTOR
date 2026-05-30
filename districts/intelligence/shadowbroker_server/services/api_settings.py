@@ -3,6 +3,7 @@ API Settings management — serves the API key registry and allows updates.
 Keys are stored in the backend .env file and loaded via python-dotenv.
 """
 
+from loguru import logger
 import os
 import re
 import tempfile

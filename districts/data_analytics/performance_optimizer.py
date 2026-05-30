@@ -3,14 +3,11 @@ Performance Optimizer — profiling, bottleneck detection, optimization recommen
 Loaded from: vectorcode/agents/vector-performance-optimizer.md
 District: data_analytics
 """
-import sys
 import asyncio
 import time
 import cProfile
 import pstats
 import io
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

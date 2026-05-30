@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 GluonTS Worker Handler
 Covers all 13 operations: 9 deep-learning forecasters, 3 baseline predictors, 1 evaluation.
 """
 
 import json
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
 
 from forecasters import (
     forecast_feedforward, forecast_deepar, forecast_tft, forecast_wavenet,
@@ -56,6 +55,8 @@ def main(args):
         return handler(data)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service_legacy] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service_legacy] caught Exception: %s", _sve)
         import traceback
         return json.dumps({
             "error": f"GluonTS error: {str(e)}",

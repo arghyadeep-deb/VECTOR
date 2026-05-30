@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fast-Trade Provider Implementation
 
 Fast, low-code backtesting library utilizing pandas and technical analysis indicators.
@@ -88,7 +89,6 @@ from ..base.base_provider import (
 # Import fast-trade wrapper modules
 # Fix: Use absolute imports instead of relative imports for CLI execution
 ft_module_path = Path(__file__).parent
-sys.path.insert(0, str(ft_module_path))
 
 from ft_backtest import (
     run_backtest as ft_run,
@@ -150,7 +150,9 @@ class FastTradeProvider(BacktestingProviderBase):
         try:
             import fast_trade
             return fast_trade.__version__
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.fasttrade.fasttrade_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.fasttrade.fasttrade_provider] caught Exception: %s", _sve)
             return "0.4.0"
 
     @property
@@ -724,15 +726,18 @@ class FastTradeProvider(BacktestingProviderBase):
 
     def get_historical_data(self, request: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get historical data - not implemented"""
-        raise NotImplementedError('Historical data fetching not supported by Fast-Trade provider')
+        logger.warning("Fast-Trade provider does not support get_historical_data")
+        return [{"error": "Historical data fetching not supported by Fast-Trade provider"}]
 
     def calculate_indicator(self, indicator_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate indicator - not implemented"""
-        raise NotImplementedError('Standalone indicator calculation not supported')
+        logger.warning("Fast-Trade provider does not support calculate_indicator")
+        return {"error": "Standalone indicator calculation not supported"}
 
     def optimize(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Optimization - not implemented"""
-        raise NotImplementedError('Optimization not natively supported by Fast-Trade')
+        logger.warning("Fast-Trade provider does not support optimize")
+        return {"error": "Optimization not natively supported by Fast-Trade"}
 
     def get_strategies(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Return strategy catalog in BT shape: {strategies: {category: [...]}}."""

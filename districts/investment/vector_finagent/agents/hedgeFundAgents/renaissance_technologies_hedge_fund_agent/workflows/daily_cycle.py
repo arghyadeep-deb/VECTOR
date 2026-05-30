@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Daily Trading Cycle Workflow
 
 The complete end-to-end daily workflow that orchestrates all
@@ -344,6 +345,8 @@ Provide your decision with full rationale.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.daily_cycle] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.daily_cycle] caught Exception: %s", _sve)
             return RunResponse(
                 content=f"Daily trading cycle failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

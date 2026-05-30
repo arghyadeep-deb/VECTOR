@@ -1,19 +1,23 @@
 """Multi-database sync manager for V.E.C.T.O.R.
 
 Manages sync across 4 backends:
-1. SQLite (local) â€” primary write target, always available
-2. Supabase (primary cloud) â€” via REST API
-3. Turso (secondary cloud) â€” via REST API
-4. Cloudflare D1 (edge) â€” via Workers REST API
+1. SQLite (local) — primary write target, always available
+2. Supabase (primary cloud) — via REST API
+3. Turso (secondary cloud) — via REST API
+4. Cloudflare D1 (edge) — via Workers REST API
 
 All sync uses last-write-wins based on updated_at timestamp.
 """
 
 import sys
+
+__all__ = [
+    "get_manager",
+    "MultiDBManager",
+]
+
 import re
 import asyncio
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _SAFE_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
@@ -66,12 +70,12 @@ class MultiDBManager:
     def write_local(self, table: str, record: dict) -> bool:
         """Write to local SQLite. Always succeeds."""
         if table not in self._ALLOWED_TABLES:
-            logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' â€” blocked")
+            logger.error(f"[VECTOR][multi_db] write_local: unknown table '{table}' — blocked")
             return False
         columns = list(record.keys())
         for col in columns:
             if not _SAFE_IDENTIFIER.match(col):
-                logger.error(f"[VECTOR][multi_db] write_local: unsafe column '{col}' â€” blocked")
+                logger.error(f"[VECTOR][multi_db] write_local: unsafe column '{col}' — blocked")
                 return False
         try:
             conn = self._get_local().conn
@@ -105,7 +109,7 @@ class MultiDBManager:
 
         # Queue for later
         self.queue_sync({"table": table, "record": record, "attempt": 0})
-        logger.warning(f"[VECTOR][multi_db] Cloud write failed â€” queued for retry")
+        logger.warning(f"[VECTOR][multi_db] Cloud write failed — queued for retry")
         return results
 
     async def write_all(self, table: str, record: dict) -> dict:
@@ -184,7 +188,7 @@ class MultiDBManager:
         """Check connectivity to all 4 DBs. Returns status per backend."""
         results = {"local": False, "supabase": False, "turso": False, "d1": False, "latency_ms": {}}
 
-        # SQLite â€” always available if we got this far
+        # SQLite — always available if we got this far
         try:
             conn = self._get_local().conn
             conn.execute("SELECT 1").fetchone()
@@ -273,11 +277,11 @@ class MultiDBManager:
 
         # Validate table and column names before any string interpolation
         if table not in self._ALLOWED_TABLES:
-            logger.error(f"[VECTOR][multi_db] _write_turso: unknown table '{table}' â€” blocked")
+            logger.error(f"[VECTOR][multi_db] _write_turso: unknown table '{table}' — blocked")
             return False
         for col in record.keys():
             if not _SAFE_IDENTIFIER.match(col):
-                logger.error(f"[VECTOR][multi_db] _write_turso: unsafe column '{col}' â€” blocked")
+                logger.error(f"[VECTOR][multi_db] _write_turso: unsafe column '{col}' — blocked")
                 return False
 
         url = self._get_config("turso_url")
@@ -541,6 +545,6 @@ if __name__ == "__main__":
         # Test stats
         stats = mgr.get_stats()
 
-        print(f"âœ… multi_db_manager OK â€” local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
+        print(f"âœ… multi_db_manager OK — local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
 
     asyncio.run(_smoke())

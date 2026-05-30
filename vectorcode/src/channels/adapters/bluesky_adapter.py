@@ -1,6 +1,5 @@
 """VECTOR Bluesky Channel Adapter — AT Protocol decentralized social."""
 from __future__ import annotations
-import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from loguru import logger
 
 class BlueskyAdapter:
@@ -11,8 +10,8 @@ class BlueskyAdapter:
     """
     def __init__(self):
         import os
-        self.handle = os.getenv("BLUESKY_HANDLE","")
-        self.password = os.getenv("BLUESKY_PASSWORD","")
+        self.handle = os.environ.get("BLUESKY_HANDLE","")
+        self.password = os.environ.get("BLUESKY_PASSWORD","")
         self._client = None
 
     def _get_client(self):

@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "ApprovedRule",
+    "PermissionContext",
+    "PermissionScope",
+    "RequiredPermission",
+]
+
+
 from enum import StrEnum, auto
 
 from pydantic import BaseModel, Field

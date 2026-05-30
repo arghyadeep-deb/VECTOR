@@ -1,8 +1,12 @@
 import sys
+
+__all__ = [
+    "AudioStreamer",
+    "RingBuffer",
+]
+
 import time
 import threading
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from loguru import logger

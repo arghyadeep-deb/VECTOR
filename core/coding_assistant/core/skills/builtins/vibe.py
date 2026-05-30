@@ -397,7 +397,6 @@ Custom agents are TOML files in `~/.vibe/agents/NAME.toml`.
 - `/leanstall` - Install the Lean 4 agent (leanstral)
 - `/unleanstall` - Uninstall the Lean 4 agent
 - `/data-retention` - Show data retention information
-- `/teleport` - Teleport session to Vibe Code (only available when Vibe Code is enabled)
 - `/exit` - Exit the application
 
 ## Skills System

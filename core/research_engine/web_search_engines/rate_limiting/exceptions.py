@@ -3,6 +3,13 @@ Rate limiting specific exceptions for search engines.
 """
 
 
+
+__all__ = [
+    "AdaptiveRetryError",
+    "RateLimitConfigError",
+    "RateLimitError",
+]
+
 class RateLimitError(Exception):
     """Raised when a search engine hits rate limits."""
 

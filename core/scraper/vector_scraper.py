@@ -1,5 +1,5 @@
 """
-VECTOR Scraper â€” district-ready adapters for all three fetcher tiers.
+VECTOR Scraper — district-ready adapters for all three fetcher tiers.
 
 Wraps core/scraper's Fetcher/DynamicFetcher/StealthyFetcher with:
   - VECTOR permission gateway integration
@@ -31,13 +31,19 @@ Usage from any district:
 """
 from __future__ import annotations
 
+__all__ = [
+    "fetch_to_markdown",
+    "get_scraper",
+    "quick_fetch",
+    "ScrapeResult",
+    "VectorScraper",
+]
+
+
 import asyncio
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -61,7 +67,7 @@ class ScrapeResult:
 
 class VectorScraper:
     """
-    Unified VECTOR scraping interface â€” one class for all three fetcher tiers.
+    Unified VECTOR scraping interface — one class for all three fetcher tiers.
 
     Tier selection:
         fetch()         â†’ HTTP with TLS fingerprint (fastest, ~100ms)
@@ -189,7 +195,7 @@ class VectorScraper:
         selector: str | None = None,
     ) -> ScrapeResult:
         """
-        Anti-bot fetch â€” Cloudflare Turnstile bypass, fingerprint spoofing.
+        Anti-bot fetch — Cloudflare Turnstile bypass, fingerprint spoofing.
         Use for: G2, LinkedIn, Cloudflare-protected sites, finance portals.
         Slower (~3-8s) but bypasses nearly all bot detection.
         """
@@ -337,7 +343,7 @@ class VectorScraper:
     ) -> list[dict]:
         """
         Multi-page spider crawl with automatic link following.
-        Supports checkpoints â€” press Ctrl+C and resume from same directory.
+        Supports checkpoints — press Ctrl+C and resume from same directory.
         """
         if not self._check_url(start_url):
             return []
@@ -418,7 +424,7 @@ if __name__ == "__main__":
         assert sel.css("h1::text").get() == "VECTOR"
 
         # Test smart_fetch fallback logic (just checks it runs)
-        print("OK vector_scraper.py â€” SSRF guard + parsing verified")
+        print("OK vector_scraper.py — SSRF guard + parsing verified")
         print("Note: Network tests require internet connection")
 
     asyncio.run(_test())

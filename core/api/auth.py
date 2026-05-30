@@ -8,9 +8,13 @@ Security design for a local personal project:
 """
 
 import sys
+
+__all__ = [
+    "security",
+    "verify_api_key",
+]
+
 import os
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials

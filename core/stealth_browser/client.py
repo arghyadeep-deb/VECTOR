@@ -9,7 +9,8 @@ Usage:
     async with StealthBrowserClient() as client:
         await client.ensure_server()
         content = await client.scrape_page("https://linkedin.com/in/someone")
-        print(content["snapshot"])
+        logger.info(content["snapshot"])
+
 
     # Or search with anti-detection:
         result = await client.search("AI startups 2026", engine="google")
@@ -19,12 +20,10 @@ from __future__ import annotations
 import asyncio
 import base64
 import sys
-from pathlib import Path
 from typing import Optional
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.stealth_browser.macros import macro_url
 from loguru import logger
@@ -296,7 +295,7 @@ class StealthBrowserClient:
                 await asyncio.sleep(wait_ms / 1000)
             snap = await self.snapshot(tab_id)
             links = await self.get_links(tab_id)
-            logger.info("[VECTOR][stealth] scraped {} â€” snapshot={} chars links={}", url[:60], len(snap), len(links))
+            logger.info("[VECTOR][stealth] scraped {} — snapshot={} chars links={}", url[:60], len(snap), len(links))
             return {"url": url, "snapshot": snap, "links": links, "tab_id": tab_id}
         finally:
             if close_after and tab_id:
@@ -331,7 +330,7 @@ if __name__ == "__main__":
         client = StealthBrowserClient()
         healthy = await client.is_healthy()
         await client.close()
-        print(f"OK client.py â€” base_url={client._base}")
+        print(f"OK client.py — base_url={client._base}")
         print(f"  server healthy: {healthy}")
         if not healthy:
             print(f"  (start server: cd core/stealth_browser/server && node server.js)")

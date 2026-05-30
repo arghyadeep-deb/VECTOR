@@ -165,9 +165,9 @@ class QQAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.QQBOT)
 
         extra = config.extra or {}
-        self._app_id = str(extra.get("app_id") or os.getenv("QQ_APP_ID", "")).strip()
+        self._app_id = str(extra.get("app_id") or os.environ.get("QQ_APP_ID", "")).strip()
         self._client_secret = str(
-            extra.get("client_secret") or os.getenv("QQ_CLIENT_SECRET", "")
+            extra.get("client_secret") or os.environ.get("QQ_CLIENT_SECRET", "")
         ).strip()
         self._markdown_support = bool(extra.get("markdown_support", True))
 
@@ -1631,13 +1631,13 @@ class QQAdapter(BasePlatformAdapter):
                     }
 
         # 2. QQ-specific env vars (set by `vector setup gateway` / `vector gateway`)
-        qq_stt_key = os.getenv("QQ_STT_API_KEY", "")
+        qq_stt_key = os.environ.get("QQ_STT_API_KEY", "")
         if qq_stt_key:
-            base_url = os.getenv(
+            base_url = os.environ.get(
                 "QQ_STT_BASE_URL",
                 "https://open.bigmodel.cn/api/coding/paas/v4",
             )
-            model = os.getenv("QQ_STT_MODEL", "glm-asr")
+            model = os.environ.get("QQ_STT_MODEL", "glm-asr")
             return {
                 "base_url": base_url.rstrip("/"),
                 "api_key": qq_stt_key,

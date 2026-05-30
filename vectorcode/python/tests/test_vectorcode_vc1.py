@@ -2,10 +2,6 @@
 VC-1 Core Foundation Tests
 All tests exactly as specified in plan-vc1-core-foundation.md
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent / 'vectorcode'))  # vectorcode package
 
 import pytest
 

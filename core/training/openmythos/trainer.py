@@ -19,11 +19,19 @@ Architecture: OpenMythos RDT (Recurrent Depth Transformer)
 """
 
 import sys
+
+__all__ = [
+    "check_setup",
+    "create_modelfile",
+    "export_training_data",
+    "SelfImprovementTrainer",
+    "train",
+]
+
 import json
 import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _OPENMYTHOS_REPO = Path(__file__).parent.parent.parent.parent.parent / \
     "GitHub/kyegomez_OpenMythos/repo"
@@ -96,7 +104,6 @@ def train(data_path: Path, epochs: int = 3, output_dir: Path = None) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Add OpenMythos to path
-    sys.path.insert(0, str(_OPENMYTHOS_REPO))
 
     try:
         import torch

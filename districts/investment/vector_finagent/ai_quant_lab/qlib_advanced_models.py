@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Advanced Models Module
 Time-Series Neural Networks and Advanced Architectures
 Supports LSTM, GRU, Transformer, and hybrid models for financial time-series
@@ -115,6 +116,8 @@ class AdvancedModelsManager:
                     self.models = data.get('models', {})
                     self.training_history = data.get('history', {})
             except Exception as e:
+                logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_models] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_models] caught Exception: %s", _sve)
                 print(f"Warning: Could not load cached models: {e}", file=sys.stderr)
 
     def _save_state(self):

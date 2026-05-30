@@ -1,12 +1,9 @@
 """Integration tests — Session A6: SynthesisBridge.get_recent_patterns() → daily briefing."""
 from __future__ import annotations
 
-import sys
 import inspect
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _MARKER = "A6_TEST_XDOM_PATTERN"
 

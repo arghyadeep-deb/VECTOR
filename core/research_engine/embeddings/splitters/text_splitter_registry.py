@@ -6,6 +6,13 @@ based on configuration, similar to how embeddings_config.py works for embeddings
 """
 
 from typing import Optional, List, Any
+
+__all__ = [
+    "get_text_splitter",
+    "is_semantic_chunker_available",
+    "VALID_SPLITTER_TYPES",
+]
+
 from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
     TokenTextSplitter,

@@ -4,8 +4,15 @@ API manager - wraps all V.E.C.T.O.R. API endpoints.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+
+__all__ = [
+    "APIClient",
+    "APIManager",
+    "APIRoute",
+    "HttpMethod",
+    "main",
+]
+
 
 from core.config import CONFIG
 from loguru import logger
@@ -324,10 +331,12 @@ async def main():
 
     manager.register_route("GET", "/test", test_handler, "Test endpoint")
 
-    print("Routes:", manager.list_routes())
+    logger.info("Routes:", manager.list_routes())
+
 
     health = await manager.health_check()
-    print(f"Health: {health}")
+    logger.info(f"Health: {health}")
+
 
     await manager.close()
 

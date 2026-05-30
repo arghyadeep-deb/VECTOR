@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Data Wrapper - COMPREHENSIVE VERSION
 Most comprehensive Chinese financial data API with 1,200+ endpoints
 Returns JSON output for Qt/C++ integration
@@ -134,6 +135,8 @@ class AKShareDataWrapper:
                     "timestamp": int(datetime.now().timestamp())
                 }
         except Exception as e:
+            logger.debug("[VECTOR][akshare_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_data] caught Exception: %s", _sve)
             error_obj = AKShareError(
                 endpoint=func.__name__,
                 error=str(e),

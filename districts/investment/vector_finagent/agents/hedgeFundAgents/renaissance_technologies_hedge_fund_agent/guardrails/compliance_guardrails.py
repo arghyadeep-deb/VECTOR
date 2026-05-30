@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Compliance Guardrails
 
 Regulatory and compliance guardrails:
@@ -264,7 +265,9 @@ class TradeTimeGuardrail(Guardrail):
         now_utc = datetime.utcnow()
         try:
             now_et = pytz.utc.localize(now_utc).astimezone(self.timezone)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.compliance_guardrails] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.compliance_guardrails] caught Exception: %s", _sve)
             now_et = now_utc  # Fallback if pytz not available
             return GuardrailResult(
                 guardrail_name=self.name,

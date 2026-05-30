@@ -1,10 +1,10 @@
 """
-VECTOR Peer Discovery â€” finds other VECTOR nodes on the network.
+VECTOR Peer Discovery — finds other VECTOR nodes on the network.
 
 Discovery methods:
-  1. Static config  â€” hosts listed in VECTOR_PEERS env var or config file
-  2. LAN broadcast  â€” UDP multicast on local network (auto-discover)
-  3. Cloud registry â€” register with a central VECTOR cloud node (Phase 3)
+  1. Static config  — hosts listed in VECTOR_PEERS env var or config file
+  2. LAN broadcast  — UDP multicast on local network (auto-discover)
+  3. Cloud registry — register with a central VECTOR cloud node (Phase 3)
 
 Usage:
     discovery = PeerDiscovery(node_id="vector-legion", port=7790)
@@ -15,17 +15,24 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "ANNOUNCE_TTL",
+    "MULTICAST_GROUP",
+    "MULTICAST_PORT",
+    "PeerDiscovery",
+    "PeerRegistry",
+]
+
+
 import asyncio
 import json
 import os
 import secrets
 import socket
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.network.ofp_protocol import PeerInfo, DEFAULT_PORT, PROTOCOL_VERSION
 
@@ -283,6 +290,6 @@ if __name__ == "__main__":
         assert len(peers) == 2
         del os.environ["VECTOR_PEERS"]
 
-        print("OK peer_discovery.py â€” registry persistence + static discovery verified")
+        print("OK peer_discovery.py — registry persistence + static discovery verified")
 
     asyncio.run(_test())

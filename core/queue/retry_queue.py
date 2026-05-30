@@ -6,6 +6,12 @@ After 5 attempts the action moves to the dead-letter table.
 The scheduler_loop (every 30s) calls RetryQueue.get().pop_due() to drain it.
 """
 import sqlite3
+
+__all__ = [
+    "RetryItem",
+    "RetryQueue",
+]
+
 import json
 import time
 import datetime

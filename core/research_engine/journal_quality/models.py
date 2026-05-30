@@ -24,6 +24,17 @@ ride along automatically — no Alembic, no migration plumbing.
 
 from __future__ import annotations
 
+__all__ = [
+    "Abbreviation",
+    "Institution",
+    "JournalQualityBase",
+    "PredatoryHijacked",
+    "PredatoryJournal",
+    "PredatoryPublisher",
+    "Source",
+]
+
+
 from sqlalchemy import Boolean, CheckConstraint, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

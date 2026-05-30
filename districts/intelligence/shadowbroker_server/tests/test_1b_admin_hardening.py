@@ -11,6 +11,7 @@ Covers:
 - env_check.py validate_env: WARNING (not CRITICAL) when ADMIN_KEY missing + ALLOW_INSECURE_ADMIN=False
 """
 
+from loguru import logger
 import logging
 from unittest.mock import MagicMock, patch
 

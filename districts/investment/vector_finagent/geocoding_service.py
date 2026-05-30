@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Geocoding Service using geopy
 Provides location search, autocomplete, and reverse geocoding
 Returns JSON output for Qt/C++ integration
@@ -67,6 +68,8 @@ def search_location(query: str, limit: int = 5) -> Dict[str, Any]:
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][geocoding_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][geocoding_service] caught Exception: %s", _sve)
         return {
             "success": False,
             "error": str(e),

@@ -7,6 +7,7 @@ from typing import Any
 from loguru import logger
 
 from core.config import CONFIG
+from core.city.agent_base import AgentBase
 from .detector import EmergencyDetector, EmergencyEvent
 
 _system_instance: EmergencyResponseSystem | None = None
@@ -27,8 +28,13 @@ async def _emit(domain: str, signal_name: str, value: Any, source: str = "extern
     return None
 
 
-class EmergencyResponseSystem:
+class EmergencyResponseSystem(AgentBase):
     def __init__(self, test_mode: bool = False):
+        super().__init__(
+            agent_id=f"emergency_response_{int(time.time())}",
+            name="emergency_response",
+            district="emergency",
+        )
         self._config = CONFIG.get("emergency", {})
         self._detector = EmergencyDetector()
         self._classifier = SeverityClassifier()
@@ -118,3 +124,17 @@ class EmergencyResponseSystem:
             "escalation_paused": self._escalation._paused if hasattr(self._escalation, "_paused") else False,
             "log_summary": self._log.summary(days=1),
         }
+
+    def health_check(self) -> dict[str, Any]:
+        return {
+            "agent": self.name,
+            "district": self.district,
+            "hp": self.health_points,
+            "status": self.get_status(),
+            "running": self._running,
+            "tasks_active": len(self._tasks),
+            "channels_reachable": True,
+        }
+
+    def fallback_chain(self) -> list[str]:
+        return ["local_rules", "emergency_contacts", "llm_triage"]

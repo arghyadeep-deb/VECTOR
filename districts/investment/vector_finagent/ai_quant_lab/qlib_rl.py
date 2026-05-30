@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Reinforcement Learning Module
 Qlib RL integration for portfolio management and trading strategy optimization
 Supports DQN, PPO, A2C, SAC algorithms for automated trading
@@ -71,6 +72,8 @@ if STABLE_BASELINES_AVAILABLE:
                         reward_mean = float(sum(rewards) / len(rewards))
                 loss = float(self.logger.name_to_value.get("train/loss", 0.0))
             except Exception:
+                logger.debug("[VECTOR][ai_quant_lab.qlib_rl] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][ai_quant_lab.qlib_rl] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             print(json.dumps({
                 "event": "progress",

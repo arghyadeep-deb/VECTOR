@@ -1,4 +1,5 @@
 """Risk Factor Summation Method"""
+from loguru import logger
 from typing import Dict, Any
 from enum import Enum
 import sys
@@ -246,6 +247,8 @@ def main():
             print(json.dumps(result))
             sys.exit(1)
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.startup_valuation.risk_factor_summation] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.startup_valuation.risk_factor_summation] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

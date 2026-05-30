@@ -7,6 +7,17 @@ tracks its own migration version via the alembic_version table.
 """
 
 import os
+
+__all__ = [
+    "get_alembic_config",
+    "get_current_revision",
+    "get_head_revision",
+    "get_migrations_dir",
+    "needs_migration",
+    "run_migrations",
+    "stamp_database",
+]
+
 import time
 from pathlib import Path
 from typing import Optional
@@ -186,8 +197,8 @@ def stamp_database(engine: Engine, revision: str = "head") -> None:
 
     Concurrency: If two callers race to stamp a fresh database, one will hit
     "table alembic_version already exists" (OperationalError) or a duplicate
-    PK on version_num (IntegrityError). Both outcomes are benign â€” the DB
-    ends up stamped â€” so we swallow them after verifying the table+row are
+    PK on version_num (IntegrityError). Both outcomes are benign — the DB
+    ends up stamped — so we swallow them after verifying the table+row are
     in place. A genuine failure (no row appeared) is re-raised.
 
     Args:
@@ -213,7 +224,7 @@ def stamp_database(engine: Engine, revision: str = "head") -> None:
         if not looks_like_race or get_current_revision(engine) is None:
             raise
         # Race-loss path: another caller stamped first. Don't claim we
-        # stamped it ourselves â€” log at debug only.
+        # stamped it ourselves — log at debug only.
         logger.warning(
             f"stamp_database({revision}) lost race to concurrent caller "
             f"({type(exc).__name__}); database is stamped, continuing"
@@ -236,7 +247,7 @@ def _drop_orphan_alembic_temp_tables(conn: Connection) -> None:
     sqlite build), the temp table persists. The next attempt then fails
     at ``op.batch_alter_table`` with ``table _alembic_tmp_* already exists``.
 
-    This runs in autocommit mode at the SQLite level â€” each ``DROP TABLE``
+    This runs in autocommit mode at the SQLite level — each ``DROP TABLE``
     briefly takes the file write lock and releases it. If a concurrent
     migration is mid-batch_alter_table on the same table, our DROP blocks
     on the SQLite write lock (busy_timeout=10000); by the time we
@@ -279,11 +290,11 @@ def _disable_fk_for_migration(conn: Connection) -> None:
     freezes FK in the connect-time ON state for the rest of the upgrade.
     That defeats migration 0007's defensive PRAGMA OFF and makes its
     orphan-scrub DELETE fail with ``foreign key mismatch`` on tables
-    whose FK target lacks a UNIQUE backing â€” exactly the broken-schema
+    whose FK target lacks a UNIQUE backing — exactly the broken-schema
     state migration 0007 is meant to repair.
 
     The caller is responsible for re-enabling FK after the migration
-    transaction commits, BEFORE returning the connection to the pool â€”
+    transaction commits, BEFORE returning the connection to the pool —
     see ``run_migrations``.
     """
     conn.exec_driver_sql("PRAGMA foreign_keys = OFF")
@@ -292,7 +303,7 @@ def _disable_fk_for_migration(conn: Connection) -> None:
     # driver doesn't auto-begin). Roll back the no-op SQLAlchemy
     # transaction so the caller's ``conn.begin()`` is allowed to start
     # a fresh one. ``PRAGMA foreign_keys`` is connection-level state and
-    # survives ROLLBACK at the SQLite level â€” see
+    # survives ROLLBACK at the SQLite level — see
     # https://www.sqlite.org/pragma.html#pragma_foreign_keys.
     conn.rollback()
 
@@ -306,7 +317,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
     databases. This ensures any missing tables are created.
 
     When ``target == "head"`` and the database is already at head, the call
-    short-circuits without opening a write transaction â€” calling
+    short-circuits without opening a write transaction — calling
     ``command.upgrade()`` unconditionally would still open a write transaction
     via ``engine.begin()`` (taking a RESERVED lock on the SQLite file) just to
     discover there's nothing to apply, serialising concurrent readers behind
@@ -324,7 +335,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
       connection returns to the pool.
 
     On failure inside the migration transaction, the inner
-    ``conn.begin()`` rolls back automatically â€” the database stays at
+    ``conn.begin()`` rolls back automatically — the database stays at
     its previous revision. The original exception is re-raised so
     callers can decide how to handle it.
 
@@ -384,7 +395,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
             )
 
         # User-DB sentinels: both tables date to project inception
-        # (2025-06-29) and have never been renamed. We require BOTH â€”
+        # (2025-06-29) and have never been renamed. We require BOTH —
         # any single one could be present on a partial-init test DB
         # (e.g. one that ran `Setting.__table__.create()` directly)
         # where we'd want 0001's `create_all()` to add the missing
@@ -406,7 +417,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
 
     # Short-circuit when the database is already at head. Calling
     # command.upgrade() unconditionally opens a write transaction via
-    # engine.begin() even when there is nothing to apply â€” SQLite takes
+    # engine.begin() even when there is nothing to apply — SQLite takes
     # a RESERVED lock on the file as soon as the first DML lands inside
     # that transaction, serialising concurrent readers behind a no-op on
     # every cold engine reopen. The fresh-DB path (current is None) still
@@ -417,13 +428,13 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
 
     if current is None:
         logger.warning(
-            "Database has no migration history â€” applying migrations "
+            "Database has no migration history — applying migrations "
             f"(target={target})"
         )
     elif current != head and target == "head":
         logger.warning(
             f"Database schema outdated (revision {current}, "
-            f"head is {head}) â€” applying migrations"
+            f"head is {head}) — applying migrations"
         )
 
     config = get_alembic_config(engine)
@@ -438,7 +449,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
             # Re-enable FK on this connection BEFORE it returns to the
             # pool so subsequent checkouts see the production-default ON
             # state. The migration transaction has just committed, so we
-            # are back outside any active transaction â€” PRAGMA toggles
+            # are back outside any active transaction — PRAGMA toggles
             # work again. We can't rely on ``engine.dispose()`` to force
             # a fresh connection because engines built with ``creator=``
             # have ``url.database is None``, which fails the dispose
@@ -447,7 +458,7 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
             conn.rollback()
     except Exception:
         logger.exception(
-            "Database migration failed â€” database remains at previous "
+            "Database migration failed — database remains at previous "
             "revision (auto-rollback by transaction manager)"
         )
         raise
@@ -456,9 +467,9 @@ def run_migrations(engine: Engine, target: str = "head") -> None:
     # upgrade. With FK explicitly re-enabled above this is no longer
     # load-bearing for FK state, but it forces the next checkout through
     # ``apply_performance_pragmas`` which also resets temp_store, cache_size,
-    # journal_mode, etc. â€” protecting against any future migration that
+    # journal_mode, etc. — protecting against any future migration that
     # touches connection-level PRAGMAs not handled by the FK fix-up.
-    # Skip for ``:memory:`` engines â€” those use a single shared connection
+    # Skip for ``:memory:`` engines — those use a single shared connection
     # and disposing it would destroy the just-migrated database.
     db_name = engine.url.database
     if db_name and db_name != ":memory:":

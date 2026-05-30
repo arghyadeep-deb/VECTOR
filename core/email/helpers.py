@@ -1,4 +1,3 @@
-import sys
 
 __all__ = [
     "build_quoted_reply_block",
@@ -16,10 +15,8 @@ __all__ = [
 import uuid
 import json
 import re
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 from core.email.dates import format_quoted_date

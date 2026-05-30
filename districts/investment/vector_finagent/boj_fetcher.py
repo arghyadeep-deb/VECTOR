@@ -1,3 +1,4 @@
+from loguru import logger
 import sys
 import json
 import warnings
@@ -123,6 +124,8 @@ class BOJWrapper:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][boj_fetcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boj_fetcher] caught Exception: %s", _sve)
             return {
                 "success": False,
                 "error": str(e),

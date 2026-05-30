@@ -14,12 +14,9 @@ import os
 import shutil
 import ssl
 import subprocess
-import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from vector_cli.auth import _default_verify, _resolve_verify
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Bonds Data Wrapper
 Wrapper for bond market data (treasury, corporate, convertible bonds)
 Returns JSON output for Qt/C++ integration
@@ -111,6 +112,8 @@ class BondsWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
+                logger.debug("[VECTOR][akshare_bonds] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_bonds] caught Exception: %s", _sve)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     import time

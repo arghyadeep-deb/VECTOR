@@ -1,4 +1,5 @@
 """
+from loguru import logger
 broker_ws_bridge.py — Equity broker WebSocket streaming bridge.
 
 Spawned as a subprocess by ExchangeService (same pattern as ws_stream.py).
@@ -35,6 +36,8 @@ def emit(obj):
     try:
         print(json.dumps(obj, default=str), flush=True)
     except Exception:
+        logger.debug("[VECTOR][exchange.broker_ws_bridge] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.broker_ws_bridge] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 
@@ -200,7 +203,6 @@ def run_broker(broker: str, api_key: str, access_token: str, user_id: str,
 
     symbols: list of (symbol, exchange, token_str)
     """
-    sys.path.insert(0, OPENALGO_PATH)
 
     # Build token map for SymbolMapper — use provided tokens where available.
     # For symbols with token "0", try to resolve via broker REST API.

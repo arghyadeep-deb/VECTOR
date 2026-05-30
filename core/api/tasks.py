@@ -1,5 +1,13 @@
 """External task ingestion API — phone, cloud, ESP32 push tasks here."""
 import hmac
+
+__all__ = [
+    "health",
+    "router",
+    "submit_task",
+    "TaskSubmission",
+]
+
 import os
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel

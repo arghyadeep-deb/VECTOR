@@ -1,4 +1,5 @@
 """
+from loguru import logger
 UN Comtrade API Data Fetcher
 Comprehensive wrapper for the United Nations Comtrade Database API.
 Provides access to global bilateral trade flows for 200+ countries at
@@ -201,6 +202,8 @@ class UNComtradeWrapper:
         except json.JSONDecodeError as e:
             return ComtradeError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][un_comtrade_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][un_comtrade_data] caught Exception: %s", _sve)
             return ComtradeError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _trade_url(self, endpoint: str, type_code: str, freq_code: str, cl_code: str) -> str:

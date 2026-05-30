@@ -1,4 +1,13 @@
 import functools
+
+__all__ = [
+    "check_env_setting",
+    "get_typed_setting_value",
+    "parse_boolean",
+    "SettingsManager",
+    "SnapshotSettingsContext",
+]
+
 import json
 import os
 import threading
@@ -123,7 +132,7 @@ def _parse_multiselect(x):
     """Parse multiselect value, handling both lists and strings.
 
     DB values (via SQLAlchemy JSON column) arrive as Python lists already.
-    Env var overrides arrive as strings and need parsing â€” either as JSON
+    Env var overrides arrive as strings and need parsing — either as JSON
     arrays (e.g. '["markdown","latex"]') or comma-separated values
     (e.g. 'markdown,latex').
     """
@@ -260,7 +269,7 @@ def check_env_setting(key: str) -> str | None:
 
     Note:
         Empty environment variables ("") are treated as unset. This is standard
-        practice across the ecosystem â€” see CPython's official docs (PYTHON*
+        practice across the ecosystem — see CPython's official docs (PYTHON*
         env vars require "a non-empty string"), botocore PR #1687, Pallets/Click
         PR #2223, and Vercel Turborepo PR #6929. Orchestration tools like Unraid,
         Terraform, and Kubernetes manifests often cannot conditionally omit env
@@ -270,15 +279,16 @@ def check_env_setting(key: str) -> str | None:
 
     """
     env_variable_name = f"LDR_{'_'.join(key.split('.')).upper()}"
+    # imported at module init — kept as os.getenv
     env_value = os.getenv(env_variable_name)
-    # Treat empty string as unset â€” orchestration tools (Unraid, Terraform, K8s)
+    # Treat empty string as unset — orchestration tools (Unraid, Terraform, K8s)
     # often cannot omit env var declarations and pass "" for unconfigured values.
     if env_value is not None and env_value != "":
         logger.warning(f"Overriding {key} setting from environment variable.")
         return env_value
     if env_value == "":
         logger.warning(
-            "Environment variable {} is set but empty â€” "
+            "Environment variable {} is set but empty — "
             "ignoring it and falling back to DB/default for setting '{}'. "
             "This is expected on Unraid or Docker templates that create "
             "all variables even when left blank. To suppress this warning, "
@@ -307,7 +317,7 @@ class SettingsManager(ISettingsManager):
             db_session: SQLAlchemy session for database operations
             owns_session: If True, close() will close the session.
                 Defaults to False (safe for borrowed sessions).  Set to True
-                only when this manager created/owns the session â€” currently
+                only when this manager created/owns the session — currently
                 only get_settings_manager() in db_utils.py does this.
         """
         self.db_session = db_session
@@ -330,7 +340,7 @@ class SettingsManager(ISettingsManager):
 
         Borrowed sessions (owns_session=False) are left open for their
         owner to close (e.g. Flask teardown closes g.db_session).
-        Safe to call multiple times â€” subsequent calls are no-ops.
+        Safe to call multiple times — subsequent calls are no-ops.
         """
         if self._owns_session and self.db_session is not None:
             try:
@@ -338,7 +348,7 @@ class SettingsManager(ISettingsManager):
                 self.db_session.close()
             except Exception:
                 logger.warning(
-                    "Failed to close SettingsManager DB session â€” "
+                    "Failed to close SettingsManager DB session — "
                     "connection may leak",
                 )
         self._closed = True
@@ -555,7 +565,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_setting('{}') called after close() â€” "
+                "SettingsManager.get_setting('{}') called after close() — "
                 "this is a bug; the caller should not reuse a closed manager",
                 key,
             )
@@ -605,7 +615,7 @@ class SettingsManager(ISettingsManager):
                     )
                 logger.warning(
                     "Setting '{}' has env var override but is not in "
-                    "defaults â€” returning raw string without type "
+                    "defaults — returning raw string without type "
                     "conversion. Add this setting to a defaults JSON "
                     "file with a ui_element type to enable proper "
                     "type conversion.",
@@ -648,7 +658,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.set_setting('{}') called after close() â€” "
+                "SettingsManager.set_setting('{}') called after close() — "
                 "this is a bug; the caller should not reuse a closed manager",
                 key,
             )
@@ -748,7 +758,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_all_settings() called after close() â€” "
+                "SettingsManager.get_all_settings() called after close() — "
                 "this is a bug; the caller should not reuse a closed manager",
             )
             raise RuntimeError(
@@ -860,7 +870,7 @@ class SettingsManager(ISettingsManager):
         """
         if self._closed:
             logger.error(
-                "SettingsManager.get_settings_snapshot() called after close() â€” "
+                "SettingsManager.get_settings_snapshot() called after close() — "
                 "this is a bug; the caller should not reuse a closed manager",
             )
             raise RuntimeError(
@@ -1030,7 +1040,7 @@ class SettingsManager(ISettingsManager):
             commit: Whether to commit changes to database. The post-login
                 atomic block in `web/auth/routes.py` passes ``commit=False``
                 and combines this call with ``update_db_version(commit=False)``
-                under a single terminal ``db_session.commit()`` â€” preserving
+                under a single terminal ``db_session.commit()`` — preserving
                 the all-or-nothing invariant is what prevents the sticky-loop
                 bug where `app.version` is missing after a partial write.
             **kwargs: Will be passed to `import_settings`.

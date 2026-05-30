@@ -43,7 +43,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
        - Citation numbers are offset by `total_citation_count_before_this_search` so they
          continue from previous analyze_topic() calls (important for detailed reports)
 
-    ## Key invariant â€” `self.all_links_of_system`:
+    ## Key invariant — `self.all_links_of_system`:
 
     This list is the SAME object as `AdvancedSearchSystem.all_links_of_system` (passed by
     reference via constructor, see search_system.py:195). It is the single source of truth
@@ -51,7 +51,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
 
     In detailed report mode, `IntegratedReportGenerator` calls `analyze_topic()` multiple
     times (once per subsection). Each call EXTENDS this shared list with its own results.
-    Previous sections' results are never touched or re-filtered â€” they persist safely.
+    Previous sections' results are never touched or re-filtered — they persist safely.
 
     The final report's Sources section is generated from this list at report_generator.py:494.
     """
@@ -85,7 +85,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
             filter_reorder: Whether the cross-engine filter should reorder by relevance
             filter_reindex: Whether the cross-engine filter should reassign citation indices
             cross_engine_max_results: Max results the filter keeps (default 100)
-            all_links_of_system: SHARED list with AdvancedSearchSystem â€” do not replace,
+            all_links_of_system: SHARED list with AdvancedSearchSystem — do not replace,
                 only extend. This is the single source of truth for report citations.
             use_atomic_facts: Use AtomicFactQuestionGenerator instead of Standard
             settings_snapshot: Frozen settings dict, read via self.get_setting()
@@ -136,7 +136,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
     def _format_search_results_as_context(self, search_results):
         """Format search results into a text string for the question generation prompt.
 
-        This is a PURE read-only method â€” it never modifies the input list or dicts.
+        This is a PURE read-only method — it never modifies the input list or dicts.
         It only reads 'title', 'snippet', and 'link' via .get() and builds a string.
 
         The caller controls how many results are passed (typically sliced with
@@ -162,7 +162,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
         """
         logger.info(f"Starting source-based research on topic: {query}")
 
-        # LOCAL to this analyze_topic() call â€” accumulates search results across
+        # LOCAL to this analyze_topic() call — accumulates search results across
         # iterations within a single search, then discarded when the call returns.
         # NOT the same as self.all_links_of_system which is SHARED with
         # AdvancedSearchSystem (same list object, passed via constructor).
@@ -304,7 +304,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
                     # For subsequent iterations, generate questions based on previous search results.
                     # Uses accumulated results (not just the last iteration) so that if an iteration
                     # returns 0 results (e.g. rate-limiting), the question generator still has context.
-                    # This is READ-ONLY â€” _format_search_results_as_context is a pure formatter
+                    # This is READ-ONLY — _format_search_results_as_context is a pure formatter
                     # that builds a string; it never modifies the input or all_links_of_system.
                     # The [-N:] slice gives the most recent results for iterative deepening.
                     question_context_limit = int(
@@ -392,14 +392,14 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
                         iteration_search_results.extend(search_results)
 
                 # Collect this iteration's results. Note: filtered_search_results is
-                # reassigned each iteration â€” it only holds the CURRENT iteration's results.
+                # reassigned each iteration — it only holds the CURRENT iteration's results.
                 # The accumulated list holds ALL iterations' results.
                 filtered_search_results = iteration_search_results
                 accumulated_search_results_across_all_iterations.extend(
                     filtered_search_results
                 )
 
-                # Lightweight metadata finding (no actual content â€” synthesis happens later)
+                # Lightweight metadata finding (no actual content — synthesis happens later)
                 finding = {
                     "phase": f"Iteration {iteration}",
                     "content": f"Searched with {len(all_questions)} questions, found {len(filtered_search_results)} results.",
@@ -409,7 +409,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
                 findings.append(finding)
 
             # Filter accumulated results from THIS call only. The cross-engine filter
-            # never sees previous sections' results â€” those are already safely in
+            # never sees previous sections' results — those are already safely in
             # self.all_links_of_system from earlier analyze_topic() calls.
             # start_index ensures new results get citation numbers that continue
             # after existing ones (e.g. if all_links already has 27 items, new
@@ -450,10 +450,10 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
 
             # Extend the SHARED all_links_of_system with this call's results only.
             # This list is the single source of truth for citations in the final
-            # report â€” format_links_to_markdown reads it at report_generator.py:494.
+            # report — format_links_to_markdown reads it at report_generator.py:494.
             self.all_links_of_system.extend(final_filtered_results)
 
-            # SYNTHESIS PHASE â€” run after all iterations complete.
+            # SYNTHESIS PHASE — run after all iterations complete.
             # The citation handler receives final_filtered_results and produces
             # synthesized content with inline citation numbers like [1], [2], etc.
             # nr_of_links offsets these numbers so they continue from previous
@@ -476,7 +476,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
             # Since these are the same dict objects now in all_links_of_system,
             # the indices propagate to the shared list automatically.
 
-            # Null check â€” synthesis can fail on empty/malformed results
+            # Null check — synthesis can fail on empty/malformed results
             if final_citation_result:
                 synthesized_content = final_citation_result["content"]
                 documents = final_citation_result.get("documents", [])

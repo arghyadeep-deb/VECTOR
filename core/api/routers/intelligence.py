@@ -1,8 +1,26 @@
 """Intelligence router — /intelligence/* endpoints for VectorIntel global surveillance."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "all_layers",
+    "BatchPinRequest",
+    "cctv",
+    "conflicts",
+    "fires",
+    "flights",
+    "intel_status",
+    "news_near",
+    "outages",
+    "PinRequest",
+    "place_pin",
+    "place_pins_batch",
+    "report",
+    "router",
+    "satellites",
+    "summary",
+    "vessels",
+]
+
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -19,8 +37,6 @@ def _get_agent():
         from districts.intelligence.vectorintel_agent import VectorIntelAgent
         _agent = VectorIntelAgent()
     return _agent
-
-
 
 
 # ── Read endpoints ────────────────────────────────────────────────────────────

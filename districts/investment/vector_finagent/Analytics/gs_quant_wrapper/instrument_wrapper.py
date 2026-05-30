@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Instrument Wrapper
 ===========================
 
@@ -154,6 +155,8 @@ class InstrumentFactory:
                 )
                 specs['gs_instrument'] = equity
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.instrument_wrapper] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.instrument_wrapper] caught Exception: %s", _sve)
                 specs['note'] = f"GS creation requires API: {str(e)}"
 
         return specs

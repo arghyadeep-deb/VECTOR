@@ -1,6 +1,6 @@
 """Full cross-repo wiring audit — all absorbed modules vs all codebase files."""
+from loguru import logger
 import sys, os, re
-sys.path.insert(0, r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
 sys.stdout.reconfigure(encoding="utf-8")
 
 CODEBASE = r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"

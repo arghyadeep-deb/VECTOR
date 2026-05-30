@@ -4,6 +4,12 @@ This is the killer feature: turning searches into living news feeds.
 """
 
 from typing import Optional, Dict, Any
+
+__all__ = [
+    "SearchSubscription",
+    "SearchSubscriptionFactory",
+]
+
 from loguru import logger
 
 from .base_subscription import BaseSubscription

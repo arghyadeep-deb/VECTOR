@@ -1,6 +1,7 @@
 """``jarvis start|stop|restart|status`` — daemon management commands."""
 
 from __future__ import annotations
+from loguru import logger
 
 import os
 import signal

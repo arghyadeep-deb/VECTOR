@@ -10,6 +10,16 @@ So you don't have to learn a new selectors/api method like what bs4 done with so
 
 from functools import lru_cache
 
+__all__ = [
+    "css_to_xpath",
+    "HTMLTranslator",
+    "translator",
+    "TranslatorMixin",
+    "TranslatorProtocol",
+    "XPathExpr",
+]
+
+
 from cssselect import HTMLTranslator as OriginalHTMLTranslator
 from cssselect.xpath import ExpressionError, XPathExpr as OriginalXPathExpr
 from cssselect.parser import Element, FunctionalPseudoElement, PseudoElement

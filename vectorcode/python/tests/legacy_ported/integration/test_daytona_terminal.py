@@ -6,7 +6,6 @@ Requires DAYTONA_API_KEY to be set. Run with:
 
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -21,7 +20,6 @@ if not os.getenv("DAYTONA_API_KEY"):
 import importlib.util
 
 parent_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(parent_dir))
 
 spec = importlib.util.spec_from_file_location(
     "terminal_tool", parent_dir / "tools" / "terminal_tool.py"

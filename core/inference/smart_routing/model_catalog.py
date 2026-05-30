@@ -12,12 +12,22 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "baseline_cost",
+    "cheapest_for_tier",
+    "estimate_cost",
+    "fallback_chain_for",
+    "get_model",
+    "ModelEntry",
+    "resolve_alias",
+    "savings_pct",
+]
+
+
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from core.inference.smart_routing.classifier import Tier, Profile
 
 

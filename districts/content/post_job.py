@@ -28,7 +28,6 @@ __all__ = ["PostJob", "PostJobTracker", "JobStatus"]
 
 import json
 import sqlite3
-import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -36,7 +35,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 

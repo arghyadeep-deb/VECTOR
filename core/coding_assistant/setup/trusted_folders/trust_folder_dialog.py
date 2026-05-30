@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "ask_trust_folder",
+    "TrustDialogQuitException",
+    "TrustFolderApp",
+    "TrustFolderDialog",
+]
+
+
 from pathlib import Path
 from typing import Any, ClassVar
 

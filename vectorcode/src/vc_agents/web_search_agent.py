@@ -8,10 +8,7 @@ districts can call. Falls back to DuckDuckGo if no provider is configured.
 from __future__ import annotations
 
 import time
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 try:
     import httpx

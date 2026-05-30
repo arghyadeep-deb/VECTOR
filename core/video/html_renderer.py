@@ -17,6 +17,14 @@ Supports:
 """
 from __future__ import annotations
 
+__all__ = [
+    "capture_screenshot",
+    "FrameCaptureResult",
+    "HTMLFrameRenderer",
+    "RendererConfig",
+]
+
+
 import asyncio
 import base64
 import json
@@ -38,7 +46,7 @@ _RUNTIME_JS_PATH = Path(__file__).parent / "runtime" / "vector_runtime.js"
 _RUNTIME_JS: str = ""
 try:
     _RUNTIME_JS = _RUNTIME_JS_PATH.read_text(encoding="utf-8")
-except Exception: logger.debug("[VECTOR][video] exception suppressed")  # runtime optional â€” compositions with window.__vector already set work fine
+except Exception: logger.debug("[VECTOR][video] exception suppressed")  # runtime optional — compositions with window.__vector already set work fine
 
 
 # â”€â”€ Local file server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -296,4 +304,4 @@ if __name__ == "__main__":
     renderer = HTMLFrameRenderer(config)
     assert renderer._config.quality == "standard"
 
-    print("OK html_renderer.py â€” config + types OK (Playwright requires install for live test)")
+    print("OK html_renderer.py — config + types OK (Playwright requires install for live test)")

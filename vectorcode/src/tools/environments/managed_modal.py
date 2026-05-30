@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _request_timeout_env(name: str, default: float) -> float:
     try:
-        value = float(os.getenv(name, str(default)))
+        value = float(os.environ.get(name, str(default)))
         return value if value > 0 else default
     except (TypeError, ValueError):
         return default

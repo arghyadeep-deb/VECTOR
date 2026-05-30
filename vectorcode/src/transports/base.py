@@ -19,12 +19,9 @@ del _os, _this_dir
 
 # ── stdlib ────────────────────────────────────────────────────────────────────
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                       # vectorcode package
 
 from loguru import logger
 from transports.types import NormalizedResponse  # type: ignore[import]

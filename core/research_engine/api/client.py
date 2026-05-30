@@ -28,20 +28,23 @@ Example usage:
     client = LDRClient()
     client.login("username", "password")
     result = client.quick_research("What is quantum computing?")
-    print(result["summary"])
+    logger.info(result["summary"])
+
 
     # With context manager (auto-logout)
     with LDRClient() as client:
         client.login("username", "password")
         result = client.quick_research("What is quantum computing?")
-        print(result["summary"])
+        logger.info(result["summary"])
+
 
     # Get research history
     with LDRClient() as client:
         client.login("username", "password")
         history = client.get_history()
         for item in history:
-            print(f"Research: {item['query']}")
+            logger.info(f"Research: {item['query']}")
+
 
     # One-liner for quick queries
     from core.research_engine.api.client import quick_query
@@ -52,10 +55,17 @@ Example usage:
         client.login("username", "password")
         client.update_setting("llm.model", "gemma:7b")
         settings = client.get_settings()
-        print(f"Current model: {settings['llm']['model']}")
+        logger.info(f"Current model: {settings['llm']['model']}")
+
 """
 
 import time
+
+__all__ = [
+    "LDRClient",
+    "quick_query",
+]
+
 from typing import Any
 
 from ..constants import ResearchStatus
@@ -200,7 +210,8 @@ class LDRClient:
 
         Example:
             result = client.quick_research("Latest developments in fusion energy")
-            print(result["summary"])
+            logger.info(result["summary"])
+
         """
         if not self.logged_in:
             raise RuntimeError("Not logged in. Call login() first.")
@@ -345,7 +356,8 @@ class LDRClient:
         Example:
             history = client.get_history()
             for item in history[:5]:
-                print(f"{item['timestamp']}: {item['query']}")
+                logger.info(f"{item['timestamp']}: {item['query']}")
+
         """
         if not self.logged_in:
             raise RuntimeError("Not logged in. Call login() first.")
@@ -465,7 +477,8 @@ def quick_query(
 
     Example:
         summary = quick_query("user", "pass", "What is DNA?")
-        print(summary)
+        logger.info(summary)
+
 
     Args:
         username: VRE username

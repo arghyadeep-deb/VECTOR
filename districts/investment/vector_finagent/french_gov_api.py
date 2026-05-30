@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 French Government API Wrapper (English Version)
 Provides access to multiple French government APIs:
 1. API Géo - Administrative boundaries and geographic data
@@ -248,7 +249,9 @@ def _make_request(url: str, headers: Optional[Dict[str, str]] = None,
             # Handle non-JSON responses (like GeoJSON)
             try:
                 data = response.json()
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][french_gov_api] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][french_gov_api] caught Exception: %s", _sve)
                 data = {"raw_response": response.text}
 
         return {

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Our World in Data Fetcher
 CO2, energy, health, poverty, education, democracy data for all countries.
 Uses OWID API and GitHub CSV data. No API key required.
@@ -96,6 +97,8 @@ def get_co2_data(country: str = "World") -> Any:
             "fields": list(recent[0].keys()) if recent else [],
         }
     except Exception as e:
+        logger.debug("[VECTOR][owid_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][owid_data] caught Exception: %s", _sve)
         return {"error": f"Failed to fetch CO2 data: {str(e)}"}
 
 

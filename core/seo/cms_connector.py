@@ -12,16 +12,20 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "CMSConnector",
+    "push_strapi_seo_meta",
+]
+
+
 import json
 import os
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 from typing import Any, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

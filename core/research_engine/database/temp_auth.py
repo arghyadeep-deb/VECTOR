@@ -6,6 +6,12 @@ provided no real security benefit - see issue #593).
 """
 
 import secrets
+
+__all__ = [
+    "temp_auth_store",
+    "TemporaryAuthStore",
+]
+
 from typing import Optional, Tuple
 
 from loguru import logger

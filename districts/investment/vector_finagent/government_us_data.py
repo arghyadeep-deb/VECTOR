@@ -1,4 +1,5 @@
 """
+from loguru import logger
 US Government Data Fetcher
 Modular, fault-tolerant wrapper for US Treasury data based on OpenBB government_us provider
 Sources: TreasuryDirect.gov official APIs
@@ -78,6 +79,8 @@ class GovernmentUSWrapper:
         except requests.exceptions.RequestException as e:
             return {"error": f"Request error: {e}", "request_error": True, "status_code": None}
         except Exception as e:
+            logger.debug("[VECTOR][government_us_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][government_us_data] caught Exception: %s", _sve)
             return {"error": f"Unexpected error: {e}", "general_error": True, "status_code": None}
 
     def _parse_csv_response(self, content: str) -> pd.DataFrame:
@@ -247,11 +250,8 @@ class GovernmentUSWrapper:
                 except ValueError:
                     continue
             return None
-        except:
-            return None
-
-    # ===== TREASURY AUCTIONS ENDPOINT =====
-
+        except Exception:
+            logger.debug("[VECTOR][government_us_data] suppressed Exception in fallback")  # bare except
     def get_treasury_auctions(self, start_date: Optional[str] = None,
                              end_date: Optional[str] = None,
                              security_type: Optional[str] = None,

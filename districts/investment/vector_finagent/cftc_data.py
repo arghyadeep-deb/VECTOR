@@ -1,6 +1,7 @@
 # CFTC (Commodity Futures Trading Commission) Data Wrapper
 # Modular, fault-tolerant design - each endpoint works independently
 # Focus on Commitment of Traders (COT) reports for market sentiment analysis
+from loguru import logger
 
 import sys
 import json
@@ -184,7 +185,9 @@ class CFTCDataWrapper:
                 date_obj = pd.to_datetime(date_str)
                 return date_obj.strftime('%Y-%m-%d')
 
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][cftc_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][cftc_data] caught Exception: %s", _sve)
             return date_str
 
     def _safe_int(self, value) -> int:
@@ -296,8 +299,8 @@ class CFTCDataWrapper:
                             # Convert percentage strings to decimal
                             try:
                                 clean_record[clean_key] = float(value) / 100
-                            except:
-                                clean_record[clean_key] = value
+                            except Exception:
+                                logger.debug("[VECTOR][cftc_data] suppressed Exception in fallback")  # bare except
                         else:
                             clean_record[clean_key] = value
                     elif value is not None:

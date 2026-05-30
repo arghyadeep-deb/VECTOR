@@ -3,6 +3,12 @@ Base constraint classes for query decomposition.
 """
 
 from dataclasses import dataclass
+
+__all__ = [
+    "Constraint",
+    "ConstraintType",
+]
+
 from enum import Enum
 from typing import Any, Dict, Optional
 

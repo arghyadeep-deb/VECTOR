@@ -2,9 +2,6 @@
 V.E.C.T.O.R. RedTeamAgent.
 Adversarial testing agent — finds weaknesses before they cause problems.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from datetime import datetime
 from core.config import CONFIG

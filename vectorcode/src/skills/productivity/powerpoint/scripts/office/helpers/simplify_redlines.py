@@ -10,7 +10,10 @@ Rules:
 - Only merges if truly adjacent (only whitespace between them)
 """
 
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 

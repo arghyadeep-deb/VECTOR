@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Portfolio Optimization Module
 Advanced portfolio optimization algorithms including:
 - Mean-Variance Optimization (Markowitz)
@@ -155,6 +156,8 @@ class PortfolioOptimizationService:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_portfolio_opt] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_portfolio_opt] caught Exception: %s", _sve)
             return {"success": False, "error": f"Black-Litterman failed: {str(e)}"}
 
     def hierarchical_risk_parity(self,

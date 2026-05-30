@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "TTSClientPort",
+    "TTSResult",
+]
+
+
 from dataclasses import dataclass
 from typing import Protocol
 

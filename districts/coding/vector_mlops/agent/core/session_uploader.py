@@ -15,6 +15,7 @@ Two formats are supported:
   per-user private dataset (default ``{hf_user}/vector-ml-engineer-sessions``).
 """
 
+from loguru import logger
 import argparse
 import hashlib
 import json

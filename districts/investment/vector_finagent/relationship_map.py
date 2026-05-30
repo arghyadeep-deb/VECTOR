@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Relationship Map Data Fetcher — v2
 Fetches comprehensive corporate intelligence: company info, governance,
 officers, analysts, mutual funds, institutional/insider holders, peers,
@@ -185,6 +186,8 @@ def fetch_company_data(ticker: str) -> dict:
                     "median": _safe_float(apt.get("median")),
                 }
         except Exception:
+            logger.debug("[VECTOR][relationship_map] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][relationship_map] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # ── Recommendations Summary ───────────────────────────────────────

@@ -1,5 +1,6 @@
 # BLS (Bureau of Labor Statistics) Data Wrapper
 # Based on OpenBB BLS provider - https://github.com/OpenBB-finance/OpenBB/tree/main/openbb_platform/providers/bls
+from loguru import logger
 
 import sys
 import json
@@ -146,6 +147,8 @@ class BLSDataAPI:
         except json.JSONDecodeError as e:
             return BLSError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][bls_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bls_data] caught Exception: %s", _sve)
             return BLSError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _make_request(self, url: str, method: str = "GET",

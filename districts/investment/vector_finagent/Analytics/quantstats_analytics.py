@@ -1,4 +1,5 @@
 """
+from loguru import logger
 QuantStats Analytics Module
 ============================
 Wraps the quantstats library to provide portfolio performance analytics,
@@ -77,6 +78,8 @@ def _resolve_ticker(ticker: str) -> str:
             hist = t.history(period='5d')
             return hist is not None and len(hist) > 1
         except Exception:
+            logger.debug("[VECTOR][Analytics.quantstats_analytics] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.quantstats_analytics] caught Exception: %s", _sve)
             return False
 
     # Try the bare ticker first

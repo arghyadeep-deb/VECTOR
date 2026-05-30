@@ -9,8 +9,8 @@ from fastmcp import FastMCP
 
 mcp = FastMCP("__SERVER_NAME__")
 
-DATABASE_PATH = os.getenv("SQLITE_PATH", "./app.db")
-MAX_ROWS = int(os.getenv("SQLITE_MAX_ROWS", "200"))
+DATABASE_PATH = os.environ.get("SQLITE_PATH", "./app.db")
+MAX_ROWS = int(os.environ.get("SQLITE_MAX_ROWS", "200"))
 TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 def _connect() -> sqlite3.Connection:

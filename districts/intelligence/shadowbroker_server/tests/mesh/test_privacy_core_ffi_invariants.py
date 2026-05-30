@@ -27,7 +27,6 @@ from pathlib import Path
 # Ensure the backend package is importable.
 _backend = Path(__file__).resolve().parents[2]
 if str(_backend) not in sys.path:
-    sys.path.insert(0, str(_backend))
 
 from services.privacy_core_client import (
     PrivacyCoreClient,

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Core Agent - Single configurable Agno agent for entire terminal
 
 One agent to rule them all - highly configurable via parameters.
@@ -204,6 +205,8 @@ class CoreAgent:
                 "valid": validation.get("valid", True)
             }
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.core_agent] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.core_agent] caught Exception: %s", _sve)
             return {
                 "success": False,
                 "model": output_model,

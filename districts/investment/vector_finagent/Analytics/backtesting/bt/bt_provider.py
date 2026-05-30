@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BT Provider - Flexible Portfolio Backtesting
 
 Portfolio-level strategy backtesting using bt library with composable
@@ -23,7 +24,6 @@ _BACKTESTING_DIR = _SCRIPT_DIR.parent
 if str(_BACKTESTING_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKTESTING_DIR))
 if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
 
 from base.base_provider import (
     BacktestingProviderBase,
@@ -136,6 +136,8 @@ class BtProvider(BacktestingProviderBase):
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_provider] caught Exception: %s", _sve)
             return {
                 'success': False,
                 'error': str(e),

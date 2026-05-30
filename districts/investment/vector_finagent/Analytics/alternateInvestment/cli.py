@@ -1,4 +1,5 @@
 """Alternative Investments CLI
+from loguru import logger
 
 Unified command-line interface for alternative investment analytics.
 """
@@ -311,6 +312,8 @@ def main():
         print(json.dumps(result, default=decimal_default, indent=2))
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.alternateInvestment.cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.alternateInvestment.cli] caught Exception: %s", _sve)
         error_result = {
             'success': False,
             'error': str(e),

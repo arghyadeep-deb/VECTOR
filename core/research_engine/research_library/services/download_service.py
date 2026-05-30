@@ -613,7 +613,7 @@ class DownloadService:
 
             if existing_doc:
                 # Update existing document. Only replace document_hash when
-                # transitioning from FAILED â€” that's the placeholder hash from
+                # transitioning from FAILED — that's the placeholder hash from
                 # _record_failed_text_extraction. For any other prior state
                 # the hash is already a real content hash and clobbering it
                 # risks UNIQUE-constraint collisions (issue #3827).
@@ -824,8 +824,8 @@ class DownloadService:
             if not resource:
                 return False, "Resource not found"
 
-            # Handle library resources â€” content already in the database
-            # (local-only, no network â€” skip retry checks)
+            # Handle library resources — content already in the database
+            # (local-only, no network — skip retry checks)
             if resource.source_type == "library" or (
                 resource.url and resource.url.startswith("/library/document/")
             ):
@@ -890,7 +890,7 @@ class DownloadService:
     def _try_library_text_extraction(
         self, session, resource
     ) -> Tuple[bool, Optional[str]]:
-        """Handle library resources â€” content already exists in local database.
+        """Handle library resources — content already exists in local database.
 
         Returns:
             Tuple of (success, error_message). On success: (True, None).
@@ -954,7 +954,7 @@ class DownloadService:
                 f"Failed to extract text from library document {doc_id} PDF",
             )
 
-        # 5. Update Document directly (don't use _save_text_with_db â€” it
+        # 5. Update Document directly (don't use _save_text_with_db — it
         # queries by resource_id which mismatches for library docs)
         doc.text_content = text
         doc.character_count = len(text)
@@ -1589,7 +1589,7 @@ class DownloadService:
 
             if doc:
                 # Update existing document with extracted text. Only replace
-                # document_hash when transitioning from FAILED â€” see issue
+                # document_hash when transitioning from FAILED — see issue
                 # #3827. PDF-bytes hashes set at creation must remain stable;
                 # text-content hashes collide far more often (identical
                 # extracted text from different PDFs).

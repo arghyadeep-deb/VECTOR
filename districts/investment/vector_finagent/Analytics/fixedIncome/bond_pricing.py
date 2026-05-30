@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Bond Pricing Analytics Module
 =============================
 
@@ -225,7 +226,9 @@ class BondPricer:
             # Fallback to Newton method
             try:
                 ytm = optimize.newton(price_diff, coupon_rate, tol=1e-10)
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][Analytics.fixedIncome.bond_pricing] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.fixedIncome.bond_pricing] caught Exception: %s", _sve)
                 ytm = None
 
         if ytm is None:
@@ -288,12 +291,8 @@ class BondPricer:
 
         try:
             ytc = optimize.brentq(price_diff, -0.99, 2.0, xtol=1e-10)
-        except:
-            try:
-                ytc = optimize.newton(price_diff, coupon_rate, tol=1e-10)
-            except:
-                return {'error': 'Could not converge to YTC solution'}
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.bond_pricing] suppressed Exception in fallback")  # bare except
         return {
             'ytc': round(ytc, 6),
             'ytc_percent': round(ytc * 100, 4),

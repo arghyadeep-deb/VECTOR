@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Portfolio Analytics Module
 ==========================
 
@@ -616,6 +617,8 @@ class PortfolioAnalytics:
             frontier_results = frontier_analyzer.generate_frontier()
             results["efficient_frontier"] = frontier_results
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_analytics] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.portfolioManagement.portfolio_analytics] caught Exception: %s", _sve)
             results["efficient_frontier"] = {"error": str(e)}
 
         # CAPM analysis if market returns provided

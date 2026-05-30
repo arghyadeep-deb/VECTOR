@@ -1,9 +1,7 @@
 """Tests for TaskClassifier and ModelRouter: domain detection, routing, hot-swap, and adapter listing."""
 
-import sys
 import tempfile
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.inference.model_router import TaskClassifier, ModelRouter
 

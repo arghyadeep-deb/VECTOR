@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 CNINFO Entity Resolver
 Builds/maintains stock_code -> org_id/sec_name/market master mapping.
 """
@@ -18,6 +19,8 @@ import requests
 try:
     import baostock as bs
 except Exception:
+    logger.debug("[VECTOR][cninfo_entity_resolver] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][cninfo_entity_resolver] caught Exception: %s", _sve)
     bs = None
 
 

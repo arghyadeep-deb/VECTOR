@@ -1,6 +1,12 @@
 # utilities/enums.py
 from enum import Enum
 
+__all__ = [
+    "KnowledgeAccumulationApproach",
+    "SearchMode",
+]
+
+
 
 class KnowledgeAccumulationApproach(Enum):
     QUESTION = "QUESTION"

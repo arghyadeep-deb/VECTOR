@@ -14,7 +14,6 @@ Backwards compatible: WhisperSTT class is preserved for any existing imports.
 The new STT() factory picks the engine; if the chosen one fails to load, falls
 back to Whisper local.
 """
-import sys
 
 __all__ = [
     "DeepgramSTT",
@@ -23,9 +22,6 @@ __all__ = [
     "WhisperSTT",
 ]
 
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from loguru import logger

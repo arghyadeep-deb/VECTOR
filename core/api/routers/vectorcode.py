@@ -1,9 +1,15 @@
 """VectorCode router — /vectorcode/launch."""
 
-import sys
+
+__all__ = [
+    "launch_vectorcode",
+    "LaunchRequest",
+    "router",
+    "vectorcode_status",
+]
+
 import subprocess
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter
 from pydantic import BaseModel

@@ -4,8 +4,12 @@ Webhook forwarder - receives events and forwards to V.E.C.T.O.R.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "main",
+    "WebhookForwarder",
+]
+
 
 from core.config import CONFIG
 from loguru import logger
@@ -24,7 +28,6 @@ except ImportError:
     FASTAPI_AVAILABLE = False
     FastAPI = None
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 try:
     from core.memory.episodic import EpisodicMemory
 except ImportError:
@@ -302,10 +305,12 @@ async def main():
     """Test the webhook forwarder."""
     forwarder = WebhookForwarder()
     if forwarder.app:
-        print(f"FastAPI app available at: {forwarder.host}:{forwarder.port}")
-        print(f"Endpoints: /forward, /forward/github, /forward/gmail, /forward/calendar, /forward/custom")
+        logger.info(f"FastAPI app available at: {forwarder.host}:{forwarder.port}")
+
+        logger.info(f"Endpoints: /forward, /forward/github, /forward/gmail, /forward/calendar, /forward/custom")
+
     else:
-        print("FastAPI not available")
+        logger.info("FastAPI not available")
 
 
 if __name__ == "__main__":

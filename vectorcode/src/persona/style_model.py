@@ -4,16 +4,6 @@ Conversation analytics, tone/formality adjustment, style comparison.
 Standalone — no AgentBase. Uses Ollama directly for text rewriting.
 """
 import re
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -251,7 +241,5 @@ if __name__ == "__main__":
     assert comparison["compatibility_score"] == 100.0
 
     print(f"persona/style_model.py OK — formality={analysis['style']['formality_level']} tone={analysis['style']['tone']}")
-
-
 
 

@@ -8,6 +8,23 @@ appropriate JSON responses.
 
 from typing import Optional, Dict, Any
 
+__all__ = [
+    "DatabaseAccessException",
+    "InvalidLimitException",
+    "InvalidParameterException",
+    "NewsAPIException",
+    "NewsFeatureDisabledException",
+    "NewsFeedGenerationException",
+    "NotImplementedException",
+    "ResearchProcessingException",
+    "SchedulerNotificationException",
+    "SubscriptionCreationException",
+    "SubscriptionDeletionException",
+    "SubscriptionNotFoundException",
+    "SubscriptionUpdateException",
+]
+
+
 
 class NewsAPIException(Exception):
     """Base exception for all news API related errors."""

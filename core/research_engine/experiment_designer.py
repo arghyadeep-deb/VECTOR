@@ -1,6 +1,12 @@
 """Experiment designer — generates ExperimentDesign from Hypothesis."""
 
 import json
+
+__all__ = [
+    "ExperimentDesigner",
+    "TEMPLATES_DIR",
+]
+
 import re
 from pathlib import Path
 from typing import Optional

@@ -1,4 +1,12 @@
 import functools
+
+__all__ = [
+    "DATA_DIR",
+    "get_db_session",
+    "get_settings_manager",
+    "no_db_settings",
+]
+
 from typing import Any, Callable
 
 from cachetools import LRUCache
@@ -104,12 +112,12 @@ def get_settings_manager(
     """
     # Track whether we are borrowing a session we don't own (caller-provided
     # or Flask g.db_session).  Borrowed sessions must NOT be closed by
-    # SettingsManager â€” their owner is responsible for cleanup.
+    # SettingsManager — their owner is responsible for cleanup.
     borrowed_session = db_session is not None
 
     # Reuse the Flask request session if it belongs to the requested user.
     # This MUST happen before get_db_session() because that function is
-    # wrapped in @thread_specific_cache â€” the cache bypasses the function
+    # wrapped in @thread_specific_cache — the cache bypasses the function
     # body on subsequent calls, so any g.db_session check inside it only
     # fires once per thread.
     if db_session is None:
@@ -153,7 +161,7 @@ def get_settings_manager(
                         borrowed_session = True
                         logger.warning(
                             "get_db_session() returned g.db_session after "
-                            "direct g.db_session check failed â€” marking as "
+                            "direct g.db_session check failed — marking as "
                             "borrowed to prevent double-close"
                         )
                 except Exception:

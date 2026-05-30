@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Execution Pipeline Workflow
 
 Workflow for executing approved trades with optimal execution.
@@ -382,6 +383,8 @@ Provide compliance verification report.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.execution_pipeline] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.execution_pipeline] caught Exception: %s", _sve)
             return RunResponse(
                 content=f"Execution pipeline failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

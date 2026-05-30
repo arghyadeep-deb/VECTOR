@@ -15,6 +15,7 @@ inside FastMCP's worker thread on the first ``tools/call`` and deadlocks.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os

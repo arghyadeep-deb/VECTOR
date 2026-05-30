@@ -1,9 +1,7 @@
 import json
 import os
-import sys
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from vector_cli.codex_models import DEFAULT_CODEX_MODELS, get_codex_model_ids
 

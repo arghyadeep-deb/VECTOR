@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Trade History Knowledge
 
 Knowledge base for historical trade data including:
@@ -154,7 +155,9 @@ class TradeHistoryKnowledge:
             exit_dt = datetime.fromisoformat(exit)
             days = (exit_dt - entry_dt).days
             return f"{days} days"
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.trade_history] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.trade_history] caught Exception: %s", _sve)
             return "Unknown"
 
     def add_trade_lesson(

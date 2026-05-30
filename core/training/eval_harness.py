@@ -1,12 +1,16 @@
 """Evaluation harness for benchmarking trained adapters against standard prompts."""
 
-import sys
+
+__all__ = [
+    "ComparisonResult",
+    "EvalHarness",
+    "EvalResult",
+]
+
 import json
-from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Alpha Vantage Data Fetcher
 Fetches stock quotes and data from Alpha Vantage API
 Returns JSON output for Qt/C++ integration
@@ -55,6 +56,8 @@ def get_quote(symbol: str) -> Dict[str, Any]:
     except requests.exceptions.RequestException as e:
         return {"error": f"Network error: {str(e)}", "symbol": symbol}
     except Exception as e:
+        logger.debug("[VECTOR][alphavantage_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][alphavantage_data] caught Exception: %s", _sve)
         return {"error": str(e), "symbol": symbol}
 
 

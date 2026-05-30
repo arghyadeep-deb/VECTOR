@@ -1,4 +1,21 @@
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "AgentLoop",
+    "AgentLoopError",
+    "AgentLoopLLMResponseError",
+    "AgentLoopStateError",
+    "build_request_metadata",
+    "EntrypointMetadata",
+    "requires_init",
+    "TelemetryCallType",
+    "TelemetryClient",
+    "TelemetryRequestMetadata",
+    "ToolDecision",
+    "ToolExecutionResponse",
+]
+
 
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Generator
@@ -62,7 +79,7 @@ from core.coding_assistant.core.session.session_logger import SessionLogger
 from core.coding_assistant.core.session.session_migration import migrate_sessions_entrypoint
 from core.coding_assistant.core.skills.manager import SkillManager
 from core.coding_assistant.core.system_prompt import get_universal_system_prompt
-# Telemetry module removed â€” VECTOR never sends telemetry (privacy rule)
+# Telemetry module removed — VECTOR never sends telemetry (privacy rule)
 # Stubs so agent_loop.py compiles and runs without crashes
 
 def build_request_metadata(*args, **kwargs) -> dict:  # type: ignore[misc]
@@ -142,38 +159,7 @@ from core.coding_assistant.core.utils import (
     is_user_cancellation_event,
 )
 
-# Teleport removed â€” stubs so nothing crashes at import time
-_TELEPORT_AVAILABLE = False
-_TeleportService = None
-
-class TeleportService:  # stub
-    pass
-
-class TeleportError(Exception):  # stub
-    pass
-
-class TeleportCompleteEvent:  # stub
-    pass
-
-class TeleportYieldEvent:  # stub
-    pass
-
-class TeleportPushResponseEvent:  # stub
-    def __init__(self, approved: bool = True): pass
-
-class TeleportTelemetryTracker:  # stub
-    def __init__(self, **kwargs): pass
-    def record_event(self, e): pass
-    def send_success(self): pass
-    def record_service_error(self, e): pass
-    def record_cancelled(self): pass
-    def record_unexpected_error(self, e): pass
-    def send_failure_if_needed(self): pass
-
-class ServiceTeleportError(Exception): pass  # stub
-
-if TYPE_CHECKING:
-    pass  # Teleport types removed
+# Teleport (Mistral Vibe Code) removed — VECTOR uses local Ollama/OpenRouter models
 
 
 class ToolExecutionResponse(StrEnum):
@@ -199,9 +185,6 @@ class AgentLoopLLMResponseError(AgentLoopError):
     """Raised when LLM response is malformed or missing expected data."""
 
 
-class TeleportError(AgentLoopError):
-    """Raised when teleport to Vibe Code fails."""
-
 
 def _should_raise_rate_limit_error(e: Exception) -> bool:
     return isinstance(e, BackendError) and e.status == HTTPStatus.TOO_MANY_REQUESTS
@@ -218,7 +201,7 @@ def _is_context_too_long_error(e: Exception) -> bool:
 def _is_non_retryable_error(e: BaseException) -> bool:
     # Detect Temporal-style ``non_retryable`` flag without importing temporalio.
     # Walks ``__cause__`` so an ``ActivityError`` whose cause is a non-retryable
-    # ``ApplicationError`` is detected too â€” that's what callers driving the
+    # ``ApplicationError`` is detected too — that's what callers driving the
     # agent loop from a Temporal activity will see when a sub-activity has
     # already failed terminally.
     seen: set[int] = set()
@@ -376,8 +359,6 @@ class AgentLoop:
             save_messages=self._save_messages,
             reset_session=self._reset_session,
         )
-        self._teleport_service: TeleportService | None = None
-
         Thread(
             target=migrate_sessions_entrypoint,
             args=(config.session_logging,),
@@ -626,7 +607,7 @@ class AgentLoop:
             ):
                 yield event
 
-    # Teleport removed â€” Mistral cloud feature not used in VECTOR
+    # Teleport removed — Mistral cloud feature not used in VECTOR
 
     def _setup_middleware(self) -> None:
         """Configure middleware pipeline for this conversation."""

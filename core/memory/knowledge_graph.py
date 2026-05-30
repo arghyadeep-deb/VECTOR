@@ -10,15 +10,22 @@ Ported from the agent OS memory/knowledge.rs KnowledgeStore.
 """
 from __future__ import annotations
 
+__all__ = [
+    "Entity",
+    "get_knowledge_graph",
+    "GraphQueryResult",
+    "KnowledgeGraph",
+    "Relation",
+]
+
+
 import json
 import sqlite3
-import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _KG_DB = Path.home() / ".vector_ca" / "knowledge_graph.db"
@@ -85,7 +92,8 @@ class KnowledgeGraph:
         kg.add_relation("VECTOR", "built_with", "Python")
         kg.add_relation("VECTOR", "runs_on", "Ollama")
         result = kg.query("VECTOR")
-        print(result.to_markdown())
+        logger.info(result.to_markdown())
+
     """
 
     def __init__(self, db_path: Path | None = None) -> None:

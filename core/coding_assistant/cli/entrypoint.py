@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "check_and_resolve_trusted_folder",
+    "main",
+    "parse_arguments",
+]
+
+
 import argparse
 import os
 from pathlib import Path
@@ -103,9 +110,6 @@ def parse_arguments() -> argparse.Namespace:
         "persisted to trusted_folders.toml). Skips the trust prompt. "
         "Use this for non-interactive automation.",
     )
-
-    # Feature flag for teleport, not exposed to the user yet
-    parser.add_argument("--teleport", action="store_true", help=argparse.SUPPRESS)
 
     continuation_group = parser.add_mutually_exclusive_group()
     continuation_group.add_argument(

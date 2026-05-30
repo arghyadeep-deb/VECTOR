@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Eval harness — replay a curated set of agentic tasks and score the outputs.
 
 Internal developer tool, not a runtime user feature. Berkeley's April 2026 audit
@@ -130,6 +131,8 @@ def run_case(case: EvalCase, api_keys: Dict[str, str], db_path: str) -> EvalResu
         final = result.get("response", "")
         budget = result.get("budget") or {}
     except Exception as e:
+        logger.debug("[VECTOR][agents.finagent_core.agentic.eval_harness] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.agentic.eval_harness] caught Exception: %s", _sve)
         return EvalResult(
             case_name=case.name, success=False, phrase_coverage=0.0,
             matched_phrases=[], missing_phrases=case.expected_phrases,

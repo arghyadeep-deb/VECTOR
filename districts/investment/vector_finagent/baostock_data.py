@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 BaoStock Data Wrapper
 Provides a CLI-style endpoint interface with JSON output for VECTOR Financial Terminal.
 """
@@ -100,6 +101,8 @@ class BaoStockWrapper:
                     "timestamp": _now_ts(),
                 }
             except Exception as e:  # pragma: no cover - defensive
+                logger.debug("[VECTOR][baostock_data] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][baostock_data] caught Exception: %s", _sve)
                 if attempt < max_retries - 1:
                     self._logout()
                     time.sleep(1)

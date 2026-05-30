@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Central Bank of the Republic of Turkey (TCMB / CBRT) Data Wrapper
 Fetches exchange rate data from the TCMB public XML bulletin service.
 
@@ -32,7 +33,10 @@ import sys
 import json
 import requests
 import traceback
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta, timezone
 
@@ -158,6 +162,8 @@ class TCMBWrapper:
                 ET.fromstring(content)   # verify it's valid XML
                 return d
             except Exception:
+                logger.debug("[VECTOR][tcmb_data] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][tcmb_data] caught Exception: %s", _sve)
                 continue
         return None
 

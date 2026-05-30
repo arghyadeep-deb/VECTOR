@@ -8,6 +8,12 @@ kernel exists.
 
 from __future__ import annotations
 
+__all__ = [
+    "AppleMpsPearlProvider",
+    "ensure_registered",
+]
+
+
 import os
 import time
 

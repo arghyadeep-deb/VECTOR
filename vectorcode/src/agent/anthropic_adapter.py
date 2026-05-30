@@ -815,7 +815,7 @@ def resolve_anthropic_token() -> Optional[str]:
     creds = read_claude_code_credentials()
 
     # 1. VectorCode-managed OAuth/setup token env var
-    token = os.getenv("ANTHROPIC_TOKEN", "").strip()
+    token = os.environ.get("ANTHROPIC_TOKEN", "").strip()
     if token:
         preferred = _prefer_refreshable_claude_code_token(token, creds)
         if preferred:
@@ -823,7 +823,7 @@ def resolve_anthropic_token() -> Optional[str]:
         return token
 
     # 2. CLAUDE_CODE_OAUTH_TOKEN (used by Claude Code for setup-tokens)
-    cc_token = os.getenv("CLAUDE_CODE_OAUTH_TOKEN", "").strip()
+    cc_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip()
     if cc_token:
         preferred = _prefer_refreshable_claude_code_token(cc_token, creds)
         if preferred:
@@ -837,7 +837,7 @@ def resolve_anthropic_token() -> Optional[str]:
 
     # 4. Regular API key, or a legacy OAuth token saved in ANTHROPIC_API_KEY.
     # This remains as a compatibility fallback for pre-migration VectorCode configs.
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if api_key:
         return api_key
 
@@ -877,7 +877,7 @@ def run_oauth_setup_token() -> Optional[str]:
 
     # Check env vars that may have been set
     for env_var in ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_TOKEN"):
-        val = os.getenv(env_var, "").strip()
+        val = os.environ.get(env_var, "").strip()
         if val:
             return val
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Sveriges Riksbank (Sweden) Data Wrapper
 Fetches data from the Riksbank SWEA REST API.
 
@@ -177,6 +178,8 @@ class RiksbankWrapper:
             sc = e.response.status_code if e.response is not None else None
             return RiksbankError(series_id, str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][riksbank_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][riksbank_data] caught Exception: %s", _sve)
             return RiksbankError(series_id, str(e)).to_dict()
 
     def _multi(self, series_ids: List[str],

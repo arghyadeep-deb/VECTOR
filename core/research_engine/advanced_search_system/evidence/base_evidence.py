@@ -3,6 +3,12 @@ Base evidence classes for the advanced search system.
 """
 
 from dataclasses import dataclass, field
+
+__all__ = [
+    "Evidence",
+    "EvidenceType",
+]
+
 from datetime import datetime, UTC
 from enum import Enum
 from typing import Any, Dict, Optional

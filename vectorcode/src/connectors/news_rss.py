@@ -14,7 +14,10 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path

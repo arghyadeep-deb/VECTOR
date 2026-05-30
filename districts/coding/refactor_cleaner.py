@@ -3,10 +3,8 @@ Refactor Cleaner — dead code cleanup and consolidation specialist.
 Loaded from: vectorcode/agents/vector-refactor-cleaner.md
 District: coding
 """
-import sys
 import asyncio
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

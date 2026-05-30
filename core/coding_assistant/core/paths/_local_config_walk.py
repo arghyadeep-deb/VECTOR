@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "ConfigWalkResult",
+    "logger",
+    "walk_local_config_dirs",
+    "WALK_MAX_DEPTH",
+]
+
+
 from collections import deque
 from dataclasses import dataclass, field
 from functools import cache

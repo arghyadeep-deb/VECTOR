@@ -4,6 +4,7 @@ GitHub Read File Tool - Read file contents from any GitHub repository with line 
 Fetch exact file contents with metadata, supporting line ranges for efficient reading.
 """
 
+from loguru import logger
 import base64
 import json
 import os

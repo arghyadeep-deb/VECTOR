@@ -1,5 +1,5 @@
 """
-VECTOR Background Task Queue â€” parallel execution without blocking the main loop.
+VECTOR Background Task Queue — parallel execution without blocking the main loop.
 
 RULE 2: nothing in here can crash the autonomous loop.
 RULE 8: every completed/failed task stored in episodic memory.
@@ -13,16 +13,23 @@ Usage:
     tq.cancel(task_id)
 """
 import sys
+
+__all__ = [
+    "get_task_queue",
+    "Priority",
+    "Task",
+    "TaskQueue",
+    "TaskStatus",
+]
+
 import asyncio
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any, Callable, Coroutine
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -94,9 +101,9 @@ class TaskQueue:
     list_*()  â†’ introspection helpers
 
     On complete/fail fires three notifications:
-      1. Terminal line  â€” printed directly via loguru (chat picks it up)
-      2. Episodic store â€” RULE 8
-      3. Pushover       â€” via permission_gateway.notify (best-effort)
+      1. Terminal line  — printed directly via loguru (chat picks it up)
+      2. Episodic store — RULE 8
+      3. Pushover       — via permission_gateway.notify (best-effort)
     """
 
     _instance: "TaskQueue | None" = None
@@ -116,7 +123,7 @@ class TaskQueue:
             max_workers=4, thread_name_prefix="vector-bg"
         )
         self._max_concurrent = max_workers
-        # Terminal notification callback â€” set by chat.py when it starts
+        # Terminal notification callback — set by chat.py when it starts
         self._terminal_notify: Callable[[str], None] | None = None
         self._shutdown_flag = False
         logger.info(f"[VECTOR][task_queue] ready max_concurrent={max_workers}")
@@ -157,8 +164,8 @@ class TaskQueue:
                 aio = loop.create_task(self._run_in_thread(task_id, work))
             self._aio_tasks[task_id] = aio
         except RuntimeError:
-            # Called from outside a running event loop â€” mark QUEUED, loop picks up
-            logger.warning(f"[VECTOR][task_queue] no running loop â€” task {task_id} queued")
+            # Called from outside a running event loop — mark QUEUED, loop picks up
+            logger.warning(f"[VECTOR][task_queue] no running loop — task {task_id} queued")
 
         logger.info(
             f"[VECTOR][task_queue] submitted id={task_id} name={name!r} "
@@ -280,7 +287,7 @@ class TaskQueue:
         # 1. Terminal line
         self._notify_terminal(msg)
 
-        # 2. Episodic memory â€” RULE 8
+        # 2. Episodic memory — RULE 8
         await self._store_episodic(task, success=True)
 
         # 3. Pushover
@@ -299,7 +306,7 @@ class TaskQueue:
                 self._terminal_notify(msg)
             except Exception:
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        # Always log â€” visible in the terminal regardless
+        # Always log — visible in the terminal regardless
         logger.info(f"[VECTOR][task_queue] {msg}")
 
     async def _store_episodic(self, task: Task, success: bool) -> None:

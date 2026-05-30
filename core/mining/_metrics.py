@@ -13,6 +13,19 @@ only place the metric names live.
 
 from __future__ import annotations
 
+__all__ = [
+    "log",
+    "parse_gateway_metrics",
+    "parse_vllm_metrics",
+    "PROM_BLOCKS_FOUND",
+    "PROM_ERRORS_TOTAL",
+    "PROM_LAST_SHARE_TS",
+    "PROM_PROCESS_START",
+    "PROM_SHARES_ACCEPTED",
+    "PROM_SHARES_SUBMITTED",
+]
+
+
 import logging
 import time
 

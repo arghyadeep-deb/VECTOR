@@ -11,7 +11,7 @@ picked up automatically.  The fallback path replicates the core logic
 from ``vector_constants.py`` using only the stdlib.
 
 All scripts under ``google-workspace/scripts/`` should import from here
-instead of duplicating the ``VECTOR_HOME = Path(os.getenv(...))`` pattern.
+instead of duplicating the ``VECTOR_HOME = Path(os.environ.get(...))`` pattern.
 """
 
 from __future__ import annotations

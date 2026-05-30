@@ -10,6 +10,12 @@ Key features:
 """
 
 import concurrent.futures
+
+__all__ = [
+    "ConcurrentDualConfidenceStrategy",
+    "SearchState",
+]
+
 import threading
 import time
 from dataclasses import dataclass, field

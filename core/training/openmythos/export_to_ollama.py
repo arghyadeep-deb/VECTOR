@@ -4,8 +4,13 @@ Export trained models to Ollama registry.
 """
 
 import sys
+
+__all__ = [
+    "main",
+    "OllamaExporter",
+]
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.config import CONFIG
 from loguru import logger
@@ -267,14 +272,16 @@ async def main():
     """Test the Ollama exporter."""
     exporter = OllamaExporter()
 
-    print("Local registry models:", exporter.list_local_models())
-    print("Ollama models:", exporter.list_ollama_models())
+    logger.info("Local registry models:", exporter.list_local_models())
+
+    logger.info("Ollama models:", exporter.list_ollama_models())
+
 
     result = exporter.export_model_weights(
         "./models/test",
         "test-model",
     )
-    print(f"Export result: {result}")
+    logger.info(f"Export result: {result}")
 
 
 if __name__ == "__main__":

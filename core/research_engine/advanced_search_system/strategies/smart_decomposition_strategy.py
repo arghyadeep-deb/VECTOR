@@ -6,6 +6,12 @@ decomposition method for optimal results.
 """
 
 from enum import Enum
+
+__all__ = [
+    "QueryType",
+    "SmartDecompositionStrategy",
+]
+
 from typing import Any, Dict, List
 
 from langchain_core.language_models import BaseChatModel

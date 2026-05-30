@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+__all__ = [
+    "AudioRecorder",
+    "DEFAULT_BLOCKSIZE",
+    "DEFAULT_CHANNELS",
+    "DEFAULT_MAX_DURATION",
+    "DEFAULT_SAMPLE_RATE",
+    "DEFAULT_SAMPLE_WIDTH",
+    "DRAIN_TIMEOUT",
+    "DTYPE",
+    "INT16_ABS_MAX",
+]
+
+
 import asyncio
 from collections.abc import AsyncGenerator, Callable
 import io

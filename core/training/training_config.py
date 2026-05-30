@@ -1,8 +1,12 @@
 """Pydantic models for adaptive training configuration."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+__all__ = [
+    "AdapterConfig",
+    "EvalConfig",
+    "TrainingArgs",
+]
+
 
 from pydantic import BaseModel, Field
 

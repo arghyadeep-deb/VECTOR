@@ -5,12 +5,9 @@ Wraps vectorcode/src/agent/usage_pricing.py concept.
 Tracks per-district token consumption, costs by provider, budget alerts.
 Plugs into vectorcode_llm's session usage accumulator.
 """
-import sys
 import asyncio
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -80,7 +77,7 @@ class LLMCostTracker(AgentBase):
         import os
         if True:  # Ollama always available
             return "ollama"
-        if os.getenv("GEMINI_API_KEY"):
+        if CONFIG.get("api_keys", {}).get("gemini_key"):
             return "gemini"
         return "ollama"
 

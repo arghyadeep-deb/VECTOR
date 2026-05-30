@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Tracing Module - Debugging and monitoring for financial agents
 
 Provides:
@@ -271,6 +272,8 @@ class TracingModule:
         try:
             yield self._current_trace
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.modules.tracing_module] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.modules.tracing_module] caught Exception: %s", _sve)
             if self._current_trace:
                 self._current_trace.metadata["error"] = str(e)
             raise

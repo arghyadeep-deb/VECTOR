@@ -1,5 +1,5 @@
 """
-VECTOR Smart Routing â€” Persistent Response Store
+VECTOR Smart Routing — Persistent Response Store
 Python port of ClawRouter/src/response-store.ts
 
 Stores LLM responses persistently (beyond the 30s in-memory cache).
@@ -12,6 +12,13 @@ Usage:
     recent = store.list_recent(limit=10)
 """
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "ResponseStore",
+    "StoredResponse",
+]
+
 
 import hashlib
 import json
@@ -21,7 +28,6 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 _STORE_DIR = Path.home() / ".vector" / "smart_routing" / "responses"
 
@@ -135,5 +141,5 @@ if __name__ == "__main__":
         st = store.stats()
         assert st["count"] == 1
 
-    print(f"OK response_store.py â€” persistent response storage")
+    print(f"OK response_store.py — persistent response storage")
     print(f"  store_dir: {_STORE_DIR}")

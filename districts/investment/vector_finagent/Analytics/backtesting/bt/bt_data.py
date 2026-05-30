@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BT Data Loading
 
 Fetches data via yfinance and converts to pandas DataFrames suitable for
@@ -71,6 +72,8 @@ def fetch_data(
             print(f'[BT-DATA] {sym}: {len(df)} bars loaded', file=sys.stderr)
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_data] caught Exception: %s", _sve)
             print(f'[BT-DATA] WARNING: Error fetching {sym}: {e}, using SYNTHETIC', file=sys.stderr)
             synth = _generate_synthetic([sym], start_date, end_date)
             frames[sym] = synth[sym]

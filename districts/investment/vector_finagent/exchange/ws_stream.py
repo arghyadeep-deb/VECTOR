@@ -1,4 +1,5 @@
 """
+from loguru import logger
 WebSocket streaming bridge — long-running Python subprocess.
 Connects to exchange via ccxt.pro WebSocket and streams JSON lines to stdout.
 C++ reads stdout line-by-line in a background thread.
@@ -49,6 +50,8 @@ def emit(obj):
         _stdout_write(_dumps(obj) + "\n")
         _stdout_flush()
     except Exception:
+        logger.debug("[VECTOR][exchange.ws_stream] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.ws_stream] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 

@@ -6,6 +6,7 @@
 """Tools primitive — tool system with ABC interface and built-in tools."""
 
 from __future__ import annotations
+from loguru import logger
 
 from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor, ToolSpec
 

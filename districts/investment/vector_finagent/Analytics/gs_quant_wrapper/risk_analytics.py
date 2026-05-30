@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Risk Analytics Wrapper
 ===============================
 
@@ -1008,7 +1009,9 @@ class RiskAnalytics:
                     holiday_calendar=holiday_calendar
                 )
                 return {'gs_scenario': scenario, 'type': 'carry'}
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return {
@@ -1037,9 +1040,8 @@ class RiskAnalytics:
                     shock_type=MarketDataShockType[shock_type]
                 )
                 return {'gs_scenario': scenario, 'type': 'curve'}
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+            except Exception:
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] suppressed Exception in fallback")  # bare except
         return {
             'type': 'curve',
             'parallel_shift': curve_spec.parallel_shift,
@@ -1065,9 +1067,8 @@ class RiskAnalytics:
                 if gs_scenarios:
                     scenario = CompositeScenario(scenarios=gs_scenarios)
                     return {'gs_scenario': scenario, 'type': 'composite', 'name': name}
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+            except Exception:
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] suppressed Exception in fallback")  # bare except
         return {
             'type': 'composite',
             'name': name,

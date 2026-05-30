@@ -1,8 +1,8 @@
-"""VECTOR Workflow Runner â€” DAG-based district orchestration.
+"""VECTOR Workflow Runner -- DAG-based district orchestration.
 
 Lets you define multi-step workflows where each step calls a district agent or
 tool, with explicit ``depends_on`` edges, and run them in dependency order
-with full telemetry. Sits cleanly above the autonomous loop â€” the loop can
+with full telemetry. Sits cleanly above the autonomous loop -- the loop can
 either fire one workflow per tick or run multiple in parallel.
 
 Workflow shape (YAML or dict)::
@@ -40,9 +40,18 @@ of upstream tasks are made available to downstream tasks via ``params``
 template substitution (``{{task_id.field}}``).
 
 Full async, fail-fast or fail-soft (per-task ``optional: true``), and
-telemetry-aware â€” every step gets a TelemetryRecord written.
+telemetry-aware -- every step gets a TelemetryRecord written.
 """
 from __future__ import annotations
+
+__all__ = [
+    "load_workflow_file",
+    "TaskResult",
+    "WorkflowResult",
+    "WorkflowRunner",
+    "WorkflowTask",
+]
+
 
 import asyncio
 import json
@@ -55,13 +64,13 @@ from typing import Any, Awaitable, Callable, Optional
 
 from loguru import logger
 
-# Absorbed OJ WorkflowEngine (more formal DAG engine â€” available as alternative)
+# Absorbed OJ WorkflowEngine (more formal DAG engine -- available as alternative)
 try:
     from vectorcode.src.workflow import WorkflowEngine, WorkflowBuilder  # noqa: F401
 except Exception:
     logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-# â”€â”€ Workflow data classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Workflow data classes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 @dataclass
@@ -95,12 +104,12 @@ class WorkflowResult:
     overall_status: str  # "ok" | "partial" | "failed"
 
     def get(self, task_id: str) -> Any:
-        """Convenience accessor â€” returns the output of a named task."""
+        """Convenience accessor -- returns the output of a named task."""
         r = self.task_results.get(task_id)
         return r.output if r else None
 
 
-# â”€â”€ Template substitution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Template substitution â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 _TEMPLATE_RE = re.compile(r"\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}")
 
@@ -131,7 +140,7 @@ def _substitute(value: Any, task_outputs: dict[str, Any]) -> Any:
     return value
 
 
-# â”€â”€ DAG topological sort â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ DAG topological sort â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 def _toposort(tasks: list[WorkflowTask]) -> list[list[str]]:
@@ -169,7 +178,7 @@ def _toposort(tasks: list[WorkflowTask]) -> list[list[str]]:
     return layers
 
 
-# â”€â”€ Runner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Runner â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 class WorkflowRunner:
@@ -197,7 +206,7 @@ class WorkflowRunner:
         results: dict[str, TaskResult] = {}
         outputs: dict[str, Any] = {}
 
-        logger.info(f"[VECTOR][workflow] '{name}' starting â€” {len(tasks)} tasks, "
+        logger.info(f"[VECTOR][workflow] '{name}' starting -- {len(tasks)} tasks, "
                     f"{len(layers)} layer(s)")
 
         for layer_i, layer in enumerate(layers, 1):
@@ -210,7 +219,7 @@ class WorkflowRunner:
                 if r.status == "ok":
                     outputs[r.id] = r.output
                 elif not by_id[r.id].optional:
-                    # Hard fail â€” abort remaining layers
+                    # Hard fail -- abort remaining layers
                     finished = time.time()
                     return WorkflowResult(
                         name=name,
@@ -224,7 +233,7 @@ class WorkflowRunner:
         finished = time.time()
         any_failed = any(r.status == "failed" for r in results.values())
         overall = "partial" if any_failed else "ok"
-        logger.info(f"[VECTOR][workflow] '{name}' {overall} â€” "
+        logger.info(f"[VECTOR][workflow] '{name}' {overall} -- "
                     f"{finished - started:.2f}s, "
                     f"{sum(1 for r in results.values() if r.status == 'ok')}/{len(results)} ok")
 
@@ -237,7 +246,7 @@ class WorkflowRunner:
             overall_status=overall,
         )
 
-    # â”€â”€ Internals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â"€â"€ Internals â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
     def _coerce_task(self, raw: Any) -> WorkflowTask:
         if isinstance(raw, WorkflowTask):
@@ -329,7 +338,7 @@ class WorkflowRunner:
 
     def _lazy_registry(self) -> Any:
         try:
-            from vectorcode.src.districts.registry import get_registry  # type: ignore
+            from vectorcode.src.agents.registry import get_registry # type: ignore
             return get_registry()
         except Exception:
             return None
@@ -369,7 +378,7 @@ class WorkflowRunner:
         return None
 
 
-# â”€â”€ Convenience: load workflow from YAML/JSON file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Convenience: load workflow from YAML/JSON file â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 def load_workflow_file(path: str | Path) -> dict:
@@ -384,7 +393,7 @@ def load_workflow_file(path: str | Path) -> dict:
     return json.loads(text)
 
 
-# â”€â”€ Self-test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Self-test â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 if __name__ == "__main__":
@@ -410,5 +419,5 @@ if __name__ == "__main__":
     print(f"Workflow status: {result.overall_status}")
     print(f"Total: {result.get('total')}")
     print(f"Duration: {result.duration_seconds:.3f}s")
-    # Substitution: a.value=42, b.value=7, but template uses strings â€” fn must coerce
+    # Substitution: a.value=42, b.value=7, but template uses strings -- fn must coerce
     # Final result will include the literal "42" / "7" strings unless _step_sum casts

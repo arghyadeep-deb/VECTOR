@@ -31,6 +31,7 @@ Environment variables:
 See ads/references/image-providers.md for pricing and capability details.
 """
 
+from loguru import logger
 import argparse
 import base64
 import json

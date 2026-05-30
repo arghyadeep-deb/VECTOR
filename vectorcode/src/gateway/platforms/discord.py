@@ -40,7 +40,6 @@ except ImportError:
 
 import sys
 from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 
 from gateway.config import Platform, PlatformConfig
 import re
@@ -106,7 +105,7 @@ def _build_allowed_mentions():
         return None
 
     def _b(name: str, default: bool) -> bool:
-        raw = os.getenv(name, "").strip().lower()
+        raw = os.environ.get(name, "").strip().lower()
         if not raw:
             return default
         return raw in ("true", "1", "yes", "on")
@@ -502,8 +501,8 @@ class DiscordAdapter(BasePlatformAdapter):
         self._voice_clients: Dict[int, Any] = {}  # guild_id -> VoiceClient
         self._voice_locks: Dict[int, asyncio.Lock] = {}  # guild_id -> serialize join/leave
         # Text batching: merge rapid successive messages (Telegram-style)
-        self._text_batch_delay_seconds = float(os.getenv("VECTOR_DISCORD_TEXT_BATCH_DELAY_SECONDS", "0.6"))
-        self._text_batch_split_delay_seconds = float(os.getenv("VECTOR_DISCORD_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
+        self._text_batch_delay_seconds = float(os.environ.get("VECTOR_DISCORD_TEXT_BATCH_DELAY_SECONDS", "0.6"))
+        self._text_batch_split_delay_seconds = float(os.environ.get("VECTOR_DISCORD_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
         self._voice_text_channels: Dict[int, int] = {}  # guild_id -> text_channel_id
@@ -570,7 +569,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 return False
 
             # Parse allowed user entries (may contain usernames or IDs)
-            allowed_env = os.getenv("DISCORD_ALLOWED_USERS", "")
+            allowed_env = os.environ.get("DISCORD_ALLOWED_USERS", "")
             if allowed_env:
                 self._allowed_user_ids = {
                     _clean_discord_id(uid) for uid in allowed_env.split(",")
@@ -579,7 +578,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
             # Parse DISCORD_ALLOWED_ROLES — comma-separated role IDs.
             # Users with ANY of these roles can interact with the bot.
-            roles_env = os.getenv("DISCORD_ALLOWED_ROLES", "")
+            roles_env = os.environ.get("DISCORD_ALLOWED_ROLES", "")
             if roles_env:
                 self._allowed_role_ids = {
                     int(rid.strip()) for rid in roles_env.split(",")
@@ -669,7 +668,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 # permitted by DISCORD_ALLOW_BOTS are not rejected for
                 # not being in DISCORD_ALLOWED_USERS (fixes #4466).
                 if getattr(message.author, "bot", False):
-                    allow_bots = os.getenv("DISCORD_ALLOW_BOTS", "none").lower().strip()
+                    allow_bots = os.environ.get("DISCORD_ALLOW_BOTS", "none").lower().strip()
                     if allow_bots == "none":
                         return
                     elif allow_bots == "mentions":
@@ -705,7 +704,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         return
                     # If humans are mentioned but we're not → not for us
                     # (preserves old DISCORD_IGNORE_NO_MENTION=true behavior)
-                    _ignore_no_mention = os.getenv(
+                    _ignore_no_mention = os.environ.get(
                         "DISCORD_IGNORE_NO_MENTION", "true"
                     ).lower() in ("true", "1", "yes")
                     if _ignore_no_mention and not _self_mentioned and not _other_bots_mentioned:
@@ -833,7 +832,7 @@ class DiscordAdapter(BasePlatformAdapter):
             logger.warning("[%s] Slash command sync failed: %s", self.name, e, exc_info=True)
 
     def _get_discord_command_sync_policy(self) -> str:
-        raw = str(os.getenv("DISCORD_COMMAND_SYNC_POLICY", "safe") or "").strip().lower()
+        raw = str(os.environ.get("DISCORD_COMMAND_SYNC_POLICY", "safe") or "").strip().lower()
         if raw in _DISCORD_COMMAND_SYNC_POLICIES:
             return raw
         if raw:
@@ -1033,7 +1032,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
     def _reactions_enabled(self) -> bool:
         """Check if message reactions are enabled via config/env."""
-        return os.getenv("DISCORD_REACTIONS", "true").lower() not in ("false", "0", "no")
+        return os.environ.get("DISCORD_REACTIONS", "true").lower() not in ("false", "0", "no")
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         """Add an in-progress reaction for normal Discord message events."""
@@ -2695,7 +2694,7 @@ class DiscordAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() not in ("false", "0", "no", "off")
             return bool(configured)
-        return os.getenv("DISCORD_REQUIRE_MENTION", "true").lower() not in ("false", "0", "no", "off")
+        return os.environ.get("DISCORD_REQUIRE_MENTION", "true").lower() not in ("false", "0", "no", "off")
 
     def _discord_free_response_channels(self) -> set:
         """Return Discord channel IDs where no bot mention is required.
@@ -2706,7 +2705,7 @@ class DiscordAdapter(BasePlatformAdapter):
         """
         raw = self.config.extra.get("free_response_channels")
         if raw is None:
-            raw = os.getenv("DISCORD_FREE_RESPONSE_CHANNELS", "")
+            raw = os.environ.get("DISCORD_FREE_RESPONSE_CHANNELS", "")
         if isinstance(raw, list):
             return {str(part).strip() for part in raw if str(part).strip()}
         if isinstance(raw, str) and raw.strip():
@@ -3193,7 +3192,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 channel_ids.add(parent_channel_id)
 
             # Check allowed channels - if set, only respond in these channels
-            allowed_channels_raw = os.getenv("DISCORD_ALLOWED_CHANNELS", "")
+            allowed_channels_raw = os.environ.get("DISCORD_ALLOWED_CHANNELS", "")
             if allowed_channels_raw:
                 allowed_channels = {ch.strip() for ch in allowed_channels_raw.split(",") if ch.strip()}
                 if "*" not in allowed_channels and not (channel_ids & allowed_channels):
@@ -3201,7 +3200,7 @@ class DiscordAdapter(BasePlatformAdapter):
                     return
 
             # Check ignored channels - never respond even when mentioned
-            ignored_channels_raw = os.getenv("DISCORD_IGNORED_CHANNELS", "")
+            ignored_channels_raw = os.environ.get("DISCORD_IGNORED_CHANNELS", "")
             ignored_channels = {ch.strip() for ch in ignored_channels_raw.split(",") if ch.strip()}
             if "*" in ignored_channels or (channel_ids & ignored_channels):
                 logger.debug("[%s] Ignoring message in ignored channel: %s", self.name, channel_ids)
@@ -3236,10 +3235,10 @@ class DiscordAdapter(BasePlatformAdapter):
         # no_thread_channels: channels where bot responds directly without thread.
         auto_threaded_channel = None
         if not is_thread and not isinstance(message.channel, discord.DMChannel):
-            no_thread_channels_raw = os.getenv("DISCORD_NO_THREAD_CHANNELS", "")
+            no_thread_channels_raw = os.environ.get("DISCORD_NO_THREAD_CHANNELS", "")
             no_thread_channels = {ch.strip() for ch in no_thread_channels_raw.split(",") if ch.strip()}
             skip_thread = bool(channel_ids & no_thread_channels) or is_free_channel
-            auto_thread = os.getenv("DISCORD_AUTO_THREAD", "true").lower() in ("true", "1", "yes")
+            auto_thread = os.environ.get("DISCORD_AUTO_THREAD", "true").lower() in ("true", "1", "yes")
             is_reply_message = getattr(message, "type", None) == discord.MessageType.reply
             if auto_thread and not skip_thread and not is_voice_linked_channel and not is_reply_message:
                 thread = await self._auto_create_thread(message)

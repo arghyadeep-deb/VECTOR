@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Renaissance Technologies Hedge Fund System
 
 Main orchestrator for the multi-agent Renaissance Technologies system.
@@ -254,6 +255,8 @@ class RenaissanceTechnologiesSystem:
                 decision = self.analyze(ticker, config)
                 decisions[ticker] = decision
             except Exception as e:
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.main] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.main] caught Exception: %s", _sve)
                 logger.error(f"Error analyzing {ticker}: {e}")
                 decisions[ticker] = self._create_error_decision(ticker, [str(e)])
 

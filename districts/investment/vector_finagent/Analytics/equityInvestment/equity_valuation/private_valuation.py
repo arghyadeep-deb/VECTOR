@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Investment Private Valuation Module
 ======================================
 
@@ -908,6 +909,8 @@ class PrivateCompanyValuator:
                 'growth_rate': growth_rate
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.private_valuation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.private_valuation] caught Exception: %s", _sve)
             income_valuations['capitalized_earnings'] = {'error': str(e)}
 
         # DCF Method

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Japanese Government e-Stat API Wrapper
 Fetches Japanese official statistics data using hierarchical structure:
 1. Statistics List (Catalogue) - Lists available statistical tables
@@ -151,6 +152,8 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
             "error": "Invalid JSON response from e-Stat API."
         }
     except Exception as e:
+        logger.debug("[VECTOR][estat_japan_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][estat_japan_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

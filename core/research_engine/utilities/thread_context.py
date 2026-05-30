@@ -5,11 +5,20 @@ This module provides helpers for propagating research context across thread
 and asyncio boundaries. Built on ``contextvars.ContextVar`` so the context
 is correctly inherited by frameworks that copy the context to worker
 threads (e.g. langchain's ``ContextThreadPoolExecutor`` used by LangGraph
-for parallel tool execution). For stdlib ``ThreadPoolExecutor`` â€” which
-does not copy context â€” use ``preserve_research_context`` below.
+for parallel tool execution). For stdlib ``ThreadPoolExecutor`` — which
+does not copy context — use ``preserve_research_context`` below.
 """
 
 import functools
+
+__all__ = [
+    "clear_search_context",
+    "get_search_context",
+    "preserve_research_context",
+    "search_context",
+    "set_search_context",
+]
+
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, Callable, Dict, Generator, Optional

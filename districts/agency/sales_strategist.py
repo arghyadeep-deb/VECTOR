@@ -4,14 +4,11 @@ Sales Strategist — outbound prospecting, pipeline management, deal coaching.
 Helps Arghyadeep's agency find clients for AI/ML/Backend projects.
 Combines outbound-strategist + sales-coach + pipeline-analyst from agency-agents.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

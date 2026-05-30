@@ -145,8 +145,8 @@ def uninstall_gateway_service():
     system = platform.system()
 
     # Termux/Android has no systemd and no launchd — nothing left to do.
-    prefix = os.getenv("PREFIX", "")
-    is_termux = bool(os.getenv("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
+    prefix = os.environ.get("PREFIX", "")
+    is_termux = bool(os.environ.get("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
     if is_termux:
         return stopped_something
 

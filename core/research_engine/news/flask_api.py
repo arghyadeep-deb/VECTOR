@@ -23,7 +23,7 @@ from ..security.decorators import require_json_body
 def scheduler_control_required(f):
     """Decorator that gates global scheduler control behind a setting.
 
-    The news scheduler is a global singleton â€” starting, stopping, or
+    The news scheduler is a global singleton — starting, stopping, or
     triggering it affects all users.  This decorator checks the
     ``news.scheduler.allow_api_control`` setting (env var
     ``LDR_NEWS_SCHEDULER_ALLOW_API_CONTROL``, default ``false``) and

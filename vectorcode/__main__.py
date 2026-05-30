@@ -2,9 +2,7 @@
 VectorCode — terminal-native, model-agnostic agentic coding tool.
 Run with: python -m vectorcode repl
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
 
 if __name__ == "__main__":
     import sys as _sys

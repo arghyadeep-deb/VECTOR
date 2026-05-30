@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Data Fetcher Utility
 
 Unified data fetching for Renaissance Technologies agent.
@@ -99,6 +100,8 @@ def fetch_stock_data_yfinance(ticker: str, period: str = "1y") -> StockData:
                 if 'Net Income' in financials.index:
                     earnings = financials.loc['Net Income'].tolist()
         except Exception:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.data_fetcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.data_fetcher] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         return StockData(

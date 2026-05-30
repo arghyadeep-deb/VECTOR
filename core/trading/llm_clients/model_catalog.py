@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "get_known_models",
+    "get_model_options",
+    "ModelOption",
+    "ProviderModeOptions",
+]
+
+
 from typing import Dict, List, Tuple
 
 ModelOption = Tuple[str, str]

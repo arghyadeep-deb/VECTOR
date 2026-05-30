@@ -16,6 +16,12 @@ plus ``vector mine doctor``.
 
 from __future__ import annotations
 
+__all__ = [
+    "install_hint",
+    "pearl_packages_available",
+]
+
+
 import importlib.util
 import sys
 

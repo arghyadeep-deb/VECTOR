@@ -25,11 +25,11 @@ def is_truthy_value(value: Any, default: bool = False) -> bool:
 
 def env_var_enabled(name: str, default: str = "") -> bool:
     """Return True when an environment variable is set to a truthy value."""
-    return is_truthy_value(os.getenv(name, default), default=False)
+    return is_truthy_value(os.environ.get(name, default), default=False)
 
 
 def env_int(key: str, default: int = 0) -> int:
-    raw = os.getenv(key, "").strip()
+    raw = os.environ.get(key, "").strip()
     if not raw:
         return default
     try:

@@ -14,13 +14,11 @@ Wraps the VectorCode Intelligence MCP server (vectorcode/code_intel/) which prov
 - vc_visualize  : Interactive dependency graph (Cytoscape.js, offline)
 """
 
-import sys
 import asyncio
 import subprocess
 import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

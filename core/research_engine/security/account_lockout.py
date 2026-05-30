@@ -9,6 +9,12 @@ deployments (e.g. gunicorn), each worker maintains separate state.
 """
 
 import threading
+
+__all__ = [
+    "AccountLockoutManager",
+    "get_account_lockout_manager",
+]
+
 from datetime import datetime, timedelta, timezone
 
 from loguru import logger

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os as _os
+import shlex
 import subprocess
 from typing import Any
 
@@ -44,8 +46,7 @@ class BashTool(BaseTool):
 
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                shlex.split(command),
                 cwd=cwd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

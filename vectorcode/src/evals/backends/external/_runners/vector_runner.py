@@ -24,7 +24,6 @@ import json
 import os
 import sys
 import traceback
-from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -54,7 +53,6 @@ def main() -> int:
         args.output_json.write_text(json.dumps(output))
         return 2
 
-    sys.path.insert(0, vector_path)
     if args.workspace:
         os.chdir(args.workspace)
 

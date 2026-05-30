@@ -9,14 +9,18 @@ Ported from the high-performance agent harness cache_tracker.rs.
 """
 from __future__ import annotations
 
+__all__ = [
+    "CacheTracker",
+    "CacheViolation",
+    "MAX_HISTORY",
+]
+
+
 import hashlib
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

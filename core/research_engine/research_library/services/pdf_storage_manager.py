@@ -207,7 +207,7 @@ class PDFStorageManager:
         """Check if a PDF exists in any storage backend.
 
         Use this when you need to check PDF availability without a specific
-        storage mode â€” e.g. generating document URLs in search results.
+        storage mode — e.g. generating document URLs in search results.
         """
         manager = cls(library_root, "none")
         return manager.has_pdf(document, session)

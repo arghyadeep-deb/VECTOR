@@ -84,7 +84,7 @@ def _safe_parse_import_env(
     Terminal tool is imported by CLI, ACP, tests, and tool discovery. A single
     malformed env var must not make the whole module unloadable at import time.
     """
-    raw = os.getenv(name)
+    raw = os.environ.get(name)
     if raw is None or raw == "":
         return default
     try:
@@ -242,7 +242,7 @@ def _handle_sudo_failure(output: str, env_type: str) -> str:
     
     Returns enhanced output if sudo failed in messaging context, else original.
     """
-    is_gateway = os.getenv("VECTOR_GATEWAY_SESSION")
+    is_gateway = os.environ.get("VECTOR_GATEWAY_SESSION")
     
     if not is_gateway:
         return output
@@ -712,7 +712,7 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
     has_configured_password = "SUDO_PASSWORD" in os.environ
     sudo_password = os.environ.get("SUDO_PASSWORD", "") if has_configured_password else _cached_sudo_password
 
-    if not has_configured_password and not sudo_password and os.getenv("VECTOR_INTERACTIVE"):
+    if not has_configured_password and not sudo_password and os.environ.get("VECTOR_INTERACTIVE"):
         sudo_password = _prompt_for_sudo_password(timeout_seconds=45)
         if sudo_password:
             _cached_sudo_password = sudo_password
@@ -837,7 +837,7 @@ def _parse_env_var(name: str, default: str, converter=int, type_label: str = "in
     Without this wrapper, a single malformed env var (e.g. TERMINAL_TIMEOUT=5m)
     causes an unhandled ValueError that kills every terminal command.
     """
-    raw = os.getenv(name, default)
+    raw = os.environ.get(name, default)
     try:
         return converter(raw)
     except (ValueError, json.JSONDecodeError):
@@ -851,9 +851,9 @@ def _get_env_config() -> Dict[str, Any]:
     """Get terminal environment configuration from environment variables."""
     # Default image with Python and Node.js for maximum compatibility
     default_image = "nikolaik/python-nodejs:python3.11-nodejs20"
-    env_type = os.getenv("TERMINAL_ENV", "local")
+    env_type = os.environ.get("TERMINAL_ENV", "local")
     
-    mount_docker_cwd = os.getenv("TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE", "false").lower() in ("true", "1", "yes")
+    mount_docker_cwd = os.environ.get("TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE", "false").lower() in ("true", "1", "yes")
 
     # Default cwd: local uses the host's current directory, everything
     # else starts in the user's home (~ resolves to whatever account
@@ -869,11 +869,11 @@ def _get_env_config() -> Dict[str, Any]:
     # If Docker cwd passthrough is explicitly enabled, remap the host path to
     # /workspace and track the original host path separately. Otherwise keep the
     # normal sandbox behavior and discard host paths.
-    cwd = os.getenv("TERMINAL_CWD", default_cwd)
+    cwd = os.environ.get("TERMINAL_CWD", default_cwd)
     host_cwd = None
     host_prefixes = ("/Users/", "/home/", "C:\\", "C:/")
     if env_type == "docker" and mount_docker_cwd:
-        docker_cwd_source = os.getenv("TERMINAL_CWD") or os.getcwd()
+        docker_cwd_source = os.environ.get("TERMINAL_CWD") or os.getcwd()
         candidate = os.path.abspath(os.path.expanduser(docker_cwd_source))
         if (
             any(candidate.startswith(p) for p in host_prefixes)
@@ -893,35 +893,35 @@ def _get_env_config() -> Dict[str, Any]:
 
     return {
         "env_type": env_type,
-        "modal_mode": coerce_modal_mode(os.getenv("TERMINAL_MODAL_MODE", "auto")),
-        "docker_image": os.getenv("TERMINAL_DOCKER_IMAGE", default_image),
+        "modal_mode": coerce_modal_mode(os.environ.get("TERMINAL_MODAL_MODE", "auto")),
+        "docker_image": os.environ.get("TERMINAL_DOCKER_IMAGE", default_image),
         "docker_forward_env": _parse_env_var("TERMINAL_DOCKER_FORWARD_ENV", "[]", json.loads, "valid JSON"),
-        "singularity_image": os.getenv("TERMINAL_SINGULARITY_IMAGE", f"docker://{default_image}"),
-        "modal_image": os.getenv("TERMINAL_MODAL_IMAGE", default_image),
-        "daytona_image": os.getenv("TERMINAL_DAYTONA_IMAGE", default_image),
+        "singularity_image": os.environ.get("TERMINAL_SINGULARITY_IMAGE", f"docker://{default_image}"),
+        "modal_image": os.environ.get("TERMINAL_MODAL_IMAGE", default_image),
+        "daytona_image": os.environ.get("TERMINAL_DAYTONA_IMAGE", default_image),
         "cwd": cwd,
         "host_cwd": host_cwd,
         "docker_mount_cwd_to_workspace": mount_docker_cwd,
         "timeout": _parse_env_var("TERMINAL_TIMEOUT", "180"),
         "lifetime_seconds": _parse_env_var("TERMINAL_LIFETIME_SECONDS", "300"),
         # SSH-specific config
-        "ssh_host": os.getenv("TERMINAL_SSH_HOST", ""),
-        "ssh_user": os.getenv("TERMINAL_SSH_USER", ""),
+        "ssh_host": os.environ.get("TERMINAL_SSH_HOST", ""),
+        "ssh_user": os.environ.get("TERMINAL_SSH_USER", ""),
         "ssh_port": _parse_env_var("TERMINAL_SSH_PORT", "22"),
-        "ssh_key": os.getenv("TERMINAL_SSH_KEY", ""),
+        "ssh_key": os.environ.get("TERMINAL_SSH_KEY", ""),
         # Persistent shell: SSH defaults to the config-level persistent_shell
         # setting (true by default for non-local backends); local is always opt-in.
         # Per-backend env vars override if explicitly set.
-        "ssh_persistent": os.getenv(
+        "ssh_persistent": os.environ.get(
             "TERMINAL_SSH_PERSISTENT",
-            os.getenv("TERMINAL_PERSISTENT_SHELL", "true"),
+            os.environ.get("TERMINAL_PERSISTENT_SHELL", "true"),
         ).lower() in ("true", "1", "yes"),
-        "local_persistent": os.getenv("TERMINAL_LOCAL_PERSISTENT", "false").lower() in ("true", "1", "yes"),
+        "local_persistent": os.environ.get("TERMINAL_LOCAL_PERSISTENT", "false").lower() in ("true", "1", "yes"),
         # Container resource config (applies to docker, singularity, modal, daytona -- ignored for local/ssh)
         "container_cpu": _parse_env_var("TERMINAL_CONTAINER_CPU", "1", float, "number"),
         "container_memory": _parse_env_var("TERMINAL_CONTAINER_MEMORY", "5120"),     # MB (default 5GB)
         "container_disk": _parse_env_var("TERMINAL_CONTAINER_DISK", "51200"),        # MB (default 50GB)
-        "container_persistent": os.getenv("TERMINAL_CONTAINER_PERSISTENT", "true").lower() in ("true", "1", "yes"),
+        "container_persistent": os.environ.get("TERMINAL_CONTAINER_PERSISTENT", "true").lower() in ("true", "1", "yes"),
         "docker_volumes": _parse_env_var("TERMINAL_DOCKER_VOLUMES", "[]", json.loads, "valid JSON"),
     }
 
@@ -2019,7 +2019,7 @@ def check_terminal_requirements() -> bool:
 
         elif env_type == "daytona":
             from daytona import Daytona  # noqa: F401 — SDK presence check
-            return os.getenv("DAYTONA_API_KEY") is not None
+            return os.environ.get("DAYTONA_API_KEY") is not None
 
         else:
             logger.error(
@@ -2064,16 +2064,16 @@ if __name__ == "__main__":
 
     print("\nEnvironment Variables:")
     default_img = "nikolaik/python-nodejs:python3.11-nodejs20"
-    print(f"  TERMINAL_ENV: {os.getenv('TERMINAL_ENV', 'local')} (local/docker/singularity/modal/daytona/ssh)")
-    print(f"  TERMINAL_DOCKER_IMAGE: {os.getenv('TERMINAL_DOCKER_IMAGE', default_img)}")
-    print(f"  TERMINAL_SINGULARITY_IMAGE: {os.getenv('TERMINAL_SINGULARITY_IMAGE', f'docker://{default_img}')}")
-    print(f"  TERMINAL_MODAL_IMAGE: {os.getenv('TERMINAL_MODAL_IMAGE', default_img)}")
-    print(f"  TERMINAL_DAYTONA_IMAGE: {os.getenv('TERMINAL_DAYTONA_IMAGE', default_img)}")
-    print(f"  TERMINAL_CWD: {os.getenv('TERMINAL_CWD', os.getcwd())}")
+    print(f"  TERMINAL_ENV: {os.environ.get('TERMINAL_ENV', 'local')} (local/docker/singularity/modal/daytona/ssh)")
+    print(f"  TERMINAL_DOCKER_IMAGE: {os.environ.get('TERMINAL_DOCKER_IMAGE', default_img)}")
+    print(f"  TERMINAL_SINGULARITY_IMAGE: {os.environ.get('TERMINAL_SINGULARITY_IMAGE', f'docker://{default_img}')}")
+    print(f"  TERMINAL_MODAL_IMAGE: {os.environ.get('TERMINAL_MODAL_IMAGE', default_img)}")
+    print(f"  TERMINAL_DAYTONA_IMAGE: {os.environ.get('TERMINAL_DAYTONA_IMAGE', default_img)}")
+    print(f"  TERMINAL_CWD: {os.environ.get('TERMINAL_CWD', os.getcwd())}")
     from vector_constants import display_vector_home as _dhh
-    print(f"  TERMINAL_SANDBOX_DIR: {os.getenv('TERMINAL_SANDBOX_DIR', f'{_dhh()}/sandboxes')}")
-    print(f"  TERMINAL_TIMEOUT: {os.getenv('TERMINAL_TIMEOUT', '60')}")
-    print(f"  TERMINAL_LIFETIME_SECONDS: {os.getenv('TERMINAL_LIFETIME_SECONDS', '300')}")
+    print(f"  TERMINAL_SANDBOX_DIR: {os.environ.get('TERMINAL_SANDBOX_DIR', f'{_dhh()}/sandboxes')}")
+    print(f"  TERMINAL_TIMEOUT: {os.environ.get('TERMINAL_TIMEOUT', '60')}")
+    print(f"  TERMINAL_LIFETIME_SECONDS: {os.environ.get('TERMINAL_LIFETIME_SECONDS', '300')}")
 
 
 # ---------------------------------------------------------------------------

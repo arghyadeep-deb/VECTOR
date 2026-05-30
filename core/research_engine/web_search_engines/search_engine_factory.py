@@ -1,4 +1,10 @@
 import inspect
+
+__all__ = [
+    "create_search_engine",
+    "get_search",
+]
+
 from typing import Any, Dict, Optional
 
 from loguru import logger
@@ -88,7 +94,7 @@ def create_search_engine(
 
     if engine_name == "none":
         # Reject the literal string "none". Historically this silently fell
-        # through to the "auto" engine and hit live networks â€” callers that
+        # through to the "auto" engine and hit live networks — callers that
         # wanted an offline pipeline were unknowingly doing real searches.
         raise ValueError(
             "search.tool='none' is not a valid engine. Register a LangChain "
@@ -204,7 +210,7 @@ def create_search_engine(
     if engine_config.get("requires_llm", False) and not llm:
         logger.warning(
             f"Engine '{engine_name}' is configured with requires_llm=True but no LLM provided. "
-            f"Creating engine without LLM â€” some features (query optimization, relevance filtering) "
+            f"Creating engine without LLM — some features (query optimization, relevance filtering) "
             f"may be unavailable."
         )
 
@@ -341,7 +347,7 @@ def create_search_engine(
         elif should_filter:
             logger.warning(
                 f"LLM relevance filtering requested for {engine_name} "
-                f"but no LLM is available â€” filtering skipped"
+                f"but no LLM is available — filtering skipped"
             )
         else:
             logger.warning(f"LLM relevance filtering disabled for {engine_name}")

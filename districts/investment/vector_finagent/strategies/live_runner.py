@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 VECTOR Financial Terminal - Live Strategy Runner
 Manages strategy deployment for paper/live trading with SQLite persistence.
 All state is stored in SQLite only - no in-memory state in the host.
@@ -122,8 +123,7 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
 
     # Load the strategy class
     try:
-        if strategies_dir and strategies_dir not in sys.path:
-            sys.path.insert(0, strategies_dir)
+        if strategies_dir and os.path.isdir(strategies_dir) and strategies_dir not in sys.path:
 
         # Find strategy file from registry
         registry_path = os.path.join(strategies_dir, "_registry.py") if strategies_dir else ""
@@ -153,7 +153,24 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
         with open(full_path, "r") as f:
             source = f.read()
 
-        module_globals = {"__builtins__": {}}
+        _safe_builtins = {
+            "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+            "complex": complex, "dict": dict, "enumerate": enumerate,
+            "filter": filter, "float": float, "frozenset": frozenset,
+            "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+            "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+            "iter": iter, "len": len, "list": list, "map": map, "max": max,
+            "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+            "pow": pow, "print": print, "range": range, "repr": repr,
+            "reversed": reversed, "round": round, "set": set, "slice": slice,
+            "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+            "type": type, "zip": zip,
+        }
+        module_globals = {"__builtins__": _safe_builtins}
+        logger.warning(
+            "[VECTOR][security] exec strategy module in %s: %.100s",
+            __name__, source[:100],
+        )
         exec(compile(source, full_path, "exec"), module_globals)
 
         # Find the QCAlgorithm subclass
@@ -192,6 +209,8 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
         algo.initialize()
 
     except Exception as e:
+        logger.debug("[VECTOR][strategies.live_runner] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][strategies.live_runner] caught Exception: %s", _sve)
         _update_status(conn, deploy_id, "error", str(e))
         conn.close()
         return

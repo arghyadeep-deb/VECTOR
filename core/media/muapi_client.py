@@ -7,9 +7,16 @@ via the Muapi.ai unified API. No content filters. One API key.
 Usage:
     client = MuapiClient()
     result = asyncio.run(client.generate_image("flux-dev", "A cyberpunk cityscape"))
-    print(result["url"])  # hosted image URL
+    logger.info(result["url"])  # hosted image URL
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "BASE_URL",
+    "MuapiClient",
+]
+
 
 import asyncio
 import os
@@ -18,7 +25,6 @@ from pathlib import Path
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.media.models import get_model
 from loguru import logger

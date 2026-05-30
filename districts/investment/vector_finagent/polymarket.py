@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Prediction markets data fetcher
 Uses Manifold Markets API (globally accessible, no auth required)
 as a fallback since Polymarket is geo-restricted in some regions.
@@ -61,6 +62,8 @@ def get_markets(limit=10):
     except requests.exceptions.ConnectionError as e:
         return {"success": False, "error": f"Connection failed: {str(e)}", "data": []}
     except Exception as e:
+        logger.debug("[VECTOR][polymarket] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][polymarket] caught Exception: %s", _sve)
         return {"success": False, "error": str(e), "data": []}
 
 

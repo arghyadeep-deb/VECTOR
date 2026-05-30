@@ -1,6 +1,15 @@
 """Core dataclasses for the spec-10 Research Lab."""
 
 from dataclasses import dataclass, field
+
+__all__ = [
+    "AnalysisResult",
+    "ExperimentDesign",
+    "ExperimentResult",
+    "Hypothesis",
+    "ResearchReport",
+]
+
 from datetime import datetime, timezone
 from typing import Optional
 

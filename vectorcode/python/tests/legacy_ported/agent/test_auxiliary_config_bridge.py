@@ -6,14 +6,11 @@ Also tests the vision_tools and browser_tool model override env vars.
 
 import json
 import os
-import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 import yaml
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _run_auxiliary_bridge(config_dict, monkeypatch):

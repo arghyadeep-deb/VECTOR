@@ -7,7 +7,10 @@ import sys
 import json
 import os
 import requests
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional, List
 
 API_KEY = os.environ.get('ARXIV_API_KEY', '')

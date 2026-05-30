@@ -13,17 +13,8 @@ Absorbed:
 import sqlite3
 import json
 import time
-import sys
 from pathlib import Path
 from typing import Optional
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -357,8 +348,5 @@ if __name__ == "__main__":
         db.close()
 
     print("swarm_db.py OK — agents, tasks, decisions, metrics, history, purge")
-
-
-
 
 

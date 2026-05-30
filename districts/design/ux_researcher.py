@@ -4,14 +4,11 @@ UX Researcher — user research, usability analysis, persona development, journe
 Helps Arghyadeep understand how real users interact with VECTOR's outputs and
 any products built via the agency district. Data-driven design insights.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

@@ -7,12 +7,9 @@ Tests for VECTOR's Understand-Anything-main absorption:
 """
 import gc
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────

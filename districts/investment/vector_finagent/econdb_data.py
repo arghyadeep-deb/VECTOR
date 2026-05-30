@@ -1,4 +1,5 @@
 """
+from loguru import logger
 EconDB Data Fetcher
 Fetches global economic indicators from EconDB (econdb.com)
 Returns JSON output for Qt/C++ integration
@@ -116,6 +117,8 @@ async def create_temp_token() -> str:
                     return data.get("api_key", "")
                 return ""
     except Exception as e:
+        logger.debug("[VECTOR][econdb_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][econdb_data] caught Exception: %s", _sve)
         return ""
 
 async def make_econdb_request(url: str, token: Optional[str] = None) -> Dict:

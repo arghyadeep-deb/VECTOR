@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+from loguru import logger
 Technical Analysis Indicators Module
 ===================================
 
@@ -67,6 +68,8 @@ class TechnicalIndicators:
             
             return data.rolling(window=period, min_periods=period).mean()
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.technical_indicators] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.technical_indicators] caught Exception: %s", _sve)
             print(f"Error calculating SMA: {e}")
             return pd.Series(dtype=float)
 

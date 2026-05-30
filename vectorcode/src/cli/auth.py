@@ -1,5 +1,5 @@
 """Credential management — add, remove, list, test API credentials."""
-import sys
+from pathlib import Path
 import json
 import hashlib
 import platform
@@ -7,11 +7,8 @@ import base64
 import getpass
 import datetime
 from dataclasses import dataclass, asdict
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
 
 from loguru import logger
 

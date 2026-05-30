@@ -1,8 +1,14 @@
 """Inference router — /inference/stats."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "inference_run",
+    "inference_stats",
+    "list_models",
+    "list_providers",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

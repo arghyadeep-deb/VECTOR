@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Post-Trade Analysis Workflow
 
 Workflow for analyzing executed trades and extracting learnings.
@@ -326,6 +327,8 @@ Provide concise learning summary for organizational memory.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.post_trade_analysis] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.post_trade_analysis] caught Exception: %s", _sve)
             return RunResponse(
                 content=f"Post-trade analysis failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

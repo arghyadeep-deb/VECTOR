@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Federal Reserve Data Fetcher
 Modular, fault-tolerant wrapper for Federal Reserve Economic Data
 Based on OpenBB Federal Reserve provider with comprehensive endpoints
@@ -93,6 +94,8 @@ class FederalReserveWrapper:
         except requests.exceptions.RequestException as e:
             return {"error": f"Request error: {e}", "request_error": True, "status_code": None}
         except Exception as e:
+            logger.debug("[VECTOR][federal_reserve_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][federal_reserve_data] caught Exception: %s", _sve)
             return {"error": f"Unexpected error: {e}", "general_error": True, "status_code": None}
 
     # ===== FEDERAL FUNDS RATE ENDPOINT =====
@@ -341,9 +344,8 @@ class FederalReserveWrapper:
                         nearest = df.index.asof(target_dt)
                         if nearest is not pd.NaT:
                             nearest_dates.append(nearest)
-                    except:
-                        continue
-
+                    except Exception:
+                        logger.debug("[VECTOR][federal_reserve_data] suppressed Exception in fallback")  # bare except
                 if not nearest_dates:
                     return FederalReserveError('yield_curve', 'No valid dates found').to_dict()
 

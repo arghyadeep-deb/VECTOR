@@ -1,4 +1,4 @@
-"""Network failure injector â€” blocks ports, adds latency, drops packets."""
+"""Network failure injector — blocks ports, adds latency, drops packets."""
 
 from __future__ import annotations
 

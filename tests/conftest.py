@@ -1,6 +1,3 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Tests must never hang on unguarded network I/O. Several integration/E2E tests
 # make blocking calls to live services (Ollama, Pushover, etc.); a global socket

@@ -6,6 +6,13 @@ It doesn't require the jq package like LangChain's JSONLoader.
 """
 
 import json
+
+__all__ = [
+    "extract_strings_from_json",
+    "extract_text_from_json",
+    "SimpleJSONLoader",
+]
+
 from pathlib import Path
 from typing import Any, Iterator
 

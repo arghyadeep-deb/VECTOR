@@ -14,6 +14,14 @@ Architecture:
 """
 from __future__ import annotations
 
+__all__ = [
+    "KERNEL_ID",
+    "KERNEL_SECRET",
+    "main",
+    "run_stdio",
+]
+
+
 import sys
 import json
 import asyncio
@@ -22,9 +30,7 @@ import hmac
 import os
 import uuid
 import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 

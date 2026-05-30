@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Investment Committee Deliberation
 
 Structured reasoning for IC decisions:
@@ -531,6 +532,8 @@ CONDITIONS (if CONDITIONAL):
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.ic_deliberation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.ic_deliberation] caught Exception: %s", _sve)
             # Fallback if agent fails
             return ICMemberOpinion(
                 member_role=role,

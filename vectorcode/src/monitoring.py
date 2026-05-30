@@ -9,28 +9,10 @@ Absorbed from reference v2/src/monitoring/:
   - alert thresholds: stall_seconds, low_hp_threshold, high_error_rate
 """
 import time
-import sys
 import statistics
 from collections import deque
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -367,9 +349,5 @@ if __name__ == "__main__":
     assert "ts" in history[0]
 
     print(f"monitoring.py OK — {len(health.checks)} health checks, {len(diag.alerts)} alerts")
-
-
-
-
 
 

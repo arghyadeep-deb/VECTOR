@@ -7,6 +7,7 @@ Validates that:
 4. Legacy v1 shared-key ciphertexts remain decryptable via _gate_envelope_decrypt
 5. No new-encryption path silently falls through to gate_id-only derivation
 """
+from loguru import logger
 import base64
 
 import pytest

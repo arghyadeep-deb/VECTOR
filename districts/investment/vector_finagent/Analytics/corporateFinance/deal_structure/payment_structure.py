@@ -1,4 +1,5 @@
 """Payment Structure Analysis - Cash vs Stock"""
+from loguru import logger
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
@@ -316,6 +317,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_structure.payment_structure] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_structure.payment_structure] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

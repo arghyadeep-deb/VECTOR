@@ -7,6 +7,7 @@ Validates that:
 4. Replay dedupe remains aligned with durably persisted gate events
 5. No regression to existing persisted gate data readability
 """
+from loguru import logger
 import hashlib
 import json
 import time

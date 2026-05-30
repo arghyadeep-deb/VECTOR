@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Advanced Portfolio Analytics Module
 ===================================
 
@@ -537,6 +538,8 @@ class PortfolioAnalyticsEngine:
                 backtest_dates.extend(forward_returns.index)
 
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.skfolio_wrapper] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.skfolio_wrapper] caught Exception: %s", _sve)
                 print(f"Error at period {i}: {e}")
                 continue
 
@@ -700,10 +703,8 @@ class PortfolioAnalyticsEngine:
                 risks.append(portfolio_risk)
                 returns_list.append(target_return)
 
-            except:
-                continue
-
-        # Plot
+            except Exception:
+                logger.debug("[VECTOR][Analytics.skfolio_wrapper] suppressed Exception in fallback")  # bare except
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(

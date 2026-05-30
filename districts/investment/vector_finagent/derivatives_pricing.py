@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Derivatives Pricing Bridge Script
 ==================================
 CLI bridge for the QT terminal to invoke derivatives pricing calculations.
@@ -491,6 +492,8 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
+        logger.debug("[VECTOR][derivatives_pricing] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][derivatives_pricing] caught Exception: %s", _sve)
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
 

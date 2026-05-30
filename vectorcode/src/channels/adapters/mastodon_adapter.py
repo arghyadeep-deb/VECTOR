@@ -1,6 +1,5 @@
 """VECTOR Mastodon Channel Adapter — federated microblogging."""
 from __future__ import annotations
-import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from loguru import logger
 
 class MastodonAdapter:
@@ -11,8 +10,8 @@ class MastodonAdapter:
     """
     def __init__(self):
         import os
-        self.token = os.getenv("MASTODON_ACCESS_TOKEN","")
-        self.base_url = os.getenv("MASTODON_API_BASE_URL","https://mastodon.social")
+        self.token = os.environ.get("MASTODON_ACCESS_TOKEN","")
+        self.base_url = os.environ.get("MASTODON_API_BASE_URL","https://mastodon.social")
         self._client = None
 
     def _get_client(self):

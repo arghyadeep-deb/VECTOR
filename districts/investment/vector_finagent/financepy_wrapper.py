@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 FinancePy Wrapper Script
 Comprehensive wrapper for FinancePy library covering all major modules
 Usage: python financepy_wrapper.py <command> [args...]
@@ -96,6 +97,8 @@ def utils_create_date(args: List[str]) -> Dict[str, Any]:
             "is_eom": fp_date.is_eom()
         }
     except Exception as e:
+        logger.debug("[VECTOR][financepy_wrapper] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][financepy_wrapper] caught Exception: %s", _sve)
         return {"error": str(e)}
 
 

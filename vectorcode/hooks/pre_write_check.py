@@ -7,6 +7,7 @@ VECTOR Pre-Write Hook — fires before every Edit/Write tool call.
 Blocks writes that would introduce syntax errors into Python files.
 Exit 2 = block. Exit 0 = allow.
 """
+from loguru import logger
 import json
 import os
 import sys

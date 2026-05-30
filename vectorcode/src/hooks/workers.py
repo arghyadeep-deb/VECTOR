@@ -15,21 +15,12 @@ BackgroundWorkers — VectorCode VC-5 with real worker implementations.
 
 TaskQueue and Priority defined at module level for test patching.
 """
+from pathlib import Path
 import ast
-import sys
 import uuid
 import time
 from enum import Enum, auto
-from pathlib import Path
 from typing import Callable, List, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -572,11 +563,5 @@ if __name__ == "__main__":
     assert predict.get("status") in ("ok", "error")
 
     print(f"workers.py OK — bench={bench['latencies']}")
-
-
-
-
-
-
 
 

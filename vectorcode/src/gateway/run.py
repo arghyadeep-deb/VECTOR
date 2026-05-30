@@ -86,7 +86,6 @@ def _ensure_ssl_certs() -> None:
 _ensure_ssl_certs()
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Resolve VectorCode home directory (respects VECTOR_HOME override)
 from vector_constants import get_vector_home
@@ -104,7 +103,7 @@ load_vector_dotenv(vector_home=_vector_home, project_env=Path(__file__).resolve(
 _DOCKER_VOLUME_SPEC_RE = re.compile(r"^(?P<host>.+):(?P<container>/[^:]+?)(?::(?P<options>[^:]+))?$")
 _DOCKER_MEDIA_OUTPUT_CONTAINER_PATHS = {"/output", "/outputs"}
 
-# Bridge config.yaml values into the environment so os.getenv() picks them up.
+# Bridge config.yaml values into the environment so os.environ.get() picks them up.
 # config.yaml is authoritative for terminal settings — overrides .env.
 _config_path = _vector_home / 'config.yaml'
 if _config_path.exists():
@@ -268,7 +267,7 @@ os.environ["VECTOR_EXEC_ASK"] = "1"
 # fallback (deprecated — the warning above tells users to migrate).
 _configured_cwd = os.environ.get("TERMINAL_CWD", "")
 if not _configured_cwd or _configured_cwd in (".", "auto", "cwd"):
-    _fallback = os.getenv("MESSAGING_CWD") or str(Path.home())
+    _fallback = os.environ.get("MESSAGING_CWD") or str(Path.home())
     os.environ["TERMINAL_CWD"] = _fallback
 
 from gateway.config import (
@@ -331,7 +330,7 @@ def _resolve_runtime_agent_kwargs() -> dict:
 
     try:
         runtime = resolve_runtime_provider(
-            requested=os.getenv("VECTOR_INFERENCE_PROVIDER"),
+            requested=os.environ.get("VECTOR_INFERENCE_PROVIDER"),
         )
     except AuthError as auth_exc:
         # Primary provider auth failed (expired token, revoked key, etc.).
@@ -733,7 +732,6 @@ class GatewayRunner:
         # per-message AIAgent instances.
 
 
-
         # Ensure tirith security scanner is available (downloads if needed)
         try:
             from tools.tirith_security import ensure_installed
@@ -809,7 +807,7 @@ class GatewayRunner:
         Docker, so users commonly need a dedicated export mount such as
         `host-dir:/output`.
         """
-        if os.getenv("TERMINAL_ENV", "").strip().lower() != "docker":
+        if os.environ.get("TERMINAL_ENV", "").strip().lower() != "docker":
             return
 
         connected = self.config.get_connected_platforms()
@@ -817,7 +815,7 @@ class GatewayRunner:
         if not messaging_platforms:
             return
 
-        raw_volumes = os.getenv("TERMINAL_DOCKER_VOLUMES", "").strip()
+        raw_volumes = os.environ.get("TERMINAL_DOCKER_VOLUMES", "").strip()
         volumes: List[str] = []
         if raw_volumes:
             try:
@@ -846,7 +844,6 @@ class GatewayRunner:
             "This is fine if the model already emits host-visible paths, but MEDIA file delivery can fail "
             "for container-local paths like '/workspace/...' or '/output/...'."
         )
-
 
 
     # -- Setup skill availability ----------------------------------------
@@ -1344,7 +1341,7 @@ class GatewayRunner:
         the prefill_messages_file key in ~/.vectorcode/config.yaml.
         Relative paths are resolved from ~/.vectorcode/.
         """
-        file_path = os.getenv("VECTOR_PREFILL_MESSAGES_FILE", "")
+        file_path = os.environ.get("VECTOR_PREFILL_MESSAGES_FILE", "")
         if not file_path:
             try:
                 import yaml as _y
@@ -1381,7 +1378,7 @@ class GatewayRunner:
         Checks VECTOR_EPHEMERAL_SYSTEM_PROMPT env var first, then falls back to
         agent.system_prompt in ~/.vectorcode/config.yaml.
         """
-        prompt = os.getenv("VECTOR_EPHEMERAL_SYSTEM_PROMPT", "")
+        prompt = os.environ.get("VECTOR_EPHEMERAL_SYSTEM_PROMPT", "")
         if prompt:
             return prompt
         try:
@@ -1523,7 +1520,7 @@ class GatewayRunner:
     @staticmethod
     def _load_busy_input_mode() -> str:
         """Load gateway drain-time busy-input behavior from config/env."""
-        mode = os.getenv("VECTOR_GATEWAY_BUSY_INPUT_MODE", "").strip().lower()
+        mode = os.environ.get("VECTOR_GATEWAY_BUSY_INPUT_MODE", "").strip().lower()
         if not mode:
             try:
                 import yaml as _y
@@ -1543,7 +1540,7 @@ class GatewayRunner:
     @staticmethod
     def _load_restart_drain_timeout() -> float:
         """Load graceful gateway restart/stop drain timeout in seconds."""
-        raw = os.getenv("VECTOR_RESTART_DRAIN_TIMEOUT", "").strip()
+        raw = os.environ.get("VECTOR_RESTART_DRAIN_TIMEOUT", "").strip()
         if not raw:
             try:
                 import yaml as _y
@@ -1576,7 +1573,7 @@ class GatewayRunner:
           - ``error``  — only the final message when exit code is non-zero
           - ``off``    — no watcher messages at all
         """
-        mode = os.getenv("VECTOR_BACKGROUND_NOTIFICATIONS", "")
+        mode = os.environ.get("VECTOR_BACKGROUND_NOTIFICATIONS", "")
         if not mode:
             try:
                 import yaml as _y
@@ -2150,7 +2147,7 @@ class GatewayRunner:
         
         # Warn if no user allowlists are configured and open access is not opted in
         _any_allowlist = any(
-            os.getenv(v)
+            os.environ.get(v)
             for v in ("TELEGRAM_ALLOWED_USERS", "DISCORD_ALLOWED_USERS",
                        "WHATSAPP_ALLOWED_USERS", "SLACK_ALLOWED_USERS",
                        "SIGNAL_ALLOWED_USERS", "SIGNAL_GROUP_ALLOWED_USERS",
@@ -2166,8 +2163,8 @@ class GatewayRunner:
                        "YUANBAO_ALLOWED_USERS",
                        "GATEWAY_ALLOWED_USERS")
         )
-        _allow_all = os.getenv("GATEWAY_ALLOW_ALL_USERS", "").lower() in ("true", "1", "yes") or any(
-            os.getenv(v, "").lower() in ("true", "1", "yes")
+        _allow_all = os.environ.get("GATEWAY_ALLOW_ALL_USERS", "").lower() in ("true", "1", "yes") or any(
+            os.environ.get(v, "").lower() in ("true", "1", "yes")
             for v in ("TELEGRAM_ALLOW_ALL_USERS", "DISCORD_ALLOW_ALL_USERS",
                        "WHATSAPP_ALLOW_ALL_USERS", "SLACK_ALLOW_ALL_USERS",
                        "SIGNAL_ALLOW_ALL_USERS", "EMAIL_ALLOW_ALL_USERS",
@@ -3245,7 +3242,7 @@ class GatewayRunner:
 
         # Per-platform allow-all flag (e.g., DISCORD_ALLOW_ALL_USERS=true)
         platform_allow_all_var = platform_allow_all_map.get(source.platform, "")
-        if platform_allow_all_var and os.getenv(platform_allow_all_var, "").lower() in ("true", "1", "yes"):
+        if platform_allow_all_var and os.environ.get(platform_allow_all_var, "").lower() in ("true", "1", "yes"):
             return True
 
         # Discord bot senders that passed the DISCORD_ALLOW_BOTS platform
@@ -3254,7 +3251,7 @@ class GatewayRunner:
         # DISCORD_ALLOW_BOTS=mentions/all would be rejected here with
         # "Unauthorized user" (fixes #4466).
         if source.platform == Platform.DISCORD and getattr(source, "is_bot", False):
-            allow_bots = os.getenv("DISCORD_ALLOW_BOTS", "none").lower().strip()
+            allow_bots = os.environ.get("DISCORD_ALLOW_BOTS", "none").lower().strip()
             if allow_bots in ("mentions", "all"):
                 return True
 
@@ -3266,7 +3263,7 @@ class GatewayRunner:
         # (issue #7871).
         if (
             source.platform == Platform.DISCORD
-            and os.getenv("DISCORD_ALLOWED_ROLES", "").strip()
+            and os.environ.get("DISCORD_ALLOWED_ROLES", "").strip()
         ):
             return True
 
@@ -3276,15 +3273,15 @@ class GatewayRunner:
             return True
 
         # Check platform-specific and global allowlists
-        platform_allowlist = os.getenv(platform_env_map.get(source.platform, ""), "").strip()
+        platform_allowlist = os.environ.get(platform_env_map.get(source.platform, ""), "").strip()
         group_allowlist = ""
         if source.chat_type in {"group", "forum"}:
-            group_allowlist = os.getenv(platform_group_env_map.get(source.platform, ""), "").strip()
-        global_allowlist = os.getenv("GATEWAY_ALLOWED_USERS", "").strip()
+            group_allowlist = os.environ.get(platform_group_env_map.get(source.platform, ""), "").strip()
+        global_allowlist = os.environ.get("GATEWAY_ALLOWED_USERS", "").strip()
 
         if not platform_allowlist and not group_allowlist and not global_allowlist:
             # No allowlists configured -- check global allow-all flag
-            return os.getenv("GATEWAY_ALLOW_ALL_USERS", "").lower() in ("true", "1", "yes")
+            return os.environ.get("GATEWAY_ALLOW_ALL_USERS", "").lower() in ("true", "1", "yes")
 
         # Some platforms authorize group traffic by chat ID rather than sender ID.
         if group_allowlist and source.chat_type in {"group", "forum"} and source.chat_id:
@@ -3373,10 +3370,10 @@ class GatewayRunner:
                 Platform.BLUEBUBBLES: "BLUEBUBBLES_ALLOWED_USERS",
                 Platform.QQBOT:    "QQ_ALLOWED_USERS",
             }
-            if os.getenv(platform_env_map.get(platform, ""), "").strip():
+            if os.environ.get(platform_env_map.get(platform, ""), "").strip():
                 return "ignore"
 
-        if os.getenv("GATEWAY_ALLOWED_USERS", "").strip():
+        if os.environ.get("GATEWAY_ALLOWED_USERS", "").strip():
             return "ignore"
 
         return "pair"
@@ -3570,7 +3567,7 @@ class GatewayRunner:
         # wall-clock age alone isn't sufficient.  Evict only when the agent
         # has been *idle* beyond the inactivity threshold (or when the agent
         # object has no activity tracker and wall-clock age is extreme).
-        _raw_stale_timeout = float(os.getenv("VECTOR_AGENT_TIMEOUT", 1800))
+        _raw_stale_timeout = float(os.environ.get("VECTOR_AGENT_TIMEOUT", 1800))
         _stale_ts = self._running_agents_ts.get(_quick_key, 0)
         if _quick_key in self._running_agents and _stale_ts:
             _stale_age = time.time() - _stale_ts
@@ -3808,7 +3805,7 @@ class GatewayRunner:
                 return None
 
             _telegram_followup_grace = float(
-                os.getenv("VECTOR_TELEGRAM_FOLLOWUP_GRACE_SECONDS", "3.0")
+                os.environ.get("VECTOR_TELEGRAM_FOLLOWUP_GRACE_SECONDS", "3.0")
             )
             _started_at = self._running_agents_ts.get(_quick_key, 0)
             if (
@@ -4874,7 +4871,7 @@ class GatewayRunner:
         if not history and source.platform and source.platform != Platform.LOCAL and source.platform != Platform.WEBHOOK:
             platform_name = source.platform.value
             env_key = f"{platform_name.upper()}_HOME_CHANNEL"
-            if not os.getenv(env_key):
+            if not os.environ.get(env_key):
                 adapter = self.adapters.get(source.platform)
                 if adapter:
                     # Slack dispatches all VectorCode commands through a single
@@ -6856,7 +6853,7 @@ class GatewayRunner:
             max_snapshots=cp_cfg.get("max_snapshots", 50),
         )
 
-        cwd = os.getenv("TERMINAL_CWD", str(Path.home()))
+        cwd = os.environ.get("TERMINAL_CWD", str(Path.home()))
         arg = event.get_command_args().strip()
 
         if not arg:
@@ -6948,7 +6945,7 @@ class GatewayRunner:
             enabled_toolsets = sorted(_get_platform_tools(user_config, platform_key))
 
             pr = self._provider_routing
-            max_iterations = int(os.getenv("VECTOR_MAX_ITERATIONS", "90"))
+            max_iterations = int(os.environ.get("VECTOR_MAX_ITERATIONS", "90"))
             reasoning_config = self._resolve_session_reasoning_config(source=source)
             self._reasoning_config = reasoning_config
             self._service_tier = self._load_service_tier()
@@ -9338,7 +9335,7 @@ class GatewayRunner:
         Checks GATEWAY_PROXY_URL env var first (convenient for Docker),
         then ``gateway.proxy_url`` in config.yaml.
         """
-        url = os.getenv("GATEWAY_PROXY_URL", "").strip()
+        url = os.environ.get("GATEWAY_PROXY_URL", "").strip()
         if url:
             return url.rstrip("/")
         cfg = _load_gateway_config()
@@ -9389,7 +9386,7 @@ class GatewayRunner:
                 "tools": [],
             }
 
-        proxy_key = os.getenv("GATEWAY_PROXY_KEY", "").strip()
+        proxy_key = os.environ.get("GATEWAY_PROXY_KEY", "").strip()
 
         def _run_still_current() -> bool:
             if run_generation is None or not session_key:
@@ -9706,7 +9703,7 @@ class GatewayRunner:
         _resolved_tp = resolve_display_setting(user_config, platform_key, "tool_progress")
         progress_mode = (
             _resolved_tp
-            or os.getenv("VECTOR_TOOL_PROGRESS_MODE")
+            or os.environ.get("VECTOR_TOOL_PROGRESS_MODE")
             or "all"
         )
         # Disable tool progress for webhooks - they don't support message editing,
@@ -10073,7 +10070,7 @@ class GatewayRunner:
             os.environ["VECTOR_SESSION_KEY"] = session_key or ""
 
             # Read from env var or use default (same as CLI)
-            max_iterations = int(os.getenv("VECTOR_MAX_ITERATIONS", "90"))
+            max_iterations = int(os.environ.get("VECTOR_MAX_ITERATIONS", "90"))
             
             # Map platform enum to the platform hint key the agent understands.
             # Platform.LOCAL ("local") maps to "cli"; others pass through as-is.
@@ -10827,7 +10824,7 @@ class GatewayRunner:
         # Config: agent.gateway_notify_interval in config.yaml, or
         # VECTOR_AGENT_NOTIFY_INTERVAL env var.  Default 180s (3 min).
         # 0 = disable notifications.
-        _NOTIFY_INTERVAL_RAW = float(os.getenv("VECTOR_AGENT_NOTIFY_INTERVAL", 180))
+        _NOTIFY_INTERVAL_RAW = float(os.environ.get("VECTOR_AGENT_NOTIFY_INTERVAL", 180))
         _NOTIFY_INTERVAL = _NOTIFY_INTERVAL_RAW if _NOTIFY_INTERVAL_RAW > 0 else None
         _notify_start = time.time()
 
@@ -10875,9 +10872,9 @@ class GatewayRunner:
             # Config: agent.gateway_timeout in config.yaml, or
             # VECTOR_AGENT_TIMEOUT env var (env var takes precedence).
             # Default 1800s (30 min inactivity).  0 = unlimited.
-            _agent_timeout_raw = float(os.getenv("VECTOR_AGENT_TIMEOUT", 1800))
+            _agent_timeout_raw = float(os.environ.get("VECTOR_AGENT_TIMEOUT", 1800))
             _agent_timeout = _agent_timeout_raw if _agent_timeout_raw > 0 else None
-            _agent_warning_raw = float(os.getenv("VECTOR_AGENT_TIMEOUT_WARNING", 900))
+            _agent_warning_raw = float(os.environ.get("VECTOR_AGENT_TIMEOUT_WARNING", 900))
             _agent_warning = _agent_warning_raw if _agent_warning_raw > 0 else None
             _warning_fired = False
             _executor_task = asyncio.ensure_future(

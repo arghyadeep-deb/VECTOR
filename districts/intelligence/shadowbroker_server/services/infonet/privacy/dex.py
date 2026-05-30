@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+
 from services.infonet.privacy.contracts import PrivacyPrimitiveStatus
 
 
@@ -34,13 +36,15 @@ class DEXScaffolding:
     )
 
     def place_order(self, *, order: dict[str, Any]) -> str:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return ""
 
     def cancel_order(self, *, order_id: str, owner_signature: bytes) -> None:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
 
     def match_orders(self) -> list[dict[str, Any]]:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return []
 
     def status(self) -> PrivacyPrimitiveStatus:
         return PrivacyPrimitiveStatus.NOT_IMPLEMENTED

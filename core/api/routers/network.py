@@ -1,8 +1,12 @@
 """Network router — /network/peers."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "network_peers",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

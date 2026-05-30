@@ -10,8 +10,6 @@ import pytest
 
 # Ensure package path is on sys.path
 _VC_PY = Path(__file__).parent.parent / "vectorcode" / "python"
-sys.path.insert(0, str(_VC_PY))
-sys.path.insert(0, str(_VC_PY / "vectorcode"))
 
 
 # ── File tools (read_file_tool, write_file_tool, patch_tool) ──────────────────

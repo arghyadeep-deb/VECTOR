@@ -1,15 +1,12 @@
 """Named profiles — switch between different VectorCode configurations."""
-import sys
 import json
 import datetime
 from dataclasses import dataclass, field, asdict
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
 
 from loguru import logger
+from pathlib import Path
 
 @dataclass
 class Profile:

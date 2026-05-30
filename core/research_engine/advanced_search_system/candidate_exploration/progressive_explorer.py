@@ -3,6 +3,12 @@ Progressive explorer for BrowseComp-style systematic search exploration.
 """
 
 import concurrent.futures
+
+__all__ = [
+    "ProgressiveExplorer",
+    "SearchProgress",
+]
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple
 

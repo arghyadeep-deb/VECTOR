@@ -6,6 +6,13 @@ making decisions at each step rather than decomposing everything upfront.
 """
 
 from dataclasses import dataclass
+
+__all__ = [
+    "AdaptiveDecompositionStrategy",
+    "StepResult",
+    "StepType",
+]
+
 from enum import Enum
 from typing import Any, Dict, List, Optional
 

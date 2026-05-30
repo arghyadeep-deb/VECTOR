@@ -6,6 +6,12 @@ Concrete implementations specify which files to verify and policies.
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BaseFileVerifier",
+    "FileType",
+]
+
 from enum import Enum
 from pathlib import Path
 import hashlib

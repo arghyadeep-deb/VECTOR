@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Tools Registry - Unified access to 100+ Agno tools
 
 Provides lazy loading and categorized tool access.
@@ -322,6 +323,8 @@ class ToolsRegistry:
                 logger.debug(f"Loaded tool (no args): {tool_name}")
                 return tool_instance
             except Exception:
+                logger.debug("[VECTOR][agents.finagent_core.registries.tools_registry] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.registries.tools_registry] caught Exception: %s", _sve)
                 logger.warning(f"Tool '{tool_name}' initialization failed: {e}")
                 return None
         except Exception as e:

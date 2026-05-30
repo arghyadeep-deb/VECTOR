@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Spain Open Data (datos.gob.es) Data Fetcher
 Access to Spanish government datasets through hierarchical catalogue → dataset → resources structure
 Returns JSON output for Qt/C++ integration
@@ -240,6 +241,8 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
     except json.JSONDecodeError:
         return {"error": "Invalid JSON response"}
     except Exception as e:
+        logger.debug("[VECTOR][spain_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][spain_data] caught Exception: %s", _sve)
         return {"error": f"Unexpected error: {str(e)}"}
 
 def _extract_id_from_uri(uri: str) -> str:

@@ -1,8 +1,4 @@
 """VectorAutonomous — VectorCode VC-4 Mode B. TaskQueue-based autonomous agent."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from session import VectorCodeSession
@@ -37,8 +33,5 @@ if __name__ == "__main__":
     tid = va.submit("write a hello world function")
     assert tid is not None
     print(f"autonomous.py OK — task_id={tid}")
-
-
-
 
 

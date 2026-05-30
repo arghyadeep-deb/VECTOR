@@ -1152,6 +1152,8 @@ class FileTools:
 
     def edit(self, path: str, old_text: str, new_text: str) -> None:
         content = self.read(path)
+        if old_text not in content:
+            raise ValueError(f"old_text not found in {path}")
         self.write(path, content.replace(old_text, new_text, 1))
 
     def exists(self, path: str) -> bool:
@@ -1162,7 +1164,7 @@ class FileTools:
 
     def grep(self, pattern: str, glob: str = "**/*") -> list[dict]:
         results = []
-        for f in self._root.rglob(glob.lstrip("**/") or "*"):
+        for f in self._root.rglob(glob.removeprefix("**/") or "*"):
             if not f.is_file():
                 continue
             try:

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "MergeConflictError",
+    "MergeKeyError",
+    "MergeStrategy",
+]
+
+
 from collections.abc import Callable
 from enum import StrEnum, auto
 from typing import Any

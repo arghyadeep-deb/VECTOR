@@ -9,6 +9,7 @@ Delegates to specialized modules:
 - vbt_optimization: Vectorized parameter optimization + walk-forward
 """
 
+from loguru import logger
 import sys
 import json
 from typing import Dict, Any
@@ -22,7 +23,6 @@ _BACKTESTING_DIR = _SCRIPT_DIR.parent
 if str(_BACKTESTING_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKTESTING_DIR))
 if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
 
 from base.base_provider import (
     BacktestingProviderBase,
@@ -57,6 +57,8 @@ class VectorBTProvider(BacktestingProviderBase):
             import vectorbt as vbt
             return vbt.__version__
         except Exception:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vectorbt_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vectorbt_provider] caught Exception: %s", _sve)
             return "pure-numpy"
 
     @property
@@ -1777,12 +1779,29 @@ class VectorBTProvider(BacktestingProviderBase):
         if not source:
             raise ValueError('Custom strategy requires code')
 
+        _safe_builtins = {
+            "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
+            "complex": complex, "dict": dict, "enumerate": enumerate,
+            "filter": filter, "float": float, "frozenset": frozenset,
+            "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
+            "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
+            "iter": iter, "len": len, "list": list, "map": map, "max": max,
+            "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
+            "pow": pow, "print": print, "range": range, "repr": repr,
+            "reversed": reversed, "round": round, "set": set, "slice": slice,
+            "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+            "type": type, "zip": zip,
+        }
         context = {
-            '__builtins__': {},
+            '__builtins__': _safe_builtins,
             'vbt': vbt, 'pd': pd, 'np': np,
             'data': close_series,
             'initial_capital': initial_capital,
         }
+        logger.warning(
+            "[VECTOR][security] exec vbt strategy code in %s: %.100s",
+            __name__, source,
+        )
         exec(source, context)
         portfolio = context.get('portfolio')
         if portfolio is None:

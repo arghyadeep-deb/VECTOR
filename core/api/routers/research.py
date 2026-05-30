@@ -1,8 +1,15 @@
-"""Research router â€” /research/status."""
+"""Research router — /research/status."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "research_news",
+    "research_papers",
+    "research_reddit",
+    "research_search",
+    "research_status",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

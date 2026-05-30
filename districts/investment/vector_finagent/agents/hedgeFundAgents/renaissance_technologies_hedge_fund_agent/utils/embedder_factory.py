@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Dynamic Embedder Factory for Agno Framework
 
 Reads embedding configuration from frontend SQLite database and creates
@@ -144,6 +145,8 @@ class EmbedderFactory:
             return config
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.embedder_factory] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.embedder_factory] caught Exception: %s", _sve)
             logger.error(f"Error loading embedder config from database: {e}")
             return None
 

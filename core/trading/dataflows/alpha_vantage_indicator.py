@@ -1,3 +1,4 @@
+from loguru import logger
 from .alpha_vantage_common import _make_api_request
 
 def get_indicator(
@@ -218,5 +219,5 @@ def get_indicator(
         return result_str
 
     except Exception as e:
-        print(f"Error getting Alpha Vantage indicator data for {indicator}: {e}")
+        logger.error("Error getting Alpha Vantage indicator data for {}: {}", indicator, e)
         return f"Error retrieving {indicator} data: {str(e)}"

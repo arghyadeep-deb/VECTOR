@@ -31,7 +31,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _QT_DIR  = Path(__file__).parent / "qt"
@@ -167,6 +166,8 @@ class FinAgentTerminalLauncher:
             logger.info("[VECTOR][terminal] launched PID={}", self._proc.pid)
             return True
         except Exception as e:
+            logger.debug("[VECTOR][terminal_launcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][terminal_launcher] caught Exception: %s", _sve)
             logger.error("[VECTOR][terminal] launch failed: {}", e)
             return False
 

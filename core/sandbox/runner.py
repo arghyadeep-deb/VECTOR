@@ -1,4 +1,4 @@
-# VECTOR module â€” ported from VectorCode
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
@@ -11,6 +11,12 @@ inside a container, following the ``GuardrailsEngine`` wrapper pattern.
 """
 
 from __future__ import annotations
+
+__all__ = [
+    "ContainerRunner",
+    "logger",
+]
+
 
 import json
 import logging
@@ -297,7 +303,7 @@ if BaseAgent is not None:
     class SandboxedAgent(BaseAgent):
         """Transparent wrapper that runs any BaseAgent in a container.
 
-        Follows the ``GuardrailsEngine`` wrapper pattern â€” the wrapped
+        Follows the ``GuardrailsEngine`` wrapper pattern — the wrapped
         agent's configuration is serialized and sent to the container.
         """
 
@@ -372,7 +378,7 @@ if BaseAgent is not None:
                 metadata=result.get("metadata", {}),
             )
 
-# Absorbed GPU Docker container launcher (optional â€” for sandboxed GPU agents)
+# Absorbed GPU Docker container launcher (optional — for sandboxed GPU agents)
 try:
     from core.mining.docker import PearlDockerLauncher  # noqa: F401
 except Exception:

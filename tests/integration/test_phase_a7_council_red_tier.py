@@ -1,14 +1,11 @@
 """Integration tests — Session A7: CouncilBrain.deliberate_action() → permission_gateway RED tier."""
 from __future__ import annotations
 
-import sys
 import json
 import inspect
 import asyncio
 import unittest
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def _patched_council(verdict_text: str, confidence: float = 0.9):

@@ -1,14 +1,21 @@
 """VECTOR documentation router - /documentation/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "api_reference",
+    "ApiReferenceReq",
+    "generate_changelog",
+    "generate_docs",
+    "GenerateChangelogReq",
+    "GenerateDocsReq",
+    "router",
+    "weekly_summary",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/documentation", tags=["documentation"])
-
-
 
 
 class ApiReferenceReq(BaseModel):

@@ -13,9 +13,6 @@ Absorbs from reference agent/model_metadata.py:
 
 import sys
 import re
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from providers.base import ModelCapabilities

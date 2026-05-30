@@ -1,13 +1,10 @@
 """VECTOR — interactive coding REPL (Mode A). VectorCode architecture."""
-import sys
 import json
 import time
 import datetime
 import threading
 import itertools
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from session import VectorCodeSession
@@ -495,7 +492,7 @@ class VectorREPL:
                 lines = [f"  current : {self.session.current_model}", ""]
 
                 # Check Ollama
-                ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+                ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
                 try:
                     req = urllib.request.urlopen(ollama_url + "/api/tags", timeout=3)
                     data = json.loads(req.read().decode())
@@ -515,7 +512,7 @@ class VectorREPL:
                     ("groq", "GROQ_API_KEY"),
                 ]
                 for name, env_var in cloud:
-                    val = os.getenv(env_var, "")
+                    val = os.environ.get(env_var, "")
                     status = "[ON] " if val else "[OFF]"
                     lines.append(f"  {status} {name}  (env ${env_var} {'SET' if val else 'MISSING'})")
 
@@ -1153,10 +1150,5 @@ if __name__ == "__main__":
     from router import GNNRouter
     assert isinstance(repl.router, GNNRouter), f"Expected GNNRouter, got {type(repl.router)}"
     print("repl.py OK")
-
-
-
-
-
 
 

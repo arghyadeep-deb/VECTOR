@@ -1976,7 +1976,7 @@ class AIAgent:
                 logger.debug("Context engine on_session_start: %s", _ce_err)
 
         self._subdirectory_hints = SubdirectoryHintTracker(
-            working_dir=os.getenv("TERMINAL_CWD") or None,
+            working_dir=os.environ.get("TERMINAL_CWD") or None,
         )
         self._user_turn_count = 0
 
@@ -2647,7 +2647,7 @@ class AIAgent:
         cfg = get_provider_request_timeout(self.provider, self.model)
         if cfg is not None:
             return cfg
-        return float(os.getenv("VECTOR_API_TIMEOUT", 1800.0))
+        return float(os.environ.get("VECTOR_API_TIMEOUT", 1800.0))
 
     def _resolved_api_call_stale_timeout_base(self) -> tuple[float, bool]:
         """Resolve the base non-stream stale timeout and whether it is implicit.
@@ -2667,7 +2667,7 @@ class AIAgent:
         if cfg is not None:
             return cfg, False
 
-        env_timeout = os.getenv("VECTOR_API_CALL_STALE_TIMEOUT")
+        env_timeout = os.environ.get("VECTOR_API_CALL_STALE_TIMEOUT")
         if env_timeout is not None:
             return float(env_timeout), False
 
@@ -4678,7 +4678,7 @@ class AIAgent:
             # mode).  The gateway process runs from the vectorcode install
             # dir, so os.getcwd() would pick up the repo's AGENTS.md and
             # other dev files — inflating token usage by ~10k for no benefit.
-            _context_cwd = os.getenv("TERMINAL_CWD") or None
+            _context_cwd = os.environ.get("TERMINAL_CWD") or None
             context_files_prompt = build_context_files_prompt(
                 cwd=_context_cwd, skip_soul=_soul_loaded)
             if context_files_prompt:
@@ -5599,8 +5599,8 @@ class AIAgent:
             from vector_cli.auth import resolve_nous_runtime_credentials
 
             creds = resolve_nous_runtime_credentials(
-                min_key_ttl_seconds=max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
-                timeout_seconds=float(os.getenv("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
+                min_key_ttl_seconds=max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
+                timeout_seconds=float(os.environ.get("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
                 force_mint=force,
             )
         except Exception as exc:
@@ -6283,14 +6283,14 @@ class AIAgent:
             _base_timeout = (
                 _provider_timeout_cfg
                 if _provider_timeout_cfg is not None
-                else float(os.getenv("VECTOR_API_TIMEOUT", 1800.0))
+                else float(os.environ.get("VECTOR_API_TIMEOUT", 1800.0))
             )
             # Read timeout: config wins here too.  Otherwise use
             # VECTOR_STREAM_READ_TIMEOUT (default 120s) for cloud providers.
             if _provider_timeout_cfg is not None:
                 _stream_read_timeout = _provider_timeout_cfg
             else:
-                _stream_read_timeout = float(os.getenv("VECTOR_STREAM_READ_TIMEOUT", 120.0))
+                _stream_read_timeout = float(os.environ.get("VECTOR_STREAM_READ_TIMEOUT", 120.0))
                 # Local providers (Ollama, llama.cpp, vLLM) can take minutes for
                 # prefill on large contexts before producing the first token.
                 # Auto-increase the httpx read timeout unless the user explicitly
@@ -6587,7 +6587,7 @@ class AIAgent:
         def _call():
             import httpx as _httpx
 
-            _max_stream_retries = int(os.getenv("VECTOR_STREAM_RETRIES", 2))
+            _max_stream_retries = int(os.environ.get("VECTOR_STREAM_RETRIES", 2))
 
             try:
                 for _stream_attempt in range(_max_stream_retries + 1):
@@ -6841,7 +6841,7 @@ class AIAgent:
                 if request_client is not None:
                     self._close_request_openai_client(request_client, reason="stream_request_complete")
 
-        _stream_stale_timeout_base = float(os.getenv("VECTOR_STREAM_STALE_TIMEOUT", 180.0))
+        _stream_stale_timeout_base = float(os.environ.get("VECTOR_STREAM_STALE_TIMEOUT", 180.0))
         # Local providers (Ollama, oMLX, llama-cpp) can take 300+ seconds
         # for prefill on large contexts.  Disable the stale detector unless
         # the user explicitly set VECTOR_STREAM_STALE_TIMEOUT.
@@ -7047,12 +7047,12 @@ class AIAgent:
             if not fb_api_key_hint:
                 fb_key_env = (fb.get("key_env") or "").strip()
                 if fb_key_env:
-                    fb_api_key_hint = os.getenv(fb_key_env, "").strip() or None
+                    fb_api_key_hint = os.environ.get(fb_key_env, "").strip() or None
             # For Ollama Cloud endpoints, pull OLLAMA_API_KEY from env
             # when no explicit key is in the fallback config. Host match
             # (not substring) — see GHSA-76xc-57q6-vm5m.
             if fb_base_url_hint and base_url_host_matches(fb_base_url_hint, "ollama.com") and not fb_api_key_hint:
-                fb_api_key_hint = os.getenv("OLLAMA_API_KEY") or None
+                fb_api_key_hint = os.environ.get("OLLAMA_API_KEY") or None
             fb_client, _resolved_fb_model = resolve_provider_client(
                 fb_provider, model=fb_model, raw_codex=True,
                 explicit_base_url=fb_base_url_hint,
@@ -8778,7 +8778,7 @@ class AIAgent:
                 try:
                     cmd = function_args.get("command", "")
                     if _is_destructive_command(cmd):
-                        cwd = function_args.get("workdir") or os.getenv("TERMINAL_CWD", os.getcwd())
+                        cwd = function_args.get("workdir") or os.environ.get("TERMINAL_CWD", os.getcwd())
                         self._checkpoint_mgr.ensure_checkpoint(
                             cwd, f"before terminal: {cmd[:60]}"
                         )
@@ -9162,7 +9162,7 @@ class AIAgent:
                 try:
                     cmd = function_args.get("command", "")
                     if _is_destructive_command(cmd):
-                        cwd = function_args.get("workdir") or os.getenv("TERMINAL_CWD", os.getcwd())
+                        cwd = function_args.get("workdir") or os.environ.get("TERMINAL_CWD", os.getcwd())
                         self._checkpoint_mgr.ensure_checkpoint(
                             cwd, f"before terminal: {cmd[:60]}"
                         )

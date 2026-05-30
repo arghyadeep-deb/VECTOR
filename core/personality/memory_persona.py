@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "MemoryPersona",
+    "PersonalityLesson",
+]
+
+
 import re
 import sqlite3
 import time

@@ -1,4 +1,4 @@
-"""Resource exhaustion injector â€” CPU, RAM, disk pressure tests."""
+"""Resource exhaustion injector — CPU, RAM, disk pressure tests."""
 
 from __future__ import annotations
 

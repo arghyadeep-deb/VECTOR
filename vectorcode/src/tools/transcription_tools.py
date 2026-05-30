@@ -67,16 +67,16 @@ _HAS_MISTRAL = _safe_find_spec("mistralai")
 DEFAULT_PROVIDER = "local"
 DEFAULT_LOCAL_MODEL = "base"
 DEFAULT_LOCAL_STT_LANGUAGE = "en"
-DEFAULT_STT_MODEL = os.getenv("STT_OPENAI_MODEL", "whisper-1")
-DEFAULT_GROQ_STT_MODEL = os.getenv("STT_GROQ_MODEL", "whisper-large-v3-turbo")
-DEFAULT_MISTRAL_STT_MODEL = os.getenv("STT_MISTRAL_MODEL", "voxtral-mini-latest")
+DEFAULT_STT_MODEL = os.environ.get("STT_OPENAI_MODEL", "whisper-1")
+DEFAULT_GROQ_STT_MODEL = os.environ.get("STT_GROQ_MODEL", "whisper-large-v3-turbo")
+DEFAULT_MISTRAL_STT_MODEL = os.environ.get("STT_MISTRAL_MODEL", "voxtral-mini-latest")
 LOCAL_STT_COMMAND_ENV = "VECTOR_LOCAL_STT_COMMAND"
 LOCAL_STT_LANGUAGE_ENV = "VECTOR_LOCAL_STT_LANGUAGE"
 COMMON_LOCAL_BIN_DIRS = ("/opt/homebrew/bin", "/usr/local/bin")
 
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-OPENAI_BASE_URL = os.getenv("STT_OPENAI_BASE_URL", "https://api.openai.com/v1")
-XAI_STT_BASE_URL = os.getenv("XAI_STT_BASE_URL", "https://api.x.ai/v1")
+GROQ_BASE_URL = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+OPENAI_BASE_URL = os.environ.get("STT_OPENAI_BASE_URL", "https://api.openai.com/v1")
+XAI_STT_BASE_URL = os.environ.get("XAI_STT_BASE_URL", "https://api.x.ai/v1")
 
 SUPPORTED_FORMATS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg", ".aac", ".flac"}
 LOCAL_NATIVE_AUDIO_FORMATS = {".wav", ".aiff", ".aif"}
@@ -140,7 +140,7 @@ def _find_whisper_binary() -> Optional[str]:
 
 
 def _get_local_command_template() -> Optional[str]:
-    configured = os.getenv(LOCAL_STT_COMMAND_ENV, "").strip()
+    configured = os.environ.get(LOCAL_STT_COMMAND_ENV, "").strip()
     if configured:
         return configured
 
@@ -222,7 +222,7 @@ def _get_provider(stt_config: dict) -> str:
             return "none"
 
         if provider == "groq":
-            if _HAS_OPENAI and os.getenv("GROQ_API_KEY"):
+            if _HAS_OPENAI and os.environ.get("GROQ_API_KEY"):
                 return "groq"
             logger.warning(
                 "STT provider 'groq' configured but GROQ_API_KEY not set"
@@ -238,7 +238,7 @@ def _get_provider(stt_config: dict) -> str:
             return "none"
 
         if provider == "mistral":
-            if _HAS_MISTRAL and os.getenv("MISTRAL_API_KEY"):
+            if _HAS_MISTRAL and os.environ.get("MISTRAL_API_KEY"):
                 return "mistral"
             logger.warning(
                 "STT provider 'mistral' configured but mistralai package "
@@ -247,7 +247,7 @@ def _get_provider(stt_config: dict) -> str:
             return "none"
 
         if provider == "xai":
-            if os.getenv("XAI_API_KEY"):
+            if os.environ.get("XAI_API_KEY"):
                 return "xai"
             logger.warning(
                 "STT provider 'xai' configured but XAI_API_KEY not set"
@@ -262,16 +262,16 @@ def _get_provider(stt_config: dict) -> str:
         return "local"
     if _has_local_command():
         return "local_command"
-    if _HAS_OPENAI and os.getenv("GROQ_API_KEY"):
+    if _HAS_OPENAI and os.environ.get("GROQ_API_KEY"):
         logger.info("No local STT available, using Groq Whisper API")
         return "groq"
     if _HAS_OPENAI and _has_openai_audio_backend():
         logger.info("No local STT available, using OpenAI Whisper API")
         return "openai"
-    if _HAS_MISTRAL and os.getenv("MISTRAL_API_KEY"):
+    if _HAS_MISTRAL and os.environ.get("MISTRAL_API_KEY"):
         logger.info("No local STT available, using Mistral Voxtral Transcribe API")
         return "mistral"
-    if os.getenv("XAI_API_KEY"):
+    if os.environ.get("XAI_API_KEY"):
         logger.info("No local STT available, using xAI Grok STT API")
         return "xai"
     return "none"
@@ -390,7 +390,7 @@ def _transcribe_local(file_path: str, model_name: str) -> Dict[str, Any]:
         # Language: config.yaml (stt.local.language) > env var > auto-detect.
         _forced_lang = (
             _load_stt_config().get("local", {}).get("language")
-            or os.getenv(LOCAL_STT_LANGUAGE_ENV)
+            or os.environ.get(LOCAL_STT_LANGUAGE_ENV)
             or None
         )
         transcribe_kwargs = {"beam_size": 5}
@@ -470,7 +470,7 @@ def _transcribe_local_command(file_path: str, model_name: str) -> Dict[str, Any]
     # Language: config.yaml (stt.local.language) > env var > "en" default.
     language = (
         _load_stt_config().get("local", {}).get("language")
-        or os.getenv(LOCAL_STT_LANGUAGE_ENV)
+        or os.environ.get(LOCAL_STT_LANGUAGE_ENV)
         or DEFAULT_LOCAL_STT_LANGUAGE
     )
     normalized_model = _normalize_local_command_model(model_name)
@@ -487,7 +487,7 @@ def _transcribe_local_command(file_path: str, model_name: str) -> Dict[str, Any]
                 language=shlex.quote(language),
                 model=shlex.quote(normalized_model),
             )
-            subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+            subprocess.run(shlex.split(command), check=True, capture_output=True, text=True)
 
             txt_files = sorted(Path(output_dir).glob("*.txt"))
             if not txt_files:
@@ -527,7 +527,7 @@ def _transcribe_local_command(file_path: str, model_name: str) -> Dict[str, Any]
 
 def _transcribe_groq(file_path: str, model_name: str) -> Dict[str, Any]:
     """Transcribe using Groq Whisper API (free tier available)."""
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         return {"success": False, "transcript": "", "error": "GROQ_API_KEY not set"}
 
@@ -640,7 +640,7 @@ def _transcribe_mistral(file_path: str, model_name: str) -> Dict[str, Any]:
     Uses the ``mistralai`` Python SDK to call ``/v1/audio/transcriptions``.
     Requires ``MISTRAL_API_KEY`` environment variable.
     """
-    api_key = os.getenv("MISTRAL_API_KEY")
+    api_key = os.environ.get("MISTRAL_API_KEY")
     if not api_key:
         return {"success": False, "transcript": "", "error": "MISTRAL_API_KEY not set"}
 
@@ -680,7 +680,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
     Supports Inverse Text Normalization, diarization, and word-level timestamps.
     Requires ``XAI_API_KEY`` environment variable.
     """
-    api_key = os.getenv("XAI_API_KEY")
+    api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
         return {"success": False, "transcript": "", "error": "XAI_API_KEY not set"}
 
@@ -688,12 +688,12 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
     xai_config = stt_config.get("xai", {})
     base_url = str(
         xai_config.get("base_url")
-        or os.getenv("XAI_STT_BASE_URL")
+        or os.environ.get("XAI_STT_BASE_URL")
         or XAI_STT_BASE_URL
     ).strip().rstrip("/")
     language = str(
         xai_config.get("language")
-        or os.getenv("VECTOR_LOCAL_STT_LANGUAGE")
+        or os.environ.get("VECTOR_LOCAL_STT_LANGUAGE")
         or DEFAULT_LOCAL_STT_LANGUAGE
     ).strip()
     # .get("format", True) already defaults to True when the key is absent;

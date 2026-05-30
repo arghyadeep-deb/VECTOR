@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "HealthAnomaly",
+    "HealthRecommendation",
+    "MetricTrend",
+    "WearableMetrics",
+]
+
+
 from datetime import datetime
 from typing import Any
 

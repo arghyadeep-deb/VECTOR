@@ -5,13 +5,11 @@ Before any multi-step task runs: map it. Every step gets an owner district,
 clear inputs/outputs, failure modes, and success criteria.
 No map = no execution for complex tasks.
 """
-import sys
 import asyncio
 import datetime
 import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

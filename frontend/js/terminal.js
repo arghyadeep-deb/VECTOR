@@ -1,0 +1,113 @@
+/* ============================================================================
+   VECTOR · terminal.js  — hidden command terminal. Ctrl+Shift+H to summon.
+   Type commands to open panels / drive VECTOR. `help` lists everything.
+   ========================================================================== */
+(function (global) {
+  'use strict';
+  const V = global.VECTOR;
+  const WIDGETS = ['chat','music','map','webcam','telemetry','market','goals','districts','council','security','memory'];
+  let box=null, logEl=null, input=null, hist=[], hi=0;
+
+  function build(){
+    box=document.createElement('div'); box.id='cmd-terminal'; box.innerHTML=`
+      <div class="ct-head"><span class="ct-dot"></span><span class="ct-title">VECTOR ∷ COMMAND</span>
+        <span class="ct-spacer"></span><span class="ct-hint">⌃⇧H</span><span class="ct-x">✕</span></div>
+      <div class="ct-log"></div>
+      <div class="ct-row"><span class="ct-prompt">vector ❯</span><input class="ct-in" spellcheck="false"
+        autocomplete="off" placeholder="type a command — try: help" /></div>`;
+    document.getElementById('stage').appendChild(box);
+    logEl=box.querySelector('.ct-log'); input=box.querySelector('.ct-in');
+    box.querySelector('.ct-x').addEventListener('click', ()=>toggle(false));
+    drag(box, box.querySelector('.ct-head'));
+    input.addEventListener('keydown', onKey);
+    box.addEventListener('pointerdown', ()=>input.focus());
+    print('VECTOR command interface · '+WIDGETS.length+' panels · type "help"', 'sys');
+    return box;
+  }
+
+  function print(text, cls){ const d=document.createElement('div'); d.className='ct-line '+(cls||'');
+    d.innerHTML=text; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
+
+  function onKey(e){
+    e.stopPropagation();
+    if(e.key==='Enter'){ const v=input.value.trim(); if(v){ hist.push(v); hi=hist.length; print('<span class="ct-echo">vector ❯</span> '+esc(v),'echo'); run(v); } input.value=''; }
+    else if(e.key==='ArrowUp'){ if(hi>0){ hi--; input.value=hist[hi]||''; } e.preventDefault(); }
+    else if(e.key==='ArrowDown'){ if(hi<hist.length){ hi++; input.value=hist[hi]||''; } e.preventDefault(); }
+    else if(e.key==='Tab'){ e.preventDefault(); const m=WIDGETS.filter(w=>w.startsWith(input.value.toLowerCase())); if(m.length===1) input.value=m[0]; }
+  }
+
+  function run(line){
+    const parts=line.split(/\s+/); const cmd=parts[0].toLowerCase(); const arg=parts.slice(1).join(' ');
+    const a1=(parts[1]||'').toLowerCase();
+    switch(cmd){
+      case 'help': return help();
+      case 'clear': case 'cls': logEl.innerHTML=''; return;
+      case 'ls': case 'panels': return print('panels · '+WIDGETS.join(' · '),'ok');
+      case 'engage': case 'workspace': case 'hud': V.openWorkspace(); return ok('workspace engaged');
+      case 'disengage': case 'collapse': V.closeWorkspace(); return ok('workspace collapsed');
+      case 'open': case 'show': return openName(a1);
+      case 'close': case 'hide': if(WIDGETS.includes(a1)){ V.closeWidget(a1); return ok('closed '+a1);} return err('unknown panel: '+a1);
+      case 'vision': case 'camera': case 'cam':
+        if(a1==='off'){ V.vision.close(); return ok('vision offline'); }
+        V.vision.open(); return ok('vision online · cam hero');
+      case 'situation': case 'situationroom': case 'warroom':
+        V.situationRoom(); return ok('situation room engaged');
+      case 'voice': case 'listen-mode':
+        if(global.VectorSpeech){ const on=global.VectorSpeech.toggle(); return ok('voice '+(on?'online · say “Hey VECTOR”':'offline')); }
+        return err('speech recognition unavailable');
+      case 'wake': V.wake(); return ok('online');
+      case 'lock': case 'sleep': V.lock(); return ok('standby');
+      case 'listen': V.listen(); return ok('listening — frame glows');
+      case 'process': case 'think': V.process(); return ok('processing');
+      case 'fortress': V.fortress(); return ok('FORTRESS — palm to unlock','warn');
+      case 'say': case 'speak': if(!arg) return err('usage: say <text>'); V.say(arg); return;
+      case 'map': V.showMap(arg?{label:arg.toUpperCase()}:undefined); return ok('tactical map');
+      case 'connect': if(!parts[1]) return err('usage: connect <base-url> [api-key]');
+        V.connect({ base:parts[1], apiKey:parts[2]||'' }); return ok('connecting → '+parts[1]);
+      case 'disconnect': V.disconnect(); return ok('disconnected · demo data');
+      default:
+        if(WIDGETS.includes(cmd)) return openName(cmd);
+        return err('unknown command: '+esc(cmd)+' — type "help"');
+    }
+  }
+  function openName(n){ if(!n) return err('usage: open <panel>');
+    if(n==='vision'||n==='camera'){ V.vision.open(); return ok('vision online'); }
+    if(!WIDGETS.includes(n)) return err('unknown panel: '+esc(n));
+    V.openWidget(n); return ok('opened '+n); }
+
+  function help(){
+    print('<b>COMMANDS</b>','sys');
+    [['open &lt;panel&gt;','summon a panel  ('+WIDGETS.join(', ')+')'],
+     ['close &lt;panel&gt;','dismiss a panel'],
+     ['engage / disengage','reveal / hide the workspace HUD'],
+     ['vision [off]','full-screen camera hero (orb to corner)'],
+     ['map [place]','tactical map'],
+     ['wake / lock / listen / fortress','drive the voice state'],
+     ['say &lt;text&gt;','VECTOR speaks'],
+     ['connect &lt;url&gt; [key]','attach the backend'],
+     ['clear','wipe the log']
+    ].forEach(([c,d])=>print('<span class="ct-cmd">'+c+'</span><span class="ct-desc">'+d+'</span>','help'));
+  }
+  function ok(m,cls){ print('› '+m, cls||'ok'); }
+  function err(m){ print('✕ '+m,'err'); }
+  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  function drag(el, handle){ let s=null;
+    handle.addEventListener('pointerdown',e=>{ if(e.target.closest('.ct-x'))return;
+      const r=el.getBoundingClientRect(); s={dx:e.clientX-r.left,dy:e.clientY-r.top};
+      el.style.transform='none'; handle.setPointerCapture(e.pointerId); });
+    handle.addEventListener('pointermove',e=>{ if(!s)return;
+      el.style.left=(e.clientX-s.dx)+'px'; el.style.top=(e.clientY-s.dy)+'px'; el.style.bottom='auto'; });
+    handle.addEventListener('pointerup',()=>s=null); }
+
+  let open=false;
+  function toggle(force){ if(!box) build(); open = force!=null?force:!open;
+    box.classList.toggle('open', open); if(open) setTimeout(()=>input.focus(),30); }
+
+  addEventListener('keydown', e=>{
+    if(e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')){ toggle(); e.preventDefault(); }
+    else if(e.key==='Escape' && open){ toggle(false); }
+  });
+
+  global.VectorTerminal = { toggle, run:(c)=>{ if(!box) build(); run(c); } };
+})(window);

@@ -1,6 +1,5 @@
 """VECTOR YouTube Channel Adapter — search, comments, video info via YouTube Data API."""
 from __future__ import annotations
-import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from loguru import logger
 
 class YouTubeAdapter:
@@ -12,8 +11,8 @@ class YouTubeAdapter:
 
     def __init__(self):
         import os
-        self.api_key = os.getenv("YOUTUBE_API_KEY","")
-        self.token = os.getenv("YOUTUBE_ACCESS_TOKEN","")
+        self.api_key = os.environ.get("YOUTUBE_API_KEY","")
+        self.token = os.environ.get("YOUTUBE_ACCESS_TOKEN","")
 
     async def search(self, query: str, max_results: int = 10) -> list[dict]:
         import httpx

@@ -7,6 +7,12 @@ told what's downstream of their output.
 """
 
 # Role-framing block included by every summary prompt.
+
+__all__ = [
+    "SUMMARY_FOCUS_PROMPT",
+    "SUMMARY_FOCUS_QUERY_PROMPT",
+]
+
 _ROLE = (
     "You are a content-extraction step inside a multi-step research agent.\n\n"
     "Your role in the pipeline:\n"

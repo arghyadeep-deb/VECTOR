@@ -1,14 +1,22 @@
 """VECTOR city router - /city/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "agent_history",
+    "AgentHistoryReq",
+    "direct_dispatch",
+    "DirectDispatchReq",
+    "generation_map",
+    "list_districts",
+    "router",
+    "spawn_successor",
+    "SpawnSuccessorReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/city", tags=["city"])
-
-
 
 
 @router.get("/districts")

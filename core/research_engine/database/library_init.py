@@ -8,6 +8,16 @@ This module handles:
 """
 
 import threading
+
+__all__ = [
+    "ensure_default_library_collection",
+    "ensure_research_history_collection",
+    "get_default_library_id",
+    "get_source_type_id",
+    "initialize_library_for_user",
+    "seed_source_types",
+]
+
 import uuid
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
@@ -292,7 +302,7 @@ def get_source_type_id(
             )
 
             if not source_type:
-                raise ValueError(f"Source type not found: {type_name}")  # noqa: TRY301 â€” inside db session context, except logs and re-raises
+                raise ValueError(f"Source type not found: {type_name}")  # noqa: TRY301 — inside db session context, except logs and re-raises
 
             return source_type.id
 

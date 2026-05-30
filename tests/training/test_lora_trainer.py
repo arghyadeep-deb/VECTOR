@@ -1,10 +1,8 @@
 """Tests for LoRATrainer: simulated training, config validation, save/load, and Ollama deployment."""
 
-import sys
 import json
 import tempfile
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.training.lora_trainer import LoRATrainer
 from core.training.training_config import AdapterConfig, TrainingArgs

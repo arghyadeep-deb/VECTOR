@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Cross-Platform Path Utilities for VECTOR Financial Terminal
 
 Provides consistent paths across Windows, macOS, and Linux for storing
@@ -51,6 +52,8 @@ def get_app_data_dir() -> Path:
     try:
         app_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
+        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.paths] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.paths] caught Exception: %s", _sve)
         logger.warning(f"Could not create app data directory: {e}")
 
     return app_dir

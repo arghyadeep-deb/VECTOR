@@ -51,7 +51,7 @@ _vnc_url_checked = False  # only probe once per process
 
 def get_camofox_url() -> str:
     """Return the configured Camofox server URL, or empty string."""
-    return os.getenv("CAMOFOX_URL", "").rstrip("/")
+    return os.environ.get("CAMOFOX_URL", "").rstrip("/")
 
 
 def is_camofox_mode() -> bool:
@@ -62,7 +62,7 @@ def is_camofox_mode() -> bool:
     takes priority over Camofox so the browser tools operate on the real
     browser instead of being silently routed to the Camofox backend.
     """
-    if os.getenv("BROWSER_CDP_URL", "").strip():
+    if os.environ.get("BROWSER_CDP_URL", "").strip():
         return False
     return bool(get_camofox_url())
 

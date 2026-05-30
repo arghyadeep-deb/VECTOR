@@ -3,6 +3,12 @@ Cache model for storing expensive operation results.
 """
 
 from datetime import datetime, timedelta, UTC
+
+__all__ = [
+    "Cache",
+    "SearchCache",
+]
+
 from functools import partial
 
 from sqlalchemy import JSON, Column, Index, Integer, String, Text

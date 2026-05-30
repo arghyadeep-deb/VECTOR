@@ -7,6 +7,7 @@ key path because ChatGPT OAuth tokens are not OpenAI API keys.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import hashlib

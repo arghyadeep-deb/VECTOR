@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 BaoStock Corporate Actions
 Collects dividend and adjust-factor datasets incrementally.
 """
@@ -78,6 +79,8 @@ class BaoStockCorporateActions:
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
         except Exception:
+            logger.debug("[VECTOR][baostock_corporate_actions] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][baostock_corporate_actions] caught Exception: %s", _sve)
             return {"runs": [], "updated_at": _now_ts()}
 
     def _save_state(self, state: Dict[str, Any]) -> None:

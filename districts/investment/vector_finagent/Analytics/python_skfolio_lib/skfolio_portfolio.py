@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Complete skfolio Portfolio Management Implementation
 ================================================
 
@@ -561,6 +562,8 @@ class PortfolioManager:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] caught Exception: %s", _sve)
             logger.error(f"Portfolio construction failed: {e}")
             return {
                 "status": "error",
@@ -656,9 +659,8 @@ class PortfolioManager:
                 try:
                     period_portfolio = model.predict(period_data)
                     period_portfolios.append(period_portfolio)
-                except:
-                    continue
-
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] suppressed Exception in fallback")  # bare except
             if period_portfolios:
                 # Create MultiPeriodPortfolio from skfolio
                 # Note: This is a simplified approach - actual MultiPeriodPortfolio

@@ -5,14 +5,12 @@ Before any task can be marked complete, EvidenceCollector gathers:
 git commits, episodic event counts, agent HP snapshot, file timestamps.
 No evidence = not done.
 """
-import sys
 import asyncio
 import datetime
 import subprocess
 import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

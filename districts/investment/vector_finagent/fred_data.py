@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FRED Data Fetcher
 Fetches economic data from Federal Reserve Economic Data (FRED)
 Returns JSON output for Qt/C++ integration
@@ -121,6 +122,8 @@ def get_series(series_id: str, start_date: Optional[str] = None, end_date: Optio
             'observation_count': len(observations)
         }
     except Exception as e:
+        logger.debug("[VECTOR][fred_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fred_data] caught Exception: %s", _sve)
         return {"error": str(e), "series_id": series_id}
 
 

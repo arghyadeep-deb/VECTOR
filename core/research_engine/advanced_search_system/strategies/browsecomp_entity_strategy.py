@@ -12,6 +12,14 @@ Key features:
 """
 
 import asyncio
+
+__all__ = [
+    "BrowseCompEntityStrategy",
+    "EntityCandidate",
+    "EntityKnowledgeGraph",
+    "MAX_LOCAL_CACHE",
+]
+
 import json
 import re
 from collections import defaultdict
@@ -922,10 +930,10 @@ Provide a helpful response explaining what was found and why no definitive answe
         import asyncio
 
         try:
-            # Run async search â€” detect whether we're inside an event loop
+            # Run async search — detect whether we're inside an event loop
             try:
                 asyncio.get_running_loop()
-                # Inside a running loop â€” run in a thread to avoid nesting
+                # Inside a running loop — run in a thread to avoid nesting
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -938,7 +946,7 @@ Provide a helpful response explaining what was found and why no definitive answe
                     )
                     return future.result()
             except RuntimeError:
-                # No running event loop â€” safe to use asyncio.run() directly
+                # No running event loop — safe to use asyncio.run() directly
                 return asyncio.run(self._analyze_topic_async(query))
 
         except Exception as e:

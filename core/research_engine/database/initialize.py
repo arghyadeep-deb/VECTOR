@@ -6,6 +6,12 @@ using Alembic for schema migrations and version control.
 """
 
 from typing import Any, Optional
+
+__all__ = [
+    "check_database_schema",
+    "initialize_database",
+]
+
 from loguru import logger
 from sqlalchemy import Engine, inspect
 from sqlalchemy.orm import Session

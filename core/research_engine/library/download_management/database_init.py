@@ -5,6 +5,12 @@ Creates the necessary database tables for tracking download status and retry log
 """
 
 from sqlalchemy import create_engine, inspect
+
+__all__ = [
+    "init_database",
+    "verify_table_exists",
+]
+
 from loguru import logger
 
 from .models import Base

@@ -7,12 +7,10 @@ test_results_analyzer, tool_evaluator, workflow_architect, workflow_optimizer).
 """
 from __future__ import annotations
 
-import sys
 import asyncio
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.agent_base import AgentBase

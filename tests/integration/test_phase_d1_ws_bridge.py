@@ -2,13 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 # ── EventType additions ───────────────────────────────────────────────────────

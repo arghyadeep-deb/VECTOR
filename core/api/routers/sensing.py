@@ -1,8 +1,14 @@
-"""Sensing router â€” /sensing/status."""
+"""Sensing router — /sensing/status."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "router",
+    "sensing_health",
+    "sensing_screen",
+    "sensing_status",
+    "sensing_system",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

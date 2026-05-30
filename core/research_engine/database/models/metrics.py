@@ -12,6 +12,14 @@ from sqlalchemy import (
     String,
     Text,
 )
+
+__all__ = [
+    "ModelUsage",
+    "ResearchRating",
+    "SearchCall",
+    "TokenUsage",
+]
+
 from sqlalchemy_utc import UtcDateTime, utcnow
 
 from .base import Base

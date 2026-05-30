@@ -11,6 +11,13 @@ thresholds.
 
 from __future__ import annotations
 
+__all__ = [
+    "derive_quality_score",
+    "institution_score_from_h_index",
+    "normalize_name",
+]
+
+
 import unicodedata
 from typing import Optional
 

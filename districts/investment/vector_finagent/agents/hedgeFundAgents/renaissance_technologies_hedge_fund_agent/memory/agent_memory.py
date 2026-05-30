@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Agent Memory Manager
 
 Unified memory management for individual agents:
@@ -158,6 +159,8 @@ class AgentMemoryManager:
                 create_session_summary=True,
             )
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.agent_memory] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.agent_memory] caught Exception: %s", _sve)
             print(f"Warning: Could not create Agno memory for {agent_id}: {e}")
             return None
 

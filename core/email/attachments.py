@@ -1,4 +1,10 @@
-import sys
+
+__all__ = [
+    "get_attachment_path",
+    "store_attachments",
+    "StoredAttachment",
+]
+
 import uuid
 import re
 import base64
@@ -7,7 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 
 # Local attachment storage root (mirrors R2 bucket structure locally)

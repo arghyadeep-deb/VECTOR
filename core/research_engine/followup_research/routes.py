@@ -3,6 +3,13 @@ Flask routes for follow-up research functionality.
 """
 
 from flask import Blueprint, request, jsonify, session
+
+__all__ = [
+    "followup_bp",
+    "prepare_followup",
+    "start_followup",
+]
+
 from loguru import logger
 
 from ..constants import ResearchStatus

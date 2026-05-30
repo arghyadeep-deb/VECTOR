@@ -281,7 +281,7 @@ def show_status(args):
     print()
     print(color("◆ Terminal Backend", Colors.CYAN, Colors.BOLD))
     
-    terminal_env = os.getenv("TERMINAL_ENV", "")
+    terminal_env = os.environ.get("TERMINAL_ENV", "")
     if not terminal_env:
         # Fall back to config file value when env var isn't set
         # (vector status doesn't go through cli.py's config loading)
@@ -293,18 +293,18 @@ def show_status(args):
     print(f"  Backend:      {terminal_env}")
     
     if terminal_env == "ssh":
-        ssh_host = os.getenv("TERMINAL_SSH_HOST", "")
-        ssh_user = os.getenv("TERMINAL_SSH_USER", "")
+        ssh_host = os.environ.get("TERMINAL_SSH_HOST", "")
+        ssh_user = os.environ.get("TERMINAL_SSH_USER", "")
         print(f"  SSH Host:     {ssh_host or '(not set)'}")
         print(f"  SSH User:     {ssh_user or '(not set)'}")
     elif terminal_env == "docker":
-        docker_image = os.getenv("TERMINAL_DOCKER_IMAGE", "python:3.11-slim")
+        docker_image = os.environ.get("TERMINAL_DOCKER_IMAGE", "python:3.11-slim")
         print(f"  Docker Image: {docker_image}")
     elif terminal_env == "daytona":
-        daytona_image = os.getenv("TERMINAL_DAYTONA_IMAGE", "nikolaik/python-nodejs:python3.11-nodejs20")
+        daytona_image = os.environ.get("TERMINAL_DAYTONA_IMAGE", "nikolaik/python-nodejs:python3.11-nodejs20")
         print(f"  Daytona Image: {daytona_image}")
     
-    sudo_password = os.getenv("SUDO_PASSWORD", "")
+    sudo_password = os.environ.get("SUDO_PASSWORD", "")
     print(f"  Sudo:         {check_mark(bool(sudo_password))} {'enabled' if sudo_password else 'disabled'}")
     
     # =========================================================================
@@ -332,15 +332,15 @@ def show_status(args):
     }
     
     for name, (token_var, home_var) in platforms.items():
-        token = os.getenv(token_var, "")
+        token = os.environ.get(token_var, "")
         has_token = bool(token)
         
         home_channel = ""
         if home_var:
-            home_channel = os.getenv(home_var, "")
+            home_channel = os.environ.get(home_var, "")
         # Back-compat: QQBot home channel was renamed from QQ_HOME_CHANNEL to QQBOT_HOME_CHANNEL
         if not home_channel and home_var == "QQBOT_HOME_CHANNEL":
-            home_channel = os.getenv("QQ_HOME_CHANNEL", "")
+            home_channel = os.environ.get("QQ_HOME_CHANNEL", "")
         
         status = "configured" if has_token else "not configured"
         if home_channel:
@@ -430,7 +430,7 @@ def show_status(args):
         print(color("◆ Deep Checks", Colors.CYAN, Colors.BOLD))
         
         # Check OpenRouter connectivity
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
         if openrouter_key:
             try:
                 import httpx

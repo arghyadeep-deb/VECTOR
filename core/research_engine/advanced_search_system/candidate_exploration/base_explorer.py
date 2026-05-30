@@ -6,6 +6,13 @@ candidate exploration implementations.
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BaseCandidateExplorer",
+    "ExplorationResult",
+    "ExplorationStrategy",
+]
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional

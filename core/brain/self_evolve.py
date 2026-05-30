@@ -2,9 +2,6 @@
 V.E.C.T.O.R. SelfEvolver.
 Self-improvement engine — analyzes past decisions and evolves agent behavior.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from datetime import datetime
 from core.config import CONFIG

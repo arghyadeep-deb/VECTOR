@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Quantitative Data Validator Module
 =================================
@@ -186,6 +187,8 @@ class DataValidator:
             return cleaned_data, report
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.quant.data_validator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.quant.data_validator] caught Exception: %s", _sve)
             report.add_issue('validation_error', f"Validation failed: {str(e)}", 'critical')
             if self.strict_mode:
                 raise
@@ -506,9 +509,8 @@ class DataValidator:
                     if jb_pvalue < 0.01:
                         report.add_warning('non_normal_returns',
                                            f"{name}Returns significantly deviate from normal distribution")
-                except:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.quant.data_validator] suppressed Exception in fallback")  # bare except
         if isinstance(data, pd.DataFrame):
             for col in data.select_dtypes(include=[np.number]).columns:
                 check_series_patterns(data[col], f"Column {col}: ")

@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "logger",
+    "MCPSamplingHandler",
+]
+
+
 from collections.abc import Callable
 from logging import getLogger
 from typing import Any

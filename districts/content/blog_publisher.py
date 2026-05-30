@@ -20,12 +20,9 @@ from __future__ import annotations
 
 __all__ = ["BlogPublisher", "PublishResult"]
 
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 

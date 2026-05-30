@@ -1,8 +1,12 @@
 """SEO router — /seo/status."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "router",
+    "seo_status",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

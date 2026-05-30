@@ -5,6 +5,14 @@ Stores user preferences and API keys in encrypted database.
 
 import enum
 
+__all__ = [
+    "APIKey",
+    "Setting",
+    "SettingType",
+    "UserSettings",
+]
+
+
 from sqlalchemy import (
     JSON,
     Boolean,

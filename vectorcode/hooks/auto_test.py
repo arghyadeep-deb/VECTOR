@@ -7,6 +7,7 @@ VECTOR Auto-Test Hook — Stop
 Runs pytest after every session ends. Non-blocking — prints results, never exits 2.
 Adapted from article's "auto deploy" — VECTOR doesn't use Vercel.
 """
+from loguru import logger
 import subprocess
 import sys
 from pathlib import Path

@@ -8,15 +8,12 @@ All LLM calls, Ollama, EpisodicMemory.store, EpisodicMemory.recall,
 ObsidianSync, and ContextEngine are mocked so tests run offline.
 """
 
-import sys
 import datetime
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────

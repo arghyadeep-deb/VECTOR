@@ -24,12 +24,12 @@ so concurrent messages never interfere.
 **Backward compatibility**
 
 The public helper ``get_session_env(name, default="")`` mirrors the old
-``os.getenv("VECTOR_SESSION_*", ...)`` calls.  Existing tool code only
+``os.environ.get("VECTOR_SESSION_*", ...)`` calls.  Existing tool code only
 needs to replace the import + call site:
 
     # before
     import os
-    platform = os.getenv("VECTOR_SESSION_PLATFORM", "")
+    platform = os.environ.get("VECTOR_SESSION_PLATFORM", "")
 
     # after
     from gateway.session_context import get_session_env
@@ -131,7 +131,7 @@ def clear_session_vars(tokens: list) -> None:
 def get_session_env(name: str, default: str = "") -> str:
     """Read a session context variable by its legacy ``VECTOR_SESSION_*`` name.
 
-    Drop-in replacement for ``os.getenv("VECTOR_SESSION_*", default)``.
+    Drop-in replacement for ``os.environ.get("VECTOR_SESSION_*", default)``.
 
     Resolution order:
     1. Context variable (set by the gateway for concurrency-safe access).
@@ -151,4 +151,4 @@ def get_session_env(name: str, default: str = "") -> str:
         if value is not _UNSET:
             return value
     # Fall back to os.environ for CLI, cron, and test compatibility
-    return os.getenv(name, default)
+    return os.environ.get(name, default)

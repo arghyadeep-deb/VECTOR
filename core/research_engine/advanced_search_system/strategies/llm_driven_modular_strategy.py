@@ -3,6 +3,14 @@ LLM-Driven Modular Strategy with intelligent constraint processing and early rej
 """
 
 import asyncio
+
+__all__ = [
+    "CandidateConfidence",
+    "EarlyRejectionManager",
+    "LLMConstraintProcessor",
+    "LLMDrivenModularStrategy",
+]
+
 import json
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -401,10 +409,10 @@ class LLMDrivenModularStrategy(BaseSearchStrategy):
         try:
             import asyncio
 
-            # Run async search â€” detect whether we're inside an event loop
+            # Run async search — detect whether we're inside an event loop
             try:
                 asyncio.get_running_loop()
-                # Inside a running loop â€” run in a thread to avoid nesting
+                # Inside a running loop — run in a thread to avoid nesting
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -413,7 +421,7 @@ class LLMDrivenModularStrategy(BaseSearchStrategy):
                     )
                     answer, metadata = future.result()
             except RuntimeError:
-                # No running event loop â€” safe to use asyncio.run() directly
+                # No running event loop — safe to use asyncio.run() directly
                 answer, metadata = asyncio.run(self.search(query))
 
             return {

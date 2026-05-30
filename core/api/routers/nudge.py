@@ -1,8 +1,13 @@
 """Nudge router — /nudge endpoints."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "nudge_dismiss",
+    "nudge_latest",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

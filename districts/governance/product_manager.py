@@ -4,14 +4,11 @@ Product Manager — PRD creation, roadmap ownership, feature prioritization.
 Manages VECTOR's own product development process and any client products
 built via the agency district. PRDs, stakeholder alignment, outcome tracking.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

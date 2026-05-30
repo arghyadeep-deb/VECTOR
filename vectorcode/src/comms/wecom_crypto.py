@@ -7,7 +7,10 @@ import secrets
 import socket
 import struct
 from typing import Optional
-from xml.etree import ElementTree as ET
+try:
+    from defusedxml import ElementTree as ET
+except ImportError:
+    from xml.etree import ElementTree as ET
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes

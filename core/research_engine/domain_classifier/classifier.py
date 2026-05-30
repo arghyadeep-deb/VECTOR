@@ -1,6 +1,12 @@
 """Domain classifier using LLM for categorization."""
 
 import json
+
+__all__ = [
+    "DOMAIN_CATEGORIES",
+    "DomainClassifier",
+]
+
 from typing import Dict, List, Optional
 
 from loguru import logger
@@ -229,7 +235,7 @@ JSON Response:"""
 
                 result = extract_json(response_text, expected_type=dict)
                 if result is None:
-                    raise ValueError("Could not parse JSON from LLM response")  # noqa: TRY301 â€” inside db session; except logs and returns None
+                    raise ValueError("Could not parse JSON from LLM response")  # noqa: TRY301 — inside db session; except logs and returns None
 
                 # Create or update classification
                 if existing:

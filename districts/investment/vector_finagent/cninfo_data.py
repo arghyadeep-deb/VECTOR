@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 CNINFO Data Wrapper
 Provides disclosure search endpoints for Chinese listed companies.
 """
@@ -115,6 +116,8 @@ class CNInfoWrapper:
                     "timestamp": _now_ts(),
                 }
             except Exception as e:  # pragma: no cover - defensive
+                logger.debug("[VECTOR][cninfo_data] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][cninfo_data] caught Exception: %s", _sve)
                 if attempt < max_retries - 1:
                     time.sleep(1)
                     continue

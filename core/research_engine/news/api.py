@@ -4,6 +4,22 @@ These functions can be called directly by scheduler or wrapped by Flask endpoint
 """
 
 from typing import Dict, Any, Optional
+
+__all__ = [
+    "create_subscription",
+    "delete_subscription",
+    "get_news_categories",
+    "get_news_feed",
+    "get_subscription",
+    "get_subscription_history",
+    "get_subscriptions",
+    "get_votes_for_cards",
+    "research_news_item",
+    "save_news_preferences",
+    "submit_feedback",
+    "update_subscription",
+]
+
 from datetime import datetime, timezone, UTC
 from loguru import logger
 import re
@@ -500,7 +516,7 @@ def get_subscription_history(
             )
 
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
 
             # Convert to dict for response
             subscription_dict = {
@@ -658,7 +674,7 @@ def get_subscription(subscription_id: str) -> Optional[Dict[str, Any]]:
             )
 
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
 
             # Convert to API format matching the template expectations
             return {
@@ -782,7 +798,7 @@ def update_subscription(
                 .first()
             )
             if not subscription:
-                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
+                raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
 
             # Update fields
             if "name" in data:
@@ -998,7 +1014,7 @@ def delete_subscription(subscription_id: str) -> Dict[str, Any]:
                 _notify_scheduler_about_subscription_change("deleted")
 
                 return {"status": "success", "deleted": subscription_id}
-            raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 â€” re-raised by except NewsAPIException
+            raise SubscriptionNotFoundException(subscription_id)  # noqa: TRY301 — re-raised by except NewsAPIException
     except NewsAPIException:
         # Re-raise our custom exceptions
         raise

@@ -5,6 +5,14 @@ These settings control test mode behavior and CI/testing flags.
 """
 
 import os
+
+__all__ = [
+    "CI",
+    "GITHUB_ACTIONS",
+    "TESTING",
+    "TESTING_SETTINGS",
+]
+
 from ..env_settings import BooleanSetting
 
 

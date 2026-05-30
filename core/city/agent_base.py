@@ -1,7 +1,5 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 import datetime, uuid
@@ -22,7 +20,7 @@ class AgentBase:
         self.last_active = self.created_at
         self.subscribed_events: set[str] = set()
         self._inbox: list[dict] = []
-        # â”€â”€ Role system â€” load specialist role by name/district â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # â”€â”€ Role system — load specialist role by name/district â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.role = self._load_role(name, district)
         if self.role:
             logger.debug(
@@ -77,7 +75,7 @@ class AgentBase:
             pe = PersonalityEngine()
             self.personality_traits = dict(pe.card.traits)
             return (
-                f"[PERSONALITY â€” {pe.card.name}]\n"
+                f"[PERSONALITY — {pe.card.name}]\n"
                 f"Traits: {pe.card.get_traits_summary()}\n"
                 f"Speech: address as '{pe.card.speech_patterns.address_owner}', "
                 f"contractions={pe.card.speech_patterns.contractions}, "
@@ -88,7 +86,7 @@ class AgentBase:
             return ""
 
     def _make_district_llm(self):
-        """Lazy-init DistrictLLM â€” routes calls through vectorcode_llm + .md prompt."""
+        """Lazy-init DistrictLLM — routes calls through vectorcode_llm + .md prompt."""
         try:
             from core.inference.district_llm import DistrictLLM
             return DistrictLLM(self.district, self.name)
@@ -100,7 +98,7 @@ class AgentBase:
                inject_md: bool = True) -> str:
         """Convenience: call vectorcode LLM chain with optional .md system prompt.
 
-        Preferred over importing ollama_safe directly â€” routes through the full
+        Preferred over importing ollama_safe directly — routes through the full
         Ollama â†’ Gemini â†’ Anthropic â†’ OpenRouter provider chain.
         """
         if self._district_llm is not None:
@@ -119,7 +117,7 @@ class AgentBase:
             return ""
 
     def _calculate_model(self) -> str:
-        # HP tier thresholds â€” override via CONFIG["hp_tiers"] dict
+        # HP tier thresholds — override via CONFIG["hp_tiers"] dict
         tiers = CONFIG.get("hp_tiers", {})
         t_elite  = tiers.get("elite",    800)
         t_strong  = tiers.get("strong",  600)

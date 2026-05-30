@@ -17,7 +17,7 @@ class VercelAuthStatus:
 
 
 def _present(name: str) -> bool:
-    return bool(os.getenv(name))
+    return bool(os.environ.get(name))
 
 
 def describe_vercel_auth() -> VercelAuthStatus:

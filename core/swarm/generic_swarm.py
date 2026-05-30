@@ -5,13 +5,17 @@ One class to rule them all: eliminates needing per-district agent.py files.
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "DISTRICTS_ROOT",
+    "GenericSwarm",
+]
+
+
 import asyncio
 import importlib
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.agent_base import AgentBase

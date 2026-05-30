@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Portfolio Data Manager Module
 ===============================
@@ -131,7 +132,9 @@ class DataValidator:
             if col in data.columns:
                 try:
                     pd.to_datetime(data[col])
-                except:
+                except Exception as _sve:
+                    logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] caught Exception: %s", _sve)
                     errors.append(f"Invalid date format in column: {col}")
 
         return len(errors) == 0, errors
@@ -291,8 +294,8 @@ class DataCache:
                 cache_time = datetime.fromtimestamp(cache_path.stat().st_mtime)
                 if datetime.now() - cache_time < timedelta(hours=24):
                     return cached_data
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception:
+                logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] suppressed Exception in fallback")  # bare except
         return None
 
     def set(self, key: str, data: Any) -> None:

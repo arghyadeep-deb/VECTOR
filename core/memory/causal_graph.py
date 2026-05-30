@@ -3,9 +3,7 @@ V.E.C.T.O.R. CausalGraph.
 Gap 6: Tracks cause-effect relationships between actions and outcomes.
 Persisted to JSON. BFS path-finding. Influence scoring.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import json
 from collections import defaultdict, deque

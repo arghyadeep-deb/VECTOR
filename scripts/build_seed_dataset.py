@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 EXAMPLES: list[dict] = [
     # ── Python / async (1-10) ────────────────────────────────────────────

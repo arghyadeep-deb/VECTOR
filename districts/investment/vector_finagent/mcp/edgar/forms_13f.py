@@ -1,4 +1,5 @@
 """
+from loguru import logger
 13F-HR Institutional Holdings Extraction
 =========================================
 
@@ -82,6 +83,8 @@ def get_13f_holdings(ticker: str, quarters: int = 2) -> Dict[str, Any]:
                 count += 1
 
             except Exception as e:
+                logger.debug("[VECTOR][mcp.edgar.forms_13f] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][mcp.edgar.forms_13f] caught Exception: %s", _sve)
                 continue
 
         return {
@@ -196,9 +199,8 @@ def get_13f_manager_info(ticker: str) -> Dict[str, Any]:
             try:
                 managers = thirteenf.get_portfolio_managers()
                 manager_info["portfolio_managers"] = managers
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+            except Exception:
+                logger.debug("[VECTOR][mcp.edgar.forms_13f] suppressed Exception in fallback")  # bare except
         return {
             "success": True,
             "data": manager_info

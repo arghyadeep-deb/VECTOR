@@ -1,6 +1,7 @@
 # SEC (Securities and Exchange Commission) Data Wrapper
 # Modular, fault-tolerant design - each endpoint works independently
 # Official SEC data from EDGAR database
+from loguru import logger
 
 import sys
 import json
@@ -142,7 +143,9 @@ class SECDataWrapper:
                 date_obj = pd.to_datetime(date_str)
                 return date_obj.strftime('%Y%m%d')
 
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][sec_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][sec_data] caught Exception: %s", _sve)
             return date_str
 
     def _get_company_tickers(self) -> Dict[str, Any]:

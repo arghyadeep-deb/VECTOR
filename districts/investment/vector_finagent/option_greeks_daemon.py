@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 option_greeks_daemon.py — persistent worker for batched IV + Greeks.
 
 Frame protocol matches scripts/yfinance_data.py: 4-byte big-endian length
@@ -192,6 +193,8 @@ def _compute_one(c):
             "valid": True,
         }
     except Exception as e:
+        logger.debug("[VECTOR][option_greeks_daemon] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][option_greeks_daemon] caught Exception: %s", _sve)
         return {
             "token": token,
             "iv": 0.0,

@@ -5,6 +5,7 @@
 
 """Speech subsystem — speech-to-text and text-to-speech backends."""
 
+from loguru import logger
 import importlib
 
 # Optional STT backends — each registers itself via @SpeechRegistry.register()

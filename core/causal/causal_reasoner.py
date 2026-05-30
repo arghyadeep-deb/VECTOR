@@ -10,9 +10,6 @@ Provides:
 Heavy deps (dowhy, pandas) are lazy-imported; degrades gracefully if not installed.
 Architecture invariant: this module must never crash the loop on ImportError.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from typing import Any, Optional
 from loguru import logger

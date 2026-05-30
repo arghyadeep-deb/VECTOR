@@ -9,23 +9,6 @@ Data dir      : ~/.vector/  (sessions, memory.md, audit.log)
 import sys
 import json
 from copy import deepcopy
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 try:
     import tomllib
@@ -36,6 +19,7 @@ except ImportError:
         tomllib = None  # type: ignore
 
 from loguru import logger
+from pathlib import Path
 
 # ── Canonical paths ───────────────────────────────────────────────────────────
 
@@ -267,6 +251,5 @@ if __name__ == "__main__":
     reg.set("ollama/test-model", {"context_window": 4096, "tool_use": False})
     assert reg.get("ollama/test-model")["context_window"] == 4096
     print("config.py OK")
-
 
 

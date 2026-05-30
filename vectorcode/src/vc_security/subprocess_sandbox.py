@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import signal
 import subprocess
 from dataclasses import dataclass
@@ -95,8 +96,7 @@ def run_sandboxed(
     result = SandboxResult()
     try:
         proc = subprocess.Popen(
-            command,
-            shell=True,
+            shlex.split(command),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

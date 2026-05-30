@@ -1,3 +1,4 @@
+from loguru import logger
 """VectorCode context management — VECTOR.md, 5-stage compaction, session memory, references."""
 
 try:

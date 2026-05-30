@@ -1,4 +1,11 @@
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "SessionLogger",
+    "TMP_CLEANUP_INTERVAL",
+]
+
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -164,7 +171,7 @@ class SessionLogger:
             text = str(first_user_message.content)
             title = text[:MAX_TITLE_LENGTH]
             if len(text) > MAX_TITLE_LENGTH:
-                title += "â€¦"
+                title += "…"
 
         return title
 

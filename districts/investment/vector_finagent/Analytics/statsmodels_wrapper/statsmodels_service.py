@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Statsmodels Service (econometrics backend)
 ===========================================
 Self-contained econometric service for the VECTOR Financial Terminal "Statsmodels"
@@ -198,6 +199,8 @@ def op_ols(data):
     try:
         bp_lm, bp_lm_p, _, _ = het_breuschpagan(model.resid, X_mat)
     except Exception:
+        logger.debug("[VECTOR][Analytics.statsmodels_wrapper.statsmodels_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.statsmodels_wrapper.statsmodels_service] caught Exception: %s", _sve)
         bp_lm, bp_lm_p = float("nan"), float("nan")
 
     return {

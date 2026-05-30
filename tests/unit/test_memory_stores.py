@@ -1,9 +1,6 @@
 """Tests for PolicyMemory, ReasoningMemory, SemanticMemory, and loop_state."""
-import sys
 import asyncio
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 

@@ -6,11 +6,18 @@ Crawl4AI adds: robots.txt checking, shadow DOM flattening, iframe
 inlining, smart scrolling for lazy-loaded content, and caching.
 Falls back to plain Playwright if Crawl4AI is not installed.
 
-No stealth/anti-detection features are used â€” the browser identifies
+No stealth/anti-detection features are used — the browser identifies
 honestly via BROWSER_USER_AGENT and respects robots.txt.
 """
 
 import asyncio
+
+__all__ = [
+    "AutoHTMLDownloader",
+    "PlaywrightHTMLDownloader",
+    "SPA_SIGNALS",
+]
+
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -54,7 +61,7 @@ def _run_async(coro, timeout: float = None):
     if loop is None:
         return asyncio.run(coro)
 
-    # Already inside an event loop â€” run in a new thread
+    # Already inside an event loop — run in a new thread
     import concurrent.futures
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -100,7 +107,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             # through to Playwright.
             return html or None
 
-        # Crawl4AI not installed or failed â€” fall back to Playwright
+        # Crawl4AI not installed or failed — fall back to Playwright
         return self._fetch_with_playwright(url)
 
     def _fetch_with_crawl4ai(self, url: str) -> Optional[str]:
@@ -115,7 +122,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
                 CrawlerRunConfig,
             )
         except ImportError:
-            logger.warning("crawl4ai not installed â€” using Playwright")
+            logger.warning("crawl4ai not installed — using Playwright")
             return None
 
         logger.warning(f"Crawl4AI fetch: {url}")
@@ -169,7 +176,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             error_msg = getattr(result, "error_message", "") or ""
             if "robots.txt" in error_msg.lower():
                 logger.info(f"Crawl4AI: blocked by robots.txt for {url}")
-                # Don't fall back to Playwright â€” respect the block
+                # Don't fall back to Playwright — respect the block
                 self.rate_tracker.record_outcome(
                     engine_type=engine_type,
                     wait_time=wait_time,
@@ -181,7 +188,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
 
             status = getattr(result, "status_code", "unknown")
             logger.warning(
-                f"Crawl4AI: failed for {url} â€” "
+                f"Crawl4AI: failed for {url} — "
                 f"success={result.success}, status={status}"
             )
             self.rate_tracker.record_outcome(
@@ -265,7 +272,7 @@ class PlaywrightHTMLDownloader(HTMLDownloader):
             return None
 
         except ImportError:
-            logger.warning("playwright not installed â€” cannot use JS rendering")
+            logger.warning("playwright not installed — cannot use JS rendering")
             return None
         except Exception as e:
             logger.exception(f"Playwright error fetching {url}")
@@ -337,7 +344,7 @@ class AutoHTMLDownloader(HTMLDownloader):
 
         Note: _last_raw_html is instance state read by download()/download_with_result().
         This is safe because AutoHTMLDownloader instances are created per-request
-        in fetch_and_extract/batch_fetch_and_extract â€” not shared across threads.
+        in fetch_and_extract/batch_fetch_and_extract — not shared across threads.
         """
         self._last_raw_html = None
         # Try the normal static fetch
@@ -346,7 +353,7 @@ class AutoHTMLDownloader(HTMLDownloader):
             self._last_raw_html = html
             return html
 
-        # Static fetch failed (403, etc.) â€” try raw GET to check for
+        # Static fetch failed (403, etc.) — try raw GET to check for
         # challenge pages / SPA signals even on non-200 responses
         try:
             response = self.session.get(

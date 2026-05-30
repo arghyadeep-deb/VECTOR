@@ -10,12 +10,17 @@ Ported from vector's TokenJuice compression pipeline.
 """
 from __future__ import annotations
 
-import re
-import sys
-from dataclasses import dataclass
-from pathlib import Path
+__all__ = [
+    "CompressionStats",
+    "reduce_messages",
+    "reduce_text",
+    "TokenJuice",
+]
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+import re
+from dataclasses import dataclass
+
 from loguru import logger
 
 # ── Text-level rules ───────────────────────────────────────────────────────────
@@ -120,7 +125,8 @@ class TokenJuice:
     Usage:
         juice = TokenJuice()
         compressed, stats = juice.compress(messages)
-        print(f"Reduced {stats.char_reduction_pct:.0f}%")
+        logger.info(f"Reduced {stats.char_reduction_pct:.0f}%")
+
     """
 
     def __init__(

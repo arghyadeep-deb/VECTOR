@@ -14,6 +14,13 @@ as declarative per-model fields).
 
 from __future__ import annotations
 
+__all__ = [
+    "get_capabilities",
+    "ModelCapabilities",
+    "StructuredMethod",
+]
+
+
 import re
 from dataclasses import dataclass
 from typing import Literal

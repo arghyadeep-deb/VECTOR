@@ -1,4 +1,5 @@
 """
+from loguru import logger
 equity_talipp.py — TALIpp technical indicator computation for Equity Research tab
 
 Usage:
@@ -551,6 +552,8 @@ def main():
         }))
 
     except Exception as e:
+        logger.debug("[VECTOR][equity_talipp] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][equity_talipp] caught Exception: %s", _sve)
         print(json.dumps({"success": False, "error": str(e), "indicator": indicator}))
         sys.exit(1)
 

@@ -1478,7 +1478,7 @@ def _new_session_key() -> str:
 
 
 def _with_checkpoints(session, fn):
-    return fn(session["agent"]._checkpoint_mgr, os.getenv("TERMINAL_CWD", os.getcwd()))
+    return fn(session["agent"]._checkpoint_mgr, os.environ.get("TERMINAL_CWD", os.getcwd()))
 
 
 def _resolve_checkpoint_hash(mgr, cwd: str, ref: str) -> str:
@@ -1732,7 +1732,7 @@ def _(rid, params: dict) -> dict:
                 "model": _resolve_model(),
                 "tools": {},
                 "skills": {},
-                "cwd": os.getenv("TERMINAL_CWD", os.getcwd()),
+                "cwd": os.environ.get("TERMINAL_CWD", os.getcwd()),
             },
         },
     )

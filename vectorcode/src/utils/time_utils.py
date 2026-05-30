@@ -18,7 +18,7 @@ _cache_resolved: bool = False
 
 
 def _resolve_timezone_name() -> str:
-    tz_env = os.getenv("VECTOR_TIMEZONE", os.getenv("VECTOR_TIMEZONE", "")).strip()
+    tz_env = os.environ.get("VECTOR_TIMEZONE", os.environ.get("VECTOR_TIMEZONE", "")).strip()
     if tz_env:
         return tz_env
     try:

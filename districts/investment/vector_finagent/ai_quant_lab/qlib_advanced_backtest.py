@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Advanced Backtest Module
 Realistic backtesting with market microstructure:
 - Order book simulation
@@ -872,6 +873,8 @@ def main():
             print(json.dumps(result))
 
     except Exception as e:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_backtest] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_backtest] caught Exception: %s", _sve)
         print(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)
 

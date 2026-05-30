@@ -30,4 +30,4 @@ def get_async_client():
 
 def check_api_key() -> bool:
     """Check whether the OpenRouter API key is present."""
-    return bool(os.getenv("OPENROUTER_API_KEY"))
+    return bool(os.environ.get("OPENROUTER_API_KEY"))

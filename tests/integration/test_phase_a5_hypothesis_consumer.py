@@ -1,12 +1,9 @@
 """Integration tests — Session A5: HypothesisEngine → SuggestionQueue → event publishing."""
 from __future__ import annotations
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestSuggestionQueueCRUD(unittest.TestCase):

@@ -1,4 +1,5 @@
 """fixed_annuities Module"""
+from loguru import logger
 
 import numpy as np
 import pandas as pd
@@ -102,7 +103,9 @@ class FixedAnnuityAnalyzer(AlternativeInvestmentBase):
         try:
             irr = Decimal(str(np.irr(cash_flows)))
             return irr
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.alternateInvestment.fixed_annuities] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.fixed_annuities] caught Exception: %s", _sve)
             # Fallback: approximate IRR
             return self.annuity_rate
 

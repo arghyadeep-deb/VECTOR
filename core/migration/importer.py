@@ -18,13 +18,19 @@ Ported from the agent OS agent OS migration framework.
 """
 from __future__ import annotations
 
+__all__ = [
+    "MigrationResult",
+    "MigrationSource",
+    "VectorAgentDef",
+    "VectorMigrator",
+]
+
+
 import json
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -64,9 +70,7 @@ class VectorAgentDef:
         """Generate a VECTOR-compatible Python agent file."""
         tools_str = repr(self.tools)
         return f'''"""VECTOR Agent — migrated from {self.source_framework}."""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from core.city.agent_base import AgentBase
 from loguru import logger
 

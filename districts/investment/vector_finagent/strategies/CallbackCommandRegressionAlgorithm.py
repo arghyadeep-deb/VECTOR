@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-E8875612
 # Category: Regression Test
@@ -64,7 +65,9 @@ class CallbackCommandRegressionAlgorithm(QCAlgorithm):
         threw_exception = False
         try:
             self.add_command(InvalidCommand)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][strategies.CallbackCommandRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.CallbackCommandRegressionAlgorithm] caught Exception: %s", _sve)
             threw_exception = True
         if not threw_exception:
             raise ValueError('InvalidCommand did not throw!')

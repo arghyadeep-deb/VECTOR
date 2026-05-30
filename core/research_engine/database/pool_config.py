@@ -5,6 +5,12 @@ different databases have different concurrency profiles.
 """
 
 # Validate connections before checkout (detects stale/broken connections)
+
+__all__ = [
+    "POOL_PRE_PING",
+    "POOL_RECYCLE_SECONDS",
+]
+
 POOL_PRE_PING = True
 
 # Recycle connections after 1 hour to release stale file handles.

@@ -18,6 +18,12 @@ from sqlalchemy import (
     Integer,
     String,
 )
+
+__all__ = [
+    "Paper",
+    "PaperAppearance",
+]
+
 from sqlalchemy.orm import relationship
 from sqlalchemy_utc import UtcDateTime, utcnow
 

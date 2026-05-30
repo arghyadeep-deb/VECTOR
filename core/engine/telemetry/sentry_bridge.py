@@ -1,8 +1,8 @@
 """
-VECTOR Sentry Bridge â€” error tracking and performance monitoring.
+VECTOR Sentry Bridge — error tracking and performance monitoring.
 
 Verdict vs VECTOR's loguru:
-- loguru: local structured logs (KEEP â€” excellent for dev)
+- loguru: local structured logs (KEEP — excellent for dev)
 - Sentry: cloud error aggregation, alerting, performance tracing (ADD for production)
 
 Both coexist. Loguru handles local debug. Sentry handles cloud alerts.
@@ -10,10 +10,12 @@ Set SENTRY_DSN in .env to activate (leave empty for local-only mode).
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+__all__ = [
+    "init_sentry",
+    "VectorSentry",
+]
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
 from loguru import logger
 from core.config import CONFIG
 
@@ -24,7 +26,7 @@ _SENTRY_RELEASE = CONFIG.get("build_sha", "dev")
 
 class VectorSentry:
     """
-    Sentry integration for VECTOR â€” cloud-mode error tracking.
+    Sentry integration for VECTOR — cloud-mode error tracking.
 
     Local mode (no DSN): logs to loguru only.
     Cloud mode (DSN set): sends errors + performance data to Sentry.
@@ -143,4 +145,4 @@ if __name__ == "__main__":
         raise ValueError("test error")
     except ValueError as e:
         s.capture_exception(e)
-    print(f"OK sentry_bridge.py â€” active: {s.is_active} (set SENTRY_DSN to activate)")
+    print(f"OK sentry_bridge.py — active: {s.is_active} (set SENTRY_DSN to activate)")

@@ -15,11 +15,8 @@ HP awards:
     generate_report:  +40 HP on success, -20 HP on failure
     research_papers:  +20 HP on success, -10 HP on failure
 """
-import sys
 import asyncio
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.agent_base import AgentBase

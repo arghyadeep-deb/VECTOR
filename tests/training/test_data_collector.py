@@ -1,10 +1,8 @@
 """Tests for DataCollector: episodic memory scanning, feedback collection, domain collection, formatting, dedup, export."""
 
-import sys
 import json
 import tempfile
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.training.data_collector import DataCollector
 

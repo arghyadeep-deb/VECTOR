@@ -6,6 +6,7 @@
 """Concrete security scanners — secrets and PII detection."""
 
 from __future__ import annotations
+from loguru import logger
 
 from typing import Dict, Tuple
 

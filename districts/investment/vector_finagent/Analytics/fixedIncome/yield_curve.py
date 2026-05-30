@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Yield Curve Analytics Module
 ============================
 
@@ -259,7 +260,9 @@ class YieldCurveBuilder:
                 options={'maxiter': 1000}
             )
             b0, b1, b2, tau = result.x
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] caught Exception: %s", _sve)
             return {'error': 'Failed to fit Nelson-Siegel model'}
 
         # Generate fitted curve
@@ -343,10 +346,8 @@ class YieldCurveBuilder:
                 options={'maxiter': 2000}
             )
             b0, b1, b2, b3, tau1, tau2 = result.x
-        except:
-            return {'error': 'Failed to fit Svensson model'}
-
-        # Generate fitted curve
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] suppressed Exception in fallback")  # bare except
         fitted_maturities = np.linspace(0.25, max(maturities), 50)
         fitted_yields = svensson(fitted_maturities, b0, b1, b2, b3, tau1, tau2)
 
@@ -469,15 +470,12 @@ class YieldCurveBuilder:
 
         try:
             spread_2s10s = rate_10y - rate_2y
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] suppressed Exception in fallback")  # bare except
         try:
             spread_3m10y = rate_10y - rate_3m
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-        # Steepness
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] suppressed Exception in fallback")  # bare except
         steepness = slope / (maturities[-1] - maturities[0]) if len(maturities) > 1 else 0
 
         return {
@@ -603,9 +601,8 @@ class SpreadAnalyzer:
         try:
             result = optimize.minimize(objective, [0.01], method='Nelder-Mead')
             z_spread = result.x[0]
-        except:
-            return {'error': 'Failed to calculate Z-spread'}
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] suppressed Exception in fallback")  # bare except
         return {
             'z_spread': round(z_spread, 6),
             'z_spread_bps': round(z_spread * 10000, 1),

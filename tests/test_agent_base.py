@@ -1,7 +1,4 @@
-import sys
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from core.city.agent_base import AgentBase

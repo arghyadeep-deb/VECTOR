@@ -4,6 +4,13 @@ Loads search engine definitions from the user's configuration.
 """
 
 from typing import Any, Dict, Optional
+
+__all__ = [
+    "default_search_engine",
+    "get_available_engines",
+    "search_config",
+]
+
 from sqlalchemy.orm import Session
 
 from loguru import logger
@@ -127,7 +134,7 @@ def search_config(
 
     # Inject module/class from the hardcoded engine registry.
     # This is the single source of truth for which Python module implements
-    # each engine â€” these values are never read from the settings DB.
+    # each engine — these values are never read from the settings DB.
     from .engine_registry import ENGINE_REGISTRY
 
     for name, entry in ENGINE_REGISTRY.items():
@@ -322,7 +329,7 @@ def get_available_engines(
             api_key = _resolve_api_key(name, config, settings_snapshot)
             if not api_key:
                 logger.warning(
-                    f"Skipping {name} â€” requires API key but none configured"
+                    f"Skipping {name} — requires API key but none configured"
                 )
                 continue
 

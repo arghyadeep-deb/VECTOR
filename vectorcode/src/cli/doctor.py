@@ -1,13 +1,11 @@
 """Doctor — diagnostics for VectorCode installation."""
+from pathlib import Path
 import sys
 import subprocess
 import shutil
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
 
 from loguru import logger
 
@@ -269,7 +267,6 @@ class Doctor:
         except ImportError:
             # Try alternate import path
             try:
-                sys.path.insert(0, str(Path(__file__).parent.parent))
                 from session_db import get_session_db
                 db = get_session_db()
                 db.list_sessions(limit=1)

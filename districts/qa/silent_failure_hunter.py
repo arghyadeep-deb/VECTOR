@@ -3,12 +3,10 @@ Silent Failure Hunter — finds swallowed errors, bad fallbacks, missing error p
 Loaded from: vectorcode/agents/vector-silent-failure-hunter.md
 District: qa
 """
-import sys
 import asyncio
 import ast
 import re
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

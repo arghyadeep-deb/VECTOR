@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Derivatives Arbitrage Detection Module
 ====================================
 
@@ -888,6 +889,8 @@ class ArbitrageScanner:
                 all_opportunities.extend(calendar_opportunities)
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.derivatives.arbitrage] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.derivatives.arbitrage] caught Exception: %s", _sve)
             logger.error(f"Error in arbitrage scan: {e}")
 
         self.detected_opportunities = all_opportunities

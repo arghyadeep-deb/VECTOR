@@ -7,11 +7,9 @@ filter parser, and (in later phases) migrations, storage, auth/RBAC and hooks.
 
 import sqlite3
 import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.collections import (
     Collection,

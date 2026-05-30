@@ -6,15 +6,11 @@ a bounded conversation history.  Sessions expire after SESSION_TTL seconds
 of inactivity (default 3600 s / 1 hour).  The manager is thread-safe and
 caps total active sessions at MAX_SESSIONS using LRU eviction.
 """
-import sys
 import time
 import threading
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 

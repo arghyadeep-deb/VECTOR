@@ -18,6 +18,18 @@ so that:
 
 from __future__ import annotations
 
+__all__ = [
+    "PortfolioDecision",
+    "PortfolioRating",
+    "render_pm_decision",
+    "render_research_plan",
+    "render_trader_proposal",
+    "ResearchPlan",
+    "TraderAction",
+    "TraderProposal",
+]
+
+
 from enum import Enum
 from typing import Optional
 

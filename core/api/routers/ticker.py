@@ -1,4 +1,4 @@
-"""VECTOR ticker router Ã¢â‚¬â€ feeds the dashboard's top stock strip and bottom news strip.
+"""VECTOR ticker router Ã¢â‚¬— feeds the dashboard's top stock strip and bottom news strip.
 
 Endpoints:
     GET /finance/ticker?symbols=AAPL,MSFT,SPY  -> latest quote per symbol
@@ -11,6 +11,13 @@ the dashboard. They wrap existing infrastructure rather than re-fetching:
 - News: districts/research/news_aggregator.py if importable, else a fallback.
 """
 import asyncio
+
+__all__ = [
+    "finance_ticker",
+    "news_headlines",
+    "router",
+]
+
 import time
 from typing import Any
 
@@ -133,7 +140,7 @@ def _aggregator_headlines(limit: int) -> list[dict] | None:
             if hasattr(agg, fn):
                 items: Any = getattr(agg, fn)(limit) if callable(getattr(agg, fn)) else None
                 if asyncio.iscoroutine(items):
-                    return None  # async path Ã¢â‚¬â€ handled at call site
+                    return None  # async path Ã¢â‚¬— handled at call site
                 if isinstance(items, list):
                     return [_norm_headline(it) for it in items][:limit]
         return None

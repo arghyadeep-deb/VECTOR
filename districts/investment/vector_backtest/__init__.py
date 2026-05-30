@@ -19,4 +19,3 @@ from pathlib import Path
 # Ensure src/ and backtest/ are importable (same pattern as original entry points)
 _BACKTEST_DIR = Path(__file__).resolve().parent
 if str(_BACKTEST_DIR) not in sys.path:
-    sys.path.insert(0, str(_BACKTEST_DIR))

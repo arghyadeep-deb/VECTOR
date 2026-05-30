@@ -1823,7 +1823,7 @@ def index_collection(collection_id):
             username, session_id
         )
 
-    # Create RAG service â€” on force reindex use current default model
+    # Create RAG service — on force reindex use current default model
     rag_service = get_rag_service(collection_id, use_defaults=force_reindex)
     logger.info(
         f"RAG service created: provider={rag_service.embedding_provider}"
@@ -1966,7 +1966,7 @@ def index_collection(collection_id):
 
                         # Check for errors from thread
                         if not error_queue.empty():
-                            raise error_queue.get()  # noqa: TRY301 â€” re-raises thread exception for per-document error handling
+                            raise error_queue.get()  # noqa: TRY301 — re-raises thread exception for per-document error handling
 
                         result = result_queue.get()
                         logger.info(

@@ -1,19 +1,36 @@
 """
-VECTOR Vision Control â€” Vision Operator
+VECTOR Vision Control — Vision Operator
 Python port of UI-TARS-desktop/packages/ui-tars/operators/nut-js/src/index.ts
 
 Wraps VECTOR's existing core/control/pc_controller.py and core/sensing/screen_observer.py
 with the Operator interface expected by GUIAgent.
 
 Screenshot returns base64 PNG + screen dimensions.
-Execute dispatches typed actions (click, type, hotkey, scroll, drag, wait, â€¦).
+Execute dispatches typed actions (click, type, hotkey, scroll, drag, wait, …).
 
 Usage:
     op = VisionOperator()
     shot = asyncio.run(op.screenshot())
-    print(shot["width"], shot["height"])
+    logger.info(shot["width"], shot["height"])
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "ACTION_SPACE",
+    "CLICK_ACTIONS",
+    "DCLICK_ACTIONS",
+    "DRAG_ACTIONS",
+    "HOTKEY_ACTIONS",
+    "KEY_MAP",
+    "RCLICK_ACTIONS",
+    "SCROLL_ACTIONS",
+    "SCROLL_MAP",
+    "TERMINAL_ACTIONS",
+    "TYPE_ACTIONS",
+    "VisionOperator",
+]
+
 
 import asyncio
 import base64
@@ -22,10 +39,8 @@ import platform
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 # â”€â”€ Action type constants (mirrors shared/types/agent.ts ActionType) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -60,16 +75,16 @@ KEY_MAP = {
 
 ACTION_SPACE = """You are a GUI automation agent. Control the computer using these actions:
 
-click(start_box='<point>x y</point>')          â€” left-click at coordinate
-double_click(start_box='<point>x y</point>')   â€” double-click
-right_click(start_box='<point>x y</point>')    â€” right-click
-drag(start_box='<point>x1 y1</point>', end_box='<point>x2 y2</point>') â€” drag
-type(content='text to type')                   â€” type text
-hotkey(key='ctrl c')                           â€” keyboard shortcut
-scroll(start_box='<point>x y</point>', direction='down') â€” scroll up/down/left/right
-wait()                                         â€” wait 5 seconds
-finished()                                     â€” task complete
-call_user()                                    â€” need human help
+click(start_box='<point>x y</point>')          — left-click at coordinate
+double_click(start_box='<point>x y</point>')   — double-click
+right_click(start_box='<point>x y</point>')    — right-click
+drag(start_box='<point>x1 y1</point>', end_box='<point>x2 y2</point>') — drag
+type(content='text to type')                   — type text
+hotkey(key='ctrl c')                           — keyboard shortcut
+scroll(start_box='<point>x y</point>', direction='down') — scroll up/down/left/right
+wait()                                         — wait 5 seconds
+finished()                                     — task complete
+call_user()                                    — need human help
 
 Coordinates x,y are in range 0-1000 (normalized to screen size).
 Always output Thought: then Action: on separate lines."""
@@ -293,7 +308,7 @@ if __name__ == "__main__":
         assert "base64" in shot
         assert shot["width"] > 0
         assert shot["height"] > 0
-        print(f"OK vision_operator.py â€” screen {shot['width']}x{shot['height']}")
+        print(f"OK vision_operator.py — screen {shot['width']}x{shot['height']}")
         print(f"  action_space: {len(op.get_action_space())} chars")
         # Test terminal action handling
         result = await op.execute({"action_type": "finished", "action_inputs": {}})

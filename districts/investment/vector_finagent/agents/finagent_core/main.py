@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FinAgent Core Main Entry Point
 
 Unified entry point for all agent operations via C++.
@@ -36,7 +37,6 @@ logging.basicConfig(
 # Add parent directory to path
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
 
 # Timeout for discovery operations (seconds)
 DISCOVERY_TIMEOUT = 30.0
@@ -235,6 +235,8 @@ def main(args=None):
             stream_print("error", f"Invalid JSON: {str(e)}")
         return json.dumps({"success": False, "error": f"Invalid JSON: {str(e)}"})
     except Exception as e:
+        logger.debug("[VECTOR][agents.finagent_core.main] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.main] caught Exception: %s", _sve)
         if streaming:
             stream_print("error", str(e))
         return json.dumps({"success": False, "error": str(e)})

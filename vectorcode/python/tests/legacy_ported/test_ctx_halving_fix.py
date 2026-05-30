@@ -20,11 +20,9 @@ These are different and the old code conflated them; the fix keeps them
 separate.
 """
 
-import sys
 import os
 from unittest.mock import MagicMock, patch, PropertyMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 

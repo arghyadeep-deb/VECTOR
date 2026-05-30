@@ -10,9 +10,6 @@ Modes:
 DND gate: no proactive pings during do_not_disturb hours (default 23:00–08:00).
 Emergency override: security/RED-tier tasks always bypass DND.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import datetime
 from enum import Enum

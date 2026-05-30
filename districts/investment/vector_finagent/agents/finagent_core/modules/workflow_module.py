@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Workflow Module - Complex task orchestration using Agno's native subclass pattern.
 
 Each financial workflow is a proper Agno Workflow subclass with:
@@ -74,6 +75,8 @@ def _load_workflow_tools(api_keys: Dict[str, str],
         tools.extend(financial_tools)
         logger.debug(f"WorkflowTools: loaded {len(financial_tools)} financial tools")
     except Exception as e:
+        logger.debug("[VECTOR][agents.finagent_core.modules.workflow_module] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.modules.workflow_module] caught Exception: %s", _sve)
         logger.warning(f"WorkflowTools: ToolsRegistry load failed: {e}")
 
     # Terminal MCP bridge tools (get_quote, portfolio, navigation, etc.)
@@ -564,7 +567,7 @@ class WorkflowModule:
                 ctx = _extract_content(si)
                 ctx = ctx if isinstance(ctx, dict) else {}
                 try:    fmt = _p.format(**ctx)
-                except: fmt = _p
+                except Exception: fmt = _p
                 resp = _a.run(fmt)
                 return StepOutput(content=getattr(resp, "content", str(resp)))
             return Step(name=name, executor=_ex)

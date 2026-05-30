@@ -11,6 +11,7 @@ Each tool is registered via ``@ToolRegistry.register("name")`` and implements
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import concurrent.futures
 import json

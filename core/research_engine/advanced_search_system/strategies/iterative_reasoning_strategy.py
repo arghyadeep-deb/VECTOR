@@ -10,6 +10,12 @@ This strategy maintains a persistent knowledge base and iteratively:
 """
 
 from dataclasses import dataclass, field
+
+__all__ = [
+    "IterativeReasoningStrategy",
+    "KnowledgeState",
+]
+
 from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 

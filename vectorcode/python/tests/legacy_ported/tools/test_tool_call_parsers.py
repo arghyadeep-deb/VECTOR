@@ -6,13 +6,10 @@ Used in Phase 2 (VLLM/generate) where the server returns raw tokens.
 """
 
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
 # Ensure repo root is importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     from environments.tool_call_parsers import (

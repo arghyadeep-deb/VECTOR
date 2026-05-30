@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Feature Importance Module
 =========================
 
@@ -274,6 +275,8 @@ def calculate_shap_importance(
                 'shap_values_sample': shap_values[:10].tolist() if len(shap_values) >= 10 else shap_values.tolist()
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.functime_wrapper.feature_importance] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.functime_wrapper.feature_importance] caught Exception: %s", _sve)
             results[entity_id] = {'error': str(e)}
 
     return {

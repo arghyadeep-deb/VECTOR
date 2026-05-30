@@ -101,7 +101,7 @@ def is_rate_limiting_enabled() -> bool:
         (see ``rate_limiting.enabled`` setting and
         ``web_search_engines/rate_limiting/tracker.py``). It does NOT affect
         the Flask HTTP rate limiter governed by this function. Operators
-        routinely confuse the two â€” see issue #3905.
+        routinely confuse the two — see issue #3905.
 
     Note:
         This function intentionally does NOT check the CI environment.

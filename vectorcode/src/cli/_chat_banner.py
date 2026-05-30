@@ -1,3 +1,4 @@
+from loguru import logger
 """CLI shim for _chat_banner."""
 try:
     from vectorcode.src.vector_cli._chat_banner import *

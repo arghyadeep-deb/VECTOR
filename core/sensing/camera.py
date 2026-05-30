@@ -6,8 +6,13 @@ RULE 5 — all camera data stays local, never leaves device.
 """
 
 import sys
+
+__all__ = [
+    "FaceDetector",
+    "FatigueMonitor",
+]
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from loguru import logger

@@ -5,13 +5,10 @@ Wraps vectorcode/src/agent/error_classifier.py concept.
 Categorizes errors into actionable types: rate_limit, timeout, auth, model_not_found,
 context_overflow, network, etc. Enables VECTOR to self-heal by knowing WHY something failed.
 """
-import sys
 import asyncio
 import re
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

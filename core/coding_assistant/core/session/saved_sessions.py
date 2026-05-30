@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "update_saved_session_title",
+    "update_saved_session_title_at_path",
+]
+
+
 import json
 from pathlib import Path
 from typing import Any

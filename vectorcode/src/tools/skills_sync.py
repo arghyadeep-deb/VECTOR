@@ -44,7 +44,7 @@ def _get_bundled_dir() -> Path:
     Checks VECTOR_BUNDLED_SKILLS env var first (set by Nix wrapper),
     then falls back to the relative path from this source file.
     """
-    env_override = os.getenv("VECTOR_BUNDLED_SKILLS")
+    env_override = os.environ.get("VECTOR_BUNDLED_SKILLS")
     if env_override:
         return Path(env_override)
     return Path(__file__).parent.parent / "skills"

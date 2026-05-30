@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VisionQuant Index Builder - First-run setup
 Downloads data, generates candlestick images, trains model, builds FAISS index.
 
@@ -19,7 +20,6 @@ from datetime import datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
 
 from utils import (
     get_data_dir, get_model_path, get_index_path, get_meta_path,
@@ -80,6 +80,8 @@ def build_index(symbols=None, start_date="2020-01-01", stride=5, window=60, epoc
                 df.to_csv(csv_path)
                 all_data[sym] = df
         except Exception as e:
+            logger.debug("[VECTOR][vision_quant.setup_index] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][vision_quant.setup_index] caught Exception: %s", _sve)
             output_progress(f"Warning: Failed to download {sym}: {e}")
             continue
 

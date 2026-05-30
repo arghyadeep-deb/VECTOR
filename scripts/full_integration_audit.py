@@ -2,11 +2,9 @@
 Full honest audit of both absorbed repos.
 Checks: imports, stubs, wiring, missing deps, real functionality.
 """
-import sys
 import subprocess
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 results = []
 

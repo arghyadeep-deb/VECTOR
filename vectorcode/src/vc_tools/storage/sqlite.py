@@ -6,6 +6,7 @@
 """SQLite/FTS5 memory backend — zero-dependency default."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import sqlite3

@@ -2,6 +2,21 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "ConfigCorruptPlaybook",
+    "DBCorruptionPlaybook",
+    "DiskFullPlaybook",
+    "GPUFailurePlaybook",
+    "ModelCrashPlaybook",
+    "NetworkPartitionPlaybook",
+    "OOMPlaybook",
+    "PlaybookResult",
+    "ProcessHangPlaybook",
+    "RecoveryPlaybook",
+    "run_all_playbooks",
+]
+
+
 import subprocess
 import sys
 from abc import ABC, abstractmethod
@@ -151,9 +166,9 @@ class GPUFailurePlaybook(RecoveryPlaybook):
                 torch.cuda.synchronize()
                 actions.append(f"GPU OK: {torch.cuda.get_device_name(0)}")
             else:
-                actions.append("GPU unavailable â€” falling back to CPU")
+                actions.append("GPU unavailable — falling back to CPU")
         except ImportError:
-            actions.append("torch not installed â€” skipping GPU check")
+            actions.append("torch not installed — skipping GPU check")
 
         return PlaybookResult(
             name=self.name, success=True,
@@ -175,7 +190,7 @@ class ProcessHangPlaybook(RecoveryPlaybook):
         for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
             try:
                 if proc.info["cpu_percent"] and proc.info["cpu_percent"] > 90:
-                    actions.append(f"High CPU: {proc.info['name']} (PID {proc.info['pid']}) â€” restarting")
+                    actions.append(f"High CPU: {proc.info['name']} (PID {proc.info['pid']}) — restarting")
                     proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue

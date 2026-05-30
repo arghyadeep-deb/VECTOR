@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Meta Learning Module
 AutoML, Model Selection, Hyperparameter Tuning, and Ensemble Methods
 Supports multiple ML frameworks: scikit-learn, LightGBM, XGBoost, CatBoost
@@ -90,6 +91,8 @@ class MetaLearningManager:
                     self.evaluation_results = data.get('results', {})
                     self.best_model_id = data.get('best_model', None)
             except Exception as e:
+                logger.debug("[VECTOR][ai_quant_lab.qlib_meta_learning] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][ai_quant_lab.qlib_meta_learning] caught Exception: %s", _sve)
                 print(f"Warning: Could not load cached state: {e}", file=sys.stderr)
 
     def _save_state(self):
@@ -223,8 +226,8 @@ class MetaLearningManager:
                                 metrics['auc_roc'] = float(roc_auc_score(y_test, y_pred_proba[:, 1]))
                             else:
                                 metrics['auc_roc'] = float(roc_auc_score(y_test, y_pred_proba, multi_class='ovr'))
-                        except:
-                            pass
+                        except Exception:
+                            logger.warning("[VECTOR][ai_quant_lab.qlib_meta_learning] suppressed Exception")  # bare except
                 else:
                     metrics['mse'] = float(mean_squared_error(y_test, y_pred))
                     metrics['rmse'] = float(np.sqrt(metrics['mse']))

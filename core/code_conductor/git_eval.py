@@ -1,5 +1,5 @@
 """
-VECTOR Code Conductor â€” Git Commit Accuracy Evaluator
+VECTOR Code Conductor — Git Commit Accuracy Evaluator
 Python port of codebuff/evals/git-evals/run-git-evals.ts
 
 Measures coding agent accuracy by reconstructing git commits:
@@ -12,12 +12,21 @@ This is how codebuff validates real-world coding performance (61% accuracy vs 53
 Usage:
     runner = GitEvalRunner(cwd="/path/to/repo")
     result = asyncio.run(runner.run_single("abc1234"))
-    print(result["score"])   # 0.0 to 1.0
+    logger.info(result["score"])   # 0.0 to 1.0
+
 
     suite = asyncio.run(runner.run_suite(num_commits=10))
-    print(suite["avg_score"])
+    logger.info(suite["avg_score"])
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "EvalResult",
+    "GitEvalRunner",
+    "HunkResult",
+]
+
 
 import asyncio
 import difflib
@@ -26,10 +35,8 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -211,7 +218,7 @@ class GitEvalRunner:
                 try:
                     worktree = self._checkout_pre_commit(parent_sha, tmp)
                 except Exception:
-                    # Worktree may not be supported â€” use git show instead
+                    # Worktree may not be supported — use git show instead
                     worktree = self._cwd
 
                 # Run the coding orchestrator on the pre-commit state
@@ -284,12 +291,12 @@ if __name__ == "__main__":
     async def _smoke():
         runner = GitEvalRunner()
         is_repo = runner._verify_repo()
-        print(f"OK git_eval.py â€” GitEvalRunner init")
+        print(f"OK git_eval.py — GitEvalRunner init")
         print(f"  cwd={runner._cwd}")
         print(f"  is_git_repo={is_repo}")
         if is_repo:
             recent = _run_git(["log", "-1", "--pretty=%H %s"], runner._cwd, check=False)
             print(f"  latest commit: {recent[:80]}")
-        print(f"  run_suite(5) ready â€” starts CodingOrchestrator per commit")
+        print(f"  run_suite(5) ready — starts CodingOrchestrator per commit")
 
     asyncio.run(_smoke())

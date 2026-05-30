@@ -1,14 +1,24 @@
 """VECTOR control router - /control/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "pc_click",
+    "pc_launch_app",
+    "pc_screenshot",
+    "pc_type",
+    "PcClickReq",
+    "PcLaunchAppReq",
+    "PcTypeReq",
+    "phone_notifications",
+    "phone_screenshot",
+    "phone_status",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/control", tags=["control"])
-
-
 
 
 @router.get("/pc/screenshot")

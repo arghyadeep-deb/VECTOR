@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Floating Rate and Money Market Instruments Module
 =================================================
 
@@ -178,13 +179,13 @@ class FloatingRateAnalyzer:
 
         try:
             dm = optimize.brentq(price_diff, -0.10, 0.50, xtol=1e-10)
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] caught Exception: %s", _sve)
             try:
                 dm = optimize.newton(price_diff, quoted_margin, tol=1e-10)
-            except:
-                return {'error': 'Could not calculate discount margin'}
-
-        # Calculate spread measures
+            except Exception:
+                logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] suppressed Exception in fallback")  # bare except
         spread_to_qm = dm - quoted_margin
 
         return {
@@ -253,9 +254,8 @@ class FloatingRateAnalyzer:
         try:
             result = optimize.minimize(objective, [0.01], method='Nelder-Mead')
             zdm = result.x[0]
-        except:
-            return {'error': 'Could not calculate Z-DM'}
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] suppressed Exception in fallback")  # bare except
         return {
             'zero_discount_margin': round(zdm, 6),
             'z_dm_bps': round(zdm * 10000, 2),

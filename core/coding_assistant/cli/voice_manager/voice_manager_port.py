@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+__all__ = [
+    "RecordingStartError",
+    "TranscribeState",
+    "VoiceManagerListener",
+    "VoiceManagerPort",
+    "VoiceToggleResult",
+]
+
+
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from typing import Protocol

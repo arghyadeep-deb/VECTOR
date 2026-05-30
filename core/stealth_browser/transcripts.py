@@ -1,12 +1,13 @@
 """
-VECTOR Stealth Browser â€” YouTube Transcript Extraction
+VECTOR Stealth Browser — YouTube Transcript Extraction
 Two-mode transcript extraction:
-  Mode 1 (fast, free): yt-dlp subprocess â€” no browser needed
+  Mode 1 (fast, free): yt-dlp subprocess — no browser needed
   Mode 2 (browser fallback): StealthBrowserClient â†’ /youtube/transcript endpoint
 
 Usage:
     result = asyncio.run(get_youtube_transcript("https://youtu.be/dQw4w9WgXcQ"))
-    print(result["transcript"])
+    logger.info(result["transcript"])
+
 """
 from __future__ import annotations
 
@@ -15,10 +16,8 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -142,7 +141,7 @@ async def _extract_via_browser(url: str) -> dict | None:
         async with StealthBrowserClient() as client:
             healthy = await client.is_healthy()
             if not healthy:
-                logger.debug("[VECTOR][transcripts] stealth server not running â€” skipping browser fallback")
+                logger.debug("[VECTOR][transcripts] stealth server not running — skipping browser fallback")
                 return None
             result = await client.youtube_transcript(url)
             result["source"] = "browser"

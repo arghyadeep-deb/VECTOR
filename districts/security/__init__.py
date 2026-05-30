@@ -4,8 +4,6 @@ V.E.C.T.O.R. Security District - Security and threat detection agents
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

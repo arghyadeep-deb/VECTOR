@@ -1,13 +1,9 @@
 """Integration tests — Session C1: Cloud LLM router with cost-aware fallback."""
 from __future__ import annotations
 
-import sys
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 # ── ComplexityLevel and _assess_complexity ────────────────────────────────────

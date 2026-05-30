@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Economics Analytics Core Framework
 ==================================
 
@@ -93,6 +94,8 @@ class EconomicsBase(ABC):
                 rounding=ROUND_HALF_UP
             )
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.economics.core] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.core] caught Exception: %s", _sve)
             raise CalculationError(f"Cannot convert {value} to Decimal: {e}")
 
     def validate_inputs(self, **kwargs) -> bool:

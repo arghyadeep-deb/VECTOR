@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 AKShare Stocks Margin Trading & HSGT Data Wrapper (Batch 7)
 Provides access to margin trading, HSGT (Stock Connect), and related data
 ~50 endpoints
@@ -44,6 +45,8 @@ def safe_call(func, *args, **kwargs):
             else:
                 return {"success": True, "data": str(result), "count": 1}
         except Exception as e:
+            logger.debug("[VECTOR][akshare_stocks_margin] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_stocks_margin] caught Exception: %s", _sve)
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue

@@ -3,6 +3,7 @@
 # Drop-in replacement for QuantConnect's AlgorithmImports.py
 # Routes all imports to fincept_engine modules (pure Python, no .NET)
 # ============================================================================
+from loguru import logger
 
 # --- Pre-register module intercepts to prevent pythonnet/QuantConnect crashes ---
 import sys as _sys_boot
@@ -30,6 +31,8 @@ def _should_override(name):
         if mod and hasattr(mod, '__loader__') and 'clr' in str(type(mod.__loader__)):
             return True
     except Exception:
+        logger.debug("[VECTOR][strategies.fincept_engine.algorithm_imports] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][strategies.fincept_engine.algorithm_imports] caught Exception: %s", _sve)
         return True
     return False
 

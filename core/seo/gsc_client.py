@@ -16,6 +16,14 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "GSCClient",
+    "list_sites",
+    "PAGE_GROUPS",
+    "URLInspector",
+]
+
+
 import asyncio
 import json
 import os
@@ -28,9 +36,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

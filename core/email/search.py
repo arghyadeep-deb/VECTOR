@@ -1,11 +1,14 @@
-import sys
+
+__all__ = [
+    "parse_search_query",
+    "ParsedSearch",
+]
+
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Matches operator:value or operator:"quoted value"
 _OPERATOR_RE = re.compile(

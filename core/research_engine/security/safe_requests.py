@@ -5,6 +5,16 @@ Wraps requests library to add SSRF protection and security best practices.
 """
 
 import datetime
+
+__all__ = [
+    "DEFAULT_TIMEOUT",
+    "MAX_RESPONSE_SIZE",
+    "safe_get",
+    "safe_get_with_retries",
+    "safe_post",
+    "SafeSession",
+]
+
 import email.utils
 import time
 from typing import Any, Optional
@@ -23,7 +33,7 @@ DEFAULT_TIMEOUT = 30  # seconds
 
 # Maximum response size to prevent memory exhaustion (1GB)
 # Set high to accommodate large documents (annual reports, PDFs, datasets).
-# This is a local research tool â€” users intentionally download these files.
+# This is a local research tool — users intentionally download these files.
 MAX_RESPONSE_SIZE = 1024 * 1024 * 1024
 
 # HTTP status codes that indicate a redirect
@@ -34,9 +44,9 @@ _MAX_REDIRECTS = 10
 
 # Prefix of the requests library's default User-Agent
 # (e.g. "python-requests/2.32.5"). Used by `SafeSession.request` to detect
-# whether the session is using the upstream default â€” if so, we override
+# whether the session is using the upstream default — if so, we override
 # it with the project `USER_AGENT` so academic API endpoints (arXiv,
-# OpenAlex, PubMed, â€¦) can identify us. Promoting the literal to a
+# OpenAlex, PubMed, …) can identify us. Promoting the literal to a
 # constant so a future requests rename only requires a one-line edit.
 _DEFAULT_REQUESTS_UA_PREFIX = "python-requests"
 
@@ -49,7 +59,7 @@ def _install_body_guard(response: requests.Response) -> None:
     This transparently protects both streamed (.iter_content) and
     non-streamed (.text, .json(), .content) access patterns.
 
-    Always installs â€” callers (currently only _check_response_size)
+    Always installs — callers (currently only _check_response_size)
     are responsible for deciding when to call this function.
     """
     original_read = response.raw.read
@@ -100,7 +110,7 @@ def _check_response_size(response: requests.Response) -> None:
             parts = [p for p in raw_parts if p]
             if not parts:
                 _install_body_guard(response)
-                return  # Only commas/whitespace â€” treat as absent
+                return  # Only commas/whitespace — treat as absent
             sizes = [int(p) for p in parts]
         except (ValueError, TypeError):
             _install_body_guard(response)
@@ -119,10 +129,10 @@ def _check_response_size(response: requests.Response) -> None:
             raise ValueError(
                 f"Response too large: {size} bytes (max {MAX_RESPONSE_SIZE})"
             )
-        # Valid Content-Length within limit â€” no body guard needed
+        # Valid Content-Length within limit — no body guard needed
         return
 
-    # No Content-Length header at all â€” install body guard
+    # No Content-Length header at all — install body guard
     _install_body_guard(response)
 
 
@@ -162,7 +172,7 @@ def safe_get(
             private ranges (fc00::/7, fe80::/10). Use for trusted self-hosted services
             like SearXNG or Ollama in containerized environments.
             Note: cloud metadata endpoints (AWS / Azure / OCI / DigitalOcean /
-            AlibabaCloud / Tencent / ECS) are ALWAYS blocked â€” see
+            AlibabaCloud / Tencent / ECS) are ALWAYS blocked — see
             ``ssrf_validator.ALWAYS_BLOCKED_METADATA_IPS``.
         **kwargs: Additional arguments to pass to requests.get()
 
@@ -195,7 +205,7 @@ def safe_get(
         headers["User-Agent"] = USER_AGENT
         kwargs["headers"] = headers
 
-    # Intercept allow_redirects â€” we handle redirects manually to validate
+    # Intercept allow_redirects — we handle redirects manually to validate
     # each redirect target against SSRF rules
     caller_wants_redirects = kwargs.pop("allow_redirects", True)
     kwargs["allow_redirects"] = False
@@ -299,7 +309,7 @@ def safe_post(
             private ranges (fc00::/7, fe80::/10). Use for trusted self-hosted services
             like SearXNG or Ollama in containerized environments.
             Note: cloud metadata endpoints (AWS / Azure / OCI / DigitalOcean /
-            AlibabaCloud / Tencent / ECS) are ALWAYS blocked â€” see
+            AlibabaCloud / Tencent / ECS) are ALWAYS blocked — see
             ``ssrf_validator.ALWAYS_BLOCKED_METADATA_IPS``.
         **kwargs: Additional arguments to pass to requests.post()
 
@@ -332,7 +342,7 @@ def safe_post(
         headers["User-Agent"] = USER_AGENT
         kwargs["headers"] = headers
 
-    # Intercept allow_redirects â€” we handle redirects manually to validate
+    # Intercept allow_redirects — we handle redirects manually to validate
     # each redirect target against SSRF rules
     caller_wants_redirects = kwargs.pop("allow_redirects", True)
     kwargs["allow_redirects"] = False
@@ -424,7 +434,7 @@ class SafeSession(requests.Session):
     Session with built-in SSRF protection.
 
     Redirect validation relies on ``requests.Session.resolve_redirects()``
-    calling ``self.send()`` for each hop â€” an internal implementation detail
+    calling ``self.send()`` for each hop — an internal implementation detail
     of the ``requests`` library.  This is simpler than re-implementing the
     redirect loop (as ``safe_get``/``safe_post`` do) and keeps session-level
     features (cookies, auth) working.  The trade-off is coupling to the
@@ -466,7 +476,7 @@ class SafeSession(requests.Session):
                 IPv6 private ranges. Use for trusted self-hosted services like SearXNG or
                 Ollama in containerized environments.
                 Note: cloud metadata endpoints (AWS / Azure / OCI / DigitalOcean /
-                AlibabaCloud / Tencent / ECS) are ALWAYS blocked â€” see
+                AlibabaCloud / Tencent / ECS) are ALWAYS blocked — see
                 ``ssrf_validator.ALWAYS_BLOCKED_METADATA_IPS``.
         """
         super().__init__()
@@ -491,7 +501,7 @@ class SafeSession(requests.Session):
             kwargs["timeout"] = DEFAULT_TIMEOUT
 
         # Inject project User-Agent if the caller didn't already set one.
-        # Session-level User-Agent (self.headers) is left alone â€” only
+        # Session-level User-Agent (self.headers) is left alone — only
         # per-request headers are copied so we never mutate caller state.
         headers = dict(kwargs.get("headers") or {})
         session_ua = self.headers.get("User-Agent", "")
@@ -509,7 +519,7 @@ class SafeSession(requests.Session):
     ) -> requests.Response:
         """Override send to validate every outgoing request against SSRF.
 
-        This runs on **all** calls â€” both the initial request (routed
+        This runs on **all** calls — both the initial request (routed
         here by ``requests.Session.request()``) and each redirect hop
         (routed here by ``resolve_redirects()``).  The initial URL is
         therefore validated twice (once in ``request()``, once here);
@@ -593,7 +603,7 @@ def safe_get_with_retries(
       * ``requests.ConnectionError``
       * ``requests.Timeout``
       * HTTP ``429`` (rate limit) and ``5xx`` (server error)
-      * (when ``consume_body=True``) body-read failures â€”
+      * (when ``consume_body=True``) body-read failures —
         ``ChunkedEncodingError``, ``ReadTimeout``, mid-stream
         ``ConnectionError``
 
@@ -605,7 +615,7 @@ def safe_get_with_retries(
     itself (DNS, connect, header timeout, retryable status) trigger a
     retry. The body isn't read until the caller touches ``.content`` /
     ``.text`` / ``.json()``, by which point this wrapper has already
-    returned â€” so a mid-stream S3 hiccup (``ChunkedEncodingError``)
+    returned — so a mid-stream S3 hiccup (``ChunkedEncodingError``)
     propagates uncaught. ``consume_body=True`` reads the body inside
     the retry loop so those transient body-read failures are also
     retried. The cached body is still available to the caller via
@@ -623,7 +633,7 @@ def safe_get_with_retries(
             retry loop so body-read transients are retried. Use for
             large or chunk-transferred bodies (~MB+) where mid-stream
             disconnects are realistic. The body-guard's ``ValueError``
-            (oversized body) is NOT retried â€” it propagates immediately.
+            (oversized body) is NOT retried — it propagates immediately.
         **kwargs: Forwarded to ``safe_get``.
 
     Returns:
@@ -688,7 +698,7 @@ def safe_get_with_retries(
                 # from flaky upstreams. ReadTimeout is a Timeout
                 # subclass but NOT a ConnectionError subclass, so the
                 # except must list both ConnectionError and Timeout
-                # â€” listing Timeout alone would miss ConnectError, and
+                # — listing Timeout alone would miss ConnectError, and
                 # listing ConnectionError alone would miss ReadTimeout.
                 _ = response.content
             except (

@@ -4,6 +4,14 @@ Enhanced with LLM-driven constraint processing, early rejection, and immediate e
 """
 
 import asyncio
+
+__all__ = [
+    "CandidateConfidence",
+    "EarlyRejectionManager",
+    "LLMConstraintProcessor",
+    "ModularStrategy",
+]
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -1081,17 +1089,17 @@ Provide a clear, factual answer that addresses the original question and explain
             # Run the search asynchronously
             import asyncio
 
-            # Run async search â€” detect whether we're inside an event loop
+            # Run async search — detect whether we're inside an event loop
             try:
                 asyncio.get_running_loop()
-                # Inside a running loop â€” run in a thread to avoid nesting
+                # Inside a running loop — run in a thread to avoid nesting
                 with ThreadPoolExecutor() as executor:
                     future = executor.submit(
                         thread_cleanup(lambda: asyncio.run(self.search(query)))
                     )
                     answer, metadata = future.result()
             except RuntimeError:
-                # No running event loop â€” safe to use asyncio.run() directly
+                # No running event loop — safe to use asyncio.run() directly
                 answer, metadata = asyncio.run(self.search(query))
 
             return {

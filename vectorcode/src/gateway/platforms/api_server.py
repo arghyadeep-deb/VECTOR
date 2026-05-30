@@ -571,14 +571,14 @@ class APIServerAdapter(BasePlatformAdapter):
     def __init__(self, config: PlatformConfig):
         super().__init__(config, Platform.API_SERVER)
         extra = config.extra or {}
-        self._host: str = extra.get("host", os.getenv("API_SERVER_HOST", DEFAULT_HOST))
-        self._port: int = int(extra.get("port", os.getenv("API_SERVER_PORT", str(DEFAULT_PORT))))
-        self._api_key: str = extra.get("key", os.getenv("API_SERVER_KEY", ""))
+        self._host: str = extra.get("host", os.environ.get("API_SERVER_HOST", DEFAULT_HOST))
+        self._port: int = int(extra.get("port", os.environ.get("API_SERVER_PORT", str(DEFAULT_PORT))))
+        self._api_key: str = extra.get("key", os.environ.get("API_SERVER_KEY", ""))
         self._cors_origins: tuple[str, ...] = self._parse_cors_origins(
-            extra.get("cors_origins", os.getenv("API_SERVER_CORS_ORIGINS", "")),
+            extra.get("cors_origins", os.environ.get("API_SERVER_CORS_ORIGINS", "")),
         )
         self._model_name: str = self._resolve_model_name(
-            extra.get("model_name", os.getenv("API_SERVER_MODEL_NAME", "")),
+            extra.get("model_name", os.environ.get("API_SERVER_MODEL_NAME", "")),
         )
         self._app: Optional["web.Application"] = None
         self._runner: Optional["web.AppRunner"] = None
@@ -733,7 +733,7 @@ class APIServerAdapter(BasePlatformAdapter):
         user_config = _load_gateway_config()
         enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
 
-        max_iterations = int(os.getenv("VECTOR_MAX_ITERATIONS", "90"))
+        max_iterations = int(os.environ.get("VECTOR_MAX_ITERATIONS", "90"))
 
         # Load fallback provider chain so the API server platform has the
         # same fallback behaviour as Telegram/Discord/Slack (fixes #4954).

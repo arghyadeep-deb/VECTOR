@@ -10,7 +10,6 @@ from pathlib import Path
 
 # Add base directory to path
 BASE_DIR = Path(__file__).resolve().parent.parent / "base"
-sys.path.insert(0, str(BASE_DIR))
 
 from fincept_strategy_runner import FinceptStrategyRunner
 

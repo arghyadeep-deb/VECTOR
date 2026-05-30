@@ -1,14 +1,22 @@
 """VECTOR languages router - /languages/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "dialogue_practice",
+    "DialoguePracticeReq",
+    "grammar_practice",
+    "GrammarPracticeReq",
+    "router",
+    "study_guide",
+    "StudyGuideReq",
+    "vocabulary_practice",
+    "VocabularyPracticeReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/languages", tags=["languages"])
-
-
 
 
 class VocabularyPracticeReq(BaseModel):

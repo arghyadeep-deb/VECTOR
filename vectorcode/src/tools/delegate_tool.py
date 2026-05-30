@@ -352,7 +352,7 @@ def _get_max_concurrent_children() -> int:
                 _DEFAULT_MAX_CONCURRENT_CHILDREN,
             )
             return _DEFAULT_MAX_CONCURRENT_CHILDREN
-    env_val = os.getenv("DELEGATION_MAX_CONCURRENT_CHILDREN")
+    env_val = os.environ.get("DELEGATION_MAX_CONCURRENT_CHILDREN")
     if env_val:
         try:
             return max(1, int(env_val))
@@ -379,7 +379,7 @@ def _get_child_timeout() -> float:
                 val,
                 DEFAULT_CHILD_TIMEOUT,
             )
-    env_val = os.getenv("DELEGATION_CHILD_TIMEOUT_SECONDS")
+    env_val = os.environ.get("DELEGATION_CHILD_TIMEOUT_SECONDS")
     if env_val:
         try:
             return max(30.0, float(env_val))
@@ -616,7 +616,7 @@ def _resolve_workspace_hint(parent_agent) -> Optional[str]:
     guessing `/workspace/...` for local repo tasks.
     """
     candidates = [
-        os.getenv("TERMINAL_CWD"),
+        os.environ.get("TERMINAL_CWD"),
         getattr(
             getattr(parent_agent, "_subdirectory_hints", None), "working_dir", None
         ),
@@ -2241,7 +2241,7 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
     configured_api_key = str(cfg.get("api_key") or "").strip() or None
 
     if configured_base_url:
-        api_key = configured_api_key or os.getenv("OPENAI_API_KEY", "").strip()
+        api_key = configured_api_key or os.environ.get("OPENAI_API_KEY", "").strip()
         if not api_key:
             raise ValueError(
                 "Delegation base_url is configured but no API key was found. "

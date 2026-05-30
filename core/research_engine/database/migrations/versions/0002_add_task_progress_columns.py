@@ -31,6 +31,17 @@ metadata_json columns will be LOST on downgrade.
 """
 
 from alembic import op
+
+__all__ = [
+    "branch_labels",
+    "column_exists",
+    "depends_on",
+    "down_revision",
+    "downgrade",
+    "revision",
+    "upgrade",
+]
+
 import sqlalchemy as sa
 from sqlalchemy import inspect
 

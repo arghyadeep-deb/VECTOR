@@ -1,8 +1,13 @@
 import sys
+
+__all__ = [
+    "AmbientListener",
+    "VECTOR_PERSONALITY",
+]
+
 import asyncio
 import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -15,14 +20,36 @@ _WAKE_MODES = {
     "vector_private": "private",
 }
 _SILENCE_TIMEOUT_SEC = 45.0
+_CONSENT_PATH = Path(__file__).parent.parent.parent / "data" / "consent.json"
+
+
+def _load_consent() -> bool:
+    """Return True if ambient voice consent has been granted in data/consent.json."""
+    try:
+        data = json.loads(_CONSENT_PATH.read_text(encoding="utf-8"))
+        return bool(data.get("ambient_enabled", False))
+    except Exception:
+        return False
+
+
+def _save_consent(granted: bool) -> None:
+    from datetime import datetime, timezone
+    _CONSENT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _CONSENT_PATH.write_text(
+        json.dumps({
+            "ambient_enabled": granted,
+            "granted_at": datetime.now(timezone.utc).isoformat(),
+        }),
+        encoding="utf-8",
+    )
 
 VECTOR_PERSONALITY = (
-    "You are VECTOR â€” a sharp, efficient AI assistant built and owned by Arghyadeep Deb. "
+    "You are VECTOR — a sharp, efficient AI assistant built and owned by Arghyadeep Deb. "
     "Your tone is calm, precise, and slightly dry. "
     "Address Arghyadeep as 'sir' occasionally (not every sentence). "
-    "You are not VECTOR. You are VECTOR â€” Arghyadeep's own creation, built on his Legion Pro 5. "
+    "You are not VECTOR. You are VECTOR — Arghyadeep's own creation, built on his Legion Pro 5. "
     "Keep conversational replies brief: 1-2 sentences maximum unless a detailed answer is needed. "
-    "Never say 'I cannot' â€” find the nearest useful action instead. "
+    "Never say 'I cannot' — find the nearest useful action instead. "
     "When classifying intent, always respond with valid JSON only."
 )
 
@@ -63,6 +90,7 @@ class AmbientListener:
         self._last_speech_time: float = 0.0
         self._conversation_history: list[dict] = []
         self._last_voice_result: dict | None = None
+        self._consent_given: bool = _load_consent()
         self._init_components()
 
     def _init_components(self):
@@ -175,7 +203,7 @@ class AmbientListener:
         import time
         self._session_active = True
         self._last_speech_time = time.time()
-        logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) â€” session open")
+        logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) — session open")
 
         # Seed conversation history from recent episodic memory (bridges chatâ†”voice silo)
         if not self._conversation_history:
@@ -205,14 +233,14 @@ class AmbientListener:
         try:
             while self._session_active:
                 if self._conversation and self._conversation.has_timed_out():
-                    logger.info("[VECTOR][voice] conversation timeout â€” session closed")
+                    logger.info("[VECTOR][voice] conversation timeout — session closed")
                     self._session_active = False
                     if self._conversation:
                         self._conversation.end_session()
                     break
 
                 if time.time() - self._last_speech_time > _SILENCE_TIMEOUT_SEC:
-                    logger.info("[VECTOR][voice] 45s silence â€” session closed")
+                    logger.info("[VECTOR][voice] 45s silence — session closed")
                     self._session_active = False
                     if self._conversation:
                         self._conversation.end_session()
@@ -232,7 +260,7 @@ class AmbientListener:
                 self._last_speech_time = time.time()
 
                 if self._is_end_phrase(text):
-                    logger.info("[VECTOR][voice] End phrase â€” session closed")
+                    logger.info("[VECTOR][voice] End phrase — session closed")
                     farewell = "Understood, sir. Standing by."
                     if self._tts:
                         await asyncio.to_thread(self._tts.speak, farewell, lang="en")
@@ -298,7 +326,7 @@ class AmbientListener:
                         response_parts.append(msg)
 
                         if str(result.get("decision", "")).upper() == "RED":
-                            logger.info(f"[VECTOR][voice] RED denial on {action_type} â€” stopping chain")
+                            logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
                             break
 
                 if self._conversation:
@@ -325,6 +353,15 @@ class AmbientListener:
                     "source": "voice",
                     "confidence": last_confidence,
                 }
+                # Publish USER_INTERACTION event so the autonomous loop and
+                # any subscriber can react without polling _last_voice_result.
+                try:
+                    from core.event_bus.bus import get_event_bus as _get_eb
+                    from core.event_bus.types import EventType as _ET
+                    _bus = _get_eb()
+                    asyncio.create_task(_bus.publish(_ET.USER_INTERACTION, self._last_voice_result))
+                except Exception as _eb_err:
+                    logger.debug(f"[VECTOR][voice] event bus publish failed: {_eb_err}")
 
         except Exception as e:
             logger.error(f"[VECTOR][voice] handle_voice_input error: {e}")
@@ -332,6 +369,21 @@ class AmbientListener:
             self._session_active = False
             if self._conversation:
                 self._conversation.end_session()
+
+    def start(self) -> "asyncio.Task":
+        """Start a background task that calls listen_tick() every 0.5s.
+        Called from run_vector.py startup when voice.ambient_enabled=true."""
+        return asyncio.create_task(self._run_continuous())
+
+    async def _run_continuous(self) -> None:
+        """Continuous ambient listen loop — RULE 2: never raises, never stops."""
+        logger.info("[VECTOR][voice] AmbientListener continuous loop started")
+        while True:
+            try:
+                await self.listen_tick()
+            except Exception as e:
+                logger.error(f"[VECTOR][voice] ambient loop error: {e}")
+            await asyncio.sleep(0.5)
 
     async def _classify_intent(self, text: str, hydration: str,
                                conversation_history: list[dict] | None = None) -> dict:
@@ -399,7 +451,7 @@ class AmbientListener:
                 if result:
                     return result
         except Exception as e:
-            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} â€” defaulting to respond")
+            logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to respond")
         return {
             "action_type": "respond",
             "params": {"message": "I didn't quite catch that, sir. Could you repeat?"},

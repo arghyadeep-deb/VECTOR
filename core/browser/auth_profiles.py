@@ -27,13 +27,11 @@ import json
 import os
 import re
 import shutil
-import sys
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

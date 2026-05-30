@@ -1,4 +1,5 @@
 """
+from loguru import logger
 World Bank WITS (World Integrated Trade Solution) API Wrapper
 Fetches international trade, tariff, and non-tariff data from World Bank WITS platform
 Returns JSON output for Qt/C++ integration
@@ -18,7 +19,10 @@ import sys
 import json
 import requests
 import os
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 import re
@@ -234,6 +238,8 @@ def _make_request(url: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][wits_trade_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][wits_trade_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

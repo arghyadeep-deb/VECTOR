@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Translation service — translates text via deep-translator (Google Translate free tier).
 Falls back to returning original text if library unavailable.
 
@@ -92,6 +93,8 @@ def translate_single(text, source="auto", target="en"):
             return {"original": text, "translated": text, "detected_lang": detected,
                     "note": "No translation library installed (pip install deep-translator)"}
     except Exception as e:
+        logger.debug("[VECTOR][translate_text] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][translate_text] caught Exception: %s", _sve)
         return {"original": text, "translated": text, "detected_lang": detected,
                 "error": str(e)}
 

@@ -18,12 +18,9 @@ sys.path = [p for p in sys.path if _os.path.abspath(p) != _this_dir]
 del _os, _this_dir
 
 # ── stdlib ────────────────────────────────────────────────────────────────────
-from pathlib import Path
 from typing import Dict, Optional, Type
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                       # vectorcode package
 
 from loguru import logger
 

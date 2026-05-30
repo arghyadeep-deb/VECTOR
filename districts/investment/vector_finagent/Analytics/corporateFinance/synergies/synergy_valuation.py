@@ -1,4 +1,5 @@
 """Comprehensive Synergy Valuation"""
+from loguru import logger
 from typing import Dict, Any, List, Optional
 import numpy as np
 
@@ -339,6 +340,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.synergies.synergy_valuation] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.synergies.synergy_valuation] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

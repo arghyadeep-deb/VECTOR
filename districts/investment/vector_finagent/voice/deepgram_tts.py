@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 deepgram_tts.py — Stdin text -> Deepgram Aura TTS -> pyaudio playback.
 
 JSON-lines stdout protocol matches tts.py so TtsService can swap providers
@@ -53,6 +54,8 @@ def play_stream(audio_iter, pyaudio_mod) -> None:
             output=True,
         )
     except Exception as ex:
+        logger.debug("[VECTOR][voice.deepgram_tts] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.deepgram_tts] caught Exception: %s", _sve)
         pa.terminate()
         raise RuntimeError(f"pyaudio open output failed: {ex}") from ex
 

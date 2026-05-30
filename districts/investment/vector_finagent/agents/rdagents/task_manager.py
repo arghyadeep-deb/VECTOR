@@ -1,4 +1,5 @@
 """
+from loguru import logger
 task_manager.py — Background execution engine + TaskManager for Fincept rdagents.
 
 Responsibilities:
@@ -143,6 +144,8 @@ class TaskExecutor:
         try:
             self._aio_loop.run_until_complete(self._execute())
         except Exception as exc:
+            logger.debug("[VECTOR][agents.rdagents.task_manager] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.rdagents.task_manager] caught Exception: %s", _sve)
             logger.error("Task %s failed: %s", self._task_id, exc)
             self._tm.update(self._task_id, {
                 "status":       "failed",

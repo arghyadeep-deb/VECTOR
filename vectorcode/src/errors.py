@@ -6,10 +6,7 @@ Determines the correct recovery action: retry, rotate credential, compress conte
 import sys
 import enum
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 

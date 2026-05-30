@@ -1,4 +1,5 @@
 """Regression Analysis for M&A Valuation"""
+from loguru import logger
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 from dataclasses import dataclass
@@ -386,6 +387,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.advanced_analytics.regression_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.advanced_analytics.regression_analysis] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Investment Dividend Models Module
 ========================================
 
@@ -236,7 +237,9 @@ class GordonGrowthModel:
                             dividend, g, r, is_d0=True
                         )
                         row.append(round(result.intrinsic_value, 2))
-                    except:
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dividend_models] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dividend_models] caught Exception: %s", _sve)
                         row.append(None)
                 else:
                     row.append(None)

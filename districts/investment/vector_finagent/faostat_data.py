@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FAOSTAT API Data Fetcher
 Wrapper for the UN Food and Agriculture Organization (FAO) FAOSTAT database.
 Covers crop production, trade, food security, emissions, prices, land use, and more.
@@ -89,6 +90,8 @@ class FAOSTATWrapper:
         except requests.exceptions.HTTPError as e:
             return {"success": False, "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}", "endpoint": path, "status_code": e.response.status_code}
         except Exception as e:
+            logger.debug("[VECTOR][faostat_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][faostat_data] caught Exception: %s", _sve)
             return {"success": False, "error": str(e), "endpoint": path}
 
     def _fmt(self, v) -> Optional[str]:

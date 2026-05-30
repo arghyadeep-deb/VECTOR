@@ -6,6 +6,12 @@ to prevent Server-Side Request Forgery (SSRF) attacks and other security issues.
 """
 
 import ipaddress
+
+__all__ = [
+    "NotificationURLValidationError",
+    "NotificationURLValidator",
+]
+
 import socket
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Optional, Tuple

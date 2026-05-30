@@ -7,16 +7,13 @@ real API keys or running servers.
 
 import asyncio
 import json
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import pytest
 
 # Ensure repo root is importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 try:
     from environments.agent_loop import (

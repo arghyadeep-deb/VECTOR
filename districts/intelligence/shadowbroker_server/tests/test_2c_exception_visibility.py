@@ -19,6 +19,7 @@ Covers:
 13. Sensitive values (key handles, payloads) are not emitted in log messages.
 """
 
+from loguru import logger
 import logging
 import sys
 import threading

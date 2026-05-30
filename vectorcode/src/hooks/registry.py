@@ -8,7 +8,6 @@ so a slow or crashing hook never blocks or kills the caller.
 Also provides PluginRegistry — discovers Python plugins from ~/.vector/plugins/
 and wires their hook functions into the VectorCode lifecycle.
 """
-import sys
 import importlib
 import importlib.util
 import re
@@ -18,8 +17,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -480,6 +477,5 @@ if __name__ == "__main__":
     assert isinstance(info, list)
 
     logger.info("✅ hooks/registry.py OK")
-
 
 

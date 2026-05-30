@@ -265,8 +265,6 @@ def run_compression(input_dir: Path, output_dir: Path, config_path: str):
         config_path: Path to compression config YAML
     """
     # Import the compressor
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     from trajectory_compressor import TrajectoryCompressor, CompressionConfig
     
     print(f"\n🗜️  Running trajectory compression...")

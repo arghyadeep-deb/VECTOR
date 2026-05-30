@@ -1,5 +1,6 @@
 # IMF (International Monetary Fund) Data Wrapper
 # Modular, fault-tolerant design - each endpoint works independently
+from loguru import logger
 
 import sys
 import json
@@ -192,7 +193,9 @@ class IMFDataWrapper:
                     date = date.to_period('M').end_time
 
             return date.strftime("%Y-%m-%d")
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][imf_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][imf_data] caught Exception: %s", _sve)
             return date_str
 
     def get_economic_indicators(self, countries: Optional[str] = None, symbols: Optional[str] = None,
@@ -284,10 +287,8 @@ class IMFDataWrapper:
                     if value is not None:
                         try:
                             value = float(value)
-                        except:
-                            value = None
-
-                    # Find country name
+                        except Exception:
+                            logger.debug("[VECTOR][imf_data] suppressed Exception in fallback")  # bare except
                     country_name = country_code
                     for name, code in self.country_to_code.items():
                         if code == country_code:
@@ -414,9 +415,8 @@ class IMFDataWrapper:
                     if value is not None:
                         try:
                             value = float(value)
-                        except:
-                            value = None
-
+                        except Exception:
+                            logger.debug("[VECTOR][imf_data] suppressed Exception in fallback")  # bare except
                     if value is None:
                         continue
 

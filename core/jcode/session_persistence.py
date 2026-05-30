@@ -1,27 +1,32 @@
 """
 Disk-backed session persistence with crash recovery.
 
-vectorcode's session.py is in-memory only â€” state is lost on process exit.
+vectorcode's session.py is in-memory only — state is lost on process exit.
 This module adds:
   - JSON session files under ~/.vector_ca/sessions/<id>.json
   - PID registration for crash detection
-  - recover_crashed_sessions() â€” finds sessions whose PID no longer exists
+  - recover_crashed_sessions() — finds sessions whose PID no longer exists
   - Provider session IDs, model snapshots, compaction state per-session
 
 Ported from the high-performance agent harness session.rs.
 """
 from __future__ import annotations
 
+__all__ = [
+    "PersistedSession",
+    "SessionPersistence",
+    "StoredCompactionState",
+]
+
+
 import json
 import os
 import uuid
-import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _SESSIONS_DIR = Path.home() / ".vector_ca" / "sessions"
@@ -242,7 +247,7 @@ class SessionPersistence:
 
     def recover_crashed_sessions(self) -> list[PersistedSession]:
         """
-        Find sessions whose last_pid no longer exists â€” crashed sessions.
+        Find sessions whose last_pid no longer exists — crashed sessions.
         Marks them as 'crashed' and returns them for inspection.
         """
         crashed = []

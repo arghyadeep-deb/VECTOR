@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-3E91D425
 # Category: Regression Test
@@ -102,6 +103,8 @@ class PythonDictionaryFeatureRegressionAlgorithm(QCAlgorithm):
         try:
             self.portfolio.clear()  # Throws exception
         except Exception as e:
+            logger.debug("[VECTOR][strategies.PythonDictionaryFeatureRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.PythonDictionaryFeatureRegressionAlgorithm] caught Exception: %s", _sve)
             self.debug(e)
 
         bar = self.securities.pop("SPY")

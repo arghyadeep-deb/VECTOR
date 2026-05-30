@@ -3,7 +3,7 @@ VECTOR Stealth Browser Server Manager
 Manages the Node.js anti-detection browser server as a Python subprocess.
 
 Also implements crash detection and rate-limited alerting (ported from
-workers/crash-reporter/ in the original repo â€” repurposed to send alerts
+workers/crash-reporter/ in the original repo — repurposed to send alerts
 to VECTOR's Pushover instead of external GitHub Issues).
 
 Usage:
@@ -18,6 +18,12 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_server",
+    "StealthBrowserServer",
+]
+
+
 import asyncio
 import collections
 import hashlib
@@ -30,7 +36,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 
@@ -38,7 +43,7 @@ _SERVER_DIR = Path(__file__).parent / "server"
 _DEFAULT_PORT = 9377
 _HEALTH_URL = f"http://127.0.0.1:{_DEFAULT_PORT}/health"
 
-# Module-level singleton â€” multiple callers share one server process
+# Module-level singleton — multiple callers share one server process
 _instance: Optional["StealthBrowserServer"] = None
 _instance_lock = threading.Lock()
 
@@ -49,7 +54,7 @@ class _CrashReporter:
     """
     Monitors server stderr for crashes and event loop stalls.
     Deduplicates by stack signature (MD5 of first 3 frames).
-    Rate-limits to 10 alerts per hour â€” same as original crash-reporter worker.
+    Rate-limits to 10 alerts per hour — same as original crash-reporter worker.
     Sends alerts to VECTOR's Pushover instead of GitHub Issues.
     """
 
@@ -170,7 +175,7 @@ class StealthBrowserServer:
         try:
             subprocess.run(["node", "--version"], capture_output=True, timeout=5)
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            logger.error("[VECTOR][stealth] Node.js not found â€” install Node.js 18+")
+            logger.error("[VECTOR][stealth] Node.js not found — install Node.js 18+")
             return False
 
         env = {
@@ -257,7 +262,7 @@ class StealthBrowserServer:
         return self
 
     async def __aexit__(self, *_):
-        # Don't stop on context exit â€” server runs as long-lived service
+        # Don't stop on context exit — server runs as long-lived service
         pass
 
 
@@ -277,7 +282,7 @@ if __name__ == "__main__":
     async def _smoke():
         srv = StealthBrowserServer()
         healthy = await srv.is_healthy()
-        print(f"OK server_manager.py â€” port={srv._port}")
+        print(f"OK server_manager.py — port={srv._port}")
         print(f"  server_dir={_SERVER_DIR}")
         print(f"  server.js exists: {(_SERVER_DIR / 'server.js').exists()}")
         print(f"  currently healthy: {healthy}")

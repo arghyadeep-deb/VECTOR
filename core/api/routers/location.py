@@ -1,7 +1,10 @@
 """VECTOR location router — IP geolocation for map panel."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "current_location",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

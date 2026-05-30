@@ -18,12 +18,10 @@ __all__ = [
 
 import json
 import os
-import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 

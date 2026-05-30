@@ -4,6 +4,7 @@ GitHub List Repositories Tool - List and sort repositories for any user or organ
 Efficiently discover repositories with flexible sorting options.
 """
 
+from loguru import logger
 import os
 from typing import Any, Dict, Literal, Optional
 

@@ -1,14 +1,22 @@
 """VECTOR chief router - /chief/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "evening_brief",
+    "executive_brief",
+    "ExecutiveBriefReq",
+    "filter_noise",
+    "FilterNoiseReq",
+    "morning_brief",
+    "route_escalation",
+    "RouteEscalationReq",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/chief", tags=["chief"])
-
-
 
 
 @router.get("/morning-brief")

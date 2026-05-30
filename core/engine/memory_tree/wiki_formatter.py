@@ -1,11 +1,9 @@
 """VECTOR Wiki Formatter — converts Memory Tree to Obsidian-compatible markdown."""
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from core.engine.memory_tree.tree_builder import MemoryTree
 
 

@@ -50,7 +50,7 @@ def check_sms_requirements() -> bool:
         import aiohttp  # noqa: F401
     except ImportError:
         return False
-    return bool(os.getenv("TWILIO_ACCOUNT_SID") and os.getenv("TWILIO_AUTH_TOKEN"))
+    return bool(os.environ.get("TWILIO_ACCOUNT_SID") and os.environ.get("TWILIO_AUTH_TOKEN"))
 
 
 class SmsAdapter(BasePlatformAdapter):
@@ -67,12 +67,12 @@ class SmsAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.SMS)
         self._account_sid: str = os.environ["TWILIO_ACCOUNT_SID"]
         self._auth_token: str = os.environ["TWILIO_AUTH_TOKEN"]
-        self._from_number: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+        self._from_number: str = os.environ.get("TWILIO_PHONE_NUMBER", "")
         self._webhook_port: int = int(
-            os.getenv("SMS_WEBHOOK_PORT", str(DEFAULT_WEBHOOK_PORT))
+            os.environ.get("SMS_WEBHOOK_PORT", str(DEFAULT_WEBHOOK_PORT))
         )
-        self._webhook_host: str = os.getenv("SMS_WEBHOOK_HOST", DEFAULT_WEBHOOK_HOST)
-        self._webhook_url: str = os.getenv("SMS_WEBHOOK_URL", "").strip()
+        self._webhook_host: str = os.environ.get("SMS_WEBHOOK_HOST", DEFAULT_WEBHOOK_HOST)
+        self._webhook_url: str = os.environ.get("SMS_WEBHOOK_URL", "").strip()
         self._runner = None
         self._http_session: Optional["aiohttp.ClientSession"] = None
 
@@ -94,7 +94,7 @@ class SmsAdapter(BasePlatformAdapter):
             logger.error("[sms] TWILIO_PHONE_NUMBER not set — cannot send replies")
             return False
 
-        insecure_no_sig = os.getenv("SMS_INSECURE_NO_SIGNATURE", "").lower() == "true"
+        insecure_no_sig = os.environ.get("SMS_INSECURE_NO_SIGNATURE", "").lower() == "true"
 
         if not self._webhook_url and not insecure_no_sig:
             logger.error(

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab — High Frequency Trading Module
 Real-world microstructure analysis engine backed by live CCXT market data.
 
@@ -25,7 +26,6 @@ import numpy as np
 # ── Exchange client path ──────────────────────────────────────────────────────
 _EXCHANGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "exchange")
 if _EXCHANGE_DIR not in sys.path:
-    sys.path.insert(0, _EXCHANGE_DIR)
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -278,6 +278,8 @@ def cmd_fetch_orderbook(p: dict) -> None:
         ex = make_exchange(exchange_id)
         ob = ex.fetch_order_book(symbol, limit=depth)
     except Exception as e:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_high_frequency] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ai_quant_lab.qlib_high_frequency] caught Exception: %s", _sve)
         _err(str(e))
         return
     latency_ms = round((time.monotonic() - t0) * 1000, 1)

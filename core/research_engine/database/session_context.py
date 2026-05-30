@@ -4,6 +4,18 @@ Ensures all database access has proper encryption context.
 """
 
 import functools
+
+__all__ = [
+    "DatabaseAccessMixin",
+    "DatabaseSessionError",
+    "ensure_db_session",
+    "get_g_db_session",
+    "get_user_db_session",
+    "safe_rollback",
+    "UNENCRYPTED_DB_PLACEHOLDER",
+    "with_user_database",
+]
+
 from contextlib import contextmanager
 from typing import Callable, Optional
 

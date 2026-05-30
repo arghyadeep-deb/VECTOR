@@ -7,6 +7,7 @@ VECTOR Finish Notification Hook — Stop
 Windows toast notification when VECTOR finishes a task.
 Adapted from article's macOS osascript — works on Windows 10/11.
 """
+from loguru import logger
 import subprocess
 import sys
 

@@ -1,5 +1,11 @@
 from asyncio import Lock
 
+__all__ = [
+    "Session",
+    "SessionManager",
+]
+
+
 from core.scraper.spiders.request import Request
 from core.scraper.engines.static import _ASyncSessionLogic
 from core.scraper.engines.toolbelt.convertor import Response

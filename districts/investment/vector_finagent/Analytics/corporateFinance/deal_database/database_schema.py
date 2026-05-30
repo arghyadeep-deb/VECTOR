@@ -1,4 +1,5 @@
 """SQLite Database Schema for M&A Deals"""
+from loguru import logger
 import sys
 import sqlite3
 from pathlib import Path
@@ -11,7 +12,6 @@ scripts_path = Path(__file__).parent.parent.parent.parent
 sys.path.append(str(scripts_path))
 
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.config import MA_DATABASE as DEFAULT_MA_DATABASE
@@ -274,6 +274,8 @@ class MADatabase:
             try:
                 cursor.execute(f"ALTER TABLE ma_deals ADD COLUMN {col_name} {col_type}")
             except Exception:
+                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.database_schema] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.database_schema] caught Exception: %s", _sve)
                 pass  # Column already exists
 
         conn.commit()

@@ -3,6 +3,7 @@
 接口2：使用Zep API构建Standalone Graph
 """
 
+from loguru import logger
 import os
 import uuid
 import time

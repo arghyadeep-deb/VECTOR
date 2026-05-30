@@ -6,6 +6,14 @@ by both collection uploads (bytes) and local search (file paths).
 """
 
 from pathlib import Path
+
+__all__ = [
+    "get_loader_class_for_extension",
+    "get_loader_for_path",
+    "get_supported_extensions",
+    "is_extension_supported",
+]
+
 from typing import Optional
 
 from langchain_community.document_loaders import (

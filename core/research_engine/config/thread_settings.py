@@ -5,6 +5,17 @@ shared across different modules to maintain settings context in threads.
 """
 
 import threading
+
+__all__ = [
+    "clear_settings_context",
+    "get_bool_setting_from_snapshot",
+    "get_setting_from_snapshot",
+    "get_settings_context",
+    "NoSettingsContextError",
+    "set_settings_context",
+    "settings_context",
+]
+
 from contextlib import contextmanager
 
 from ..settings.manager import get_typed_setting_value

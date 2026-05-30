@@ -7,13 +7,11 @@ Tests for Postiz-app-main absorption:
 All tests run without real API credentials — graceful degradation verified throughout.
 """
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # ── Analytics Retriever ────────────────────────────────────────────────────────
 

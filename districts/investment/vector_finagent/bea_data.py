@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BEA (Bureau of Economic Analysis) Data Fetcher
 Comprehensive wrapper for BEA Data Retrieval API providing access to
 National, Regional, Industry and International economic data
@@ -141,6 +142,8 @@ class BEAWrapper:
         except json.JSONDecodeError as e:
             return BEAError(method, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][bea_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bea_data] caught Exception: %s", _sve)
             return BEAError(method, f"Unexpected error: {str(e)}").to_dict()
 
     # ==================== METADATA ENDPOINTS ====================

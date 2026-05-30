@@ -4,8 +4,6 @@ District: languages | Focus: Japanese language coaching (Hiragana, Katakana, Kan
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
@@ -119,7 +117,6 @@ class JapaneseCoach(AgentBase):
         }
         self.memory.store(event_type="progress_tracked", content=f"Japanese learning progress: {len(self.vocabulary)} words", tags=["language", self.language, "progress", "japanese"], context=progress, source="JapaneseCoach")
         return progress
-
 
 
     async def run(self, task: dict) -> dict:

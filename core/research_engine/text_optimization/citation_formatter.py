@@ -1,6 +1,17 @@
 """Citation formatter for adding hyperlinks and alternative citation styles."""
 
+from loguru import logger
 import re
+
+__all__ = [
+    "CitationFormatter",
+    "CitationMode",
+    "find_sources_section",
+    "LaTeXExporter",
+    "QuartoExporter",
+    "RISExporter",
+]
+
 from enum import Enum
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
@@ -417,7 +428,7 @@ class CitationFormatter:
     def _parse_collections(self, sources_content: str) -> Dict[str, str]:
         """Extract ``{citation_num: collection_name}`` from a sources
         block. Returns an empty dict when no ``Collection:`` lines exist
-        â€” the absence of collection info is the common case (web URLs)
+        — the absence of collection info is the common case (web URLs)
         and must never raise."""
         collections: Dict[str, str] = {}
         for match in self._collection_line_pattern.finditer(sources_content):
@@ -438,7 +449,7 @@ class CitationFormatter:
         tag for library hits, the short URLClassifier tag for known
         academic sources (``arxiv``, ``pubmed``, ...), the cleaned
         domain otherwise, or ``local`` for empty/file URLs. ``N`` is
-        the original global citation number â€” labels never collide and
+        the original global citation number — labels never collide and
         the suffix always matches the bibliography ordering.
         """
         # Filter sources that have URLs, plus carry local entries through
@@ -451,7 +462,7 @@ class CitationFormatter:
         # ``Collection:`` lines. The caller already split this off in
         # ``format_document`` but didn't pass it through; reparse from
         # the original content via the existing helper to stay local.
-        # (Cheap â€” single regex scan over the sources block.)
+        # (Cheap — single regex scan over the sources block.)
         collections = self._collections_for_format
 
         def format_link(citation_num, data):
@@ -460,7 +471,7 @@ class CitationFormatter:
                 url, collection=collections.get(citation_num)
             )
             tag = f"{label}-{citation_num}"
-            # Only emit a hyperlink for http(s) URLs â€” local/file URLs are
+            # Only emit a hyperlink for http(s) URLs — local/file URLs are
             # rendered as plain bracketed tags so the markdown stays clean
             # and viewers don't try to navigate to a server-local path.
             return (
@@ -497,7 +508,7 @@ class CitationFormatter:
 
         Collection names are free-form strings (``"My Papers"``,
         ``"team/finance"``). Citations need a compact token that won't
-        break markdown â€” strip whitespace, lowercase, replace runs of
+        break markdown — strip whitespace, lowercase, replace runs of
         non-alphanumeric chars with a single hyphen, trim leading and
         trailing hyphens, and fall back to ``"local"`` if the result is
         empty. ``-N`` is appended downstream so we strip trailing
@@ -525,7 +536,7 @@ class CitationFormatter:
         """Return a short source tag for ``url``.
 
         Resolution order:
-        1. ``collection`` (when supplied) wins outright â€” RAG / library
+        1. ``collection`` (when supplied) wins outright — RAG / library
            hits surface their collection name as the citation tag
            (``mypapers``, ``personal-notes``, ...). The renderer in
            ``utilities/search_utilities.format_links_to_markdown``

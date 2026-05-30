@@ -1,4 +1,5 @@
 """preferred_stocks Module"""
+from loguru import logger
 
 import numpy as np
 import pandas as pd
@@ -91,6 +92,8 @@ class PreferredStockAnalyzer(AlternativeInvestmentBase):
                 'analysis_warning': 'Call feature limits upside - issuer wins, you lose'
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.alternateInvestment.preferred_stocks] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.preferred_stocks] caught Exception: %s", _sve)
             logger.error(f"Error calculating YTC: {e}")
             return None
 

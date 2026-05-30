@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import sys
 import uuid
 from typing import Optional
@@ -115,7 +116,7 @@ def find_docker() -> Optional[str]:
         return _docker_executable
 
     # 1. Explicit override via env var (e.g. for Podman on immutable distros)
-    override = os.getenv("VECTOR_DOCKER_BINARY")
+    override = os.environ.get("VECTOR_DOCKER_BINARY")
     if override and os.path.isfile(override) and os.access(override, os.X_OK):
         _docker_executable = override
         logger.info("Using VECTOR_DOCKER_BINARY override: %s", override)
@@ -481,7 +482,7 @@ class DockerEnvironment(BaseEnvironment):
         forward_keys = explicit_forward_keys | (passthrough_keys - _VECTOR_PROVIDER_ENV_BLOCKLIST)
         vector_env = _load_vector_env_vars() if forward_keys else {}
         for key in sorted(forward_keys):
-            value = os.getenv(key)
+            value = os.environ.get(key)
             if value is None:
                 value = vector_env.get(key)
             if value is not None:
@@ -557,27 +558,31 @@ class DockerEnvironment(BaseEnvironment):
 
     def cleanup(self):
         """Stop and remove the container. Bind-mount dirs persist if persistent=True."""
-        if self._container_id:
-            try:
-                # Stop in background so cleanup doesn't block
-                stop_cmd = (
-                    f"(timeout 60 {self._docker_exe} stop {self._container_id} || "
-                    f"{self._docker_exe} rm -f {self._container_id}) >/dev/null 2>&1 &"
-                )
-                subprocess.Popen(stop_cmd, shell=True)
-            except Exception as e:
-                logger.warning("Failed to stop container %s: %s", self._container_id, e)
+        cid = self._container_id
+        self._container_id = None
 
-            if not self._persistent:
-                # Also schedule removal (stop only leaves it as stopped)
+        if cid:
+            def _stop():
                 try:
-                    subprocess.Popen(
-                        f"sleep 3 && {self._docker_exe} rm -f {self._container_id} >/dev/null 2>&1 &",
-                        shell=True,
+                    subprocess.run(
+                        [self._docker_exe, "stop", cid],
+                        timeout=60, capture_output=True,
                     )
-                except Exception as _sve:
-                    logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", _sve)
-            self._container_id = None
+                except subprocess.TimeoutExpired:
+                    pass
+                except Exception as e:
+                    logger.warning("Failed to stop container %s: %s", cid, e)
+                if not self._persistent:
+                    try:
+                        subprocess.run(
+                            [self._docker_exe, "rm", "-f", cid],
+                            capture_output=True,
+                        )
+                    except Exception as e:
+                        logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", e)
+
+            t = threading.Thread(target=_stop, daemon=True)
+            t.start()
 
         if not self._persistent:
             for d in (self._workspace_dir, self._home_dir):

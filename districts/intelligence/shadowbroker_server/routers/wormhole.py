@@ -630,7 +630,7 @@ async def api_wormhole_join(request: Request):
     )
 
     # Enable node participation so the sync/push workers connect to peers.
-    # This is the voluntary opt-in â€” the node only joins the network when
+    # This is the voluntary opt-in — the node only joins the network when
     # the user explicitly opens the Wormhole.
     from services.node_settings import write_node_settings
 

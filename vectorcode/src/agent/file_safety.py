@@ -63,7 +63,7 @@ def build_write_denied_prefixes(home: str) -> list[str]:
 
 def get_safe_write_root() -> Optional[str]:
     """Return the resolved VECTOR_WRITE_SAFE_ROOT path, or None if unset."""
-    root = os.getenv("VECTOR_WRITE_SAFE_ROOT", "")
+    root = os.environ.get("VECTOR_WRITE_SAFE_ROOT", "")
     if not root:
         return None
     try:

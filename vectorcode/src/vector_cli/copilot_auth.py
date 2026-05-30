@@ -72,7 +72,7 @@ def resolve_copilot_token() -> tuple[str, str]:
     """
     # 1. Check env vars in priority order
     for env_var in COPILOT_ENV_VARS:
-        val = os.getenv(env_var, "").strip()
+        val = os.environ.get(env_var, "").strip()
         if val:
             valid, msg = validate_copilot_token(val)
             if not valid:
@@ -124,7 +124,7 @@ def _try_gh_cli_token() -> Optional[str]:
     subprocess environment so ``gh`` reads from its own credential store
     (hosts.yml) instead of just echoing the env var back.
     """
-    hostname = os.getenv("COPILOT_GH_HOST", "").strip()
+    hostname = os.environ.get("COPILOT_GH_HOST", "").strip()
 
     # Build a clean env so gh doesn't short-circuit on GITHUB_TOKEN / GH_TOKEN
     clean_env = {k: v for k, v in os.environ.items()

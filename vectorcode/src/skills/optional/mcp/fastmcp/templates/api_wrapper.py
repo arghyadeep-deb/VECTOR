@@ -8,9 +8,9 @@ from fastmcp import FastMCP
 
 mcp = FastMCP("__SERVER_NAME__")
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.example.com")
-API_TOKEN = os.getenv("API_TOKEN")
-REQUEST_TIMEOUT = float(os.getenv("API_TIMEOUT_SECONDS", "20"))
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.example.com")
+API_TOKEN = os.environ.get("API_TOKEN")
+REQUEST_TIMEOUT = float(os.environ.get("API_TIMEOUT_SECONDS", "20"))
 
 def _headers() -> dict[str, str]:
     headers = {"Accept": "application/json"}

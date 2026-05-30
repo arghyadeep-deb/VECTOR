@@ -13,6 +13,20 @@ from sqlalchemy import (
     ForeignKey,
     Enum,
 )
+
+__all__ = [
+    "CardType",
+    "NewsCard",
+    "NewsInterest",
+    "NewsSubscription",
+    "RatingType",
+    "SubscriptionFolder",
+    "SubscriptionStatus",
+    "SubscriptionType",
+    "UserPreference",
+    "UserRating",
+]
+
 from sqlalchemy_utc import UtcDateTime, utcnow
 import enum
 

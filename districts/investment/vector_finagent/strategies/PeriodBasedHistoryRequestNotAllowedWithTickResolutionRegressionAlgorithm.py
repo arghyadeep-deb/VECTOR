@@ -9,6 +9,7 @@
 # Description: Regression algorithm for testing that period-based history requests are not allowed with tick resolution
 # Compatibility: Backtesting | Paper Trading | Live Deployment
 # ============================================================================
+from loguru import logger
 from AlgorithmImports import *
 
 ### <summary>

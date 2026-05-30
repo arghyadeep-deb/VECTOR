@@ -28,9 +28,7 @@ except ImportError:
     AsyncSocketModeHandler = Any
     AsyncWebClient = Any
 
-import sys
 from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
@@ -377,7 +375,7 @@ class SlackAdapter(BasePlatformAdapter):
             return False
 
         raw_token = self.config.token
-        app_token = os.getenv("SLACK_APP_TOKEN")
+        app_token = os.environ.get("SLACK_APP_TOKEN")
 
         if not raw_token:
             logger.error("[Slack] SLACK_BOT_TOKEN not set")
@@ -959,7 +957,7 @@ class SlackAdapter(BasePlatformAdapter):
 
     def _reactions_enabled(self) -> bool:
         """Check if message reactions are enabled via config/env."""
-        return os.getenv("SLACK_REACTIONS", "true").lower() not in ("false", "0", "no")
+        return os.environ.get("SLACK_REACTIONS", "true").lower() not in ("false", "0", "no")
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         """Add an in-progress reaction when message processing begins."""
@@ -1416,7 +1414,7 @@ class SlackAdapter(BasePlatformAdapter):
         if event.get("bot_id") or event.get("subtype") == "bot_message":
             allow_bots = self.config.extra.get("allow_bots", "")
             if not allow_bots:
-                allow_bots = os.getenv("SLACK_ALLOW_BOTS", "none")
+                allow_bots = os.environ.get("SLACK_ALLOW_BOTS", "none")
             allow_bots = str(allow_bots).lower().strip()
             if allow_bots == "none":
                 return
@@ -1946,7 +1944,7 @@ class SlackAdapter(BasePlatformAdapter):
         # Only authorized users may click approval buttons.  Button clicks
         # bypass the normal message auth flow in gateway/run.py, so we must
         # check here as well.
-        allowed_csv = os.getenv("SLACK_ALLOWED_USERS", "").strip()
+        allowed_csv = os.environ.get("SLACK_ALLOWED_USERS", "").strip()
         if allowed_csv:
             allowed_ids = {uid.strip() for uid in allowed_csv.split(",") if uid.strip()}
             if "*" not in allowed_ids and user_id not in allowed_ids:
@@ -2401,7 +2399,7 @@ class SlackAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() not in ("false", "0", "no", "off")
             return bool(configured)
-        return os.getenv("SLACK_REQUIRE_MENTION", "true").lower() not in ("false", "0", "no", "off")
+        return os.environ.get("SLACK_REQUIRE_MENTION", "true").lower() not in ("false", "0", "no", "off")
 
     def _slack_strict_mention(self) -> bool:
         """When true, channel threads require an explicit @-mention on every
@@ -2413,13 +2411,13 @@ class SlackAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() in ("true", "1", "yes", "on")
             return bool(configured)
-        return os.getenv("SLACK_STRICT_MENTION", "false").lower() in ("true", "1", "yes", "on")
+        return os.environ.get("SLACK_STRICT_MENTION", "false").lower() in ("true", "1", "yes", "on")
 
     def _slack_free_response_channels(self) -> set:
         """Return channel IDs where no @mention is required."""
         raw = self.config.extra.get("free_response_channels")
         if raw is None:
-            raw = os.getenv("SLACK_FREE_RESPONSE_CHANNELS", "")
+            raw = os.environ.get("SLACK_FREE_RESPONSE_CHANNELS", "")
         if isinstance(raw, list):
             return {str(part).strip() for part in raw if str(part).strip()}
         if isinstance(raw, str) and raw.strip():

@@ -576,7 +576,7 @@ def cmd_mcp_test(args):
 def _interpolate_value(value: str) -> str:
     """Resolve ``${ENV_VAR}`` references in a string."""
     def _replace(m):
-        return os.getenv(m.group(1), "")
+        return os.environ.get(m.group(1), "")
     return re.sub(r"\$\{(\w+)\}", _replace, value)
 
 

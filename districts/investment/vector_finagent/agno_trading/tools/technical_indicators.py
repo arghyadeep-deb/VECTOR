@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Technical Analysis Tools
 
 Provides technical indicators and analysis tools for trading agents.
@@ -67,6 +68,8 @@ def calculate_sma(prices: List[float], period: int = 20) -> Dict[str, Any]:
             }
 
     except Exception as e:
+        logger.debug("[VECTOR][agno_trading.tools.technical_indicators] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agno_trading.tools.technical_indicators] caught Exception: %s", _sve)
         return {"error": f"SMA calculation failed: {str(e)}"}
 
 

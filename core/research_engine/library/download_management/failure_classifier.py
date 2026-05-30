@@ -6,6 +6,15 @@ Uses inheritance to organize different failure categories and their retry behavi
 """
 
 from abc import ABC
+
+__all__ = [
+    "BaseFailure",
+    "FailureClassifier",
+    "PermanentFailure",
+    "RateLimitFailure",
+    "TemporaryFailure",
+]
+
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 from urllib.parse import urlparse
@@ -182,7 +191,7 @@ class FailureClassifier:
                     "Content returned HTML instead of PDF",
                 )
 
-        # Login/subscription/paywall errors â€” these are permanent
+        # Login/subscription/paywall errors — these are permanent
         if any(
             pattern in details_lower
             for pattern in [
@@ -197,7 +206,7 @@ class FailureClassifier:
                 "Requires login or subscription",
             )
 
-        # HTML content instead of PDF (non-arXiv) â€” permanent
+        # HTML content instead of PDF (non-arXiv) — permanent
         if "text/html" in details_lower and (
             "unexpected content type" in details_lower
             or "not a pdf" in details_lower

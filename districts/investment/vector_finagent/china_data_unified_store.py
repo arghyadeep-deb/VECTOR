@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 China Data Unified Store
 Normalizes BaoStock + CNINFO outputs into one SQLite store.
 """
@@ -313,6 +314,8 @@ class ChinaDataUnifiedStore:
                     try:
                         row = json.loads(line)
                     except Exception:
+                        logger.debug("[VECTOR][china_data_unified_store] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][china_data_unified_store] caught Exception: %s", _sve)
                         continue
                     ann_id = str(row.get("announcementId") or "")
                     if not ann_id:

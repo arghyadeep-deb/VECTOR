@@ -1,11 +1,11 @@
 """Complete LBO Model"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.lbo.capital_structure import CapitalStructureBuilder
@@ -380,6 +380,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.lbo.lbo_model] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.lbo.lbo_model] caught Exception: %s", _sve)
         result = {
             "success": False,
             "error": str(e),

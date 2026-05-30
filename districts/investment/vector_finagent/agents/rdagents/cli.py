@@ -1,4 +1,5 @@
 """
+from loguru import logger
 cli.py — Entry point for Fincept rdagents integration.
 
 Called by AIQuantLabService.cpp via PythonRunner:
@@ -33,9 +34,7 @@ from typing import Any
 
 # Ensure the scripts/ directory is on sys.path for sibling imports
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE))
 # Also add scripts/agents/ so deepagents imports work if needed
-sys.path.insert(0, str(_HERE.parent))
 
 logging.basicConfig(
     stream=sys.stderr,
@@ -81,6 +80,8 @@ def cmd_check_status(_params: dict[str, Any]) -> dict[str, Any]:
         import importlib.metadata
         rdagent_version = importlib.metadata.version("rdagent")
     except Exception:
+        logger.debug("[VECTOR][agents.rdagents.cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.rdagents.cli] caught Exception: %s", _sve)
         rdagent_version = "unknown"
 
     try:

@@ -1,6 +1,6 @@
 """VECTOR Twitch Channel Adapter — live streaming chat."""
 from __future__ import annotations
-import asyncio, sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+import asyncio
 from loguru import logger
 
 class TwitchAdapter:
@@ -11,9 +11,9 @@ class TwitchAdapter:
     """
     def __init__(self):
         import os
-        self.token = os.getenv("TWITCH_TOKEN","")
-        self.channel = os.getenv("TWITCH_CHANNEL","")
-        self.bot_name = os.getenv("TWITCH_BOT_NAME","vectorbot")
+        self.token = os.environ.get("TWITCH_TOKEN","")
+        self.channel = os.environ.get("TWITCH_CHANNEL","")
+        self.bot_name = os.environ.get("TWITCH_BOT_NAME","vectorbot")
 
     async def send_message(self, message: str) -> bool:
         try:

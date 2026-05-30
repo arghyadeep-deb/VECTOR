@@ -12,6 +12,13 @@ never have to special-case missing data.
 
 from __future__ import annotations
 
+__all__ = [
+    "DEFAULT_SUBREDDITS",
+    "fetch_reddit_posts",
+    "logger",
+]
+
+
 import json
 import logging
 import time

@@ -1,6 +1,12 @@
 import sys
+
+__all__ = [
+    "check_port_open",
+    "get_dns_servers",
+    "get_local_ip",
+]
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 import socket
 from loguru import logger
@@ -33,7 +39,7 @@ def get_local_ip() -> str:
 def check_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
     """Return True if TCP port is accepting connections on *host*.
 
-    Never raises â€” returns False on any error.
+    Never raises — returns False on any error.
     """
     try:
         with socket.create_connection((host, port), timeout=timeout) as _:

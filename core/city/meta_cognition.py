@@ -4,9 +4,7 @@ Gap 8: Monthly bias detection — detects when VECTOR's reasoning patterns drift
 or become biased (overconfidence, recency, domain skew, calibration error).
 All data persisted to SQLite for cross-session pattern analysis.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import json
 import sqlite3

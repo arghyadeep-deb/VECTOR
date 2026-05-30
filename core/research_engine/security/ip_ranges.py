@@ -7,6 +7,12 @@ duplicating IP range definitions.
 
 import ipaddress
 
+__all__ = [
+    "NAT64_PREFIXES",
+    "PRIVATE_IP_RANGES",
+]
+
+
 # RFC1918 private networks + loopback + link-local + CGNAT + IPv6 equivalents
 # nosec B104 - These hardcoded IPs are intentional for security validation
 PRIVATE_IP_RANGES = [

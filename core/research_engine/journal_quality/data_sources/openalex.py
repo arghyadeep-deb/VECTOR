@@ -4,10 +4,10 @@ Downloads the **bulk snapshot** of ~280K journals + conferences from
 ``openalex.s3.amazonaws.com`` and writes a compact gzipped JSON file
 used by the in-memory tier-2 lookups.
 
-This is the public OpenAlex S3 snapshot â€” CC0 licensed, no auth, no
+This is the public OpenAlex S3 snapshot — CC0 licensed, no auth, no
 rate limits, ~350 MB compressed across ~40 partition files. We stream
 each part, extract the few fields we need, and discard the rest. Total
-wall-clock is ~30â€“60 s on a normal connection.
+wall-clock is ~30–60 s on a normal connection.
 
 Why bulk snapshot instead of the REST API
 -----------------------------------------
@@ -15,13 +15,19 @@ Why bulk snapshot instead of the REST API
 The previous implementation paginated ``/api/sources`` with
 ``per_page=200`` and a 100 ms polite-rate-limiting sleep between
 requests. For ~280K records that meant ~1,400 HTTP requests + ~140 s
-of pure sleep, plus actual transfer time â€” wall-clock 5â€“10 minutes,
+of pure sleep, plus actual transfer time — wall-clock 5–10 minutes,
 and that's the time the user spends staring at the dashboard
 "Download Data" button. The S3 dump is the recommended bulk path per
 OpenAlex docs and finishes in well under a minute.
 """
 
 from __future__ import annotations
+
+__all__ = [
+    "OpenAlexSource",
+    "SchemaDriftError",
+]
+
 
 import gzip
 import json
@@ -48,7 +54,7 @@ class SchemaDriftError(RuntimeError):
     A row-count floor catches the case where the whole fetch collapses,
     but not the case where every row loads but a key field (``h_index``,
     ``cited_by_count``) is silently None. We refuse to overwrite the
-    existing snapshot in that case â€” better to keep the old data than
+    existing snapshot in that case — better to keep the old data than
     rebuild an all-None DB that would quietly reclassify every journal
     into the "unknown" quality tier.
     """
@@ -79,7 +85,7 @@ class OpenAlexSource(DataSource):
         )
 
         # 1. Fetch the manifest. Tells us which partition files exist
-        #    and how many records to expect â€” so we can give the user
+        #    and how many records to expect — so we can give the user
         #    an accurate progress log instead of just dots.
         logger.info(
             f"Fetching OpenAlex sources manifest: {_OPENALEX_SOURCES_MANIFEST}"
@@ -118,7 +124,7 @@ class OpenAlexSource(DataSource):
         #    records and track our own schema-drift counters.
         type_map = {"journal": "j", "conference": "c"}
         sources: dict = {}
-        # Raw parse counters feed the ``id``-rename drift check below â€”
+        # Raw parse counters feed the ``id``-rename drift check below —
         # records without an ``id`` are silently skipped at the point of
         # extraction, so we need to know the ratio to distinguish a
         # collapsed fetch from a renamed identifier field.
@@ -162,7 +168,7 @@ class OpenAlexSource(DataSource):
                     f"OpenAlex sources: processed {idx + 1}/{total_parts} "
                     f"parts ({len(sources):,} records, {elapsed:.0f}s)"
                 )
-            # Report on EVERY partition, not just every 5th â€” the UI
+            # Report on EVERY partition, not just every 5th — the UI
             # needs smoother updates than the human-readable log.
             if progress_cb is not None:
                 try:
@@ -185,9 +191,9 @@ class OpenAlexSource(DataSource):
         if parsed_records >= 10_000 and parsed_with_id == 0:
             raise SchemaDriftError(
                 f"OpenAlex snapshot parsed {parsed_records:,} records but "
-                "none carried an 'id' field â€” the source identifier may "
+                "none carried an 'id' field — the source identifier may "
                 "have been renamed (e.g. to 'source_id'). Refusing to "
-                "overwrite existing data â€” please check "
+                "overwrite existing data — please check "
                 "https://docs.openalex.org/download-all-data/"
                 "snapshot-data-format for schema changes."
             )
@@ -223,7 +229,7 @@ class OpenAlexSource(DataSource):
                     "field: "
                     f"h_index present in journal sample={has_hindex}, "
                     f"cited_by_count present in journal sample={has_cited}. "
-                    "Refusing to overwrite existing data â€” please check "
+                    "Refusing to overwrite existing data — please check "
                     "https://docs.openalex.org/download-all-data/"
                     "snapshot-data-format for schema changes."
                 )
@@ -232,7 +238,7 @@ class OpenAlexSource(DataSource):
             # fetch. This branch only fires in unusual cases (truncated
             # test snapshot, snapshot with very few journal-typed
             # sources). Log at info so operators see the drift check
-            # was bypassed â€” debug would be invisible at production
+            # was bypassed — debug would be invisible at production
             # log levels.
             logger.info(
                 "OpenAlex schema-drift check skipped: "

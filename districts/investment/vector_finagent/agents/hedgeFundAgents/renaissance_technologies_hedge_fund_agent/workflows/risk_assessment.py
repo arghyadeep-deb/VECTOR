@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Risk Assessment Workflow
 
 Workflow for assessing risk implications of a trading signal
@@ -308,6 +309,8 @@ Provide clear decision for Investment Committee.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.risk_assessment] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.risk_assessment] caught Exception: %s", _sve)
             return RunResponse(
                 content=f"Risk assessment workflow failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

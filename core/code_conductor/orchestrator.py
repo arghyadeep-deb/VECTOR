@@ -12,9 +12,17 @@ Uses VECTOR's existing ContextEngine and provider_client for LLM calls.
 Usage:
     orch = CodingOrchestrator(cwd="/path/to/project")
     result = asyncio.run(orch.run("Add input validation to all FastAPI endpoints"))
-    print(result["summary"])
+    logger.info(result["summary"])
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "CodingOrchestrator",
+    "EditRecord",
+    "OrchestratorResult",
+]
+
 
 import asyncio
 import os
@@ -23,7 +31,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.code_conductor.code_map import CodeMap
 from core.code_conductor.str_replace import read_files, str_replace, write_file

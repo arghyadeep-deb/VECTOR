@@ -36,9 +36,7 @@ import sys
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 from core.config import CONFIG

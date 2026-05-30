@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Knowledge Module - RAG (Retrieval Augmented Generation) system
 
 Provides:
@@ -170,6 +171,8 @@ class KnowledgeModule:
                         self._documents.append(docs)
                     logger.debug(f"Added document from: {src}")
                 except Exception as e:
+                    logger.debug("[VECTOR][agents.finagent_core.modules.knowledge_module] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.finagent_core.modules.knowledge_module] caught Exception: %s", _sve)
                     logger.error(f"Failed to read document {src}: {e}")
 
         except Exception as e:

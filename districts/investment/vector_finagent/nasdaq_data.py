@@ -1,5 +1,6 @@
 # NASDAQ Data Wrapper
 # Based on OpenBB NASDAQ provider - https://github.com/OpenBB-finance/OpenBB/tree/main/openbb_platform/providers/nasdaq
+from loguru import logger
 
 import sys
 import json
@@ -125,6 +126,8 @@ class NASDAQDataAPI:
         except json.JSONDecodeError as e:
             return NASDAQError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][nasdaq_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][nasdaq_data] caught Exception: %s", _sve)
             return NASDAQError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _make_request(self, url: str, headers: Optional[Dict] = None) -> Dict[str, Any]:
@@ -915,9 +918,8 @@ class NASDAQDataAPI:
                 except ValueError:
                     continue
             return date_str  # Return original if can't parse
-        except:
-            return date_str
-
+        except Exception:
+            logger.debug("[VECTOR][nasdaq_data] suppressed Exception in fallback")  # bare except
     def _parse_float(self, value: Any) -> Optional[float]:
         """Parse value as float"""
         if not value or value == "N/A":
@@ -927,9 +929,8 @@ class NASDAQDataAPI:
                 clean_value = value.replace("$", "").replace(",", "").replace("(", "-").replace(")", "")
                 return float(clean_value) if clean_value else None
             return float(value)
-        except:
-            return None
-
+        except Exception:
+            logger.debug("[VECTOR][nasdaq_data] suppressed Exception in fallback")  # bare except
     def _parse_int(self, value: Any) -> Optional[int]:
         """Parse value as integer"""
         if not value or value == "N/A":
@@ -939,9 +940,8 @@ class NASDAQDataAPI:
                 clean_value = value.replace(",", "")
                 return int(clean_value) if clean_value else None
             return int(value)
-        except:
-            return None
-
+        except Exception:
+            logger.debug("[VECTOR][nasdaq_data] suppressed Exception in fallback")  # bare except
     def _parse_period_ending(self, period_str: str) -> Optional[str]:
         """Parse fiscal quarter ending period"""
         if not period_str or period_str == "N/A":
@@ -950,10 +950,8 @@ class NASDAQDataAPI:
             # Convert "Jan/2024" to "2024-01"
             parsed_date = datetime.strptime(period_str, "%b/%Y")
             return parsed_date.strftime("%Y-%m")
-        except:
-            return period_str
-
-
+        except Exception:
+            logger.debug("[VECTOR][nasdaq_data] suppressed Exception in fallback")  # bare except
 def main(args=None):
     
     if args is None:

@@ -14,17 +14,16 @@ Usage:
         "Go to google.com and search for AI news",
         url="https://www.google.com"
     ))
-    print(result["status"])
+    logger.info(result["status"])
+
 """
 from __future__ import annotations
 
 import asyncio
 import base64
 import sys
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.vision_control.action_parser import action_parser
 from core.vision_control.vision_operator import ACTION_SPACE

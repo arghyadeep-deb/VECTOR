@@ -1,8 +1,12 @@
 """Tools router — /tools/registry."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "router",
+    "tools_registry",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

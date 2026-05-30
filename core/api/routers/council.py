@@ -7,11 +7,15 @@ Stores session as training data (RULE 8)
 """
 
 import sys
+
+__all__ = [
+    "council_endpoint",
+    "router",
+]
+
 import asyncio
 import time
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger

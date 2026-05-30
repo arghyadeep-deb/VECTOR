@@ -3,6 +3,12 @@ Rate limiting tracking models.
 """
 
 from sqlalchemy import Boolean, Column, Float, Index, Integer, String
+
+__all__ = [
+    "RateLimitAttempt",
+    "RateLimitEstimate",
+]
+
 from sqlalchemy_utc import UtcDateTime, utcnow
 
 from .base import Base

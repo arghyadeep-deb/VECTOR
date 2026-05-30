@@ -5,13 +5,10 @@ Wraps vectorcode/src/agent/credential_pool.py concept.
 Manages API keys for Gemini, Anthropic, OpenRouter, Bedrock.
 Reports which providers are live, which are exhausted, handles key rotation.
 """
-import sys
 import asyncio
 import os
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -50,10 +47,12 @@ class CredentialManager(AgentBase):
         """Check which LLM providers have credentials configured."""
         status = {}
         for provider, env_var in _ENV_KEYS.items():
+            # dynamic provider env var — kept as os.getenv
             key = os.getenv(env_var) or CONFIG.get("api_keys", {}).get(provider, "")
             has_key = bool(key and len(key) > 8)
             status[provider] = {
                 "available": has_key,
+                # dynamic provider env var — kept as os.getenv
                 "key_source": "env" if os.getenv(env_var) else ("config" if has_key else "none"),
                 "key_prefix": key[:8] + "..." if has_key else "not_set",
                 "cost_tier": "free" if provider == "gemini" else "paid",
@@ -81,6 +80,7 @@ class CredentialManager(AgentBase):
 
     def validate_key(self, provider: str, key: str = "") -> dict:
         """Quick validation that a key format looks correct (no network call)."""
+        # dynamic provider env var — kept as os.getenv
         key = key or os.getenv(_ENV_KEYS.get(provider, ""), "")
         patterns = {
             "anthropic": ("sk-ant-", 40),

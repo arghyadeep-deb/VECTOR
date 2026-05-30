@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FinRL Paper & Live Trading
 Wrapper around finrl.trade and finrl.meta.env_stock_trading.env_stock_papertrading.
 
@@ -191,6 +192,8 @@ def start_paper_trading(
         return {"status": "trading_session_ended"}
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.finrl.finrl_trading] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.finrl.finrl_trading] caught Exception: %s", _sve)
         return {"error": str(e), "status": "failed"}
 
 

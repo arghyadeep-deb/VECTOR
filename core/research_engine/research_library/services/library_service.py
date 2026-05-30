@@ -404,7 +404,7 @@ class LibraryService:
                     .all()
                 }
 
-            # Process results â€” deduplicate by doc.id since the ResourceByDoc
+            # Process results — deduplicate by doc.id since the ResourceByDoc
             # outer join can fan out when multiple ResearchResource rows
             # point to the same document via document_id.
             seen_doc_ids = set()
@@ -556,7 +556,7 @@ class LibraryService:
     def get_research_list_for_dropdown(self) -> List[Dict]:
         """Get minimal research session info for filter dropdowns.
 
-        Returns only id, title, and query â€” no joins or aggregates.
+        Returns only id, title, and query — no joins or aggregates.
         """
         with get_user_db_session(self.username) as session:
             results = (
@@ -710,7 +710,7 @@ class LibraryService:
     def get_download_manager_summary_stats(self) -> Dict:
         """Get aggregate download stats across ALL research sessions.
 
-        This is a lightweight query that only returns totals â€” used for
+        This is a lightweight query that only returns totals — used for
         the download-manager header so stats remain accurate regardless
         of which page the user is viewing.
         """
@@ -1122,7 +1122,7 @@ class LibraryService:
             Statistics about the sync operation
         """
         with get_user_db_session(self.username) as session:
-            # Sync only research downloads â€” uploads have no original_url
+            # Sync only research downloads — uploads have no original_url
             # and no DownloadTracker, so they don't belong in this routine
             # (and the destructive `else` branch below would otherwise
             # silently delete every uploaded document).
@@ -1217,7 +1217,7 @@ class LibraryService:
                         # Uploads have no source URL and no DownloadTracker,
                         # so re-download is not meaningful for them.
                         logger.warning(
-                            f"Skipping mark-for-redownload on {doc_id[:8]}â€¦: "
+                            f"Skipping mark-for-redownload on {doc_id[:8]}…: "
                             "document has no original_url (likely user upload)"
                         )
                         continue

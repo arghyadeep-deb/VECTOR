@@ -4,8 +4,6 @@ District: languages | Focus: Bengali language coaching
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
@@ -111,7 +109,6 @@ class BengaliCoach(AgentBase):
         progress = {"language": self.language, "total_words": len(self.vocabulary), "levels": {str(k): len(v) for k, v in words_by_level.items()}, "grammar_rules_covered": list(self.grammar_rules.keys())}
         self.memory.store(event_type="progress_tracked", content=f"Bengali learning progress: {len(self.vocabulary)} words", tags=["language", self.language, "progress"], context=progress, source="BengaliCoach")
         return progress
-
 
 
     async def run(self, task: dict) -> dict:

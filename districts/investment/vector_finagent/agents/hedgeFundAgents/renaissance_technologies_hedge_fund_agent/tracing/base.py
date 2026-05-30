@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Base Tracing Infrastructure
 
 Core tracing system for Renaissance Technologies multi-agent architecture.
@@ -247,6 +248,8 @@ class Tracer:
             try:
                 exporter(span)
             except Exception as e:
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tracing.base] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tracing.base] caught Exception: %s", _sve)
                 print(f"Export error: {e}")
 
         # Restore parent span as current

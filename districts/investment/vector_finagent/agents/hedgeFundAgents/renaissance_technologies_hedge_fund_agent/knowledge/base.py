@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Knowledge Base Infrastructure
 
 Provides the core knowledge management system for Renaissance Technologies agents.
@@ -219,6 +220,8 @@ class RenTechKnowledge:
                             "metadata": result.meta_data if hasattr(result, 'meta_data') else {},
                         })
                 except Exception as e:
+                    logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.base] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.base] caught Exception: %s", _sve)
                     # Knowledge base might be empty
                     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

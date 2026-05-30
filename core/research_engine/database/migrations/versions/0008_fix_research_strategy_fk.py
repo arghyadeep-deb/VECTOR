@@ -35,6 +35,16 @@ Create Date: 2026-04-29
 
 from __future__ import annotations
 
+__all__ = [
+    "branch_labels",
+    "depends_on",
+    "down_revision",
+    "downgrade",
+    "revision",
+    "upgrade",
+]
+
+
 import sqlalchemy as sa
 from alembic import op
 from loguru import logger

@@ -1,9 +1,13 @@
 """Email router — /email/recent."""
 
 import sys
+
+__all__ = [
+    "email_recent",
+    "router",
+]
+
 import sqlite3
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter
 from loguru import logger

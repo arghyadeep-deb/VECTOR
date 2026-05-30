@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """VectorCode CLI launcher."""
+from loguru import logger
 import sys
 from pathlib import Path
 
@@ -9,7 +10,6 @@ try:
 except (AttributeError, Exception):
     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import importlib.util
 _cli_path = Path(__file__).parent / "src" / "cli.py"

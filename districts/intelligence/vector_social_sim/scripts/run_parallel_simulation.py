@@ -86,8 +86,6 @@ _cleanup_done = False
 _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 _backend_dir = os.path.abspath(os.path.join(_scripts_dir, '..'))
 _project_root = os.path.abspath(os.path.join(_backend_dir, '..'))
-sys.path.insert(0, _scripts_dir)
-sys.path.insert(0, _backend_dir)
 
 # 加载项目根目录的 .env 文件（包含 LLM_API_KEY 等配置）
 from dotenv import load_dotenv

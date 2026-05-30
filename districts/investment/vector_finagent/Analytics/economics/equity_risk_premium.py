@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Risk Premium (ERP) — Multiple estimation methods.
 Input: JSON via stdin (can be empty {})
 Output: JSON with ERP estimates from various models
@@ -47,6 +48,8 @@ def estimate_erp():
                 tnx = yf.Ticker("^TNX")
                 rf = float(getattr(tnx.fast_info, "last_price", 4.0) or 4.0) / 100
             except Exception:
+                logger.debug("[VECTOR][Analytics.economics.equity_risk_premium] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.economics.equity_risk_premium] caught Exception: %s", _sve)
                 rf = 0.04
 
             historical_erp = ann_return - rf

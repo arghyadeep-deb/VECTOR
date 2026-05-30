@@ -1,8 +1,6 @@
 import sys
 import asyncio
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -10,8 +8,8 @@ from core.config import CONFIG
 
 class Planner:
     """
-    RULE 6 â€” Goal system drives the planner.
-    Reads goal_system.generate_immediate_actions() â€” NOT world state, NOT user commands.
+    RULE 6 — Goal system drives the planner.
+    Reads goal_system.generate_immediate_actions() — NOT world state, NOT user commands.
     Produces an ordered action queue for the autonomous loop.
     """
 
@@ -34,7 +32,7 @@ class Planner:
 
     def plan(self, limit: int = 4) -> list[dict]:
         """
-        RULE 6 â€” Reads goal_system.generate_immediate_actions().
+        RULE 6 — Reads goal_system.generate_immediate_actions().
         Returns ordered list of {action, goal_id, urgency, reason} dicts.
         Never raises.
         """
@@ -94,7 +92,7 @@ if __name__ == "__main__":
     next_action = planner.get_next_action()
     ok = isinstance(actions, list) and isinstance(energy_actions, list)
     print(
-        f"âœ… planner OK â€” planned={len(actions)}, energy_filtered={len(energy_actions)}, "
+        f"âœ… planner OK — planned={len(actions)}, energy_filtered={len(energy_actions)}, "
         f"next={next_action['action'] if next_action else 'None'}"
         if ok else "âŒ FAILED"
     )

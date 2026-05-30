@@ -7,11 +7,9 @@ Reuses existing technicals library (ta-based indicators).
 
 import pandas as pd
 import numpy as np
-import sys
 import os
 
 # Add parent to path so we can import technicals
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from technicals.momentum_indicators import (
     calculate_rsi, calculate_stochastic, calculate_williams_r, calculate_roc,

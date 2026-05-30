@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "failed_tool_result",
+    "fallback_tool_call",
+    "resolve_kind",
+    "tool_call_session_update",
+    "tool_result_session_update",
+    "ToolCallSessionUpdateProtocol",
+    "ToolResultSessionUpdateProtocol",
+]
+
+
 from typing import Protocol, runtime_checkable
 
 try:

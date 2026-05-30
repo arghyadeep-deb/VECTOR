@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Statista Free / IndexMundi Data Fetcher
 Open/free statistics portals: IndexMundi and other free stat aggregators
 for cross-country data (no key required).
@@ -96,6 +97,8 @@ def _wb_request(country: str, indicator: str, start_year: int, end_year: int) ->
                     for r in (data[1] or []) if r.get("value") is not None]
         return data
     except Exception as e:
+        logger.debug("[VECTOR][statista_free_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][statista_free_data] caught Exception: %s", _sve)
         return {"error": str(e)}
 
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Portfolio Sparklines — batch fetch 5-day hourly close prices for multiple symbols.
 Input (argv[1]): JSON string {"symbols": ["AAPL", "MSFT", ...]}
 Output (stdout): JSON {"AAPL": [170.1, 171.3, ...], "MSFT": [375.0, ...], ...}
@@ -17,6 +18,8 @@ def main():
     try:
         params = json.loads(sys.argv[1])
     except Exception as e:
+        logger.debug("[VECTOR][portfolio_sparklines] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][portfolio_sparklines] caught Exception: %s", _sve)
         print(json.dumps({"error": f"JSON parse error: {e}"}))
         return
 

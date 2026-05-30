@@ -1,10 +1,8 @@
 """Self-improvement cycle: collect → train → evaluate → deploy."""
 
-import sys
 import json
 from pathlib import Path
 from datetime import datetime
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.training.training_config import AdapterConfig, TrainingArgs, EvalConfig

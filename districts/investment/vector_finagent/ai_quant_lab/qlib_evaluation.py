@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Qlib Evaluation Module
 Complete implementation of factor and model evaluation including:
 - Information Coefficient (IC) Analysis
@@ -137,6 +138,8 @@ class EvaluationService:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_evaluation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_evaluation] caught Exception: %s", _sve)
             return {"success": False, "error": f"IC calculation failed: {str(e)}"}
 
     def calculate_rank_ic(self,

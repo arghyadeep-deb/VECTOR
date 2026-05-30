@@ -1,14 +1,22 @@
 """VECTOR privacy router - /privacy/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "audit_data_flow",
+    "AuditDataFlowReq",
+    "gdpr_check",
+    "GdprCheckReq",
+    "redact_data",
+    "RedactDataReq",
+    "router",
+    "scan_data_sharing",
+    "ScanDataSharingReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/privacy", tags=["privacy"])
-
-
 
 
 class ScanDataSharingReq(BaseModel):

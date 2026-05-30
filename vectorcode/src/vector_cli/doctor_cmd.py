@@ -218,7 +218,6 @@ def check_gpu() -> CheckResult:
 def check_telemetry() -> list[CheckResult]:
     out: list[CheckResult] = []
     try:
-        sys.path.insert(0, str(ROOT))
         from core.telemetry import capabilities  # type: ignore[import]
         caps = capabilities()
         for name, on in caps.items():
@@ -239,7 +238,6 @@ def check_telemetry() -> list[CheckResult]:
 def check_registries() -> list[CheckResult]:
     out: list[CheckResult] = []
     try:
-        sys.path.insert(0, str(ROOT))
         from vectorcode.src.agents.registry import get_registry  # type: ignore
         n = len(get_registry().list_all())
         out.append(CheckResult("agent registry", "ok", f"{n} agents registered"))
@@ -336,7 +334,6 @@ def check_disk() -> CheckResult:
 
 def check_obsidian() -> CheckResult:
     try:
-        sys.path.insert(0, str(ROOT))
         from core.config import CONFIG  # type: ignore
         vault = CONFIG.get("vault_path", "")
         if not vault:

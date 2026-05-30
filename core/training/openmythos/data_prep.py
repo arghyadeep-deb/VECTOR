@@ -4,8 +4,13 @@ Data preparation for fine-tuning.
 """
 
 import sys
+
+__all__ = [
+    "DataPreparator",
+    "main",
+]
+
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.config import CONFIG
 from loguru import logger
@@ -313,12 +318,14 @@ async def main():
     try:
         test_text = "This is a test `code` with [links](url) and {some} tags."
         cleaned = preparator.clean_text(test_text)
-        print(f"Cleaned: {cleaned}")
+        logger.info(f"Cleaned: {cleaned}")
+
 
         qa_pairs = await preparator.create_qa_pairs([
             {"content": "V.E.C.T.O.R is a cognitive assistant. It helps with tasks.", "title": "About"}
         ])
-        print(f"QA pairs: {len(qa_pairs)}")
+        logger.info(f"QA pairs: {len(qa_pairs)}")
+
     finally:
         await preparator.close()
 

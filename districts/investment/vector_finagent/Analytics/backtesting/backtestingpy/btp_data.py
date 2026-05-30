@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Backtesting.py Data Module
 
 Data helpers: random_ohlc_data, resample_apply, OHLCV_AGG, TRADES_AGG,
@@ -93,6 +94,8 @@ def load_yfinance_data(symbol: str, start_date: str = None,
                     data[col] = data[col].round(4)
             return data
     except Exception:
+        logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_data] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None
 

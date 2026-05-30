@@ -28,7 +28,6 @@ import sys
 from datetime import datetime, timezone
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO_ROOT)
 
 # Ensure VECTOR_HOME is set for imports that touch it at module level.
 os.environ.setdefault("VECTOR_HOME", os.path.join(os.path.expanduser("~"), ".vector"))

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Currency Exchange Rate Analytics Module
 ======================================
 
@@ -281,6 +282,8 @@ class ArbitrageDetector(EconomicsBase):
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.economics.currency_analysis] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.currency_analysis] caught Exception: %s", _sve)
             raise CalculationError(f"Error calculating triangular arbitrage: {e}")
 
     def calculate_arbitrage_profit(self, opportunity: Dict[str, Any],
@@ -441,8 +444,8 @@ class ParityAnalyzer(EconomicsBase):
             if isinstance(value, (int, float, str)) and key != 'parity_type':
                 try:
                     decimal_kwargs[key] = self.to_decimal(value)
-                except:
-                    decimal_kwargs[key] = value
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.economics.currency_analysis] suppressed Exception in fallback")  # bare except
             else:
                 decimal_kwargs[key] = value
 

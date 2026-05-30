@@ -1,3 +1,4 @@
+from loguru import logger
 
 """
 Financial Reporting Quality Analysis Module
@@ -400,7 +401,9 @@ class FinancialReportingQualityAnalyzer(BaseAnalyzer):
                             risk_level=persistence_risk,
                             methodology="Autocorrelation of earnings over time"
                         ))
-                    except:
+                    except Exception as _sve:
+                        logger.debug("[VECTOR][Analytics.finanicalanalysis.specialized_analysis.quality_analysis] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][Analytics.finanicalanalysis.specialized_analysis.quality_analysis] caught Exception: %s", _sve)
                         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         # Recurring vs Non-Recurring Earnings
@@ -1425,10 +1428,8 @@ class FinancialReportingQualityAnalyzer(BaseAnalyzer):
             if len(ni_history) >= 3 and np.std(ni_history) > 0:
                 try:
                     earnings_persistence = np.corrcoef(ni_history[:-1], ni_history[1:])[0, 1]
-                except:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-        # Identify concerns
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.finanicalanalysis.specialized_analysis.quality_analysis] suppressed Exception in fallback")  # bare except
         concerns = []
         red_flags = []
 

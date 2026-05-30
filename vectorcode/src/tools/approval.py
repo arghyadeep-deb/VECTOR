@@ -778,7 +778,7 @@ def check_dangerous_command(command: str, env_type: str,
 
     # --yolo: bypass all approval prompts. Gateway /yolo is session-scoped;
     # CLI --yolo remains process-scoped via the env var for local use.
-    if os.getenv("VECTOR_YOLO_MODE") or is_current_session_yolo_enabled():
+    if os.environ.get("VECTOR_YOLO_MODE") or is_current_session_yolo_enabled():
         return {"approved": True, "message": None}
 
     is_dangerous, pattern_key, description = detect_dangerous_command(command)
@@ -789,12 +789,12 @@ def check_dangerous_command(command: str, env_type: str,
     if is_approved(session_key, pattern_key):
         return {"approved": True, "message": None}
 
-    is_cli = os.getenv("VECTOR_INTERACTIVE")
-    is_gateway = os.getenv("VECTOR_GATEWAY_SESSION")
+    is_cli = os.environ.get("VECTOR_INTERACTIVE")
+    is_gateway = os.environ.get("VECTOR_GATEWAY_SESSION")
 
     if not is_cli and not is_gateway:
         # Cron sessions: respect cron_mode config
-        if os.getenv("VECTOR_CRON_SESSION"):
+        if os.environ.get("VECTOR_CRON_SESSION"):
             if _get_cron_approval_mode() == "deny":
                 return {
                     "approved": False,
@@ -808,7 +808,7 @@ def check_dangerous_command(command: str, env_type: str,
                 }
         return {"approved": True, "message": None}
 
-    if is_gateway or os.getenv("VECTOR_EXEC_ASK"):
+    if is_gateway or os.environ.get("VECTOR_EXEC_ASK"):
         submit_pending(session_key, {
             "command": command,
             "pattern_key": pattern_key,
@@ -903,18 +903,18 @@ def check_all_command_guards(command: str, env_type: str,
     # --yolo or approvals.mode=off: bypass all approval prompts.
     # Gateway /yolo is session-scoped; CLI --yolo remains process-scoped.
     approval_mode = _get_approval_mode()
-    if os.getenv("VECTOR_YOLO_MODE") or is_current_session_yolo_enabled() or approval_mode == "off":
+    if os.environ.get("VECTOR_YOLO_MODE") or is_current_session_yolo_enabled() or approval_mode == "off":
         return {"approved": True, "message": None}
 
-    is_cli = os.getenv("VECTOR_INTERACTIVE")
-    is_gateway = os.getenv("VECTOR_GATEWAY_SESSION")
-    is_ask = os.getenv("VECTOR_EXEC_ASK")
+    is_cli = os.environ.get("VECTOR_INTERACTIVE")
+    is_gateway = os.environ.get("VECTOR_GATEWAY_SESSION")
+    is_ask = os.environ.get("VECTOR_EXEC_ASK")
 
     # Preserve the existing non-interactive behavior: outside CLI/gateway/ask
     # flows, we do not block on approvals and we skip external guard work.
     if not is_cli and not is_gateway and not is_ask:
         # Cron sessions: respect cron_mode config
-        if os.getenv("VECTOR_CRON_SESSION"):
+        if os.environ.get("VECTOR_CRON_SESSION"):
             if _get_cron_approval_mode() == "deny":
                 # Run detection to get a description for the block message
                 is_dangerous, _pk, description = detect_dangerous_command(command)

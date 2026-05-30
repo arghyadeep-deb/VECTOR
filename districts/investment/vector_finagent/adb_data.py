@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Asian Development Bank (ADB) Key Indicators Database (KIDB) Data Fetcher
 Fetches macroeconomic and social indicators from Asia-Pacific region
 Returns JSON output for Qt/C++ integration
@@ -169,6 +170,8 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None, format
             "error": "Invalid JSON response from ADB API."
         }
     except Exception as e:
+        logger.debug("[VECTOR][adb_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][adb_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

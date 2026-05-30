@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "MAX_SUGGESTIONS_COUNT",
+    "PathCompletionController",
+]
+
+
 import atexit
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Lock

@@ -392,7 +392,7 @@ def get_anthropic_key() -> str:
     from vector_cli.config import get_env_value
 
     for var in PROVIDER_REGISTRY["anthropic"].api_key_env_vars:
-        value = get_env_value(var) or os.getenv(var, "")
+        value = get_env_value(var) or os.environ.get(var, "")
         if value:
             return value
     return ""
@@ -665,7 +665,7 @@ def _token_fingerprint(token: Any) -> Optional[str]:
 
 
 def _oauth_trace_enabled() -> bool:
-    raw = os.getenv("VECTOR_OAUTH_TRACE", "").strip().lower()
+    raw = os.environ.get("VECTOR_OAUTH_TRACE", "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
 
 
@@ -1014,7 +1014,7 @@ def is_provider_explicitly_configured(provider_id: str) -> bool:
         for env_var in pconfig.api_key_env_vars:
             if env_var in _IMPLICIT_ENV_VARS:
                 continue
-            if has_usable_secret(os.getenv(env_var, "")):
+            if has_usable_secret(os.environ.get(env_var, "")):
                 return True
 
     return False
@@ -1184,7 +1184,7 @@ def resolve_provider(
     except Exception as e:
         logger.debug("Could not detect active auth provider: %s", e)
 
-    if has_usable_secret(os.getenv("OPENAI_API_KEY")) or has_usable_secret(os.getenv("OPENROUTER_API_KEY")):
+    if has_usable_secret(os.environ.get("OPENAI_API_KEY")) or has_usable_secret(os.environ.get("OPENROUTER_API_KEY")):
         return "openrouter"
 
     # Auto-detect API-key providers by checking their env vars
@@ -1197,7 +1197,7 @@ def resolve_provider(
         if pid == "copilot":
             continue
         for env_var in pconfig.api_key_env_vars:
-            if has_usable_secret(os.getenv(env_var, "")):
+            if has_usable_secret(os.environ.get(env_var, "")):
                 return pid
 
     # AWS Bedrock — detect via boto3 credential chain (IAM roles, SSO, env vars).
@@ -1421,7 +1421,7 @@ def resolve_qwen_runtime_credentials(
             code="qwen_access_token_missing",
         )
 
-    base_url = os.getenv("VECTOR_QWEN_BASE_URL", "").strip().rstrip("/") or DEFAULT_QWEN_BASE_URL
+    base_url = os.environ.get("VECTOR_QWEN_BASE_URL", "").strip().rstrip("/") or DEFAULT_QWEN_BASE_URL
     return {
         "provider": "qwen-oauth",
         "base_url": base_url,
@@ -2123,7 +2123,7 @@ def login_spotify_command(args) -> None:
 
 def _is_remote_session() -> bool:
     """Detect if running in an SSH session where webbrowser.open() won't work."""
-    return bool(os.getenv("SSH_CLIENT") or os.getenv("SSH_TTY"))
+    return bool(os.environ.get("SSH_CLIENT") or os.environ.get("SSH_TTY"))
 
 
 # =============================================================================
@@ -2328,7 +2328,7 @@ def _import_codex_cli_tokens() -> Optional[Dict[str, str]]:
     Returns tokens dict if valid and not expired, None otherwise.
     Does NOT write to the shared file.
     """
-    codex_home = os.getenv("CODEX_HOME", "").strip()
+    codex_home = os.environ.get("CODEX_HOME", "").strip()
     if not codex_home:
         codex_home = str(Path.home() / ".codex")
     auth_path = Path(codex_home).expanduser() / "auth.json"
@@ -2366,7 +2366,7 @@ def resolve_codex_runtime_credentials(
     data = _read_codex_tokens()
     tokens = dict(data["tokens"])
     access_token = str(tokens.get("access_token", "") or "").strip()
-    refresh_timeout_seconds = float(os.getenv("VECTOR_CODEX_REFRESH_TIMEOUT_SECONDS", "20"))
+    refresh_timeout_seconds = float(os.environ.get("VECTOR_CODEX_REFRESH_TIMEOUT_SECONDS", "20"))
 
     should_refresh = bool(force_refresh)
     if (not should_refresh) and refresh_if_expiring:
@@ -2387,7 +2387,7 @@ def resolve_codex_runtime_credentials(
                 access_token = str(tokens.get("access_token", "") or "").strip()
 
     base_url = (
-        os.getenv("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
+        os.environ.get("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
         or DEFAULT_CODEX_BASE_URL
     )
 
@@ -2439,9 +2439,9 @@ def _resolve_verify(
     effective_ca = (
         ca_bundle
         or tls_state.get("ca_bundle")
-        or os.getenv("VECTOR_CA_BUNDLE")
-        or os.getenv("SSL_CERT_FILE")
-        or os.getenv("REQUESTS_CA_BUNDLE")
+        or os.environ.get("VECTOR_CA_BUNDLE")
+        or os.environ.get("SSL_CERT_FILE")
+        or os.environ.get("REQUESTS_CA_BUNDLE")
     )
 
     if effective_insecure:
@@ -2717,8 +2717,8 @@ def resolve_nous_access_token(
 
         portal_base_url = (
             _optional_base_url(state.get("portal_base_url"))
-            or os.getenv("VECTOR_PORTAL_BASE_URL")
-            or os.getenv("NOUS_PORTAL_BASE_URL")
+            or os.environ.get("VECTOR_PORTAL_BASE_URL")
+            or os.environ.get("NOUS_PORTAL_BASE_URL")
             or DEFAULT_NOUS_PORTAL_URL
         ).rstrip("/")
         client_id = str(state.get("client_id") or DEFAULT_NOUS_CLIENT_ID)
@@ -2982,13 +2982,13 @@ def resolve_nous_runtime_credentials(
 
         portal_base_url = (
             _optional_base_url(state.get("portal_base_url"))
-            or os.getenv("VECTOR_PORTAL_BASE_URL")
-            or os.getenv("NOUS_PORTAL_BASE_URL")
+            or os.environ.get("VECTOR_PORTAL_BASE_URL")
+            or os.environ.get("NOUS_PORTAL_BASE_URL")
             or DEFAULT_NOUS_PORTAL_URL
         ).rstrip("/")
         inference_base_url = (
             _optional_base_url(state.get("inference_base_url"))
-            or os.getenv("NOUS_INFERENCE_BASE_URL")
+            or os.environ.get("NOUS_INFERENCE_BASE_URL")
             or DEFAULT_NOUS_INFERENCE_URL
         ).rstrip("/")
         client_id = str(state.get("client_id") or DEFAULT_NOUS_CLIENT_ID)
@@ -3377,7 +3377,7 @@ def get_api_key_provider_status(provider_id: str) -> Dict[str, Any]:
 
     env_url = ""
     if pconfig.base_url_env_var:
-        env_url = os.getenv(pconfig.base_url_env_var, "").strip()
+        env_url = os.environ.get(pconfig.base_url_env_var, "").strip()
 
     if provider_id in ("kimi-coding", "kimi-coding-cn"):
         base_url = _resolve_kimi_base_url(api_key, pconfig.inference_base_url, env_url)
@@ -3403,13 +3403,13 @@ def get_external_process_provider_status(provider_id: str) -> Dict[str, Any]:
         return {"configured": False}
 
     command = (
-        os.getenv("VECTOR_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
+        os.environ.get("VECTOR_COPILOT_ACP_COMMAND", "").strip()
+        or os.environ.get("COPILOT_CLI_PATH", "").strip()
         or "copilot"
     )
-    raw_args = os.getenv("VECTOR_COPILOT_ACP_ARGS", "").strip()
+    raw_args = os.environ.get("VECTOR_COPILOT_ACP_ARGS", "").strip()
     args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
-    base_url = os.getenv(pconfig.base_url_env_var, "").strip() if pconfig.base_url_env_var else ""
+    base_url = os.environ.get(pconfig.base_url_env_var, "").strip() if pconfig.base_url_env_var else ""
     if not base_url:
         base_url = pconfig.inference_base_url
 
@@ -3474,7 +3474,7 @@ def resolve_api_key_provider_credentials(provider_id: str) -> Dict[str, Any]:
 
     env_url = ""
     if pconfig.base_url_env_var:
-        env_url = os.getenv(pconfig.base_url_env_var, "").strip()
+        env_url = os.environ.get(pconfig.base_url_env_var, "").strip()
 
     if provider_id in ("kimi-coding", "kimi-coding-cn"):
         base_url = _resolve_kimi_base_url(api_key, pconfig.inference_base_url, env_url)
@@ -3503,16 +3503,16 @@ def resolve_external_process_provider_credentials(provider_id: str) -> Dict[str,
             code="invalid_provider",
         )
 
-    base_url = os.getenv(pconfig.base_url_env_var, "").strip() if pconfig.base_url_env_var else ""
+    base_url = os.environ.get(pconfig.base_url_env_var, "").strip() if pconfig.base_url_env_var else ""
     if not base_url:
         base_url = pconfig.inference_base_url
 
     command = (
-        os.getenv("VECTOR_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
+        os.environ.get("VECTOR_COPILOT_ACP_COMMAND", "").strip()
+        or os.environ.get("COPILOT_CLI_PATH", "").strip()
         or "copilot"
     )
-    raw_args = os.getenv("VECTOR_COPILOT_ACP_ARGS", "").strip()
+    raw_args = os.environ.get("VECTOR_COPILOT_ACP_ARGS", "").strip()
     args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
     resolved_command = shutil.which(command) if command else None
     if not resolved_command and not base_url.startswith("acp+tcp://"):
@@ -3911,7 +3911,7 @@ def _login_openai_codex(
                 do_import = "n"
             if do_import in ("y", "yes"):
                 _save_codex_tokens(cli_tokens)
-                base_url = os.getenv("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/") or DEFAULT_CODEX_BASE_URL
+                base_url = os.environ.get("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/") or DEFAULT_CODEX_BASE_URL
                 config_path = _update_config_for_provider("openai-codex", base_url)
                 print()
                 print("Credentials imported. Note: if Codex CLI refreshes its token,")
@@ -4066,7 +4066,7 @@ def _codex_device_code_login() -> Dict[str, Any]:
 
     # Return tokens for the caller to persist (no longer writes to ~/.codex/)
     base_url = (
-        os.getenv("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
+        os.environ.get("VECTOR_CODEX_BASE_URL", "").strip().rstrip("/")
         or DEFAULT_CODEX_BASE_URL
     )
 
@@ -4098,13 +4098,13 @@ def _nous_device_code_login(
     pconfig = PROVIDER_REGISTRY["nous"]
     portal_base_url = (
         portal_base_url
-        or os.getenv("VECTOR_PORTAL_BASE_URL")
-        or os.getenv("NOUS_PORTAL_BASE_URL")
+        or os.environ.get("VECTOR_PORTAL_BASE_URL")
+        or os.environ.get("NOUS_PORTAL_BASE_URL")
         or pconfig.portal_base_url
     ).rstrip("/")
     requested_inference_url = (
         inference_base_url
-        or os.getenv("NOUS_INFERENCE_BASE_URL")
+        or os.environ.get("NOUS_INFERENCE_BASE_URL")
         or pconfig.inference_base_url
     ).rstrip("/")
     client_id = client_id or pconfig.client_id
@@ -4219,8 +4219,8 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
     insecure = bool(getattr(args, "insecure", False))
     ca_bundle = (
         getattr(args, "ca_bundle", None)
-        or os.getenv("VECTOR_CA_BUNDLE")
-        or os.getenv("SSL_CERT_FILE")
+        or os.environ.get("VECTOR_CA_BUNDLE")
+        or os.environ.get("SSL_CERT_FILE")
     )
 
     try:
@@ -4362,7 +4362,7 @@ def logout_command(args) -> None:
     if clear_provider_auth(target) or config_matches:
         _reset_config_provider()
         print(f"Logged out of {provider_name}.")
-        if os.getenv("OPENROUTER_API_KEY"):
+        if os.environ.get("OPENROUTER_API_KEY"):
             print("VectorCode will use OpenRouter for inference.")
         else:
             print("Run `vector model` or configure an API key to use VectorCode.")

@@ -17,6 +17,7 @@ Concrete environments:
 Benchmarks (eval-only):
     - benchmarks/terminalbench_2/: Terminal-Bench 2.0 evaluation
 """
+from loguru import logger
 
 try:
     from environments.agent_loop import AgentResult, VectorAgentLoop

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 spreadsheet.py — unified local + Google Sheets I/O for the Fincept workflow node.
 
 Usage:
@@ -44,6 +45,8 @@ def parse_range(range_str):
         r2, c2 = parse_cell(parts[1].strip())
         return r1, c1, r2, c2
     except Exception:
+        logger.debug("[VECTOR][spreadsheet] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][spreadsheet] caught Exception: %s", _sve)
         return None
 
 

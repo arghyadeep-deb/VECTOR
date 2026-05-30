@@ -18,12 +18,12 @@ class CustomOpenAIEndpointProvider(OpenAICompatibleProvider):
     api_key_setting = "llm.openai_endpoint.api_key"
     url_setting = "llm.openai_endpoint.url"  # type: ignore[assignment]  # Settings key for URL
     default_base_url = "https://api.openai.com/v1"
-    default_model = ""  # User must explicitly pick a model â€” no silent fallback
+    default_model = ""  # User must explicitly pick a model — no silent fallback
 
     # Metadata for auto-discovery
     provider_key = "OPENAI_ENDPOINT"
     company_name = "OpenAI-Compatible"
-    is_cloud = None  # Unknown â€” could be local or cloud
+    is_cloud = None  # Unknown — could be local or cloud
 
     @classmethod
     def requires_auth_for_models(cls):

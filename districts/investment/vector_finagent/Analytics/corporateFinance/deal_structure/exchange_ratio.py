@@ -1,4 +1,5 @@
 """Exchange Ratio Calculations for Stock Mergers"""
+from loguru import logger
 from typing import Dict, Any, Optional, List
 import numpy as np
 
@@ -267,6 +268,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_structure.exchange_ratio] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_structure.exchange_ratio] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 List all supported exchanges with feature availability.
 
 Usage: python list_exchanges.py
@@ -56,6 +57,8 @@ def main():
                 "has_set_leverage": bool(has.get("setLeverage")),
             })
         except Exception:
+            logger.debug("[VECTOR][exchange.list_exchanges] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][exchange.list_exchanges] caught Exception: %s", _sve)
             exchanges.append({"id": exchange_id, "name": exchange_id, "error": True})
 
     output_success({

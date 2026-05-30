@@ -1,6 +1,13 @@
 """Report assembler — builds ResearchReport from hypothesis, experiment, and analysis."""
 
 from datetime import datetime, timezone
+
+__all__ = [
+    "OBSIDIAN_VAULT",
+    "ReportAssembler",
+    "TEMPLATES_DIR",
+]
+
 from pathlib import Path
 from typing import Optional
 

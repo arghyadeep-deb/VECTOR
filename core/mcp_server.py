@@ -24,7 +24,6 @@ import asyncio
 import argparse
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 
@@ -3967,8 +3966,6 @@ def _add_kanban_tools(mcp) -> None:
     """Register kanban task-management tools (4 tools: list, create, update, complete)."""
     import json as _json
     try:
-        import sys as _sys
-        _sys.path.insert(0, str(Path(__file__).parent.parent / "vectorcode" / "src"))
         from tools.kanban_tools import (
             list_kanban_tasks,
             create_kanban_task,

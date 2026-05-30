@@ -5,6 +5,12 @@ and work correctly with WAL mode.
 """
 
 import os
+
+__all__ = [
+    "BackupResult",
+    "BackupService",
+]
+
 import shutil
 import threading
 import time
@@ -226,7 +232,7 @@ class BackupService:
 
                 # Attach backup database with encryption (using temp path)
                 # Note: ATTACH DATABASE does not support parameter binding
-                # in SQLite/SQLCipher â€” f-string is required here.
+                # in SQLite/SQLCipher — f-string is required here.
                 cursor.execute(
                     f"ATTACH DATABASE '{temp_path_str}' AS backup KEY \"x'{hex_key}'\""
                 )
@@ -234,7 +240,7 @@ class BackupService:
                 try:
                     # Apply cipher settings to the backup database (must match source)
                     # Note: PRAGMA statements do not support parameter binding
-                    # in SQLite â€” f-string is required. Values are validated
+                    # in SQLite — f-string is required. Values are validated
                     # upstream by get_sqlcipher_settings() against allow-lists.
                     settings = get_sqlcipher_settings()
                     page_size = int(settings["page_size"])

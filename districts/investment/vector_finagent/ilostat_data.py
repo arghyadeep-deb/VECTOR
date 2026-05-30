@@ -1,4 +1,5 @@
 """
+from loguru import logger
 ILOSTAT Data Wrapper
 Fetches international labour statistics from the ILO ILOSTAT SDMX REST API
 and the ILOSTAT Bulk Download Facility.
@@ -343,6 +344,8 @@ class ILOStatWrapper:
         except requests.exceptions.HTTPError as e:
             return {"error": ILOStatError("list_dataflows", str(e), e.response.status_code).to_dict()}
         except Exception as e:
+            logger.debug("[VECTOR][ilostat_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ilostat_data] caught Exception: %s", _sve)
             return {"error": ILOStatError("list_dataflows", str(e)).to_dict()}
 
     def get_codelist(self, codelist_id: str, agency: str = "ILO") -> Dict[str, Any]:

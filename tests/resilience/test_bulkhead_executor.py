@@ -1,9 +1,7 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import asyncio
 import pytest
+from loguru import logger
 
 from core.resilience.bulkhead_executor import BulkheadConfig, BulkheadExecutor, BulkheadRegistry, BulkheadRejectedError
 

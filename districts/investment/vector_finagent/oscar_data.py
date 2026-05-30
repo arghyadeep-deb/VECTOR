@@ -1,4 +1,5 @@
 """
+from loguru import logger
 OSCAR (Observing Systems Capability Analysis and Review Tool) Data Fetcher
 Comprehensive wrapper for WMO OSCAR API providing access to satellite instruments,
 satellites, and Earth observation variables data
@@ -98,6 +99,8 @@ class OSCARWrapper:
         except requests.exceptions.RequestException as e:
             return OSCARError(endpoint, f"Network error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][oscar_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][oscar_data] caught Exception: %s", _sve)
             return OSCARError(endpoint, f"Unexpected error: {str(e)}").to_dict()
 
     # ==================== INSTRUMENTS ENDPOINTS ====================

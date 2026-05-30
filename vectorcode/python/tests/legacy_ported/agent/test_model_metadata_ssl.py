@@ -10,10 +10,7 @@ CA bundle stand-in files and monkeypatch env vars.
 """
 
 import os
-import sys
-from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 

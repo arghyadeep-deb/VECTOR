@@ -10,10 +10,17 @@ Falls back to regex-based parsing if tree-sitter is not installed.
 Usage:
     cm = CodeMap("/path/to/project")
     cm.build()
-    print(cm.summary())              # token-efficient structure overview
+    logger.info(cm.summary())              # token-efficient structure overview
+
     hits = cm.query("GUIAgent")      # find all definitions of a symbol
 """
 from __future__ import annotations
+
+__all__ = [
+    "CodeMap",
+    "Symbol",
+]
+
 
 import os
 import re
@@ -22,7 +29,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _SUPPORTED_EXTENSIONS = {".py", ".js", ".ts", ".jsx", ".tsx"}

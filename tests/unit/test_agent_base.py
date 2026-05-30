@@ -1,8 +1,5 @@
 """Tests for AgentBase HP system, model tiers, and event handling."""
-import sys
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 

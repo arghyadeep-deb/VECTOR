@@ -9,6 +9,14 @@ Categories: email, productivity, communication, cloud_storage,
             dev_tools, finance, social, analytics, automation
 """
 from __future__ import annotations
+
+__all__ = [
+    "get_integration",
+    "Integration",
+    "list_integrations",
+    "OAuthRegistry",
+]
+
 from dataclasses import dataclass, field
 
 

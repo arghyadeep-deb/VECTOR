@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 World Bank Data Fetcher
 Fetches economic, development, and commodity data from the World Bank Open Data API
 Returns JSON output for Qt/C++ integration
@@ -150,6 +151,8 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
             "error": "Invalid JSON response from World Bank API"
         }
     except Exception as e:
+        logger.debug("[VECTOR][worldbank_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][worldbank_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {},

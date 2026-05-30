@@ -398,7 +398,7 @@ class TrajectoryCompressor:
         else:
             # Custom endpoint — use config's raw base_url + api_key_env
             self._use_call_llm = False
-            api_key = os.getenv(self.config.api_key_env)
+            api_key = os.environ.get(self.config.api_key_env)
             if not api_key:
                 raise RuntimeError(
                     f"Missing API key. Set {self.config.api_key_env} "

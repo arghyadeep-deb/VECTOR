@@ -1,6 +1,5 @@
 """Wiring audit: openfang + openhuman + scrapling fully wired"""
 import sys, ast
-sys.path.insert(0, r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
 sys.stdout.reconfigure(encoding="utf-8")
 
 results = []

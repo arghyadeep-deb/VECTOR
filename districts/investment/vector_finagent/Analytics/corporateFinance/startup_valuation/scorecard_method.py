@@ -1,4 +1,5 @@
 """Scorecard Valuation Method"""
+from loguru import logger
 from typing import Dict, Any
 import sys
 
@@ -222,6 +223,8 @@ def main():
             print(json.dumps(result))
             sys.exit(1)
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.startup_valuation.scorecard_method] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.startup_valuation.scorecard_method] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

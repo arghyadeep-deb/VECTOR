@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 LLM Models Service
 Provides LLM model and provider information from embedded JSON data.
 No external dependencies required - uses pre-extracted data from LiteLLM.
@@ -66,6 +67,8 @@ def get_all_providers() -> list[dict[str, Any]]:
 
         return providers
     except Exception as e:
+        logger.debug("[VECTOR][litellm_models] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][litellm_models] caught Exception: %s", _sve)
         return [{"error": str(e)}]
 
 

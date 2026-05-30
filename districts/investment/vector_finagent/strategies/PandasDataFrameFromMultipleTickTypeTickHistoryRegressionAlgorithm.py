@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-69B21AF4
 # Category: Regression Test
@@ -31,6 +32,8 @@ class PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm(QCAlgori
         try:
             history = self.history(Tick, spy, timedelta(days=1), Resolution.TICK)
         except Exception as e:
+            logger.debug("[VECTOR][strategies.PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm] caught Exception: %s", _sve)
             raise Exception(f"History call failed: {e}")
 
         if history.shape[0] == 0:

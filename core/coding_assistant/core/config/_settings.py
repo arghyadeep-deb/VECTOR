@@ -11,17 +11,17 @@ from typing import Annotated, Any, Literal, get_args
 from urllib.parse import urljoin
 
 from dotenv import dotenv_values
-# [VECTOR] mistral SDK removed â€” stub SpeechOutputFormat as StrEnum (Pydantic-compatible)
+# [VECTOR] mistral SDK removed — stub SpeechOutputFormat as StrEnum (Pydantic-compatible)
 try:
     from mistralai.client.models import SpeechOutputFormat
 except ImportError:
     from enum import StrEnum as _StrEnum
     class SpeechOutputFormat(_StrEnum):  # type: ignore[no-redef]
-        """Stub â€” mistralai SDK not installed; VECTOR uses local Kokoro TTS."""
+        """Stub — mistralai SDK not installed; VECTOR uses local Kokoro TTS."""
         MP3 = "mp3"
         PCM = "pcm"
 
-# [VECTOR] OpenTelemetry exporter removed â€” stub constant
+# [VECTOR] OpenTelemetry exporter removed — stub constant
 DEFAULT_TRACES_EXPORT_PATH = "/v1/traces"
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.fields import FieldInfo

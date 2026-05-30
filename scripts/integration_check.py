@@ -5,14 +5,12 @@ Run: python -X utf8 scripts/integration_check.py
 import sys, asyncio, pathlib, tempfile, numpy as np
 
 # CRITICAL ORDER: project root first, import core.* BEFORE adding vectorcode/src
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 import core.config
 from core.loop.decision_engine import DecisionEngine, Candidate
 from core.loop.context_engine import ContextEngine
 from core.loop.autonomous_loop import AutonomousLoop
 
 # Now add vectorcode/src (after core.* bound in sys.modules)
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "vectorcode" / "src"))
 from vectorcode.src.router import GNNRouter
 from vectorcode.src.neural_training import VECTORTrainer
 from vectorcode.src.neural_flash_attention import FlashAttention, FlashAttentionConfig

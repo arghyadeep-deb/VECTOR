@@ -17,18 +17,8 @@ Usage (sync wrapper)
     bt.close()
 """
 
-import sys
 import asyncio
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 from core.config import CONFIG  # noqa: F401
 from loguru import logger
 
@@ -280,9 +270,5 @@ if __name__ == "__main__":
         print("⚠️  playwright not installed — real navigate skipped")
 
     print("✅ browser_tools OK")
-
-
-
-
 
 

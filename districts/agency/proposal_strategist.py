@@ -4,14 +4,11 @@ Proposal Strategist — proposal writing, win themes, ROI calculators, exec summ
 Creates compelling project proposals for Arghyadeep's agency and freelance work.
 Transforms requirements into persuasive win narratives with clear value delivery.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

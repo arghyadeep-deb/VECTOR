@@ -8,6 +8,7 @@ Fires only when VECTOR dashboard or HTML/CSS files are edited.
 Captures the screen so VECTOR can see its own UI bugs.
 Requires Pillow: pip install Pillow
 """
+from loguru import logger
 import json
 import re
 import sys

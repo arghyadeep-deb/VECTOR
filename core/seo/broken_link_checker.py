@@ -8,7 +8,8 @@ Usage:
     checker = BrokenLinkChecker()
     report = await checker.check("https://example.com", max_pages=100)
     for broken in report["broken_links"]:
-        print(broken["url"], broken["status"])
+        logger.info(broken["url"], broken["status"])
+
 """
 from __future__ import annotations
 
@@ -21,10 +22,8 @@ import urllib.robotparser
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

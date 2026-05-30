@@ -1,6 +1,12 @@
 """Token counting functionality for LLM usage tracking."""
 
 import inspect
+
+__all__ = [
+    "TokenCounter",
+    "TokenCountingCallback",
+]
+
 import json
 import time
 from datetime import datetime, timedelta, UTC
@@ -426,7 +432,7 @@ class TokenCountingCallback(BaseCallbackHandler):
         # confirmed truncation; we only fire here if it didn't. For hosted
         # providers the API typically rejects oversize prompts rather than
         # silently truncating, so this signal flags "would-overflow per our
-        # estimate" â€” not the same as actual truncation, hence the [estimated]
+        # estimate" — not the same as actual truncation, hence the [estimated]
         # tag in the log message.
         if not self.context_truncated and self.context_limit:
             # Input-only overflow: prompt estimate exceeds context limit
@@ -453,7 +459,7 @@ class TokenCountingCallback(BaseCallbackHandler):
             # Total-context overflow: input + output exceeds context limit.
             # The "[estimated-total-context]" tag below refers to the
             # *detection method* (post-loop fallback path that runs when
-            # _check_context_overflow couldn't fire), not the data source â€”
+            # _check_context_overflow couldn't fire), not the data source —
             # the prompt_tokens / completion_tokens here come from the
             # provider via response.llm_output.token_usage and are actual
             # counts, not character-based estimates.

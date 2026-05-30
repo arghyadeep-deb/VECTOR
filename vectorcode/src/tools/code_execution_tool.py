@@ -789,7 +789,7 @@ def _execute_remote(
             f"VECTOR_RPC_DIR={shlex.quote(f'{sandbox_dir}/rpc')} "
             f"PYTHONDONTWRITEBYTECODE=1"
         )
-        tz = os.getenv("VECTOR_TIMEZONE", "").strip()
+        tz = os.environ.get("VECTOR_TIMEZONE", "").strip()
         if tz:
             env_prefix += f" TZ={tz}"
 
@@ -1039,7 +1039,7 @@ def execute_code(
         # code reflects the correct wall-clock time.  Only TZ is set —
         # VECTOR_TIMEZONE is an internal VectorCode setting and must not leak
         # into child processes.
-        _tz_name = os.getenv("VECTOR_TIMEZONE", "").strip()
+        _tz_name = os.environ.get("VECTOR_TIMEZONE", "").strip()
         if _tz_name:
             child_env["TZ"] = _tz_name
         child_env.pop("VECTOR_TIMEZONE", None)

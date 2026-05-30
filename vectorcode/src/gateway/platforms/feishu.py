@@ -1392,52 +1392,52 @@ class FeishuAdapter(BasePlatformAdapter):
         default_group_policy = str(extra.get("default_group_policy", "")).strip().lower()
 
         return FeishuAdapterSettings(
-            app_id=str(extra.get("app_id") or os.getenv("FEISHU_APP_ID", "")).strip(),
-            app_secret=str(extra.get("app_secret") or os.getenv("FEISHU_APP_SECRET", "")).strip(),
-            domain_name=str(extra.get("domain") or os.getenv("FEISHU_DOMAIN", "feishu")).strip().lower(),
+            app_id=str(extra.get("app_id") or os.environ.get("FEISHU_APP_ID", "")).strip(),
+            app_secret=str(extra.get("app_secret") or os.environ.get("FEISHU_APP_SECRET", "")).strip(),
+            domain_name=str(extra.get("domain") or os.environ.get("FEISHU_DOMAIN", "feishu")).strip().lower(),
             connection_mode=str(
-                extra.get("connection_mode") or os.getenv("FEISHU_CONNECTION_MODE", "websocket")
+                extra.get("connection_mode") or os.environ.get("FEISHU_CONNECTION_MODE", "websocket")
             ).strip().lower(),
-            encrypt_key=os.getenv("FEISHU_ENCRYPT_KEY", "").strip(),
-            verification_token=os.getenv("FEISHU_VERIFICATION_TOKEN", "").strip(),
-            group_policy=os.getenv("FEISHU_GROUP_POLICY", "allowlist").strip().lower(),
+            encrypt_key=os.environ.get("FEISHU_ENCRYPT_KEY", "").strip(),
+            verification_token=os.environ.get("FEISHU_VERIFICATION_TOKEN", "").strip(),
+            group_policy=os.environ.get("FEISHU_GROUP_POLICY", "allowlist").strip().lower(),
             allowed_group_users=frozenset(
                 item.strip()
-                for item in os.getenv("FEISHU_ALLOWED_USERS", "").split(",")
+                for item in os.environ.get("FEISHU_ALLOWED_USERS", "").split(",")
                 if item.strip()
             ),
-            bot_open_id=os.getenv("FEISHU_BOT_OPEN_ID", "").strip(),
-            bot_user_id=os.getenv("FEISHU_BOT_USER_ID", "").strip(),
-            bot_name=os.getenv("FEISHU_BOT_NAME", "").strip(),
+            bot_open_id=os.environ.get("FEISHU_BOT_OPEN_ID", "").strip(),
+            bot_user_id=os.environ.get("FEISHU_BOT_USER_ID", "").strip(),
+            bot_name=os.environ.get("FEISHU_BOT_NAME", "").strip(),
             dedup_cache_size=max(
                 32,
-                int(os.getenv("VECTOR_FEISHU_DEDUP_CACHE_SIZE", str(_DEFAULT_DEDUP_CACHE_SIZE))),
+                int(os.environ.get("VECTOR_FEISHU_DEDUP_CACHE_SIZE", str(_DEFAULT_DEDUP_CACHE_SIZE))),
             ),
             text_batch_delay_seconds=float(
-                os.getenv("VECTOR_FEISHU_TEXT_BATCH_DELAY_SECONDS", str(_DEFAULT_TEXT_BATCH_DELAY_SECONDS))
+                os.environ.get("VECTOR_FEISHU_TEXT_BATCH_DELAY_SECONDS", str(_DEFAULT_TEXT_BATCH_DELAY_SECONDS))
             ),
             text_batch_split_delay_seconds=float(
-                os.getenv("VECTOR_FEISHU_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0")
+                os.environ.get("VECTOR_FEISHU_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0")
             ),
             text_batch_max_messages=max(
                 1,
-                int(os.getenv("VECTOR_FEISHU_TEXT_BATCH_MAX_MESSAGES", str(_DEFAULT_TEXT_BATCH_MAX_MESSAGES))),
+                int(os.environ.get("VECTOR_FEISHU_TEXT_BATCH_MAX_MESSAGES", str(_DEFAULT_TEXT_BATCH_MAX_MESSAGES))),
             ),
             text_batch_max_chars=max(
                 1,
-                int(os.getenv("VECTOR_FEISHU_TEXT_BATCH_MAX_CHARS", str(_DEFAULT_TEXT_BATCH_MAX_CHARS))),
+                int(os.environ.get("VECTOR_FEISHU_TEXT_BATCH_MAX_CHARS", str(_DEFAULT_TEXT_BATCH_MAX_CHARS))),
             ),
             media_batch_delay_seconds=float(
-                os.getenv("VECTOR_FEISHU_MEDIA_BATCH_DELAY_SECONDS", str(_DEFAULT_MEDIA_BATCH_DELAY_SECONDS))
+                os.environ.get("VECTOR_FEISHU_MEDIA_BATCH_DELAY_SECONDS", str(_DEFAULT_MEDIA_BATCH_DELAY_SECONDS))
             ),
             webhook_host=str(
-                extra.get("webhook_host") or os.getenv("FEISHU_WEBHOOK_HOST", _DEFAULT_WEBHOOK_HOST)
+                extra.get("webhook_host") or os.environ.get("FEISHU_WEBHOOK_HOST", _DEFAULT_WEBHOOK_HOST)
             ).strip(),
             webhook_port=int(
-                extra.get("webhook_port") or os.getenv("FEISHU_WEBHOOK_PORT", str(_DEFAULT_WEBHOOK_PORT))
+                extra.get("webhook_port") or os.environ.get("FEISHU_WEBHOOK_PORT", str(_DEFAULT_WEBHOOK_PORT))
             ),
             webhook_path=(
-                str(extra.get("webhook_path") or os.getenv("FEISHU_WEBHOOK_PATH", _DEFAULT_WEBHOOK_PATH)).strip()
+                str(extra.get("webhook_path") or os.environ.get("FEISHU_WEBHOOK_PATH", _DEFAULT_WEBHOOK_PATH)).strip()
                 or _DEFAULT_WEBHOOK_PATH
             ),
             ws_reconnect_nonce=_coerce_required_int(extra.get("ws_reconnect_nonce"), default=30, min_value=0),
@@ -2521,7 +2521,7 @@ class FeishuAdapter(BasePlatformAdapter):
     # =========================================================================
 
     def _reactions_enabled(self) -> bool:
-        return os.getenv("FEISHU_REACTIONS", "true").strip().lower() not in ("false", "0", "no")
+        return os.environ.get("FEISHU_REACTIONS", "true").strip().lower() not in ("false", "0", "no")
 
     async def _add_reaction(self, message_id: str, emoji_type: str) -> Optional[str]:
         """Return the reaction_id on success, else None. The id is needed later for deletion."""

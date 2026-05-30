@@ -1,14 +1,21 @@
 """VECTOR patterns router - /patterns/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "detect_patterns",
+    "DetectPatternsReq",
+    "generate_insights",
+    "GenerateInsightsReq",
+    "habit_plan",
+    "HabitPlanReq",
+    "identify_habits",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/patterns", tags=["patterns"])
-
-
 
 
 class DetectPatternsReq(BaseModel):

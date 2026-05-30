@@ -31,6 +31,18 @@ from typing import (
     Coroutine,
     SupportsIndex,
 )
+
+__all__ = [
+    "extraction_types",
+    "FollowRedirects",
+    "PageLoadStates",
+    "ProxyType",
+    "SelectorWaitStates",
+    "SetCookieParam",
+    "StrOrBytes",
+    "SUPPORTED_HTTP_METHODS",
+]
+
 from typing_extensions import Self, Unpack, TypedDict
 
 # Proxy can be a string URL or a dict (Playwright format: {"server": "...", "username": "...", "password": "..."})

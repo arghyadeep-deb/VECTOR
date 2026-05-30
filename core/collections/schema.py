@@ -18,8 +18,6 @@ __all__ = [
     "RESERVED_NAMES",
 ]
 
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import re
 from dataclasses import dataclass, field as dc_field

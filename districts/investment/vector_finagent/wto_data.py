@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 WTO (World Trade Organization) Data Wrapper
 
 This script provides access to multiple WTO APIs:
@@ -63,7 +64,9 @@ class WTODataWrapper:
                             try:
                                 import json
                                 return json.loads(data)
-                            except:
+                            except Exception as _sve:
+                                logger.debug("[VECTOR][wto_data] caught Exception: %s", _sve)
+                                logger.debug("[VECTOR][wto_data] caught Exception: %s", _sve)
                                 return data
                         return data
                     else:
@@ -72,8 +75,8 @@ class WTODataWrapper:
                         try:
                             import json
                             return json.loads(text)
-                        except:
-                            return text
+                        except Exception:
+                            logger.debug("[VECTOR][wto_data] suppressed Exception in fallback")  # bare except
                 else:
                     error_text = await response.text()
                     raise WTOError(f"HTTP {response.status}: Failed to fetch data from {url}. Error: {error_text}")

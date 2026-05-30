@@ -1,5 +1,6 @@
 # MULTPL (S&P 500 Multiples) Data Wrapper
 # Provides access to S&P 500 valuation multiples from https://multpl.com/
+from loguru import logger
 
 import sys
 import json
@@ -97,6 +98,8 @@ class MULTPLDataFetcher:
         except requests.exceptions.RequestException as e:
             raise MULTPLError(f"HTTP request failed for {url}: {str(e)}")
         except Exception as e:
+            logger.debug("[VECTOR][multpl_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][multpl_data] caught Exception: %s", _sve)
             raise MULTPLError(f"Unexpected error fetching {url}: {str(e)}")
 
     def _parse_html_table(self, html_content: str, series_name: str) -> pd.DataFrame:

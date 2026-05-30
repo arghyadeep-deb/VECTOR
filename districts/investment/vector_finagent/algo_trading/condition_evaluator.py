@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Condition Evaluator Engine
 
 Short-lived subprocess called from the host. Evaluates condition groups against candle data.
@@ -32,7 +33,6 @@ import math
 import os
 import logging
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from indicators import get_latest_value, get_last_n_values, get_value_at_offset
 
 log = logging.getLogger('algo_runner.evaluator')
@@ -80,6 +80,8 @@ def load_candles_from_db(db_path: str, symbol: str, timeframe: str, limit: int =
                     log.debug(f"  Normalized/prefix match found: '{cached_sym}' => {len(df)} rows")
                     break
         except Exception as e:
+            logger.debug("[VECTOR][algo_trading.condition_evaluator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][algo_trading.condition_evaluator] caught Exception: %s", _sve)
             log.warning(f"  Fallback symbol search failed: {e}")
 
     conn.close()

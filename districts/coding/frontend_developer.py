@@ -4,13 +4,11 @@ Frontend Developer — builds and audits VECTOR's web interfaces.
 Specializes in: VECTOR dashboard (Next.js), API status pages,
 React components, performance audits, accessibility checks.
 """
-import sys
 import asyncio
 import datetime
 import subprocess
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

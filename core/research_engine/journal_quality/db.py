@@ -23,6 +23,19 @@ Built fresh on every download, no migrations.
 
 from __future__ import annotations
 
+__all__ = [
+    "build_db",
+    "build_reference_db",
+    "DB_FILENAME",
+    "get_db",
+    "get_journal_reference_db",
+    "JOURNAL_QUALITY_SCHEMA_VERSION",
+    "JournalQualityDB",
+    "JournalReferenceDB",
+    "reset_db",
+]
+
+
 import gzip
 import json
 import os
@@ -119,7 +132,7 @@ class JournalQualityDB:
     All filter hot-path methods return plain dicts (not mapped Source
     objects) so call sites in `journal_reputation_filter.py` keep the
     same call shape they had against the dict-based predecessor. The
-    dashboard methods can return either dicts or Source instances â€”
+    dashboard methods can return either dicts or Source instances —
     they're called once per page view so the ORM overhead is fine.
     """
 
@@ -132,7 +145,7 @@ class JournalQualityDB:
         # the very first request on a fresh install.
         self._lock = threading.RLock()
         # Whether we've already logged a stale-data-version warning for
-        # this engine lifetime. Prevents log spam â€” one WARNING per
+        # this engine lifetime. Prevents log spam — one WARNING per
         # server start is enough to surface the problem to admins.
         self._stale_version_warned = False
 
@@ -157,9 +170,9 @@ class JournalQualityDB:
                 # Validate existing file before wiring up the read-only
                 # engine. Catches two failure modes at open time instead
                 # of letting them propagate to first query:
-                #   1. Schema drift â€” ORM changed since this file was
+                #   1. Schema drift — ORM changed since this file was
                 #      built (PRAGMA user_version mismatch) â†’ rebuild.
-                #   2. Corruption â€” file exists but isn't a valid DB
+                #   2. Corruption — file exists but isn't a valid DB
                 #      (truncated build, disk error) â†’ rebuild.
                 if not self._validate_existing_db(path):
                     self._build_or_raise(path)
@@ -205,7 +218,7 @@ class JournalQualityDB:
             # been updated since this file was built. The hot path
             # (filter scoring) would silently serve stale scores if we
             # didn't surface the mismatch anywhere but the admin
-            # dashboard. Log once, don't auto-rebuild â€” user consent
+            # dashboard. Log once, don't auto-rebuild — user consent
             # via the dashboard "Download Data" button remains the
             # explicit refresh trigger.
             self._warn_on_stale_data_version(path.parent)
@@ -220,13 +233,13 @@ class JournalQualityDB:
 
         version_file = data_dir / "version.json"
         if not version_file.exists():
-            return  # Brand-new install â€” the dashboard's banner handles this.
+            return  # Brand-new install — the dashboard's banner handles this.
         try:
             with open(version_file) as f:
                 info = json.load(f)
             installed = info.get("version")
         except (json.JSONDecodeError, OSError):
-            return  # Malformed â€” dashboard's banner surfaces; don't double-log.
+            return  # Malformed — dashboard's banner surfaces; don't double-log.
         if installed and installed != JOURNAL_DATA_VERSION:
             logger.warning(
                 f"journal_quality data version is stale: on-disk={installed!r} "
@@ -240,7 +253,7 @@ class JournalQualityDB:
         """Return True if the existing DB file is usable as-is.
 
         A version of 0 means the file was built before schema stamping
-        existed and is grandfathered in â€” we don't force a rebuild just
+        existed and is grandfathered in — we don't force a rebuild just
         because the stamp is missing. A non-zero version that doesn't
         match the current schema is a real drift signal and triggers a
         rebuild. File-open errors also trigger a rebuild.
@@ -254,16 +267,16 @@ class JournalQualityDB:
             if version != 0 and version != JOURNAL_QUALITY_SCHEMA_VERSION:
                 logger.warning(
                     f"journal_quality.db schema_version={version}, "
-                    f"expected {JOURNAL_QUALITY_SCHEMA_VERSION} â€” "
+                    f"expected {JOURNAL_QUALITY_SCHEMA_VERSION} — "
                     f"rebuilding"
                 )
-                # NB: no explicit safe_close here â€” the finally block
+                # NB: no explicit safe_close here — the finally block
                 # handles closing. Calling it twice produced a spurious
                 # "Cannot operate on a closed database" warning on
                 # every schema-triggered rebuild.
                 self._unlink_unusable_db(path)
                 return False
-            # Cheap sanity check â€” confirms the file is a valid DB.
+            # Cheap sanity check — confirms the file is a valid DB.
             conn.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone()
             return True
         except (sqlite3.DatabaseError, OSError):
@@ -281,7 +294,7 @@ class JournalQualityDB:
         """Best-effort cleanup of a corrupted / schema-drifted DB file.
 
         Corruption was already logged by the caller (``_validate_existing_db``).
-        Both operations below are best-effort â€” on failure we *log and
+        Both operations below are best-effort — on failure we *log and
         continue* rather than raise, because the build path will rebuild
         the file regardless. But we don't silence: if chmod / unlink
         fails (permissions, read-only mount, file held open on Windows)
@@ -336,7 +349,7 @@ class JournalQualityDB:
         try:
             yield s
         except (OperationalError, DatabaseError):
-            logger.exception("journal_quality.db error â€” resetting engine")
+            logger.exception("journal_quality.db error — resetting engine")
             safe_close(s, "journal_quality session")
             self.reset()
             raise
@@ -352,7 +365,7 @@ class JournalQualityDB:
             return False
 
     def reset(self) -> None:
-        """Drop the cached engine â€” call after `build_db` rebuilds the file."""
+        """Drop the cached engine — call after `build_db` rebuilds the file."""
         with self._lock:
             if self._engine is not None:
                 self._engine.dispose()
@@ -391,7 +404,7 @@ class JournalQualityDB:
     def count_predatory_by_names(self, names: Iterable[str]) -> int:
         """Count how many of the given journal names are flagged predatory.
 
-        One SQL round-trip using ``WHERE name_lower IN (â€¦) AND is_predatory = TRUE``.
+        One SQL round-trip using ``WHERE name_lower IN (…) AND is_predatory = TRUE``.
         Names are normalized (NFKC + lower + strip) so the caller can pass raw
         display names; matches the normalization used at build time.
 
@@ -405,7 +418,7 @@ class JournalQualityDB:
            has been 250,000 since SQLite 3.32 (2020); Python 3.11 ships
            with 3.45.1. A heavy user with 100k distinct container_titles
            is still well under the limit. Re-confirmed in the PR #3081
-           audit â€” no chunking needed.
+           audit — no chunking needed.
         """
         normed = {normalize_name(n) for n in names if n}
         normed.discard("")
@@ -433,18 +446,18 @@ class JournalQualityDB:
 
         Dashboard hot path: the ``/api/journals/user-research`` endpoint
         collects up to 200 unique ``container_title`` values from the
-        user's Papers and hands them in here â€” one SQL round-trip vs.
+        user's Papers and hands them in here — one SQL round-trip vs.
         200 per-row lookups.
 
         Normalization matches ``normalize_name`` (NFKC + lower + strip)
         so the reference DB's ``name_lower`` column hits directly. No
-        "the " / "proceedings of" fallback tiers â€” those live in
+        "the " / "proceedings of" fallback tiers — those live in
         ``_lookup_source_row`` for precision per-call; the batch path
         is for dashboard display where a miss is acceptable.
 
         Chunked at 900 params per chunk. Defensive: SQLite's actual
         limit (``SQLITE_MAX_VARIABLE_NUMBER``) has been 250,000 since
-        3.32 (2020) â€” we could easily put the whole batch in one IN â€”
+        3.32 (2020) — we could easily put the whole batch in one IN —
         but 900 keeps us well under any older embedded-SQLite ceiling
         a deployment might pin to.
         """
@@ -646,7 +659,7 @@ class JournalQualityDB:
             best_h = s.scalar(stmt)
 
         # Single source of truth for institution scoring lives in
-        # scoring.py â€” delegate so the build phase, the runtime filter,
+        # scoring.py — delegate so the build phase, the runtime filter,
         # and this affiliation-salvage path can never disagree.
         return institution_score_from_h_index(best_h)
 
@@ -725,7 +738,7 @@ class JournalQualityDB:
                 if row is not None:
                     return row
 
-            # MEDLINE-style "Title : long subtitle" â€” try the segment
+            # MEDLINE-style "Title : long subtitle" — try the segment
             # before the colon. Catches PubMed names like
             #   "Molecular therapy : the journal of the American Society..."
             # â†’ "Molecular therapy"
@@ -736,7 +749,7 @@ class JournalQualityDB:
                     if row is not None:
                         return row
 
-            # MEDLINE-style "Title. Section name" â€” try the segment
+            # MEDLINE-style "Title. Section name" — try the segment
             # before the first period. Catches PubMed names like
             #   "Molecular therapy. Methods and clinical development"
             # but only when the head is meaningfully shorter (we don't
@@ -884,7 +897,7 @@ class JournalQualityDB:
         if not self.available:
             return [], 0
 
-        # Defensive allowlist â€” matches the pattern in get_journals_page.
+        # Defensive allowlist — matches the pattern in get_journals_page.
         # The ternary below is already safe (non-"desc" falls through to
         # .asc()), but the explicit check prevents future refactors from
         # accidentally interpolating a tainted value into SQL.
@@ -928,7 +941,7 @@ class JournalQualityDB:
 
 
 # ---------------------------------------------------------------------------
-# Dict adapters â€” keep filter/dashboard call sites unchanged
+# Dict adapters — keep filter/dashboard call sites unchanged
 # ---------------------------------------------------------------------------
 
 
@@ -979,7 +992,7 @@ def _institution_to_dict(row: Institution) -> dict:
     """Public accessor shape for `lookup_institution`.
 
     The on-disk JSON snapshot uses one-character keys (``n``, ``c``,
-    ``t``, â€¦) purely for space efficiency â€” 200k institutions Ã— seven
+    ``t``, …) purely for space efficiency — 200k institutions Ã— seven
     long field names adds real bytes. Callers of the accessor don't
     care about on-disk layout, so here we return the full names to
     keep the public API legible and robust to future schema tweaks.
@@ -1038,7 +1051,7 @@ def reset_db() -> None:
     """Reset the cached engine after a build_db rebuild.
 
     Held under `_db_lock` so a concurrent `get_db()` call can't see a
-    half-disposed singleton â€” without the lock, Thread B could pass
+    half-disposed singleton — without the lock, Thread B could pass
     the `if _db is None` check in `get_db()` while Thread A is still
     inside `_db.reset()`, then call `_ensure_engine()` which short-
     circuits on the still-set `_engine` and hands back a disposed
@@ -1052,7 +1065,7 @@ def reset_db() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Build phase â€” the ONLY writer
+# Build phase — the ONLY writer
 # ---------------------------------------------------------------------------
 
 
@@ -1077,7 +1090,7 @@ def build_db(
 
     logger.info(
         "Building journal quality reference DB (one-time, "
-        "~30s, decompresses ~25 MB of bundled data)â€¦"
+        "~30s, decompresses ~25 MB of bundled data)…"
     )
 
     # Sweep stale temp files from prior crashed builds so they don't
@@ -1087,7 +1100,7 @@ def build_db(
     # Build into a unique temp path, then os.replace() atomically at
     # the end. A random suffix (not a fixed .tmp) lets concurrent
     # builders write to separate files instead of racing on the same
-    # path â€” os.replace picks a winner atomically and neither corrupts
+    # path — os.replace picks a winner atomically and neither corrupts
     # the live file.
     tmp_path = output_path.with_name(
         f"{output_path.name}.tmp-{os.getpid()}-{secrets.token_hex(4)}"
@@ -1104,7 +1117,7 @@ def build_db(
         # `.tmp-PID-RAND` path, and on any crash mid-build the incomplete
         # temp file is orphaned (and swept by `_sweep_stale_tmp_files()`
         # on the next build). The live file is only ever moved into place
-        # by the atomic `os.replace()` at the bottom of this function â€”
+        # by the atomic `os.replace()` at the bottom of this function —
         # it never sees a partial write. Do NOT copy this pragma set
         # elsewhere without the same atomic rename discipline.
         with engine.connect() as conn:
@@ -1153,7 +1166,7 @@ def build_db(
     # Atomically swap tmp into place. os.replace is atomic on POSIX and
     # overwrites an existing output_path if present.
     if output_path.exists():
-        # Prior file is chmod 0444 from the previous build â€” relax it
+        # Prior file is chmod 0444 from the previous build — relax it
         # so os.replace can overwrite. Best-effort: if chmod fails
         # (e.g. read-only mount), os.replace will raise and surface
         # the real problem. Log so the cause is visible.
@@ -1167,7 +1180,7 @@ def build_db(
             )
     os.replace(tmp_path, output_path)
 
-    # OS-level read-only flag â€” third layer of write protection.
+    # OS-level read-only flag — third layer of write protection.
     # POSIX chmod is a no-op on Windows, so we also set the Windows
     # read-only file attribute via SetFileAttributesW. The pre-commit
     # hook check-journal-quality-readonly.py remains the primary
@@ -1213,7 +1226,7 @@ def _sweep_stale_tmp_files(directory: Path, base_name: str) -> None:
     """Remove journal_quality.db.tmp-* files older than 1h.
 
     Per-file OSError (vanished between glob+stat, no permission, etc.)
-    is logged at debug â€” the sweep is best-effort and shouldn't stop
+    is logged at debug — the sweep is best-effort and shouldn't stop
     the build, but silent-pass on filesystem errors hides the cause of
     accumulating stale tmp files that would otherwise eat disk over
     time.
@@ -1249,7 +1262,7 @@ def _load_openalex(data_dir: Path) -> dict:
 def _load_doaj(data_dir: Path) -> dict:
     path = data_dir / "doaj_journals.json"
     if not path.exists():
-        logger.warning(f"{path} not found â€” DOAJ cross-ref will be skipped")
+        logger.warning(f"{path} not found — DOAJ cross-ref will be skipped")
         return {}
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
@@ -1262,7 +1275,7 @@ def _load_predatory(data_dir: Path) -> dict:
     """Returns {journals: set, publishers: set, hijacked: set, long_pubs: list}."""
     path = data_dir / "predatory.json"
     if not path.exists():
-        logger.warning(f"{path} not found â€” predatory check will be skipped")
+        logger.warning(f"{path} not found — predatory check will be skipped")
         return {
             "journals": set(),
             "publishers": set(),
@@ -1309,7 +1322,7 @@ def _load_predatory(data_dir: Path) -> dict:
 def _load_institutions(data_dir: Path) -> dict:
     path = data_dir / "openalex_institutions.json.gz"
     if not path.exists():
-        logger.warning(f"{path} not found â€” institution tier will be empty")
+        logger.warning(f"{path} not found — institution tier will be empty")
         return {}
     with gzip.open(path, "rt", encoding="utf-8") as f:
         data = json.load(f)
@@ -1322,7 +1335,7 @@ def _load_abbreviations(data_dir: Path) -> dict:
     path = data_dir / "jabref_abbreviations.json.gz"
     if not path.exists():
         logger.warning(
-            f"{path} not found â€” abbreviation expansion will be empty"
+            f"{path} not found — abbreviation expansion will be empty"
         )
         return {}
     with gzip.open(path, "rt", encoding="utf-8") as f:
@@ -1492,9 +1505,9 @@ def _populate_sources(
 
     records = list(seen.values())
 
-    # Derive quartile (Q1â€“Q4) from cited_by_count percentile within each
+    # Derive quartile (Q1–Q4) from cited_by_count percentile within each
     # source_type. Field-specific quartiles would be more accurate but
-    # require per-source topic data that 4â€“7Ã—s the snapshot size, so we
+    # require per-source topic data that 4–7Ã—s the snapshot size, so we
     # use global per-type percentiles as a defensible approximation
     # given the license constraint that ruled out SJR.
     by_type: dict[str, list[dict]] = {}
@@ -1520,7 +1533,7 @@ def _populate_sources(
 
     # Re-derive quality now that quartile is available. The first-pass
     # `quality` values above were computed without quartile and are
-    # therefore suboptimal â€” a Q1 journal without h-index data would
+    # therefore suboptimal — a Q1 journal without h-index data would
     # have scored `None` (fall-through) instead of 8. The runtime filter
     # code in journal_reputation_filter.py does pass quartile, so the
     # stored column should agree with the live score.

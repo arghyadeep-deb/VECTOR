@@ -4,11 +4,8 @@ import threading
 import time
 import itertools
 import random
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                # vectorcode pkg parent
 
 from loguru import logger
 

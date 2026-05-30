@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Paper Trading Bridge - Connects Alpha Arena to the host paper trading module
 
 Provides Python interface to the paper trading commands via C++ IPC.
@@ -481,6 +482,8 @@ def execute_trade(
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][agents.finagent_core.paper_trading_bridge] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.paper_trading_bridge] caught Exception: %s", _sve)
         return {
             "success": False,
             "error": str(e),

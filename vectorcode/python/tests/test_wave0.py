@@ -2,7 +2,6 @@
 import asyncio
 import json
 import os
-import sys
 import tempfile
 import threading
 import uuid
@@ -11,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "vectorcode" / "python"))
 
 from vectorcode.engine import AIAgent, IterationBudget, _sanitize_surrogates, _SafeWriter
 from vectorcode.engine.safety import _is_destructive_command

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Zipline Data Ingestion
 
 Fetches data via yfinance and converts to pandas DataFrames suitable for
@@ -84,6 +85,8 @@ def fetch_yfinance_data(
             print(f'[ZL-DATA] {sym}: {len(df)} bars loaded', file=sys.stderr)
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_data] caught Exception: %s", _sve)
             print(f'[ZL-DATA] Error fetching {sym}: {e}, using synthetic', file=sys.stderr)
             _LAST_FETCH_SYNTHETIC_SYMBOLS.add(sym)
             synth = _generate_synthetic_data([sym], start_date, end_date)

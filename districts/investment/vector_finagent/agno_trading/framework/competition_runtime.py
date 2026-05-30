@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Competition runtime for managing Alpha Arena competitions.
 """
 
@@ -126,6 +127,8 @@ class CompetitionRuntime:
                 await asyncio.sleep(cycle_interval_seconds)
 
             except Exception as e:
+                logger.debug("[VECTOR][agno_trading.framework.competition_runtime] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agno_trading.framework.competition_runtime] caught Exception: %s", _sve)
                 print(f"Error in trading cycle: {e}", flush=True)
                 # Continue despite errors
                 await asyncio.sleep(cycle_interval_seconds)

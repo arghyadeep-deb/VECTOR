@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare China Economics Data Wrapper
 Wrapper for Chinese economic indicators and macro data
 Returns JSON output for Qt/C++ integration
@@ -120,6 +121,8 @@ class ChinaEconomicsWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
+                logger.debug("[VECTOR][akshare_economics_china] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_economics_china] caught Exception: %s", _sve)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay)

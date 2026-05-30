@@ -98,8 +98,6 @@ def _terminate_bridge_process(proc, *, force: bool = False) -> None:
     sig = signal.SIGTERM if not force else signal.SIGKILL
     os.killpg(os.getpgid(proc.pid), sig)
 
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -176,9 +174,9 @@ class WhatsAppAdapter(BasePlatformAdapter):
             get_vector_dir("platforms/whatsapp/session", "whatsapp/session")
         ))
         self._reply_prefix: Optional[str] = config.extra.get("reply_prefix")
-        self._dm_policy = str(config.extra.get("dm_policy") or os.getenv("WHATSAPP_DM_POLICY", "open")).strip().lower()
+        self._dm_policy = str(config.extra.get("dm_policy") or os.environ.get("WHATSAPP_DM_POLICY", "open")).strip().lower()
         self._allow_from = self._coerce_allow_list(config.extra.get("allow_from") or config.extra.get("allowFrom"))
-        self._group_policy = str(config.extra.get("group_policy") or os.getenv("WHATSAPP_GROUP_POLICY", "open")).strip().lower()
+        self._group_policy = str(config.extra.get("group_policy") or os.environ.get("WHATSAPP_GROUP_POLICY", "open")).strip().lower()
         self._group_allow_from = self._coerce_allow_list(config.extra.get("group_allow_from") or config.extra.get("groupAllowFrom"))
         self._mention_patterns = self._compile_mention_patterns()
         self._message_queue: asyncio.Queue = asyncio.Queue()
@@ -193,12 +191,12 @@ class WhatsAppAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() in ("true", "1", "yes", "on")
             return bool(configured)
-        return os.getenv("WHATSAPP_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
+        return os.environ.get("WHATSAPP_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
 
     def _whatsapp_free_response_chats(self) -> set[str]:
         raw = self.config.extra.get("free_response_chats")
         if raw is None:
-            raw = os.getenv("WHATSAPP_FREE_RESPONSE_CHATS", "")
+            raw = os.environ.get("WHATSAPP_FREE_RESPONSE_CHATS", "")
         if isinstance(raw, list):
             return {str(part).strip() for part in raw if str(part).strip()}
         return {part.strip() for part in str(raw).split(",") if part.strip()}
@@ -233,7 +231,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
     def _compile_mention_patterns(self):
         patterns = self.config.extra.get("mention_patterns")
         if patterns is None:
-            raw = os.getenv("WHATSAPP_MENTION_PATTERNS", "").strip()
+            raw = os.environ.get("WHATSAPP_MENTION_PATTERNS", "").strip()
             if raw:
                 try:
                     patterns = json.loads(raw)
@@ -428,7 +426,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
             # Start the bridge process in its own process group.
             # Route output to a log file so QR codes, errors, and reconnection
             # messages are preserved for troubleshooting.
-            whatsapp_mode = os.getenv("WHATSAPP_MODE", "self-chat")
+            whatsapp_mode = os.environ.get("WHATSAPP_MODE", "self-chat")
             self._bridge_log = self._session_path.parent / "bridge.log"
             bridge_log_fh = open(self._bridge_log, "a")
             self._bridge_log_fh = bridge_log_fh

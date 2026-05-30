@@ -4,12 +4,9 @@ ThreatDetectionEngineer — SIEM rule development and MITRE ATT&CK coverage.
 Writes Sigma rules, maps to ATT&CK techniques, assesses detection coverage,
 analyzes logs for threat indicators. Detection-as-code for personal computing.
 """
-import sys
 import asyncio
 import re
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

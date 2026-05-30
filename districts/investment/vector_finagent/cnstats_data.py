@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 China National Statistics API Wrapper
 A COMPLETE wrapper for accessing China's National Bureau of Statistics data.
 Provides access to ALL Chinese economic indicators, price indices, industrial data, and more.
@@ -156,6 +157,8 @@ def easyquery(m: str = 'QueryData', dbcode: str = 'hgyd', rowcode: str = 'zb',
         return response.json()
 
     except Exception as e:
+        logger.debug("[VECTOR][cnstats_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][cnstats_data] caught Exception: %s", _sve)
         return {"returncode": 500, "returndata": {}, "error": str(e)}
 
 # --- 3. EXACT CNSTATS CORE FUNCTIONS ---
@@ -384,9 +387,8 @@ def tree_json(dbcode: str = 'hgyd', id: str = 'zb') -> Dict[str, Any]:
 
                     if n.get('isParent'):
                         _collect_nodes(n['id'], level + 1)
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+            except Exception:
+                logger.debug("[VECTOR][cnstats_data] suppressed Exception in fallback")  # bare except
         _collect_nodes(id)
 
         return {

@@ -573,7 +573,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
             for line in extracted_text.strip().split("\n"):
                 name = line.strip()
                 # Remove common list markers and clean up
-                name = name.lstrip("- â€¢Â·*0123456789.").strip()
+                name = name.lstrip("- •Â·*0123456789.").strip()
 
                 # Skip empty lines or very short names
                 if not name or len(name) <= 2:
@@ -664,7 +664,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
         candidate_lower = candidate.name.lower()
         # NOTE: constraint.value is always a str from ConstraintAnalyzer.
         # The truthiness guard handles empty strings correctly. Do NOT
-        # change to "is not None" â€” for hypothetical value=0, "0"
+        # change to "is not None" — for hypothetical value=0, "0"
         # would match nearly all content and inflate scores.
         value_lower = str(constraint.value).lower() if constraint.value else ""
         content_lower = content.lower()
@@ -1010,7 +1010,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                     for group_name, group_items in grouped.items():
                         summary += f"  {group_name}: {len(group_items)} items\n"
                         for item in group_items[:3]:
-                            summary += f"    â€¢ {item.name}\n"
+                            summary += f"    • {item.name}\n"
                         if len(group_items) > 3:
                             summary += (
                                 f"    ... and {len(group_items) - 3} more\n"
@@ -1036,11 +1036,11 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                 if evidence:
                     conf_str = f"{evidence.confidence:.0%}"
                     summary += (
-                        f"  â€¢ {constraint.description[:40]}...: {conf_str}\n"
+                        f"  • {constraint.description[:40]}...: {conf_str}\n"
                     )
                 else:
                     summary += (
-                        f"  â€¢ {constraint.description[:40]}...: No evidence\n"
+                        f"  • {constraint.description[:40]}...: No evidence\n"
                     )
 
             summary += f"  Overall Score: {candidate.score:.2f}\n\n"
@@ -1238,7 +1238,7 @@ Return one {entity_type} name per line. Only include names that could satisfy th
 
         # NOTE: constraint.value is always a str from ConstraintAnalyzer
         # (constraint_analyzer.py:91). Do NOT change this to
-        # "is not None" â€” for hypothetical non-string falsy values
+        # "is not None" — for hypothetical non-string falsy values
         # like 0.0, that would reject content missing the literal
         # string "0.0". The truthiness guard correctly skips empty
         # values, falling through to the quality check below.

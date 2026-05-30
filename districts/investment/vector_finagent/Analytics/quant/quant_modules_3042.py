@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Quantitative Quant Modules 3042 Module
 =================================
@@ -457,6 +458,8 @@ class AdvancedQuantAnalyzer(BaseCalculator):
                     }
 
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.quant.quant_modules_3042] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.quant.quant_modules_3042] caught Exception: %s", _sve)
                 results[algorithm] = {'error': str(e)}
 
         return self._create_result_dict(

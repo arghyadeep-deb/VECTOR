@@ -3,10 +3,7 @@ ScienceAgent — routes physics/chemistry/CAD/causal simulation tasks.
 Inherits AgentBase (HP system). Lazy-imports all heavy science deps.
 Registered in governor DISTRICT_TASK_MAP under 'science'.
 """
-import sys
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.agent_base import AgentBase

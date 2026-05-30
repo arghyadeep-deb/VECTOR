@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Analytics Engine Module
 =======================
 
@@ -504,6 +505,8 @@ class StatisticalAnalyzer(EconomicsBase):
                 'interpretation': 'Stationary' if result[1] < 0.05 else 'Non-stationary'
             }
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.economics.analytics_engine] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.analytics_engine] caught Exception: %s", _sve)
             logger.warning(f"Could not perform ADF test: {e}")
             return {'error': 'Could not perform stationarity test'}
 
@@ -724,9 +727,8 @@ class StatisticalAnalyzer(EconomicsBase):
                                 if fitted_model.aic < best_aic:
                                     best_aic = fitted_model.aic
                                     best_order = (p, d, q)
-                            except:
-                                continue
-
+                            except Exception:
+                                logger.debug("[VECTOR][Analytics.economics.analytics_engine] suppressed Exception in fallback")  # bare except
                 order = best_order
             elif order is None:
                 order = (1, 1, 1)  # Default ARIMA(1,1,1)

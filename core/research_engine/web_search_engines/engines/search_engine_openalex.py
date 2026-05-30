@@ -238,7 +238,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
             if response.status_code == 429:
                 # Rate limited (very rare with OpenAlex)
                 logger.warning("OpenAlex rate limit reached")
-                raise RateLimitError("OpenAlex rate limit exceeded")  # noqa: TRY301 â€” re-raised by except RateLimitError for base class retry
+                raise RateLimitError("OpenAlex rate limit exceeded")  # noqa: TRY301 — re-raised by except RateLimitError for base class retry
 
             logger.error(
                 f"OpenAlex API error: {response.status_code} - {response.text[:200]}"
@@ -266,7 +266,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
         """
         try:
             # Extract basic information
-            # Use `or` instead of dict.get default â€” OpenAlex routinely
+            # Use `or` instead of dict.get default — OpenAlex routinely
             # returns these keys with explicit None values, which would
             # bypass the default and crash on downstream string ops.
             work_id = work.get("id") or ""
@@ -335,7 +335,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
 
             # Extract author affiliations for the institution-tier scoring.
             # Each entry is a dict with the OpenAlex institution id, ROR id,
-            # and display name â€” the lookup_institution() helper accepts any
+            # and display name — the lookup_institution() helper accepts any
             # of those three.
             affiliations: list[dict] = []
             seen_inst_ids: set[str] = set()

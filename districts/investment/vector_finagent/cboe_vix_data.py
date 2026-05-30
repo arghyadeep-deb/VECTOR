@@ -1,4 +1,5 @@
 """
+from loguru import logger
 CBOE VIX Data Fetcher
 CBOE VIX historical data and CBOE indices: VIX, VIX3M, VVIX, SKEW directly
 from the CBOE CDN CSV endpoint. Parses CSV and converts to JSON.
@@ -63,6 +64,8 @@ def _parse_csv(csv_text: str, start_date: str = None, end_date: str = None) -> A
             rows.append(clean)
         return {"data": rows, "count": len(rows)}
     except Exception as e:
+        logger.debug("[VECTOR][cboe_vix_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][cboe_vix_data] caught Exception: %s", _sve)
         return {"error": f"CSV parse error: {str(e)}"}
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 AKShare Index Data Wrapper
 Provides access to index data: constituents, weights, historical data, global indices
 """
@@ -70,6 +71,8 @@ def safe_call(func, *args, **kwargs):
                 continue
             return {"success": False, "error": f"Network error: {str(e)}", "data": [], "error_type": "network"}
         except Exception as e:
+            logger.debug("[VECTOR][akshare_index] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_index] caught Exception: %s", _sve)
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue

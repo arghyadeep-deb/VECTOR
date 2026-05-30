@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "detect_terminal",
+    "Terminal",
+]
+
+
 from enum import Enum
 import os
 from typing import Literal

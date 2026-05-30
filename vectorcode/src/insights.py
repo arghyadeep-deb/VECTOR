@@ -10,11 +10,9 @@ Analyzes session history from SessionDB for:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 try:
     from core.config import CONFIG

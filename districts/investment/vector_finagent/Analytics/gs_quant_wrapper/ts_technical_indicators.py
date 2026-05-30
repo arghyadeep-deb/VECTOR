@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Timeseries: Technical Indicators
 ===========================================
 
@@ -164,7 +165,9 @@ def trend(x: Series, w: int = 20) -> Series:
         try:
             slope = np.polyfit(t, y, 1)[0]
             return slope
-        except:
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.ts_technical_indicators] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.ts_technical_indicators] caught Exception: %s", _sve)
             return 0.0
 
     return x.rolling(window=w).apply(_slope, raw=True)

@@ -12,12 +12,16 @@ the .md context is only injected when no system message is already present.
 """
 from __future__ import annotations
 
+__all__ = [
+    "DistrictLLM",
+    "load_district_prompt",
+]
+
+
 import re
-import sys
 from pathlib import Path
 from functools import lru_cache
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.resilience.circuit_breaker import CircuitBreakerOpenError

@@ -1,9 +1,12 @@
 """Research benchmark: 15 prompts covering summarization, analysis, explanation, comparison."""
 
-import sys
-from pathlib import Path
+
+__all__ = [
+    "RESEARCH_PROMPTS",
+    "ResearchBenchmark",
+]
+
 from typing import Callable
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 

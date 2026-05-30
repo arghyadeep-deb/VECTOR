@@ -4,6 +4,12 @@ LLM-specific rate limit error detection.
 
 from loguru import logger
 
+__all__ = [
+    "extract_retry_after",
+    "is_llm_rate_limit_error",
+]
+
+
 
 def is_llm_rate_limit_error(error: BaseException) -> bool:
     """

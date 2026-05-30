@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Agent Evolution System
 Self-learning agents that improve from trading history
 """
@@ -305,6 +306,8 @@ class AgentEvolution:
             }
 
         except Exception as e:
+            logger.debug("[VECTOR][agno_trading.core.agent_evolution] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.agent_evolution] caught Exception: %s", _sve)
             print(f"[Evolution] Error: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)

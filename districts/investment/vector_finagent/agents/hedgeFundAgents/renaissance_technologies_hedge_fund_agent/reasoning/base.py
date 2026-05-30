@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Base Reasoning Infrastructure
 
 Core reasoning engine for Renaissance Technologies multi-agent system.
@@ -234,6 +235,8 @@ class ReasoningEngine:
             })
             self._model_available = True
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.base] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.base] caught Exception: %s", _sve)
             print(f"Warning: Could not initialize reasoning model: {e}")
             self._model_available = False
 

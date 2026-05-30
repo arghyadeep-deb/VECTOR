@@ -13,8 +13,16 @@ Usage:
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+__all__ = [
+    "get_agent_registry",
+    "get_context_engine",
+    "get_decision_engine",
+    "get_episodic_memory",
+    "get_permission_gateway",
+    "ServiceLocator",
+]
+
 
 from fastapi import Depends, HTTPException, Request
 from loguru import logger

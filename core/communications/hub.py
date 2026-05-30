@@ -1,5 +1,5 @@
 """
-core/communications/hub.py â€” Unified CommsHub (Phase 3C).
+core/communications/hub.py — Unified CommsHub (Phase 3C).
 
 Routes outbound messages to any configured platform adapter from
 vectorcode.src.comms.*. Incoming messages are polled and published

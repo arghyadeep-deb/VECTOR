@@ -13,7 +13,6 @@ Architecture:
 Security: every cross-machine task is HMAC-SHA256 signed. Replay protection
 via timestamp + nonce. Only registered peers accepted.
 """
-import sys
 import asyncio
 import datetime
 import hashlib
@@ -22,9 +21,7 @@ import json
 import os
 import uuid
 import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

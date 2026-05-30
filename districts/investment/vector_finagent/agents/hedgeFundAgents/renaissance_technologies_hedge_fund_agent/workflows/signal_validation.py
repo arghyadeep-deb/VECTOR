@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Signal Validation Workflow
 
 Workflow for validating discovered signals before they go to
@@ -297,6 +298,8 @@ Provide comprehensive review for IC decision.
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_validation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_validation] caught Exception: %s", _sve)
             return RunResponse(
                 content=f"Signal validation workflow failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

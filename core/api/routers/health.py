@@ -1,14 +1,21 @@
 """VECTOR health router - /health/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "aggregate_biometrics",
+    "check_fatigue",
+    "health_status",
+    "log_exercise",
+    "LogExerciseReq",
+    "router",
+    "track_sleep",
+    "TrackSleepReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/health", tags=["health"])
-
-
 
 
 @router.get("/check-fatigue")

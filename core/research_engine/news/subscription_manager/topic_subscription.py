@@ -4,6 +4,12 @@ Topics are extracted from news analysis and can evolve over time.
 """
 
 from typing import Optional, Dict, Any, List
+
+__all__ = [
+    "TopicSubscription",
+    "TopicSubscriptionFactory",
+]
+
 from loguru import logger
 
 from .base_subscription import BaseSubscription

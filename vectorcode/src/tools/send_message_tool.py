@@ -236,8 +236,8 @@ def _handle_send(args):
         # Weixin can be configured purely via .env; synthesize a pconfig so
         # send_message and cron delivery work without a gateway.yaml entry.
         if platform_name == "weixin":
-            wx_token = os.getenv("WEIXIN_TOKEN", "").strip()
-            wx_account = os.getenv("WEIXIN_ACCOUNT_ID", "").strip()
+            wx_token = os.environ.get("WEIXIN_TOKEN", "").strip()
+            wx_account = os.environ.get("WEIXIN_ACCOUNT_ID", "").strip()
             if wx_token and wx_account:
                 from gateway.config import PlatformConfig
                 pconfig = PlatformConfig(
@@ -245,8 +245,8 @@ def _handle_send(args):
                     token=wx_token,
                     extra={
                         "account_id": wx_account,
-                        "base_url": os.getenv("WEIXIN_BASE_URL", "").strip(),
-                        "cdn_base_url": os.getenv("WEIXIN_CDN_BASE_URL", "").strip(),
+                        "base_url": os.environ.get("WEIXIN_BASE_URL", "").strip(),
+                        "cdn_base_url": os.environ.get("WEIXIN_CDN_BASE_URL", "").strip(),
                     },
                 )
             else:
@@ -263,7 +263,7 @@ def _handle_send(args):
     if not chat_id:
         home = config.get_home_channel(platform)
         if not home and platform_name == "weixin":
-            wx_home = os.getenv("WEIXIN_HOME_CHANNEL", "").strip()
+            wx_home = os.environ.get("WEIXIN_HOME_CHANNEL", "").strip()
             if wx_home:
                 from gateway.config import HomeChannel
                 home = HomeChannel(platform=platform, chat_id=wx_home, name="Weixin Home")
@@ -1078,11 +1078,11 @@ async def _send_email(extra, chat_id, message):
     from email.mime.text import MIMEText
     from email.utils import formatdate
 
-    address = extra.get("address") or os.getenv("EMAIL_ADDRESS", "")
-    password = os.getenv("EMAIL_PASSWORD", "")
-    smtp_host = extra.get("smtp_host") or os.getenv("EMAIL_SMTP_HOST", "")
+    address = extra.get("address") or os.environ.get("EMAIL_ADDRESS", "")
+    password = os.environ.get("EMAIL_PASSWORD", "")
+    smtp_host = extra.get("smtp_host") or os.environ.get("EMAIL_SMTP_HOST", "")
     try:
-        smtp_port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+        smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
     except (ValueError, TypeError):
         smtp_port = 587
 
@@ -1119,8 +1119,8 @@ async def _send_sms(auth_token, chat_id, message):
 
     import base64
 
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-    from_number = os.getenv("TWILIO_PHONE_NUMBER", "")
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    from_number = os.environ.get("TWILIO_PHONE_NUMBER", "")
     if not account_sid or not auth_token or not from_number:
         return {"error": "SMS not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER required)"}
 
@@ -1169,8 +1169,8 @@ async def _send_mattermost(token, extra, chat_id, message):
     except ImportError:
         return {"error": "aiohttp not installed. Run: pip install aiohttp"}
     try:
-        base_url = (extra.get("url") or os.getenv("MATTERMOST_URL", "")).rstrip("/")
-        token = token or os.getenv("MATTERMOST_TOKEN", "")
+        base_url = (extra.get("url") or os.environ.get("MATTERMOST_URL", "")).rstrip("/")
+        token = token or os.environ.get("MATTERMOST_TOKEN", "")
         if not base_url or not token:
             return {"error": "Mattermost not configured (MATTERMOST_URL, MATTERMOST_TOKEN required)"}
         url = f"{base_url}/api/v4/posts"
@@ -1197,8 +1197,8 @@ async def _send_matrix(token, extra, chat_id, message):
     except ImportError:
         return {"error": "aiohttp not installed. Run: pip install aiohttp"}
     try:
-        homeserver = (extra.get("homeserver") or os.getenv("MATRIX_HOMESERVER", "")).rstrip("/")
-        token = token or os.getenv("MATRIX_ACCESS_TOKEN", "")
+        homeserver = (extra.get("homeserver") or os.environ.get("MATRIX_HOMESERVER", "")).rstrip("/")
+        token = token or os.environ.get("MATRIX_ACCESS_TOKEN", "")
         if not homeserver or not token:
             return {"error": "Matrix not configured (MATRIX_HOMESERVER, MATRIX_ACCESS_TOKEN required)"}
         txn_id = f"vector_{int(time.time() * 1000)}_{os.urandom(4).hex()}"
@@ -1297,8 +1297,8 @@ async def _send_homeassistant(token, extra, chat_id, message):
     except ImportError:
         return {"error": "aiohttp not installed. Run: pip install aiohttp"}
     try:
-        hass_url = (extra.get("url") or os.getenv("HASS_URL", "")).rstrip("/")
-        token = token or os.getenv("HASS_TOKEN", "")
+        hass_url = (extra.get("url") or os.environ.get("HASS_URL", "")).rstrip("/")
+        token = token or os.environ.get("HASS_TOKEN", "")
         if not hass_url or not token:
             return {"error": "Home Assistant not configured (HASS_URL, HASS_TOKEN required)"}
         url = f"{hass_url}/api/services/notify/notify"
@@ -1327,7 +1327,7 @@ async def _send_dingtalk(extra, chat_id, message):
     except ImportError:
         return {"error": "httpx not installed"}
     try:
-        webhook_url = extra.get("webhook_url") or os.getenv("DINGTALK_WEBHOOK_URL", "")
+        webhook_url = extra.get("webhook_url") or os.environ.get("DINGTALK_WEBHOOK_URL", "")
         if not webhook_url:
             return {"error": "DingTalk not configured. Set DINGTALK_WEBHOOK_URL env var or webhook_url in dingtalk platform extra config."}
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1502,9 +1502,9 @@ async def _send_qqbot(pconfig, chat_id, message):
         return _error("QQBot direct send requires httpx. Run: pip install httpx")
 
     extra = pconfig.extra or {}
-    appid = extra.get("app_id") or os.getenv("QQ_APP_ID", "")
+    appid = extra.get("app_id") or os.environ.get("QQ_APP_ID", "")
     secret = (pconfig.token or extra.get("client_secret")
-              or os.getenv("QQ_CLIENT_SECRET", ""))
+              or os.environ.get("QQ_CLIENT_SECRET", ""))
     if not appid or not secret:
         return _error("QQBot: QQ_APP_ID / QQ_CLIENT_SECRET not configured.")
 

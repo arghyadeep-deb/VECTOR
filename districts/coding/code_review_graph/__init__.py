@@ -7,13 +7,11 @@ Provides: build_graph(), query_impact(), find_large_functions(), search_code()
 Repo: C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/GitHub/tirth8205_code-review-graph/repo
 Install: pip install code-review-graph  (or use local repo path)
 """
-import sys
 from pathlib import Path
 
 _CRG_REPO = Path(__file__).parent.parent.parent.parent.parent / \
     "GitHub/tirth8205_code-review-graph/repo"
 if _CRG_REPO.exists():
-    sys.path.insert(0, str(_CRG_REPO))
 
 from loguru import logger
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FFN Analytics Engine - Core Module
 ==================================
 
@@ -184,6 +185,8 @@ class FFNAnalyticsEngine:
                 result = func(*args, **kwargs)
                 return safe_float(result)
             except Exception:
+                logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_analytics] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_analytics] caught Exception: %s", _sve)
                 return None
 
         # Try to create PerformanceStats object (may fail with edge cases)

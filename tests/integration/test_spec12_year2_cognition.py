@@ -4,12 +4,10 @@ Tests for:
   - core/brain/person_model.py (Gap 7: theory of mind per person)
   - core/city/meta_cognition.py (Gap 8: bias detection + calibration)
 """
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.brain.person_model import PersonModel
 from core.city.meta_cognition import MetaCognition

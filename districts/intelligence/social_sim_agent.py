@@ -20,12 +20,10 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Activate districts/intelligence/vector_social_sim/ path so "from app.X" imports resolve
 _MIRO_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_social_sim"
 if str(_MIRO_DIR) not in sys.path:
-    sys.path.insert(0, str(_MIRO_DIR))
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase

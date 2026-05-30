@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Sentinel Hub Data Fetcher
 Access to satellite imagery for financial analysis and alternative data
 Returns JSON output for Qt/C++ integration
@@ -171,6 +172,8 @@ def get_access_token() -> Dict[str, Any]:
         return {"error": "Connection error during authentication"}
 
     except Exception as e:
+        logger.debug("[VECTOR][sentinelhub_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][sentinelhub_data] caught Exception: %s", _sve)
         return {"error": f"Authentication error: {str(e)}"}
 
 def _make_catalog_request(search_params: Dict[str, Any]) -> Dict[str, Any]:

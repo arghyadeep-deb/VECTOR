@@ -6,6 +6,7 @@
 """Cloud inference engine — OpenAI, Anthropic, Google, and MiniMax API backends."""
 
 from __future__ import annotations
+from loguru import logger
 
 import json
 import os

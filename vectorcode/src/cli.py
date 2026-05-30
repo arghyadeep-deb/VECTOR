@@ -40,8 +40,6 @@ import argparse
 import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 # Suppress INFO/DEBUG logs — only show WARNING+ in interactive CLI
 from loguru import logger
@@ -632,7 +630,6 @@ def cmd_usage(args):
     except (TypeError, ValueError):
         days = 30
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from insights import InsightsEngine
         print(InsightsEngine().format_terminal(days=days))
     except Exception as e:
@@ -665,7 +662,6 @@ def cmd_auth(args):
     action = getattr(args, "action", "list") or "list"
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         # Try the rich VectorCode auth module
         from vector_cli import auth_commands as _auth_cmds
@@ -709,7 +705,6 @@ def cmd_profile(args):
     action = getattr(args, "profile_action", "list") or "list"
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from vector_cli import profiles as _profiles
         if action == "list":
@@ -779,7 +774,6 @@ def cmd_doctor(args):
     # VectorCode core
     print()
     print("VectorCode core:")
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     for mod in ["engine", "tools.registry", "providers", "session_db", "credentials", "memory.manager"]:
         try:
             __import__(mod)
@@ -808,7 +802,6 @@ def cmd_vector_cli_dispatch(module_name: str):
     def _dispatch(args):
         import sys, importlib
         from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         try:
             mod = importlib.import_module(f"vector_cli.{module_name}")
         except ImportError as e:
@@ -842,7 +835,6 @@ def cmd_self_update(args):
     """Upgrade VectorCode to the latest version."""
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from cli.self_update import self_update
         docker = getattr(args, "docker", False)
@@ -858,7 +850,6 @@ def cmd_version(_args):
     """Print VectorCode version."""
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from cli.self_update import get_current_version
         print(f"vectorcode {get_current_version()}")
@@ -871,7 +862,6 @@ def cmd_cron(args):
     action = getattr(args, "action", "list") or "list"
     import sys, sqlite3, json
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
 
     db_path = Path.home() / ".vectorcode" / "cron.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -952,8 +942,6 @@ def cmd_plugins(args):
     action = getattr(args, "action", "list") or "list"
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     if action == "list":
         from plugins.loader import discover_plugins
         plugins = discover_plugins()
@@ -976,7 +964,6 @@ def cmd_tools(args):
         _vc = str(Path(__file__).parent)
         for p in [_py, _vc]:
             if p not in sys.path:
-                sys.path.insert(0, p)
 
         # Import tools to trigger self-registration (use discovery from registry)
         from tools.registry import registry, discover_builtin_tools
@@ -1302,10 +1289,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
 
 

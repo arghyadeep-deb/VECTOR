@@ -15,12 +15,10 @@ The .md file IS the agent — Python just gives it VECTOR district infrastructur
 """
 from __future__ import annotations
 
-import sys
 import re
 import asyncio
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.agent_base import AgentBase

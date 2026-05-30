@@ -1,4 +1,5 @@
 """
+from loguru import logger
 OECD Data Fetcher
 Modular, fault-tolerant wrapper for OECD economic data using SDMX RESTful API
 Sources: OECD SDMX API (https://sdmx.oecd.org/public/rest/)
@@ -270,6 +271,8 @@ class OECDWrapper:
                 try:
                     return {"success": True, "data": response.text, "format": "json"}
                 except Exception as e:
+                    logger.debug("[VECTOR][oecd_data] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][oecd_data] caught Exception: %s", _sve)
                     return {"error": f"JSON parsing error: {str(e)}", "json_error": True}
             elif 'xml' in content_type or format_type == 'xml':
                 try:

@@ -1,6 +1,5 @@
 """Shim: re-exports from core.mining.cpu_pearl."""
-import sys
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent.parent))
+from loguru import logger
 try:
     from core.mining.cpu_pearl import *
 except ImportError:

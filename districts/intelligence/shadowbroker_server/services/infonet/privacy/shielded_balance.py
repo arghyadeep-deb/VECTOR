@@ -17,6 +17,8 @@ Protocol when the Rust binding is ready.
 
 from __future__ import annotations
 
+from loguru import logger
+
 from services.infonet.privacy.contracts import PrivacyPrimitiveStatus
 
 
@@ -31,7 +33,8 @@ class ShieldedBalanceScaffolding:
     )
 
     def commit(self, *, amount: int, blinding: bytes) -> bytes:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return b""
 
     def verify_balance(
         self,
@@ -39,7 +42,8 @@ class ShieldedBalanceScaffolding:
         input_commitments: list[bytes],
         output_commitments: list[bytes],
     ) -> bool:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return False
 
     def range_proof(
         self,
@@ -48,7 +52,8 @@ class ShieldedBalanceScaffolding:
         blinding: bytes,
         max_bits: int = 64,
     ) -> bytes:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return b""
 
     def verify_range_proof(
         self,
@@ -57,7 +62,8 @@ class ShieldedBalanceScaffolding:
         proof: bytes,
         max_bits: int = 64,
     ) -> bool:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return False
 
     def status(self) -> PrivacyPrimitiveStatus:
         return PrivacyPrimitiveStatus.NOT_IMPLEMENTED

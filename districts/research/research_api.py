@@ -16,12 +16,10 @@ Search engines (free, no API key required by default):
     news     → DuckDuckGo + Wikinews + The Guardian
     web      → DuckDuckGo + SearXNG (if running locally)
 """
-import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

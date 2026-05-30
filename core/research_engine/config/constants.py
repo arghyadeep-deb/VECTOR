@@ -1,5 +1,13 @@
 """Shared constants used across the codebase."""
 
+
+__all__ = [
+    "DEFAULT_LLAMACPP_URL",
+    "DEFAULT_LMSTUDIO_URL",
+    "DEFAULT_MAX_FILTERED_RESULTS",
+    "DEFAULT_OLLAMA_URL",
+]
+
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_LMSTUDIO_URL = "http://localhost:1234/v1"
 DEFAULT_LLAMACPP_URL = "http://localhost:8080/v1"

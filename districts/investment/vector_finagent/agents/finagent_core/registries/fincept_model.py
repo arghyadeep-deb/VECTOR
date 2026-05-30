@@ -1,4 +1,4 @@
-﻿"""
+"""
 Fincept LLM Model - Custom adapter for Fincept's built-in LLM endpoint.
 
 The /research/llm endpoint wraps GLM (via Anthropic API format at z.ai):

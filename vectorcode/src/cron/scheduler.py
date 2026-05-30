@@ -33,7 +33,6 @@ from typing import List, Optional
 # Add parent directory to path for imports BEFORE repo-level imports.
 # Without this, standalone invocations (e.g. after `vector update` reloads
 # the module) fail with ModuleNotFoundError for vector_time et al.
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from vector_constants import get_vector_home
 from vector_cli.config import load_config
@@ -140,11 +139,11 @@ def _get_home_target_chat_id(platform_name: str) -> str:
     env_var = _HOME_TARGET_ENV_VARS.get(platform_name.lower())
     if not env_var:
         return ""
-    value = os.getenv(env_var, "")
+    value = os.environ.get(env_var, "")
     if not value:
         legacy = _LEGACY_HOME_TARGET_ENV_VARS.get(env_var)
         if legacy:
-            value = os.getenv(legacy, "")
+            value = os.environ.get(legacy, "")
     return value
 
 
@@ -500,7 +499,7 @@ def _get_script_timeout() -> int:
         except Exception:
             logger.warning("Invalid patched _SCRIPT_TIMEOUT=%r; using env/config/default", _SCRIPT_TIMEOUT)
 
-    env_value = os.getenv("VECTOR_CRON_SCRIPT_TIMEOUT", "").strip()
+    env_value = os.environ.get("VECTOR_CRON_SCRIPT_TIMEOUT", "").strip()
     if env_value:
         try:
             timeout = int(float(env_value))
@@ -880,7 +879,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             if delivery_target.get("thread_id") is not None:
                 _VAR_MAP["VECTOR_CRON_AUTO_DELIVER_THREAD_ID"].set(str(delivery_target["thread_id"]))
 
-        model = job.get("model") or os.getenv("VECTOR_MODEL") or ""
+        model = job.get("model") or os.environ.get("VECTOR_MODEL") or ""
 
         # Load config.yaml for model, reasoning, prefill, toolsets, provider routing
         _cfg = {}
@@ -915,7 +914,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
 
         # Prefill messages from env or config.yaml
         prefill_messages = None
-        prefill_file = os.getenv("VECTOR_PREFILL_MESSAGES_FILE", "") or _cfg.get("prefill_messages_file", "")
+        prefill_file = os.environ.get("VECTOR_PREFILL_MESSAGES_FILE", "") or _cfg.get("prefill_messages_file", "")
         if prefill_file:
             pfpath = Path(prefill_file).expanduser()
             if not pfpath.is_absolute():
@@ -943,7 +942,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         from vector_cli.auth import AuthError
         try:
             runtime_kwargs = {
-                "requested": job.get("provider") or os.getenv("VECTOR_INFERENCE_PROVIDER"),
+                "requested": job.get("provider") or os.environ.get("VECTOR_INFERENCE_PROVIDER"),
             }
             if job.get("base_url"):
                 runtime_kwargs["explicit_base_url"] = job.get("base_url")
@@ -1030,7 +1029,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         #
         # Uses the agent's built-in activity tracker (updated by
         # _touch_activity() on every tool call, API call, and stream delta).
-        _cron_timeout = float(os.getenv("VECTOR_CRON_TIMEOUT", 600))
+        _cron_timeout = float(os.environ.get("VECTOR_CRON_TIMEOUT", 600))
         _cron_inactivity_limit = _cron_timeout if _cron_timeout > 0 else None
         _POLL_INTERVAL = 5.0
         _cron_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -1243,7 +1242,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
         # Set VECTOR_CRON_MAX_PARALLEL=1 to restore old serial behaviour.
         _max_workers: Optional[int] = None
         try:
-            _env_par = os.getenv("VECTOR_CRON_MAX_PARALLEL", "").strip()
+            _env_par = os.environ.get("VECTOR_CRON_MAX_PARALLEL", "").strip()
             if _env_par:
                 _max_workers = int(_env_par) or None
         except (ValueError, TypeError):

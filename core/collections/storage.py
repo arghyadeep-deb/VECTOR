@@ -21,7 +21,6 @@ __all__ = [
 ]
 
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import io
 import json

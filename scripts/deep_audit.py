@@ -3,6 +3,7 @@ Deep audit of vectorcode/src — broken imports, undefined references,
 wrong logic, missing return values, and wiring gaps.
 """
 from __future__ import annotations
+from loguru import logger
 import ast
 import sys
 from pathlib import Path

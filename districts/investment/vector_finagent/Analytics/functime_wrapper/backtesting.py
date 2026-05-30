@@ -12,6 +12,7 @@ Provides comprehensive backtesting for time series forecasting:
 Essential for validating forecasting models in production.
 """
 
+from loguru import logger
 import polars as pl
 import numpy as np
 from typing import Dict, List, Optional, Union, Any, Tuple, Callable

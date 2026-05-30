@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VBT Optimization Module
 
 Leverages VectorBT's vectorized parameter optimization:
@@ -301,7 +302,9 @@ def _run_vectorized_optimization(
                 try:
                     v = float(stats.get(key, default))
                     return v if np.isfinite(v) else default
-                except:
+                except Exception as _sve:
+                    logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_optimization] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_optimization] caught Exception: %s", _sve)
                     return default
 
             results.append({
@@ -382,9 +385,8 @@ def _evaluate_params(
             try:
                 v = float(stats.get(key, default))
                 return v if np.isfinite(v) else default
-            except:
-                return default
-
+            except Exception:
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_optimization] suppressed Exception in fallback")  # bare except
         return {
             'totalReturn': total_return,
             'sharpeRatio': safe_s('Sharpe Ratio'),

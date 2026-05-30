@@ -1,4 +1,5 @@
 """
+from loguru import logger
 EdgarTools — Agno-compatible toolkit wrapping the internal Fincept Edgar MCP.
 
 Exposes SEC EDGAR data as LLM-callable tools:
@@ -30,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Ensure the scripts root is on sys.path so mcp.edgar is importable
 _SCRIPTS_ROOT = str(Path(__file__).parent.parent.parent.parent)
 if _SCRIPTS_ROOT not in sys.path:
-    sys.path.insert(0, _SCRIPTS_ROOT)
 
 
 def _call(command: str, *args) -> str:
@@ -52,6 +52,8 @@ def _call(command: str, *args) -> str:
     except ImportError:
         return json.dumps({"error": "edgartools library not installed. Run: pip install edgartools"})
     except Exception as e:
+        logger.debug("[VECTOR][agents.finagent_core.tools.edgar_tools] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.tools.edgar_tools] caught Exception: %s", _sve)
         return json.dumps({"error": str(e)})
 
 

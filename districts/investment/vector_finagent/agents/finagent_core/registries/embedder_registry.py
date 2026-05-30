@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Embedder Registry - Unified access to 18+ embedding providers
 
 Provides lazy loading and standardized embedder creation for RAG.
@@ -233,6 +234,8 @@ class EmbedderRegistry:
         except ImportError as e:
             raise ImportError(f"Failed to import embedder '{provider}': {e}")
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.registries.embedder_registry] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.registries.embedder_registry] caught Exception: %s", _sve)
             raise RuntimeError(f"Failed to create embedder '{provider}': {e}")
 
     @classmethod

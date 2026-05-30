@@ -11,16 +11,12 @@ asserts zero contamination from shell noise via _assert_clean().
 import pytest
 
 
-
-
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tools.environments.local import LocalEnvironment
 from tools.file_operations import ShellFileOperations

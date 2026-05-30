@@ -2,6 +2,7 @@
 VECTORHedge CLI — welcome screen and interactive REPL.
 """
 
+from loguru import logger
 import argparse
 import sys
 from pathlib import Path

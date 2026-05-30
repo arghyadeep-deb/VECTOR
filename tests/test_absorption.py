@@ -13,10 +13,8 @@ Coverage:
 All tests run without Ollama — LLM-dependent paths are tested for graceful fallback.
 """
 import asyncio
-import sys
 import time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 

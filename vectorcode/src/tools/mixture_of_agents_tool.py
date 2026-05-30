@@ -299,7 +299,7 @@ async def mixture_of_agents_tool(
         logger.info("Query: %s", user_prompt[:100])
         
         # Validate API key availability
-        if not os.getenv("OPENROUTER_API_KEY"):
+        if not os.environ.get("OPENROUTER_API_KEY"):
             raise ValueError("OPENROUTER_API_KEY environment variable not set")
         
         # Use provided models or defaults

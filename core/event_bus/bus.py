@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "AsyncEventBus",
+    "get_event_bus",
+    "reset_event_bus",
+]
+
+
 import asyncio
 import time
 from collections import deque
@@ -8,7 +15,9 @@ from typing import Any, Callable
 from loguru import logger
 
 from core.event_bus.base import EventBus, Subscription
-from core.event_bus.types import Event, EventType
+from core.event_bus.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from core.event_bus.rate_limiter import RateLimiter
+from core.event_bus.types import DirectMessage, Event, EventType
 
 
 class AsyncEventBus(EventBus):
@@ -17,11 +26,15 @@ class AsyncEventBus(EventBus):
         self._queues: dict[EventType, asyncio.Queue] = {}
         self._subscribers: dict[str, Subscription] = {}
         self._tasks: dict[str, asyncio.Task] = {}
+        self._rate_limiters: dict[str, RateLimiter] = {}
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._direct_handlers: dict[str, Callable] = {}
         self._lock = asyncio.Lock()
         self._max_queue_size = max_queue_size
         self._events_published = 0
         self._events_delivered = 0
         self._events_dropped = 0
+        self._direct_messages_sent = 0
         self._dead_letters: dict[str, deque] = {}
         self._dlq_maxlen = dlq_maxlen
         self._throttle_warning_pct = 0.9
@@ -41,6 +54,8 @@ class AsyncEventBus(EventBus):
         self._tasks.clear()
         self._subscribers.clear()
         self._queues.clear()
+        self._rate_limiters.clear()
+        self._circuit_breakers.clear()
         logger.info("[AsyncEventBus] stopped")
 
     async def publish(self, event: Event) -> None:
@@ -86,6 +101,8 @@ class AsyncEventBus(EventBus):
     def subscribe(self, event_type: EventType, handler: Callable[[Event], Any]) -> Subscription:
         sub = Subscription(event_type=event_type, handler=handler)
         self._subscribers[sub.id] = sub
+        self._rate_limiters[sub.id] = RateLimiter(name=sub.id, max_rate=100, time_window=1.0)
+        self._circuit_breakers[sub.id] = CircuitBreaker(name=sub.id, failure_threshold=5, recovery_timeout=30.0)
         task = asyncio.create_task(self._consumer_loop(sub))
         self._tasks[sub.id] = task
         logger.debug("[AsyncEventBus] subscriber {} registered for {}", sub.id[:8], event_type)
@@ -98,6 +115,8 @@ class AsyncEventBus(EventBus):
         if sub_id in self._tasks:
             self._tasks[sub_id].cancel()
             del self._tasks[sub_id]
+        self._rate_limiters.pop(sub_id, None)
+        self._circuit_breakers.pop(sub_id, None)
         logger.debug("[AsyncEventBus] subscriber {} unsubscribed", sub_id[:8])
 
     async def _consumer_loop(self, subscription: Subscription) -> None:
@@ -108,19 +127,63 @@ class AsyncEventBus(EventBus):
             try:
                 queue = self._get_or_create_queue(sub_id, event_type)
                 event = await asyncio.wait_for(queue.get(), timeout=1.0)
-                try:
-                    result = handler(event)
-                    if asyncio.iscoroutine(result):
-                        await result
-                    self._events_delivered += 1
-                except Exception as exc:
-                    logger.error("[AsyncEventBus] handler error for sub {}: {}", sub_id[:8], exc)
+                rl = self._rate_limiters.get(sub_id)
+                if rl and not rl.allow():
+                    logger.debug("[AsyncEventBus] rate limited sub {} skipping event", sub_id[:8])
+                    continue
+                cb = self._circuit_breakers.get(sub_id)
+                if cb:
+                    try:
+                        if asyncio.iscoroutinefunction(handler):
+                            await cb.async_call(lambda h=handler, e=event: h(e))
+                        else:
+                            cb.call(lambda h=handler, e=event: h(e))
+                        self._events_delivered += 1
+                    except CircuitBreakerOpenError:
+                        logger.warning("[AsyncEventBus] circuit breaker OPEN for sub {}, dropping event", sub_id[:8])
+                else:
+                    try:
+                        result = handler(event)
+                        if asyncio.iscoroutine(result):
+                            await result
+                        self._events_delivered += 1
+                    except Exception as exc:
+                        logger.error("[AsyncEventBus] handler error for sub {}: {}", sub_id[:8], exc)
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.error("[AsyncEventBus] consumer loop error for sub {}: {}", sub_id[:8], exc)
+
+    def register_direct_handler(self, agent_id: str, handler: Callable) -> None:
+        self._direct_handlers[agent_id] = handler
+        logger.debug("[AsyncEventBus] direct handler registered for agent {}", agent_id[:8])
+
+    def unregister_direct_handler(self, agent_id: str) -> None:
+        self._direct_handlers.pop(agent_id, None)
+        logger.debug("[AsyncEventBus] direct handler unregistered for agent {}", agent_id[:8])
+
+    def deliver_direct(self, message: DirectMessage) -> bool:
+        handler = self._direct_handlers.get(message.recipient)
+        if handler is None:
+            logger.warning("[AsyncEventBus] no direct handler for agent {}", message.recipient[:8])
+            return False
+        try:
+            result = handler(message)
+            if asyncio.iscoroutine(result):
+                asyncio.ensure_future(result)
+            self._direct_messages_sent += 1
+            return True
+        except Exception as exc:
+            logger.error("[AsyncEventBus] direct handler error for agent {}: {}", message.recipient[:8], exc)
+            return False
+
+    def get_circuit_breaker(self, sub_id: str) -> CircuitBreaker | None:
+        return self._circuit_breakers.get(sub_id)
+
+    def get_rate_limiter(self, sub_id: str) -> RateLimiter | None:
+        return self._rate_limiters.get(sub_id)
 
     def get_stats(self) -> dict[str, Any]:
         return {
@@ -134,6 +197,14 @@ class AsyncEventBus(EventBus):
                 k.rsplit(":", 1)[-1]: q.qsize()
                 for k, q in self._queues.items()
             },
+            "rate_limiters": {
+                k[:8]: v.get_stats() for k, v in self._rate_limiters.items()
+            },
+            "circuit_breakers": {
+                k[:8]: v.get_stats() for k, v in self._circuit_breakers.items()
+            },
+            "direct_handlers": len(self._direct_handlers),
+            "direct_messages_sent": self._direct_messages_sent,
         }
 
 

@@ -13,6 +13,22 @@ Provides endpoints for delete operations:
 
 from flask import Blueprint, jsonify, request, session
 
+__all__ = [
+    "delete_bp",
+    "delete_collection",
+    "delete_collection_index",
+    "delete_document",
+    "delete_document_blob",
+    "delete_documents_blobs_bulk",
+    "delete_documents_bulk",
+    "get_bulk_deletion_preview",
+    "get_collection_deletion_preview",
+    "get_document_deletion_preview",
+    "remove_document_from_collection",
+    "remove_documents_from_collection_bulk",
+]
+
+
 
 from ....web.auth.decorators import login_required
 from ...utils import handle_api_error

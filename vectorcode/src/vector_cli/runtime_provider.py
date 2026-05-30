@@ -304,7 +304,7 @@ def resolve_requested_provider(requested: Optional[str] = None) -> str:
 
     # Prefer the persisted config selection over any stale shell/.env
     # provider override so chat uses the endpoint the user last saved.
-    env_provider = os.getenv("VECTOR_INFERENCE_PROVIDER", "").strip().lower()
+    env_provider = os.environ.get("VECTOR_INFERENCE_PROVIDER", "").strip().lower()
     if env_provider:
         return env_provider
 
@@ -372,7 +372,7 @@ def _get_named_custom_provider(requested_provider: str) -> Optional[Dict[str, An
             name_norm = _normalize_custom_provider_name(ep_name)
             # Resolve the API key from the env var name stored in key_env
             key_env = str(entry.get("key_env", "") or "").strip()
-            resolved_api_key = os.getenv(key_env, "").strip() if key_env else ""
+            resolved_api_key = os.environ.get(key_env, "").strip() if key_env else ""
             # Fall back to inline api_key when key_env is absent or unresolvable
             if not resolved_api_key:
                 resolved_api_key = str(entry.get("api_key", "") or "").strip()
@@ -489,9 +489,9 @@ def _resolve_named_custom_runtime(
     api_key_candidates = [
         (explicit_api_key or "").strip(),
         str(custom_provider.get("api_key", "") or "").strip(),
-        os.getenv(str(custom_provider.get("key_env", "") or "").strip(), "").strip(),
-        os.getenv("OPENAI_API_KEY", "").strip(),
-        os.getenv("OPENROUTER_API_KEY", "").strip(),
+        os.environ.get(str(custom_provider.get("key_env", "") or "").strip(), "").strip(),
+        os.environ.get("OPENAI_API_KEY", "").strip(),
+        os.environ.get("OPENROUTER_API_KEY", "").strip(),
     ]
     api_key = next((candidate for candidate in api_key_candidates if has_usable_secret(candidate)), "")
 
@@ -529,8 +529,8 @@ def _resolve_openrouter_runtime(
     requested_norm = (requested_provider or "").strip().lower()
     cfg_provider = cfg_provider.strip().lower()
 
-    env_openrouter_base_url = os.getenv("OPENROUTER_BASE_URL", "").strip()
-    env_custom_base_url = os.getenv("CUSTOM_BASE_URL", "").strip()
+    env_openrouter_base_url = os.environ.get("OPENROUTER_BASE_URL", "").strip()
+    env_custom_base_url = os.environ.get("CUSTOM_BASE_URL", "").strip()
 
     # Use config base_url when available and the provider context matches.
     # OPENAI_BASE_URL env var is no longer consulted — config.yaml is
@@ -562,8 +562,8 @@ def _resolve_openrouter_runtime(
     if _is_openrouter_url:
         api_key_candidates = [
             explicit_api_key,
-            os.getenv("OPENROUTER_API_KEY"),
-            os.getenv("OPENAI_API_KEY"),
+            os.environ.get("OPENROUTER_API_KEY"),
+            os.environ.get("OPENAI_API_KEY"),
         ]
     else:
         # Custom endpoint: use api_key from config when using config base_url (#1760).
@@ -577,9 +577,9 @@ def _resolve_openrouter_runtime(
         api_key_candidates = [
             explicit_api_key,
             (cfg_api_key if use_config_base_url else ""),
-            (os.getenv("OLLAMA_API_KEY") if _is_ollama_url else ""),
-            os.getenv("OPENAI_API_KEY"),
-            os.getenv("OPENROUTER_API_KEY"),
+            (os.environ.get("OLLAMA_API_KEY") if _is_ollama_url else ""),
+            os.environ.get("OPENAI_API_KEY"),
+            os.environ.get("OPENROUTER_API_KEY"),
         ]
     api_key = next(
         (str(candidate or "").strip() for candidate in api_key_candidates if has_usable_secret(candidate)),
@@ -659,7 +659,7 @@ def _resolve_azure_foundry_runtime(
         if inferred:
             cfg_api_mode = inferred
 
-    env_base_url = os.getenv("AZURE_FOUNDRY_BASE_URL", "").strip().rstrip("/")
+    env_base_url = os.environ.get("AZURE_FOUNDRY_BASE_URL", "").strip().rstrip("/")
     base_url = explicit_base_url_clean or cfg_base_url or env_base_url
     if not base_url:
         raise AuthError(
@@ -675,7 +675,7 @@ def _resolve_azure_foundry_runtime(
         except Exception:
             api_key = ""
     if not api_key:
-        api_key = os.getenv("AZURE_FOUNDRY_API_KEY", "").strip()
+        api_key = os.environ.get("AZURE_FOUNDRY_API_KEY", "").strip()
     if not api_key:
         raise AuthError(
             "Azure Foundry requires an API key. Set AZURE_FOUNDRY_API_KEY in "
@@ -770,8 +770,8 @@ def _resolve_explicit_runtime(
         expires_at = state.get("agent_key_expires_at") or state.get("expires_at")
         if not api_key:
             creds = resolve_nous_runtime_credentials(
-                min_key_ttl_seconds=max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
-                timeout_seconds=float(os.getenv("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
+                min_key_ttl_seconds=max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
+                timeout_seconds=float(os.environ.get("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
             )
             api_key = creds.get("api_key", "")
             expires_at = creds.get("expires_at")
@@ -800,7 +800,7 @@ def _resolve_explicit_runtime(
     if pconfig and pconfig.auth_type == "api_key":
         env_url = ""
         if pconfig.base_url_env_var:
-            env_url = os.getenv(pconfig.base_url_env_var, "").strip().rstrip("/")
+            env_url = os.environ.get(pconfig.base_url_env_var, "").strip().rstrip("/")
 
         base_url = explicit_base_url
         if not base_url:
@@ -872,8 +872,8 @@ def resolve_runtime_provider(
     if requested_provider == "anthropic" and "azure.com" in _eff_base:
         _azure_key = (
             (explicit_api_key or "").strip()
-            or os.getenv("AZURE_ANTHROPIC_KEY", "").strip()
-            or os.getenv("ANTHROPIC_API_KEY", "").strip()
+            or os.environ.get("AZURE_ANTHROPIC_KEY", "").strip()
+            or os.environ.get("ANTHROPIC_API_KEY", "").strip()
         )
         return {
             "provider": "anthropic",
@@ -928,8 +928,8 @@ def resolve_runtime_provider(
     if provider == "openrouter":
         cfg_provider = str(model_cfg.get("provider") or "").strip().lower()
         cfg_base_url = str(model_cfg.get("base_url") or "").strip()
-        env_openai_base_url = os.getenv("OPENAI_BASE_URL", "").strip()
-        env_openrouter_base_url = os.getenv("OPENROUTER_BASE_URL", "").strip()
+        env_openai_base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+        env_openrouter_base_url = os.environ.get("OPENROUTER_BASE_URL", "").strip()
         has_custom_endpoint = bool(
             explicit_base_url
             or env_openai_base_url
@@ -963,7 +963,7 @@ def resolve_runtime_provider(
         # expired, clear pool_api_key so we fall through to
         # resolve_nous_runtime_credentials() which handles refresh + mint.
         if provider == "nous" and entry is not None and pool_api_key:
-            min_ttl = max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800")))
+            min_ttl = max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800")))
             nous_state = {
                 "agent_key": getattr(entry, "agent_key", None),
                 "agent_key_expires_at": getattr(entry, "agent_key_expires_at", None),
@@ -984,8 +984,8 @@ def resolve_runtime_provider(
     if provider == "nous":
         try:
             creds = resolve_nous_runtime_credentials(
-                min_key_ttl_seconds=max(60, int(os.getenv("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
-                timeout_seconds=float(os.getenv("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
+                min_key_ttl_seconds=max(60, int(os.environ.get("VECTOR_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
+                timeout_seconds=float(os.environ.get("VECTOR_NOUS_TIMEOUT_SECONDS", "15")),
             )
             return {
                 "provider": "nous",
@@ -1097,8 +1097,8 @@ def resolve_runtime_provider(
         )
         if _is_azure_endpoint:
             token = (
-                os.getenv("AZURE_ANTHROPIC_KEY", "").strip()
-                or os.getenv("ANTHROPIC_API_KEY", "").strip()
+                os.environ.get("AZURE_ANTHROPIC_KEY", "").strip()
+                or os.environ.get("ANTHROPIC_API_KEY", "").strip()
             )
             if not token:
                 raise AuthError(

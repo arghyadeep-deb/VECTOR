@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Derivatives Utils Module
 =================================
@@ -343,6 +344,8 @@ class OptimizationSolver:
                 x = x_new
 
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.derivatives.utils] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.derivatives.utils] caught Exception: %s", _sve)
                 return {"success": False, "message": str(e), "iterations": i}
 
         return {"success": False, "message": "Max iterations reached", "iterations": max_iterations}

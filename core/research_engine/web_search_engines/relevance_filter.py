@@ -8,7 +8,7 @@ or "[0, 2, 5]" and dodges all the structured-output provider quirks
 
 Design notes:
 - An empty LLM response is treated as a valid judgment ("none of these
-  results are relevant"). We do not second-guess the model â€” if the
+  results are relevant"). We do not second-guess the model — if the
   filter says reject all, we reject all, and log a warning so users
   can notice if their chosen model is misbehaving.
 - On exception (network error, parse failure, provider outage) the
@@ -63,7 +63,7 @@ _INT_RE = re.compile(r"(?<![\w.])\d+\b")
 # 10 Ã— ~15s already brushes against the old 120s bound. 300s leaves
 # room for slow-but-progressing work on serialized backends while still
 # flagging genuine hangs. The sequential (workers==1) path does not
-# apply this â€” only the parallel branch uses ``as_completed``.
+# apply this — only the parallel branch uses ``as_completed``.
 # Without a bound here a stuck Ollama socket would block the pipeline
 # indefinitely, because langchain-ollama's httpx client has no default
 # socket timeout.
@@ -72,7 +72,7 @@ _FILTER_WALL_TIMEOUT_S = 300.0
 
 # Per-preview snippet character cap. The snippet field often carries the
 # paper abstract for academic engines (arxiv, semantic scholar, pubmed).
-# 200 was too tight â€” it truncated abstracts before the judge could tell
+# 200 was too tight — it truncated abstracts before the judge could tell
 # whether a paper's primary topic actually matches the query, leading to
 # "paper mentions LLMs in passing" sources leaking past the filter. 800
 # comfortably fits a typical abstract opening while keeping total prompt
@@ -88,7 +88,7 @@ Current date: {current_date}
 Search results:
 {preview_text}
 
-Direct topic match matters more than keyword match â€” results that just mention the query terms usually don't help.
+Direct topic match matters more than keyword match — results that just mention the query terms usually don't help.
 
 Output ONLY the 0-based indices of relevant results as a comma-separated list, nothing else.
 Example: 0, 2, 5"""  # noqa: S608
@@ -120,7 +120,7 @@ def _build_batch_prompt(
 
     Indices in the prompt are local to the batch (0..len(batch)-1).
     ``total_in_full`` is the size of the original full preview list,
-    shown to the model for context â€” it doesn't affect the index range.
+    shown to the model for context — it doesn't affect the index range.
     ``prompt_template`` is passed in (defaulting at the public entry
     point) rather than read from a module global, so eval harnesses can
     test variants without monkey-patching module state.
@@ -208,7 +208,7 @@ def filter_previews_for_relevance(
     unavailable_cap = max_filtered_results or DEFAULT_MAX_FILTERED_RESULTS
 
     # Determine batch boundaries. A batch_size of None or 0 means
-    # "single batch" â€” process all previews in one LLM call.
+    # "single batch" — process all previews in one LLM call.
     effective_batch = (
         batch_size if (batch_size and batch_size > 0) else len(previews)
     )
@@ -241,12 +241,12 @@ def filter_previews_for_relevance(
                 )
             except Exception:
                 logger.exception(
-                    f"[{engine_name}] batch {i} failed â€” skipping its results"
+                    f"[{engine_name}] batch {i} failed — skipping its results"
                 )
     else:
         # Not using ``with ThreadPoolExecutor(...) as pool:`` on purpose.
         # ``__exit__`` calls ``shutdown(wait=True)`` which blocks on any
-        # still-running worker â€” defeating the whole point of the
+        # still-running worker — defeating the whole point of the
         # timeout when a worker is stuck on an Ollama HTTP call. We
         # manage the pool lifetime explicitly and always shut down with
         # ``wait=False`` so timed-out batches are orphaned (they'll
@@ -275,7 +275,7 @@ def filter_previews_for_relevance(
                         results_per_batch[i] = fut.result()
                     except Exception:
                         logger.exception(
-                            f"[{engine_name}] batch {i} failed â€” skipping"
+                            f"[{engine_name}] batch {i} failed — skipping"
                         )
             except FuturesTimeoutError:
                 pending = [
@@ -283,23 +283,23 @@ def filter_previews_for_relevance(
                 ]
                 logger.warning(
                     f"[{engine_name}] {len(pending)} batch(es) still "
-                    f"running after {_FILTER_WALL_TIMEOUT_S}s â€” abandoning "
+                    f"running after {_FILTER_WALL_TIMEOUT_S}s — abandoning "
                     f"(pending indices: {pending})"
                 )
         finally:
             # ``cancel_futures=True`` only cancels queued futures the
             # executor hasn't started yet; already-running workers stay
-            # alive until their blocking call returns. We accept that â€”
+            # alive until their blocking call returns. We accept that —
             # the alternative is hanging forever.
             pool.shutdown(wait=False, cancel_futures=True)
     total_elapsed = time.monotonic() - t0
 
     # If no batch even completed, fall back to an unfiltered capped slice
-    # â€” otherwise downstream would receive zero results from a filter
+    # — otherwise downstream would receive zero results from a filter
     # outage rather than from a valid "all irrelevant" judgment.
     if all(r is None for r in results_per_batch):
         logger.error(
-            f"[{engine_name}] every relevance-filter batch failed â€” "
+            f"[{engine_name}] every relevance-filter batch failed — "
             f"returning first {unavailable_cap} previews as fallback"
         )
         return previews[:unavailable_cap]
@@ -355,7 +355,7 @@ def filter_previews_for_relevance(
         kept_indices = kept_indices[:max_filtered_results]
 
     # Log kept/removed/skipped. A preview is "skipped" when its batch
-    # raised or timed out â€” the judge never saw it â€” which is distinct
+    # raised or timed out — the judge never saw it — which is distinct
     # from "removed" (judge returned a verdict that dropped it).
     skipped_indices: set = set()
     for i, (batch_start, r) in enumerate(zip(batch_starts, results_per_batch)):

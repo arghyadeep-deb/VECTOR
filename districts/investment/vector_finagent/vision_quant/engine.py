@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VisionQuant Pattern Search Engine
 Core pattern recognition engine adapted from VisionQuant-Pro for VECTOR Financial Terminal.
 
@@ -22,7 +23,6 @@ os.environ["OMP_NUM_THREADS"] = "1"
 # Add parent for relative imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
 
 from utils import (
     get_data_dir, get_model_path, get_index_path, get_meta_path,
@@ -56,6 +56,8 @@ def _dtw_distance(s1, s2, window=5):
                 dtw[i, j] = cost + min(dtw[i - 1, j], dtw[i, j - 1], dtw[i - 1, j - 1])
         return dtw[n, m] / max(n, m)
     except Exception:
+        logger.debug("[VECTOR][vision_quant.engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][vision_quant.engine] caught Exception: %s", _sve)
         return float("inf")
 
 

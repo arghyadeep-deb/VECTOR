@@ -11,10 +11,7 @@ import sys
 import math
 import random
 import uuid
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 try:
     from core.config import CONFIG
 except ImportError:
@@ -179,10 +176,5 @@ if __name__ == "__main__":
         assert rev == 0, "reverse sync must return 0 (placeholder)"
 
     print("✅ auto_bridge.py OK")
-
-
-
-
-
 
 

@@ -1,5 +1,5 @@
 """
-VECTOR OFP â€” Open Federation Protocol for multi-device agent networking.
+VECTOR OFP — Open Federation Protocol for multi-device agent networking.
 
 Lets VECTOR instances on different machines (Legion Pro 5, cloud VM, phone)
 talk to each other and delegate tasks across the network.
@@ -11,17 +11,30 @@ Protocol:
   - JSON messages framed with 4-byte length prefix
 
 Message types:
-  PING / PONG        â€” health check
-  REGISTER           â€” announce this node to the network
-  TASK               â€” send a task to a remote VECTOR node
-  RESULT             â€” return task result
-  STATUS             â€” request node status
-  BROADCAST          â€” send to all known peers
-  SUBSCRIBE          â€” subscribe to events from a peer
+  PING / PONG        — health check
+  REGISTER           — announce this node to the network
+  TASK               — send a task to a remote VECTOR node
+  RESULT             — return task result
+  STATUS             — request node status
+  BROADCAST          — send to all known peers
+  SUBSCRIBE          — subscribe to events from a peer
 
 Ported from the agent OS agent OS P2P protocol.
 """
 from __future__ import annotations
+
+__all__ = [
+    "DEFAULT_PORT",
+    "MAX_MESSAGE_BYTES",
+    "NONCE_TTL_SECS",
+    "OFPMessage",
+    "OFPMessageType",
+    "OFPNode",
+    "PeerInfo",
+    "PROTOCOL_VERSION",
+    "TaskHandler",
+]
+
 
 import asyncio
 import hashlib
@@ -31,15 +44,12 @@ import os
 import secrets
 import ssl
 import struct
-import sys
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from pathlib import Path
 from typing import Callable, Awaitable
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 DEFAULT_PORT = 7790
@@ -205,7 +215,7 @@ class OFPNode:
             self._secret = _secret_env.encode()
         else:
             logger.warning(
-                "[VECTOR][ofp] Using DEFAULT shared secret â€” "
+                "[VECTOR][ofp] Using DEFAULT shared secret — "
                 "set VECTOR_OFP_SECRET env var for production"
             )
             self._secret = b"vector-default-secret"
@@ -220,8 +230,8 @@ class OFPNode:
     # ── TLS ───────────────────────────────────────────────────────────────────
 
     def _init_tls(self) -> ssl.SSLContext | None:
-        cert_path = os.getenv("VECTOR_OFP_CERT", "")
-        key_path = os.getenv("VECTOR_OFP_KEY", "")
+        cert_path = _C.get("ofp_cert", "")
+        key_path = _C.get("ofp_key", "")
         if cert_path and key_path:
             ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             ctx.load_cert_chain(cert_path, key_path)
@@ -381,7 +391,7 @@ class OFPNode:
                 logger.info("[VECTOR][ofp] registered with {}:{}", peer_host, peer_port)
             return ok
         except Exception as e:
-            logger.warning("[VECTOR][ofp] registration failed {}:{} â€” {}", peer_host, peer_port, e)
+            logger.warning("[VECTOR][ofp] registration failed {}:{} — {}", peer_host, peer_port, e)
             return False
 
     async def ping(self, peer_host: str, peer_port: int) -> float | None:
@@ -546,6 +556,6 @@ if __name__ == "__main__":
         await node_a.stop()
         await node_b.stop()
 
-        print("OK ofp_protocol.py â€” HMAC auth, replay protection, task delegation verified")
+        print("OK ofp_protocol.py — HMAC auth, replay protection, task delegation verified")
 
     asyncio.run(_test())

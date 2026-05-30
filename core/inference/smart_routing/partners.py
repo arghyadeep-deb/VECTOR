@@ -12,13 +12,21 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "ExaClient",
+    "get_registry",
+    "JinaClient",
+    "PartnerClient",
+    "PartnerConfig",
+    "PartnerRegistry",
+]
+
+
 import asyncio
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

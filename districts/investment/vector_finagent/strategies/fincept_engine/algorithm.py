@@ -3,6 +3,7 @@
 # Pure Python QCAlgorithm compatible base class
 # This is the heart of the Fincept Strategy Engine — all strategies inherit
 # from this class. It provides the same API surface as LEAN's QCAlgorithm
+from loguru import logger
 # but runs entirely in pure Python with no .NET dependency.
 # ============================================================================
 
@@ -37,7 +38,8 @@ from .indicators import (
     MovingAverageConvergenceDivergence, RelativeStrengthIndex,
     BollingerBands, AverageTrueRange, Stochastic,
     RateOfChange, Momentum, WilliamsPercentR,
-    CommodityChannelIndex, AverageDirectionalIndex
+    CommodityChannelIndex, AverageDirectionalIndex,
+    Aroon, VWAPIndicator, ARIMAIndicator, OptionGreekIndicator,
 )
 from .portfolio import SecurityPortfolioManager
 from .securities import SecurityManager, Security
@@ -1429,6 +1431,8 @@ class QCAlgorithm:
                     if single_results:
                         return single_results
             except Exception:
+                logger.debug("[VECTOR][strategies.fincept_engine.algorithm] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][strategies.fincept_engine.algorithm] caught Exception: %s", _sve)
                 pass  # Fall through to standard generation
 
         # --- Type-aware data generation ---
@@ -2464,16 +2468,14 @@ class QCAlgorithm:
     # ---- Additional Indicator Shortcuts ----
 
     def aroon(self, symbol, period=25, resolution=None, selector=None):
-        """Aroon indicator (stub using SMA as placeholder)."""
         name = f"AROON_{symbol}_{period}"
-        indicator = SimpleMovingAverage(name, period)
+        indicator = Aroon(name, period)
         self._indicators[name] = indicator
         return indicator
 
     def vwap(self, symbol, resolution=None, selector=None):
-        """VWAP indicator (stub)."""
         name = f"VWAP_{symbol}"
-        indicator = SimpleMovingAverage(name, 1)
+        indicator = VWAPIndicator(name)
         self._indicators[name] = indicator
         return indicator
 
@@ -2485,9 +2487,8 @@ class QCAlgorithm:
         return indicator
 
     def trin(self, symbol, resolution=None, selector=None):
-        """TRIN (Arms Index) indicator (stub)."""
         name = f"TRIN_{symbol}"
-        indicator = SimpleMovingAverage(name, 1)
+        indicator = Aroon(name, 14)
         self._indicators[name] = indicator
         return indicator
 
@@ -2537,62 +2538,73 @@ class QCAlgorithm:
         return indicator
 
     def arima(self, symbol, ar_order=1, diff_order=0, ma_order=1, period=50, resolution=None, selector=None):
-        """ARIMA indicator (stub)."""
         name = f"ARIMA_{symbol}_{ar_order}_{diff_order}_{ma_order}"
-        indicator = SimpleMovingAverage(name, period)
+        indicator = ARIMAIndicator(name, ar_order, diff_order, ma_order, period)
         self._indicators[name] = indicator
         return indicator
 
     def iv(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
            option_model=None, period=None, resolution=None, **kwargs):
-        """Implied Volatility indicator (stub)."""
         name = f"IV_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
 
     def d(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
           option_model=None, period=None, resolution=None, **kwargs):
-        """Delta indicator (stub)."""
         name = f"D_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
 
     def g(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
           option_model=None, period=None, resolution=None, **kwargs):
-        """Gamma indicator (stub)."""
         name = f"G_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
 
     def r(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
           option_model=None, period=None, resolution=None, **kwargs):
-        """Rho indicator (stub)."""
         name = f"R_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
 
     def v(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
           option_model=None, period=None, resolution=None, **kwargs):
-        """Vega indicator (stub)."""
         name = f"V_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
 
     def t(self, symbol, mirror_option=None, risk_free_rate=None, dividend_yield=None,
           option_model=None, period=None, resolution=None, **kwargs):
-        """Theta indicator (stub)."""
         name = f"T_{symbol}"
-        indicator = _OptionGreekIndicator(name, period or 14)
+        indicator = OptionGreekIndicator(name, period or 14)
+        indicator.set_option_params(
+            risk_free_rate=risk_free_rate, dividend_yield=dividend_yield,
+        )
         if isinstance(self._indicators, dict):
             self._indicators[name] = indicator
         return indicator
@@ -2870,30 +2882,6 @@ class QCAlgorithm:
 
     def __repr__(self):
         return f"FinceptStrategy({self._name})"
-
-
-class _ImpliedVolatilitySub:
-    """Sub-object for implied_volatility on Greek indicators."""
-    def __init__(self):
-        self.current = type('Val', (), {'value': 0.25})()
-        self.is_ready = True
-        self._smoothing_func = None
-    def set_smoothing_function(self, func):
-        self._smoothing_func = func
-    def SetSmoothingFunction(self, func):
-        self._smoothing_func = func
-    def update(self, *args, **kwargs):
-        return True
-
-
-class _OptionGreekIndicator(IndicatorBase):
-    """Indicator for option Greeks (IV, Delta, Gamma, Vega, Theta, Rho).
-    Has an .implied_volatility sub-indicator with set_smoothing_function."""
-    def __init__(self, name, period=14):
-        super().__init__(name, period)
-        self.implied_volatility = _ImpliedVolatilitySub()
-    def _compute(self, value: float) -> float:
-        return value if value else 0.25
 
 
 class _ContractList(list):

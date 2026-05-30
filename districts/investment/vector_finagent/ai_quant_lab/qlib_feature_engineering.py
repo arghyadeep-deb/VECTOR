@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Feature Engineering Module
 Tools for creating and manipulating financial features
 
@@ -490,6 +491,8 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
+        logger.debug("[VECTOR][ai_quant_lab.qlib_feature_engineering] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ai_quant_lab.qlib_feature_engineering] caught Exception: %s", _sve)
         print(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)
 

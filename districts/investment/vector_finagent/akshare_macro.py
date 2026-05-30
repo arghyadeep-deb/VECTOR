@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+from loguru import logger
 AKShare Macro Economic Data Wrapper
 Covers 96 macroeconomic functions from akshare library (version 1.18.20)
 Organized by region: Australia, Brazil, India, Russia, New Zealand, Canada, Euro, Germany, Japan, China, Switzerland, UK, USA
@@ -78,6 +79,8 @@ class MacroEconomicWrapper:
                 }
 
             except Exception as e:
+                logger.debug("[VECTOR][akshare_macro] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_macro] caught Exception: %s", _sve)
                 if attempt == max_retries - 1:
                     return {
                         "success": False,

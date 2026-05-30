@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fetch company news using GNews
 This script fetches latest news articles for a given company/symbol
 """
@@ -68,6 +69,8 @@ def fetch_company_news(query, max_results=10, period='7d', language='en', countr
         })
 
     except Exception as e:
+        logger.debug("[VECTOR][fetch_company_news] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fetch_company_news] caught Exception: %s", _sve)
         return json.dumps({
             "success": False,
             "error": str(e),

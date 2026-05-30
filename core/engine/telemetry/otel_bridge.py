@@ -13,19 +13,25 @@ Exports to: stdout (dev) | OTLP endpoint (prod, set OTEL_EXPORTER_OTLP_ENDPOINT)
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_telemetry",
+    "Span",
+    "trace_span",
+    "VectorTelemetry",
+]
+
+
 import os
-import sys
 import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Generator
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from core.config import CONFIG
 from loguru import logger
 
-_OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+_OTEL_ENDPOINT = CONFIG.get("otel_endpoint", "")
 _SERVICE_NAME = "vector-agent-system"
 _SERVICE_VERSION = "1.0.0"
 
@@ -89,7 +95,7 @@ class VectorTelemetry:
             resource = Resource.create({
                 "service.name": _SERVICE_NAME,
                 "service.version": _SERVICE_VERSION,
-                "deployment.environment": os.getenv("VECTOR_ENV", "local"),
+                "deployment.environment": CONFIG.get("env", "local"),
             })
             provider = TracerProvider(resource=resource)
 

@@ -12,6 +12,15 @@ lifecycle.
 
 from __future__ import annotations
 
+__all__ = [
+    "iter_partitions",
+    "OPENALEX_MANIFEST_ALLOWED_PREFIX",
+    "OPENALEX_S3_BASE",
+    "s3_to_https",
+    "validate_manifest_entries",
+]
+
+
 import gzip
 import json
 from pathlib import Path

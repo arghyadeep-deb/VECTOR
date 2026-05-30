@@ -1,4 +1,11 @@
 from collections.abc import Mapping
+
+__all__ = [
+    "AttributesHandler",
+    "TextHandler",
+    "TextHandlers",
+]
+
 from types import MappingProxyType
 from re import compile as re_compile, UNICODE, IGNORECASE
 

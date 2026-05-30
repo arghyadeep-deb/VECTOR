@@ -6,6 +6,12 @@ tied to a particular UI layer.
 
 from __future__ import annotations
 
+__all__ = [
+    "persist_mcp_toggle",
+    "updated_tool_list",
+]
+
+
 from typing import Any
 
 from core.coding_assistant.core.config import VectorCAConfig

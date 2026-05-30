@@ -22,6 +22,7 @@ for a follow-up; for now the runner does best-effort plan-time injection of
 relevant memories, mirroring how skill_library is consumed.
 """
 from __future__ import annotations
+from loguru import logger
 
 import json
 import sqlite3

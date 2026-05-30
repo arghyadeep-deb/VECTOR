@@ -19,6 +19,18 @@ Use cases:
 """
 from __future__ import annotations
 
+__all__ = [
+    "build_composition_from_content",
+    "CaptureOptions",
+    "CaptureResult",
+    "ExtractedContent",
+    "url_to_video",
+    "WebContentExtractor",
+    "WebScreenshotter",
+    "WebsiteToVideo",
+]
+
+
 import asyncio
 import json
 import os

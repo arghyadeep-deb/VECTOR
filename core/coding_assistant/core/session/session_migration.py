@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "migrate_sessions",
+    "migrate_sessions_entrypoint",
+]
+
+
 import asyncio
 import json
 from pathlib import Path

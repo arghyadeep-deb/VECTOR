@@ -6,6 +6,13 @@ Provides persistent storage for failure classifications and retry eligibility.
 """
 
 from datetime import datetime, timedelta, UTC
+
+__all__ = [
+    "compute_retry_cooldown",
+    "MAX_TOTAL_RETRIES",
+    "ResourceStatusTracker",
+]
+
 from typing import Optional, Dict, Any
 
 from loguru import logger
@@ -62,7 +69,7 @@ class ResourceStatusTracker:
             self.engine = db_manager.open_user_database(username, password)
         except DatabaseInitializationError:
             # Surface init failures from the schedulers/library-init
-            # callers as a plain RuntimeError â€” they all wrap construction
+            # callers as a plain RuntimeError — they all wrap construction
             # in try/except already, and propagating the typed exception
             # would couple every caller to encrypted_db's internals.
             logger.exception(

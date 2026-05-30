@@ -1,4 +1,5 @@
 """
+from loguru import logger
 National Bank of Poland (NBP) Data Wrapper
 Fetches data from the NBP Public Web API.
 
@@ -126,6 +127,8 @@ class NBPWrapper:
             sc = e.response.status_code if e.response is not None else None
             return NBPError(label, str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][nbp_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][nbp_data] caught Exception: %s", _sve)
             return NBPError(label, str(e)).to_dict()
 
     def _flatten_table(self, raw: Any) -> Dict[str, Any]:

@@ -12,6 +12,12 @@ Usage (drop-in replacement for existing imports):
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_bool_setting_from_snapshot",
+    "get_setting_from_snapshot",
+]
+
+
 from typing import Any
 
 from loguru import logger
@@ -79,11 +85,11 @@ def get_setting_from_snapshot(
     username: str | None = None,  # noqa: ARG001
     settings_snapshot: dict[str, Any] | None = None,
 ) -> Any:
-    """Get setting â€” tries snapshot â†’ core.config â†’ default.
+    """Get setting — tries snapshot â†’ core.config â†’ default.
 
     Preserves the exact signature used by 400+ call sites in research_engine.
     """
-    # 1. Check explicit snapshot (highest priority â€” per-request overrides)
+    # 1. Check explicit snapshot (highest priority — per-request overrides)
     if settings_snapshot and key in settings_snapshot:
         value = settings_snapshot[key]
         if isinstance(value, dict) and "value" in value:

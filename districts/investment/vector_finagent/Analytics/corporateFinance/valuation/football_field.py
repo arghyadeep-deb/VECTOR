@@ -1,4 +1,5 @@
 """Football Field Valuation Chart - Data Generation for Frontend Rendering"""
+from loguru import logger
 import sys
 import json
 from typing import Dict, Any, List, Optional
@@ -344,6 +345,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.valuation.football_field] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.valuation.football_field] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e), "command": command}
         print(json.dumps(result))
         sys.exit(1)

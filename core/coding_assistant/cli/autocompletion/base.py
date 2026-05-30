@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "CompletionResult",
+    "CompletionView",
+]
+
+
 from enum import StrEnum
 from typing import Protocol
 

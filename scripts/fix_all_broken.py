@@ -1,4 +1,5 @@
 """Fix all broken usages caused by removing useless modules."""
+from loguru import logger
 import re
 from pathlib import Path
 

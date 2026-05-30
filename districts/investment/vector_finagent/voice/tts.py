@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 tts.py — Speak the text on stdin via pyttsx3, then exit.
 
 Used by TtsService as a one-shot subprocess. The C++ side launches one
@@ -59,6 +60,8 @@ def main() -> int:
     try:
         engine = pyttsx3.init()
     except Exception as e:
+        logger.debug("[VECTOR][voice.tts] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.tts] caught Exception: %s", _sve)
         diag(f"pyttsx3 init failed: {e}")
         emit({"fatal": f"TTS engine could not be initialised: {e}"})
         return 1

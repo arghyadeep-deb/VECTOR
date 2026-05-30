@@ -15,6 +15,12 @@ SECURITY NOTES:
 
 from typing import Optional
 
+__all__ = [
+    "session_password_store",
+    "SessionPasswordStore",
+]
+
+
 from loguru import logger
 
 from .credential_store_base import CredentialStoreBase

@@ -1,12 +1,12 @@
-"""Safe Ollama wrapper â€” parallel-aware, warm-pool aware.
+"""Safe Ollama wrapper — parallel-aware, warm-pool aware.
 
 Ollama defaults to OLLAMA_MAX_LOADED_MODELS=1 on GPU, which causes models to
 constantly load/unload as VECTOR's task router switches between coder, council,
 ambient, etc. This wrapper:
 
-  â€¢ Pins a small WARM_POOL so the highest-frequency models stay hot in VRAM
-  â€¢ Passes ``keep_alive`` on every request so models don't unload between calls
-  â€¢ Falls back to AirLLM only for the single 70B+ slot (large model fallback)
+  • Pins a small WARM_POOL so the highest-frequency models stay hot in VRAM
+  • Passes ``keep_alive`` on every request so models don't unload between calls
+  • Falls back to AirLLM only for the single 70B+ slot (large model fallback)
 
 To make warm-pool actually parallel, the Ollama daemon also needs:
   OLLAMA_MAX_LOADED_MODELS >= len(WARM_POOL)
@@ -15,6 +15,15 @@ To make warm-pool actually parallel, the Ollama daemon also needs:
 (set once at User scope, then restart the Ollama tray daemon.)
 """
 from __future__ import annotations
+
+__all__ = [
+    "chat",
+    "chat_stream",
+    "DEFAULT_KEEP_ALIVE",
+    "warm_models",
+    "warmed_models",
+]
+
 
 import os
 import sys
@@ -35,7 +44,7 @@ if _AIRLLM_REPO and _AIRLLM_REPO.exists():
     sys.path.insert(0, str(_AIRLLM_REPO))
 
 # Models that need AirLLM layer-streaming because they don't fit in VRAM directly.
-# These should NEVER be in WARM_POOL â€” they're too big to stay resident.
+# These should NEVER be in WARM_POOL — they're too big to stay resident.
 _AIRLLM_MODELS = {
     "llama2-70b", "llama3-70b", "mixtral-8x7b", "falcon-40b", "codellama-70b",
 }
@@ -50,15 +59,15 @@ _AIRLLM_MODELS = {
 # When you upgrade to >24 GB VRAM, expand to:
 #   [ambient, fast, coder, embed, reasoning]
 WARM_POOL: list[str] = [
-    CONFIG["models"]["coder"],     # vector-coder    â€” district 4 baseline
-    CONFIG["models"]["embed"],     # nomic-embed-text â€” RAG embeddings
+    CONFIG["models"]["coder"],     # vector-coder    — district 4 baseline
+    CONFIG["models"]["embed"],     # nomic-embed-text — RAG embeddings
 ]
 
-# Default keep_alive sent on every chat call â€” keeps models resident even
+# Default keep_alive sent on every chat call — keeps models resident even
 # after a long idle window. Set to 30m to match the Ollama daemon env var.
 DEFAULT_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
-# Absorbed OJ model catalog (supplementary â€” logs available models)
+# Absorbed OJ model catalog (supplementary — logs available models)
 try:
     from vectorcode.src.intelligence import BUILTIN_MODELS, register_builtin_models
     register_builtin_models()
@@ -170,7 +179,7 @@ def chat(
 
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
 
-    # Energy-aware path â€” captures wall time + GPU energy if telemetry is wired.
+    # Energy-aware path — captures wall time + GPU energy if telemetry is wired.
     _energy_monitor = _get_energy_monitor()
     _start = time.time()
     try:
@@ -194,7 +203,7 @@ def chat(
         return fallback
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} unavailable: {e}")
-        # Multi-backend fallback â€” try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
+        # Multi-backend fallback — try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
         # if ollama can't serve. This makes VECTOR resilient to a stopped daemon.
         fallback = _multi_backend_fallback(model, messages, timeout)
         if fallback:
@@ -259,7 +268,7 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
     """Pre-load each model into VRAM so the first real request is instant.
 
     Sends a tiny no-op chat with keep_alive set to pin the model resident.
-    Idempotent â€” already-warmed models in this process are skipped.
+    Idempotent — already-warmed models in this process are skipped.
 
     Returns a dict of {model_name: success_bool}.
     """
@@ -332,7 +341,7 @@ _telemetry_init = False
 
 
 def _get_energy_monitor():
-    """Lazy singleton â€” returns the EnergyMonitor or None if telemetry isn't wired.
+    """Lazy singleton — returns the EnergyMonitor or None if telemetry isn't wired.
 
     Detection runs once. If the telemetry module isn't installed or the GPU
     can't be probed, returns None and silently skips energy capture.
@@ -379,7 +388,7 @@ def _get_telemetry_store():
 
 
 def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> None:
-    """Best-effort telemetry recording â€” never raises into the caller.
+    """Best-effort telemetry recording — never raises into the caller.
 
     Builds a TelemetryRecord dataclass and persists it via TelemetryStore.record().
     Captures: timestamp, model, latency, tokens, energy_joules, power_watts,

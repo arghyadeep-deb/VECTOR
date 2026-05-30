@@ -15,13 +15,9 @@ Quorum: 2/3 majority needed for RED-gate actions.
 import json
 import asyncio
 import time
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import TYPE_CHECKING, Callable
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 
@@ -418,9 +414,5 @@ if __name__ == "__main__":
     assert q._strategy.name == "mesh"
 
     print(f"queen.py OK — {len(result)} subtasks, {len(voters)} voters, strategy={q._strategy.name}")
-
-
-
-
 
 

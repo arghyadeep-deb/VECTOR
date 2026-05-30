@@ -6,10 +6,7 @@ Supports Nous Portal, OpenRouter, OpenAI-compatible header schema (12 headers).
 import sys
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Mapping, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 

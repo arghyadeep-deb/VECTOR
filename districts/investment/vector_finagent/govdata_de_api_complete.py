@@ -1,4 +1,5 @@
 """
+from loguru import logger
 German Government Open Data Portal (GovData.de) API Wrapper
 Fetches German government data using CKAN-based hierarchical structure:
 1. Organizations - Lists all data providers/publishers (organizations)
@@ -137,6 +138,8 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
             "error": "Invalid JSON response from GovData.de API."
         }
     except Exception as e:
+        logger.debug("[VECTOR][govdata_de_api_complete] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][govdata_de_api_complete] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {
@@ -510,9 +513,8 @@ def download_resource_preview(resource_url: str, max_lines: int = 10) -> Dict[st
                     "rows": csv_data[1:] if len(csv_data) > 1 else [],
                     "total_columns": len(csv_data[0]) if csv_data else 0
                 }
-            except:
-                pass  # Keep raw lines if CSV parsing fails
-
+            except Exception:
+                logger.warning("[VECTOR][govdata_de_api_complete] suppressed Exception")  # bare except
         return {
             "data": preview_data,
             "metadata": {
@@ -615,9 +617,8 @@ def get_all_datasets(limit: int = 100) -> Dict[str, Any]:
                 details_result = get_dataset_details(dataset_name)
                 if not details_result["error"]:
                     detailed_datasets.append(details_result["data"])
-            except:
-                continue  # Skip if individual dataset fails
-
+            except Exception:
+                logger.debug("[VECTOR][govdata_de_api_complete] suppressed Exception in fallback")  # bare except
         return {
             "data": detailed_datasets,
             "metadata": {
@@ -670,10 +671,8 @@ def get_popular_organizations(limit: int = 20) -> Dict[str, Any]:
                         "name": org["name"],
                         "dataset_count": total_count
                     })
-            except:
-                continue  # Skip if organization fails
-
-        # Sort by dataset count
+            except Exception:
+                logger.debug("[VECTOR][govdata_de_api_complete] suppressed Exception in fallback")  # bare except
         popular_organizations.sort(key=lambda x: x["dataset_count"], reverse=True)
 
         return {

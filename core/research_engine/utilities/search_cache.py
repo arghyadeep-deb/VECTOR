@@ -5,6 +5,13 @@ Includes TTL, LRU eviction, and query normalization.
 """
 
 import atexit
+
+__all__ = [
+    "get_search_cache",
+    "normalize_entity_query",
+    "SearchCache",
+]
+
 import hashlib
 import threading
 import time

@@ -5,6 +5,14 @@ maintaining the encryption-at-rest security model.
 """
 
 import json
+
+__all__ = [
+    "FileWriteSecurityError",
+    "SENSITIVE_KEYS",
+    "write_file_verified",
+    "write_json_verified",
+]
+
 from pathlib import Path
 from typing import Any
 

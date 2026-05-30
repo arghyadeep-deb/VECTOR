@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Market Data Management Module
 ============================
 
@@ -339,6 +340,8 @@ class YahooFinanceProvider(MarketDataProvider):
             logger.info("Connected to Yahoo Finance")
             return True
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.derivatives.market_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.derivatives.market_data] caught Exception: %s", _sve)
             logger.error(f"Failed to connect to Yahoo Finance: {e}")
             return False
 
@@ -490,8 +493,8 @@ class MarketDataManager:
                 if fallback_provider != provider_obj:
                     try:
                         return fallback_provider.get_spot_price(symbol)
-                    except:
-                        continue
+                    except Exception:
+                        logger.debug("[VECTOR][Analytics.derivatives.market_data] suppressed Exception in fallback")  # bare except
             raise ValueError(f"No provider could fetch spot price for {symbol}")
 
 

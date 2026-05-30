@@ -1,13 +1,20 @@
 """Model router: classifies tasks into domains and routes to the best adapter-aware model via Ollama."""
 
-import sys
+
+__all__ = [
+    "ClassificationResult",
+    "DEFAULT_DOMAIN",
+    "ModelRouter",
+    "RoutingResult",
+    "TaskClassifier",
+]
+
 import json
 import os
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

@@ -10,6 +10,13 @@ Uses Rust ring buffer — Rust backend is mandatory.
 
 from __future__ import annotations
 
+__all__ = [
+    "logger",
+    "TelemetrySample",
+    "TelemetrySession",
+]
+
+
 import logging
 import threading
 import time

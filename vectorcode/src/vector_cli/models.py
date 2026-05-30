@@ -1249,7 +1249,7 @@ def fetch_ai_gateway_pricing(
 
 def _resolve_openrouter_api_key() -> str:
     """Best-effort OpenRouter API key for pricing fetch."""
-    return os.getenv("OPENROUTER_API_KEY", "").strip()
+    return os.environ.get("OPENROUTER_API_KEY", "").strip()
 
 
 def _resolve_nous_pricing_credentials() -> tuple[str, str]:
@@ -1328,7 +1328,7 @@ def list_available_providers() -> list[dict[str, str]]:
                 custom_base_url = _get_custom_base_url() or ""
                 has_creds = bool(custom_base_url.strip())
             elif pid == "openrouter":
-                has_creds = has_usable_secret(os.getenv("OPENROUTER_API_KEY", ""))
+                has_creds = has_usable_secret(os.environ.get("OPENROUTER_API_KEY", ""))
             else:
                 status = get_auth_status(pid)
                 has_creds = bool(status.get("logged_in") or status.get("configured"))
@@ -1850,9 +1850,9 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
         if live:
             return live
     if normalized == "openai":
-        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         if api_key:
-            base_raw = os.getenv("OPENAI_BASE_URL", "").strip().rstrip("/")
+            base_raw = os.environ.get("OPENAI_BASE_URL", "").strip().rstrip("/")
             base = base_raw or "https://api.openai.com/v1"
             try:
                 live = fetch_api_models(api_key, base)
@@ -1878,9 +1878,9 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
         if base_url:
             # Try common API key env vars for custom endpoints
             api_key = (
-                os.getenv("CUSTOM_API_KEY", "")
-                or os.getenv("OPENAI_API_KEY", "")
-                or os.getenv("OPENROUTER_API_KEY", "")
+                os.environ.get("CUSTOM_API_KEY", "")
+                or os.environ.get("OPENAI_API_KEY", "")
+                or os.environ.get("OPENROUTER_API_KEY", "")
             )
             live = fetch_api_models(api_key, base_url)
             if live:
@@ -2467,10 +2467,10 @@ def probe_api_models(
 
 def _fetch_ai_gateway_models(timeout: float = 5.0) -> Optional[list[str]]:
     """Fetch available language models with tool-use from AI Gateway."""
-    api_key = os.getenv("AI_GATEWAY_API_KEY", "").strip()
+    api_key = os.environ.get("AI_GATEWAY_API_KEY", "").strip()
     if not api_key:
         return None
-    base_url = os.getenv("AI_GATEWAY_BASE_URL", "").strip()
+    base_url = os.environ.get("AI_GATEWAY_BASE_URL", "").strip()
     if not base_url:
         from vector_constants import AI_GATEWAY_BASE_URL
         base_url = AI_GATEWAY_BASE_URL
@@ -2586,9 +2586,9 @@ def fetch_ollama_cloud_models(
 
     # 2. Live API probe
     if not api_key:
-        api_key = os.getenv("OLLAMA_API_KEY", "")
+        api_key = os.environ.get("OLLAMA_API_KEY", "")
     if not base_url:
-        base_url = os.getenv("OLLAMA_BASE_URL", "") or "https://ollama.com/v1"
+        base_url = os.environ.get("OLLAMA_BASE_URL", "") or "https://ollama.com/v1"
 
     live_models: list[str] = []
     if api_key:

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Timeseries Analytics Wrapper
 =====================================
 
@@ -92,6 +93,8 @@ class TimeseriesAnalytics:
                 else:
                     return prices.pct_change()
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] caught Exception: %s", _sve)
             # Fallback
             if method == 'log':
                 return np.log(prices / prices.shift(1))
@@ -119,10 +122,8 @@ class TimeseriesAnalytics:
             else:
                 daily_rf = risk_free_rate / 252
                 return returns - daily_rf
-        except:
-            daily_rf = risk_free_rate / 252
-            return returns - daily_rf
-
+        except Exception:
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] suppressed Exception in fallback")  # bare except
     def calculate_cumulative_returns(
         self,
         returns: pd.Series

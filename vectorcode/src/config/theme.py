@@ -1,13 +1,9 @@
 """Color theme engine — ANSI color schemes for VectorCode terminal output."""
-import sys
 import re
 import os
-from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))               # vectorcode pkg parent
 
 from loguru import logger
 
@@ -83,6 +79,7 @@ def _parse_toml_theme(text: str) -> dict:
     """
     try:
         import tomllib  # Python 3.11+
+from pathlib import Path
         raw = tomllib.loads(text)
         # tomllib won't unescape \\x1b — handle manually
         result: dict = {}

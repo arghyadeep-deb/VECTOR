@@ -1,9 +1,13 @@
 """Mining router — /mining/status."""
 
 import sys
+
+__all__ = [
+    "mining_status",
+    "router",
+]
+
 import httpx
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter
 from loguru import logger

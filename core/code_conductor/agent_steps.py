@@ -1,5 +1,5 @@
 """
-VECTOR Code Conductor â€” Agent Step Generator Pattern
+VECTOR Code Conductor — Agent Step Generator Pattern
 Python port of codebuff's handleSteps generator from agents/basher.ts
 and packages/agent-runtime/src/run-programmatic-step.ts.
 
@@ -8,7 +8,7 @@ Gives deterministic control over complex multi-step workflows.
 
 Pattern:
   async def my_steps(ctx):
-      # Tool call â€” executed immediately, result injected back
+      # Tool call — executed immediately, result injected back
       result = yield {"tool": "read_files", "input": {"paths": ["main.py"]}}
 
       # Let LLM analyze and decide next action
@@ -29,13 +29,19 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "bash_steps",
+    "read_and_edit_steps",
+    "run_steps",
+    "StepResult",
+]
+
+
 import asyncio
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -219,7 +225,7 @@ if __name__ == "__main__":
         async def demo_steps(ctx: dict):
             result = yield {"tool": "echo", "input": {"msg": "hello"}}
             steps_log.append(f"tool_result: {result}")
-            # No LLM call â€” just tool
+            # No LLM call — just tool
 
         tool_reg = {"echo": lambda msg: {"echoed": msg}}
         dummy_llm = lambda msgs: "LLM response"
@@ -230,7 +236,7 @@ if __name__ == "__main__":
         assert results[0].tool_result == {"echoed": "hello"}
         assert "tool_result: {'echoed': 'hello'}" in steps_log
 
-        print(f"OK agent_steps.py â€” generator pattern, tool injection, STEP/STEP_ALL signals")
+        print(f"OK agent_steps.py — generator pattern, tool injection, STEP/STEP_ALL signals")
         print(f"  {len(results)} steps executed")
 
     asyncio.run(_smoke())

@@ -46,7 +46,6 @@ AGENTS_ROOT = HERE.parent                    # scripts/agents
 TARGET = AGENTS_ROOT / "TraderInvestorsAgent" / "configs" / "agent_definitions.json"
 
 # Import migrate_entry from sibling module
-sys.path.insert(0, str(HERE))
 from migrate_bundled_configs import migrate_entry  # noqa: E402
 
 

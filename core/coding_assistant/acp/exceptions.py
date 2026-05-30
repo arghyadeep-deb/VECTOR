@@ -14,6 +14,29 @@ and ACP error handling (https://agentclientprotocol.com/protocol/overview#error-
 
 from __future__ import annotations
 
+__all__ = [
+    "CONFIGURATION_ERROR",
+    "ConfigurationError",
+    "CONTEXT_TOO_LONG",
+    "ContextTooLongError",
+    "CONVERSATION_LIMIT",
+    "ConversationLimitError",
+    "INTERNAL_ERROR",
+    "InternalError",
+    "INVALID_PARAMS",
+    "InvalidRequestError",
+    "METHOD_NOT_FOUND",
+    "NotImplementedMethodError",
+    "RATE_LIMITED",
+    "RateLimitError",
+    "SessionLoadError",
+    "SessionNotFoundError",
+    "UNAUTHENTICATED",
+    "UnauthenticatedError",
+    "VibeRequestError",
+]
+
+
 from typing import Any
 
 try:

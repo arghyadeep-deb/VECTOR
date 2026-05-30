@@ -24,8 +24,6 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 
@@ -54,7 +52,7 @@ DEFAULT_EXCLUDES: List[str] = [
     ".git/",
 ]
 
-_GIT_TIMEOUT: int = int(os.getenv("VECTOR_CHECKPOINT_TIMEOUT", "30"))
+_GIT_TIMEOUT: int = int(os.environ.get("VECTOR_CHECKPOINT_TIMEOUT", "30"))
 _COMMIT_HASH_RE = re.compile(r"^[0-9a-fA-F]{4,64}$")
 
 

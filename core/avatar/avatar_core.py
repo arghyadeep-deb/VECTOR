@@ -12,9 +12,6 @@ Reuse policy (never duplicate):
   - Relationship/trust → core/brain/person_model.py (NOT a new store)
   - Causal → core/memory/causal_graph.py (already wired in decision_engine)
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import asyncio
 from typing import Any

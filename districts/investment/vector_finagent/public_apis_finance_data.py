@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Public APIs Finance Data Fetcher
 Aggregated open financial APIs: NBP Poland, Croatian National Bank, Czech National Bank — no key required.
 """
@@ -54,6 +55,8 @@ def get_cnb_rates(date: str = None) -> Any:
                 rates.append({"country": parts[0], "currency": parts[1], "amount": parts[2], "code": parts[3], "rate": parts[4]})
         return {"date": lines[0] if lines else "", "rates": rates}
     except Exception as e:
+        logger.debug("[VECTOR][public_apis_finance_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][public_apis_finance_data] caught Exception: %s", _sve)
         return {"error": f"Request failed: {str(e)}"}
 
 def get_hnb_rates(date: str = None) -> Any:

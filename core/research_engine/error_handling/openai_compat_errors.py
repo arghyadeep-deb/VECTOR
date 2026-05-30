@@ -15,6 +15,12 @@ communicate.
 
 from __future__ import annotations
 
+__all__ = [
+    "friendly_openai_compatible_error",
+    "is_openai_compat_runtime_error",
+]
+
+
 from urllib.parse import urlparse, urlunparse
 
 import httpx

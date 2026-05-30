@@ -1,4 +1,14 @@
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "BackendError",
+    "BackendErrorBuilder",
+    "ErrorDetail",
+    "ErrorResponse",
+    "PayloadSummary",
+]
+
 
 from collections.abc import Mapping, Sequence
 from http import HTTPStatus
@@ -9,7 +19,7 @@ import httpx
 try:
     from mistralai.errors import SDKError
 except ImportError:
-    pass  # mistralai SDK optional â€” VECTOR uses Ollama
+    pass  # mistralai SDK optional — VECTOR uses Ollama
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from core.coding_assistant.core.types import AvailableTool, LLMMessage, StrToolChoice
@@ -102,7 +112,7 @@ class BackendError(RuntimeError):
     @staticmethod
     def _excerpt(s: str, *, n: int = 400) -> str:
         s = s.strip().replace("\n", " ")
-        return s[:n] + ("â€¦" if len(s) > n else "")
+        return s[:n] + ("…" if len(s) > n else "")
 
 
 class ErrorResponse(BaseModel):

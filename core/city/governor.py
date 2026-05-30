@@ -1,8 +1,6 @@
 import sys
 import asyncio
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -648,8 +646,8 @@ DISTRICT_TASK_MAP: dict[str, str] = {
 class Governor:
     """
     VECTOR's task orchestrator. Routes tasks to the right district agent.
-    RULE 9 —" HP wired to actual outcomes: success → +50 HP, failure → -30 HP.
-    Never crashes —" every exception caught internally.
+    RULE 9 — HP wired to actual outcomes: success → +50 HP, failure → -30 HP.
+    Never crashes — every exception caught internally.
     """
 
     def __init__(self):
@@ -769,7 +767,7 @@ class Governor:
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
-        RULE 9 —" HP wired to actual outcome after every dispatch.
+        RULE 9 — HP wired to actual outcome after every dispatch.
         """
         task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")

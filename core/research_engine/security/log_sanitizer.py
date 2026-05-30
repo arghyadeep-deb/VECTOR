@@ -8,6 +8,12 @@ non-printable characters and truncating to a reasonable length.
 
 import re
 
+__all__ = [
+    "sanitize_for_log",
+    "strip_control_chars",
+]
+
+
 # Strip C0/C1 control characters and dangerous Unicode format characters,
 # but preserve visible Unicode (accented, CJK, emoji, etc.)
 _UNSAFE_CHAR_RE = re.compile(

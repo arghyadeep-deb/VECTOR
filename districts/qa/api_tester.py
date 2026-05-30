@@ -4,13 +4,10 @@ API Tester — validates VECTOR's own FastAPI endpoints.
 Tests all REST endpoints, checks response schemas, measures latency,
 detects breaking changes, generates API health reports.
 """
-import sys
 import asyncio
 import datetime
 import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

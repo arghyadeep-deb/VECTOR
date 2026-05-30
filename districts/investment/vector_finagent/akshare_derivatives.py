@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Derivatives Data Wrapper
 Wrapper for options and derivatives market data
 Returns JSON output for Qt/C++ integration
@@ -109,6 +110,8 @@ class DerivativesWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
+                logger.debug("[VECTOR][akshare_derivatives] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_derivatives] caught Exception: %s", _sve)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     import time

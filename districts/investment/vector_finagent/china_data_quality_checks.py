@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 China Data Quality Checks
 Runs integrity/coverage checks on unified China data store.
 """
@@ -272,6 +273,8 @@ def main() -> None:
         result = method()
         _json(result)
     except Exception as e:  # pragma: no cover - defensive
+        logger.debug("[VECTOR][china_data_quality_checks] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][china_data_quality_checks] caught Exception: %s", _sve)
         _json({"success": False, "error": str(e), "data": [], "timestamp": _now_ts()})
 
 

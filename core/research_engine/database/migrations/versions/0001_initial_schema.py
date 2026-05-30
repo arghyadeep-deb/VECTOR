@@ -27,6 +27,16 @@ In production environments:
 """
 
 from alembic import op
+
+__all__ = [
+    "branch_labels",
+    "depends_on",
+    "down_revision",
+    "downgrade",
+    "revision",
+    "upgrade",
+]
+
 from loguru import logger
 from sqlalchemy import inspect
 

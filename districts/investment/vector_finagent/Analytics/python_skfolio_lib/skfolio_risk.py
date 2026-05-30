@@ -1,4 +1,5 @@
 """
+from loguru import logger
 skfolio Risk Analysis & Management
 =================================
 
@@ -359,6 +360,8 @@ class RiskAnalyzer:
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_risk] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_risk] caught Exception: %s", _sve)
             logger.error(f"Error calculating risk metrics: {e}")
             raise
 

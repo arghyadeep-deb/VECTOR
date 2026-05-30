@@ -1,5 +1,5 @@
 """
-VECTOR MCP Client â€” Outbound MCP Consumer
+VECTOR MCP Client — Outbound MCP Consumer
 Python port of UI-TARS-desktop/packages/agent-infra/mcp-client/src/index.ts
 
 Allows VECTOR to CONNECT TO and USE external MCP servers.
@@ -9,8 +9,8 @@ Claude Desktop). This is the opposite: an MCP CLIENT that lets VECTOR consume
 tools from OTHER MCP servers (Claude Desktop plugins, community servers, etc.)
 
 Transports:
-  stdio â€” launch a local MCP server process (e.g. npx @modelcontextprotocol/server-filesystem)
-  http  â€” connect to a remote MCP server via HTTP/SSE
+  stdio — launch a local MCP server process (e.g. npx @modelcontextprotocol/server-filesystem)
+  http  — connect to a remote MCP server via HTTP/SSE
 
 Usage:
     client = MCPClient([
@@ -25,6 +25,13 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "HttpTransport",
+    "MCPClient",
+    "StdioTransport",
+]
+
+
 import asyncio
 import json
 import os
@@ -32,10 +39,8 @@ import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 
@@ -143,7 +148,7 @@ class HttpTransport:
 
 class MCPClient:
     """
-    VECTOR's outbound MCP client â€” connects to external MCP servers and calls their tools.
+    VECTOR's outbound MCP client — connects to external MCP servers and calls their tools.
 
     Server config dicts:
       Stdio: {"name": str, "transport": "stdio", "command": str, "args": list,
@@ -290,7 +295,7 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     async def _smoke():
-        # Init with no servers â€” should not crash
+        # Init with no servers — should not crash
         client = MCPClient(servers=[], debug=True)
         assert not client._connected
         await client.connect()
@@ -298,7 +303,7 @@ if __name__ == "__main__":
         tools = await client.list_tools()
         assert isinstance(tools, list)
         await client.disconnect()
-        print("OK mcp/client.py â€” MCPClient init, connect/disconnect, list_tools OK")
+        print("OK mcp/client.py — MCPClient init, connect/disconnect, list_tools OK")
         print(f"  transports={len(client._transports)} tools={len(tools)}")
         print(f"  Use: MCPClient([{{name: 'fs', transport: 'stdio', command: 'npx', args: [...]}}])")
 

@@ -6,6 +6,19 @@ section 4.4 for the design rationale.
 """
 
 from __future__ import annotations
+from loguru import logger
+
+__all__ = [
+    "MiningCapabilities",
+    "MiningConfig",
+    "MiningProvider",
+    "MiningStats",
+    "PoolTarget",
+    "Sidecar",
+    "SoloTarget",
+    "SubmitTarget",
+]
+
 
 import json
 import os

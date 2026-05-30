@@ -7,6 +7,12 @@ Provides two public functions:
 """
 
 import json
+
+__all__ = [
+    "extract_json",
+    "get_llm_response_text",
+]
+
 import re
 from typing import Optional, Type, Union
 
@@ -69,7 +75,7 @@ def extract_json(
         if isinstance(result, (dict, list)):
             if expected_type is None or isinstance(result, expected_type):
                 return result
-            # Type mismatch â€” fall through to bracket extraction
+            # Type mismatch — fall through to bracket extraction
     except (json.JSONDecodeError, ValueError):
         logger.warning("[VECTOR] suppressed exception", exc_info=True)
 

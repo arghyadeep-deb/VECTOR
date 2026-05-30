@@ -18,6 +18,12 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "SEOPortfolio",
+    "SEVERITY_WEIGHTS",
+]
+
+
 import json
 import re
 import sys
@@ -26,7 +32,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 _PORTFOLIO_DIR = Path.home() / ".vector" / "seo_portfolio"

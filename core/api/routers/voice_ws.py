@@ -11,12 +11,16 @@ Protocol:
 """
 
 import sys
+
+__all__ = [
+    "router",
+    "voice_stream",
+]
+
 import asyncio
 import base64
 import io
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 import numpy as np
 import soundfile as sf
@@ -75,6 +79,21 @@ async def voice_stream(websocket: WebSocket):
         response_text, tts_speed = await loop.run_in_executor(None, _llm_respond_with_personality, transcript)
         await websocket.send_json({"type": "response", "text": response_text})
 
+        # Broadcast voice response as ui_event for dashboard widgets
+        try:
+            await broadcast_event({"type": "ui_event", "action_type": "widget_open", "params": {"id": "text", "content": response_text, "title": "Response"}})
+        except Exception as _bc_err:
+            logger.debug(f"[VECTOR][voice_ws] ui_event broadcast skipped: {_bc_err}")
+
+        # Check for location intent and trigger map widget
+        intent = await _parse_intent(transcript)
+        if intent:
+            try:
+                await broadcast_event({"type": "ui_event", **intent})
+                logger.info(f"[VECTOR][voice_ws] Intent detected: {intent['action']} -> {intent['params']['query']}")
+            except Exception as _int_err:
+                logger.warning(f"[VECTOR][voice_ws] Intent broadcast failed: {_int_err}")
+
         await _orb("speaking")
         wav_bytes = await loop.run_in_executor(None, _tts_to_wav, response_text, tts_speed)
         if wav_bytes:
@@ -104,6 +123,49 @@ async def voice_stream(websocket: WebSocket):
             await websocket.close()
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+
+
+def _parse_intent(text: str) -> dict | None:
+    """Extract location queries from natural voice commands.
+    
+    Matches: 'show me Paris', 'show Paris on the map', 'where is Tokyo?'
+    """
+    text_lower = text.lower().strip()
+    
+    # Pattern 1: "show me <location>"
+    if "show me" in text_lower:
+        parts = text_lower.split("show me")
+        if len(parts) > 1:
+            location = parts[1].strip().rstrip(".?!")
+            return {"action": "widget_show_location", "params": {"query": location}}
+    
+    # Pattern 2: "where is <location>"
+    if "where is" in text_lower or "where's" in text_lower:
+        for prefix in ["where is", "where's"]:
+            parts = text_lower.split(prefix)
+            if len(parts) > 1:
+                location = parts[1].strip().rstrip(".?!")
+                return {"action": "widget_show_location", "params": {"query": location}}
+    
+    # Pattern 3: "map of <location>"
+    if "map of" in text_lower:
+        parts = text_lower.split("map of")
+        if len(parts) > 1:
+            location = parts[1].strip().rstrip(".?!")
+            return {"action": "widget_show_location", "params": {"query": location}}
+    
+    # Pattern 4: "lock HUD" or "unlock HUD"
+    if "lock hud" in text_lower or "unlock hud" in text_lower:
+        locked = "lock" in text_lower and "unlock" not in text_lower
+        return {"action": "hud_lock_toggle", "params": {"locked": locked}}
+    
+    # Pattern 5: "hide" or "show" (generic hide/show commands)
+    if text_lower in ("hide", "hide hud", "hide interface"):
+        return {"action": "hud_lock_toggle", "params": {"locked": True}}
+    if text_lower in ("show", "show hud", "show interface"):
+        return {"action": "hud_lock_toggle", "params": {"locked": False}}
+    
+    return None
 
 
 def _transcribe(chunks: list[bytes]) -> str:

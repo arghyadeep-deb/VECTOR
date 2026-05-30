@@ -26,6 +26,16 @@ Create Date: 2026-04-18
 
 import unicodedata
 
+__all__ = [
+    "branch_labels",
+    "depends_on",
+    "down_revision",
+    "downgrade",
+    "revision",
+    "upgrade",
+]
+
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Polymarket Quant Bot -- Standalone Demo
 =======================================
 A quantitative trading bot for Polymarket prediction markets.
@@ -118,6 +119,8 @@ def fetch_active_markets(limit: int = 20) -> list[dict]:
             })
         return result
     except Exception as e:
+        logger.debug("[VECTOR][polymarket_quant_bot] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][polymarket_quant_bot] caught Exception: %s", _sve)
         print(f"  [ERROR] Failed to fetch markets: {e}")
         return []
 

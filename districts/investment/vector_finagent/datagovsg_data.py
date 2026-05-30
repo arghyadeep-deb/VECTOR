@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Data.gov.sg API Wrapper
 Provides access to Singapore's open data portal including real-time APIs and catalog APIs.
 
@@ -112,6 +113,8 @@ def get_collections(page: int = 1) -> Dict[str, Any]:
             "error": "Invalid JSON response from collections API"
         }
     except Exception as e:
+        logger.debug("[VECTOR][datagovsg_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][datagovsg_data] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {},

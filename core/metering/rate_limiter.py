@@ -16,14 +16,20 @@ Ported from the agent OS API rate_limiter.rs (GCRA algorithm).
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "GCRARateLimiter",
+    "get_rate_limiter",
+    "operation_cost",
+    "OperationType",
+    "RateLimitResult",
+]
+
+
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from threading import Lock
 from typing import Literal
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 # ── Operation cost table (ported from rate_limiter.rs) ────────────────────────

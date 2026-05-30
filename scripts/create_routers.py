@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 routers_dir = Path(__file__).parent.parent / 'core' / 'api' / 'routers'
 

@@ -13,6 +13,15 @@ research output. As per PR review discussion with djpetti.
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BaseRatingSystem",
+    "QualityRating",
+    "QualityRatingSystem",
+    "RelevanceRating",
+    "RelevanceRatingSystem",
+]
+
 from enum import Enum
 from typing import List, Dict, Any, Optional
 from loguru import logger

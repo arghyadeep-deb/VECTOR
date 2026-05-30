@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Qlib Strategy Module
 Complete implementation of portfolio construction strategies including:
 - TopK Dropout Strategy
@@ -109,6 +110,8 @@ class StrategyService:
                 "suitable_for": ["Long-only portfolios", "Stock selection", "Momentum strategies"]
             }
         except Exception as e:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_strategy] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_strategy] caught Exception: %s", _sve)
             return {"success": False, "error": f"Failed to create TopK strategy: {str(e)}"}
 
     def create_enhanced_indexing_strategy(self,

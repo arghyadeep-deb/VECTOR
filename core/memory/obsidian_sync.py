@@ -1,4 +1,10 @@
 import sys
+
+__all__ = [
+    "ObsidianSync",
+    "PermissionDeniedError",
+]
+
 import os
 import datetime
 import hashlib
@@ -6,7 +12,6 @@ import time
 import threading
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 
@@ -87,7 +92,7 @@ class ObsidianSync:
 
         if level == "yellow" and not _bypass_gateway:
             raise PermissionDeniedError(
-                f"Personal folder '{folder}' requires gateway â€” "
+                f"Personal folder '{folder}' requires gateway — "
                 "use async write_note_via_gateway() instead"
             )
 
@@ -306,7 +311,7 @@ class ObsidianSync:
             except Exception as e:
                 logger.warning(f"[VECTOR][obsidian] ingest failed for {f}: {e}")
 
-        logger.info(f"[VECTOR][obsidian] bulk ingest complete â€” {count} new files")
+        logger.info(f"[VECTOR][obsidian] bulk ingest complete — {count} new files")
         return count
 
     # â”€â”€ MarkItDown pre-processor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -323,7 +328,7 @@ class ObsidianSync:
             result = md.convert(str(file_path))
             return result.text_content if result else None
         except ImportError:
-            logger.debug("[VECTOR][obsidian] markitdown not installed â€” skipping non-md conversion")
+            logger.debug("[VECTOR][obsidian] markitdown not installed — skipping non-md conversion")
             return None
         except Exception as e:
             logger.warning(f"[VECTOR][obsidian] markitdown conversion failed for {file_path}: {e}")

@@ -225,9 +225,9 @@ def _check_e2ee_deps() -> bool:
 
 def check_matrix_requirements() -> bool:
     """Return True if the Matrix adapter can be used."""
-    token = os.getenv("MATRIX_ACCESS_TOKEN", "")
-    password = os.getenv("MATRIX_PASSWORD", "")
-    homeserver = os.getenv("MATRIX_HOMESERVER", "")
+    token = os.environ.get("MATRIX_ACCESS_TOKEN", "")
+    password = os.environ.get("MATRIX_PASSWORD", "")
+    homeserver = os.environ.get("MATRIX_HOMESERVER", "")
 
     if not token and not password:
         logger.debug("Matrix: neither MATRIX_ACCESS_TOKEN nor MATRIX_PASSWORD set")
@@ -245,7 +245,7 @@ def check_matrix_requirements() -> bool:
 
     # If encryption is requested, verify E2EE deps are available at startup
     # rather than silently degrading to plaintext-only at connect time.
-    encryption_requested = os.getenv("MATRIX_ENCRYPTION", "").lower() in (
+    encryption_requested = os.environ.get("MATRIX_ENCRYPTION", "").lower() in (
         "true",
         "1",
         "yes",
@@ -301,20 +301,20 @@ class MatrixAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.MATRIX)
 
         self._homeserver: str = (
-            config.extra.get("homeserver", "") or os.getenv("MATRIX_HOMESERVER", "")
+            config.extra.get("homeserver", "") or os.environ.get("MATRIX_HOMESERVER", "")
         ).rstrip("/")
-        self._access_token: str = config.token or os.getenv("MATRIX_ACCESS_TOKEN", "")
-        self._user_id: str = config.extra.get("user_id", "") or os.getenv(
+        self._access_token: str = config.token or os.environ.get("MATRIX_ACCESS_TOKEN", "")
+        self._user_id: str = config.extra.get("user_id", "") or os.environ.get(
             "MATRIX_USER_ID", ""
         )
-        self._password: str = config.extra.get("password", "") or os.getenv(
+        self._password: str = config.extra.get("password", "") or os.environ.get(
             "MATRIX_PASSWORD", ""
         )
         self._encryption: bool = config.extra.get(
             "encryption",
-            os.getenv("MATRIX_ENCRYPTION", "").lower() in ("true", "1", "yes"),
+            os.environ.get("MATRIX_ENCRYPTION", "").lower() in ("true", "1", "yes"),
         )
-        self._device_id: str = config.extra.get("device_id", "") or os.getenv(
+        self._device_id: str = config.extra.get("device_id", "") or os.environ.get(
             "MATRIX_DEVICE_ID", ""
         )
 
@@ -341,27 +341,27 @@ class MatrixAdapter(BasePlatformAdapter):
         self._threads = ThreadParticipationTracker("matrix")
 
         # Mention/thread gating — parsed once from env vars.
-        self._require_mention: bool = os.getenv(
+        self._require_mention: bool = os.environ.get(
             "MATRIX_REQUIRE_MENTION", "true"
         ).lower() not in ("false", "0", "no")
-        free_rooms_raw = os.getenv("MATRIX_FREE_RESPONSE_ROOMS", "")
+        free_rooms_raw = os.environ.get("MATRIX_FREE_RESPONSE_ROOMS", "")
         self._free_rooms: Set[str] = {
             r.strip() for r in free_rooms_raw.split(",") if r.strip()
         }
-        self._auto_thread: bool = os.getenv("MATRIX_AUTO_THREAD", "true").lower() in (
+        self._auto_thread: bool = os.environ.get("MATRIX_AUTO_THREAD", "true").lower() in (
             "true",
             "1",
             "yes",
         )
-        self._dm_auto_thread: bool = os.getenv(
+        self._dm_auto_thread: bool = os.environ.get(
             "MATRIX_DM_AUTO_THREAD", "false"
         ).lower() in ("true", "1", "yes")
-        self._dm_mention_threads: bool = os.getenv(
+        self._dm_mention_threads: bool = os.environ.get(
             "MATRIX_DM_MENTION_THREADS", "false"
         ).lower() in ("true", "1", "yes")
 
         # Reactions: configurable via MATRIX_REACTIONS (default: true).
-        self._reactions_enabled: bool = os.getenv(
+        self._reactions_enabled: bool = os.environ.get(
             "MATRIX_REACTIONS", "true"
         ).lower() not in ("false", "0", "no")
         self._pending_reactions: dict[tuple[str, str], str] = {}
@@ -374,10 +374,10 @@ class MatrixAdapter(BasePlatformAdapter):
         # Text batching: merge rapid successive messages (Telegram-style).
         # Matrix clients split long messages around 4000 chars.
         self._text_batch_delay_seconds = float(
-            os.getenv("VECTOR_MATRIX_TEXT_BATCH_DELAY_SECONDS", "0.6")
+            os.environ.get("VECTOR_MATRIX_TEXT_BATCH_DELAY_SECONDS", "0.6")
         )
         self._text_batch_split_delay_seconds = float(
-            os.getenv("VECTOR_MATRIX_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0")
+            os.environ.get("VECTOR_MATRIX_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0")
         )
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
@@ -389,7 +389,7 @@ class MatrixAdapter(BasePlatformAdapter):
         }
         self._approval_prompts_by_event: Dict[str, _MatrixApprovalPrompt] = {}
         self._approval_prompt_by_session: Dict[str, str] = {}
-        allowed_users_raw = os.getenv("MATRIX_ALLOWED_USERS", "")
+        allowed_users_raw = os.environ.get("MATRIX_ALLOWED_USERS", "")
         self._allowed_user_ids: Set[str] = {
             u.strip() for u in allowed_users_raw.split(",") if u.strip()
         }
@@ -716,7 +716,7 @@ class MatrixAdapter(BasePlatformAdapter):
                 # (fresh crypto.db, share_keys re-upload) — otherwise the
                 # device's self-signing signature is stale and peers refuse
                 # to share Megolm sessions with the rotated device.
-                recovery_key = os.getenv("MATRIX_RECOVERY_KEY", "").strip()
+                recovery_key = os.environ.get("MATRIX_RECOVERY_KEY", "").strip()
                 if recovery_key:
                     try:
                         await olm.verify_with_recovery_key(recovery_key)

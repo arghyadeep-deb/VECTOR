@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Company Information API
 Fetches detailed company information for stocks
 """
@@ -26,6 +27,8 @@ def get_cn_basic_info(symbol):
             "timestamp": int(datetime.now().timestamp())
         }
     except Exception as e:
+        logger.debug("[VECTOR][akshare_company_info] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][akshare_company_info] caught Exception: %s", _sve)
         return {
             "success": False,
             "error": str(e),

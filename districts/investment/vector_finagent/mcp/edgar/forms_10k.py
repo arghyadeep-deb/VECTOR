@@ -1,4 +1,5 @@
 """
+from loguru import logger
 10-K Annual Report Extraction
 ==============================
 
@@ -63,6 +64,8 @@ def get_latest_10k(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
+        logger.debug("[VECTOR][mcp.edgar.forms_10k] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_10k] caught Exception: %s", _sve)
         return {"error": EdgarError("get_latest_10k", str(e), traceback.format_exc()).to_dict()}
 
 

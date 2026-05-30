@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Czech National Bank (CNB) Data Wrapper
 Fetches data from the CNB public REST API.
 
@@ -133,6 +134,8 @@ class CNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return CNBError(label, str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][cnb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][cnb_data] caught Exception: %s", _sve)
             return CNBError(label, str(e)).to_dict()
 
     def _flatten_rates(self, raw_rates: List[Dict],

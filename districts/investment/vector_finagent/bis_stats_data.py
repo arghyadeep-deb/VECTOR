@@ -1,4 +1,5 @@
 """
+from loguru import logger
 BIS Data Portal SDMX Data Fetcher
 Global credit, debt securities, banking stats, effective exchange rates, property prices.
 No API key required.
@@ -76,6 +77,8 @@ def _parse_sdmx_compact(data: Any, label: str = "data") -> Any:
 
         return {label: series_list, "count": len(series_list)}
     except Exception as e:
+        logger.debug("[VECTOR][bis_stats_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][bis_stats_data] caught Exception: %s", _sve)
         return {"error": f"Parse error: {str(e)}"}
 
 

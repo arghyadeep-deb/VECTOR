@@ -3,6 +3,7 @@
 # Copyright (c) 2024-2026 VECTOR. All rights reserved.
 # Licensed under the MIT License.
 # https://github.com/Fincept-Corporation/VectorFinancialTerminal
+from loguru import logger
 #
 # Strategy ID: FCT-8FAFCC5D
 # Category: Regression Test
@@ -32,5 +33,7 @@ class StringToSymbolImplicitConversionRegressionAlgorithm(QCAlgorithm):
         try:
             self.market_order("PEPE", 1)
         except Exception as exception:
+            logger.debug("[VECTOR][strategies.StringToSymbolImplicitConversionRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.StringToSymbolImplicitConversionRegressionAlgorithm] caught Exception: %s", _sve)
             if "This asset symbol (PEPE 0) was not found in your security list" in str(exception) and not self.portfolio.invested:
                 self.set_holdings("SPY", 1)

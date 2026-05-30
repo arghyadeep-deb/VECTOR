@@ -1,10 +1,6 @@
 """GSDLoop — VectorCode VC-3. discuss→plan→execute→verify workflow."""
-import sys
 import tempfile
 from enum import Enum
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from memory.pattern_store import PatternStore
@@ -85,8 +81,5 @@ if __name__ == "__main__":
     loop.reset()
     assert loop.current_phase == GSDPhase.DISCUSS
     print("gsd_loop.py OK")
-
-
-
 
 

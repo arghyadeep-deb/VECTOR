@@ -11,6 +11,12 @@ using whatever engine they want; mining runs alongside on the CPU.
 
 from __future__ import annotations
 
+__all__ = [
+    "CpuPearlProvider",
+    "ensure_registered",
+]
+
+
 import os
 import time
 import urllib.request

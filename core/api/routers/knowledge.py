@@ -4,9 +4,7 @@ Exposes DomainExtractor, WikiParser, and WikiMerger to the API so VECTOR agents
 can trigger codebase domain scans, wiki knowledge-graph builds, and graph merges
 via HTTP. Used by karpathy_lab, research, and code_intel districts.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

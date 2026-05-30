@@ -1,4 +1,15 @@
 import re
+
+__all__ = [
+    "extract_links_from_search_results",
+    "format_findings",
+    "format_links_to_markdown",
+    "LANGUAGE_CODE_MAP",
+    "QUALITY_PENDING",
+    "QUALITY_PREPRINT",
+    "remove_think_tags",
+]
+
 from typing import Dict, List
 
 from loguru import logger
@@ -53,7 +64,7 @@ def _format_quality_tag(quality) -> str:
     The output is plaintext / Markdown. **Do NOT** render the containing
     string through a template filter like ``{{ foo|safe }}`` or
     ``DOMPurify.sanitize(..., {ALLOWED_TAGS:['a']})`` without first HTML-
-    escaping the surrounding title â€” the tag itself is safe, but a
+    escaping the surrounding title — the tag itself is safe, but a
     downstream caller that concatenates ``title + quality_tag`` and
     emits the result as HTML will leak any tags in ``title`` (XSS).
 
@@ -62,7 +73,7 @@ def _format_quality_tag(quality) -> str:
     Accepts int | None for scored journals, plus the string sentinels
     ``QUALITY_PENDING`` and ``QUALITY_PREPRINT``. Every numeric value
     in VALID_QUALITY_SCORES has its own explicit branch so a bad
-    scoring-logic change can't silently rebucket a score â€” unexpected
+    scoring-logic change can't silently rebucket a score — unexpected
     values fall through to a debug tag that shows the raw value.
     """
     if quality is None:
@@ -71,19 +82,19 @@ def _format_quality_tag(quality) -> str:
         return (
             " [journal quality data is downloading in the background; "
             "by the time you open /metrics/journals it may already "
-            "be complete â€” re-run this search in a minute to get "
+            "be complete — re-run this search in a minute to get "
             "real quality scores]"
         )
     if quality == QUALITY_PREPRINT:
         # No venue at all (arxiv preprint / working paper / dataset).
         # Distinct from score 3 ("we looked and didn't find the
-        # venue") â€” here there's nothing *to* look up.
-        return " [preprint â€” not in journal catalog]"
+        # venue") — here there's nothing *to* look up.
+        return " [preprint — not in journal catalog]"
     # Numeric tiers. Explicit per-score branches instead of ``>=``
     # ranges so boundary changes can't silently shift a bucket.
     if quality == 10:
         return " [Q1 â˜…â˜…â˜…â˜…â˜…]"
-    # KNOWN-DEFERRED: quality == 9 is a dead branch â€”
+    # KNOWN-DEFERRED: quality == 9 is a dead branch —
     # constants.VALID_QUALITY_SCORES excludes 9 and the filter rejects
     # any LLM output of that value. Kept defensively so a future change
     # to VALID_QUALITY_SCORES does not require editing the formatter.
@@ -100,11 +111,11 @@ def _format_quality_tag(quality) -> str:
     if quality == 5:
         return " [Q2 â˜…â˜…â˜…]"
     if quality == 4:
-        # JOURNAL_QUALITY_DEFAULT â€” venue found in the catalog but
+        # JOURNAL_QUALITY_DEFAULT — venue found in the catalog but
         # with no h-index / quartile / DOAJ signal.
         return " [Unranked â˜…]"
     if quality == 3:
-        # Low-confidence fallback â€” venue didn't match any tier. We
+        # Low-confidence fallback — venue didn't match any tier. We
         # don't know the journal, not "we know it's low-quality".
         return " [Unranked â˜…]"
     if quality == 2:
@@ -113,7 +124,7 @@ def _format_quality_tag(quality) -> str:
         # Predatory. Usually auto-removed before this renderer sees
         # it, but surfaces if whitelisted or the threshold is 1.
         return " [Q4 â˜…]"
-    # Out-of-set value â€” VALID_QUALITY_SCORES gates the inputs so this
+    # Out-of-set value — VALID_QUALITY_SCORES gates the inputs so this
     # is unreachable in normal operation. Show the raw value so bad
     # data surfaces visibly instead of silently bucketing into Q4.
     return f" [quality={quality!r}]"
@@ -125,7 +136,7 @@ def _format_quality_tag_html(quality, *, title: str = "") -> str:
     Callers that render search-result titles + quality tags into an
     HTML page must use this variant and pass the raw ``title`` so both
     are escaped together. The quality tag itself is plaintext, but the
-    brackets and stars are safe to emit verbatim â€” the danger is the
+    brackets and stars are safe to emit verbatim — the danger is the
     untrusted ``title`` that a downstream HTML template may concatenate
     alongside the tag.
 
@@ -218,7 +229,7 @@ def format_links_to_markdown(all_links: List[Dict]) -> str:
         # Group links by canonical URL (collapses trailing slash, utm
         # params, fragments, default ports, scheme/host case, userinfo).
         # The canonical form is also what gets displayed so the Sources
-        # section stays clean â€” no utm_*/fbclid clutter, no embedded
+        # section stays clean — no utm_*/fbclid clutter, no embedded
         # credentials, no scheme/host casing noise. Click-through is
         # unaffected (tracking params carry no content).
         url_to_indices: dict[str, list] = {}

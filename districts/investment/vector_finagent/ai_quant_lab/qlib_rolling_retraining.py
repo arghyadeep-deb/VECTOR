@@ -1,4 +1,5 @@
 """AI Quant Lab - Rolling Retraining: Real Qlib-backed rolling model scheduler"""
+from loguru import logger
 import json
 import os
 import sys
@@ -25,6 +26,8 @@ try:
 
     QLIB_AVAILABLE = True
 except Exception as e:
+    logger.debug("[VECTOR][ai_quant_lab.qlib_rolling_retraining] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][ai_quant_lab.qlib_rolling_retraining] caught Exception: %s", _sve)
     QLIB_AVAILABLE = False
     QLIB_ERROR = str(e)
 

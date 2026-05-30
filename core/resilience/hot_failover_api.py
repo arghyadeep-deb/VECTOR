@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "force_relinquish",
+    "force_takeover",
+    "get_failover_instance",
+    "get_failover_status",
+    "receive_heartbeat",
+    "reset_missed_heartbeats",
+    "router",
+]
+
+
 import time
 from typing import Any
 

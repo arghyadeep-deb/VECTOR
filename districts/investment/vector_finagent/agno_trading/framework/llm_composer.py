@@ -1,4 +1,5 @@
 """
+from loguru import logger
 LLM-based composer for multi-model trading competitions.
 """
 
@@ -307,6 +308,8 @@ If you decide to HOLD or WAIT, set quantity to 0.
                 decision_type="WAIT"
             )
         except Exception as e:
+            logger.debug("[VECTOR][agno_trading.framework.llm_composer] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.framework.llm_composer] caught Exception: %s", _sve)
             print(f"[LLMComposer] ERROR in {model_config.name}: {type(e).__name__}: {e}", flush=True, file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)
@@ -323,24 +326,19 @@ If you decide to HOLD or WAIT, set quantity to 0.
         try:
             # Try direct JSON parse
             return json.loads(text)
-        except:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-        # Try to find JSON block in markdown
+        except Exception:
+            logger.debug("[VECTOR][agno_trading.framework.llm_composer] suppressed Exception in fallback")  # bare except
         import re
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group(1))
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-        # Try to find any JSON object
+            except Exception:
+                logger.debug("[VECTOR][agno_trading.framework.llm_composer] suppressed Exception in fallback")  # bare except
         json_match = re.search(r'\{.*?\}', text, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group(0))
-            except:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+            except Exception:
+                logger.debug("[VECTOR][agno_trading.framework.llm_composer] suppressed Exception in fallback")  # bare except
         return None

@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "AudioPlayer",
+    "DEFAULT_BLOCKSIZE",
+    "DEFAULT_SAMPLE_WIDTH",
+    "DTYPE",
+]
+
+
 from collections.abc import Callable
 import threading
 from typing import TYPE_CHECKING

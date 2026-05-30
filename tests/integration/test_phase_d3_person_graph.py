@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _TEST_PID = "d3_test_alice_001"
 _TEST_PID2 = "d3_test_bob_002"

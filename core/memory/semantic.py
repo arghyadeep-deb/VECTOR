@@ -1,8 +1,6 @@
 """V.E.C.T.O.R. SemanticMemory — persistent SQLite-backed concept store."""
 import sys
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from datetime import datetime

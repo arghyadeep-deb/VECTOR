@@ -14,6 +14,12 @@ provider holds it; the sidecar JSON records PIDs for crash recovery and
 
 from __future__ import annotations
 
+__all__ = [
+    "logger",
+    "PearlSubprocessLauncher",
+]
+
+
 import logging
 import os
 import subprocess

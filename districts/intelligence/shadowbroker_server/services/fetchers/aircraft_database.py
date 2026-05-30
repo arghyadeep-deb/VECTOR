@@ -16,7 +16,10 @@ import csv
 import logging
 import threading
 import time
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Any
 
 import requests

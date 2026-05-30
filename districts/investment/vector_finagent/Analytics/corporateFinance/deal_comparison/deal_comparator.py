@@ -1,4 +1,5 @@
 """Deal Comparison and Analysis Tool"""
+from loguru import logger
 from typing import Dict, Any, List, Optional
 import numpy as np
 from dataclasses import dataclass
@@ -617,6 +618,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_comparison.deal_comparator] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.deal_comparison.deal_comparator] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

@@ -384,7 +384,7 @@ def _resolve_stdio_command(command: str, env: dict) -> tuple[str, dict]:
             resolved_command = which_hit
         elif resolved_command in {"npx", "npm", "node"}:
             vector_home = os.path.expanduser(
-                os.getenv(
+                os.environ.get(
                     "VECTOR_HOME", os.path.join(os.path.expanduser("~"), ".vector")
                 )
             )

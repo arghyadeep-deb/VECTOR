@@ -1,9 +1,12 @@
 """VECTOR gesture router — MediaPipe hand tracking WebSocket."""
-import sys
+
+__all__ = [
+    "gesture_ws",
+    "router",
+]
+
 import asyncio
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger

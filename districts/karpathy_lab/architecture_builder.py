@@ -4,8 +4,6 @@ District: karpathy_lab | Focus: Neural architecture design for LLM training
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory

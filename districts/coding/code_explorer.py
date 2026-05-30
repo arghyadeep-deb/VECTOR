@@ -3,11 +3,9 @@ Code Explorer — deep code reading, execution path tracing, architecture mappin
 Loaded from: vectorcode/agents/vector-code-explorer.md
 District: coding
 """
-import sys
 import asyncio
 import ast
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

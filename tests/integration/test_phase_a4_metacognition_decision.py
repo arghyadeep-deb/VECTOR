@@ -1,12 +1,8 @@
 """Integration tests — Session A4: MetaCognition bias penalty in DecisionEngine._score_candidate."""
 from __future__ import annotations
 
-import sys
 import time
 import unittest
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestMetaCognitionAccessor(unittest.TestCase):

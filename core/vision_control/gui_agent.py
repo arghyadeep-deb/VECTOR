@@ -1,5 +1,5 @@
 """
-VECTOR Vision Control â€” GUI Agent
+VECTOR Vision Control — GUI Agent
 Python port of UI-TARS-desktop/packages/ui-tars/sdk/src/GUIAgent.ts
 
 The main VLM-driven GUI automation loop:
@@ -11,9 +11,16 @@ Uses VECTOR's inference stack (Ollama vision model â†’ Gemini â†’ GPT-
 Usage:
     agent = GUIAgent()
     result = asyncio.run(agent.run("Open Notepad and type Hello VECTOR"))
-    print(result["status"])
+    logger.info(result["status"])
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "GUIAgent",
+    "GUIStatus",
+]
+
 
 import asyncio
 import base64
@@ -21,10 +28,8 @@ import sys
 import time
 import uuid
 from enum import Enum
-from pathlib import Path
 from typing import Callable, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.vision_control.action_parser import action_parser
 from core.vision_control.vision_operator import VisionOperator
@@ -346,8 +351,8 @@ if __name__ == "__main__":
         agent.stop()
         assert agent._stop_signal is True
 
-        print(f"OK gui_agent.py â€” GUIAgent init, pause/resume/stop OK")
+        print(f"OK gui_agent.py — GUIAgent init, pause/resume/stop OK")
         print(f"  model={agent._model} max_loop={agent._max_loop}")
-        print(f"  session_id={agent._session_id[:8]}â€¦")
+        print(f"  session_id={agent._session_id[:8]}…")
 
     asyncio.run(_smoke())

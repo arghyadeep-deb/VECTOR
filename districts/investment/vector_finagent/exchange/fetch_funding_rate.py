@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fetch current funding rate for a perpetual futures symbol.
 Works with both spot symbols (BTC/USDT) and perp symbols (BTC/USDT:USDT).
 For spot symbols on exchanges that use unified format, tries the perp equivalent.
@@ -59,6 +60,8 @@ def main():
             })
             return
         except Exception:
+            logger.debug("[VECTOR][exchange.fetch_funding_rate] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][exchange.fetch_funding_rate] caught Exception: %s", _sve)
             continue
 
     # Not available for this symbol/exchange (common for spot-only exchanges)

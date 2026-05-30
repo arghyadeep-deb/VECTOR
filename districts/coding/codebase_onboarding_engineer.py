@@ -4,13 +4,11 @@ CodebaseOnboardingEngineer — Helps navigate unfamiliar repos.
 Reads source code, traces execution paths, maps architecture, produces
 onboarding documents. Only states facts grounded in code.
 """
-import sys
 import asyncio
 import ast
 import datetime
 import re
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

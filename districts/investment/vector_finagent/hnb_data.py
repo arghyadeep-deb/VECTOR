@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Hrvatska Narodna Banka (HNB) — Croatian National Bank Data Wrapper
 Fetches exchange rate data from the HNB public REST API.
 
@@ -183,6 +184,8 @@ class HNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return HNBError("tecajn-eur/v3", str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][hnb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][hnb_data] caught Exception: %s", _sve)
             return HNBError("tecajn-eur/v3", str(e)).to_dict()
 
     def get_currency(self, currency: str,

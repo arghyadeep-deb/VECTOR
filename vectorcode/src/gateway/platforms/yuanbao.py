@@ -1574,7 +1574,7 @@ class AutoSetHomeMiddleware(InboundMiddleware):
     async def handle(self, ctx: InboundContext, next_fn) -> None:
         adapter = ctx.adapter
         if not adapter._auto_sethome_done:
-            _cur_home = os.getenv("YUANBAO_HOME_CHANNEL", "")
+            _cur_home = os.environ.get("YUANBAO_HOME_CHANNEL", "")
             _should_set = (
                 not _cur_home
                 or (_cur_home.startswith("group:") and ctx.chat_type == "dm")
@@ -4451,23 +4451,23 @@ class YuanbaoAdapter(BasePlatformAdapter):
         # ------------------------------------------------------------------
         dm_policy: str = (
             _extra.get("dm_policy")
-            or os.getenv("YUANBAO_DM_POLICY", "open")
+            or os.environ.get("YUANBAO_DM_POLICY", "open")
         ).strip().lower()
 
         _dm_allow_from_raw: str = (
             _extra.get("dm_allow_from")
-            or os.getenv("YUANBAO_DM_ALLOW_FROM", "")
+            or os.environ.get("YUANBAO_DM_ALLOW_FROM", "")
         )
         dm_allow_from: list[str] = [x.strip() for x in _dm_allow_from_raw.split(",") if x.strip()]
 
         group_policy: str = (
             _extra.get("group_policy")
-            or os.getenv("YUANBAO_GROUP_POLICY", "open")
+            or os.environ.get("YUANBAO_GROUP_POLICY", "open")
         ).strip().lower()
 
         _group_allow_from_raw: str = (
             _extra.get("group_allow_from")
-            or os.getenv("YUANBAO_GROUP_ALLOW_FROM", "")
+            or os.environ.get("YUANBAO_GROUP_ALLOW_FROM", "")
         )
         group_allow_from: list[str] = [x.strip() for x in _group_allow_from_raw.split(",") if x.strip()]
 
@@ -4491,7 +4491,7 @@ class YuanbaoAdapter(BasePlatformAdapter):
         # channel is a group chat (group:xxx), it stays eligible for
         # upgrade — the first DM will override it with direct:xxx.
         # ------------------------------------------------------------------
-        _existing_home = os.getenv("YUANBAO_HOME_CHANNEL") or (
+        _existing_home = os.environ.get("YUANBAO_HOME_CHANNEL") or (
             config.home_channel.chat_id if config.home_channel else ""
         )
         self._auto_sethome_done: bool = bool(_existing_home) and not _existing_home.startswith("group:")

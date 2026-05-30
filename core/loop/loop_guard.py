@@ -14,12 +14,16 @@ Ported from the agent OS runtime agent_loop.rs loop guard system.
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "LoopGuardState",
+    "LoopViolation",
+    "repair_session",
+]
+
+
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 MAX_ITERATIONS: int = 50          # absolute hard cap per task

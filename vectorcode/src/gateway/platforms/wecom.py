@@ -151,18 +151,18 @@ class WeComAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.WECOM)
 
         extra = config.extra or {}
-        self._bot_id = str(extra.get("bot_id") or os.getenv("WECOM_BOT_ID", "")).strip()
-        self._secret = str(extra.get("secret") or os.getenv("WECOM_SECRET", "")).strip()
+        self._bot_id = str(extra.get("bot_id") or os.environ.get("WECOM_BOT_ID", "")).strip()
+        self._secret = str(extra.get("secret") or os.environ.get("WECOM_SECRET", "")).strip()
         self._ws_url = str(
             extra.get("websocket_url")
             or extra.get("websocketUrl")
-            or os.getenv("WECOM_WEBSOCKET_URL", DEFAULT_WS_URL)
+            or os.environ.get("WECOM_WEBSOCKET_URL", DEFAULT_WS_URL)
         ).strip() or DEFAULT_WS_URL
 
-        self._dm_policy = str(extra.get("dm_policy") or os.getenv("WECOM_DM_POLICY", "open")).strip().lower()
+        self._dm_policy = str(extra.get("dm_policy") or os.environ.get("WECOM_DM_POLICY", "open")).strip().lower()
         self._allow_from = _coerce_list(extra.get("allow_from") or extra.get("allowFrom"))
 
-        self._group_policy = str(extra.get("group_policy") or os.getenv("WECOM_GROUP_POLICY", "open")).strip().lower()
+        self._group_policy = str(extra.get("group_policy") or os.environ.get("WECOM_GROUP_POLICY", "open")).strip().lower()
         self._group_allow_from = _coerce_list(extra.get("group_allow_from") or extra.get("groupAllowFrom"))
         self._groups = extra.get("groups") if isinstance(extra.get("groups"), dict) else {}
 
@@ -177,8 +177,8 @@ class WeComAdapter(BasePlatformAdapter):
 
         # Text batching: merge rapid successive messages (Telegram-style).
         # WeCom clients split long messages around 4000 chars.
-        self._text_batch_delay_seconds = float(os.getenv("VECTOR_WECOM_TEXT_BATCH_DELAY_SECONDS", "0.6"))
-        self._text_batch_split_delay_seconds = float(os.getenv("VECTOR_WECOM_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
+        self._text_batch_delay_seconds = float(os.environ.get("VECTOR_WECOM_TEXT_BATCH_DELAY_SECONDS", "0.6"))
+        self._text_batch_split_delay_seconds = float(os.environ.get("VECTOR_WECOM_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
         self._device_id = uuid.uuid4().hex

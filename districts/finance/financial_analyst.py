@@ -4,15 +4,12 @@ Financial Analyst — financial modeling, forecasting, scenario analysis.
 Provides professional-grade financial analysis for Arghyadeep's startup/agency
 projects and investment decisions. DCF, three-statement basics, scenario modeling.
 """
-import sys
 import asyncio
 import json
 import re
 import math
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

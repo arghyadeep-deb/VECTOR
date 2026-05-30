@@ -1,8 +1,14 @@
 """Security router — /security endpoints."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "confirm_security_action",
+    "router",
+    "security_recent",
+    "security_status",
+]
+
 
 from fastapi import APIRouter, Request, HTTPException, Query
 from loguru import logger

@@ -4,8 +4,12 @@ AirLLM runner - enables 70B+ models in 16GB without quantization.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "AirLLMRunner",
+    "main",
+]
+
 
 from core.config import CONFIG
 from loguru import logger
@@ -327,15 +331,18 @@ async def main():
     """Test the AirLLM runner."""
     runner = AirLLMRunner()
 
-    print(f"AirLLM available: {runner._airllm_available}")
-    print(f"Supported models: {runner.list_supported_models()}")
+    logger.info(f"AirLLM available: {runner._airllm_available}")
+
+    logger.info(f"Supported models: {runner.list_supported_models()}")
+
 
     result = await runner.load_model("llama2:7b")
-    print(f"Load result: {result}")
+    logger.info(f"Load result: {result}")
+
 
     if result.get("success"):
         gen_result = await runner.generate("What is V.E.C.T.O.R.?")
-        print(f"Generate result: {gen_result}")
+        logger.info(f"Generate result: {gen_result}")
 
 
 if __name__ == "__main__":

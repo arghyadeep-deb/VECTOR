@@ -129,7 +129,7 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
                 if ns == "" or ns.startswith("#"):
                     j += 1
                     continue
-                if ns == "pass":
+                if ns == "pass" or ns.startswith("pass #") or ns.startswith("pass  #"):
                     # Check not already annotated as intentional
                     if KEEP_PASS_COMMENT not in lines[j]:
                         found_pass = True
@@ -140,14 +140,11 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
                 level = log_level(exc_type)
                 log_stmt = f'{body_indent}logger.{level}("[VECTOR][{module_tag}] suppressed {exc_type}: %s", _sve)\n'
 
-                # Add `as _sve` to the except clause if not already there
-                new_except = re.sub(
-                    r'^(\s*except\s+)(.*?)(\s*:\s*)$',
-                    lambda m: f'{m.group(1)}{m.group(2)} as _sve{m.group(3)}',
+                new_except = stripped.replace("except:", "except Exception as _sve:", 1) if "except:" in stripped else re.sub(
+                    r'^(\s*except\s+)(.*?)\s*(?::\s*)$',
+                    lambda m: f'{m.group(1)}{m.group(2)} as _sve:',
                     stripped
                 )
-                if "except:" in stripped:
-                    new_except = stripped.replace("except:", "except Exception as _sve:", 1)
 
                 new_lines.append(new_except + "\n")
                 for k in range(i + 1, pass_line_idx):
@@ -155,6 +152,29 @@ def fix_file(path: pathlib.Path) -> tuple[int, str]:
                 new_lines.append(log_stmt)
                 changes += 1
                 i = pass_line_idx + 1
+                continue
+
+            # Non-pass bare except — add logger.debug at handler start
+            if FIX_NON_PASS and (lstripped == "except:" or exc_type == "Exception"):
+                log_stmt = f'{body_indent}logger.debug("[VECTOR][{module_tag}] caught Exception: %s", _sve)\n'
+                new_except = stripped.replace("except:", "except Exception as _sve:", 1)
+                new_lines.append(new_except + "\n")
+                new_lines.append(log_stmt)
+                # Keep all existing body lines
+                body_done = False
+                depth = 0
+                for k in range(i + 1, len(lines)):
+                    bstrip = lines[k].rstrip("\n\r")
+                    blstrip = bstrip.lstrip()
+                    if not body_done:
+                        if blstrip == "" or blstrip.startswith("#"):
+                            new_lines.append(lines[k])
+                            continue
+                        body_done = True
+                    new_lines.append(lines[k])
+                    i = k
+                changes += 1
+                i += 1
                 continue
 
         new_lines.append(line)

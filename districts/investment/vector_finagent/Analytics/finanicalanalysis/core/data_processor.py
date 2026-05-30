@@ -1,3 +1,4 @@
+from loguru import logger
 
 """
 Financial Statement Data Processor Module
@@ -276,6 +277,8 @@ class DataProcessor:
             return statements
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.finanicalanalysis.core.data_processor] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.finanicalanalysis.core.data_processor] caught Exception: %s", _sve)
             self.logger.error(f"Error processing data: {str(e)}")
             raise
 

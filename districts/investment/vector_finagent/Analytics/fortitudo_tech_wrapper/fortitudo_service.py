@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fortitudo Service (risk-aware portfolio optimization)
 ======================================================
 Self-contained portfolio risk + optimization service for the VECTOR Financial Terminal
@@ -32,7 +33,6 @@ import pandas as pd
 # Add this module's directory to path so we can import sibling files.
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
 
 # Wrapper modules (optimization.py + functions.py + option_pricing.py).
 # These exist in this directory; they shadow / wrap fortitudo.tech.
@@ -184,6 +184,8 @@ def _normalize_returns_input(data):
             try:
                 df.index = pd.to_datetime(df.index)
             except Exception:
+                logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
         else:
             # {asset: [r1, r2, ...]}

@@ -1,10 +1,9 @@
 """Startup Valuation Module"""
-import sys
+from loguru import logger
 from pathlib import Path
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 try:
     from corporateFinance.startup_valuation.berkus_method import BerkusMethod

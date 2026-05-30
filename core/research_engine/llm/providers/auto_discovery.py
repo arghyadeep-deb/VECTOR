@@ -1,6 +1,17 @@
 """Auto-discovery system for OpenAI-compatible providers."""
 
 import importlib
+
+__all__ = [
+    "discover_providers",
+    "get_available_discovered_provider_options",
+    "get_discovered_provider_options",
+    "get_provider_class",
+    "provider_discovery",
+    "ProviderDiscovery",
+    "ProviderInfo",
+]
+
 import inspect
 from pathlib import Path
 from typing import Dict, List, Optional

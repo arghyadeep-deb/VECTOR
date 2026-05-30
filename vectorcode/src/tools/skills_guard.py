@@ -136,7 +136,7 @@ THREAT_PATTERNS = [
      "accesses os.environ (potential env dump)"),
     (r'os\.getenv\s*\(\s*[^\)]*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)',
      "python_getenv_secret", "critical", "exfiltration",
-     "reads secret via os.getenv()"),
+     "reads secret via os.environ.get()"),
     (r'process\.env\[',
      "node_process_env", "high", "exfiltration",
      "accesses process.env (Node.js environment)"),

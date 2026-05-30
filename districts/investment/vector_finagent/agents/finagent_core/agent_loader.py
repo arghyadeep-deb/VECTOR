@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Dynamic Agent Loader - Load agents from configuration at runtime
 
 Similar to ValueCell's _resolve_local_agent_class_sync pattern.
@@ -200,6 +201,8 @@ class AgentLoader:
             try:
                 self.config_dir.mkdir(exist_ok=True)
             except Exception:
+                logger.debug("[VECTOR][agents.finagent_core.agent_loader] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.agent_loader] caught Exception: %s", _sve)
                 pass  # Ignore if can't create
 
     def discover_agents(self) -> List[AgentCard]:

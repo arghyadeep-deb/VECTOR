@@ -10,6 +10,7 @@ exhausted keys survive process restarts.
 
 from __future__ import annotations
 
+from pathlib import Path
 import json
 import os
 import sys
@@ -17,11 +18,8 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                       # vectorcode package
 
 try:
     from core.config import CONFIG

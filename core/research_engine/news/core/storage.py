@@ -3,6 +3,15 @@ Base storage interfaces for the news system.
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BaseStorage",
+    "CardStorage",
+    "PreferenceStorage",
+    "RatingStorage",
+    "SubscriptionStorage",
+]
+
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid

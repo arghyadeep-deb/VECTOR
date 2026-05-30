@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 CNINFO PDF Text Extractor
 Extracts text from downloaded CNINFO PDFs with dedupe/checkpoint state.
 """
@@ -48,6 +49,8 @@ def _load_reader() -> Tuple[str, Any]:
 
         return "pypdf", PdfReader
     except Exception:
+        logger.debug("[VECTOR][cninfo_pdf_text_extractor] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][cninfo_pdf_text_extractor] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:
         from PyPDF2 import PdfReader  # type: ignore

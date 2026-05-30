@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "TRANSCRIPTION_DRAIN_TIMEOUT",
+    "VoiceManager",
+]
+
+
 from asyncio import CancelledError, create_task, wait_for
 import contextlib
 from typing import TYPE_CHECKING

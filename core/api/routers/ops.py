@@ -1,14 +1,21 @@
 """VECTOR ops router - /ops/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "error_classify",
+    "ErrorClassifyReq",
+    "incident_command",
+    "IncidentCommandReq",
+    "post_mortem",
+    "PostMortemReq",
+    "router",
+    "slo_check",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/ops", tags=["ops"])
-
-
 
 
 class IncidentCommandReq(BaseModel):

@@ -12,8 +12,6 @@ import sys
 import asyncio
 import json
 import re
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

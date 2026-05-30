@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Economic Reporting Module
 =============================
@@ -412,7 +413,9 @@ class ExportManager(EconomicsBase):
                                 # Clean sheet name
                                 sheet_name = section_name.replace('_', ' ').title()[:31]
                                 df.to_excel(writer, sheet_name=sheet_name, index=True)
-                        except:
+                        except Exception as _sve:
+                            logger.debug("[VECTOR][Analytics.economics.reporting] caught Exception: %s", _sve)
+                            logger.debug("[VECTOR][Analytics.economics.reporting] caught Exception: %s", _sve)
                             continue
 
             return True

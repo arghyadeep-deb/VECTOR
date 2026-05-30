@@ -1,5 +1,5 @@
 """
-VECTOR Web Dashboard â€” FastAPI router serving the browser UI.
+VECTOR Web Dashboard — FastAPI router serving the browser UI.
 
 Mounted at /ui on the existing FastAPI server (core/main.py).
 Zero npm, zero Node.js, zero external dependencies.
@@ -7,10 +7,26 @@ Single-file HTML dashboard with VECTOR dark theme.
 
 Access: http://127.0.0.1:8000/ui
 """
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+__all__ = [
+    "dashboard",
+    "router",
+    "web_agents",
+    "web_arxiv",
+    "web_chat",
+    "web_chat_ws",
+    "web_devto",
+    "web_github",
+    "web_goals",
+    "web_hn",
+    "web_karpathy",
+    "web_memory",
+    "web_search",
+    "web_tasks",
+    "web_tasks_cancel",
+    "web_tasks_submit",
+]
+
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -445,7 +461,7 @@ _DASHBOARD_HTML = """\
     mems.forEach(m=>{
       const item=el("div",{class:"mem-item"});
       item.appendChild(el("div",{style:"color:var(--dim);font-size:10px"},
-        [(m.timestamp||"")+" â€” "+(m.event_type||"")+" â€” "+(m.source||"")]));
+        [(m.timestamp||"")+" — "+(m.event_type||"")+" — "+(m.source||"")]));
       item.appendChild(el("div",{style:"font-size:12px;margin-top:2px"},
         [(m.content||"").substring(0,200)]));
       c.appendChild(item);
@@ -517,8 +533,8 @@ _DASHBOARD_HTML = """\
       const r=await fetch("/ui/agents");
       const d=await r.json();
       const agents=d.agents||[];
-      if(!districts.length){c.textContent="No agents in registry.";return;}
-      districts.forEach(a=>{
+      if(!agents.length){c.textContent="No agents in registry.";return;}
+      agents.forEach(a=>{
         const card=el("div",{class:"card",style:"margin-bottom:7px"});
         const top=el("div",{style:"display:flex;justify-content:space-between;margin-bottom:3px"});
         const hp=a.hp||0;
@@ -533,7 +549,7 @@ _DASHBOARD_HTML = """\
         bar.appendChild(fill);
         card.appendChild(bar);
         card.appendChild(el("div",{style:"color:var(--dim);font-size:10px;margin-top:2px"},
-          [(a.district||"?")+" â€” Gen "+(a.generation||1)]));
+          [(a.district||"?")+" — Gen "+(a.generation||1)]));
         c.appendChild(card);
       });
     }catch(e){c.textContent="Error: "+e.message;}
@@ -551,19 +567,19 @@ _DASHBOARD_HTML = """\
       document.getElementById("r-ollama").textContent=d.ollama_available?"OK":"DOWN";
       document.getElementById("r-loop").textContent=d.loop_running?"ACTIVE":"STOPPED";
       const comms=d.comms||{};
-      document.getElementById("r-urgent").textContent=comms.urgent??"â€”";
-      document.getElementById("r-unread").textContent=comms.unread??"â€”";
-      document.getElementById("r-pending").textContent=comms.pending??"â€”";
+      document.getElementById("r-urgent").textContent=comms.urgent??"—";
+      document.getElementById("r-unread").textContent=comms.unread??"—";
+      document.getElementById("r-pending").textContent=comms.pending??"—";
     }catch(e){
         document.getElementById("ollama-badge").className="badge red";
         document.getElementById("ollama-badge").textContent="Ollama: LOST";
         document.getElementById("loop-badge").className="badge red";
         document.getElementById("loop-badge").textContent="Loop: UNKNOWN";
-        document.getElementById("r-ollama").textContent="â€”";
-        document.getElementById("r-loop").textContent="â€”";
-        document.getElementById("r-urgent").textContent="â€”";
-        document.getElementById("r-unread").textContent="â€”";
-        document.getElementById("r-pending").textContent="â€”";
+        document.getElementById("r-ollama").textContent="—";
+        document.getElementById("r-loop").textContent="—";
+        document.getElementById("r-urgent").textContent="—";
+        document.getElementById("r-unread").textContent="—";
+        document.getElementById("r-pending").textContent="—";
         console.warn("pollStatus failed:", e.message);
     }
   }
@@ -586,7 +602,7 @@ _DASHBOARD_HTML = """\
   // â”€â”€ Background Tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function loadTasks(){
     try{
-      const d=await apiFetch("/tasks/");
+      const r2=await fetch("/tasks/"); const d=await r2.json();
       const runEl=document.getElementById("tasks-running");
       const recEl=document.getElementById("tasks-recent");
       if(!runEl||!recEl)return;

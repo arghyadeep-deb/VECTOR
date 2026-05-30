@@ -1,5 +1,5 @@
 """
-VECTOR Memory Tree â€” hierarchical summary tree builder.
+VECTOR Memory Tree — hierarchical summary tree builder.
 
 Builds a 3-level tree from ingested content:
   Level 0: Source (document/channel/integration)
@@ -13,16 +13,22 @@ Ported from vector's memory/tree/ architecture.
 """
 from __future__ import annotations
 
+__all__ = [
+    "MemorySource",
+    "MemoryTree",
+    "TreeChunk",
+    "TreeNode",
+]
+
+
 import hashlib
 import json
 import re
-import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 _TREE_DB = Path.home() / ".vector_ca" / "memory_tree"
@@ -33,7 +39,7 @@ _BRAIN_WIKI = Path("brain") / "VECTOR" / "wiki"
 
 @dataclass
 class TreeChunk:
-    """Atomic memory unit â€” a single fact or observation."""
+    """Atomic memory unit — a single fact or observation."""
     id: str
     source_kind: str        # "conversation" | "document" | "integration" | "observation"
     source_id: str
@@ -122,7 +128,7 @@ class MemoryTree:
             content:     Text content to store
             topic:       Topic/category (auto-detected if not provided)
             tags:        Optional tags for retrieval
-            score:       Importance score 0.0â€“1.0
+            score:       Importance score 0.0–1.0
 
         Returns:
             The created TreeChunk.
@@ -225,7 +231,7 @@ class MemoryTree:
             return f"# {source_id}\n\nNo memory tree data yet.\n"
 
         lines = [
-            f"# Memory Tree â€” {source_id}",
+            f"# Memory Tree — {source_id}",
             f"*Source: {source_kind} | Updated: {source.updated_at[:10]}*",
             "",
         ]

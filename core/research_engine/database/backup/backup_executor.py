@@ -4,6 +4,12 @@ Runs backups in a thread pool to avoid blocking the login flow.
 """
 
 import atexit
+
+__all__ = [
+    "BackupExecutor",
+    "get_backup_executor",
+]
+
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional

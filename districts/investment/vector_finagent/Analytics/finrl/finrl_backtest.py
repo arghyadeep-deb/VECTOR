@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FinRL Backtesting & Evaluation
 Wrapper around finrl.test and performance evaluation utilities.
 
@@ -342,6 +343,8 @@ def compare_algorithms(
             )
             results[algo] = metrics
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.finrl.finrl_backtest] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.finrl.finrl_backtest] caught Exception: %s", _sve)
             results[algo] = {"error": str(e)}
 
     # Ranking

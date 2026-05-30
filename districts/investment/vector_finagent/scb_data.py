@@ -1,4 +1,5 @@
 """
+from loguru import logger
 SCB (Statistics Sweden) Data Wrapper
 Comprehensive wrapper for SCB PxWebApi providing access to Swedish statistical data
 
@@ -157,6 +158,8 @@ class SCBDataAPI:
         except requests.exceptions.RequestException as e:
             return SCBError(url, f"Network error: {str(e)}", getattr(e.response, 'status_code', None)).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][scb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][scb_data] caught Exception: %s", _sve)
             return SCBError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def get_categories(self) -> Dict[str, Any]:

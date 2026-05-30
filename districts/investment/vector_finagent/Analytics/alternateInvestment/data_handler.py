@@ -1,4 +1,5 @@
 """data_handler Module"""
+from loguru import logger
 
 import pandas as pd
 import numpy as np
@@ -54,6 +55,8 @@ class DataHandler:
                 raise DataValidationError(f"Unsupported data type: {type(data)}")
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] caught Exception: %s", _sve)
             logger.error(f"Error standardizing price data: {str(e)}")
             raise DataValidationError(f"Failed to standardize price data: {str(e)}")
 
@@ -347,8 +350,8 @@ class DataHandler:
             try:
                 dt = pd.to_datetime(timestamp)
                 return dt.strftime('%Y-%m-%d %H:%M:%S')
-            except:
-                return timestamp
+            except Exception:
+                logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] suppressed Exception in fallback")  # bare except
         elif isinstance(timestamp, (datetime, date)):
             return timestamp.strftime('%Y-%m-%d %H:%M:%S')
         else:
@@ -360,8 +363,8 @@ class DataHandler:
             try:
                 dt = pd.to_datetime(date_value)
                 return dt.strftime('%Y-%m-%d')
-            except:
-                return date_value
+            except Exception:
+                logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] suppressed Exception in fallback")  # bare except
         elif isinstance(date_value, (datetime, date)):
             return date_value.strftime('%Y-%m-%d')
         else:

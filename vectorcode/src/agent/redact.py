@@ -61,7 +61,7 @@ _SENSITIVE_BODY_KEYS = frozenset({
 # `security.redact_secrets: true` in config.yaml (bridged to this env var
 # in vector_cli/main.py and gateway/run.py) or `VECTOR_REDACT_SECRETS=true`
 # in ~/.vectorcode/.env.
-_REDACT_ENABLED = os.getenv("VECTOR_REDACT_SECRETS", "").lower() in ("1", "true", "yes", "on")
+_REDACT_ENABLED = os.environ.get("VECTOR_REDACT_SECRETS", "").lower() in ("1", "true", "yes", "on")
 
 # Known API key prefixes -- match the prefix + contiguous token chars
 _PREFIX_PATTERNS = [

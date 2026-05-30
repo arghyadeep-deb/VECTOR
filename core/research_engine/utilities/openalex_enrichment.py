@@ -6,7 +6,7 @@ Resolves paper DOIs to OpenAlex source IDs in a single batch HTTP request
 ``source_type`` on result dicts so the journal reputation filter can look
 up journals by ID rather than fragile name matching.
 
-Runs as a pre-enrichment layer before content filters â€” the existing
+Runs as a pre-enrichment layer before content filters — the existing
 tiered scoring system is unchanged. This just gives Tier 2 (OpenAlex
 snapshot lookup) a reliable key to work with.
 """
@@ -33,7 +33,7 @@ def _normalize_doi(doi: str) -> str:
     snapshot of this file; the current CodeQL scan does not raise it,
     and the anchored ``startswith`` pattern is the rule's recommended
     mitigation. Refactoring to a bare-first normalization was
-    evaluated (PR #3081) but rejected as no-op churn â€” the
+    evaluated (PR #3081) but rejected as no-op churn — the
     ``https://doi.org/`` form OpenAlex actually returns round-trips
     unchanged through every branch here. Do not refactor without a
     new, reproducible functional issue.

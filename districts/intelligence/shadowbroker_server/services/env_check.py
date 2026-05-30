@@ -339,27 +339,27 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
 
     if bool(getattr(snapshot, "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT", False)):
         warnings.append(
-            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true â€” legacy/compat v1/v2 DM invites can still import. "
+            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true — legacy/compat v1/v2 DM invites can still import. "
             "Prefer re-exporting current attested v3 invites and disable this migration escape hatch after cleanup."
         )
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     if legacy_dm_signature_compat_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active â€” dm_message still accepts the legacy signature payload. "
+            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active — dm_message still accepts the legacy signature payload. "
             "Disable it after migration so modern DM fields stay fully signed."
         )
 
@@ -367,40 +367,40 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     gate_decrypt_ack = bool(getattr(snapshot, "MESH_GATE_BACKEND_DECRYPT_COMPAT_ACKNOWLEDGE", False))
     if gate_decrypt_requested or gate_decrypt_ack:
         warnings.append(
-            "MESH_GATE_BACKEND_DECRYPT_COMPAT / MESH_GATE_BACKEND_DECRYPT_COMPAT_ACKNOWLEDGE are deprecated and ignored â€” ordinary backend MLS gate decrypt stays retired; service-side decrypt is reserved for explicit recovery reads."
+            "MESH_GATE_BACKEND_DECRYPT_COMPAT / MESH_GATE_BACKEND_DECRYPT_COMPAT_ACKNOWLEDGE are deprecated and ignored — ordinary backend MLS gate decrypt stays retired; service-side decrypt is reserved for explicit recovery reads."
         )
 
     gate_plaintext_requested = bool(getattr(snapshot, "MESH_GATE_BACKEND_PLAINTEXT_COMPAT", False))
     gate_plaintext_ack = bool(getattr(snapshot, "MESH_GATE_BACKEND_PLAINTEXT_COMPAT_ACKNOWLEDGE", False))
     if gate_plaintext_requested or gate_plaintext_ack:
         warnings.append(
-            "MESH_GATE_BACKEND_PLAINTEXT_COMPAT / MESH_GATE_BACKEND_PLAINTEXT_COMPAT_ACKNOWLEDGE are deprecated and ignored â€” ordinary backend gate compose/post stays retired; shipped gate clients keep plaintext local."
+            "MESH_GATE_BACKEND_PLAINTEXT_COMPAT / MESH_GATE_BACKEND_PLAINTEXT_COMPAT_ACKNOWLEDGE are deprecated and ignored — ordinary backend gate compose/post stays retired; shipped gate clients keep plaintext local."
         )
 
     if bool(getattr(snapshot, "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT", False)):
         warnings.append(
-            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true â€” legacy/compat v1/v2 DM invites can still import. "
+            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true — legacy/compat v1/v2 DM invites can still import. "
             "Prefer re-exporting current attested v3 invites and disable this migration escape hatch after cleanup."
         )
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     if legacy_dm_signature_compat_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active â€” dm_message still accepts the legacy signature payload. "
+            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active — dm_message still accepts the legacy signature payload. "
             "Disable it after migration so modern DM fields stay fully signed."
         )
 
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     if legacy_dm_get_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active â€” GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
+            "MESH_ALLOW_LEGACY_DM_GET_UNTIL is active — GET /api/mesh/dm/poll and GET /api/mesh/dm/count remain enabled for migration. "
             "Disable it after older clients move to the signed mailbox-claim POST APIs."
         )
     gate_recovery_envelope_requested = bool(getattr(snapshot, "MESH_GATE_RECOVERY_ENVELOPE_ENABLE", False))
@@ -409,11 +409,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_recovery_envelope_requested and not gate_recovery_envelope_ack:
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true â€” envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
         )
     elif gate_recovery_envelope_effective(snapshot):
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true â€” gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
         )
 
     gate_recovery_envelope_requested = bool(getattr(snapshot, "MESH_GATE_RECOVERY_ENVELOPE_ENABLE", False))
@@ -422,11 +422,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_recovery_envelope_requested and not gate_recovery_envelope_ack:
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true â€” envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
         )
     elif gate_recovery_envelope_effective(snapshot):
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true â€” gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
         )
 
     gate_recovery_envelope_requested = bool(
@@ -437,11 +437,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_recovery_envelope_requested and not gate_recovery_envelope_ack:
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬â€ envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬— envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
         )
     elif gate_recovery_envelope_effective(snapshot):
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬â€ gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬— gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
         )
 
     gate_plaintext_persist_requested = bool(getattr(snapshot, "MESH_GATE_PLAINTEXT_PERSIST", False))
@@ -450,11 +450,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_plaintext_persist_requested and not gate_plaintext_persist_ack:
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
+            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
         )
     elif gate_plaintext_persist_effective(snapshot):
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” decrypted gate plaintext is retained on disk outside explicit recovery mode."
+            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — decrypted gate plaintext is retained on disk outside explicit recovery mode."
         )
 
     gate_plaintext_persist_requested = bool(getattr(snapshot, "MESH_GATE_PLAINTEXT_PERSIST", False))
@@ -463,11 +463,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_plaintext_persist_requested and not gate_plaintext_persist_ack:
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
+            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
         )
     elif gate_plaintext_persist_effective(snapshot):
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” decrypted gate plaintext is retained on disk outside explicit recovery mode."
+            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — decrypted gate plaintext is retained on disk outside explicit recovery mode."
         )
 
     gate_plaintext_persist_requested = bool(getattr(snapshot, "MESH_GATE_PLAINTEXT_PERSIST", False))
@@ -476,11 +476,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_plaintext_persist_requested and not gate_plaintext_persist_ack:
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
+            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
         )
     elif gate_plaintext_persist_effective(snapshot):
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” decrypted gate plaintext is retained on disk outside explicit recovery mode."
+            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — decrypted gate plaintext is retained on disk outside explicit recovery mode."
         )
 
     gate_recovery_envelope_requested = bool(
@@ -602,7 +602,7 @@ def _deprecated_audit_security_config(settings) -> None:
     gate_decrypt_ack = bool(getattr(settings, "MESH_GATE_BACKEND_DECRYPT_COMPAT_ACKNOWLEDGE", False))
     if gate_decrypt_requested or gate_decrypt_ack:
         logger.warning(
-            "âš ï¸  PRIVACY: MESH_GATE_BACKEND_DECRYPT_COMPAT* is deprecated and ignored â€” ordinary backend MLS "
+            "âš ï¸  PRIVACY: MESH_GATE_BACKEND_DECRYPT_COMPAT* is deprecated and ignored — ordinary backend MLS "
             "gate decrypt stays retired; service-side decrypt is reserved for explicit recovery reads."
         )
     gate_decrypt_requested = False
@@ -624,7 +624,7 @@ def _deprecated_audit_security_config(settings) -> None:
     gate_plaintext_ack = bool(getattr(settings, "MESH_GATE_BACKEND_PLAINTEXT_COMPAT_ACKNOWLEDGE", False))
     if gate_plaintext_requested or gate_plaintext_ack:
         logger.warning(
-            "âš ï¸  PRIVACY: MESH_GATE_BACKEND_PLAINTEXT_COMPAT* is deprecated and ignored â€” ordinary backend gate "
+            "âš ï¸  PRIVACY: MESH_GATE_BACKEND_PLAINTEXT_COMPAT* is deprecated and ignored — ordinary backend gate "
             "compose/post stays retired; shipped gate clients keep plaintext local."
         )
     gate_plaintext_requested = False
@@ -726,12 +726,12 @@ def _get_security_posture_warnings_legacy(settings=None) -> list[str]:
 
     if bool(getattr(snapshot, "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT", False)):
         warnings.append(
-            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true â€” legacy/compat v1/v2 DM invites can still import. "
+            "MESH_ALLOW_COMPAT_DM_INVITE_IMPORT=true — legacy/compat v1/v2 DM invites can still import. "
             "Prefer re-exporting current attested v3 invites and disable this migration escape hatch after cleanup."
         )
     if legacy_dm_signature_compat_override_active():
         warnings.append(
-            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active â€” dm_message still accepts the legacy signature payload. "
+            "MESH_ALLOW_LEGACY_DM_SIGNATURE_COMPAT_UNTIL is active — dm_message still accepts the legacy signature payload. "
             "Disable it after migration so modern DM fields stay fully signed."
         )
 
@@ -741,11 +741,11 @@ def _get_security_posture_warnings_legacy(settings=None) -> list[str]:
     )
     if gate_plaintext_persist_requested and not gate_plaintext_persist_ack:
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
+            "MESH_GATE_PLAINTEXT_PERSIST=true without MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — ordinary gate reads keep plaintext local/in-memory until you explicitly acknowledge durable at-rest retention."
         )
     elif gate_plaintext_persist_effective(snapshot):
         warnings.append(
-            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true â€” decrypted gate plaintext is retained on disk outside explicit recovery mode."
+            "MESH_GATE_PLAINTEXT_PERSIST=true with MESH_GATE_PLAINTEXT_PERSIST_ACKNOWLEDGE=true — decrypted gate plaintext is retained on disk outside explicit recovery mode."
         )
 
     release_attestation_warning = _release_attestation_warning(snapshot)

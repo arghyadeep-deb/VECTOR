@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import threading
 import uuid
@@ -43,7 +44,7 @@ class BackgroundManager:
             self.tasks[task_id]["result"] = "Shell execution disabled. Set VECTOR_ALLOW_SHELL_EXEC=true to enable."
             return
         try:
-            r = subprocess.run(command, shell=True, cwd=WORKDIR,
+            r = subprocess.run(shlex.split(command), cwd=WORKDIR,
                                capture_output=True, text=True, timeout=300,
                                encoding="utf-8", errors="replace")
             output = (r.stdout + r.stderr).strip()[:50000]

@@ -3,9 +3,6 @@ PhysicsEngine — PyBullet simulation wrapper.
 Lazy-imports pybullet; degrades cleanly to analytical fallback if not installed.
 Architecture invariant: loop must never crash on ImportError.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import math
 from typing import Any

@@ -115,7 +115,7 @@ def check_dingtalk_requirements() -> bool:
     """Check if DingTalk dependencies are available and configured."""
     if not DINGTALK_STREAM_AVAILABLE or not HTTPX_AVAILABLE:
         return False
-    if not os.getenv("DINGTALK_CLIENT_ID") or not os.getenv("DINGTALK_CLIENT_SECRET"):
+    if not os.environ.get("DINGTALK_CLIENT_ID") or not os.environ.get("DINGTALK_CLIENT_SECRET"):
         return False
     return True
 
@@ -159,10 +159,10 @@ class DingTalkAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.DINGTALK)
 
         extra = config.extra or {}
-        self._client_id: str = extra.get("client_id") or os.getenv(
+        self._client_id: str = extra.get("client_id") or os.environ.get(
             "DINGTALK_CLIENT_ID", ""
         )
-        self._client_secret: str = extra.get("client_secret") or os.getenv(
+        self._client_secret: str = extra.get("client_secret") or os.environ.get(
             "DINGTALK_CLIENT_SECRET", ""
         )
 
@@ -352,12 +352,12 @@ class DingTalkAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() in ("true", "1", "yes", "on")
             return bool(configured)
-        return os.getenv("DINGTALK_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
+        return os.environ.get("DINGTALK_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
 
     def _dingtalk_free_response_chats(self) -> Set[str]:
         raw = self.config.extra.get("free_response_chats")
         if raw is None:
-            raw = os.getenv("DINGTALK_FREE_RESPONSE_CHATS", "")
+            raw = os.environ.get("DINGTALK_FREE_RESPONSE_CHATS", "")
         if isinstance(raw, list):
             return {str(part).strip() for part in raw if str(part).strip()}
         return {part.strip() for part in str(raw).split(",") if part.strip()}
@@ -366,7 +366,7 @@ class DingTalkAdapter(BasePlatformAdapter):
         """Compile optional regex wake-word patterns for group triggers."""
         patterns = self.config.extra.get("mention_patterns") if self.config.extra else None
         if patterns is None:
-            raw = os.getenv("DINGTALK_MENTION_PATTERNS", "").strip()
+            raw = os.environ.get("DINGTALK_MENTION_PATTERNS", "").strip()
             if raw:
                 try:
                     loaded = json.loads(raw)
@@ -408,7 +408,7 @@ class DingTalkAdapter(BasePlatformAdapter):
         """
         raw = self.config.extra.get("allowed_users") if self.config.extra else None
         if raw is None:
-            raw = os.getenv("DINGTALK_ALLOWED_USERS", "")
+            raw = os.environ.get("DINGTALK_ALLOWED_USERS", "")
         if isinstance(raw, list):
             items = [str(part).strip() for part in raw if str(part).strip()]
         else:

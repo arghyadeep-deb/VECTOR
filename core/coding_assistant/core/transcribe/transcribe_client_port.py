@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+__all__ = [
+    "TranscribeClientPort",
+    "TranscribeDone",
+    "TranscribeError",
+    "TranscribeEvent",
+    "TranscribeSessionCreated",
+    "TranscribeTextDelta",
+]
+
+
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol

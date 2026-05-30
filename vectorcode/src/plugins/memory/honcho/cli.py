@@ -421,7 +421,7 @@ def cmd_setup(args) -> None:
 
     # --- 3. Identity ---
     current_peer = vector_host.get("peerName") or cfg.get("peerName", "")
-    new_peer = _prompt("Your name (user peer)", default=current_peer or os.getenv("USER", "user"))
+    new_peer = _prompt("Your name (user peer)", default=current_peer or os.environ.get("USER", "user"))
     if new_peer:
         vector_host["peerName"] = new_peer
 

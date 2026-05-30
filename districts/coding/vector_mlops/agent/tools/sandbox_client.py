@@ -35,6 +35,7 @@ Tools: bash, read, write, edit, upload
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import io
 import secrets as secrets_lib
@@ -111,7 +112,7 @@ CMD ["python", "sandbox_server.py"]
 
 _SANDBOX_SERVER = '''\
 """Minimal FastAPI server for sandbox operations."""
-import hmac, os, subprocess, pathlib, signal, threading, re, tempfile
+import hmac, os, subprocess, pathlib, signal, threading, re, tempfile, shlex
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
@@ -370,6 +371,21 @@ def _validate_python(content, path=""):
             warnings.append("Training script warning: no \'hub_model_id\' found")
     return warnings
 
+def _validate_command_safe(command: str) -> None:
+    _DANGEROUS_PATTERNS = [
+        (";", "command chaining"),
+        ("|", "pipe injection"),
+        ("&&", "operator chaining"),
+        ("||", "operator chaining"),
+        ("`", "subshell injection"),
+        ("$(", "command substitution"),
+    ]
+    for pattern, reason in _DANGEROUS_PATTERNS:
+        if pattern in command:
+            raise ValueError(
+                f"Command contains {pattern!r} — rejected for security ({reason})"
+            )
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -380,8 +396,10 @@ def bash(req: BashReq):
     if not _os.environ.get("VECTOR_ALLOW_SHELL_EXEC"):
         return {"success": False, "output": "", "error": "Shell execution disabled. Set VECTOR_ALLOW_SHELL_EXEC=true to enable."}
     try:
+        _validate_command_safe(req.command)
+        cmd_list = shlex.split(req.command)
         proc = subprocess.Popen(
-            req.command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cmd_list, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, cwd=req.work_dir, start_new_session=True,
         )
         with _proc_lock:

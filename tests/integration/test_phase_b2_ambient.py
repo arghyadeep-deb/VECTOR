@@ -4,13 +4,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestConsentGateFunctions(unittest.TestCase):

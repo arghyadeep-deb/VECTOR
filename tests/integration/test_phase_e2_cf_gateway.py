@@ -5,11 +5,9 @@ Actual deploy runs separately: ! cd api && npx wrangler deploy
 """
 from __future__ import annotations
 
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 _API_DIR = Path(__file__).parent.parent.parent / "api"
 _SRC = _API_DIR / "src"

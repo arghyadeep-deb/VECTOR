@@ -53,8 +53,8 @@ _RECONNECT_JITTER = 0.2
 
 def check_mattermost_requirements() -> bool:
     """Return True if the Mattermost adapter can be used."""
-    token = os.getenv("MATTERMOST_TOKEN", "")
-    url = os.getenv("MATTERMOST_URL", "")
+    token = os.environ.get("MATTERMOST_TOKEN", "")
+    url = os.environ.get("MATTERMOST_URL", "")
     if not token:
         logger.debug("Mattermost: MATTERMOST_TOKEN not set")
         return False
@@ -77,9 +77,9 @@ class MattermostAdapter(BasePlatformAdapter):
 
         self._base_url: str = (
             config.extra.get("url", "")
-            or os.getenv("MATTERMOST_URL", "")
+            or os.environ.get("MATTERMOST_URL", "")
         ).rstrip("/")
-        self._token: str = config.token or os.getenv("MATTERMOST_TOKEN", "")
+        self._token: str = config.token or os.environ.get("MATTERMOST_TOKEN", "")
 
         self._bot_user_id: str = ""
         self._bot_username: str = ""
@@ -94,7 +94,7 @@ class MattermostAdapter(BasePlatformAdapter):
         # Reply mode: "thread" to nest replies, "off" for flat messages.
         self._reply_mode: str = (
             config.extra.get("reply_mode", "")
-            or os.getenv("MATTERMOST_REPLY_MODE", "off")
+            or os.environ.get("MATTERMOST_REPLY_MODE", "off")
         ).lower()
 
         # Dedup cache (prevent reprocessing)
@@ -618,11 +618,11 @@ class MattermostAdapter(BasePlatformAdapter):
         #   MATTERMOST_REQUIRE_MENTION: Require @mention in channels (default: true)
         #   MATTERMOST_FREE_RESPONSE_CHANNELS: Channel IDs where bot responds without mention
         if channel_type_raw != "D":
-            require_mention = os.getenv(
+            require_mention = os.environ.get(
                 "MATTERMOST_REQUIRE_MENTION", "true"
             ).lower() not in ("false", "0", "no")
 
-            free_channels_raw = os.getenv("MATTERMOST_FREE_RESPONSE_CHANNELS", "")
+            free_channels_raw = os.environ.get("MATTERMOST_FREE_RESPONSE_CHANNELS", "")
             free_channels = {ch.strip() for ch in free_channels_raw.split(",") if ch.strip()}
             is_free_channel = channel_id in free_channels
 

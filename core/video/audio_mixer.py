@@ -11,6 +11,14 @@ Supports:
 """
 from __future__ import annotations
 
+__all__ = [
+    "AudioMixer",
+    "AudioTrack",
+    "MixResult",
+    "NarrationPipeline",
+]
+
+
 import os
 import subprocess
 import tempfile
@@ -288,7 +296,7 @@ if __name__ == "__main__":
             assert result.duration_seconds == 1.0
             print(f"Silence generated: {os.path.getsize(tmp)} bytes")
         else:
-            print("FFmpeg not installed â€” skipping audio test")
+            print("FFmpeg not installed — skipping audio test")
     finally:
         try: os.unlink(tmp)
         except: pass

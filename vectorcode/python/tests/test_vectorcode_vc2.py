@@ -2,10 +2,6 @@
 VC-2 Memory Layer tests — FAISSIndex, PatternStore, AutoMemoryBridge.
 Plan: docs/superpowers/specs/plan-vc2-memory-layer.md
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent / 'vectorcode'))  # vectorcode package
 
 from unittest.mock import patch, MagicMock
 

@@ -188,7 +188,6 @@ dependencies = [
 
     # Misc required by requirements.txt
     "mem0ai>=0.1.0",
-    "rag-anything>=0.1.0",
     "airllm>=2.10.0",
     "code-review-graph>=2.1.0",
     "pywebview>=4.4.0",
@@ -197,7 +196,6 @@ dependencies = [
     "slowapi>=0.1.9",
     "json-repair>=0.59.0",
     "jsonpatch>=1.33",
-    "pydoc>=2.0.0",
     "kubernetes>=30.0.0",
     "boto3>=1.34.0",
     "rembg>=2.0.50",

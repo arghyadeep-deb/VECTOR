@@ -1,6 +1,5 @@
 """Toprank absorption audit + 3-module wiring audit"""
 import sys, os, ast, tempfile, asyncio
-sys.path.insert(0, r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
 sys.stdout.reconfigure(encoding="utf-8")
 
 results = []

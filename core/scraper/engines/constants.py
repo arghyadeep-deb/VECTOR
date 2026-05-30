@@ -1,4 +1,12 @@
 # Disable loading these resources for speed
+
+__all__ = [
+    "DEFAULT_ARGS",
+    "EXTRA_RESOURCES",
+    "HARMFUL_ARGS",
+    "STEALTH_ARGS",
+]
+
 EXTRA_RESOURCES = {
     "font",
     "image",

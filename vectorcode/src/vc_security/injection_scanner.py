@@ -6,6 +6,7 @@
 """Prompt injection scanner — detect malicious patterns in text."""
 
 from __future__ import annotations
+from loguru import logger
 
 import re
 from dataclasses import dataclass

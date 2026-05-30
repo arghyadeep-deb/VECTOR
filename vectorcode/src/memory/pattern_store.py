@@ -12,16 +12,7 @@ import uuid
 import json
 import math
 import random
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 from core.config import CONFIG  # noqa: F401
 from loguru import logger
 from core.memory.episodic import EpisodicMemory
@@ -215,10 +206,5 @@ if __name__ == "__main__":
         ps.update_reward(pid, 0.95)
 
     print("✅ pattern_store.py OK")
-
-
-
-
-
 
 

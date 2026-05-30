@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VBT Metrics Extraction Module
 
 Comprehensive metrics extraction using all VectorBT capabilities:
@@ -166,8 +167,9 @@ def _extract_performance(portfolio, stats, initial_capital: float) -> Dict[str, 
                 # Recalculate profit factor from actuals
                 if len(losers) > 0 and np.sum(np.abs(losers)) > 0:
                     profit_factor = float(np.sum(winners) / np.sum(np.abs(losers)))
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
 
@@ -341,8 +343,8 @@ def _extract_trade_analysis(portfolio, initial_capital: float) -> Dict[str, Any]
                             analysis['avgWinDuration'] = float(np.mean(win_durs))
                         if len(loss_durs) > 0:
                             analysis['avgLossDuration'] = float(np.mean(loss_durs))
-            except Exception:
-                pass
+            except Exception as _sve:
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
         # Winning/Losing streaks
         win_mask = pnl > 0
@@ -356,11 +358,11 @@ def _extract_trade_analysis(portfolio, initial_capital: float) -> Dict[str, Any]
                 exit_idxs = records['Exit Idx'].values
                 bars_in_trade = np.sum(exit_idxs - entry_idxs)
                 analysis['positionCoverage'] = float(bars_in_trade / total_bars) if total_bars > 0 else 0
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     return analysis
 
@@ -451,8 +453,8 @@ def _extract_drawdown_analysis(portfolio) -> Dict[str, Any]:
             last_peak_idx = np.argmax(equity_vals == peak[-1])
             analysis['activeDuration'] = int(len(equity_vals) - 1 - last_peak_idx)
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     return analysis
 
@@ -550,8 +552,8 @@ def _extract_returns_analysis(portfolio) -> Dict[str, Any]:
         # Streaks
         analysis['longestWinStreak'], analysis['longestLossStreak'] = _calculate_streaks(daily_returns)
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     return analysis
 
@@ -650,8 +652,8 @@ def _extract_risk_metrics(portfolio) -> Dict[str, Any]:
         daily_pf = daily_gains / daily_losses if daily_losses > 0 else 1.0
         metrics['commonSenseRatio'] = float(metrics['tailRatio'] * daily_pf)
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     return metrics
 
@@ -711,8 +713,8 @@ def _extract_extended_stats(
                 if len(records) > 0 and 'Entry Idx' in records.columns and 'Exit Idx' in records.columns:
                     bars_in = np.sum(records['Exit Idx'].values - records['Entry Idx'].values)
                     extended['exposureTime'] = float(bars_in / n_days) if n_days > 0 else 0
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
         # Buy-and-Hold Return
         close_vals = close_series.values.astype(float)
@@ -743,8 +745,8 @@ def _extract_extended_stats(
                         pnl_std = np.std(pnl, ddof=1)
                         if pnl_std > 0:
                             extended['sqn'] = float(np.sqrt(len(pnl)) * np.mean(pnl) / pnl_std)
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
         # Kelly Criterion
         try:
@@ -764,8 +766,8 @@ def _extract_extended_stats(
                             extended['kellyCriterion'] = float(
                                 win_rate - (1 - win_rate) / win_loss_ratio
                             )
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
         # Average Trade Duration
         try:
@@ -778,8 +780,8 @@ def _extract_extended_stats(
                     if dur_days:
                         avg_dur = np.mean(dur_days)
                         extended['avgTradeDuration'] = f'{avg_dur:.1f} days'
-        except Exception:
-            pass
+        except Exception as _sve:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
         # Deflated Sharpe Ratio (adjusts for multiple testing)
         sharpe = safe_stat(stats, 'Sharpe Ratio', 0)
@@ -794,8 +796,8 @@ def _extract_extended_stats(
                 dsr = sharpe * np.sqrt(1 - skew * sharpe + (kurt - 1) / 4 * sharpe ** 2)
                 extended['deflatedSharpe'] = safe_float(dsr)
 
-    except Exception:
-        pass
+    except Exception as _sve:
+        logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_metrics] suppressed Exception: %s", _sve)
 
     return extended
 

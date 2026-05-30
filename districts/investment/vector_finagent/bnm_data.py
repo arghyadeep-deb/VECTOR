@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Bank Negara Malaysia (BNM) Data Wrapper
 Fetches data from the BNM Open API.
 
@@ -168,6 +169,8 @@ class BNMWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BNMError("exchange-rate", str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][bnm_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bnm_data] caught Exception: %s", _sve)
             return BNMError("exchange-rate", str(e)).to_dict()
 
     def get_currency(self, currency: str, session: str = "1130") -> Dict[str, Any]:

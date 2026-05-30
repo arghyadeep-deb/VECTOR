@@ -76,7 +76,7 @@ class JabRefSource(DataSource):
                         # Last-writer-wins across 14 source CSVs. Log the
                         # collision at debug level (one per file change,
                         # not per row) so operators can audit which
-                        # source resolves a given abbreviation â€” not a
+                        # source resolves a given abbreviation — not a
                         # warning, because collisions are expected.
                         if (
                             abbrev_lower in abbrev_to_full
@@ -104,7 +104,7 @@ class JabRefSource(DataSource):
                                 )
                             abbrev_to_full[no_dots] = full_name
             except Exception:
-                # Preserve traceback â€” operators diagnosing partial
+                # Preserve traceback — operators diagnosing partial
                 # fetch failures need the exception type (timeout,
                 # SSRF block, decode error, etc.), not just the
                 # filename. The outer loop tolerates per-file

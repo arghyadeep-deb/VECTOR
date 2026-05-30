@@ -31,7 +31,7 @@ def is_truthy_value(value: Any, default: bool = False) -> bool:
 
 def env_var_enabled(name: str, default: str = "") -> bool:
     """Return True when an environment variable is set to a truthy value."""
-    return is_truthy_value(os.getenv(name, default), default=False)
+    return is_truthy_value(os.environ.get(name, default), default=False)
 
 
 def _preserve_file_mode(path: Path) -> "int | None":
@@ -184,7 +184,7 @@ def safe_json_loads(text: str, default: Any = None) -> Any:
 
 def env_int(key: str, default: int = 0) -> int:
     """Read an environment variable as an integer, with fallback."""
-    raw = os.getenv(key, "").strip()
+    raw = os.environ.get(key, "").strip()
     if not raw:
         return default
     try:
@@ -195,7 +195,7 @@ def env_int(key: str, default: int = 0) -> int:
 
 def env_bool(key: str, default: bool = False) -> bool:
     """Read an environment variable as a boolean."""
-    return is_truthy_value(os.getenv(key, ""), default=default)
+    return is_truthy_value(os.environ.get(key, ""), default=default)
 
 
 # ─── Proxy Helpers ────────────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ def normalize_proxy_url(proxy_url: str | None) -> str | None:
 def normalize_proxy_env_vars() -> None:
     """Rewrite supported proxy env vars to canonical URL forms in-place."""
     for key in _PROXY_ENV_KEYS:
-        value = os.getenv(key, "")
+        value = os.environ.get(key, "")
         normalized = normalize_proxy_url(value)
         if normalized and normalized != value:
             os.environ[key] = normalized

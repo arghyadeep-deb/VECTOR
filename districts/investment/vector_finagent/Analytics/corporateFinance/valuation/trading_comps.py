@@ -1,4 +1,5 @@
 """Trading Comparables Analysis - Public Company Comps"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -125,6 +126,8 @@ class TradingCompsAnalyzer:
             )
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.trading_comps] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.trading_comps] caught Exception: %s", _sve)
             print(f"Error fetching {ticker}: {e}")
             return None
 

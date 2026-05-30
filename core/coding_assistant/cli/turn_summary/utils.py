@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "create_narrator_backend",
+    "NARRATOR_MODEL",
+]
+
+
 import os
 
 from core.coding_assistant.core.config import ModelConfig, VectorCAConfig

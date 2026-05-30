@@ -7,6 +7,17 @@ for different embedding providers, similar to llm_config.py.
 
 from typing import Any, Dict, Optional, Type
 
+__all__ = [
+    "get_available_embedding_providers",
+    "get_embedding_function",
+    "get_embeddings",
+    "is_ollama_embeddings_available",
+    "is_openai_embeddings_available",
+    "is_sentence_transformers_available",
+    "VALID_EMBEDDING_PROVIDERS",
+]
+
+
 from langchain_core.embeddings import Embeddings
 from loguru import logger
 

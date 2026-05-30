@@ -1,9 +1,12 @@
 """Personality benchmark: 10 probes testing VECTOR's character traits — no apology, no emoji, sir usage, brevity, dry humor."""
 
-import sys
-from pathlib import Path
+
+__all__ = [
+    "PERSONALITY_PROBES",
+    "PersonalityBenchmark",
+]
+
 from typing import Callable
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 

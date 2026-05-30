@@ -27,10 +27,8 @@ import asyncio
 import json
 import sys
 import time
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from core.config import CONFIG
 from core.inference.smart_routing.classifier import classify, Tier
 from core.inference.smart_routing.model_catalog import cheapest_for_tier, fallback_chain_for, MODEL_ALIASES

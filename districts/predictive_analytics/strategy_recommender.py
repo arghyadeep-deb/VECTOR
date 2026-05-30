@@ -1,6 +1,4 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -9,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 from loguru import logger
 
+from core.city.agent_base import AgentBase
 from districts.predictive_analytics.time_series_forecaster import ForecastResult
 from districts.predictive_analytics.anomaly_predictor import MetricAnomaly, AnomalyType
 
@@ -38,7 +37,14 @@ class Recommendation:
     source: str = "predictive_analytics"
 
 
-class StrategyRecommender:
+class StrategyRecommender(AgentBase):
+    def __init__(self) -> None:
+        super().__init__(
+            agent_id=f"strategy_recommender_{int(datetime.now(timezone.utc).timestamp())}",
+            name="strategy_recommender",
+            district="predictive_analytics",
+        )
+
     def evaluate(
         self,
         forecast: Optional[ForecastResult] = None,
@@ -460,6 +466,18 @@ class StrategyRecommender:
             logger.debug(f"[VECTOR][predictive_analytics] Pushover sent for rec: {rec.title[:40]}")
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Pushover notify failed: {e}")
+
+    def health_check(self) -> dict:
+        return {
+            "agent": self.name,
+            "district": self.district,
+            "hp": self.health_points,
+            "status": self.get_status(),
+            "recommendation_types": [rt.value for rt in RecommendationType],
+        }
+
+    def fallback_chain(self) -> list[str]:
+        return ["heuristic_rules", "llm_strategy"]
 
 
 if __name__ == "__main__":

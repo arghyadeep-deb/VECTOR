@@ -7,6 +7,13 @@ importing secure_filename directly.
 
 from __future__ import annotations
 
+__all__ = [
+    "MAX_FILENAME_LENGTH",
+    "sanitize_filename",
+    "UnsafeFilenameError",
+]
+
+
 from typing import Optional
 
 from werkzeug.utils import secure_filename

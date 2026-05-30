@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fortitudo.tech Service - Python backend for analytics
 ===============================================================================
 
@@ -18,7 +19,6 @@ from datetime import datetime
 # Add this script's directory to Python path for local imports
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
 
 import pandas as pd
 import numpy as np
@@ -250,6 +250,8 @@ def portfolio_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
             "n_assets": len(weights)
         }
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service_legacy] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service_legacy] caught Exception: %s", _sve)
         return {"success": False, "error": str(e)}
 
 

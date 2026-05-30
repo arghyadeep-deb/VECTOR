@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fetch open interest for a perpetual futures symbol.
 Works with both spot symbols (BTC/USDT) and perp symbols (BTC/USDT:USDT).
 
@@ -42,6 +43,8 @@ def main():
             })
             return
         except Exception:
+            logger.debug("[VECTOR][exchange.fetch_open_interest] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][exchange.fetch_open_interest] caught Exception: %s", _sve)
             continue
 
     # Not available for this symbol/exchange

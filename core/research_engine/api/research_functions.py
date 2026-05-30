@@ -4,6 +4,14 @@ Provides programmatic access to search and research capabilities.
 """
 
 from datetime import datetime, UTC
+
+__all__ = [
+    "analyze_documents",
+    "detailed_research",
+    "generate_report",
+    "quick_summary",
+]
+
 from typing import Any, Callable
 
 from loguru import logger

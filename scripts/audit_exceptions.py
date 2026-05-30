@@ -12,6 +12,7 @@ Categories:
 Usage: python scripts/audit_exceptions.py [--fix] [--output exception_audit.md]
   --fix   Add logger.debug(...) to every BARE_PASS_REAL block
 """
+from loguru import logger
 import ast
 import sys
 import re

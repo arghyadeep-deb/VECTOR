@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VECTOR Financial Terminal - Python Output Standardization Library
 =========================================================
 
@@ -106,6 +107,8 @@ class FinAgentOutputStandardizer:
             return response
 
         except Exception as e:
+            logger.debug("[VECTOR][fincept_output_standard] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][fincept_output_standard] caught Exception: %s", _sve)
             return self._create_error_response(e)
 
     def _detect_type(self, data: Any) -> OutputType:
@@ -262,9 +265,8 @@ class FinAgentOutputStandardizer:
             # Try to convert object to dict
             try:
                 serializable_data = data.__dict__
-            except:
-                serializable_data = {"value": str(data)}
-
+            except Exception:
+                logger.debug("[VECTOR][fincept_output_standard] suppressed Exception in fallback")  # bare except
         return {
             "type": "dict",
             "value": serializable_data
@@ -311,9 +313,8 @@ class FinAgentOutputStandardizer:
                 value = data.item()
             else:
                 value = float(data) if '.' in str(data) else int(data)
-        except:
-            value = data
-
+        except Exception:
+            logger.debug("[VECTOR][fincept_output_standard] suppressed Exception in fallback")  # bare except
         return {
             "type": "number",
             "value": value

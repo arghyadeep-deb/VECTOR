@@ -17,7 +17,7 @@ Usage in execute_code:
 import os, sys
 from pathlib import Path
 
-_gm_scripts_dir = Path(os.getenv("VECTOR_HOME", Path.home() / ".vector")) / "skills" / "red-teaming" / "godmode" / "scripts"
+_gm_scripts_dir = Path(os.environ.get("VECTOR_HOME", Path.home() / ".vector")) / "skills" / "red-teaming" / "godmode" / "scripts"
 
 _gm_old_argv = sys.argv
 sys.argv = ["_godmode_loader"]

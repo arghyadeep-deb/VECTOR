@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VBT Data Module
 
 Covers all vectorbt data classes:
@@ -180,6 +181,8 @@ class YFData(Data):
                             df[col] = df[col].round(4)
                     data[sym] = df
             except Exception:
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_data] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_data] caught Exception: %s", _sve)
                 continue
 
         return cls(data)

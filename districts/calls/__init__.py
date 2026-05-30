@@ -4,8 +4,6 @@ V.E.C.T.O.R. Calls District - Voice interaction and call management agents
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

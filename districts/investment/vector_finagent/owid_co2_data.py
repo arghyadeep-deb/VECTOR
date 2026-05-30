@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Our World in Data CO2 & Energy Data Fetcher
 CO2 emissions, energy mix, per-capita emissions for all countries
 via OWID GitHub raw CSV (no key required).
@@ -53,6 +54,8 @@ def _load_owid_csv() -> Any:
         _CACHE["owid_co2"] = records
         return records
     except Exception as e:
+        logger.debug("[VECTOR][owid_co2_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][owid_co2_data] caught Exception: %s", _sve)
         return {"error": f"Failed to load OWID CSV: {str(e)}"}
 
 

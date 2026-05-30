@@ -3,8 +3,6 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode pkg parent
 
 from loguru import logger
 
@@ -405,14 +403,14 @@ def get_email_client() -> EmailClient:
     global _client_singleton
     if _client_singleton is None:
         _client_singleton = EmailClient(
-            imap_host=os.getenv("VECTOR_EMAIL_IMAP_HOST", ""),
-            imap_port=int(os.getenv("VECTOR_EMAIL_IMAP_PORT", "993")),
-            imap_user=os.getenv("VECTOR_EMAIL_IMAP_USER", ""),
-            imap_pass=os.getenv("VECTOR_EMAIL_IMAP_PASS", ""),
-            smtp_host=os.getenv("VECTOR_EMAIL_SMTP_HOST", ""),
-            smtp_port=int(os.getenv("VECTOR_EMAIL_SMTP_PORT", "587")),
-            smtp_user=os.getenv("VECTOR_EMAIL_SMTP_USER", ""),
-            smtp_pass=os.getenv("VECTOR_EMAIL_SMTP_PASS", ""),
+            imap_host=os.environ.get("VECTOR_EMAIL_IMAP_HOST", ""),
+            imap_port=int(os.environ.get("VECTOR_EMAIL_IMAP_PORT", "993")),
+            imap_user=os.environ.get("VECTOR_EMAIL_IMAP_USER", ""),
+            imap_pass=os.environ.get("VECTOR_EMAIL_IMAP_PASS", ""),
+            smtp_host=os.environ.get("VECTOR_EMAIL_SMTP_HOST", ""),
+            smtp_port=int(os.environ.get("VECTOR_EMAIL_SMTP_PORT", "587")),
+            smtp_user=os.environ.get("VECTOR_EMAIL_SMTP_USER", ""),
+            smtp_pass=os.environ.get("VECTOR_EMAIL_SMTP_PASS", ""),
         )
     return _client_singleton
 

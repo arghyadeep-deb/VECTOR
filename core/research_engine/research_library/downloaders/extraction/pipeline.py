@@ -2,8 +2,8 @@
 Shared extraction pipeline.
 
 Two entry points:
-    extract_content(html) â€” HTML string in, clean text out.
-    fetch_and_extract(url) â€” URL in, clean text out (static + JS fallback).
+    extract_content(html) — HTML string in, clean text out.
+    fetch_and_extract(url) — URL in, clean text out (static + JS fallback).
 
 This is the single source of truth for content extraction in the project.
 Used by HTMLDownloader, ContentFetcher, FullSearchResults, WaybackSearchEngine,
@@ -14,6 +14,18 @@ specialized downloaders first, with the generic HTML pipeline as fallback.
 """
 
 from typing import Any, Dict, List, Optional
+
+__all__ = [
+    "batch_fetch_and_extract",
+    "BOILERPLATE_PENALTY",
+    "extract_content",
+    "extract_content_with_metadata",
+    "fetch_and_extract",
+    "METADATA_ENRICHMENT_THRESHOLD",
+    "MIN_CONTENT_LENGTH",
+    "SAFETY_DISCARD_RATIO",
+]
+
 
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -29,7 +41,7 @@ from .metadata_extractor import extract_metadata, metadata_to_text
 # Minimum extracted text length to consider extraction successful
 MIN_CONTENT_LENGTH = 50
 # If content is shorter than this, enrich with structured metadata
-# (JSON-LD, OpenGraph) â€” helps product pages, JS-heavy sites
+# (JSON-LD, OpenGraph) — helps product pages, JS-heavy sites
 METADATA_ENRICHMENT_THRESHOLD = 1000
 # Boilerplate penalty per keyword when scoring extraction quality
 BOILERPLATE_PENALTY = 500
@@ -43,7 +55,7 @@ _readability = ReadabilityExtractor()
 _justext_en = JustextExtractor(language="English")
 _newspaper = NewspaperExtractor()
 
-# Boilerplate keywords â€” used to penalize low-quality extraction
+# Boilerplate keywords — used to penalize low-quality extraction
 _BOILERPLATE_KEYWORDS = [
     "cookie",
     "sign up",
@@ -61,7 +73,7 @@ def _run_extractors_parallel(
     """Run trafilatura and newspaper4k sequentially.
 
     Both extractors call into lxml's C extension, which is not safe to
-    share across threads â€” running them in a ThreadPoolExecutor caused
+    share across threads — running them in a ThreadPoolExecutor caused
     Fatal Python error: Aborted during pool teardown on Python 3.14
     (the workers would deadlock in shutdown's join). Serializing the
     calls eliminates the crash; the perf cost is one extra extraction's
@@ -109,8 +121,8 @@ def extract_content(
     """Extract clean text content from HTML.
 
     Pipeline:
-        1. trafilatura (primary â€” best benchmarks, multilingual, markdown)
-        2. newspaper4k (parallel â€” strong on news/forum pages)
+        1. trafilatura (primary — best benchmarks, multilingual, markdown)
+        2. newspaper4k (parallel — strong on news/forum pages)
         â†’ pick the higher-quality result from steps 1-2
         3. readability â†’ justext (fallback if both above fail, with 80% safety)
         4. soup.get_text() (last resort)
@@ -130,7 +142,7 @@ def extract_content(
     # Run trafilatura and newspaper4k in parallel, pick the better result.
     # newspaper4k is strong on news front pages and multi-answer threads
     # where trafilatura sometimes extracts less content.
-    # 5s timeout per extractor â€” covers P95 of pages, cuts off outliers.
+    # 5s timeout per extractor — covers P95 of pages, cuts off outliers.
     trafilatura_content, newspaper_content = _run_extractors_parallel(html, url)
 
     traf_score = _quality_score(trafilatura_content)
@@ -203,7 +215,7 @@ def extract_content(
                 ):
                     logger.warning(
                         f"Pipeline: {extractor.__class__.__name__} discarded "
-                        f">80% of content â€” skipping"
+                        f">80% of content — skipping"
                     )
                     continue
                 content = result
@@ -265,7 +277,7 @@ def extract_content_with_metadata(
         min_length: Minimum content length to accept.
 
     Returns:
-        Dict with keys: content, title, description â€” or None if content
+        Dict with keys: content, title, description — or None if content
         is below min_length.
     """
     if not html or not html.strip():
@@ -381,7 +393,7 @@ def _try_specialized_downloader(url: str, timeout: int = 30) -> Optional[str]:
         except Exception:  # noqa: silent-exception
             logger.warning("[VECTOR] suppressed exception", exc_info=True)
 
-    # Specialized downloader didn't produce content â€” fall back to HTML
+    # Specialized downloader didn't produce content — fall back to HTML
     logger.warning(
         f"Pipeline: specialized downloader ({url_type.value}) returned "
         f"no content for {url}, falling back to HTML pipeline"
@@ -465,7 +477,7 @@ def batch_fetch_and_extract(
 
     results: Dict[str, Optional[str]] = {}
 
-    # Try specialized downloaders first â€” collect URLs that need HTML fallback
+    # Try specialized downloaders first — collect URLs that need HTML fallback
     html_urls: List[str] = []
     for url in urls:
         try:

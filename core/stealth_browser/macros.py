@@ -8,6 +8,12 @@ Python port of core/stealth_browser/server/lib/macros.js
 """
 from __future__ import annotations
 
+__all__ = [
+    "list_engines",
+    "macro_url",
+]
+
+
 import urllib.parse
 
 # ── Macro definitions ─────────────────────────────────────────────────────────

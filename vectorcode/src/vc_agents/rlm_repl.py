@@ -12,6 +12,7 @@ sub-LM calls.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import io
 from contextlib import redirect_stderr, redirect_stdout

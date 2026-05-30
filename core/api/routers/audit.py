@@ -1,9 +1,15 @@
-"""Audit router Ã¢â‚¬â€ /audit/recent + /audit/verify."""
+"""Audit router Ã¢â‚¬— /audit/recent + /audit/verify."""
 
-import sys
-import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+import sys
+
+__all__ = [
+    "audit_recent",
+    "audit_verify",
+    "router",
+]
+
+import json
 
 from fastapi import APIRouter, Query
 from loguru import logger
@@ -59,4 +65,4 @@ async def audit_verify():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("Ã¢Å“â€¦ audit.py OK")
+    print("Ã¢Å“… audit.py OK")

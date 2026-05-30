@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Form 4 Insider Transaction Extraction
 ======================================
 
@@ -64,7 +65,9 @@ def get_insider_transactions(ticker: str, limit: int = 25) -> Dict[str, Any]:
                         "is_officer": form4.owner.is_officer if hasattr(form4, 'owner') and hasattr(form4.owner, 'is_officer') else None,
                     })
                     count += 1
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][mcp.edgar.forms_insider] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][mcp.edgar.forms_insider] caught Exception: %s", _sve)
                 # Skip if can't parse
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
@@ -216,9 +219,8 @@ def get_insider_summary(ticker: str, limit: int = 50) -> Dict[str, Any]:
                             sell_volume += shares
 
                 count += 1
-            except:
-                continue
-
+            except Exception:
+                logger.debug("[VECTOR][mcp.edgar.forms_insider] suppressed Exception in fallback")  # bare except
         return {
             "success": True,
             "data": {

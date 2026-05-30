@@ -3,10 +3,7 @@ Test Engineer — TDD specialist, test strategy, coverage analysis, test writing
 Loaded from: vectorcode/agents/vector-test-engineer.md
 District: qa
 """
-import sys
 import asyncio
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

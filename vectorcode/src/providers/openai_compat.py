@@ -7,9 +7,6 @@ Covers: OpenAI, Groq, Mistral, Together AI, OpenRouter, LM Studio,
 import sys
 import os
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from providers.base import (
@@ -310,7 +307,5 @@ if __name__ == "__main__":
     assert caps.tool_use is True
     assert caps.context_window == 128_000
     print("openai_compat.py OK")
-
-
 
 

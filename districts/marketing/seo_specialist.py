@@ -5,14 +5,11 @@ Focused on VECTOR project's own presence and any client sites managed via
 the agency district. Covers keyword clustering, on-page optimization, and
 cannibalization detection.
 """
-import sys
 import asyncio
 import re
 import math
 import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

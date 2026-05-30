@@ -1,7 +1,4 @@
-import sys
 import asyncio
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.research_engine.models import ExperimentDesign, ExperimentResult
 from core.research_engine.sandbox_executor import SandboxExecutor

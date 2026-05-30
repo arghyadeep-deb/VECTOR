@@ -37,7 +37,7 @@ def _resolve_requests_verify() -> bool | str:
     the requests default (certifi).
     """
     for env_var in ("VECTOR_CA_BUNDLE", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE"):
-        val = os.getenv(env_var)
+        val = os.environ.get(env_var)
         if val and os.path.isfile(val):
             return val
     return True

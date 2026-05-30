@@ -1,8 +1,6 @@
-import sys
-from pathlib import Path
+from loguru import logger
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.research_engine.models import Hypothesis, ExperimentDesign, ExperimentResult, AnalysisResult, ResearchReport
 from core.research_engine.auto_research_agent import AutoResearchAgent

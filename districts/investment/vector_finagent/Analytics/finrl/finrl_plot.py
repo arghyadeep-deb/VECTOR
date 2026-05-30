@@ -1,4 +1,5 @@
 """
+from loguru import logger
 FinRL Visualization & Performance Charts
 Custom plotting since pyfolio is incompatible with Python 3.13.
 
@@ -207,6 +208,8 @@ def _calc_monthly_returns(values: np.ndarray, dates: list = None) -> dict:
             })
         return {"title": "Monthly Returns Heatmap", "data": data}
     except Exception:
+        logger.debug("[VECTOR][Analytics.finrl.finrl_plot] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.finrl.finrl_plot] caught Exception: %s", _sve)
         return {"data": []}
 
 

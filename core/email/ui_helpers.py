@@ -1,10 +1,7 @@
-import sys
 import re
 import html as html_module
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.email.dates import format_list_date, format_detail_date, format_short_date, format_quoted_date
 from core.email.helpers import escape_html
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Expanded Funds Data Wrapper
 Comprehensive wrapper for enhanced fund market data and analysis
 Returns JSON output for Qt/C++ integration
@@ -55,7 +56,9 @@ class ExpandedFundsWrapper:
             elif df_copy[col].dtype == 'object':
                 try:
                     df_copy[col] = df_copy[col].apply(lambda x: str(x) if hasattr(x, 'strftime') else x)
-                except:
+                except Exception as _sve:
+                    logger.debug("[VECTOR][akshare_funds_expanded] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][akshare_funds_expanded] caught Exception: %s", _sve)
                     logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return df_copy.to_dict('records')
 

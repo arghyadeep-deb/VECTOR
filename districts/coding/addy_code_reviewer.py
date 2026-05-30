@@ -3,10 +3,8 @@ Addy Code Reviewer — Arghyadeep's personal VECTOR-aware senior code reviewer.
 Loaded from: vectorcode/agents/vector-addy-code-reviewer.md
 District: coding
 """
-import sys
 import asyncio
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent

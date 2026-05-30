@@ -24,6 +24,12 @@ Usage:
     stats = exp.stats()  # → {variant: {mean, n, p_value}}
 """
 import hashlib
+
+__all__ = [
+    "Experiment",
+    "ExperimentRegistry",
+]
+
 import json
 import math
 import sqlite3

@@ -6,6 +6,13 @@ data exfiltration, and other URL-based security vulnerabilities.
 """
 
 import re
+
+__all__ = [
+    "get_javascript_url_validator",
+    "URLValidationError",
+    "URLValidator",
+]
+
 from typing import Optional, List
 from urllib.parse import urlparse, urljoin, unquote
 from loguru import logger

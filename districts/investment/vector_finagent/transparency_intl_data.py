@@ -3,6 +3,7 @@ Transparency International CPI Data Fetcher
 Provides Corruption Perception Index (CPI) scores, country rankings,
 historical trends, and regional averages from Transparency International.
 """
+from loguru import logger
 import sys
 import json
 import os

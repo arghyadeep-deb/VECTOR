@@ -86,7 +86,6 @@ def _require_tty(command_name: str) -> None:
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
-sys.path.insert(0, str(PROJECT_ROOT))
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +93,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 #
 # Many modules cache VECTOR_HOME at import time (module-level constants).
 # We intercept --profile/-p from sys.argv here and set the env var so that
-# every subsequent ``os.getenv("VECTOR_HOME", ...)`` resolves correctly.
+# every subsequent ``os.environ.get("VECTOR_HOME", ...)`` resolves correctly.
 # The flag is stripped from sys.argv so argparse never sees it.
 # Falls back to ~/.vectorcode/active_profile for sticky default.
 # ---------------------------------------------------------------------------
@@ -277,7 +276,7 @@ def _has_any_provider_configured() -> bool:
     for pconfig in PROVIDER_REGISTRY.values():
         if pconfig.auth_type == "api_key":
             provider_env_vars.update(pconfig.api_key_env_vars)
-    if any(os.getenv(v) for v in provider_env_vars):
+    if any(os.environ.get(v) for v in provider_env_vars):
         return True
 
     # Check .env file for keys
@@ -688,7 +687,7 @@ def _exec_in_container(container_info: dict, cli_args: list):
                     f"On NixOS:\n"
                     f"\n"
                     f"  security.sudo.extraRules = [{{\n"
-                    f'    users = [ "{os.getenv("USER", "your-user")}" ];\n'
+                    f'    users = [ "{os.environ.get("USER", "your-user")}" ];\n'
                     f'    commands = [{{ command = "{runtime}"; options = [ "NOPASSWD" ]; }}];\n'
                     f"  }}];\n"
                     f"\n"
@@ -1563,7 +1562,7 @@ def select_provider_and_model(args=None):
         config_provider = model_cfg.get("provider")
 
     effective_provider = (
-        config_provider or os.getenv("VECTOR_INFERENCE_PROVIDER") or "auto"
+        config_provider or os.environ.get("VECTOR_INFERENCE_PROVIDER") or "auto"
     )
     compatible_custom_providers = get_compatible_custom_providers(config)
     active = None
@@ -3888,7 +3887,7 @@ def _model_flow_kimi(config, current_model=""):
     # Step 1: Check / prompt for API key
     existing_key = ""
     for ev in pconfig.api_key_env_vars:
-        existing_key = get_env_value(ev) or os.getenv(ev, "")
+        existing_key = get_env_value(ev) or os.environ.get(ev, "")
         if existing_key:
             break
 
@@ -4008,7 +4007,7 @@ def _model_flow_stepfun(config, current_model=""):
 
     existing_key = ""
     for ev in pconfig.api_key_env_vars:
-        existing_key = get_env_value(ev) or os.getenv(ev, "")
+        existing_key = get_env_value(ev) or os.environ.get(ev, "")
         if existing_key:
             break
 
@@ -4034,7 +4033,7 @@ def _model_flow_stepfun(config, current_model=""):
 
     current_base = ""
     if base_url_env:
-        current_base = get_env_value(base_url_env) or os.getenv(base_url_env, "")
+        current_base = get_env_value(base_url_env) or os.environ.get(base_url_env, "")
     if not current_base:
         model_cfg = config.get("model")
         if isinstance(model_cfg, dict):
@@ -4401,7 +4400,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
     # Check / prompt for API key
     existing_key = ""
     for ev in pconfig.api_key_env_vars:
-        existing_key = get_env_value(ev) or os.getenv(ev, "")
+        existing_key = get_env_value(ev) or os.environ.get(ev, "")
         if existing_key:
             break
 
@@ -4439,7 +4438,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
             print("  Checking Gemini API tier...")
             probe_base = (
                 (get_env_value(base_url_env) if base_url_env else "")
-                or os.getenv(base_url_env or "", "")
+                or os.environ.get(base_url_env or "", "")
                 or pconfig.inference_base_url
             )
             tier = probe_gemini_tier(existing_key, probe_base)
@@ -4487,7 +4486,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
     # Optional base URL override
     current_base = ""
     if base_url_env:
-        current_base = get_env_value(base_url_env) or os.getenv(base_url_env, "")
+        current_base = get_env_value(base_url_env) or os.environ.get(base_url_env, "")
     effective_base = current_base or pconfig.inference_base_url
 
     try:

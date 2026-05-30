@@ -1,15 +1,22 @@
 """
-VECTOR PageSpeed Client â€” Core Web Vitals and performance analysis.
+VECTOR PageSpeed Client — Core Web Vitals and performance analysis.
 
 Calls Google PageSpeed Insights API to get LCP, CLS, FID, performance scores
-and optimization opportunities. No gcloud needed â€” uses PSI API key or free tier.
+and optimization opportunities. No gcloud needed — uses PSI API key or free tier.
 
 Usage:
     client = PageSpeedClient()
     result = await client.analyze("https://example.com")
-    print(result["scores"])  # {"performance": 82, "mobile": 74}
+    logger.info(result["scores"])  # {"performance": 82, "mobile": 74}
+
 """
 from __future__ import annotations
+
+__all__ = [
+    "PageSpeedClient",
+    "PSI_API",
+]
+
 
 import asyncio
 import json
@@ -18,9 +25,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
@@ -78,7 +83,7 @@ def _score_indicator(score: int | None) -> str:
 def _extract_crux(psi_data: dict) -> dict:
     """
     Extract CrUX (Chrome User Experience Report) data from PSI response.
-    Ported from show_pagespeed.py â€” parses the loadingExperience key.
+    Ported from show_pagespeed.py — parses the loadingExperience key.
 
     CrUX = real user measurements from actual Chrome users in the field.
     This is DIFFERENT from Lighthouse synthetic scores (which run in a lab).
@@ -171,7 +176,7 @@ class PageSpeedClient:
     def __init__(self) -> None:
         self._api_key = _load_api_key()
         if not self._api_key:
-            logger.debug("[VECTOR][pagespeed] no API key â€” using free tier (rate limited)")
+            logger.debug("[VECTOR][pagespeed] no API key — using free tier (rate limited)")
 
     def analyze_url(self, url: str) -> dict:
         """
@@ -235,4 +240,4 @@ class PageSpeedClient:
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     client = PageSpeedClient()
-    print(f"OK pagespeed_client.py â€” PageSpeedClient ready (api_key={'set' if client._api_key else 'free tier'})")
+    print(f"OK pagespeed_client.py — PageSpeedClient ready (api_key={'set' if client._api_key else 'free tier'})")

@@ -12,6 +12,12 @@ from sqlalchemy import (
     String,
     Text,
 )
+
+__all__ = [
+    "Report",
+    "ReportSection",
+]
+
 from sqlalchemy.orm import relationship
 from sqlalchemy_utc import UtcDateTime, utcnow
 

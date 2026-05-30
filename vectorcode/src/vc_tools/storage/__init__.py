@@ -6,6 +6,7 @@
 """Storage primitive — persistent searchable storage."""
 
 from __future__ import annotations
+from loguru import logger
 
 # Always-available backend
 import vectorcode.src.vc_tools.storage.sqlite  # noqa: F401

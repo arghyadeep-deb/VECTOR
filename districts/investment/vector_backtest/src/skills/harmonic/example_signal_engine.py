@@ -6,6 +6,7 @@
 优先使用 pyharmonics 库，若不可用则回退到内置检测器。
 """
 
+from loguru import logger
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np

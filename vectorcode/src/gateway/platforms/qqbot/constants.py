@@ -16,7 +16,7 @@ QQBOT_VERSION = "1.1.0"
 
 # The portal domain is configurable via QQ_API_HOST for corporate proxies
 # or test environments.  Default: q.qq.com (production).
-PORTAL_HOST = os.getenv("QQ_PORTAL_HOST", "q.qq.com")
+PORTAL_HOST = os.environ.get("QQ_PORTAL_HOST", "q.qq.com")
 
 API_BASE = "https://api.sgroup.qq.com"
 TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"

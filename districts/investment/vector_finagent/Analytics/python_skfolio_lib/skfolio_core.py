@@ -1,4 +1,5 @@
 """
+from loguru import logger
 skfolio Core Engine - Complete Configuration and Central Management
 ===================================================================
 
@@ -648,6 +649,8 @@ class ProgressTracker:
             try:
                 callback(progress_data)
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_core] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_core] caught Exception: %s", _sve)
                 logger.error(f"Error in progress callback: {e}")
 
 class SkfolioCore:

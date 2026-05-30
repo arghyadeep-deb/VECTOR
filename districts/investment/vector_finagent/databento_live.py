@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Databento Live Streaming Provider
 ==================================
 Real-time market data streaming using Databento Live API.
@@ -160,6 +161,8 @@ class LiveStreamManager:
             self._emit("data", {"record": data})
 
         except Exception as e:
+            logger.debug("[VECTOR][databento_live] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][databento_live] caught Exception: %s", _sve)
             self._emit("error", {"message": f"Error processing record: {str(e)}"})
 
     def _on_reconnect(self):

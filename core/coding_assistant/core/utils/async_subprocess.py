@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "kill_async_subprocess",
+    "logger",
+]
+
+
 import asyncio
 import logging
 import os

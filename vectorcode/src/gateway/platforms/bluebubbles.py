@@ -107,20 +107,20 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         super().__init__(config, Platform.BLUEBUBBLES)
         extra = config.extra or {}
         self.server_url = _normalize_server_url(
-            extra.get("server_url") or os.getenv("BLUEBUBBLES_SERVER_URL", "")
+            extra.get("server_url") or os.environ.get("BLUEBUBBLES_SERVER_URL", "")
         )
-        self.password = extra.get("password") or os.getenv("BLUEBUBBLES_PASSWORD", "")
+        self.password = extra.get("password") or os.environ.get("BLUEBUBBLES_PASSWORD", "")
         self.webhook_host = (
             extra.get("webhook_host")
-            or os.getenv("BLUEBUBBLES_WEBHOOK_HOST", DEFAULT_WEBHOOK_HOST)
+            or os.environ.get("BLUEBUBBLES_WEBHOOK_HOST", DEFAULT_WEBHOOK_HOST)
         )
         self.webhook_port = int(
             extra.get("webhook_port")
-            or os.getenv("BLUEBUBBLES_WEBHOOK_PORT", str(DEFAULT_WEBHOOK_PORT))
+            or os.environ.get("BLUEBUBBLES_WEBHOOK_PORT", str(DEFAULT_WEBHOOK_PORT))
         )
         self.webhook_path = (
             extra.get("webhook_path")
-            or os.getenv("BLUEBUBBLES_WEBHOOK_PATH", DEFAULT_WEBHOOK_PATH)
+            or os.environ.get("BLUEBUBBLES_WEBHOOK_PATH", DEFAULT_WEBHOOK_PATH)
         )
         if not str(self.webhook_path).startswith("/"):
             self.webhook_path = f"/{self.webhook_path}"

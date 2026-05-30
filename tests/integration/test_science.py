@@ -1,11 +1,7 @@
 """Integration tests for Phase 4 Science layer and CausalReasoner."""
-import sys
 import math
 import asyncio
 import unittest
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestPhysicsEngine(unittest.TestCase):

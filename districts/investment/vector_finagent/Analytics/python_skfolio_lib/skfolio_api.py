@@ -1,4 +1,5 @@
 """
+from loguru import logger
 skfolio API Layer - Frontend Integration
 ========================================
 
@@ -350,6 +351,8 @@ class SkfolioAPI:
                     "result": result
                 }
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_api] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_api] caught Exception: %s", _sve)
                 return {
                     "status": "error",
                     "error": str(e)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Alternative Data Wrapper
 Wrapper for alternative and specialized data sources
 Returns JSON output for Qt/C++ integration
@@ -134,6 +135,8 @@ class AlternativeDataWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
+                logger.debug("[VECTOR][akshare_alternative] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_alternative] caught Exception: %s", _sve)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay)

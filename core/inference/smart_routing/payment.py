@@ -24,6 +24,13 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "PaymentDetails",
+    "PaymentReceipt",
+    "X402Client",
+]
+
+
 import asyncio
 import base64
 import hashlib
@@ -31,10 +38,8 @@ import json
 import sys
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 _X402_HEADER = "x402-payment"

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Agent Configuration Schema
 
 Comprehensive configuration for Agno Agents with ALL available parameters.
@@ -56,6 +57,8 @@ def _get_default_provider() -> str:
         from utils.model_factory import get_default_model_settings
         return get_default_model_settings()["provider"]
     except Exception:
+        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.schemas.agent_config] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.schemas.agent_config] caught Exception: %s", _sve)
         return "openai"  # Final fallback
 
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Base Evaluation Infrastructure
 
 Core evaluation framework for Renaissance Technologies multi-agent system.
@@ -295,6 +296,8 @@ class EvaluationRegistry:
                 result = evaluator.evaluate(context)
                 results.append(result)
             except Exception as e:
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.base] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.base] caught Exception: %s", _sve)
                 # Create error result
                 results.append(EvaluationResult(
                     evaluation_id=f"error_{evaluator.name}",

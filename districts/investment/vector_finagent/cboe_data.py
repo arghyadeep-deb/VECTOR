@@ -1,5 +1,6 @@
 # CBOE (Chicago Board Options Exchange) Data Wrapper
 # Based on OpenBB CBOE provider - https://github.com/OpenBB-finance/OpenBB/tree/main/openbb_platform/providers/cboe
+from loguru import logger
 
 import sys
 import json
@@ -107,6 +108,8 @@ class CBOEDataAPI:
         except json.JSONDecodeError as e:
             return CBOEError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][cboe_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][cboe_data] caught Exception: %s", _sve)
             return CBOEError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _parse_dataframe_response(self, data: Dict) -> pd.DataFrame:
@@ -596,9 +599,8 @@ class CBOEDataAPI:
                     try:
                         exp_date = pd.to_datetime(expiration, format='%y%m%d')
                         dte = (exp_date - datetime.now()).days + 1
-                    except:
-                        dte = None
-
+                    except Exception:
+                        logger.debug("[VECTOR][cboe_data] suppressed Exception in fallback")  # bare except
                     option_data = {
                         "contract_symbol": row['option'],
                         "underlying_symbol": ticker,

@@ -5,6 +5,7 @@
 
 """Data source connectors for Deep Research."""
 
+from loguru import logger
 from vectorcode.src.connectors._abc import (
     Attachment,
     BaseConnector,

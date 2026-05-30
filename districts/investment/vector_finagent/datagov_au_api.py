@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Australian Government Open Data Portal (data.gov.au) API Wrapper
 
 A wrapper for the data.gov.au (CKAN-based) API to access Australian government data.
@@ -172,6 +173,8 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][datagov_au_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][datagov_au_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

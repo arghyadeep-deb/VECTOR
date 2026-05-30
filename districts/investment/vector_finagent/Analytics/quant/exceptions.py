@@ -1,3 +1,4 @@
+from loguru import logger
 
 """Quantitative Exceptions Module
 =================================
@@ -143,6 +144,8 @@ def handle_calculation_error(func):
         except ModelFitError:
             raise
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.quant.exceptions] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.quant.exceptions] caught Exception: %s", _sve)
             func_name = getattr(func, '__name__', 'unknown')
             raise CalculationError(
                 message=str(e),

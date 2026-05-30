@@ -1,11 +1,16 @@
 """Jupyter router — /vector-harness/sessions."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "router",
+    "vector_harness_sessions",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger
+from pathlib import Path
 
 router = APIRouter(prefix="/vector-harness", tags=["vector-harness"])
 

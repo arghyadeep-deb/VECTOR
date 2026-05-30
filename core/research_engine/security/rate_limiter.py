@@ -11,6 +11,27 @@ production deployments, configure Redis storage via RATELIMIT_STORAGE_URL.
 """
 
 from flask import g, request, session as flask_session
+
+__all__ = [
+    "api_rate_limit",
+    "API_RATE_LIMIT_DEFAULT",
+    "DEFAULT_RATE_LIMIT",
+    "get_client_ip",
+    "get_current_username",
+    "journal_data_limit",
+    "journals_read_limit",
+    "limiter",
+    "login_limit",
+    "LOGIN_RATE_LIMIT",
+    "password_change_limit",
+    "registration_limit",
+    "REGISTRATION_RATE_LIMIT",
+    "settings_limit",
+    "SETTINGS_RATE_LIMIT",
+    "upload_rate_limit_ip",
+    "upload_rate_limit_user",
+]
+
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from loguru import logger
@@ -26,7 +47,7 @@ LOGIN_RATE_LIMIT = _config["rate_limit_login"]
 REGISTRATION_RATE_LIMIT = _config["rate_limit_registration"]
 # Settings modification rate limit - prevent abuse of settings endpoints
 SETTINGS_RATE_LIMIT = _config["rate_limit_settings"]
-# Upload rate limits â€” separate per-user and per-IP buckets so an authenticated
+# Upload rate limits — separate per-user and per-IP buckets so an authenticated
 # user from a single IP isn't double-capped beyond either decorator's intent.
 _UPLOAD_RATE_LIMIT_USER = _config["rate_limit_upload_user"]
 _UPLOAD_RATE_LIMIT_IP = _config["rate_limit_upload_ip"]
@@ -158,7 +179,7 @@ def _is_api_rate_limit_exempt():
 
 
 def _get_api_user_key():
-    """Key function for API rate limiting â€” keyed by authenticated username.
+    """Key function for API rate limiting — keyed by authenticated username.
 
     Unauthenticated requests are exempt via _is_api_rate_limit_exempt and
     rejected by api_access_control, so this function is only called for
@@ -181,7 +202,7 @@ api_rate_limit = limiter.shared_limit(
 
 
 def _get_upload_user_key():
-    """Key function for upload rate limiting â€” keyed by authenticated username."""
+    """Key function for upload rate limiting — keyed by authenticated username."""
     username = get_current_username()
     if username:
         return f"upload_user:{username}"
@@ -201,7 +222,7 @@ upload_rate_limit_ip = limiter.shared_limit(
 
 
 # ---------------------------------------------------------------------------
-# Journal-quality data download â€” per-user cap on manual rebuilds. The
+# Journal-quality data download — per-user cap on manual rebuilds. The
 # download streams several hundred MB from upstream sources (OpenAlex S3,
 # DOAJ CSV, predatory lists, JabRef, Institutions) and rebuilds the
 # reference DB on disk. Authenticated-user abuse would burn bandwidth and
@@ -218,7 +239,7 @@ journal_data_limit = limiter.shared_limit(
 
 # Dashboard read endpoints (/api/journals, /api/journals/user-research,
 # /api/journals/research/<id>). Each page click/filter triggers one
-# request, so the limit needs to be generous â€” 60/min per authenticated
+# request, so the limit needs to be generous — 60/min per authenticated
 # user covers interactive browsing with headroom but still blocks
 # scripted enumeration of the ~217K-row reference DB.
 journals_read_limit = limiter.shared_limit(

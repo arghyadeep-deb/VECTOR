@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__ = [
+    "Checkpoint",
+    "FileSnapshot",
+    "RewindError",
+    "RewindManager",
+]
+
+
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 import os

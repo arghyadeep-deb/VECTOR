@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fortitudo.tech Advanced Functions Wrapper
 ==========================================
 Entropy pooling, exposure stacking, and visualization
@@ -334,6 +335,8 @@ def plot_volatility_surface(
             'save_path': save_path
         }
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.advanced] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.advanced] caught Exception: %s", _sve)
         return {
             'error': str(e),
             'scenario_index': scenario_index

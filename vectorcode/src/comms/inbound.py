@@ -12,13 +12,9 @@ VECTOR inbound routing layer.
 import time
 import uuid
 import threading
-import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Optional
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 

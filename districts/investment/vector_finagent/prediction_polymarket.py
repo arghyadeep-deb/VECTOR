@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Polymarket trading bridge for VECTOR Financial Terminal.
+from loguru import logger
 
 Invocation:
     python prediction_polymarket.py <command> <json_payload>
@@ -62,6 +63,8 @@ def _require_pyclob():
         from py_clob_client.client import ClobClient  # noqa: F401
         return True
     except Exception as exc:
+        logger.debug("[VECTOR][prediction_polymarket] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][prediction_polymarket] caught Exception: %s", _sve)
         _fail(
             "py_clob_client is not installed. Run: pip install py-clob-client eth-account",
             detail=str(exc),

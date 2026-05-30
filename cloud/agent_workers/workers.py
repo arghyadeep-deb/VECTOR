@@ -5,9 +5,7 @@ RULE 2: if any coroutine crashes, it is restarted with back-off.
 """
 import sys
 import asyncio
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

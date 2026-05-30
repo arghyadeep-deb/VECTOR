@@ -7,6 +7,13 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "compute_mfu",
+    "estimate_flops",
+    "estimate_flops_no_kv_cache",
+]
+
+
 GPU_PEAK_TFLOPS_BF16: dict[str, float] = {
     "H100": 989.0,
     "H200": 989.0,

@@ -1,6 +1,7 @@
 """Transport layer types and registry for provider response normalization.
 
 Usage:
+from loguru import logger
     from agent.transports import get_transport
     transport = get_transport("anthropic_messages")
     result = transport.normalize_response(raw_response)

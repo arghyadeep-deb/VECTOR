@@ -5,6 +5,13 @@ Determines the type of URL to route to the appropriate downloader.
 """
 
 import re
+
+__all__ = [
+    "DANGEROUS_SCHEMES",
+    "URLClassifier",
+    "URLType",
+]
+
 from enum import Enum
 from typing import Optional
 from urllib.parse import urlparse

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Duration and Convexity Analytics Module
 =======================================
 
@@ -585,6 +586,8 @@ def run_duration_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
             return {'error': f'Unknown analysis type: {analysis_type}'}
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.fixedIncome.duration_convexity] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.duration_convexity] caught Exception: %s", _sve)
         logger.error(f"Duration analysis error: {str(e)}")
         return {'error': str(e)}
 

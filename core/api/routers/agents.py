@@ -1,8 +1,16 @@
 """Agents router — /agents, /agent/award."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "award_agent_endpoint",
+    "award_agent_singular",
+    "get_agent_endpoint",
+    "list_agents",
+    "router",
+    "router_singular",
+]
+
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Triple Barrier Method - Industry-standard financial labeling
 Based on: Lopez de Prado, M. (2018). Advances in Financial Machine Learning.
 
@@ -135,6 +136,8 @@ class TripleBarrierPredictor:
                     "final_return": float(returns.iloc[-1]) * 100 if len(returns) > 0 else 0,
                 })
             except Exception:
+                logger.debug("[VECTOR][vision_quant.models.triple_barrier] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][vision_quant.models.triple_barrier] caught Exception: %s", _sve)
                 continue
 
         if len(results) < min_matches:

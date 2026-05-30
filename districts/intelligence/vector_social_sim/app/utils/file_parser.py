@@ -3,6 +3,7 @@
 支持PDF、Markdown、TXT文件的文本提取
 """
 
+from loguru import logger
 import os
 from pathlib import Path
 from typing import List, Optional

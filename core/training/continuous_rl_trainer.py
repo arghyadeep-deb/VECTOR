@@ -1,9 +1,6 @@
 """Continuous RL trainer: simplified PPO/A2C for in-loop policy improvement."""
 
-import sys
-from pathlib import Path
 from typing import Any
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 

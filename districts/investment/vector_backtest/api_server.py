@@ -5,6 +5,7 @@ V5: ReAct Agent + async /run + CORS env + SSE tool events.
 """
 
 from __future__ import annotations
+from loguru import logger
 
 import asyncio
 import hmac

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 8-K Corporate Events Extraction
 ================================
 
@@ -51,6 +52,8 @@ def get_latest_8k(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
+        logger.debug("[VECTOR][mcp.edgar.forms_8k] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_8k] caught Exception: %s", _sve)
         return {"error": EdgarError("get_latest_8k", str(e), traceback.format_exc()).to_dict()}
 
 

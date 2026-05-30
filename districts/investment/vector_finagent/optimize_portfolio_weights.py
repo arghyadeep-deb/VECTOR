@@ -1,4 +1,5 @@
 """
+from loguru import logger
 optimize_portfolio_weights.py — Portfolio optimization for VECTOR Financial Terminal.
 
 Input (stdin JSON):
@@ -197,6 +198,8 @@ def run_strategy(strategy, mean_ret, cov, n, extra=None):
         return _build_result(res.x, mean_ret, cov, strategy)
 
     except Exception as exc:
+        logger.debug("[VECTOR][optimize_portfolio_weights] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][optimize_portfolio_weights] caught Exception: %s", _sve)
         return {"error": str(exc)}
 
 

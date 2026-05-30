@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Dynamic Model Factory for Agno Framework
 
 Reads LLM configuration from frontend SQLite database and creates
@@ -146,6 +147,8 @@ class ModelFactory:
             return config
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.model_factory] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.model_factory] caught Exception: %s", _sve)
             logger.error(f"Error loading config from database: {e}")
             return None
 

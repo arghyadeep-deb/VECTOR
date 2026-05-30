@@ -1,8 +1,5 @@
-import sys
 import uuid
 import asyncio
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from core.city.governor import Governor

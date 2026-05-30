@@ -59,9 +59,7 @@ except ImportError:
         DEFAULT_TYPE = Any
     ContextTypes = _MockContextTypes
 
-import sys
 from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -229,15 +227,15 @@ class TelegramAdapter(BasePlatformAdapter):
         self._disable_link_previews: bool = self._coerce_bool_extra("disable_link_previews", False)
         # Buffer rapid/album photo updates so Telegram image bursts are handled
         # as a single MessageEvent instead of self-interrupting multiple turns.
-        self._media_batch_delay_seconds = float(os.getenv("VECTOR_TELEGRAM_MEDIA_BATCH_DELAY_SECONDS", "0.8"))
+        self._media_batch_delay_seconds = float(os.environ.get("VECTOR_TELEGRAM_MEDIA_BATCH_DELAY_SECONDS", "0.8"))
         self._pending_photo_batches: Dict[str, MessageEvent] = {}
         self._pending_photo_batch_tasks: Dict[str, asyncio.Task] = {}
         self._media_group_events: Dict[str, MessageEvent] = {}
         self._media_group_tasks: Dict[str, asyncio.Task] = {}
         # Buffer rapid text messages so Telegram client-side splits of long
         # messages are aggregated into a single MessageEvent.
-        self._text_batch_delay_seconds = float(os.getenv("VECTOR_TELEGRAM_TEXT_BATCH_DELAY_SECONDS", "0.6"))
-        self._text_batch_split_delay_seconds = float(os.getenv("VECTOR_TELEGRAM_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
+        self._text_batch_delay_seconds = float(os.environ.get("VECTOR_TELEGRAM_TEXT_BATCH_DELAY_SECONDS", "0.6"))
+        self._text_batch_split_delay_seconds = float(os.environ.get("VECTOR_TELEGRAM_TEXT_BATCH_SPLIT_DELAY_SECONDS", "2.0"))
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
         self._polling_error_task: Optional[asyncio.Task] = None
@@ -256,7 +254,7 @@ class TelegramAdapter(BasePlatformAdapter):
     @staticmethod
     def _is_callback_user_authorized(user_id: str) -> bool:
         """Return whether a Telegram inline-button caller may perform gated actions."""
-        allowed_csv = os.getenv("TELEGRAM_ALLOWED_USERS", "").strip()
+        allowed_csv = os.environ.get("TELEGRAM_ALLOWED_USERS", "").strip()
         if not allowed_csv:
             return True
         allowed_ids = {uid.strip() for uid in allowed_csv.split(",") if uid.strip()}
@@ -686,13 +684,13 @@ class TelegramAdapter(BasePlatformAdapter):
             # during reconnect/bootstrap. Use safer defaults and allow env overrides.
             def _env_int(name: str, default: int) -> int:
                 try:
-                    return int(os.getenv(name, str(default)))
+                    return int(os.environ.get(name, str(default)))
                 except (TypeError, ValueError):
                     return default
 
             def _env_float(name: str, default: float) -> float:
                 try:
-                    return float(os.getenv(name, str(default)))
+                    return float(os.environ.get(name, str(default)))
                 except (TypeError, ValueError):
                     return default
 
@@ -704,7 +702,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 "write_timeout": _env_float("VECTOR_TELEGRAM_HTTP_WRITE_TIMEOUT", 20.0),
             }
 
-            disable_fallback = (os.getenv("VECTOR_TELEGRAM_DISABLE_FALLBACK_IPS", "").strip().lower() in ("1", "true", "yes", "on"))
+            disable_fallback = (os.environ.get("VECTOR_TELEGRAM_DISABLE_FALLBACK_IPS", "").strip().lower() in ("1", "true", "yes", "on"))
             fallback_ips = self._fallback_ips()
             if not fallback_ips:
                 fallback_ips = await discover_fallback_ips()
@@ -789,7 +787,7 @@ class TelegramAdapter(BasePlatformAdapter):
             await self._app.start()
 
             # Decide between webhook and polling mode
-            webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "").strip()
+            webhook_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "").strip()
 
             if webhook_url:
                 # ── Webhook mode ─────────────────────────────────────
@@ -803,8 +801,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 # inject forged updates as if from Telegram. Refuse to
                 # start rather than silently run in fail-open mode.
                 # See GHSA-3vpc-7q5r-276h.
-                webhook_port = int(os.getenv("TELEGRAM_WEBHOOK_PORT", "8443"))
-                webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+                webhook_port = int(os.environ.get("TELEGRAM_WEBHOOK_PORT", "8443"))
+                webhook_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
                 if not webhook_secret:
                     raise RuntimeError(
                         "TELEGRAM_WEBHOOK_SECRET is required when "
@@ -2240,12 +2238,12 @@ class TelegramAdapter(BasePlatformAdapter):
             if isinstance(configured, str):
                 return configured.lower() in ("true", "1", "yes", "on")
             return bool(configured)
-        return os.getenv("TELEGRAM_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
+        return os.environ.get("TELEGRAM_REQUIRE_MENTION", "false").lower() in ("true", "1", "yes", "on")
 
     def _telegram_free_response_chats(self) -> set[str]:
         raw = self.config.extra.get("free_response_chats")
         if raw is None:
-            raw = os.getenv("TELEGRAM_FREE_RESPONSE_CHATS", "")
+            raw = os.environ.get("TELEGRAM_FREE_RESPONSE_CHATS", "")
         if isinstance(raw, list):
             return {str(part).strip() for part in raw if str(part).strip()}
         return {part.strip() for part in str(raw).split(",") if part.strip()}
@@ -2253,7 +2251,7 @@ class TelegramAdapter(BasePlatformAdapter):
     def _telegram_ignored_threads(self) -> set[int]:
         raw = self.config.extra.get("ignored_threads")
         if raw is None:
-            raw = os.getenv("TELEGRAM_IGNORED_THREADS", "")
+            raw = os.environ.get("TELEGRAM_IGNORED_THREADS", "")
 
         if isinstance(raw, list):
             values = raw
@@ -2275,7 +2273,7 @@ class TelegramAdapter(BasePlatformAdapter):
         """Compile optional regex wake-word patterns for group triggers."""
         patterns = self.config.extra.get("mention_patterns")
         if patterns is None:
-            raw = os.getenv("TELEGRAM_MENTION_PATTERNS", "").strip()
+            raw = os.environ.get("TELEGRAM_MENTION_PATTERNS", "").strip()
             if raw:
                 try:
                     loaded = json.loads(raw)
@@ -3112,7 +3110,7 @@ class TelegramAdapter(BasePlatformAdapter):
 
     def _reactions_enabled(self) -> bool:
         """Check if message reactions are enabled via config/env."""
-        return os.getenv("TELEGRAM_REACTIONS", "false").lower() not in ("false", "0", "no")
+        return os.environ.get("TELEGRAM_REACTIONS", "false").lower() not in ("false", "0", "no")
 
     async def _set_reaction(self, chat_id: str, message_id: str, emoji: str) -> bool:
         """Set a single emoji reaction on a Telegram message."""

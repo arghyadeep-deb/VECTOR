@@ -34,14 +34,14 @@ _TOOL_CALL_JSON_RE = re.compile(r"\{\s*\"id\"\s*:\s*\"[^\"]+\"\s*,\s*\"type\"\s*
 
 def _resolve_command() -> str:
     return (
-        os.getenv("VECTOR_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
+        os.environ.get("VECTOR_COPILOT_ACP_COMMAND", "").strip()
+        or os.environ.get("COPILOT_CLI_PATH", "").strip()
         or "copilot"
     )
 
 
 def _resolve_args() -> list[str]:
-    raw = os.getenv("VECTOR_COPILOT_ACP_ARGS", "").strip()
+    raw = os.environ.get("VECTOR_COPILOT_ACP_ARGS", "").strip()
     if not raw:
         return ["--acp", "--stdio"]
     return shlex.split(raw)

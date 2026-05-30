@@ -11,13 +11,20 @@ Ported from the agent OS skills/verify.rs security_scan() + scan_prompt_content(
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_scanner",
+    "InjectionWarning",
+    "PromptInjectionScanner",
+    "scan_text",
+    "ScanResult",
+    "WarningSeverity",
+]
+
+
 import re
-import sys
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

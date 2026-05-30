@@ -36,8 +36,15 @@ def test_run_weekly_completes_with_seeded_data():
     ]
 
     mock_train_result = {"status": "success", "val_loss": 0.8, "initial_loss": 1.2}
-    mock_eval_result = {"coding": {"score": 0.75, "baseline": 0.70}, "research": {"score": 0.80, "baseline": 0.75}}
+    mock_eval_data = {"coding": {"score": 0.75, "baseline": 0.70}, "research": {"score": 0.80, "baseline": 0.75}}
     mock_deploy_result = {"status": "deployed", "model": "vector-focus-lora-v1"}
+
+    from core.training.eval_harness import EvalResult
+    mock_eval_result = EvalResult(
+        model_name="test", adapter_name="test",
+        benchmark_results=mock_eval_data,
+        overall_score=0.75, num_prompts=10,
+    )
 
     with patch.object(cycle.data_collector, 'collect_from_episodic_memory', return_value=fake_data), \
          patch.object(cycle.data_collector, 'collect_from_feedback', return_value=[]), \
@@ -46,7 +53,7 @@ def test_run_weekly_completes_with_seeded_data():
          patch.object(cycle.data_collector, 'deduplicate', return_value=fake_data), \
          patch.object(cycle.trainer, 'train', return_value=mock_train_result), \
          patch.object(cycle.trainer, 'save_adapter', return_value=None), \
-         patch.object(cycle.eval_harness, 'run_all', return_value=mock_eval_result), \
+         patch.object(cycle.eval_harness, 'evaluate', return_value=mock_eval_result), \
          patch.object(cycle, '_deploy_best', return_value=mock_deploy_result):
         result = cycle.run_weekly()
 

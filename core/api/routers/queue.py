@@ -1,7 +1,13 @@
 """Retry queue observability endpoints (Phase 1F)."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "dlq_items",
+    "replay_item",
+    "retry_items",
+    "retry_stats",
+    "router",
+]
+
 
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger

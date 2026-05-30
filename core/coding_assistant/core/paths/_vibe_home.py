@@ -1,5 +1,20 @@
 from __future__ import annotations
 
+__all__ = [
+    "CACHE_FILE",
+    "DEFAULT_TOOL_DIR",
+    "GLOBAL_ENV_FILE",
+    "GlobalPath",
+    "HISTORY_FILE",
+    "LOG_DIR",
+    "LOG_FILE",
+    "PLANS_DIR",
+    "SESSION_LOG_DIR",
+    "TRUSTED_FOLDERS_FILE",
+    "VECTOR_CA_HOME",
+]
+
+
 from collections.abc import Callable
 import os
 from pathlib import Path

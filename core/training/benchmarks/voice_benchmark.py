@@ -1,9 +1,12 @@
 """Voice benchmark: 15 prompts testing STT accuracy, TTS quality, wake word detection, and voice command parsing."""
 
-import sys
-from pathlib import Path
+
+__all__ = [
+    "VOICE_PROMPTS",
+    "VoiceBenchmark",
+]
+
 from typing import Callable
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 

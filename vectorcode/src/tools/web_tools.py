@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 # ─── Backend Selection ────────────────────────────────────────────────────────
 
 def _has_env(name: str) -> bool:
-    val = os.getenv(name)
+    val = os.environ.get(name)
     return bool(val and val.strip())
 
 def _load_web_config() -> dict:
@@ -128,8 +128,8 @@ _firecrawl_client_config = None
 
 def _get_direct_firecrawl_config() -> Optional[tuple[Dict[str, str], tuple[str, Optional[str], Optional[str]]]]:
     """Return explicit direct Firecrawl kwargs + cache key, or None when unset."""
-    api_key = os.getenv("FIRECRAWL_API_KEY", "").strip()
-    api_url = os.getenv("FIRECRAWL_API_URL", "").strip().rstrip("/")
+    api_key = os.environ.get("FIRECRAWL_API_KEY", "").strip()
+    api_url = os.environ.get("FIRECRAWL_API_URL", "").strip().rstrip("/")
 
     if not api_key and not api_url:
         return None
@@ -254,7 +254,7 @@ def _get_parallel_client():
     from parallel import Parallel
     global _parallel_client
     if _parallel_client is None:
-        api_key = os.getenv("PARALLEL_API_KEY")
+        api_key = os.environ.get("PARALLEL_API_KEY")
         if not api_key:
             raise ValueError(
                 "PARALLEL_API_KEY environment variable not set. "
@@ -272,7 +272,7 @@ def _get_async_parallel_client():
     from parallel import AsyncParallel
     global _async_parallel_client
     if _async_parallel_client is None:
-        api_key = os.getenv("PARALLEL_API_KEY")
+        api_key = os.environ.get("PARALLEL_API_KEY")
         if not api_key:
             raise ValueError(
                 "PARALLEL_API_KEY environment variable not set. "
@@ -283,7 +283,7 @@ def _get_async_parallel_client():
 
 # ─── Tavily Client ───────────────────────────────────────────────────────────
 
-_TAVILY_BASE_URL = os.getenv("TAVILY_BASE_URL", "https://api.tavily.com")
+_TAVILY_BASE_URL = os.environ.get("TAVILY_BASE_URL", "https://api.tavily.com")
 
 
 def _tavily_request(endpoint: str, payload: dict) -> dict:
@@ -292,7 +292,7 @@ def _tavily_request(endpoint: str, payload: dict) -> dict:
     Auth is provided via ``api_key`` in the JSON body (no header-based auth).
     Raises ``ValueError`` if ``TAVILY_API_KEY`` is not set.
     """
-    api_key = os.getenv("TAVILY_API_KEY")
+    api_key = os.environ.get("TAVILY_API_KEY")
     if not api_key:
         raise ValueError(
             "TAVILY_API_KEY environment variable not set. "
@@ -457,7 +457,7 @@ def _is_nous_auxiliary_client(client: Any) -> bool:
 def _resolve_web_extract_auxiliary(model: Optional[str] = None) -> tuple[Optional[Any], Optional[str], Dict[str, Any]]:
     """Resolve the current web-extract auxiliary client, model, and extra body."""
     client, default_model = get_async_text_auxiliary_client("web_extract")
-    configured_model = os.getenv("AUXILIARY_WEB_EXTRACT_MODEL", "").strip()
+    configured_model = os.environ.get("AUXILIARY_WEB_EXTRACT_MODEL", "").strip()
     effective_model = model or configured_model or default_model
 
     extra_body: Dict[str, Any] = {}
@@ -884,7 +884,7 @@ def _get_exa_client():
     from exa_py import Exa
     global _exa_client
     if _exa_client is None:
-        api_key = os.getenv("EXA_API_KEY")
+        api_key = os.environ.get("EXA_API_KEY")
         if not api_key:
             raise ValueError(
                 "EXA_API_KEY environment variable not set. "
@@ -965,7 +965,7 @@ def _parallel_search(query: str, limit: int = 5) -> dict:
     if is_interrupted():
         return {"error": "Interrupted", "success": False}
 
-    mode = os.getenv("PARALLEL_SEARCH_MODE", "agentic").lower().strip()
+    mode = os.environ.get("PARALLEL_SEARCH_MODE", "agentic").lower().strip()
     if mode not in ("fast", "one-shot", "agentic"):
         mode = "agentic"
 
@@ -1946,8 +1946,8 @@ if __name__ == "__main__":
     # Check if API keys are available
     web_available = check_web_api_key()
     tool_gateway_available = _is_tool_gateway_ready()
-    firecrawl_key_available = bool(os.getenv("FIRECRAWL_API_KEY", "").strip())
-    firecrawl_url_available = bool(os.getenv("FIRECRAWL_API_URL", "").strip())
+    firecrawl_key_available = bool(os.environ.get("FIRECRAWL_API_KEY", "").strip())
+    firecrawl_url_available = bool(os.environ.get("FIRECRAWL_API_URL", "").strip())
     nous_available = check_auxiliary_model()
     default_summarizer_model = _get_default_summarizer_model()
 
@@ -1962,7 +1962,7 @@ if __name__ == "__main__":
             print("   Using Tavily API (https://tavily.com)")
         else:
             if firecrawl_url_available:
-                print(f"   Using self-hosted Firecrawl: {os.getenv('FIRECRAWL_API_URL').strip().rstrip('/')}")
+                print(f"   Using self-hosted Firecrawl: {os.environ.get('FIRECRAWL_API_URL').strip().rstrip('/')}")
             elif firecrawl_key_available:
                 print("   Using direct Firecrawl cloud API")
             elif tool_gateway_available:

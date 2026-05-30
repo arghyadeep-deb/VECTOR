@@ -1,8 +1,5 @@
 """Direct tests for EpisodicMemory CRUD operations and loop_state exception paths."""
-import sys
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from unittest.mock import patch, MagicMock

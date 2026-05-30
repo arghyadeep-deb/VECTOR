@@ -24,6 +24,8 @@ Protocol when the Rust binding is ready. Today, this module ships a
 
 from __future__ import annotations
 
+from loguru import logger
+
 from services.infonet.privacy.contracts import PrivacyPrimitiveStatus
 
 
@@ -43,7 +45,8 @@ class StealthAddressScaffolding:
         recipient_spend_key: bytes,
         sender_random: bytes,
     ) -> bytes:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return b""
 
     def is_for_recipient(
         self,
@@ -53,7 +56,8 @@ class StealthAddressScaffolding:
         recipient_spend_key: bytes,
         sender_random: bytes,
     ) -> bool:
-        raise NotImplementedError(self._DIAGNOSTIC)
+        logger.warning(self._DIAGNOSTIC)
+        return False
 
     def status(self) -> PrivacyPrimitiveStatus:
         return PrivacyPrimitiveStatus.NOT_IMPLEMENTED

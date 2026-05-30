@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+from loguru import logger
 from core.personality.character_card import CharacterCard
 
 

@@ -1,10 +1,8 @@
 """Build Python import dependency graph for core/ and districts/ using AST analysis."""
 import ast
-import sys
 from pathlib import Path
 from collections import defaultdict
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 

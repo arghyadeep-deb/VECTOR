@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Base Guardrail Infrastructure
 
 Core guardrail system for Renaissance Technologies multi-agent architecture.
@@ -130,6 +131,8 @@ class Guardrail(ABC):
             return result
 
         except Exception as e:
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.base] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.base] caught Exception: %s", _sve)
             self.violations += 1
             return GuardrailResult(
                 guardrail_name=self.name,

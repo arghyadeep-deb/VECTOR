@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Wrapper - Integration Test
 ====================================
 
@@ -10,7 +11,6 @@ import os
 
 # Add paths - adjust for both relative and absolute execution
 script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, script_dir)
 
 # Try to find site-packages
 possible_paths = [
@@ -21,7 +21,6 @@ possible_paths = [
 
 for path in possible_paths:
     if os.path.exists(path):
-        sys.path.insert(0, path)
         break
 
 import pandas as pd
@@ -308,6 +307,8 @@ if __name__ == "__main__":
         print("\n✅ Integration test completed successfully!")
         sys.exit(0)
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.test_integration] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.test_integration] caught Exception: %s", _sve)
         print(f"\n❌ Integration test failed: {e}")
         import traceback
         traceback.print_exc()

@@ -17,13 +17,15 @@ Usage:
     # Check what's configured
     from core.inference.llm_providers import configured_providers
     for p in configured_providers():
-        print(p.slug, p.default_model)
+        logger.info(p.slug, p.default_model)
+
 """
 from core.inference.llm_providers import (
     LLMProvider, PROVIDERS, TIER_ROUTING,
     get_provider, configured_providers, route_for_tier, list_free,
 )
 from core.inference.provider_client import ProviderClient, CompletionResult, get_client
+from loguru import logger
 
 __all__ = [
     "LLMProvider", "PROVIDERS", "TIER_ROUTING",

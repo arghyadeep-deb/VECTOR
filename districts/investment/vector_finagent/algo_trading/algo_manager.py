@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Algo Manager — deployment management subcommands.
 
 Called by the C++ AlgoTradingService for deployment control operations.
@@ -75,6 +76,8 @@ def cmd_list_deployments(db_path: str):
         else:
             print(json.dumps({'success': False, 'error': str(e), 'deployments': []}))
     except Exception as e:
+        logger.debug("[VECTOR][algo_trading.algo_manager] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.algo_manager] caught Exception: %s", _sve)
         print(json.dumps({'success': False, 'error': str(e), 'deployments': []}))
 
 

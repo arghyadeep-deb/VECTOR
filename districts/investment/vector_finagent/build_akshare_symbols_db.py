@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AKShare Symbols Database Builder
 Downloads all stock symbols from 9 exchanges/markets and stores in SQLite for fast searching
 """
@@ -108,6 +109,8 @@ def fetch_and_insert(exchange_name, fetch_function, column_mapping):
         return len(records)
 
     except Exception as e:
+        logger.debug("[VECTOR][build_akshare_symbols_db] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][build_akshare_symbols_db] caught Exception: %s", _sve)
         print(f"  [ERROR] {str(e)}")
         return 0
 

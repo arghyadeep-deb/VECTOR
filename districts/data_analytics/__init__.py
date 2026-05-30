@@ -5,7 +5,6 @@ District: data_analytics | Focus: Dataset analysis, dashboard metrics, anomaly d
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory

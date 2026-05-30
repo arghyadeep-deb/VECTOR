@@ -3,6 +3,12 @@ Flask blueprint for news system web routes.
 """
 
 from flask import Blueprint, jsonify, render_template
+
+__all__ = [
+    "create_news_blueprint",
+    "load_user_settings",
+]
+
 from loguru import logger
 
 from ..constants import get_available_strategies

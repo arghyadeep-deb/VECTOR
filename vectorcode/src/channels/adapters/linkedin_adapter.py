@@ -1,6 +1,5 @@
 """VECTOR LinkedIn Channel Adapter — professional networking posts and DMs."""
 from __future__ import annotations
-import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from loguru import logger
 
 class LinkedInAdapter:
@@ -14,7 +13,7 @@ class LinkedInAdapter:
 
     def __init__(self):
         import os
-        self.token = os.getenv("LINKEDIN_ACCESS_TOKEN","")
+        self.token = os.environ.get("LINKEDIN_ACCESS_TOKEN","")
 
     def _headers(self) -> dict:
         return {

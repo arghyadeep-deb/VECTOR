@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 VECTOR Financial Terminal - Strategy Test Suite
 Tests all strategies for import/instantiation/initialization errors.
 """
@@ -11,13 +12,14 @@ import traceback
 # Set up path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
 
 # Import the framework first to ensure stubs are registered
 try:
     from AlgorithmImports import *
     print("OK: AlgorithmImports loaded successfully")
 except Exception as e:
+    logger.debug("[VECTOR][strategies.test_strategies] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][strategies.test_strategies] caught Exception: %s", _sve)
     print(f"FATAL: AlgorithmImports failed to load: {e}")
     traceback.print_exc()
     sys.exit(1)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 ECB SDMX REST API Data Fetcher
 Official ECB exchange rates, monetary stats, bond yields, balance of payments.
 No API key required.
@@ -79,6 +80,8 @@ def _parse_sdmx_json(data: Any, series_name: str = "series") -> Any:
 
         return {series_name: series_list, "total_series": len(series_list)}
     except Exception as e:
+        logger.debug("[VECTOR][ecb_sdmx_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ecb_sdmx_data] caught Exception: %s", _sve)
         return {"error": f"Parse error: {str(e)}", "raw_keys": list(data.keys()) if isinstance(data, dict) else []}
 
 

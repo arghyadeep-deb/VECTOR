@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+__all__ = [
+    "build_path_prompt_payload",
+    "PathPromptPayload",
+    "PathResource",
+]
+
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal

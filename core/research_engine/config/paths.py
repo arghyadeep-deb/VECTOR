@@ -4,6 +4,23 @@ Handles database location using platformdirs for proper user data storage.
 """
 
 import hashlib
+
+__all__ = [
+    "get_backup_directory",
+    "get_cache_directory",
+    "get_config_directory",
+    "get_data_dir",
+    "get_data_directory",
+    "get_encrypted_database_path",
+    "get_journal_data_directory",
+    "get_library_directory",
+    "get_logs_directory",
+    "get_models_directory",
+    "get_research_outputs_directory",
+    "get_user_backup_directory",
+    "get_user_database_filename",
+]
+
 import os
 from pathlib import Path
 

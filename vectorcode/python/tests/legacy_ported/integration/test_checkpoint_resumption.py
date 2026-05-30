@@ -24,14 +24,12 @@ pytestmark = pytest.mark.integration
 import json
 import os
 import shutil
-import sys
 import time
 from pathlib import Path
 from typing import List, Dict, Any
 import traceback
 
 # Add project root to path to import batch_runner
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def create_test_dataset(num_prompts: int = 20) -> Path:

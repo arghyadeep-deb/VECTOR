@@ -1,4 +1,5 @@
 """
+from loguru import logger
 IEA (International Energy Agency) Data Fetcher
 IEA open statistics: energy supply, demand, CO2, renewables for 180+ countries
 via IEA public API (no key for public endpoints).
@@ -115,6 +116,8 @@ def get_oil_market_report() -> Any:
         resp.raise_for_status()
         return resp.json()
     except Exception:
+        logger.debug("[VECTOR][iea_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][iea_data] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Fallback: return latest crude oil supply via stats API
     params = {"products": IEA_PRODUCTS["oil"], "flows": "TPES", "year": 2022}

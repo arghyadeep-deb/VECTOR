@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Maddison Project Data Fetcher
 Fetches long-run GDP per capita estimates for 169 countries back to year 1 from the
 Maddison Project Database (MPD 2020).
@@ -98,6 +99,8 @@ def _fetch_owid_csv() -> List[Dict]:
                 records.append(record)
         return records
     except Exception:
+        logger.debug("[VECTOR][maddison_project_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][maddison_project_data] caught Exception: %s", _sve)
         return []
 
 

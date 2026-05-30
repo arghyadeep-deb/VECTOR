@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Quant Analytics CLI - Unified Command Line Interface
 Provides a unified entry point for quantitative analytics in VECTOR Financial Terminal.
 
@@ -33,11 +34,9 @@ import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
 
 quant_dir = os.path.join(script_dir, 'quant')
 if quant_dir not in sys.path:
-    sys.path.insert(0, quant_dir)
 
 import json
 import numpy as np
@@ -496,6 +495,8 @@ class CFAQuantEngine:
                 arr = self._parse_data(raw, **self._data_kwargs(params))
                 data = pd.Series(arr)
             except Exception as e:
+                logger.debug("[VECTOR][Analytics.quant_analytics_cli] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.quant_analytics_cli] caught Exception: %s", _sve)
                 return {'success': False, 'error': f'Could not parse data: {e}'}
         elif isinstance(raw, list):
             data = pd.Series(raw)

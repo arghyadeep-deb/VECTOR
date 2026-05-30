@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Business Cycle Indicators — Fetch key economic indicators via yfinance/FRED proxies.
 Input: JSON via stdin (can be empty {})
 Output: JSON with current economic indicators
@@ -57,6 +58,8 @@ def get_indicators():
                 indicators[name] = price
                 indicators[f"{name}_change_pct"] = round(change_pct, 4)
         except Exception:
+            logger.debug("[VECTOR][Analytics.economics.business_cycle] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.business_cycle] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     # Yield curve spread (10Y - 3M) — recession indicator

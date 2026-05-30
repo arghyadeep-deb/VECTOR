@@ -11,9 +11,7 @@ Schedule (IST = UTC+5:30):
 """
 import sys
 import asyncio
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 
 

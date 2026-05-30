@@ -18,14 +18,11 @@ __all__ = ["WebhookSigner", "WebhookDelivery", "get_signer"]
 import hashlib
 import hmac
 import json
-import sys
 import time
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 try:

@@ -7,6 +7,7 @@ For local access (same machine), no authentication is needed.
 For remote access, set SHADOWBROKER_HMAC_SECRET to enable HMAC-signed requests.
 
 Usage (inside an OpenClaw skill):
+from loguru import logger
     from sb_query import ShadowBrokerClient
     sb = ShadowBrokerClient()
     data = await sb.get_telemetry()

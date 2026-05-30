@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fast-Trade Data Module
 
 Data loading, preparation, and archive access:
@@ -740,6 +741,8 @@ def load_yfinance_data(
 
         return pd.DataFrame()
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_data] caught Exception: %s", _sve)
         print(f"yfinance error for {symbol}: {e}")
         return pd.DataFrame()
 

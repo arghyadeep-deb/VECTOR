@@ -686,7 +686,7 @@ def _get_platform_tools(
         # (e.g. cron) that run through _get_platform_tools without an
         # explicit saved toolset list. Without this, Norbert's HA cron jobs
         # regressed after #14798 made cron honor per-platform tool config.
-        if "homeassistant" in default_off and os.getenv("HASS_TOKEN"):
+        if "homeassistant" in default_off and os.environ.get("HASS_TOKEN"):
             default_off.remove("homeassistant")
         enabled_toolsets -= default_off
 

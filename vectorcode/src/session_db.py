@@ -19,8 +19,6 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))                       # vectorcode package
 
 try:
     from core.config import CONFIG
@@ -599,7 +597,6 @@ if __name__ == "__main__":
     assert db1 is db2, "get_session_db() must return a singleton"
 
     print("session_db.py OK")
-
 
 
     def migrate_up(self) -> None:

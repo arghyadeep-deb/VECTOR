@@ -10,6 +10,29 @@ Each role defines:
 Adapted from vector's agent.toml definitions, personalized for VECTOR.
 """
 from __future__ import annotations
+
+__all__ = [
+    "AgentRole",
+    "ARCHIVIST",
+    "CODE_EXECUTOR",
+    "CRITIC",
+    "CRYPTO_AGENT",
+    "get_agent_prompt",
+    "HELP",
+    "INTEGRATIONS_AGENT",
+    "list_agents",
+    "MORNING_BRIEFING",
+    "ORCHESTRATOR",
+    "PLANNER",
+    "RESEARCHER",
+    "SUMMARIZER",
+    "TOOL_MAKER",
+    "TOOLS_AGENT",
+    "TRIGGER_REACTOR",
+    "TRIGGER_TRIAGE",
+    "WELCOME",
+]
+
 from dataclasses import dataclass, field
 
 

@@ -1,12 +1,9 @@
 """Deep bug-hunt for all ported agentic-inbox email modules."""
-import sys
 import base64
 import uuid
 import datetime
 import tempfile
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # ── dates.py ──────────────────────────────────────────────────────────────────

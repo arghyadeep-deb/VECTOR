@@ -6,6 +6,15 @@ Python port of Open-Generative-AI/packages/studio/src/models.js
 """
 from __future__ import annotations
 
+__all__ = [
+    "all_models",
+    "get_model",
+    "list_by_category",
+    "MediaModel",
+    "models_for_aspect",
+]
+
+
 from dataclasses import dataclass, field
 from typing import Optional
 

@@ -96,7 +96,6 @@ def _import_mcp_server():
     """
     agent_dir = Path(__file__).resolve().parent.parent
     if str(agent_dir) not in sys.path:
-        sys.path.insert(0, str(agent_dir))
 
     # Use importlib so we can re-import cleanly in tests.
     if "mcp_server" in sys.modules:

@@ -1,12 +1,17 @@
 """Metering router — /metering/status."""
 
 import sys
+
+__all__ = [
+    "metering_status",
+    "router",
+]
+
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter
 from loguru import logger
+from pathlib import Path
 
 router = APIRouter(prefix="/metering", tags=["metering"])
 

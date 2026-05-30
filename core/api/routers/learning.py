@@ -1,14 +1,22 @@
 """VECTOR learning router - /learning/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "extract_concepts",
+    "ExtractConceptsReq",
+    "generate_quiz",
+    "GenerateQuizReq",
+    "ingest_video",
+    "IngestVideoReq",
+    "router",
+    "track_course",
+    "TrackCourseReq",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/learning", tags=["learning"])
-
-
 
 
 class IngestVideoReq(BaseModel):

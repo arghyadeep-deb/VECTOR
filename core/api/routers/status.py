@@ -1,4 +1,4 @@
-"""Status router â€” /status, /health."""
+"""Status router — /status, /health."""
 
 import sys
 
@@ -14,8 +14,6 @@ __all__ = [
 
 import time
 import datetime as dt
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -222,7 +220,7 @@ async def _check_ollama_models() -> dict:
 async def daily_info():
     """
     Daily briefing: weather, location, date, day summary.
-    Uses free public APIs â€” no auth required.
+    Uses free public APIs — no auth required.
     """
     import datetime as _dt
 

@@ -18,6 +18,7 @@ Usage:
     use_messages = result.messages
 """
 from __future__ import annotations
+from loguru import logger
 
 __all__ = [
     "compress",
@@ -30,10 +31,8 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 _MAX_OBSERVATION_CHARS = 2000  # truncate tool outputs beyond this
 _MIN_TOKENS_TO_COMPRESS = 500  # don't compress small contexts

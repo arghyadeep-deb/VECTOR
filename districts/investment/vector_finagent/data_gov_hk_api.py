@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Data.gov.hk API Wrapper
 A comprehensive wrapper for Hong Kong Government Data Portal APIs
 
@@ -145,6 +146,8 @@ class DataGovHKWrapper:
                 "error": "Invalid JSON response from API."
             }
         except Exception as e:
+            logger.debug("[VECTOR][data_gov_hk_api] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][data_gov_hk_api] caught Exception: %s", _sve)
             return {
                 "data": [],
                 "metadata": {"source": "Data.gov.hk CKAN API", "endpoint": endpoint},

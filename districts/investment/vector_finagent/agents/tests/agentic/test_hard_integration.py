@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Hard integration test for the agentic stack — runs against a real LLM endpoint.
 
 Gated behind two env vars so it doesn't run in normal CI:
@@ -53,7 +54,6 @@ os.environ["ANTHROPIC_API_KEY"] = _TOKEN  # SDK reads either
 # Make finagent_core importable when run as a script.
 HERE = Path(__file__).resolve()
 PROJECT_AGENTS = HERE.parents[2]  # …/scripts/agents/
-sys.path.insert(0, str(PROJECT_AGENTS))
 
 
 # ── Test harness ────────────────────────────────────────────────────────────
@@ -74,6 +74,8 @@ def section(name: str):
         print(f"✗ FAIL  ({dt:.1f}s)  {name}  →  {e}")
         RESULTS.append((name, False, dt, str(e)))
     except Exception as e:
+        logger.debug("[VECTOR][agents.tests.agentic.test_hard_integration] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.tests.agentic.test_hard_integration] caught Exception: %s", _sve)
         dt = time.time() - t
         print(f"✗ ERROR ({dt:.1f}s)  {name}  →  {type(e).__name__}: {e}")
         traceback.print_exc()

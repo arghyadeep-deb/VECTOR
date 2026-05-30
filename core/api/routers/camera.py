@@ -1,10 +1,16 @@
 """VECTOR camera router ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â live webcam stream with YOLO object detection."""
-import sys
+
+__all__ = [
+    "camera_status",
+    "camera_ws",
+    "router",
+    "start_camera",
+    "stop_camera",
+]
+
 import asyncio
 import base64
 import json
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from loguru import logger

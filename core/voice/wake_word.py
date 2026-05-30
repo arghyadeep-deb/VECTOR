@@ -1,7 +1,6 @@
 import sys
 import asyncio
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from loguru import logger
@@ -22,20 +21,28 @@ class WakeWordDetector:
         self._init_model()
 
     def _init_model(self):
-        # Try openwakeword with the custom-trained "hey_vector" model only.
-        # If not available, use Whisper KWS so the user can say "Hey Vector" naturally.
-        # Do NOT fall back to "alexa" â€” wrong brand, wrong phrase.
+        _root = __file__  # resolved below
+        import os as _os
+        _root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
+        self._custom_model_path = Path(_root) / "models" / "wake" / f"{self._wake_phrase}.onnx"
         try:
             import openwakeword
             from openwakeword.model import Model
-            self._model = Model(wakeword_models=[self._wake_phrase], inference_framework="onnx")
+            if self._custom_model_path.exists():
+                self._model = Model(
+                    wakeword_models=[str(self._custom_model_path)],
+                    inference_framework="onnx",
+                )
+                logger.info(f"[VECTOR][wake] Custom model loaded: {self._custom_model_path}")
+            else:
+                self._model = Model(wakeword_models=[self._wake_phrase], inference_framework="onnx")
+                logger.info(f"[VECTOR][wake] openWakeWord built-in model ready (phrase='{self._wake_phrase}')")
             self._active_model_name = self._wake_phrase
-            logger.info(f"[VECTOR][wake] openWakeWord ready (phrase='{self._wake_phrase}')")
             return
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
-        # Custom model not available â€” Whisper KWS: user can say "Hey Vector" or "Vector"
+        # Custom model not available — Whisper KWS: user can say "Hey Vector" or "Vector"
         logger.info(
             f"[VECTOR][wake] Custom model '{self._wake_phrase}.onnx' not found. "
             f"Using Whisper keyword detection. Say 'Hey Vector' or 'Vector' to activate. "
@@ -45,7 +52,7 @@ class WakeWordDetector:
         self._use_whisper_kws = True
 
     def is_wake_word(self, audio_frame: np.ndarray) -> bool:
-        """Per-frame check â€” only used in the openwakeword path."""
+        """Per-frame check — only used in the openwakeword path."""
         if self._use_whisper_kws or self._model is None:
             return False
         try:
@@ -102,7 +109,7 @@ class WakeWordDetector:
             from core.voice.stt import WhisperSTT
             stt = WhisperSTT()
             chunk_sec = 2.0
-            logger.info(f"[VECTOR][wake] Whisper KWS â€” say 'Hey Vector', 'Vector Think', or 'Vector Private'")
+            logger.info(f"[VECTOR][wake] Whisper KWS — say 'Hey Vector', 'Vector Think', or 'Vector Private'")
             while True:
                 audio = await asyncio.to_thread(
                     sd.rec,
@@ -149,11 +156,11 @@ class WakeWordDetector:
         samples_dir.mkdir(exist_ok=True)
         model_out = model_dir / f"{self._wake_phrase}.onnx"
 
-        logger.info(f"[VECTOR][wake] Training '{self._wake_phrase}' â€” recording {n_samples} samples")
+        logger.info(f"[VECTOR][wake] Training '{self._wake_phrase}' — recording {n_samples} samples")
         recorded: list[Path] = []
 
         for i in range(n_samples):
-            logger.info(f"[VECTOR][wake] Sample {i+1}/{n_samples} â€” say '{self._wake_phrase}' now...")
+            logger.info(f"[VECTOR][wake] Sample {i+1}/{n_samples} — say '{self._wake_phrase}' now...")
             try:
                 audio = await asyncio.to_thread(
                     sd.rec,
@@ -207,4 +214,4 @@ if __name__ == "__main__":
     result = detector.is_wake_word(silent_frame)
     model_ok = detector._model is not None or detector._use_whisper_kws
     method = "whisper_kws" if detector._use_whisper_kws else f"openwakeword({detector._active_model_name})"
-    print(f"âœ… wake_word OK (method={method})" if model_ok else "âŒ FAILED â€” no detection method available")
+    print(f"âœ… wake_word OK (method={method})" if model_ok else "âŒ FAILED — no detection method available")

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 PyPME Worker Handler - Public Market Equivalent calculations.
 Usage: python worker_handler.py <operation> <json_data>
 """
@@ -76,6 +77,8 @@ def dispatch(operation, data):
             return {"error": f"Unknown operation: {operation}"}
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.pypme_wrapper.pypme_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.pypme_wrapper.pypme_service] caught Exception: %s", _sve)
         return {"error": str(e)}
 
 if __name__ == "__main__":

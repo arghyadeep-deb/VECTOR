@@ -13,6 +13,15 @@ from flask import (
     session,
 )
 
+__all__ = [
+    "add_research_to_collection",
+    "convert_all_research",
+    "get_research_history_collection",
+    "search_bp",
+    "search_collection",
+]
+
+
 from ....database.models.library import Collection, Document
 from ....security.decorators import require_json_body
 from ....web.auth.decorators import login_required

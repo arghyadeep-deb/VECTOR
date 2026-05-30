@@ -1,4 +1,5 @@
 """Healthcare Industry-Specific M&A Metrics"""
+from loguru import logger
 from typing import Dict, Any, List, Optional
 from enum import Enum
 
@@ -626,6 +627,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.industry_metrics.healthcare] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.industry_metrics.healthcare] caught Exception: %s", _sve)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

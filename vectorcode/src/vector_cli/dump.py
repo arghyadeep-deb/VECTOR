@@ -113,7 +113,7 @@ def _configured_platforms() -> list[str]:
         "weixin": "WEIXIN_ACCOUNT_ID",
         "qqbot": "QQ_APP_ID",
     }
-    return [name for name, env in checks.items() if os.getenv(env)]
+    return [name for name, env in checks.items() if os.environ.get(env)]
 
 
 def _memory_provider(config: dict) -> str:
@@ -291,7 +291,7 @@ def run_dump(args):
     ]
 
     for env_var, label in api_keys:
-        val = os.getenv(env_var, "")
+        val = os.environ.get(env_var, "")
         if show_keys and val:
             display = _redact(val)
         else:

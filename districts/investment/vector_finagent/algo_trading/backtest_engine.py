@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Backtest Engine — Walk-forward strategy backtester
 
 Fetches historical data via yfinance or from local candle_cache (Fyers),
@@ -54,7 +55,6 @@ except ImportError as e:
     }))
     sys.exit(1)
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 debug(f"Added to sys.path: {os.path.dirname(os.path.abspath(__file__))}")
 
 try:
@@ -101,6 +101,8 @@ def fetch_from_yfinance(symbol: str, period: str, interval: str):
         debug(f"yfinance ImportError: {e}")
         return None, "yfinance not installed. Install with: pip install yfinance"
     except Exception as e:
+        logger.debug("[VECTOR][algo_trading.backtest_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.backtest_engine] caught Exception: %s", _sve)
         debug(f"yfinance Exception: {e}\n{traceback.format_exc()}")
         return None, f"yfinance error: {e}"
 

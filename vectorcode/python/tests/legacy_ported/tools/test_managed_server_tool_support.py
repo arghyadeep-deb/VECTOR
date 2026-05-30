@@ -11,12 +11,10 @@ and atroposlib's ManagedServer. They detect API incompatibilities early.
 """
 
 import inspect
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     import atroposlib  # noqa: F401

@@ -24,8 +24,6 @@ __all__ = [
     "AuthService",
 ]
 
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import base64
 import hashlib
@@ -385,13 +383,13 @@ if __name__ == "__main__":
     assert not PasswordHasher.verify("wrong", h)
 
     # JWT issue / verify / refresh / expiry
-    jm = JWTManager(secret="test-secret", access_ttl=3600)
+    jm = JWTManager(secret="x"*40, access_ttl=3600)
     pair = jm.issue_pair("rec1", "users", extra={"email": "a@b.com"})
     claims = jm.verify(pair["token"], expected_type="access")
     assert claims["sub"] == "rec1" and claims["email"] == "a@b.com"
     refreshed = jm.refresh(pair["refresh_token"])
     assert jm.verify(refreshed["token"], expected_type="access")["sub"] == "rec1"
-    expired = JWTManager(secret="test-secret", access_ttl=-10).issue_pair("r", "users")
+    expired = JWTManager(secret="x"*40, access_ttl=-10).issue_pair("r", "users")
     try:
         jm.verify(expired["token"]); ok = False
     except AuthError:
@@ -427,7 +425,7 @@ if __name__ == "__main__":
     eng = CollectionEngine(conn)
     eng.create_collection(Collection(name="users", type="auth",
                                      fields=[{"name": "name", "type": "text"}]))
-    svc = AuthService(eng, jwt=JWTManager(secret="s"))
+    svc = AuthService(eng, jwt=JWTManager(secret="y"*40))
     user = svc.register("users", {"email": "a@b.com", "password": "longpass123", "name": "A"})
     assert "password" not in user
     res = svc.authenticate("users", "a@b.com", "longpass123")

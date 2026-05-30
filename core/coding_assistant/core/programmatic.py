@@ -4,7 +4,7 @@ import asyncio
 from contextlib import aclosing
 
 from core.coding_assistant import __version__
-from core.coding_assistant.core.agent_loop import AgentLoop, TeleportError
+from core.coding_assistant.core.agent_loop import AgentLoop
 from core.coding_assistant.core.agents.models import BuiltinAgentName
 from core.coding_assistant.core.config import VectorCAConfig
 from core.coding_assistant.core.hooks.models import HookConfigResult
@@ -23,7 +23,7 @@ class ClientMetadata:  # stub
 from core.coding_assistant.core.types import AssistantEvent, LLMMessage, OutputFormat, Role
 from core.coding_assistant.core.utils import ConversationLimitException
 
-__all__ = ["TeleportError", "run_programmatic"]
+__all__ = ["run_programmatic"]
 
 _DEFAULT_CLIENT_METADATA = ClientMetadata(name="vibe_programmatic", version=__version__)
 
@@ -37,7 +37,6 @@ def run_programmatic(  # noqa: PLR0913, PLR0917
     previous_messages: list[LLMMessage] | None = None,
     agent_name: str = BuiltinAgentName.AUTO_APPROVE,
     client_metadata: ClientMetadata = _DEFAULT_CLIENT_METADATA,
-    teleport: bool = False,
     headless: bool = False,
     hook_config_result: HookConfigResult | None = None,
 ) -> str | None:

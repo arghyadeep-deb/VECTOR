@@ -808,7 +808,6 @@ def get_service_name() -> str:
     return f"{_SERVICE_BASE}-{suffix}"
 
 
-
 def get_systemd_unit_path(system: bool = False) -> Path:
     name = get_service_name()
     if system:
@@ -1233,7 +1232,7 @@ def _system_service_identity(run_as_user: str | None = None) -> tuple[str, str, 
     import grp
     import pwd
 
-    username = (run_as_user or os.getenv("SUDO_USER") or os.getenv("USER") or os.getenv("LOGNAME") or getpass.getuser()).strip()
+    username = (run_as_user or os.environ.get("SUDO_USER") or os.environ.get("USER") or os.environ.get("LOGNAME") or getpass.getuser()).strip()
     if not username:
         raise ValueError("Could not determine which user the gateway service should run as")
     if username == "root" and not run_as_user:
@@ -1263,7 +1262,7 @@ def _read_systemd_user_from_unit(unit_path: Path) -> str | None:
 
 
 def _default_system_service_user() -> str | None:
-    for candidate in (os.getenv("SUDO_USER"), os.getenv("USER"), os.getenv("LOGNAME")):
+    for candidate in (os.environ.get("SUDO_USER"), os.environ.get("USER"), os.environ.get("LOGNAME")):
         if candidate and candidate.strip() and candidate.strip() != "root":
             return candidate.strip()
     return None
@@ -1329,7 +1328,7 @@ def get_systemd_linger_status() -> tuple[bool | None, str]:
     if not shutil.which("loginctl"):
         return None, "loginctl not found"
 
-    username = os.getenv("USER") or os.getenv("LOGNAME")
+    username = os.environ.get("USER") or os.environ.get("LOGNAME")
     if not username:
         try:
             import pwd
@@ -1648,7 +1647,6 @@ def systemd_unit_is_current(system: bool = False) -> bool:
     return _normalize_service_definition(installed) == _normalize_service_definition(expected)
 
 
-
 def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
     """Rewrite the installed systemd unit when the generated definition has changed."""
     unit_path = get_systemd_unit_path(system=system)
@@ -1660,7 +1658,6 @@ def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
     _run_systemctl(["daemon-reload"], system=system, check=True, timeout=30)
     print(f"↻ Updated gateway {_service_scope_label(system)} service definition to match the current VectorCode install")
     return True
-
 
 
 def _print_linger_enable_warning(username: str, detail: str | None = None) -> None:
@@ -1675,7 +1672,6 @@ def _print_linger_enable_warning(username: str, detail: str | None = None) -> No
     print("  Then restart the gateway:")
     print(f"    systemctl --user restart {get_service_name()}.service")
     print()
-
 
 
 def _ensure_linger_enabled() -> None:
@@ -1729,7 +1725,7 @@ def _select_systemd_scope(system: bool = False) -> bool:
 
 def _get_restart_drain_timeout() -> float:
     """Return the configured gateway restart drain timeout in seconds."""
-    raw = os.getenv("VECTOR_RESTART_DRAIN_TIMEOUT", "").strip()
+    raw = os.environ.get("VECTOR_RESTART_DRAIN_TIMEOUT", "").strip()
     if not raw:
         cfg = read_raw_config()
         agent_cfg = cfg.get("agent", {}) if isinstance(cfg, dict) else {}
@@ -1830,14 +1826,12 @@ def systemd_start(system: bool = False):
     print(f"✓ {_service_scope_label(system).capitalize()} service started")
 
 
-
 def systemd_stop(system: bool = False):
     system = _select_systemd_scope(system)
     if system:
         _require_root_for_system_service("stop")
     _run_systemctl(["stop", get_service_name()], system=system, check=True, timeout=90)
     print(f"✓ {_service_scope_label(system).capitalize()} service stopped")
-
 
 
 def systemd_restart(system: bool = False):
@@ -1898,7 +1892,6 @@ def systemd_restart(system: bool = False):
     )
     _run_systemctl(["reload-or-restart", get_service_name()], system=system, check=True, timeout=90)
     print(f"✓ {_service_scope_label(system).capitalize()} service restarted")
-
 
 
 def systemd_status(deep: bool = False, system: bool = False, full: bool = False):
@@ -2336,7 +2329,6 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False):
                  This prevents systemd restart loops when the old process
                  hasn't fully exited yet.
     """
-    sys.path.insert(0, str(PROJECT_ROOT))
     
     from gateway.run import start_gateway
     

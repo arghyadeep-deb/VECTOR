@@ -1,4 +1,5 @@
 """M&A Deal Parser - Extract structured data from SEC filings"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
@@ -11,7 +12,6 @@ sys.path.append(str(scripts_path))
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.config import DEAL_TYPES, PAYMENT_METHODS, INDUSTRIES
@@ -113,6 +113,8 @@ class MADealParser:
                 return deal_data
 
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] caught Exception: %s", _sve)
             print(f"Error parsing {accession_number}: {e}", file=sys.stderr)
 
         return None
@@ -344,9 +346,8 @@ class MADealParser:
                     else:
                         date_obj = datetime.strptime(date_str, '%B %d, %Y')
                     return date_obj.strftime('%Y-%m-%d')
-                except:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] suppressed Exception in fallback")  # bare except
         return filing_record['filing_date']
 
     def _extract_payment_method(self, text: str) -> str:

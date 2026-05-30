@@ -13,6 +13,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+
+__all__ = [
+    "DownloadAttempt",
+    "DownloadDuplicates",
+    "DownloadTracker",
+]
+
 from sqlalchemy_utc import UtcDateTime, utcnow
 
 from .base import Base

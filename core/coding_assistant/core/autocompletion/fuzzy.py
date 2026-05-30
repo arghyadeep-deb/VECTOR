@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+__all__ = [
+    "CONSECUTIVE_MULTIPLIER",
+    "fuzzy_match",
+    "MatchResult",
+    "PREFIX_MULTIPLIER",
+    "WORD_BOUNDARY_MULTIPLIER",
+]
+
+
 from dataclasses import dataclass
 
 PREFIX_MULTIPLIER = 2.0

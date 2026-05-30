@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Fincept Engine Backtesting Provider
 Executes strategies from the 418+ VECTOR Financial Terminal strategy registry.
 
@@ -23,11 +24,8 @@ from typing import Dict, Any, List, Optional
 # Add paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 STRATEGIES_DIR = BASE_DIR.parent.parent / "strategies"
-sys.path.insert(0, str(STRATEGIES_DIR))
-sys.path.insert(0, str(BASE_DIR / "base"))
 # For json_response (camelCase conversion + NaN sanitisation, shared with the
 # other providers).
-sys.path.insert(0, str(BASE_DIR))
 
 from fincept_strategy_runner import FinceptStrategyRunner
 from base.base_provider import json_response, parse_json_input
@@ -347,6 +345,8 @@ class FinAgentProvider:
             return self._execute_one(strategy_id, symbols, start_date, end_date,
                                      initial_capital, strategy_params)
         except Exception as e:
+            logger.debug("[VECTOR][Analytics.backtesting.fincept.fincept_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.fincept.fincept_provider] caught Exception: %s", _sve)
             import traceback
             tb = traceback.format_exc()
             print(f'[Fincept Engine] Error: {e}', file=sys.stderr)

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Exchange Rate Mathematical Calculations Module
 =============================================
 
@@ -242,6 +243,8 @@ class CrossRateCalculator(EconomicsBase):
                             'calculation': result['calculation_method']
                         }
                     except Exception as e:
+                        logger.debug("[VECTOR][Analytics.economics.exchange_calculations] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][Analytics.economics.exchange_calculations] caught Exception: %s", _sve)
                         cross_rates[pair] = {'error': str(e)}
 
         return {

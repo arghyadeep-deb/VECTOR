@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Persistent exchange daemon — long-running Python worker process.
 
 Keeps ccxt loaded and exchange instances warm. Accepts JSON-RPC requests
@@ -34,7 +35,6 @@ import time
 import traceback
 
 # Ensure this directory is on path for exchange_client imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import ccxt
 from exchange_client import load_cached_markets, save_markets_cache, get_default_type
@@ -68,6 +68,8 @@ def _respond(req_id, success, data=None, error=None, code=None):
         _stdout_write("\n")
         _stdout_flush()
     except Exception:
+        logger.debug("[VECTOR][exchange.exchange_daemon] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.exchange_daemon] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
 

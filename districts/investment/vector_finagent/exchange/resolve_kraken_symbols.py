@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Resolve a list of Fincept symbols (e.g. ['BTC/USDT','MATIC/USDT']) to actual
 Kraken-listed symbols using ccxt.kraken.load_markets(). One-shot helper for
 the native KrakenWsClient — runs once at WS startup.
@@ -81,6 +82,8 @@ def main() -> None:
         kraken = ccxt.kraken({"enableRateLimit": True})
         kraken.load_markets()
     except Exception as e:
+        logger.debug("[VECTOR][exchange.resolve_kraken_symbols] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.resolve_kraken_symbols] caught Exception: %s", _sve)
         print(json.dumps({"error": f"load_markets failed: {e}"}))
         sys.exit(3)
 

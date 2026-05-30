@@ -1,6 +1,7 @@
 """Wormhole-owned sender seal helpers."""
 
 from __future__ import annotations
+from loguru import logger
 
 import base64
 import json

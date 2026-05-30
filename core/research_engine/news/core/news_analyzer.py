@@ -256,7 +256,7 @@ WATCH FOR:
                 line = line.strip()
                 if line and line not in ["WATCH FOR:", "Watch for:"]:
                     # Remove bullet markers
-                    line = line.lstrip("-â€¢* ")
+                    line = line.lstrip("-•* ")
                     if line:
                         watch_items.append(line)
 

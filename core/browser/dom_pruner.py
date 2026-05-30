@@ -16,12 +16,9 @@ Reuses:   core/config.py CONFIG["browser"]["dom_pruner_max_elements"].
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.config import CONFIG
 from loguru import logger
 

@@ -6,6 +6,12 @@ This loader reads YAML files and converts them to readable text documents.
 """
 
 from pathlib import Path
+
+__all__ = [
+    "extract_text_from_yaml",
+    "YAMLLoader",
+]
+
 from typing import Iterator
 
 import yaml  # type: ignore[import-untyped]

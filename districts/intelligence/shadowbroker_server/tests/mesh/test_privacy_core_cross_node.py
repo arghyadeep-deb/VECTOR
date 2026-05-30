@@ -46,7 +46,6 @@ from pathlib import Path
 backend_root = Path(sys.argv[1])
 library_path = Path(sys.argv[2])
 if str(backend_root) not in sys.path:
-    sys.path.insert(0, str(backend_root))
 
 from services.privacy_core_client import PrivacyCoreClient
 

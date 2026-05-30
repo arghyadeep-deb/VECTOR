@@ -1,5 +1,5 @@
 """
-VECTOR Smart Routing â€” Usage Statistics + Request Journal
+VECTOR Smart Routing — Usage Statistics + Request Journal
 Python port of ClawRouter/src/stats.ts + src/logger.ts
 
 Tracks per-model usage, cost, latency, and savings.
@@ -10,20 +10,28 @@ Usage:
     journal.log(model="google/gemini-2.5-flash", tokens_in=1000,
                 tokens_out=500, cost_usd=0.0002, latency_ms=800)
     stats = journal.get_stats(days=7)
-    print(stats["total_savings_usd"])
+    logger.info(stats["total_savings_usd"])
+
 """
 from __future__ import annotations
 
+__all__ = [
+    "get_journal",
+    "RequestJournal",
+    "RequestLog",
+    "UsageStats",
+]
+
+
+from pathlib import Path
 import json
 import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 _LOG_DIR = Path.home() / ".vector" / "smart_routing" / "logs"
@@ -197,7 +205,7 @@ if __name__ == "__main__":
         latency_ms=800, baseline_usd=0.0138, tier="SIMPLE",
     )
     stats = journal.get_stats(days=1)
-    print(f"OK stats.py â€” request journaling + usage statistics")
+    print(f"OK stats.py — request journaling + usage statistics")
     print(f"  log_dir: {journal._log_dir}")
     print(f"  total_requests: {stats.total_requests}")
     print(f"  total_cost: ${stats.total_cost_usd:.6f}")

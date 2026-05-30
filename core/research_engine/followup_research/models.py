@@ -3,6 +3,12 @@ Data models for follow-up research functionality.
 """
 
 from dataclasses import dataclass
+
+__all__ = [
+    "FollowUpRequest",
+    "FollowUpResponse",
+]
+
 from typing import List, Dict, Any
 
 

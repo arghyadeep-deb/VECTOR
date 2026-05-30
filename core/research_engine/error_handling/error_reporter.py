@@ -3,6 +3,12 @@ ErrorReporter - Main error categorization and handling logic
 """
 
 import re
+
+__all__ = [
+    "ErrorCategory",
+    "ErrorReporter",
+]
+
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -280,7 +286,7 @@ class ErrorReporter:
                 )
                 return
 
-            # Notifications removed â€” VECTOR uses Pushover+Telegram via vectorcode
+            # Notifications removed — VECTOR uses Pushover+Telegram via vectorcode
             # Errors are logged via loguru; districts can subscribe to error events
             logger.info(
                 f"Error notification skipped (category={category}): {error_message[:100]}"

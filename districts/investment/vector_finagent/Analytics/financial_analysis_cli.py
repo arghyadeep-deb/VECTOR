@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 Financial Analysis CLI Wrapper
 ==============================
 Command-line interface for the financial analysis module.
@@ -23,7 +24,6 @@ from datetime import date
 
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
 if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
 
 from finanicalanalysis import (
     DataProcessor, CompanyInfo, FinancialPeriod, ReportingStandard, DataSource,
@@ -175,6 +175,8 @@ def main(args: list) -> str:
         else:
             return json.dumps({"success": False, "error": f"Unknown command: {command}"})
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.financial_analysis_cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.financial_analysis_cli] caught Exception: %s", _sve)
         import traceback
         return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
 

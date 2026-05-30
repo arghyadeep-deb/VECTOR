@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AI Quant Lab - Reporting & Visualization Module
 Analysis and visualization tools for backtest results
 
@@ -128,6 +129,8 @@ class ReportingService:
             return report
 
         except Exception as e:
+            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting_legacy] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting_legacy] caught Exception: %s", _sve)
             return {"success": False, "error": f"Report generation failed: {str(e)}"}
 
     def generate_ic_analysis_report(self,

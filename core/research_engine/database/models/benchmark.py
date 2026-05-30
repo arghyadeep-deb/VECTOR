@@ -2,6 +2,16 @@
 
 import enum
 
+__all__ = [
+    "BenchmarkConfig",
+    "BenchmarkProgress",
+    "BenchmarkResult",
+    "BenchmarkRun",
+    "BenchmarkStatus",
+    "DatasetType",
+]
+
+
 from sqlalchemy import (
     JSON,
     Boolean,

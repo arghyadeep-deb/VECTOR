@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Securities Overview Module
 =================================
 
@@ -931,6 +932,8 @@ def main():
             print(json.dumps({"error": f"Unknown command: {command}"}))
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.equityInvestment.market_analysis.equity_securities] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.equityInvestment.market_analysis.equity_securities] caught Exception: %s", _sve)
         print(json.dumps({"error": str(e)}))
 
 

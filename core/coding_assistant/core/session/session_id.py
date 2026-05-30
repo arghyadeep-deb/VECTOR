@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "extract_suffix",
+    "generate_session_id",
+    "shorten_session_id",
+]
+
+
 import secrets
 
 

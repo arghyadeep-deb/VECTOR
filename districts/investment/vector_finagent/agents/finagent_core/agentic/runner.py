@@ -1,4 +1,5 @@
 """
+from loguru import logger
 AgenticRunner — true-agentic extension of ResumableTaskRunner.
 
 Adds, on top of the base runner:
@@ -236,6 +237,8 @@ class AgenticRunner(ResumableTaskRunner):
                             replan_hint=decision.replan_hint, question=decision.question,
                         )
                     except Exception:
+                        logger.debug("[VECTOR][agents.finagent_core.agentic.runner] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][agents.finagent_core.agentic.runner] caught Exception: %s", _sve)
                         logger.debug("[VECTOR] suppressed exception", exc_info=True)
                     self._emit(
                         "reflection",

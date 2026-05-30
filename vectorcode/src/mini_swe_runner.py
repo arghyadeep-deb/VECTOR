@@ -213,10 +213,10 @@ class MiniSWERunner:
             from openai import OpenAI
             client_kwargs = {
                 "base_url": base_url or "https://openrouter.ai/api/v1",
-                "api_key": api_key or os.getenv(
+                "api_key": api_key or os.environ.get(
                     "OPENROUTER_API_KEY",
-                    os.getenv("ANTHROPIC_API_KEY",
-                              os.getenv("OPENAI_API_KEY", ""))),
+                    os.environ.get("ANTHROPIC_API_KEY",
+                              os.environ.get("OPENAI_API_KEY", ""))),
             }
             self.client = OpenAI(**client_kwargs)
         else:
@@ -229,7 +229,7 @@ class MiniSWERunner:
                 from openai import OpenAI
                 self.client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
-                    api_key=os.getenv("OPENROUTER_API_KEY", ""))
+                    api_key=os.environ.get("OPENROUTER_API_KEY", ""))
         
         # Environment will be created per-task
         self.env = None

@@ -1,4 +1,5 @@
 """Alpha Arena LLM-call subprocess.
+from loguru import logger
 
 Single-purpose: take a system prompt + user prompt + model identity, call the
 right provider SDK, return the response text + token/cost metadata as JSON on
@@ -94,6 +95,8 @@ def redeem_secret(pipe_name: str, handle: str) -> str:
             raise RuntimeError(reply["error"])
         return reply.get("api_key", "")
     except Exception as exc:
+        logger.debug("[VECTOR][alpha_arena.llm_call] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][alpha_arena.llm_call] caught Exception: %s", _sve)
         raise RuntimeError(f"secret redemption failed: {exc}") from exc
 
 

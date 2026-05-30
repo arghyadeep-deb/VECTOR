@@ -1,14 +1,21 @@
 """VECTOR analytics router - /analytics/* endpoints."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "analytics_report",
+    "AnalyticsReportReq",
+    "benchmark_run",
+    "BenchmarkRunReq",
+    "etl_run",
+    "EtlRunReq",
+    "pipeline_health",
+    "router",
+]
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
-
-
 
 
 @router.get("/pipeline-health")

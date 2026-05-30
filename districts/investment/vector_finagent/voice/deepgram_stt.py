@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 deepgram_stt.py — Mic (raw pyaudio) -> Deepgram live WebSocket -> JSON stdout.
 
 This rewrite replaces deepgram-sdk's opaque `Microphone` helper with a manual
@@ -63,6 +64,8 @@ def list_input_devices(pa) -> List[dict]:
         host = pa.get_default_host_api_info()
         default_input_index = host.get("defaultInputDevice", -1)
     except Exception:
+        logger.debug("[VECTOR][voice.deepgram_stt] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.deepgram_stt] caught Exception: %s", _sve)
         default_input_index = -1
     for i in range(pa.get_device_count()):
         try:

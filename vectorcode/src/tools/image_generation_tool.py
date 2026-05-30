@@ -506,7 +506,7 @@ def _resolve_fal_model() -> tuple:
 
     # Env var escape hatch (undocumented; backward-compat for tests/scripts).
     if not model_id:
-        model_id = os.getenv("FAL_IMAGE_MODEL", "").strip()
+        model_id = os.environ.get("FAL_IMAGE_MODEL", "").strip()
 
     if not model_id:
         return DEFAULT_MODEL, FAL_MODELS[DEFAULT_MODEL]

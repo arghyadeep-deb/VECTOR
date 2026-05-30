@@ -1,5 +1,5 @@
 """
-VECTOR Model Router â€” hint-based tier routing.
+VECTOR Model Router — hint-based tier routing.
 
 Ported from vector's providers/router.rs.
 
@@ -17,12 +17,18 @@ Tiers (VECTOR-specific, Ollama-first):
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "get_router",
+    "ModelRouter",
+    "ModelTier",
+    "Route",
+    "route",
+]
+
+
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loguru import logger
 
 
@@ -78,7 +84,7 @@ class ModelRouter:
     Routes task requests to the appropriate Ollama model.
 
     Resolution order (mirrors vector router.rs):
-      1. hint:<tier>  â€” direct tier lookup (e.g. "hint:coding")
+      1. hint:<tier>  — direct tier lookup (e.g. "hint:coding")
       2. Abstract tier names (e.g. "coding-v1" â†’ coding tier)
       3. Exact model name passthrough (e.g. "qwen3:14b")
       4. Default (agentic tier)
@@ -194,4 +200,4 @@ if __name__ == "__main__":
     routes = r.all_routes()
     assert len(routes) == len(ModelTier)
 
-    print(f"OK model_router.py â€” {len(routes)} tiers, all routes verified")
+    print(f"OK model_router.py — {len(routes)} tiers, all routes verified")

@@ -4,14 +4,11 @@ Growth Hacker — viral loops, North Star metric, funnel analysis, growth experi
 Helps Arghyadeep grow VECTOR's presence, personal brand, and any startup/agency
 projects using AARRR/ICE/North Star frameworks.
 """
-import sys
 import asyncio
 import datetime
 import json
 import re
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

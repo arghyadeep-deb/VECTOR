@@ -13,6 +13,21 @@ permanent errors (Validation, Authentication, Forbidden).
 """
 from __future__ import annotations
 
+__all__ = [
+    "AgentDeadError",
+    "AuthenticationError",
+    "ConfigurationError",
+    "ForbiddenError",
+    "MemoryError",
+    "ModelNotLoadedError",
+    "RateLimitError",
+    "ServiceUnavailableError",
+    "TimeoutError",
+    "ValidationError",
+    "VectorError",
+]
+
+
 
 class VectorError(Exception):
     """Base class for all VECTOR exceptions."""

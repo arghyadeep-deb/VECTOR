@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 CNINFO Announcements Incremental
 Incremental filings sync by stock and category with watermark-based pagination.
 """
@@ -86,6 +87,8 @@ class CNInfoAnnouncementsIncremental:
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
         except Exception:
+            logger.debug("[VECTOR][cninfo_announcements_incremental] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][cninfo_announcements_incremental] caught Exception: %s", _sve)
             return {"watermarks": {}, "updated_at": _now_ts()}
 
     def _save_state(self, state: Dict[str, Any]) -> None:

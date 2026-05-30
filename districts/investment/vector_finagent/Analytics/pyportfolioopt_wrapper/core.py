@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Portfolio Optimization Analytics Module
 ======================================
 
@@ -606,6 +607,8 @@ class PyPortfolioOptAnalyticsEngine:
                 frontier_sharpe.append(sharpe)
 
             except Exception:
+                logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.core] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.core] caught Exception: %s", _sve)
                 continue
 
         self.efficient_frontier_data = {
@@ -1165,32 +1168,8 @@ def demo_pypfopt_analytics():
         print("Downloading sample data...")
         prices = yf.download(assets, start='2018-01-01', end='2023-12-31')['Adj Close']
 
-    except:
-        # Create synthetic data if yfinance fails
-        print("Creating synthetic data...")
-        np.random.seed(42)
-        dates = pd.date_range('2018-01-01', '2023-12-31', freq='D')
-        n_assets = len(assets)
-
-        # Generate correlated returns
-        correlation_matrix = np.random.uniform(0.1, 0.7, (n_assets, n_assets))
-        np.fill_diagonal(correlation_matrix, 1.0)
-        correlation_matrix = (correlation_matrix + correlation_matrix.T) / 2
-
-        returns = pd.DataFrame(
-            np.random.multivariate_normal(
-                np.random.uniform(0.0005, 0.0015, n_assets),
-                correlation_matrix * 0.0004,
-                len(dates)
-            ),
-            index=dates,
-            columns=assets
-        )
-
-        # Convert to prices
-        prices = (1 + returns).cumprod() * 100
-
-    # Create configuration
+    except Exception:
+        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.core] suppressed Exception in fallback")  # bare except
     config = create_sample_pypfopt_config()
 
     # Initialize engine

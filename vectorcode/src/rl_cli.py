@@ -182,7 +182,7 @@ def check_requirements():
     errors = []
     
     # Check API keys
-    if not os.getenv("OPENROUTER_API_KEY"):
+    if not os.environ.get("OPENROUTER_API_KEY"):
         errors.append("OPENROUTER_API_KEY not set - required for agent")
     
     missing_rl_keys = get_missing_keys()
@@ -355,7 +355,7 @@ def main(
         return
     
     # Get API key
-    api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         print("❌ No API key provided. Set OPENROUTER_API_KEY or pass --api-key")
         sys.exit(1)

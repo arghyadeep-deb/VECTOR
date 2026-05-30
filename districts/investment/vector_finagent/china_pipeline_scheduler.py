@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 China Pipeline Scheduler
 Orchestrates BaoStock + CNINFO incremental pipelines end-to-end.
 """
@@ -57,6 +58,8 @@ class ChinaPipelineScheduler:
             res = fn(*args, **kwargs)
             return {"step": step_name, "success": bool(res.get("success", False)), "result": res}
         except Exception as e:
+            logger.debug("[VECTOR][china_pipeline_scheduler] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][china_pipeline_scheduler] caught Exception: %s", _sve)
             return {"step": step_name, "success": False, "result": {"success": False, "error": str(e)}}
 
     @staticmethod

@@ -616,3 +616,160 @@ class AverageDirectionalIndex(IndicatorBase):
 
     def _compute(self, value: float) -> float:
         return self.current.value
+
+
+class Aroon(IndicatorBase):
+    def __init__(self, name: str = "AROON", period: int = 25):
+        super().__init__(name, period)
+        self._highs = deque(maxlen=period)
+        self._lows = deque(maxlen=period)
+        self.aroon_up = IndicatorDataPoint(0.0)
+        self.aroon_down = IndicatorDataPoint(0.0)
+
+    def _compute(self, value: float) -> float:
+        self._highs.append(value)
+        self._lows.append(value)
+        if len(self._highs) < self.period:
+            return 50.0
+        high = max(self._highs)
+        low = min(self._lows)
+        days_since_high = list(reversed(self._highs)).index(high)
+        days_since_low = list(reversed(self._lows)).index(low)
+        up = ((self.period - days_since_high) / self.period) * 100
+        down = ((self.period - days_since_low) / self.period) * 100
+        self.aroon_up = IndicatorDataPoint(up)
+        self.aroon_down = IndicatorDataPoint(down)
+        return up - down
+
+
+class VWAPIndicator(IndicatorBase):
+    def __init__(self, name: str = "VWAP", period: int = 0):
+        super().__init__(name, period or 0)
+        self._cum_pv = 0.0
+        self._cum_vol = 0.0
+        self.warm_up_period = 1
+
+    def update_bar(self, time, high: float, low: float, close: float, volume: float) -> bool:
+        typical = (high + low + close) / 3.0
+        self._cum_pv += typical * volume
+        self._cum_vol += volume
+        self._samples += 1
+        vwap = self._cum_pv / self._cum_vol if self._cum_vol > 0 else close
+        self.previous = IndicatorDataPoint(self.current.value, self.current.time)
+        self.current = IndicatorDataPoint(vwap, time)
+        return self.is_ready
+
+    def update(self, time_or_input, value: float = None) -> bool:
+        if value is None and hasattr(time_or_input, 'volume'):
+            bar = time_or_input
+            return self.update_bar(
+                getattr(bar, 'time', getattr(bar, 'end_time', None)),
+                float(bar.high), float(bar.low), float(bar.close), float(bar.volume),
+            )
+        return super().update(time_or_input, value)
+
+    def _compute(self, value: float) -> float:
+        return self.current.value
+
+    def reset(self):
+        super().reset()
+        self._cum_pv = 0.0
+        self._cum_vol = 0.0
+
+
+class ARIMAIndicator(IndicatorBase):
+    def __init__(self, name: str = "ARIMA", ar_order: int = 1,
+                 diff_order: int = 0, ma_order: int = 1, period: int = 50):
+        super().__init__(name, period)
+        self._ar_order = ar_order
+        self._diff_order = diff_order
+        self._ma_order = ma_order
+        self._history = []
+        self.forecast = IndicatorDataPoint(0.0)
+        self._fitted = False
+
+    def _compute(self, value: float) -> float:
+        self._history.append(value)
+        if len(self._history) < self.period:
+            return value
+        try:
+            from statsmodels.tsa.arima.model import ARIMA
+            model = ARIMA(self._history[-self.period:],
+                          order=(self._ar_order, self._diff_order, self._ma_order))
+            result = model.fit()
+            fc = result.forecast(steps=1).iloc[0]
+            self.forecast = IndicatorDataPoint(fc)
+            self._fitted = True
+            return fc
+        except Exception:
+            return value
+
+    def reset(self):
+        super().reset()
+        self._history.clear()
+        self._fitted = False
+
+
+class OptionGreekIndicator(IndicatorBase):
+    def __init__(self, name: str = "GREEK", period: int = 14):
+        super().__init__(name, period)
+        self.underlying_price = 0.0
+        self.strike = 0.0
+        self.time_to_expiry = 0.0
+        self.risk_free_rate = 0.05
+        self.dividend_yield = 0.0
+        self.option_type = "c"
+        self.implied_volatility = IndicatorDataPoint(0.25)
+
+    def set_option_params(self, underlying_price=None, strike=None, time_to_expiry=None,
+                          risk_free_rate=None, dividend_yield=None, option_type=None):
+        if underlying_price is not None:
+            self.underlying_price = underlying_price
+        if strike is not None:
+            self.strike = strike
+        if time_to_expiry is not None:
+            self.time_to_expiry = time_to_expiry
+        if risk_free_rate is not None:
+            self.risk_free_rate = risk_free_rate
+        if dividend_yield is not None:
+            self.dividend_yield = dividend_yield
+        if option_type is not None:
+            self.option_type = option_type
+
+    def compute_greek(self, greek: str) -> float:
+        try:
+            from py_vollib.black_scholes.implied_volatility import implied_volatility
+            from py_vollib.black_scholes.greeks.analytical import delta, gamma, rho, theta, vega
+            flag = self.option_type
+            S = self.underlying_price
+            K = self.strike
+            t = self.time_to_expiry
+            r = self.risk_free_rate
+            b = r - self.dividend_yield
+            if S <= 0 or K <= 0 or t <= 0:
+                return 0.0
+            if greek == "iv":
+                price = getattr(self, '_option_price', S * 0.1)
+                return implied_volatility(price, S, K, t, r, b, flag)
+            elif greek == "delta":
+                return delta(flag, S, K, t, r, b, self.implied_volatility.value)
+            elif greek == "gamma":
+                return gamma(flag, S, K, t, r, b, self.implied_volatility.value)
+            elif greek == "rho":
+                return rho(flag, S, K, t, r, b, self.implied_volatility.value)
+            elif greek == "vega":
+                return vega(flag, S, K, t, r, b, self.implied_volatility.value)
+            elif greek == "theta":
+                return theta(flag, S, K, t, r, b, self.implied_volatility.value)
+        except Exception:
+            pass
+        return 0.25
+
+    def _compute(self, value: float) -> float:
+        return value if value else 0.25
+
+    def reset(self):
+        super().reset()
+        self.underlying_price = 0.0
+        self.strike = 0.0
+        self.time_to_expiry = 0.0

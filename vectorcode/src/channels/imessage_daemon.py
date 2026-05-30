@@ -1,3 +1,4 @@
+from loguru import logger
 """iMessage daemon channel shim."""
 try:
     from vectorcode.src.comms.imessage_daemon import *

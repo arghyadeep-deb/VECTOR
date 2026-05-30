@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Place an order on an exchange (requires API credentials via stdin).
 
 Usage: echo '{"api_key":"...","secret":"..."}' | python place_order.py <exchange_id> <symbol> <side> <type> <amount> [price]
@@ -72,6 +73,8 @@ def main():
         try:
             exchange.set_markets(cached)
         except Exception:
+            logger.debug("[VECTOR][exchange.place_order] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][exchange.place_order] caught Exception: %s", _sve)
             exchange.load_markets()
             save_markets_cache(exchange_id, exchange.markets)
     else:

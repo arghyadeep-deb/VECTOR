@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Backtesting.py Optimization Module
 
 Extended optimization: grid search, heatmap data, compute_stats, walk-forward.
@@ -83,6 +84,8 @@ def optimize_strategy(bt_instance, params: Dict[str, Any],
         try:
             kwargs['method'] = 'skopt'
         except Exception:
+            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_optimize] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_optimize] caught Exception: %s", _sve)
             pass  # Fall back to grid
 
     stats = bt_instance.optimize(**opt_kwargs, **kwargs)

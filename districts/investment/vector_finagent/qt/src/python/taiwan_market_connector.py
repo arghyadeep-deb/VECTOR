@@ -1,4 +1,5 @@
 """
+from loguru import logger
 taiwan_market_connector.py
 ──────────────────────────────────────────────────────────────────────────────
 Taiwan Stock Market Data Connector for Fincept Terminal
@@ -230,6 +231,8 @@ def get_tw_top_movers(top_n: int = 10) -> pd.DataFrame:
         df["change_pct_num"] = pd.to_numeric(df["change_pct"], errors="coerce")
         df = df.sort_values("change_pct_num", ascending=False)
     except Exception:
+        logger.debug("[VECTOR][qt.src.python.taiwan_market_connector] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][qt.src.python.taiwan_market_connector] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
     return df.head(top_n).reset_index(drop=True)

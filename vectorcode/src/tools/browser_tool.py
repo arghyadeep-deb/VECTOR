@@ -204,12 +204,12 @@ def _get_command_timeout() -> int:
 
 def _get_vision_model() -> Optional[str]:
     """Model for browser_vision (screenshot analysis — multimodal)."""
-    return os.getenv("AUXILIARY_VISION_MODEL", "").strip() or None
+    return os.environ.get("AUXILIARY_VISION_MODEL", "").strip() or None
 
 
 def _get_extraction_model() -> Optional[str]:
     """Model for page snapshot text summarization — same as web_extract."""
-    return os.getenv("AUXILIARY_WEB_EXTRACT_MODEL", "").strip() or None
+    return os.environ.get("AUXILIARY_WEB_EXTRACT_MODEL", "").strip() or None
 
 
 def _resolve_cdp_override(cdp_url: str) -> str:

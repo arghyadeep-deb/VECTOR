@@ -1,11 +1,11 @@
 """Complete Merger Model - Accretion/Dilution Analysis"""
+from loguru import logger
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Add Analytics path for absolute imports
 analytics_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(analytics_path))
 
 # Use absolute imports instead of relative imports
 from corporateFinance.merger_models.sources_uses import SourcesUsesBuilder
@@ -339,6 +339,8 @@ def main():
             sys.exit(1)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.corporateFinance.merger_models.merger_model] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.merger_models.merger_model] caught Exception: %s", _sve)
         result = {
             "success": False,
             "error": str(e),

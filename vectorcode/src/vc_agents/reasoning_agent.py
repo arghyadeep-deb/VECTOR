@@ -7,10 +7,6 @@ High-reward chains (>0.7) tagged as training data for the custom LLM.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

@@ -13,23 +13,24 @@ Usage:
 """
 from __future__ import annotations
 
-import sys
+__all__ = [
+    "get_orchestrator",
+    "SwarmOrchestrator",
+]
+
+
 import asyncio
 import json
 import re
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
 
 # ── District → Swarm class mapping ────────────────────────────────────────
 DISTRICT_SWARMS: dict[str, str] = {
-    "engineering": "districts.engineering.agent:EngineeringSwarm",
-    "testing": "districts.testing.agent:TestingSwarm",
-    "product": "districts.product.agent:ProductSwarm",
     "ops": "districts.ops.agent:OpsSwarm",
     "coding": "districts.coding.agent:CodingSwarm",
     "qa": "districts.qa.agent:QASwarm",
@@ -39,10 +40,9 @@ DISTRICT_SWARMS: dict[str, str] = {
 
 # Districts using GenericSwarm auto-discovery (no custom agent.py needed)
 GENERIC_DISTRICTS: list[str] = [
-    "security", "governance", "marketing", "specialized",
-    "sales", "design", "project_management", "support",
-    "spatial_computing", "academic", "game_development",
-    "paid_media", "communications", "documentation",
+    "security", "governance", "marketing",
+ "design",
+ "communications",
     "data_analytics", "startups", "skills", "content",
     "languages", "learning", "news_trends", "intelligence",
     "pattern_detective", "personal_growth", "privacy",
@@ -54,20 +54,6 @@ GENERIC_DISTRICTS: list[str] = [
 # ── Cross-district routing — task type → best district ────────────────────
 TASK_TO_DISTRICT: dict[str, str] = {
     # ── Engineering (broad architecture, AI, data, infra) ────────────────────
-    "architecture": "engineering",
-    "ai": "engineering",
-    "ml": "engineering",
-    "data": "engineering",
-    "devops": "engineering",
-    "sre": "engineering",
-    "security": "engineering",
-    "backend": "engineering",
-    "mobile": "engineering",
-    "embedded": "engineering",
-    "blockchain": "engineering",
-    "rapid_prototype": "engineering",
-    "technical_writing": "engineering",
-    "voice": "engineering",
 
     # ── Coding (specialized .md + Python agents for hands-on code work) ──────
     "code_review": "coding",
@@ -90,10 +76,6 @@ TASK_TO_DISTRICT: dict[str, str] = {
     "test_writing": "coding",
 
     # ── Testing (QA, verification, benchmarking) ─────────────────────────────
-    "accessibility": "testing",
-    "api_testing": "testing",
-    "reality_check": "testing",
-    "test_analysis": "testing",
     "qa": "qa",
     "unit_test": "qa",
     "integration_test": "qa",
@@ -138,13 +120,6 @@ TASK_TO_DISTRICT: dict[str, str] = {
     "bookkeeping": "finance",
 
     # ── Product (strategy, sprint, feedback) ─────────────────────────────────
-    "product_strategy": "product",
-    "sprint": "product",
-    "feedback": "product",
-    "behavioral": "product",
-    "trend_research": "product",
-    "stakeholder": "product",
-    "user_research": "product",
 
     # ── Security (audit, threat detection, privacy) ──────────────────────────
     "security_audit": "security",
@@ -169,31 +144,15 @@ TASK_TO_DISTRICT: dict[str, str] = {
     "brand": "marketing",
 
     # ── Sales (outreach, pipeline, proposals) ────────────────────────────────
-    "sales": "sales",
-    "outreach": "sales",
-    "pipeline": "sales",
-    "proposal": "sales",
-    "deal": "sales",
 
     # ── Design (UI/UX, visual, spatial) ──────────────────────────────────────
     "ui": "design",
     "ux": "design",
     "visual_design": "design",
-    "spatial_ui": "spatial_computing",
-    "xr": "spatial_computing",
-    "visionos": "spatial_computing",
 
     # ── Support (responder, analytics, legal) ────────────────────────────────
-    "support": "support",
-    "legal": "support",
-    "finance_track": "support",
-    "infra_maintain": "support",
 
     # ── Miscellaneous districts ──────────────────────────────────────────────
-    "academic": "academic",
-    "game_dev": "game_development",
-    "paid_media": "paid_media",
-    "project_management": "project_management",
     "communications": "communications",
     "startup": "startups",
     "skills": "skills",

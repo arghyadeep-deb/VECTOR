@@ -18,6 +18,14 @@ all three agents log the same warnings when fallback fires.
 
 from __future__ import annotations
 
+__all__ = [
+    "bind_structured",
+    "invoke_structured_or_freetext",
+    "logger",
+    "T",
+]
+
+
 import logging
 from typing import Any, Callable, Optional, TypeVar
 

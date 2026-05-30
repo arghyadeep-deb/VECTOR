@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Databento Market Data Provider
 ===============================
 Institutional-grade market data fetching for Surface Analytics.
@@ -89,6 +90,8 @@ def _implied_vol(price, S, K, T, r, is_call=True):
                     hi = mid
             return (lo + hi) / 2
     except Exception:
+        logger.debug("[VECTOR][databento_provider] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][databento_provider] caught Exception: %s", _sve)
         return 0.0
 
 

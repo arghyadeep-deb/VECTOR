@@ -6,6 +6,12 @@ which is useful for handling file uploads via HTTP.
 """
 
 import tempfile
+
+__all__ = [
+    "extract_text_from_bytes",
+    "load_from_bytes",
+]
+
 from pathlib import Path
 from typing import Optional
 

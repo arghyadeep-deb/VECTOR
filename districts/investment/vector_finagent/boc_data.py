@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Bank of Canada (BoC) Data Wrapper
 Fetches data from the Bank of Canada Valet API.
 
@@ -182,6 +183,8 @@ class BoCWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BoCError(series_ids, str(e), sc).to_dict()
         except Exception as e:
+            logger.debug("[VECTOR][boc_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boc_data] caught Exception: %s", _sve)
             return BoCError(series_ids, str(e)).to_dict()
 
     # ------------------------------------------------------------------

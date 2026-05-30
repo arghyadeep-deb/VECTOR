@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Zillow Research Data Fetcher
 Zillow Research: median home values, rents, inventory, price cuts by zip/metro/state
 via direct CSV download and parse from Zillow static files.
@@ -81,6 +82,8 @@ def _parse_csv_to_records(csv_text: str, region_filter: str = None,
             records.append(meta)
         return records
     except Exception as e:
+        logger.debug("[VECTOR][zillow_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][zillow_data] caught Exception: %s", _sve)
         return {"error": f"Parse error: {str(e)}"}
 
 

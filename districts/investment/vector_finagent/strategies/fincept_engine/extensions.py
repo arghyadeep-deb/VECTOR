@@ -2,6 +2,7 @@
 # VECTOR Financial Terminal - Strategy Engine Extensions
 # Pure Python replacement for LEAN C# extension methods
 # ============================================================================
+from loguru import logger
 
 from datetime import datetime, timedelta, time as dt_time, timezone
 from typing import Optional, List, Any
@@ -141,6 +142,8 @@ class Extensions:
             with open(file_path, 'r') as f:
                 return f.readlines()
         except Exception:
+            logger.debug("[VECTOR][strategies.fincept_engine.extensions] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.fincept_engine.extensions] caught Exception: %s", _sve)
             return []
 
     @staticmethod

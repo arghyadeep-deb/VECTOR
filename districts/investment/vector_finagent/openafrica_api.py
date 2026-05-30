@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 openAFRICA API Wrapper - African Open Data Portal API
 
 A wrapper for the open.africa (CKAN-based) API to access African open data.
@@ -171,6 +172,8 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
         }
 
     except Exception as e:
+        logger.debug("[VECTOR][openafrica_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][openafrica_api] caught Exception: %s", _sve)
         return {
             "data": [],
             "metadata": {

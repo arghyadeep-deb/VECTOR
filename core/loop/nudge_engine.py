@@ -1,12 +1,17 @@
 """NudgeEngine — monitors activity patterns and generates proactive nudges."""
 
 import asyncio
+
+__all__ = [
+    "nudge_engine",
+    "NudgeEngine",
+]
+
 import datetime
 import subprocess
 import sys
 import time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG

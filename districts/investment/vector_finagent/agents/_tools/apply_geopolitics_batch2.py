@@ -20,7 +20,6 @@ HERE = Path(__file__).resolve().parent
 AGENTS_ROOT = HERE.parent
 TARGET = AGENTS_ROOT / "GeopoliticsAgents" / "configs" / "agent_definitions.json"
 
-sys.path.insert(0, str(HERE))
 from migrate_bundled_configs import migrate_entry  # noqa: E402
 
 

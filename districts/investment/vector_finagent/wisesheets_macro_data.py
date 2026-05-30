@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Macro Trends Data Fetcher
 Long-term historical macro data — P/E ratios, Shiller CAPE, Buffett indicator via public endpoints.
 """
@@ -75,6 +76,8 @@ def get_buffett_indicator(start_year: int = None, end_year: int = None) -> Any:
                 rows.append({"date": parts[0], "value": parts[1]})
         return rows
     except Exception as e:
+        logger.debug("[VECTOR][wisesheets_macro_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][wisesheets_macro_data] caught Exception: %s", _sve)
         return {"error": f"Request failed: {str(e)}"}
 
 def get_sp500_historical(start_year: int = None, end_year: int = None) -> Any:

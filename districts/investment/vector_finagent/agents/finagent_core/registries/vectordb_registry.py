@@ -1,4 +1,5 @@
 """
+from loguru import logger
 VectorDB Registry - Unified access to 20+ vector databases
 
 Provides lazy loading and standardized vectordb creation for RAG.
@@ -190,6 +191,8 @@ class VectorDBRegistry:
         except ImportError as e:
             raise ImportError(f"Failed to import vectordb '{db_type}': {e}")
         except Exception as e:
+            logger.debug("[VECTOR][agents.finagent_core.registries.vectordb_registry] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.registries.vectordb_registry] caught Exception: %s", _sve)
             raise RuntimeError(f"Failed to create vectordb '{db_type}': {e}")
 
     @classmethod

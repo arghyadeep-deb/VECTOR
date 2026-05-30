@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+__all__ = [
+    "AcpCommand",
+    "AcpCommandRegistry",
+]
+
+
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 

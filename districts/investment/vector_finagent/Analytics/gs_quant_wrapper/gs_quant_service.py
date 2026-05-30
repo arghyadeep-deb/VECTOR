@@ -1,4 +1,5 @@
 """
+from loguru import logger
 GS-Quant Wrapper Worker Handler
 ================================
 Dispatch router for C++ commands -> Python gs_quant_wrapper operations.
@@ -26,7 +27,6 @@ from datetime import datetime
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_script_dir)
 if _parent_dir not in sys.path:
-    sys.path.insert(0, _parent_dir)
 
 
 # ============================================================================
@@ -705,6 +705,8 @@ def dispatch(operation, data):
             "error_kind": "validation",
         }
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.gs_quant_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.gs_quant_service] caught Exception: %s", _sve)
         return {
             "success": False,
             "operation": operation,

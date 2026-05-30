@@ -1,9 +1,9 @@
-# VECTOR module â€” ported from VectorCode
+# VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
 # Ingested: 2026-05-15T02:57:35+00:00
 
-"""Task scheduler â€” cron/interval/once execution with background polling."""
+"""Task scheduler — cron/interval/once execution with background polling."""
 
 from __future__ import annotations
 

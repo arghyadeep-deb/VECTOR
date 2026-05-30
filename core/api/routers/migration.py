@@ -1,8 +1,12 @@
 """Migration router — /migration/sources."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+__all__ = [
+    "migration_sources",
+    "router",
+]
+
 
 from fastapi import APIRouter
 from loguru import logger

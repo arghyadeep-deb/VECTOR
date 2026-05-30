@@ -1,3 +1,4 @@
+from loguru import logger
 from typing import List, Dict
 from talipp.indicators import ADX, Aroon, Ichimoku, ParabolicSAR, SuperTrend
 from talipp.ohlcv import OHLCV
@@ -138,6 +139,8 @@ def main():
         print("Last ADX:", result['last'])
         print("Test 1: PASSED")
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.talipp_wrapper.trend_other] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.talipp_wrapper.trend_other] caught Exception: %s", _sve)
         print("Test 1: SKIPPED (ADX requires more data points)")
         print("Error:", str(e))
 

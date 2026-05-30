@@ -21,7 +21,10 @@ import hashlib
 import json
 import logging
 import sqlite3
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

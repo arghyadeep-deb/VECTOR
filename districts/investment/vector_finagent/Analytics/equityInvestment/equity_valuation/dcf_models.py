@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Equity Investment Dcf Models Module
 ======================================
 
@@ -401,7 +402,9 @@ class DCFSensitivityAnalyzer:
                     'equity_value': equity_value,
                     'per_share_value': per_share_value
                 })
-            except:
+            except Exception as _sve:
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] caught Exception: %s", _sve)
                 continue
 
         return pd.DataFrame(results)
@@ -435,9 +438,8 @@ class DCFSensitivityAnalyzer:
                     'equity_value': equity_value,
                     'per_share_value': per_share_value
                 })
-            except:
-                continue
-
+            except Exception:
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] suppressed Exception in fallback")  # bare except
         return pd.DataFrame(results)
 
     @staticmethod
@@ -473,9 +475,8 @@ class DCFSensitivityAnalyzer:
                         'terminal_growth': growth,
                         'per_share_value': per_share_value
                     })
-                except:
-                    continue
-
+                except Exception:
+                    logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] suppressed Exception in fallback")  # bare except
         df = pd.DataFrame(results)
         return df.pivot_table(values='per_share_value', index='wacc', columns='terminal_growth')
 

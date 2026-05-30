@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Callable
 
 import httpx
 from loguru import logger
+from core.config import CONFIG
 
 
 @dataclass
@@ -21,7 +22,7 @@ class HAConfig:
 
     def __post_init__(self):
         if not self.host:
-            raw = os.getenv("HASS_URL", "http://homeassistant.local:8123")
+            raw = os.getenv("HASS_URL") or CONFIG.get("home_assistant", {}).get("host", "homeassistant.local")
             raw = raw.rstrip("/")
             parsed = raw.replace("http://", "").replace("https://", "")
             if "://" not in raw and raw.startswith("http"):
@@ -32,7 +33,7 @@ class HAConfig:
             except (IndexError, ValueError):
                 self.port = 8123
         if not self.token:
-            self.token = os.getenv("HASS_TOKEN", "")
+            self.token = os.getenv("HASS_TOKEN") or CONFIG.get("home_assistant", {}).get("token", "")
 
     @property
     def base_url(self) -> str:

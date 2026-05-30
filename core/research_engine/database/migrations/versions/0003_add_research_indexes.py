@@ -39,6 +39,17 @@ Table data is completely preserved — only index structures are removed.
 """
 
 from alembic import op
+
+__all__ = [
+    "branch_labels",
+    "depends_on",
+    "down_revision",
+    "downgrade",
+    "INDEXES",
+    "revision",
+    "upgrade",
+]
+
 from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.

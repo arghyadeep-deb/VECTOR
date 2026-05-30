@@ -1,13 +1,11 @@
 """
 Module: core/sensing/sound_classifier.py
 SoundClassifier: classifies ambient sound using energy-based heuristics.
-No model required â€” all processing is local (RULE 5).
+No model required — all processing is local (RULE 5).
 Labels: silence / speech / music / alert / background / unknown
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 from loguru import logger
@@ -18,9 +16,9 @@ from core.config import CONFIG
 class SoundClassifier:
     """Classifies ambient sound into one of five categories.
 
-    Classification uses two cheap signal features â€” no ML model needed:
-        RMS energy  â€” overall loudness
-        Zero-Crossing Rate (ZCR) â€” frequency proxy
+    Classification uses two cheap signal features — no ML model needed:
+        RMS energy  — overall loudness
+        Zero-Crossing Rate (ZCR) — frequency proxy
 
     Decision logic:
         rms < 0.01                    â†’ "silence"
@@ -65,7 +63,7 @@ class SoundClassifier:
 
     @staticmethod
     def _zcr(audio: np.ndarray) -> float:
-        """Zero-Crossing Rate â€” fraction of samples where sign changes."""
+        """Zero-Crossing Rate — fraction of samples where sign changes."""
         if len(audio) < 2:
             return 0.0
         audio_f = audio.astype(np.float32)
@@ -160,23 +158,23 @@ if __name__ == "__main__":
 
         # --- pure-signal unit tests (no mic needed) ---
 
-        # 1. silence â€” all zeros
+        # 1. silence — all zeros
         silence = np.zeros(8000, dtype=np.float32)
         result = classifier.classify_frame(silence)
         assert result == "silence", f"Expected 'silence', got {result!r}"
 
-        # 2. alert â€” high amplitude
+        # 2. alert — high amplitude
         alert = np.ones(8000, dtype=np.float32) * 0.5
         result = classifier.classify_frame(alert)
         assert result == "alert", f"Expected 'alert', got {result!r}"
 
-        # 3. speech-like â€” moderate amplitude, rapid sign changes
+        # 3. speech-like — moderate amplitude, rapid sign changes
         #    alternating Â±0.1 â†’ ZCR ~ 1.0, RMS ~ 0.1 â†’ speech
         speech = np.tile(np.array([0.1, -0.1], dtype=np.float32), 4000)
         result = classifier.classify_frame(speech)
         assert result == "speech", f"Expected 'speech', got {result!r}"
 
-        # 4. background â€” moderate RMS, low ZCR (low-freq sine proxy)
+        # 4. background — moderate RMS, low ZCR (low-freq sine proxy)
         t = np.linspace(0, 0.5, 8000, dtype=np.float32)
         # 20 Hz sine: ~40 zero-crossings in 8000 samples â†’ ZCR â‰ˆ 0.005
         background = np.sin(2 * np.pi * 20 * t) * 0.05
@@ -190,12 +188,12 @@ if __name__ == "__main__":
 
         logger.info("[VECTOR][sound] All classify_frame unit tests passed")
 
-        # 6. is_speech_active â€” must return bool without raising
+        # 6. is_speech_active — must return bool without raising
         active = classifier.is_speech_active()
         assert isinstance(active, bool), "is_speech_active must return bool"
 
         logger.info(
-            f"[VECTOR][sound] SoundClassifier OK â€” "
+            f"[VECTOR][sound] SoundClassifier OK — "
             f"mic_sample={'captured' if active or True else 'skipped'}"
         )
     except Exception as exc:

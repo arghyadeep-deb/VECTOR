@@ -28,7 +28,6 @@ from typing import List, Tuple
 
 _repo_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
 
 from pydantic import Field
 
@@ -107,7 +106,7 @@ class TBLiteEvalEnv(TerminalBench2EvalEnv):
                 base_url="https://openrouter.ai/api/v1",
                 model_name="anthropic/claude-sonnet-4",
                 server_type="openai",
-                api_key=os.getenv("OPENROUTER_API_KEY", ""),
+                api_key=os.environ.get("OPENROUTER_API_KEY", ""),
                 health_check=False,
             )
         ]

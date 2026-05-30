@@ -9,8 +9,6 @@ import json
 import logging
 import os
 import re
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from vector_constants import display_vector_home
@@ -18,7 +16,6 @@ from vector_constants import display_vector_home
 logger = logging.getLogger(__name__)
 
 # Import from cron module (will be available when properly installed)
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cron.jobs import (
     create_job,
@@ -112,8 +109,6 @@ def _canonical_skills(skill: Optional[str] = None, skills: Optional[Any] = None)
         if text and text not in normalized:
             normalized.append(text)
     return normalized
-
-
 
 
 def _resolve_model_override(model_obj: Optional[Dict[str, Any]]) -> tuple:
@@ -430,7 +425,6 @@ def cronjob(
         return tool_error(str(e), success=False)
 
 
-
 CRONJOB_SCHEMA = {
     "name": "cronjob",
     "description": """Manage scheduled cron jobs with a single compressed tool.
@@ -542,9 +536,9 @@ def check_cronjob_requirements() -> bool:
     so no external crontab executable is required.
     """
     return bool(
-        os.getenv("VECTOR_INTERACTIVE")
-        or os.getenv("VECTOR_GATEWAY_SESSION")
-        or os.getenv("VECTOR_EXEC_ASK")
+        os.environ.get("VECTOR_INTERACTIVE")
+        or os.environ.get("VECTOR_GATEWAY_SESSION")
+        or os.environ.get("VECTOR_EXEC_ASK")
     )
 
 

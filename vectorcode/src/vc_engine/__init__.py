@@ -6,6 +6,7 @@
 """Inference Engine primitive — LLM runtime management."""
 
 from __future__ import annotations
+from loguru import logger
 
 import importlib
 

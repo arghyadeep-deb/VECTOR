@@ -4,6 +4,18 @@ Core research models for tasks, queries, and results.
 
 import enum
 
+__all__ = [
+    "Research",
+    "ResearchHistory",
+    "ResearchMode",
+    "ResearchResource",
+    "ResearchStrategy",
+    "ResearchTask",
+    "SearchQuery",
+    "SearchResult",
+]
+
+
 from sqlalchemy import (
     JSON,
     Column,

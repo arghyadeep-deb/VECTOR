@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 PyPortfolioOpt Worker Handler
 Provides a main() function interface for worker pool execution.
 Covers 100% of pyportfolioopt_wrapper: core, additional_optimizers, advanced_objectives.
@@ -8,10 +9,8 @@ Covers 100% of pyportfolioopt_wrapper: core, additional_optimizers, advanced_obj
 import json
 import sys
 import numpy as np
-from pathlib import Path
 
 # Add wrapper directory to path
-sys.path.insert(0, str(Path(__file__).parent))
 
 from core import PyPortfolioOptAnalyticsEngine, PyPortfolioOptConfig
 from additional_optimizers import (
@@ -107,6 +106,8 @@ def main(args):
         return handler(request_data)
 
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.pyportfolioopt_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.pyportfolioopt_service] caught Exception: %s", _sve)
         import traceback
         return json.dumps({
             "error": f"PyPortfolioOpt error: {str(e)}",

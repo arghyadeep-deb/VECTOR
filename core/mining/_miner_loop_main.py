@@ -19,6 +19,12 @@ imports it directly, keeping the parent's import graph free of
 
 from __future__ import annotations
 
+__all__ = [
+    "logger",
+    "parse_args",
+]
+
+
 import argparse
 import asyncio
 import base64

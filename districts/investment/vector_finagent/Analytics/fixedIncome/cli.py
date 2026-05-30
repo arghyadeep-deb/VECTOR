@@ -1,4 +1,5 @@
 """
+from loguru import logger
 Fixed Income Analytics CLI
 ==========================
 
@@ -742,6 +743,8 @@ def execute_command(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             return {'error': f'Unknown module: {module}'}
     except Exception as e:
+        logger.debug("[VECTOR][Analytics.fixedIncome.cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.cli] caught Exception: %s", _sve)
         logger.error(f"Command execution error: {str(e)}")
         return {'error': str(e)}
 

@@ -1,4 +1,5 @@
 """
+from loguru import logger
 TerminalToolkit - Agno Toolkit that proxies calls to VECTOR Financial Terminal internal MCP tools.
 
 When finagent_core runs as a Python subprocess, it cannot call C++ IPC directly.
@@ -119,6 +120,8 @@ class TerminalToolkit:
                     self.functions.append(agno_fn)
                     continue
                 except Exception as e:
+                    logger.debug("[VECTOR][agents.finagent_core.tools.terminal_toolkit] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.finagent_core.tools.terminal_toolkit] caught Exception: %s", _sve)
                     logger.debug(f"Agno Function wrapping failed for {name}: {e}, using raw callable")
 
             # Fallback: raw callable (Agno can sometimes infer tools from callables)

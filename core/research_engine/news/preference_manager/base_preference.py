@@ -4,6 +4,12 @@ Following LDR's pattern from BaseSearchStrategy.
 """
 
 from abc import ABC, abstractmethod
+
+__all__ = [
+    "BasePreferenceManager",
+    "TopicRegistry",
+]
+
 from typing import Dict, Any, List, Optional
 from datetime import timedelta
 from loguru import logger

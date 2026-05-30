@@ -24,6 +24,15 @@ of truth for source metadata, fetch logic, and download policy.
 
 from __future__ import annotations
 
+__all__ = [
+    "download_journal_data",
+    "ensure_journal_data",
+    "get_download_state",
+    "get_journal_data_status",
+    "JOURNAL_DATA_VERSION",
+]
+
+
 import json
 import time
 from pathlib import Path
@@ -80,7 +89,7 @@ _download_state: dict = {
 def get_download_state() -> dict:
     """Return a copy of the current download progress state.
 
-    A shallow dict copy is not enough â€” callers (the status endpoint)
+    A shallow dict copy is not enough — callers (the status endpoint)
     serialize this to JSON and would otherwise race with live updates.
     We copy the nested dicts too.
     """
@@ -137,7 +146,7 @@ def _clear_orphan_sentinel_on_startup() -> None:
     an orphan. The 20-minute ``_SENTINEL_STALE_SECS`` recovery path
     still exists for the "process still alive but hung" case.
 
-    Swallows all exceptions â€” a misread on startup must not break the
+    Swallows all exceptions — a misread on startup must not break the
     module. Tests that run concurrently in the same process
     (test_concurrent_download_blocked) set the sentinel deliberately
     *after* import, so this runs once and doesn't interfere.
@@ -252,7 +261,7 @@ def get_journal_data_status() -> dict:
         "version": installed_version,
         "latest_version": JOURNAL_DATA_VERSION,
         # `needs_update` is True both when no version is installed at all
-        # (first run â€” show the download CTA) and when the installed
+        # (first run — show the download CTA) and when the installed
         # version is older than the bundled latest. The previous `and`
         # spelling silently hid the first-run case from the dashboard.
         "needs_update": (
@@ -355,7 +364,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
             return False  # unreadable / malformed â†’ treat as orphan
         if owner_pid == os.getpid():
             # Same process. Something is wrong (we should never race
-            # with ourselves â€” the module-level lock guards that) but
+            # with ourselves — the module-level lock guards that) but
             # err on the side of "alive" to avoid self-nuking.
             return True
         try:
@@ -363,7 +372,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
         except ProcessLookupError:
             return False
         except PermissionError:
-            # Process exists, owned by another user â€” treat as alive.
+            # Process exists, owned by another user — treat as alive.
             return True
         except OSError:
             return False
@@ -397,7 +406,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
             sentinel.unlink(missing_ok=True)
             if not _try_claim_sentinel():
                 # Lost a race with another caller reclaiming the same
-                # stale sentinel â€” bow out cleanly.
+                # stale sentinel — bow out cleanly.
                 _download_state["counts"] = None
                 return False, "Download already in progress"
         else:
@@ -414,7 +423,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
         _download_state["started_at"] = start
         _download_state["finished_at"] = None
         _download_state["error_msg"] = None
-        # Invalidate counts from any prior run â€” callers inspecting the
+        # Invalidate counts from any prior run — callers inspecting the
         # structured summary must not see stale data if this download
         # fails or is still running.
         _download_state["counts"] = None
@@ -481,7 +490,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
                 )
                 return (src, 0, exc)
 
-        # Parallel fetch â€” every source streams from a different host
+        # Parallel fetch — every source streams from a different host
         # (openalex S3, DOAJ CSV, raw.githubusercontent.com, api.openalex.org
         # for institutions). No single-host contention; the wall-clock is
         # dominated by the slowest source (OpenAlex snapshot ~30-60 s).
@@ -568,7 +577,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
             )
             # SchemaDriftError messages are developer-authored literals
             # (no SQL, paths, or stack fragments) so they're safe to
-            # surface â€” operators need to see *which* field drifted to
+            # surface — operators need to see *which* field drifted to
             # act on it. For any other exception, fall back to the
             # class name only, per CodeQL "Information exposure through
             # an exception" (alerts 7650, 7684). The full trace always
@@ -624,21 +633,21 @@ def ensure_journal_data(
     """Ensure journal data is available, optionally triggering a bulk fetch.
 
     Returns:
-        (data_dir, is_available) â€” data_dir is None if unavailable.
+        (data_dir, is_available) — data_dir is None if unavailable.
 
     Thundering-herd guard: when a search runs, every search engine's
     reputation-filter worker (~30 threads) calls this concurrently.
     Without the cache, 29 of them race to create the sentinel and
     each logs a WARNING. One call does the real work; the rest get
     the cached answer for 30 seconds. The success path (data files
-    present) is already fast â€” we only cache the negative / race
+    present) is already fast — we only cache the negative / race
     result, which is the noisy path.
     """
     global _ensure_cache
 
     user_dir = _get_data_dir()
     if (user_dir / "openalex_sources.json.gz").exists():
-        # Positive path is cheap (one stat call) â€” no need to cache.
+        # Positive path is cheap (one stat call) — no need to cache.
         return user_dir, True
 
     now = time.time()
@@ -649,7 +658,7 @@ def ensure_journal_data(
 
     if auto_download:
         logger.info(
-            "Journal data not found â€” fetching from upstream sources..."
+            "Journal data not found — fetching from upstream sources..."
         )
         success, message = download_journal_data()
         if success:

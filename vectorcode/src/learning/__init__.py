@@ -6,6 +6,7 @@
 """Learning primitive -- router policies, reward functions, learning."""
 
 from __future__ import annotations
+from loguru import logger
 
 from vectorcode.src.learning._abc import (
     QueryAnalyzer,

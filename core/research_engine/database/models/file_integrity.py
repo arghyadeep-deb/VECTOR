@@ -14,6 +14,12 @@ from sqlalchemy import (
     Float,
     ForeignKey,
 )
+
+__all__ = [
+    "FileIntegrityRecord",
+    "FileVerificationFailure",
+]
+
 from sqlalchemy.orm import relationship
 from sqlalchemy_utc import UtcDateTime, utcnow
 

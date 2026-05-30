@@ -3,6 +3,15 @@ Functions related to generating headers and fingerprints generally
 """
 
 from functools import lru_cache
+
+__all__ = [
+    "chrome_version",
+    "chromium_version",
+    "generate_headers",
+    "get_os_name",
+    "OSName",
+]
+
 from platform import system as platform_system
 
 from browserforge.headers import Browser, HeaderGenerator

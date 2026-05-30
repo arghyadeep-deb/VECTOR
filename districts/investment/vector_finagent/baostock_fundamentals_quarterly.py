@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+from loguru import logger
 BaoStock Fundamentals Quarterly
 Incremental quarterly fetch for profit/growth/balance/cashflow/dupont/operation.
 """
@@ -98,6 +99,8 @@ class BaoStockFundamentalsQuarterly:
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
         except Exception:
+            logger.debug("[VECTOR][baostock_fundamentals_quarterly] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][baostock_fundamentals_quarterly] caught Exception: %s", _sve)
             return {"completed": {}, "updated_at": _now_ts()}
 
     def _save_state(self, state: Dict[str, Any]) -> None:

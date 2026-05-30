@@ -24,14 +24,22 @@ Usage:
 """
 from __future__ import annotations
 
+__all__ = [
+    "action_parser",
+    "IMAGE_FACTOR",
+    "MAX_PIXELS_V1_5",
+    "MAX_RATIO",
+    "MIN_PIXELS",
+    "smart_resize_v15",
+]
+
+
 import json
 import math
 import re
 import sys
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # ── Constants (from @ui-tars/shared/types) ────────────────────────────────────
 MAX_RATIO   = 200

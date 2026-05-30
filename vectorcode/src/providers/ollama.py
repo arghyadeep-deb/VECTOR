@@ -1,9 +1,6 @@
 """Ollama provider adapter."""
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))  # project root
-sys.path.insert(0, str(Path(__file__).parent.parent))  # vectorcode package
 
 from loguru import logger
 from providers.base import (
@@ -86,7 +83,5 @@ if __name__ == "__main__":
     caps = p.probe_capabilities("vector-focus")
     assert isinstance(caps.context_window, int)
     print(f"ollama.py OK — context_window={caps.context_window}")
-
-
 
 

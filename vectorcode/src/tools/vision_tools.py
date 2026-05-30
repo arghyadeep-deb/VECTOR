@@ -50,7 +50,7 @@ _debug = DebugSession("vision_tools", env_var="VISION_TOOLS_DEBUG")
 # Separate from auxiliary.vision.timeout which governs the LLM API call.
 # Resolution: config.yaml auxiliary.vision.download_timeout → env var → 30s default.
 def _resolve_download_timeout() -> float:
-    env_val = os.getenv("VECTOR_VISION_DOWNLOAD_TIMEOUT", "").strip()
+    env_val = os.environ.get("VECTOR_VISION_DOWNLOAD_TIMEOUT", "").strip()
     if env_val:
         try:
             return float(env_val)
@@ -788,7 +788,7 @@ def _handle_vision_analyze(args: Dict[str, Any], **kw: Any) -> Awaitable[str]:
         "Fully describe and explain everything about this image, then answer the "
         f"following question:\n\n{question}"
     )
-    model = os.getenv("AUXILIARY_VISION_MODEL", "").strip() or None
+    model = os.environ.get("AUXILIARY_VISION_MODEL", "").strip() or None
     return vision_analyze_tool(image_url, full_prompt, model)
 
 
