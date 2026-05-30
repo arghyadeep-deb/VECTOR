@@ -12,6 +12,7 @@ from typing import List, Optional
 from loguru import logger
 
 from ...database.thread_local_session import thread_cleanup
+from ...utilities.thread_context import preserve_research_context
 from ..candidates.base_candidate import Candidate
 from ..constraints.base_constraint import Constraint
 from .base_explorer import (
