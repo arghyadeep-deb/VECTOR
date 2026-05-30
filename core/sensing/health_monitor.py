@@ -6,8 +6,6 @@ RULE 5 — all health data stays local, never transmitted externally.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from datetime import datetime, timezone
 from loguru import logger
@@ -110,13 +108,22 @@ class HealthMonitor:
 
     def _get_wearable_data(self) -> dict:
         """Pull wearable metrics from the connector layer (async-safe via fallback)."""
+        import asyncio
         try:
             from districts.health.wearable_connector import WearableConnector
-            import time
             if self._wearable_connector is None:
                 self._wearable_connector = WearableConnector()
             if hasattr(self._wearable_connector, 'poll_all'):
-                metrics = self._wearable_connector.poll_all()
+                coro = self._wearable_connector.poll_all()
+                try:
+                    loop = asyncio.get_running_loop()
+                    # Already inside an async context — run in thread pool
+                    import concurrent.futures
+                    future = asyncio.run_coroutine_threadsafe(coro, loop)
+                    metrics = future.result(timeout=5)
+                except RuntimeError:
+                    # No running loop — safe to use asyncio.run
+                    metrics = asyncio.run(coro)
                 if metrics:
                     return {"available": True, "data": metrics, "note": "connector poll"}
             return {"available": False, "note": "wearable poll returned empty"}
