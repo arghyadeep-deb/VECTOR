@@ -349,8 +349,9 @@ def create_app() -> FastAPI:
         """Prometheus-compatible metrics endpoint. Scrape at /metrics."""
         lines = []
         try:
-            from core.loop.autonomous_loop import get_loop_tick_count
-            ticks = get_loop_tick_count()
+            from core.loop import autonomous_loop as _al_mod
+            _loop_inst = getattr(_al_mod, "_loop", None)
+            ticks = getattr(_loop_inst, "_tick_count", 0) or 0
             lines.append("# HELP vector_loop_ticks_total Autonomous loop tick count")
             lines.append("# TYPE vector_loop_ticks_total counter")
             lines.append(f"vector_loop_ticks_total {ticks}")
