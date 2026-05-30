@@ -411,7 +411,7 @@ class PermissionGateway:
                     result["at_risk"] = data.get("at_risk_subjects", [])
                 except Exception as _e:
                     result["status"] = "ok"
-                    result["checked"] = True
+                    result["checked"] = False  # scraper failed — data not fetched
                     result["note"] = f"KIIT scraper unavailable: {_e}"
             elif action.action_type == "commit_code":
                 # Use gitpython directly — NOT GitBot.commit() which would
