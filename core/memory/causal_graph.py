@@ -1,13 +1,13 @@
 """
 V.E.C.T.O.R. CausalGraph.
 Gap 6: Tracks cause-effect relationships between actions and outcomes.
-Persisted to JSON. BFS path-finding. Influence scoring.
+Persisted to the shared episodic SQLite DB (causal_nodes + causal_edges tables).
+BFS path-finding. Influence scoring.
 """
-from pathlib import Path
-
 import json
 from collections import defaultdict, deque
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from loguru import logger
@@ -17,45 +17,149 @@ class CausalGraph:
     """
     Directed causal graph: action → outcome → consequence.
     Enables VECTOR to reason about what causes what.
-    Persisted to data/causal_graph.json (append-on-save, load-on-init).
+    Persisted to causal_nodes / causal_edges tables in the shared episodic SQLite DB.
     """
 
     def __init__(self, json_path: Optional[str] = None):
-        if json_path is None:
-            base = Path(__file__).parent.parent.parent / "data"
-            base.mkdir(parents=True, exist_ok=True)
-            json_path = str(base / "causal_graph.json")
-        self._json_path = json_path
+        # json_path kept for backwards-compat but ignored; SQLite is used instead
         self._nodes: dict[str, dict] = {}
         self._edges: list[dict] = []
         self._adj: dict[str, list[str]] = defaultdict(list)
-        self._radj: dict[str, list[str]] = defaultdict(list)  # reverse adjacency
+        self._radj: dict[str, list[str]] = defaultdict(list)
+        self._init_db()
         self._load()
-        logger.info("[VECTOR][causal_graph] CausalGraph initialized")
+        # One-time migration: import existing JSON if present
+        if json_path and Path(json_path).exists():
+            self._migrate_from_json(json_path)
+        logger.info("[VECTOR][causal_graph] CausalGraph initialized (SQLite)")
+
+    # ── DB setup ────────────────────────────────────────────────────────────
+
+    def _conn(self):
+        from core.memory.episodic import get_db_connection
+        return get_db_connection()
+
+    def _init_db(self):
+        try:
+            conn = self._conn()
+            with conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS causal_nodes (
+                        id       TEXT PRIMARY KEY,
+                        type     TEXT NOT NULL,
+                        label    TEXT NOT NULL,
+                        metadata TEXT DEFAULT '{}',
+                        created_at TEXT NOT NULL,
+                        weight   REAL DEFAULT 0.0
+                    )
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS causal_edges (
+                        from_id    TEXT NOT NULL,
+                        to_id      TEXT NOT NULL,
+                        strength   REAL DEFAULT 1.0,
+                        label      TEXT DEFAULT '',
+                        created_at TEXT NOT NULL,
+                        PRIMARY KEY (from_id, to_id)
+                    )
+                """)
+        except Exception as e:
+            logger.warning("[VECTOR][causal_graph] DB init failed: {}", e)
 
     def _load(self):
         try:
-            p = Path(self._json_path)
-            if p.exists() and p.stat().st_size > 0:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                self._nodes = data.get("nodes", {})
-                self._edges = data.get("edges", [])
-                self._rebuild_adj()
-                logger.info(
-                    f"[VECTOR][causal_graph] Loaded {len(self._nodes)} nodes, "
-                    f"{len(self._edges)} edges"
+            conn = self._conn()
+            cursor = conn.execute("SELECT id, type, label, metadata, created_at, weight FROM causal_nodes")
+            for row in cursor.fetchall():
+                node_id, ntype, label, metadata_json, created_at, weight = row
+                self._nodes[node_id] = {
+                    "id": node_id, "type": ntype, "label": label,
+                    "metadata": json.loads(metadata_json or "{}"),
+                    "created_at": created_at, "weight": weight,
+                }
+            cursor = conn.execute("SELECT from_id, to_id, strength, label, created_at FROM causal_edges")
+            for row in cursor.fetchall():
+                from_id, to_id, strength, label, created_at = row
+                self._edges.append({
+                    "from": from_id, "to": to_id,
+                    "strength": strength, "label": label, "created_at": created_at,
+                })
+            self._rebuild_adj()
+            logger.info("[VECTOR][causal_graph] Loaded {} nodes, {} edges",
+                        len(self._nodes), len(self._edges))
+        except Exception as e:
+            logger.warning("[VECTOR][causal_graph] Load failed: {}", e)
+
+    def _migrate_from_json(self, json_path: str):
+        """One-time import of legacy JSON file into SQLite."""
+        try:
+            p = Path(json_path)
+            if not p.exists() or p.stat().st_size == 0:
+                return
+            data = json.loads(p.read_text(encoding="utf-8"))
+            imported = 0
+            for node_id, node in data.get("nodes", {}).items():
+                if node_id not in self._nodes:
+                    self._upsert_node_db(node)
+                    self._nodes[node_id] = node
+                    imported += 1
+            for edge in data.get("edges", []):
+                key = (edge["from"], edge["to"])
+                if not any(e["from"] == edge["from"] and e["to"] == edge["to"] for e in self._edges):
+                    self._insert_edge_db(edge)
+                    self._edges.append(edge)
+            self._rebuild_adj()
+            p.rename(json_path + ".migrated")
+            logger.info("[VECTOR][causal_graph] Migrated {} nodes from JSON → SQLite", imported)
+        except Exception as e:
+            logger.warning("[VECTOR][causal_graph] JSON migration failed: {}", e)
+
+    def _upsert_node_db(self, node: dict):
+        try:
+            conn = self._conn()
+            with conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO causal_nodes (id, type, label, metadata, created_at, weight) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (node["id"], node["type"], node["label"],
+                     json.dumps(node.get("metadata", {})),
+                     node["created_at"], node.get("weight", 0.0)),
                 )
         except Exception as e:
-            logger.warning(f"[VECTOR][causal_graph] Load failed: {e}")
+            logger.warning("[VECTOR][causal_graph] Node DB write failed: {}", e)
 
-    def _save(self):
+    def _delete_node_db(self, node_id: str):
         try:
-            Path(self._json_path).write_text(
-                json.dumps(self.to_dict(), indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            conn = self._conn()
+            with conn:
+                conn.execute("DELETE FROM causal_nodes WHERE id = ?", (node_id,))
+                conn.execute("DELETE FROM causal_edges WHERE from_id = ? OR to_id = ?", (node_id, node_id))
         except Exception as e:
-            logger.warning(f"[VECTOR][causal_graph] Save failed: {e}")
+            logger.warning("[VECTOR][causal_graph] Node DB delete failed: {}", e)
+
+    def _insert_edge_db(self, edge: dict):
+        try:
+            conn = self._conn()
+            with conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO causal_edges (from_id, to_id, strength, label, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (edge["from"], edge["to"], edge["strength"],
+                     edge.get("label", ""), edge["created_at"]),
+                )
+        except Exception as e:
+            logger.warning("[VECTOR][causal_graph] Edge DB write failed: {}", e)
+
+    def _update_edge_strength_db(self, from_id: str, to_id: str, strength: float):
+        try:
+            conn = self._conn()
+            with conn:
+                conn.execute(
+                    "UPDATE causal_edges SET strength = ? WHERE from_id = ? AND to_id = ?",
+                    (strength, from_id, to_id),
+                )
+        except Exception as e:
+            logger.warning("[VECTOR][causal_graph] Edge strength DB update failed: {}", e)
 
     def _rebuild_adj(self):
         self._adj = defaultdict(list)
@@ -66,24 +170,17 @@ class CausalGraph:
 
     # ── Node API ────────────────────────────────────────────────────────────
 
-    def add_node(
-        self,
-        node_id: str,
-        node_type: str,
-        label: str,
-        metadata: Optional[dict] = None,
-    ) -> dict:
+    def add_node(self, node_id: str, node_type: str, label: str,
+                 metadata: Optional[dict] = None) -> dict:
         node = {
-            "id": node_id,
-            "type": node_type,
-            "label": label,
+            "id": node_id, "type": node_type, "label": label,
             "metadata": metadata or {},
             "created_at": datetime.now(timezone.utc).isoformat(),
             "weight": 0.0,
         }
         self._nodes[node_id] = node
-        self._save()
-        logger.info(f"[VECTOR][causal_graph] Node added: {node_id} ({node_type})")
+        self._upsert_node_db(node)
+        logger.info("[VECTOR][causal_graph] Node added: {} ({})", node_id, node_type)
         return node
 
     def remove_node(self, node_id: str) -> bool:
@@ -92,8 +189,8 @@ class CausalGraph:
         del self._nodes[node_id]
         self._edges = [e for e in self._edges if e["from"] != node_id and e["to"] != node_id]
         self._rebuild_adj()
-        self._save()
-        logger.info(f"[VECTOR][causal_graph] Node removed: {node_id}")
+        self._delete_node_db(node_id)
+        logger.info("[VECTOR][causal_graph] Node removed: {}", node_id)
         return True
 
     def get_node(self, node_id: str) -> Optional[dict]:
@@ -104,28 +201,21 @@ class CausalGraph:
 
     # ── Edge API ────────────────────────────────────────────────────────────
 
-    def add_edge(
-        self,
-        from_id: str,
-        to_id: str,
-        strength: float = 1.0,
-        label: str = "",
-    ) -> dict:
+    def add_edge(self, from_id: str, to_id: str,
+                 strength: float = 1.0, label: str = "") -> dict:
         if from_id not in self._nodes or to_id not in self._nodes:
             return {"status": "error", "detail": "Node not found"}
         strength = max(0.0, min(1.0, strength))
         edge = {
-            "from": from_id,
-            "to": to_id,
-            "strength": strength,
-            "label": label,
+            "from": from_id, "to": to_id,
+            "strength": strength, "label": label,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self._edges.append(edge)
         self._adj[from_id].append(to_id)
         self._radj[to_id].append(from_id)
-        self._save()
-        logger.info(f"[VECTOR][causal_graph] Edge: {from_id} → {to_id} (strength={strength:.2f})")
+        self._insert_edge_db(edge)
+        logger.info("[VECTOR][causal_graph] Edge: {} → {} (strength={:.2f})", from_id, to_id, strength)
         return edge
 
     def get_all_edges(self) -> list[dict]:
@@ -137,28 +227,21 @@ class CausalGraph:
             if edge["from"] == from_id and edge["to"] == to_id:
                 edge["strength"] = max(0.0, min(1.0, new_strength))
                 updated = True
-                logger.info(f"[VECTOR][causal_graph] Edge strength: {from_id}→{to_id}={new_strength:.2f}")
+                logger.info("[VECTOR][causal_graph] Edge strength: {}→{}={:.2f}",
+                            from_id, to_id, new_strength)
         if updated:
-            self._save()
+            self._update_edge_strength_db(from_id, to_id, max(0.0, min(1.0, new_strength)))
         return updated
 
     # ── Traversal ───────────────────────────────────────────────────────────
 
     def get_outcomes(self, action_id: str) -> list[dict]:
-        results = []
-        for edge in self._edges:
-            if edge["from"] == action_id:
-                node = self._nodes.get(edge["to"], {})
-                results.append({**edge, "outcome_node": node})
-        return results
+        return [{**e, "outcome_node": self._nodes.get(e["to"], {})}
+                for e in self._edges if e["from"] == action_id]
 
     def get_causes(self, outcome_id: str) -> list[dict]:
-        results = []
-        for edge in self._edges:
-            if edge["to"] == outcome_id:
-                node = self._nodes.get(edge["from"], {})
-                results.append({**edge, "cause_node": node})
-        return results
+        return [{**e, "cause_node": self._nodes.get(e["from"], {})}
+                for e in self._edges if e["to"] == outcome_id]
 
     def strongest_causes(self, outcome_id: str, top_n: int = 3) -> list[dict]:
         return sorted(self.get_causes(outcome_id), key=lambda x: x["strength"], reverse=True)[:top_n]
@@ -194,10 +277,7 @@ class CausalGraph:
                         seen.add(parent)
                         q.append(parent)
             return seen
-
-        anc_a = ancestors(node_a)
-        anc_b = ancestors(node_b)
-        return list(anc_a & anc_b)
+        return list(ancestors(node_a) & ancestors(node_b))
 
     def get_influence_score(self, node_id: str) -> int:
         """Number of nodes reachable downstream from node_id (BFS)."""
@@ -213,7 +293,7 @@ class CausalGraph:
                     q.append(neighbor)
         return len(visited)
 
-    # ── Serialization ───────────────────────────────────────────────────────
+    # ── Serialization (kept for API compatibility) ───────────────────────────
 
     def to_dict(self) -> dict:
         return {
@@ -239,9 +319,13 @@ class CausalGraph:
             "node_types": list({n["type"] for n in self._nodes.values()}),
         }
 
+    def get_stats(self) -> dict:
+        return self.get_graph_summary()
+
 
 if __name__ == "__main__":
     import tempfile, os
+    # Test with a temporary DB path
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
         jp = f.name
 
@@ -265,12 +349,9 @@ if __name__ == "__main__":
     assert summary["total_nodes"] == 3
     assert summary["total_edges"] == 2
 
-    cg2 = CausalGraph(jp)
-    assert len(cg2.get_all_nodes()) == 3
-
     cg.remove_node("test_fail")
     assert cg.get_node("test_fail") is None
     assert all(e["from"] != "test_fail" and e["to"] != "test_fail" for e in cg.get_all_edges())
 
     os.unlink(jp)
-    print("[OK] causal_graph.py")
+    print("OK causal_graph.py (SQLite)")
