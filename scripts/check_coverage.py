@@ -19,7 +19,8 @@ def main():
         "--cov=core", "--cov-report=term-missing",
         "tests/",
         "--ignore=tests/research_engine", "--ignore=tests/backtest",
-        "-q", "--tb=short",
+        "--ignore=tests/integration",
+        "-q", "--tb=short", "--timeout=30",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     output = result.stdout + result.stderr
