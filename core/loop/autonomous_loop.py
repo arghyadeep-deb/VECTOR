@@ -200,7 +200,7 @@ class AutonomousLoop:
                 self._guidance = create_guidance_system()
                 logger.info("[VECTOR][guidance] guidance system online")
             except Exception as e:
-                logger.debug(f"[VECTOR][guidance] unavailable: {e}")
+                logger.warning(f"[VECTOR][guidance] ThreatDetector/guidance unavailable — self-defense layer DISABLED: {e}")
                 self._guidance = None
         return self._guidance
 
@@ -211,7 +211,7 @@ class AutonomousLoop:
                 from vectorcode.src.guidance import ContinueGate
                 self._continue_gate = ContinueGate()
             except Exception as e:
-                logger.debug(f"[VECTOR][guidance] ContinueGate unavailable: {e}")
+                logger.warning(f"[VECTOR][guidance] ContinueGate unavailable: {e}")
                 self._continue_gate = None
         return self._continue_gate
 
@@ -457,13 +457,16 @@ class AutonomousLoop:
         guard = _get_loop_guard()
         while self._running:
             try:
-                await self._observe_tick()
+                async with asyncio.timeout(15):
+                    await self._observe_tick()
                 self._tick_count += 1
                 if guard:
                     guard.tick()
                     if guard.is_terminated:
                         logger.warning("[VECTOR][observe] LoopGuard terminated Ã¢â‚¬— resetting")
                         guard.reset()
+            except asyncio.TimeoutError:
+                logger.warning("[VECTOR][observe] tick timed out (>15s) — skipping")
             except Exception as e:
                 _capture_loop_error(e, "observe_loop")
                 self._emit_crash_signal(e)
@@ -542,8 +545,12 @@ class AutonomousLoop:
         logger.info("[VECTOR][think] started Ã¢â‚¬— 10s evaluation cycle")
         while self._running:
             try:
-                await self._think_tick()
+                async with asyncio.timeout(60):
+                    await self._think_tick()
                 await asyncio.sleep(10)
+            except asyncio.TimeoutError:
+                logger.warning("[VECTOR][think] tick timed out (>60s) — skipping")
+                await asyncio.sleep(5)
             except Exception as e:
                 _capture_loop_error(e, "think_loop")
                 await asyncio.sleep(5)
@@ -665,6 +672,30 @@ class AutonomousLoop:
 
         decision = await self._get_decision().evaluate(candidates)
         if decision.winner.total_score > 0.3:
+            # ContinueGate: step-level budget + coherence check before acting
+            _cgate = self._get_continue_gate()
+            if _cgate is not None:
+                try:
+                    _cgate_verdict = _cgate.evaluate(
+                        agent_id="think_loop",
+                        step_number=self._tick_count,
+                        tokens_used=0,
+                        tool_calls=0,
+                        rework_count=0,
+                        coherence_score=decision.winner.total_score,
+                    )
+                    if _cgate_verdict in ("pause", "stop"):
+                        logger.warning(
+                            "[VECTOR][continue_gate] verdict='{}' — skipping act for '{}' (score={:.3f})",
+                            _cgate_verdict, decision.winner.action_type, decision.winner.total_score,
+                        )
+                        return
+                    if _cgate_verdict == "throttle":
+                        logger.debug("[VECTOR][continue_gate] throttle — 5s delay before act")
+                        await asyncio.sleep(5)
+                except Exception as _cg_err:
+                    logger.debug("[VECTOR][continue_gate] evaluation suppressed: {}", _cg_err)
+
             await self._publish_event(EventType.DECISION_MADE, {
                 "action_type": decision.winner.action_type,
                 "score": decision.winner.total_score,
