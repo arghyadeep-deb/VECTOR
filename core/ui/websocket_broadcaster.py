@@ -6,6 +6,12 @@ Safe to import from anywhere in VECTOR (never raises, RULE 2 compliant).
 """
 
 import datetime
+
+__all__ = [
+    "broadcast",
+    "BroadcastSystem",
+]
+
 import json
 from typing import Optional
 
@@ -16,6 +22,14 @@ try:
 except ImportError:
     broadcast_event = None
     logger.warning("[BroadcastSystem] websocket router not available — events will be no-ops")
+
+# Also publish through the event_bus so /ws/state carries the same events
+# to the JARVIS HUD frontend (which only listens on /ws/state for state_event types).
+try:
+    from core.event_bus.bus import get_event_bus as _get_bus, Event as _Event
+    _event_bus_ok = True
+except ImportError:
+    _event_bus_ok = False
 
 
 class BroadcastSystem:
