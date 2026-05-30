@@ -3,7 +3,6 @@ import uuid
 import asyncio
 import datetime
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -37,30 +36,53 @@ class DeadlineManager(AgentBase):
         logger.info("[VECTOR][deadline] DeadlineManager initialized")
 
     def _get_service(self):
-        """Lazy-load Google Calendar service. Returns None if not configured."""
+        """Lazy-load Google Calendar service. Tries service account file, then OAuth token from collections DB."""
         if self._service is not None:
             return self._service
         try:
-            creds_path = CONFIG["api_keys"].get("google_credentials_path", "")
-            if not creds_path or not Path(creds_path).exists():
-                logger.warning("[VECTOR][deadline] Google Calendar not configured — no credentials path")
-                return None
-
-            from google.oauth2 import service_account
             from googleapiclient.discovery import build
 
-            SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-            credentials = service_account.Credentials.from_service_account_file(
-                creds_path, scopes=SCOPES
-            )
-            self._service = build("calendar", "v3", credentials=credentials)
-            logger.info("[VECTOR][deadline] Google Calendar service initialized")
-            return self._service
+            SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+            # Strategy 1: service account JSON file
+            creds_path = CONFIG["api_keys"].get("google_credentials_path", "")
+            if creds_path and Path(creds_path).exists():
+                from google.oauth2 import service_account
+                credentials = service_account.Credentials.from_service_account_file(
+                    creds_path, scopes=SCOPES
+                )
+                self._service = build("calendar", "v3", credentials=credentials)
+                logger.info("[VECTOR][deadline] Google Calendar: service account")
+                return self._service
+
+            # Strategy 2: OAuth token stored in collections DB (from /oauth/callback/google)
+            try:
+                from core.collections.store import CollectionStore
+                token_records = CollectionStore("google_calendar_tokens").list_records(per_page=1)
+                if token_records:
+                    import google.oauth2.credentials as _gcreds
+                    token_data = token_records[0].get("token", {})
+                    credentials = _gcreds.Credentials(
+                        token=token_data.get("access_token"),
+                        refresh_token=token_data.get("refresh_token"),
+                        token_uri="https://oauth2.googleapis.com/token",
+                        client_id=CONFIG.get("oauth_google_client_id", ""),
+                        client_secret=CONFIG.get("oauth_google_client_secret", ""),
+                        scopes=SCOPES,
+                    )
+                    self._service = build("calendar", "v3", credentials=credentials)
+                    logger.info("[VECTOR][deadline] Google Calendar: OAuth token from collections DB")
+                    return self._service
+            except Exception as _oauth_err:
+                logger.debug("[VECTOR][deadline] OAuth token fallback failed: {}", _oauth_err)
+
+            logger.warning("[VECTOR][deadline] Google Calendar not configured — no credentials found")
+            return None
         except ImportError:
-            logger.warning("[VECTOR][deadline] google-api-python-client not installed")
+            logger.warning("[VECTOR][deadline] google-api-python-client not installed — run: pip install google-api-python-client")
             return None
         except Exception as e:
-            logger.warning(f"[VECTOR][deadline] Google Calendar not configured: {e}")
+            logger.warning(f"[VECTOR][deadline] Google Calendar init failed: {e}")
             return None
 
     def get_current_energy_window(self) -> str:
