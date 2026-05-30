@@ -39,6 +39,9 @@ class SoundClassifier:
         )
         self._frame_duration: float = 0.5        # seconds per recording window
         self._sd = None                          # sounddevice, lazy
+        self._onnx_session = None                # optional YAMNet ONNX session
+        self._onnx_checked = False
+        self._try_load_onnx()
 
     # â”€â”€ private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
