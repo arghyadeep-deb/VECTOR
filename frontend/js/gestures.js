@@ -91,7 +91,11 @@
       case 'pinch': pinchDown(); break;
       case 'point': pinchUp(); setLabel('POINT'); break;
       case 'open_palm': if(V.state==='locked') V.wake(); break;
-      case 'fist': { const t=topWidget(); if(t) V.closeWidget(t); break; }
+      case 'fist': {
+        const now=Date.now();
+        if(now - (V._lastFistGesture||0) < 1000){ V.lock(); }
+        else { const t=topWidget(); if(t) V.closeWidget(t); }
+        V._lastFistGesture = now; break; }
       case 'swipe_left': case 'swipe_right': V.toggleWorkspace(); break;
     }
   });
