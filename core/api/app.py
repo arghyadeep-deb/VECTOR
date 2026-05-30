@@ -14,7 +14,6 @@ __all__ = [
 ]
 
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import asyncio
 import datetime
@@ -305,46 +304,44 @@ def create_app() -> FastAPI:
     except Exception as _ui_err:
         logger.warning(f"[VECTOR][api] web UI failed to mount: {_ui_err}")
 
-    # VECTOR holographic HUD dashboard — built Vite+React app
+    # ── VECTOR JARVIS HUD — vanilla JS frontend served at /hud/ ──────────────
     try:
         from fastapi.staticfiles import StaticFiles
-        from fastapi.responses import HTMLResponse
+        from fastapi.responses import FileResponse, RedirectResponse
 
-        dashboard_dist = Path(__file__).parent.parent / "ui" / "dashboard" / "dist"
-        if dashboard_dist.exists():
-            app.mount("/assets", StaticFiles(directory=str(dashboard_dist / "assets")), name="hud_assets")
-            logger.info(f"[VECTOR][api] HUD assets mounted from {dashboard_dist / 'assets'}")
+        _hud_dir = Path(__file__).parent.parent.parent / "frontend"
+        _hud_html = _hud_dir / "VECTOR.html"
 
-            @app.get("/", include_in_schema=False)
-            @app.get("/dashboard", include_in_schema=False)
-            @app.get("/dashboard/", include_in_schema=False)
-            async def hud_dashboard():
-                return HTMLResponse(
-                    (dashboard_dist / "index.html").read_text(encoding="utf-8")
-                )
-            logger.info("[VECTOR][api] VECTOR HUD dashboard mounted at /")
+        @app.get("/hud", include_in_schema=False)
+        async def hud_redirect():
+            return RedirectResponse(url="/hud/")
+
+        @app.get("/hud/", include_in_schema=False)
+        async def hud_root():
+            if _hud_html.exists():
+                return FileResponse(str(_hud_html), media_type="text/html")
+            return JSONResponse({"error": "HUD not found. Ensure frontend/VECTOR.html exists."}, status_code=404)
+
+        if _hud_dir.exists():
+            # Register specific sub-routes BEFORE the mount so /hud/ takes priority
+            app.mount("/hud", StaticFiles(directory=str(_hud_dir)), name="hud_static")
+            logger.info(f"[VECTOR][api] JARVIS HUD mounted at /hud/ from {_hud_dir}")
         else:
-            logger.warning(f"[VECTOR][api] HUD build not found at {dashboard_dist}; run `cd core/ui/dashboard && npm run build`")
-            # Fallback JSON root
-            @app.get("/", tags=["root"])
-            async def root():
-                return {
-                    "system": "V.E.C.T.O.R.",
-                    "version": CONFIG["version"],
-                    "status": "operational",
-                    "docs": "/docs",
-                }
+            logger.warning("[VECTOR][api] frontend/ directory not found — HUD unavailable")
+
     except Exception as _hud_err:
-        logger.warning(f"[VECTOR][api] HUD dashboard failed to mount: {_hud_err}")
-        # Fallback JSON root
-        @app.get("/", tags=["root"])
-        async def root():
-            return {
-                "system": "V.E.C.T.O.R.",
-                "version": CONFIG["version"],
-                "status": "operational",
-                "docs": "/docs",
-            }
+        logger.warning(f"[VECTOR][api] HUD failed to mount: {_hud_err}")
+
+    # ── JSON root (React dashboard removed — HUD is now at /hud/) ────────────
+    @app.get("/", tags=["root"])
+    async def root():
+        return {
+            "system": "V.E.C.T.O.R.",
+            "version": CONFIG.get("version", "1.0.0"),
+            "status": "operational",
+            "hud": "/hud/",
+            "docs": "/docs",
+        }
 
     return app
 
