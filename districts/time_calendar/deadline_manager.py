@@ -165,6 +165,25 @@ class DeadlineManager(AgentBase):
             logger.error(f"[VECTOR][deadline] is_class_soon error: {e}")
             return False
 
+    def create_event(self, title: str, start_iso: str, end_iso: str, description: str = "") -> dict:
+        """Create a Google Calendar event. Returns {id, link} or {error}."""
+        service = self._get_service()
+        if service is None:
+            return {"error": "Google Calendar not configured"}
+        try:
+            event_body = {
+                "summary": title,
+                "description": description,
+                "start": {"dateTime": start_iso, "timeZone": "Asia/Kolkata"},
+                "end": {"dateTime": end_iso, "timeZone": "Asia/Kolkata"},
+            }
+            created = service.events().insert(calendarId="primary", body=event_body).execute()
+            logger.info(f"[VECTOR][deadline] Created event: {title}")
+            return {"id": created.get("id", ""), "link": created.get("htmlLink", "")}
+        except Exception as e:
+            logger.error(f"[VECTOR][deadline] create_event failed: {e}")
+            return {"error": str(e)}
+
     def _get_free_blocks_today(self) -> list[str]:
         """Compute free time blocks for the rest of today (rough heuristic)."""
         try:
