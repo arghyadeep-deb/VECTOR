@@ -736,6 +736,28 @@ class AutonomousLoop:
             "state": "acting",
             "score": winner.total_score,
         })
+
+        # Proactive (anticipation / vision) actions surface as owner nudges, never
+        # auto-execute. Route straight to the gateway (GREEN → nudge) and skip the
+        # governor, which would mis-route them to a district agent.
+        if winner.action_type.startswith("proactive_"):
+            try:
+                gw = self._get_gateway()
+                if gw is not None:
+                    from core.loop.permission_gateway import Action as _GWAction
+                    _res = await gw.execute(_GWAction(
+                        action_type=winner.action_type,
+                        params=winner.params,
+                        proposed_by=winner.source or "anticipation",
+                    ))
+                    logger.info(
+                        "[VECTOR][act] proactive '{}' surfaced (status={})",
+                        winner.action_type, _res.result.get("status") if _res.result else "?",
+                    )
+            except Exception as _pa_err:
+                logger.debug("[VECTOR][act] proactive surfacing skipped: {}", _pa_err)
+            return
+
         # VectorCode routing Ã¢â‚¬— coding actions go through permission_gateway first, then bridge
         # RULE 3: LLM has ZERO direct access Ã¢â‚¬— gateway always gates, even for VectorCode tasks
         _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
