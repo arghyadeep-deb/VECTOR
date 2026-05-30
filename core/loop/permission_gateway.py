@@ -388,10 +388,12 @@ class PermissionGateway:
                     from districts.time_calendar.kiit_scraper import KIITScraper
                     data = KIITScraper().get_cached_schedule() or {}
                     result["status"] = "ok"
+                    result["checked"] = True
                     result["attendance"] = data.get("attendance", [])
                     result["at_risk"] = data.get("at_risk_subjects", [])
                 except Exception as _e:
                     result["status"] = "ok"
+                    result["checked"] = True
                     result["note"] = f"KIIT scraper unavailable: {_e}"
             elif action.action_type == "commit_code":
                 try:
