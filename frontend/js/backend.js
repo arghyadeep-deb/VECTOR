@@ -186,6 +186,84 @@
     if (e) e.style.width = Math.min(100, Math.max(0, pct)) + '%';
   }
 
+  function setTelLabel(labelText, val) {
+    if (!widgetOpen('telemetry')) return;
+    document.querySelectorAll('[data-id="telemetry"] .row-kv').forEach(row => {
+      const k = row.querySelector('.k');
+      if (k && k.textContent.trim() === labelText) {
+        const v = row.querySelector('.v');
+        if (v) v.textContent = val;
+      }
+    });
+  }
+
+  // ── Live security approvals from audit_log ────────────────────────────────
+  function adaptApprovals(auditLog) {
+    return (auditLog || []).filter(e =>
+      e.color === 'YELLOW' || e.color === 'RED' || e.level === 'YELLOW' || e.level === 'RED'
+    ).slice(0, 5).map(e => ({
+      action_id: e.action_id || e.id || ('act_' + Math.random().toString(36).substr(2, 5)),
+      action_type: e.action_type || e.action || '—',
+      params: fmtParams(e.params || e.payload || ''),
+      level: e.color || e.level || 'YELLOW',
+      proposed_by: e.agent || e.proposed_by || 'VECTOR',
+      expires: e.expires_in || 30,
+    }));
+  }
+
+  function refreshApprovals(approvals) {
+    if (!widgetOpen('security')) return;
+    const body = qs('security', '.w-body');
+    if (!body) return;
+    let apprEl = body.querySelector('.approvals-live');
+    if (!apprEl) { apprEl = document.createElement('div'); apprEl.className = 'approvals-live'; body.appendChild(apprEl); }
+    if (!approvals.length) { apprEl.innerHTML = ''; return; }
+    apprEl.innerHTML =
+      `<div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">LIVE PENDING · ${approvals.length}</div>` +
+      approvals.map(a => {
+        const isRed = a.level === 'RED';
+        return `<div class="appr ${isRed ? 'red' : ''}" style="margin-bottom:4px">
+          <div class="at">${a.action_type} <span class="badge2 ${isRed ? 'crit' : 'high'}">${a.level}</span></div>
+          <div class="ap">${a.params} · by ${a.proposed_by}</div>
+          <div class="acts">
+            <button class="ok2 live-appr-ok" data-atype="${a.action_type}">APPROVE</button>
+            <button class="no2 live-appr-no">DENY</button>
+            <span class="exp">${a.expires}s</span>
+          </div></div>`;
+      }).join('');
+    apprEl.querySelectorAll('.live-appr-ok').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const atype = btn.dataset.atype;
+        V.http('/security/confirm/' + encodeURIComponent(atype), { method: 'POST', body: {} }).catch(() => {});
+        btn.closest('.appr').style.opacity = '.3';
+        if (V.say) V.say('Approved. ' + atype + ' executing.');
+      });
+    });
+    apprEl.querySelectorAll('.live-appr-no').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        btn.closest('.appr').style.opacity = '.3';
+        if (V.say) V.say('Denied.');
+      });
+    });
+  }
+
+  // ── Live market ticker ─────────────────────────────────────────────────────
+  function refreshMarket(quotes) {
+    if (!widgetOpen('market')) return;
+    const statEl = qs('market', '.stat');
+    if (!statEl || !quotes || !quotes.length) return;
+    const nifty = quotes.find(q => /nifty|nsei|nse|^nsei/i.test(q.symbol)) || quotes[0];
+    if (!nifty) return;
+    const pct = nifty.change_pct != null ? nifty.change_pct : (nifty.change_percent != null ? nifty.change_percent : null);
+    const chg = nifty.change != null ? nifty.change : '';
+    const pos = pct == null || pct >= 0;
+    statEl.innerHTML =
+      `<div><b>${nifty.symbol}</b> <span>${nifty.price != null ? nifty.price : (nifty.close != null ? nifty.close : '—')}</span></div>
+       <div style="color:var(--${pos ? 'ok' : 'danger'})"><b>${pos ? '▲' : '▼'} ${pct != null ? Math.abs(pct).toFixed(2) : '—'}%</b> <span>${chg}</span></div>`;
+  }
+
   // ── Poll helpers ──────────────────────────────────────────────────────────
 
   let _tick = 0;
