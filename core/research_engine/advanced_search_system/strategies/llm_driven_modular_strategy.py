@@ -418,7 +418,7 @@ class LLMDrivenModularStrategy(BaseSearchStrategy):
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
-                        thread_cleanup(lambda: asyncio.run(self.search(query)))
+                        preserve_research_context(thread_cleanup(lambda: asyncio.run(self.search(query))))
                     )
                     answer, metadata = future.result()
             except RuntimeError:
