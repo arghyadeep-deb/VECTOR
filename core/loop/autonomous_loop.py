@@ -1605,8 +1605,6 @@ class AutonomousLoop:
         if not screen_enabled and not camera_enabled:
             return
 
-        from core.loop.context_engine import update_sense_cache
-
         screen_summary = ""
         presence = "unknown"
 
