@@ -1,17 +1,16 @@
 annotated-doc==0.0.4
 # ── VECTOR Coding Assistant (core/coding_assistant/) ─────────────────────────
-tomli_w>=1.0.0             # TOML writer — used by coding assistant config system
-acp>=0.1.0                 # Agent Communication Protocol — coding assistant ACP server
-tree-sitter>=0.21.0        # Syntax tree parsing (bash tool uses this)
-tree-sitter-bash>=0.21.0   # Bash grammar for tree-sitter (bash syntax analysis)
+tomli_w==1.2.0             # TOML writer — used by coding assistant config system
+tree-sitter==0.25.2        # Syntax tree parsing (bash tool uses this)
+tree-sitter-bash==0.25.1   # Bash grammar for tree-sitter (bash syntax analysis)
 # ── VECTOR Research Engine (core/research_engine/) ───────────────────────────
-sqlalchemy>=2.0.0          # settings + research history DB
-alembic>=1.13.0            # DB migrations for research engine
-beautifulsoup4>=4.12.0     # HTML parsing for content extraction
-langchain-ollama>=0.3.0    # Ollama LangChain integration
-langchain-community>=0.3.0 # DuckDuckGo + other search integrations
-langchain-openai>=0.3.0    # OpenAI-compatible endpoint support
-langchain-text-splitters>=0.3.0  # document chunking
+sqlalchemy==2.0.49         # settings + research history DB
+alembic==1.18.4            # DB migrations for research engine
+beautifulsoup4==4.14.3     # HTML parsing for content extraction
+langchain-ollama==1.1.0    # Ollama LangChain integration
+langchain-community==0.4.1 # DuckDuckGo + other search integrations
+langchain-openai==0.3.35   # OpenAI-compatible endpoint support
+langchain-text-splitters==0.3.11  # document chunking
 arxiv>=2.1.0               # ArXiv academic paper search
 wikipedia>=1.4.0           # Wikipedia search engine
 trafilatura>=2.0.0         # web content extraction (best quality)
