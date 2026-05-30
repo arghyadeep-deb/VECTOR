@@ -404,6 +404,7 @@ class PermissionGateway:
                     _repo_path = action.params.get("repo_path", ".")
                     _commit_res = await _gb.commit(_msg, _files, _repo_path)
                     result["status"] = "ok" if _commit_res.get("success") else "error"
+                    result["committed"] = _commit_res.get("success", False)
                     result["hash"] = _commit_res.get("hash", "")
                     result["message"] = _commit_res.get("message", _msg)
                     if not _commit_res.get("success"):
