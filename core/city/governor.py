@@ -704,7 +704,8 @@ class Governor:
             try:
                 from core.loop.context_engine import ContextEngine
                 hydration = ContextEngine().session_hydration_prompt()
-            except Exception:
+            except Exception as _hydr_err:
+                logger.warning("[VECTOR][governor] context hydration failed — proceeding without: {}", _hydr_err)
                 hydration = ""
             districts = list(set(DISTRICT_TASK_MAP.values()))
             prompt = (
