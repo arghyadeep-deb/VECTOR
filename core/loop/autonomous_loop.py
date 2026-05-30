@@ -1635,7 +1635,10 @@ class AutonomousLoop:
             except Exception as _ce:
                 logger.debug("[VECTOR][sense] camera scan failed: {}", _ce)
 
-        update_sense_cache(screen_summary=screen_summary, presence=presence)
+        self._get_context().update_sense_cache({
+            "screen_summary": screen_summary,
+            "presence": presence,
+        })
         logger.debug(
             "[VECTOR][sense] tick — presence={} screen_chars={}",
             presence, len(screen_summary),
