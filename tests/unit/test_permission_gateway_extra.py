@@ -136,15 +136,17 @@ class TestExecuteActionStubs:
         result = await g._execute_action(Action("send_email", {"to": "a@b.com"}, "test"))
         assert result["status"] == "ok"
 
-    async def test_delete_files_returns_ok(self):
+    async def test_delete_files_not_implemented(self):
+        # delete_files is intentionally not auto-executed — prevents RL phantom reward
         g = PermissionGateway()
         result = await g._execute_action(Action("delete_files", {"path": "/tmp/x"}, "test"))
-        assert result["status"] == "ok"
+        assert result["status"] == "not_implemented"
 
-    async def test_financial_transaction_returns_ok(self):
+    async def test_financial_transaction_not_implemented(self):
+        # financial_transaction is intentionally not auto-executed — prevents RL phantom reward
         g = PermissionGateway()
         result = await g._execute_action(Action("financial_transaction", {"amount": 100}, "test"))
-        assert result["status"] == "ok"
+        assert result["status"] == "not_implemented"
 
     async def test_respond_echoes_message(self):
         g = PermissionGateway()
