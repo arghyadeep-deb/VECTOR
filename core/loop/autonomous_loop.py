@@ -928,6 +928,27 @@ class AutonomousLoop:
             h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
             pm.update_from_outcome(winner.action_type, h, reward)
 
+            # Goal feedback loop: a successful action on a linked goal advances its progress.
+            # Reward-scaled increment so high-reward outcomes move the goal more.
+            if winner.goal_ids and completed >= 1.0:
+                try:
+                    gs = self._get_goals()
+                    _increment = round(0.10 * reward, 3)  # up to +0.10 per successful action
+                    for _gid in winner.goal_ids:
+                        _goal = next((g for g in gs.get_active_goals() if g["id"] == _gid), None)
+                        if _goal is not None:
+                            _new_progress = min(1.0, _goal.get("progress", 0.0) + _increment)
+                            gs.update_goal_progress(
+                                _gid, _new_progress,
+                                note=f"+{_increment} from {winner.action_type} (reward={reward:.2f})",
+                            )
+                            logger.info(
+                                "[VECTOR][goal] '{}' progress {:.2f} → {:.2f} (+{} via {})",
+                                _gid, _goal.get("progress", 0.0), _new_progress, _increment, winner.action_type,
+                            )
+                except Exception as _gp_err:
+                    logger.warning("[VECTOR][goal] progress update suppressed: {}", _gp_err)
+
             # Gap 6: record action -> outcome causal edge so the graph populates over time
             try:
                 from core.memory.causal_graph import CausalGraph
