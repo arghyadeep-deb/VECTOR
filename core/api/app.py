@@ -208,7 +208,7 @@ def create_app() -> FastAPI:
         # Core infrastructure routers
         brain, city, control,
         # VECTOR feature routers
-        camera, location, gesture, sb, ticker, queue,
+        camera, location, gesture, sb, ticker, queue, notifications,
         # Collections engine (PocketBase absorption)
         collections,
         # Knowledge layer (Understand-Anything-main absorption)
