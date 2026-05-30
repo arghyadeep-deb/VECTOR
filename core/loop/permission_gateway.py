@@ -394,7 +394,7 @@ class PermissionGateway:
                 result["location"] = location
                 try:
                     import httpx
-                    async with httpx.AsyncClient(timeout=5) as _wc:
+                    async with httpx.AsyncClient(timeout=3) as _wc:
                         _wr = await _wc.get(f"https://wttr.in/{location}?format=3")
                         result["weather"] = _wr.text.strip()
                         result["status"] = "ok"
