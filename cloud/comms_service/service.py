@@ -51,27 +51,35 @@ async def send_message(payload: dict):
 
     logger.info(f"[VECTOR][comms] → {platform}:{to} — {message[:50]}")
 
-    # Attempt real delivery via VectorCode ChannelRuntime
-    try:
-        from vectorcode.src.channels.runtime import ChannelRuntime
-        runtime = ChannelRuntime()
-        result = await runtime.send(
-            channel=platform,
-            recipient=to,
-            message=message,
-        )
-        delivered = bool(result and result.get("ok", False))
-        logger.info(f"[VECTOR][comms] delivered via ChannelRuntime: {result}")
-        return {
-            "ok": delivered,
-            "platform": platform,
-            "delivered_at": datetime.datetime.now().isoformat(),
-            "result": result,
-        }
-    except ImportError:
-        logger.warning("[VECTOR][comms] ChannelRuntime not available — falling back to VectorCode bridge")
-    except Exception as e:
-        logger.error(f"[VECTOR][comms] ChannelRuntime delivery failed: {e}")
+    # Attempt real delivery via VectorCode channel adapters
+    _CHANNEL_MAP = {
+        "telegram": "vectorcode.src.channels.telegram.TelegramChannel",
+        "whatsapp": "vectorcode.src.channels.whatsapp.WhatsAppChannel",
+        "discord": "vectorcode.src.channels.discord_channel.DiscordChannel",
+        "slack": "vectorcode.src.channels.slack_daemon.SlackChannel",
+        "email": "vectorcode.src.channels.email_channel.EmailChannel",
+        "gmail": "vectorcode.src.channels.gmail.GmailChannel",
+    }
+    channel_cls_path = _CHANNEL_MAP.get(platform.lower())
+    if channel_cls_path:
+        try:
+            module_path, cls_name = channel_cls_path.rsplit(".", 1)
+            import importlib
+            mod = importlib.import_module(module_path)
+            channel_cls = getattr(mod, cls_name)
+            channel_instance = channel_cls()
+            delivered = await asyncio.to_thread(channel_instance.send, to, message)
+            logger.info(f"[VECTOR][comms] delivered via {cls_name}: {delivered}")
+            return {
+                "ok": bool(delivered),
+                "platform": platform,
+                "delivered_at": datetime.datetime.now().isoformat(),
+                "via": cls_name,
+            }
+        except ImportError as _ie:
+            logger.warning(f"[VECTOR][comms] {channel_cls_path} not importable: {_ie}")
+        except Exception as _ce:
+            logger.error(f"[VECTOR][comms] {platform} channel delivery failed: {_ce}")
 
     # Fallback: route through VectorCode bridge if available
     if _vc_bridge is not None:
