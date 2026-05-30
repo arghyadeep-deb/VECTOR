@@ -706,7 +706,7 @@ class LibraryRAGService:
                             f"Adding {len(new_chunks)} new embeddings to FAISS index "
                             f"({already_exist} already exist, {batch_dups} batch duplicates removed)"
                         )
-                    self.faiss_index.add_documents(new_chunks, ids=new_ids)
+                    self._add_documents_to_faiss(new_chunks, ids=new_ids)
                 else:
                     logger.info(
                         f"All {len(chunks)} chunks already exist in FAISS index, skipping"
