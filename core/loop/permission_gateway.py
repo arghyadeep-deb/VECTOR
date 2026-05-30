@@ -500,6 +500,14 @@ class PermissionGateway:
             result["error"] = str(e)
         return result
 
+    async def notify(self, message, priority=0):
+        """Public alias for external callers (e.g. task_queue)."""
+        return await self._notify(message, priority)
+
+    def classify(self, action_type: str) -> str:
+        """Public wrapper for _classify — returns GREEN/YELLOW/RED/FORBIDDEN/UNKNOWN."""
+        return self._classify(action_type)
+
     async def _notify(self, message, priority=0):
         token = CONFIG["api_keys"].get('pushover_token', '')
         user = CONFIG["api_keys"].get('pushover_user', '')
