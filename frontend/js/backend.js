@@ -319,10 +319,14 @@
       refreshGoals();
     });
 
-    // /security/status — 12s — threat level
+    // /security/status — 12s — threat level + live audit log
     poll('/security/status', 12000, data => {
       if (!data) return;
       refreshThreat(data.threat_level);
+      if (data.audit_log) {
+        D.APPROVALS = adaptApprovals(data.audit_log);
+        refreshApprovals(D.APPROVALS);
+      }
     });
 
     // /memory/council/history — 20s — council panel
