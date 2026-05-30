@@ -166,6 +166,7 @@ def create_app() -> FastAPI:
             "https://localhost:8000", "https://127.0.0.1:8000",
             "http://localhost:8000", "http://127.0.0.1:8000",
             "http://localhost:5173", "http://127.0.0.1:5173",
+            "null",  # file:// origin — browser sends "null" when HUD opened directly
         ])),
         allow_credentials=True,
         allow_methods=["GET", "POST"],
