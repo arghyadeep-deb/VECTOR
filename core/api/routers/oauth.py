@@ -70,12 +70,20 @@ async def google_calendar_callback(code: str = "", error: str = ""):
             token_data = resp.json()
 
         # Store tokens in collections DB under google_calendar_tokens
-        from core.collections.store import CollectionStore
-        store = CollectionStore("google_calendar_tokens")
-        store.upsert_record(
-            {"token": token_data, "scope": "calendar", "configured_at": __import__("datetime").datetime.utcnow().isoformat()},
-            record_id="primary",
-        )
+        from core.collections.store import CollectionEngine
+        _engine = CollectionEngine()
+        _record_data = {"token": token_data, "scope": "calendar", "configured_at": __import__("datetime").datetime.utcnow().isoformat()}
+        # Try update first (if token already exists), else create
+        try:
+            existing = _engine.list_records("google_calendar_tokens")
+            _items = existing.get("items", []) if isinstance(existing, dict) else existing
+            if _items:
+                _engine.update_record("google_calendar_tokens", _items[0]["id"], _record_data)
+            else:
+                _engine.create_record("google_calendar_tokens", _record_data)
+        except Exception as _store_err:
+            logger.warning(f"[VECTOR][oauth] token store failed: {_store_err}")
+            # Non-fatal: token still returned in response
         logger.info("[VECTOR][oauth] Google Calendar tokens stored in collections DB")
         return {"status": "ok", "message": "Google Calendar connected. VECTOR can now read/write your calendar."}
     except Exception as e:
