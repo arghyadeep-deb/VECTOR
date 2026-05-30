@@ -68,7 +68,7 @@ class SoundClassifier:
 
     @staticmethod
     def _zcr(audio: np.ndarray) -> float:
-        """Zero-Crossing Rate — fraction of samples where sign changes."""
+        “””Zero-Crossing Rate — fraction of samples where sign changes.”””
         if len(audio) < 2:
             return 0.0
         audio_f = audio.astype(np.float32)
@@ -76,17 +76,56 @@ class SoundClassifier:
         crossings = np.sum(np.abs(np.diff(signs)) > 0)
         return float(crossings) / float(len(audio_f) - 1)
 
+    @staticmethod
+    def _spectral_flatness(audio: np.ndarray) -> float:
+        “””Spectral flatness via FFT: high = tonal/music, low = noise/speech.
+        Returns a value in [0, 1]. Music typically scores > 0.15.
+        “””
+        if len(audio) < 32:
+            return 0.0
+        try:
+            audio_f = audio.astype(np.float32)
+            magnitudes = np.abs(np.fft.rfft(audio_f))
+            magnitudes = magnitudes[magnitudes > 1e-10]
+            if len(magnitudes) == 0:
+                return 0.0
+            geo_mean = float(np.exp(np.mean(np.log(magnitudes))))
+            arith_mean = float(np.mean(magnitudes))
+            return geo_mean / arith_mean if arith_mean > 0 else 0.0
+        except Exception:
+            return 0.0
+
+    def _try_load_onnx(self) -> None:
+        “””Optionally load a YAMNet ONNX model for 521-class classification.”””
+        if self._onnx_checked:
+            return
+        self._onnx_checked = True
+        model_path = CONFIG.get(“sound_model_path”, “”)
+        if not model_path:
+            return
+        try:
+            from pathlib import Path
+            import onnxruntime as ort
+            p = Path(model_path)
+            if p.exists():
+                self._onnx_session = ort.InferenceSession(str(p))
+                logger.info(“[VECTOR][sound] YAMNet ONNX loaded: {}”, model_path)
+        except ImportError:
+            logger.debug(“[VECTOR][sound] onnxruntime not installed — using heuristics”)
+        except Exception as e:
+            logger.warning(“[VECTOR][sound] ONNX load failed: {}”, e)
+
     # â”€â”€ public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def classify_frame(self, audio_np: np.ndarray) -> str:
-        """Classify a mono audio numpy array (int16 or float32).
+        “””Classify a mono audio numpy array (int16 or float32).
 
         Args:
             audio_np: 1-D or 2-D numpy array of audio samples.
 
         Returns:
-            One of "silence", "speech", "alert", "background", or "unknown".
-        """
+            One of “silence”, “speech”, “music”, “alert”, “background”, or “unknown”.
+        “””
         try:
             # Flatten to 1-D mono
             audio = audio_np.flatten().astype(np.float32)
