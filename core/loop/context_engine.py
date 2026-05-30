@@ -1,7 +1,5 @@
 import sys
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
@@ -21,7 +19,7 @@ def update_sense_cache(screen_summary: str = "", presence: str = "unknown") -> N
 class ContextEngine:
     """
     Builds VECTOR's world state. session_hydration_prompt() MUST be called before every LLM call.
-    RULE 1 Ã¢â‚¬â€ Skip this = VECTOR has amnesia every session. Never skip.
+    RULE 1 Ã¢â‚¬— Skip this = VECTOR has amnesia every session. Never skip.
     """
 
     def __init__(self):
@@ -178,14 +176,14 @@ class ContextEngine:
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] screen observe failed: {e}")
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Extended domain fields Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # Ã¢—â‚¬Ã¢—â‚¬ Extended domain fields Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
         calendar_upcoming: list = []
         try:
             dm = self._get_deadline_mgr()
-            if dm and hasattr(dm, "get_upcoming_deadlines"):
+            if dm and hasattr(dm, "get_upcoming_events"):
+                calendar_upcoming = dm.get_upcoming_events(hours=168) or []  # 7 days = 168 hours
+            elif dm and hasattr(dm, "get_upcoming_deadlines"):
                 calendar_upcoming = dm.get_upcoming_deadlines(days=7) or []
-            elif dm and hasattr(dm, "list_deadlines"):
-                calendar_upcoming = dm.list_deadlines() or []
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] calendar fetch failed: {e}")
 
@@ -201,7 +199,7 @@ class ContextEngine:
         try:
             ks = self._get_kiit_scraper()
             if ks:
-                # Only call sync methods Ã¢â‚¬â€ get_schedule() is async and cannot be called here
+                # Only call sync methods Ã¢â‚¬— get_schedule() is async and cannot be called here
                 if hasattr(ks, "get_cached_schedule"):
                     academic_info = ks.get_cached_schedule() or {}
                 elif hasattr(ks, "schedule_cache") and ks.schedule_cache:
@@ -317,7 +315,7 @@ class ContextEngine:
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
         """
-        RULE 1 Ã¢â‚¬â€ Call this before EVERY LLM call.
+        RULE 1 Ã¢â‚¬— Call this before EVERY LLM call.
         Returns a context block to prepend to the LLM message.
         """
         _query = (extra_context or {}).get("query") if extra_context else None
@@ -337,7 +335,7 @@ class ContextEngine:
             }
 
         lines = [
-            f"[SESSION CONTEXT Ã¢â‚¬â€ {state['timestamp']}]",
+            f"[SESSION CONTEXT Ã¢â‚¬— {state['timestamp']}]",
             f"Owner: {state['owner']} | Env: {state['env']} | VECTOR v{state['version']}",
             f"Time: {state['time_of_day']} ({state['day_of_week']})",
         ]
@@ -446,7 +444,7 @@ class ContextEngine:
         lines.append("[END SESSION CONTEXT]")
         raw = "\n".join(lines)
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ TokenJuice compression Ã¢â‚¬â€ strip noise before injecting into LLM Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # Ã¢—â‚¬Ã¢—â‚¬ TokenJuice compression Ã¢â‚¬— strip noise before injecting into LLM Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
         try:
             from core.engine.token_juice.compressor import reduce_text
             compressed = reduce_text(
@@ -458,7 +456,7 @@ class ContextEngine:
             )
             if len(compressed) < len(raw):
                 logger.debug(
-                    "[VECTOR][context_engine] TokenJuice: {} Ã¢â€ â€™ {} chars ({:.0f}% reduction)",
+                    "[VECTOR][context_engine] TokenJuice: {} Ã¢â€ ’ {} chars ({:.0f}% reduction)",
                     len(raw), len(compressed),
                     (1 - len(compressed) / len(raw)) * 100,
                 )
@@ -510,6 +508,6 @@ if __name__ == "__main__":
         and ("enabled" in personality or personality == {})
     )
     print(
-        f"Ã¢Å“â€¦ context_engine OK Ã¢â‚¬â€ {len(state)} domains, prompt={len(prompt)} chars"
+        f"Ã¢Å“… context_engine OK Ã¢â‚¬— {len(state)} domains, prompt={len(prompt)} chars"
         if ok else "Ã¢ÂÅ’ FAILED"
     )
