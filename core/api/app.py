@@ -344,6 +344,45 @@ def create_app() -> FastAPI:
             "docs": "/docs",
         }
 
+    @app.get("/metrics", tags=["observability"], response_class=__import__("fastapi").responses.PlainTextResponse)
+    async def prometheus_metrics():
+        """Prometheus-compatible metrics endpoint. Scrape at /metrics."""
+        lines = []
+        try:
+            from core.loop.autonomous_loop import get_loop_tick_count
+            ticks = get_loop_tick_count()
+            lines.append("# HELP vector_loop_ticks_total Autonomous loop tick count")
+            lines.append("# TYPE vector_loop_ticks_total counter")
+            lines.append(f"vector_loop_ticks_total {ticks}")
+        except Exception:
+            lines.append("vector_loop_ticks_total 0")
+
+        try:
+            from core.memory.episodic import EpisodicMemory
+            stats = EpisodicMemory().get_stats()
+            for key, val in stats.items():
+                metric_name = f"vector_memory_{key}_rows"
+                lines.append(f"# HELP {metric_name} Row count for {key}")
+                lines.append(f"# TYPE {metric_name} gauge")
+                lines.append(f"{metric_name} {val}")
+        except Exception:
+            pass
+
+        try:
+            from core.city.agent_registry import AgentRegistry
+            agents = AgentRegistry().list_all()
+            alive = sum(1 for a in agents if getattr(a, "health_points", 0) > 0)
+            lines.append("# HELP vector_agents_alive_total Living agents in the city")
+            lines.append("# TYPE vector_agents_alive_total gauge")
+            lines.append(f"vector_agents_alive_total {alive}")
+            lines.append("# HELP vector_agents_total Total registered agents")
+            lines.append("# TYPE vector_agents_total gauge")
+            lines.append(f"vector_agents_total {len(agents)}")
+        except Exception:
+            pass
+
+        return "\n".join(lines) + "\n"
+
     return app
 
 
