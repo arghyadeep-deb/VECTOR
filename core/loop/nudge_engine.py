@@ -31,6 +31,22 @@ class NudgeEngine:
     def dismiss(self):
         self._latest = None
 
+    def push(self, text: str, source: str = "proactive", need: str = "") -> dict:
+        """Surface a proactive nudge directly (e.g. from the anticipation engine).
+
+        The frontend polls /nudge/latest, so setting _latest here makes the
+        prediction visible to the owner without an LLM round-trip.
+        """
+        self._latest = {
+            "text": text,
+            "rule": source,
+            "need": need,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "signals": {},
+        }
+        logger.info(f"[VECTOR][nudge] (proactive) {source}: {text}")
+        return self._latest
+
     async def tick(self):
         signals = self._collect_signals()
         rule = self._match_rule(signals)
