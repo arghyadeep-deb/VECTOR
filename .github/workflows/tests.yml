@@ -28,8 +28,7 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov loguru fastapi uvicorn pydantic httpx anthropic openai
 
       - name: Run unit tests
-        run: |
-          python -m pytest vectorcode/python/tests/test_wave0.py vectorcode/python/tests/test_wave1_tools.py vectorcode/python/tests/test_wave2_agent.py -v --tb=short
+        run: python -m pytest tests/ vectorcode/python/tests/ --tb=short -q --timeout=60
 
   lint:
     runs-on: ubuntu-latest
