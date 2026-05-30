@@ -294,6 +294,8 @@ class PermissionGateway:
         if action_type in GREEN: return 'GREEN'
         if action_type in YELLOW: return 'YELLOW'
         if action_type in RED: return 'RED'
+        # Anticipation predictions surface as nudges only — always GREEN (suggest, never execute)
+        if action_type.startswith('proactive_'): return 'GREEN'
         return 'UNKNOWN'
 
     def _check_capability(self, action: 'Action') -> tuple[bool, str]:
