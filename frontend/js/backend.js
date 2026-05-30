@@ -362,10 +362,53 @@
       if (tick != null) { _tick = tick; setTel('[data-tick]', tick); }
     });
 
+    // /inference/stats — 12s — active model name in telemetry
+    poll('/inference/stats', 12000, data => {
+      D.INFERENCE = data || {};
+      const model = data && (data.active_model || data.current_model || data.model);
+      if (model) setTelLabel('ACTIVE MODEL', model);
+      const cost = data && (data.cost_inr || data.total_cost_inr);
+      if (cost != null) setTelLabel('INR COST', '₹' + cost.toFixed(4));
+    });
+
+    // /ticker/finance/ticker — 30s — live NSE market data
+    poll('/ticker/finance/ticker?symbols=^NSEI,RELIANCE.NS,TCS.NS,NVDA', 30000, data => {
+      const quotes = data && (data.quotes || (Array.isArray(data) ? data : []));
+      if (quotes && quotes.length) {
+        D.STOCKS_LIVE = quotes;
+        refreshMarket(quotes);
+      }
+    });
+
+    // /brain/hypotheses (surfaced) — 25s — append to memory widget
+    poll('/notifications/hypotheses', 25000, data => {
+      const items = data && (data.hypotheses || data || []);
+      if (!Array.isArray(items) || !items.length) return;
+      items.slice(0, 3).forEach(h => {
+        D.MEMORY.unshift({
+          event_type: 'HYPOTHESIS_SURFACED',
+          content: h.statement || h.hypothesis || h.content || '—',
+          importance: 'normal',
+          when: relTime(h.surfaced_at || h.timestamp),
+        });
+      });
+      D.MEMORY = D.MEMORY.slice(0, 50);
+      refreshMemory();
+    });
+
+    // /nudge/latest — 25s — behavioral nudges in memory feed
+    poll('/nudge/latest', 25000, data => {
+      const nudge = data && (data.nudge || data.message);
+      if (!nudge) return;
+      D.MEMORY.unshift({ event_type: 'NUDGE', content: nudge, importance: 'normal', when: 'now' });
+      D.MEMORY = D.MEMORY.slice(0, 50);
+      refreshMemory();
+    });
+
     // Background-only polls — data stored in D.* for future widgets
     const bg = [
       ['/tasks/',               15000, d => D.TASKS    = d.tasks    || d || []],
-      ['/inference/stats',      12000, d => D.INFERENCE = d || {}],
+      ['/inference/stats',      60000, d => D.INFERENCE = d || {}],  // shadowed by active poll above
       ['/channels/status',      15000, d => D.CHANNELS  = d.channels || d || []],
       ['/scheduler/jobs',       15000, d => D.JOBS      = d.jobs     || d || []],
       ['/audit/recent',         20000, d => D.AUDIT     = d.entries  || d || []],
