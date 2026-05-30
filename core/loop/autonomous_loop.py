@@ -1665,6 +1665,35 @@ class AutonomousLoop:
             presence, len(screen_summary),
         )
 
+        # Vision → action: react to presence changes
+        if presence != self._last_presence:
+            await self._on_presence_change(self._last_presence, presence)
+            self._last_presence = presence
+
+    async def _on_presence_change(self, prev: str, current: str) -> None:
+        """Trigger proactive behaviour when the owner arrives or leaves frame."""
+        try:
+            from core.loop.decision_engine import Candidate
+            # Owner returned after being away → surface a welcome-back brief
+            if current == "present" and prev in ("absent", "unknown"):
+                logger.info("[VECTOR][sense] owner returned — surfacing welcome-back brief")
+                await self._act_on(Candidate(
+                    action_type="proactive_welcome_back",
+                    params={
+                        "need": "welcome_back",
+                        "description": "Welcome back. Want a quick brief on what changed while you were away?",
+                    },
+                    goal_ids=[],
+                    urgency=0.7,
+                    confidence=0.8,
+                    source="vision_presence",
+                ))
+            # Owner left frame → log only (do not act; avoids noise)
+            elif current == "absent" and prev in ("present", "multiple"):
+                logger.info("[VECTOR][sense] owner left frame — pausing proactive nudges")
+        except Exception as _pc_err:
+            logger.debug("[VECTOR][sense] presence-change handler skipped: {}", _pc_err)
+
     async def state_checkpoint_loop(self) -> None:
         """Save agent HP snapshot to semantic_memory every 60 s for crash recovery."""
         logger.info("[VECTOR][loop_state] checkpoint loop started — 60s interval")
