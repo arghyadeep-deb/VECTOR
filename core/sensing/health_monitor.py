@@ -107,25 +107,31 @@ class HealthMonitor:
             return {"cpu_percent": 0.0, "ram_percent": 0.0}
 
     def _get_wearable_data(self) -> dict:
-        """Pull wearable metrics from the connector layer (async-safe via fallback)."""
-        import asyncio
+        """Pull wearable metrics from the connector layer (async-safe via new thread)."""
         try:
             from districts.health.wearable_connector import WearableConnector
             if self._wearable_connector is None:
                 self._wearable_connector = WearableConnector()
-            if hasattr(self._wearable_connector, 'poll_all'):
-                coro = self._wearable_connector.poll_all()
+            if not hasattr(self._wearable_connector, 'poll_all'):
+                return {"available": False, "note": "poll_all not available"}
+            # Always run in a fresh thread with its own event loop to avoid
+            # deadlocking when called from an existing async context (test or loop).
+            import threading, asyncio
+
+            result_holder: list = []
+
+            def _run():
                 try:
-                    loop = asyncio.get_running_loop()
-                    # Already inside an async context — run in thread pool
-                    import concurrent.futures
-                    future = asyncio.run_coroutine_threadsafe(coro, loop)
-                    metrics = future.result(timeout=5)
-                except RuntimeError:
-                    # No running loop — safe to use asyncio.run
-                    metrics = asyncio.run(coro)
-                if metrics:
-                    return {"available": True, "data": metrics, "note": "connector poll"}
+                    result_holder.append(asyncio.run(self._wearable_connector.poll_all()))
+                except Exception as _e:
+                    logger.debug("[VECTOR][health] wearable thread error: {}", _e)
+
+            t = threading.Thread(target=_run, daemon=True)
+            t.start()
+            t.join(timeout=5)  # at most 5 seconds
+
+            if result_holder and result_holder[0]:
+                return {"available": True, "data": result_holder[0], "note": "connector poll"}
             return {"available": False, "note": "wearable poll returned empty"}
         except Exception as exc:
             logger.warning(f"[VECTOR][health] wearable data unavailable: {exc}")
