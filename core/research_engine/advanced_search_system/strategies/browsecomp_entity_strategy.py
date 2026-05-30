@@ -29,6 +29,7 @@ from typing import Dict, List, Tuple
 from loguru import logger
 
 from ...database.thread_local_session import thread_cleanup
+from ...utilities.thread_context import preserve_research_context
 from ...utilities.json_utils import extract_json, get_llm_response_text
 from ...utilities.search_cache import get_search_cache
 from ..candidate_exploration import ConstraintGuidedExplorer
