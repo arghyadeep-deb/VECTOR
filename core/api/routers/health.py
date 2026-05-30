@@ -104,7 +104,7 @@ async def system_health():
     try:
         import httpx
         from core.config import CONFIG
-        ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+        ollama_host = CONFIG["ollama_host"]  # e.g. "http://127.0.0.1:11434"
         async with httpx.AsyncClient(timeout=3) as client:
             r = await client.get(f"{ollama_host}/api/tags")
             model_count = len(r.json().get("models", []))
@@ -113,11 +113,15 @@ async def system_health():
         checks["ollama"] = {"status": "error", "error": str(e)}
         all_ok = False
 
-    # 3. Autonomous loop tick count (advancing = healthy)
+    # 3. Autonomous loop tick count (advancing = loop is running)
     try:
-        from core.loop.autonomous_loop import get_loop_tick_count
-        ticks = get_loop_tick_count()
-        checks["loop"] = {"status": "ok", "tick_count": ticks}
+        from core.loop import autonomous_loop as _al_mod
+        _loop_instance = getattr(_al_mod, "_loop", None)
+        ticks = getattr(_loop_instance, "_tick_count", None)
+        if ticks is not None:
+            checks["loop"] = {"status": "ok", "tick_count": ticks, "running": getattr(_loop_instance, "_running", False)}
+        else:
+            checks["loop"] = {"status": "not_started", "note": "loop not yet initialised"}
     except Exception as e:
         checks["loop"] = {"status": "unknown", "note": str(e)}
 
