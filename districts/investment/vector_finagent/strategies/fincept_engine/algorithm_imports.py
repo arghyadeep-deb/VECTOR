@@ -534,23 +534,127 @@ class OptionPricingModelType:
     BlackScholes = 0; Binomial = 1; ForwardTree = 2
     BinomialCoxRossRubinstein = 1; CrankNicolsonFD = 3
 
+# --- Option Pricing Math (pure Python, no deps) ---
+import math as _math
+
+def _norm_cdf(x):
+    return 0.5 * (1.0 + _math.erf(x / _math.sqrt(2.0)))
+
+def _black_scholes_price(S, K, T, r, sigma, option_type="call"):
+    """European option price via Black-Scholes-Merton. Returns 0 on degenerate input."""
+    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+        return max(0.0, (S - K) if option_type == "call" else (K - S))
+    d1 = (_math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * _math.sqrt(T))
+    d2 = d1 - sigma * _math.sqrt(T)
+    disc = _math.exp(-r * T)
+    if option_type == "call":
+        return S * _norm_cdf(d1) - K * disc * _norm_cdf(d2)
+    else:
+        return K * disc * _norm_cdf(-d2) - S * _norm_cdf(-d1)
+
+def _crr_binomial_price(S, K, T, r, sigma, option_type="call", n=100):
+    """American/European option price via Cox-Ross-Rubinstein binomial tree."""
+    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+        return max(0.0, (S - K) if option_type == "call" else (K - S))
+    dt = T / n
+    u = _math.exp(sigma * _math.sqrt(dt))
+    d = 1.0 / u
+    p = (_math.exp(r * dt) - d) / (u - d)
+    disc = _math.exp(-r * dt)
+    # Terminal payoffs
+    prices = [S * (u ** (n - 2 * j)) for j in range(n + 1)]
+    if option_type == "call":
+        values = [max(0.0, px - K) for px in prices]
+    else:
+        values = [max(0.0, K - px) for px in prices]
+    # Backward induction (American-style early exercise)
+    for i in range(n - 1, -1, -1):
+        for j in range(i + 1):
+            values[j] = disc * (p * values[j] + (1 - p) * values[j + 1])
+            spot = S * (u ** (i - 2 * j))
+            intrinsic = max(0.0, (spot - K) if option_type == "call" else (K - spot))
+            values[j] = max(values[j], intrinsic)
+    return values[0]
+
+def _barone_adesi_whaley_price(S, K, T, r, sigma, option_type="call"):
+    """Barone-Adesi & Whaley quadratic approximation for American options."""
+    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+        return max(0.0, (S - K) if option_type == "call" else (K - S))
+    # Fall back to BSM for small T or when approx diverges
+    eu_price = _black_scholes_price(S, K, T, r, sigma, option_type)
+    if T < 1e-6:
+        return eu_price
+    M = 2 * r / (sigma ** 2)
+    N = 2 * r / (sigma ** 2)  # simplified: same for constant r
+    h = 1 - _math.exp(-r * T)
+    q2 = (-(N - 1) + _math.sqrt((N - 1) ** 2 + 4 * M / h)) / 2
+    # Seed critical spot
+    Ss = K
+    for _ in range(50):
+        d1 = (_math.log(Ss / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * _math.sqrt(T))
+        bsm = _black_scholes_price(Ss, K, T, r, sigma, option_type)
+        intrinsic = max(0.0, Ss - K) if option_type == "call" else max(0.0, K - Ss)
+        early = intrinsic - bsm
+        if option_type == "call":
+            lhs = Ss / q2
+            rhs = bsm - _norm_cdf(d1) * Ss * (1 - _math.exp(-r * T))
+        else:
+            lhs = -Ss / q2
+            rhs = bsm - _norm_cdf(-d1) * Ss * (1 - _math.exp(-r * T))
+        if abs(lhs - rhs) < 1e-6:
+            break
+        Ss *= 1.01
+    A2 = (Ss / q2) * (1 - _norm_cdf(
+        (_math.log(Ss / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * _math.sqrt(T))
+    ))
+    if option_type == "call" and S >= Ss:
+        return S - K
+    if option_type == "put" and S <= Ss:
+        return K - S
+    return eu_price + max(0.0, A2 * (S / Ss) ** q2)
+
+
+class _OptionPriceModelBase:
+    """Callable option price model returned by OptionPriceModels.*()."""
+
+    def __init__(self, name, pricing_fn):
+        self._name = name
+        self._pricing_fn = pricing_fn
+
+    def get_theoretical_price(self, S, K, T, r, sigma, option_type="call"):
+        return self._pricing_fn(S, K, T, r, sigma, option_type)
+
+    def __repr__(self):
+        return f"<OptionPriceModel:{self._name}>"
+
+
 # --- OptionPriceModels ---
 class OptionPriceModels:
     @staticmethod
-    def crank_nicolson_fd(): return None
+    def black_scholes():
+        return _OptionPriceModelBase("BlackScholes", _black_scholes_price)
     @staticmethod
-    def black_scholes(): return None
+    def crank_nicolson_fd():
+        # CND FD is more complex; CRR binomial is a good approximation at n=200
+        def _cnd_price(S, K, T, r, sigma, option_type="call"):
+            return _crr_binomial_price(S, K, T, r, sigma, option_type, n=200)
+        return _OptionPriceModelBase("CrankNicolsonFD", _cnd_price)
     @staticmethod
-    def additive_equiprobabilities(): return None
+    def binomial_cox_ross_rubinstein():
+        return _OptionPriceModelBase("BinomialCRR", _crr_binomial_price)
     @staticmethod
-    def binomial_cox_ross_rubinstein(): return None
+    def barone_adesi_whaley():
+        return _OptionPriceModelBase("BaroneAdesiWhaley", _barone_adesi_whaley_price)
     @staticmethod
-    def binomial_jarrow_rudd(): return None
+    def additive_equiprobabilities():
+        return _OptionPriceModelBase("AdditiveEquiprob", _crr_binomial_price)
     @staticmethod
-    def barone_adesi_whaley(): return None
-    CrankNicolsonFD = crank_nicolson_fd
-    BlackScholes = black_scholes
-    BaroneAdesiWhaley = barone_adesi_whaley
+    def binomial_jarrow_rudd():
+        return _OptionPriceModelBase("BinomialJarrowRudd", _crr_binomial_price)
+    # Aliases used by some strategies
+    CrankNicolsonFD = staticmethod(lambda: OptionPriceModels.crank_nicolson_fd())
+    BlackScholes = staticmethod(lambda: OptionPriceModels.black_scholes())
+    BaroneAdesiWhaley = staticmethod(lambda: OptionPriceModels.barone_adesi_whaley())
 
 # --- OptionFilterUniverse ---
 class OptionFilterUniverse:
