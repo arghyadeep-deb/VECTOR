@@ -226,6 +226,52 @@ async def set_default_profile(name: str):
         return {"status": "error", "error": str(e)}
 
 
+# ── Voice Studio: content script → audio in your cloned voice ─────────────────
+
+@router.post("/studio/generate")
+async def studio_generate(body: dict):
+    """Render a script to a WAV file in the chosen voice profile (cloned, local).
+
+    Body: {"text": "<script>", "profile": "owner", "filename": "optional.wav"}
+    Returns the saved file path + the URL to fetch it via /voice/studio/audio/{file}.
+    """
+    import asyncio, uuid as _uuid
+    from pathlib import Path as _P
+    text = (body.get("text") or "").strip()
+    profile = body.get("profile") or "owner"
+    if not text:
+        return {"status": "error", "error": "no text provided"}
+    out_dir = _P(__file__).parent.parent.parent.parent / "data" / "voice_output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fname = body.get("filename") or f"studio_{_uuid.uuid4().hex[:8]}.wav"
+    out_path = str(out_dir / fname)
+    try:
+        from core.voice.tts import VoiceTTS
+        result = await asyncio.to_thread(
+            VoiceTTS().synthesize_to_file, text, out_path, profile
+        )
+        if result.get("status") == "ok":
+            result["audio_url"] = f"/voice/studio/audio/{fname}"
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@router.get("/studio/audio/{filename}")
+async def studio_audio(filename: str):
+    """Serve a generated Voice Studio WAV for playback/download."""
+    from pathlib import Path as _P
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+    # Path-traversal guard: only basename, only under data/voice_output
+    safe = _P(filename).name
+    out_dir = _P(__file__).parent.parent.parent.parent / "data" / "voice_output"
+    target = out_dir / safe
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="audio not found")
+    return FileResponse(str(target), media_type="audio/wav", filename=safe)
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print("✅ voice.py OK")
