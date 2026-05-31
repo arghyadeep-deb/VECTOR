@@ -183,6 +183,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 2 ✅: ui-ux-pro-max-skill, valuecell, Understand-Anything
 - Batch 3 ✅: UI-TARS, TradingAgents, system_prompts_leaks
 - Batch 4 ✅: superpowers, skills, Scrapling
-- Batch 5+ ⏳: awaiting more repo paths
+- Batch 5 ✅: ruflo, LightRAG, RAG-Anything
+- Batch 6+ ⏳: awaiting more repo paths
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **12 repos audited so far.**
+- **15 repos audited so far.**
