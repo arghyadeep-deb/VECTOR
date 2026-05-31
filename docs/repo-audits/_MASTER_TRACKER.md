@@ -127,6 +127,31 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Native `VectorScraper` wrapper on top | — | ✅ bonus |
 **Delete-readiness:** ✅ **DELETE-NOW** — same-version vendored copy, working, zero pending. Clone is redundant.
 
+### 13. ruflo-main — DELETE-AFTER (near-NOW)
+| Item | Type | Status |
+|---|---|---|
+| Neural RL (A2C/DQN/PPO/SARSA/Q/DecisionTransformer), FlashAttention, MoE, ReasoningBank(57 entries), GNNRouter, swarm(8 topologies), claims, guidance | — | ✅ VERIFIED — 22 ran live |
+| GOAP Goal-Planner frontend (`v3/goal_ui`) not absorbed | 🎨 | OPEN (decide: build panel or skip) |
+| Tracker metadata wrong: Ruflo is **TS** (claude-flow v3.10.26) not Rust; **366** skills not 282; router is **3-layer** not 4 | 🐛 doc | note only |
+**Delete-readiness:** DELETE-AFTER deciding on the GOAP planner panel (or DELETE-NOW if skipping it). Capability absorption verified real — "100%" true for capabilities.
+
+### 14. LightRAG-main — DELETE-NOW clone + KEEP pip + PATCH
+| Item | Type | Status |
+|---|---|---|
+| `lightrag-hku` v1.4.16 pip-installed (global site-packages), consumed via `core/memory/obsidian_sync.py` (Ollama backends) | — | ✅ wrapper exists, used in ~50 districts |
+| A5: declare `lightrag-hku` in requirements.txt | 🐛 | OPEN |
+| A6: implement `get_vault_context` so RAG feeds hydration | 🔵 | OPEN |
+| RAG knowledge-graph WebUI → optional HUD panel (complementary to Code Graph) | 🎨 | OPEN (optional) |
+**Delete-readiness:** **DELETE-NOW the clone** (VECTOR uses the pip package, never the clone). KEEP pip package. PATCH A5+A6.
+
+### 15. RAG-Anything-main — DELETE-AFTER / DROP
+| Item | Type | Status |
+|---|---|---|
+| Multimodal doc RAG (PDF/image/table/equation → KG) | — | ❌ NOT in VECTOR (text-only RAG today) |
+| `obsidian_sync.py:377` hook is DEAD (A4 typo + pkg not installed) | 🐛 | OPEN |
+| To enable: fix import name + `pip install raganything mineru` + route via provider_client | 🔵 | OPEN (only if multimodal doc RAG wanted) |
+**Delete-readiness:** DELETE-AFTER (clone unused at runtime). Honest rec: **DROP** the dead hook unless a district genuinely needs PDF figure/table RAG. Revisit on demand.
+
 ---
 
 ## C. Delete-readiness summary
