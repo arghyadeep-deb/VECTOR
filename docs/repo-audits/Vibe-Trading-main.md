@@ -66,7 +66,7 @@ suite). All runs below were executed against that tree.
 | 16 | Pine/TDX/MT5/vnpy export | `…/src/skills/pine-script`, `vnpy-export` | skill dirs present | ✅ |
 | 17 | MCP server + FastAPI + SSE | `…/mcp_server.py`, `api_server.py`, `src/session/events.py` | files present | ✅ |
 | 18 | React/ECharts Web UI | — (no `vector_backtest/frontend/`) | not absorbed; VECTOR uses its own HUD/dashboard. Out of scope as a separate web app; see Section 3 for a HUD panel spec. | ⚠️ not absorbed (by design) |
-| 19 | **Robinhood live trading / order execution** | — | absent from `vector_backtest/` (no `live/`, no `mandate`, no `propose_mandate_tool`). VECTOR's only "robinhood" match is an unrelated `vectorcode/skills/vc-as-robinhood` engineering persona. | 🚫 **OUT OF SCOPE BY DESIGN** — investment district is ANALYSIS ONLY, never executes trades (districts.md / architecture rule) |
+| 19 | **Robinhood live trading / order execution** (opt-in, mandate-bounded, kill switch, audit ledger) | `agent/src/live/` (robinhood, mandate, propose_mandate_tool) | absent from `vector_backtest/` (no `live/`, no `mandate`, no `propose_mandate_tool`). VECTOR's only "robinhood" match is an unrelated `vectorcode/skills/vc-as-robinhood` engineering persona. | ❌ **IN-SCOPE GAP (rule changed 2026-05-31)** — user now wants execution. VECTOR lacks any order-execution layer. Repo's `agent/src/live/` (mandate bounds + kill switch + audit ledger) is the reference design to port. Build paper-first, human-confirmed via permission_gateway RED tier. |
 
 ### Optional-dependency notes
 - yfinance / akshare / ccxt / tushare / futu loaders import and self-register
