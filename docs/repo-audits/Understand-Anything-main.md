@@ -77,11 +77,11 @@ The repo's `homepage/` (Astro) renders an **interactive knowledge-graph explorer
 
 **Size-of-gap reasoning:** The repo's Python-portable *value* — domain extraction + wiki parsing + knowledge-graph assembly + codebase graph merge — is **fully absorbed into `core/knowledge/` and verified by running its 105-test suite (all pass)**. BUT the repo's headline capability is *"explore the graph interactively"* — and VECTOR has no code/knowledge-graph explorer panel. Per the user (2026-05-31): the frontend IS important and must become a HUD panel **now**, not deferred. The backend JSON that feeds it already exists in `core/knowledge/`, so this is a build-now item.
 
-**What to build now (this session):**
-1. `POST /knowledge/graph` endpoint — runs `DomainExtractor` (+ graph merge) on a path → returns `{nodes, edges}` JSON.
-2. **Code-Graph HUD panel** (`frontend/js/widgets.js` `F.codegraph` + dock button) — force-directed canvas renderer: nodes colored by type, edges by relation, search box to highlight, click-to-inspect. Cyan-on-black tokens to match the HUD.
+**What was built (this session — DONE ✅):**
+1. ✅ `POST /knowledge/graph` endpoint (`core/api/routers/knowledge.py`) — runs `DomainExtractor` on a path → derives `{nodes, edges}` (node per file, entry-points flagged; edge per intra-project import). Verified: `districts/coding` → 40 nodes, 45 edges; `core/memory` → 12 nodes, 7 edges.
+2. ✅ **Code-Graph HUD panel** (`frontend/js/widgets.js` `F.codegraph` + dock button in `demo.js` + CSS) — self-contained force-directed canvas (no external libs): nodes colored by type (cyan=file, gold=entry), import edges, path input + SCAN, search-to-highlight, click-to-inspect node imports/exports. Default view: `districts/coding`.
 
-**Recommendation:** **PATCH (build the panel)**, then the repo is fully covered (backend in `core/knowledge/` + panel in HUD) and becomes **DELETE-safe**. Do not delete until the panel is built.
+**Recommendation:** **DELETE-safe NOW.** Backend value is in `core/knowledge/` (105 tests pass) and the interactive graph explorer is now a native HUD panel. Repo fully covered — safe to delete.
 
 ---
 
