@@ -123,17 +123,25 @@ mono font for all numerics. Feed from `vector_backtest` run-card JSON.
 
 ## Section 4 — Verdict
 
-### PATCH VECTOR — one real gap: the Alpha Zoo
+### PATCH VECTOR — two real gaps: Alpha Zoo + order execution
 
 **Reasoning (size of gap):** 17 of 19 repo features are already present and were
 **run successfully** in `districts/investment/vector_backtest/` (engines, loaders,
 optimizers, metrics, Monte Carlo/Bootstrap validation, run cards, correlation,
-shadow account, 29 swarm presets, 74 skills, trade journal, MCP/API). One feature
-(Robinhood live order execution) is **out of scope by VECTOR design** — investment
-district is analysis-only — and is correctly absent; do not add it. One (React Web
+shadow account, 29 swarm presets, 74 skills, trade journal, MCP/API). One (React Web
 UI) is intentionally not absorbed (VECTOR has its own HUD; spec captured above).
 
-The **single genuine gap** is the **Alpha Zoo**: the repo's `agent/src/factors/`
+**GAP 2 — order execution (NEW, rule changed 2026-05-31):** The user now wants
+execution, so Robinhood live trading is reclassified from out-of-scope to an
+in-scope ❌ gap. The repo's `agent/src/live/` (robinhood client, mandate bounds,
+kill switch, audit ledger, `propose_mandate_tool`) is the reference design.
+**Build deferred until all repo audits done.** When built: **paper-first**, every
+order **human-confirmed via permission_gateway RED tier**, bounded by mandate
+(max position, daily loss cap, allowed symbols, kill switch). Broker TBD —
+likely Zerodha Kite for NSE/BSE; the repo's Robinhood layer is the pattern, not
+necessarily the broker.
+
+**GAP 1 — the Alpha Zoo:** the repo's `agent/src/factors/`
 module — `registry.py`, `bench_runner.py`, `bench_runner_strict.py`,
 `factor_analysis_core.py`, `cli_handlers.py`, `base.py` — plus the 452 factor files
 under `agent/src/factors/zoo/{alpha101 (101), gtja191 (191), qlib158 (154),
