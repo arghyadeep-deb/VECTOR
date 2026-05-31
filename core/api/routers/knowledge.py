@@ -207,6 +207,79 @@ async def merge_graph(body: MergeGraphReq):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class GraphReq(BaseModel):
+    project_path: str = ""        # defaults to VECTOR codebase root
+    max_nodes: int = 200          # cap to keep the panel responsive
+
+
+@router.post("/graph")
+async def knowledge_graph(body: GraphReq):
+    """Build an interactive code-dependency graph for the Code-Graph HUD panel.
+
+    Runs DomainExtractor on a directory, then derives {nodes, edges}:
+      - one node per source file (entry-point files flagged type='entry')
+      - one edge per intra-project import (file A imports module resolving to file B)
+    Returns JSON the frontend force-directed renderer consumes directly.
+    """
+    from core.knowledge.domain_extractor import DomainExtractor
+    try:
+        root = _safe_path(body.project_path) if body.project_path else _PROJECT_ROOT
+        if not root.is_dir():
+            raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
+
+        ctx = DomainExtractor().scan(root)
+        d = ctx.to_dict()
+        sigs = d.get("fileSignatures", [])[: body.max_nodes]
+        entry_files = {e.get("file") for e in d.get("entryPoints", [])}
+
+        # Build node set + a stem→file index for import resolution
+        nodes = []
+        by_stem: dict[str, str] = {}
+        files = set()
+        for s in sigs:
+            f = s.get("file", "")
+            if not f:
+                continue
+            files.add(f)
+            stem = Path(f).stem
+            by_stem[stem] = f
+            nodes.append({
+                "id": f,
+                "label": Path(f).name,
+                "type": "entry" if f in entry_files else "file",
+                "exports": len(s.get("exports", [])),
+                "imports": len(s.get("imports", [])),
+            })
+
+        # Edges from intra-project imports (resolve by last module segment → file stem)
+        edges = []
+        seen = set()
+        for s in sigs:
+            src = s.get("file", "")
+            for imp in s.get("imports", []):
+                last = str(imp).replace("/", ".").split(".")[-1]
+                tgt = by_stem.get(last)
+                if tgt and tgt != src:
+                    key = (src, tgt)
+                    if key not in seen:
+                        seen.add(key)
+                        edges.append({"from": src, "to": tgt, "type": "import"})
+
+        return {
+            "status": "ok",
+            "project": str(root),
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "nodes": nodes,
+            "edges": edges,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[VECTOR][knowledge] graph build failed: {}", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/status")
 async def knowledge_status():
     """Return knowledge layer status — config paths and module availability."""
