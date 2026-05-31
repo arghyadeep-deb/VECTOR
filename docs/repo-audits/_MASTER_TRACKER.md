@@ -193,8 +193,10 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | ruflo | after GOAP panel decision (or now if skipped) |
 | LightRAG | NOW (clone) — keep pip package, patch A5/A6 |
 | RAG-Anything | NOW (clone unused) — drop dead hook or wire multimodal |
+| public-apis | NOW (gutted partial, unused) |
+| postiz | after wiring A8 + scheduler/panel |
 
-**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone (5).** Everything else has pending work.
+**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis (6).** Everything else has pending work.
 
 ---
 
