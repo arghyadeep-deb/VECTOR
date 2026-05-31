@@ -286,6 +286,99 @@
     return w;
   };
 
+  // Code Graph — interactive codebase dependency explorer (Understand-Anything absorption)
+  F.codegraph = function(){
+    const wrap = el('div','cgraph');
+    wrap.innerHTML = `
+      <div class="cg-row">
+        <input class="cg-path" placeholder="path to scan (e.g. core/voice)" value="core/voice"/>
+        <button class="cg-scan">SCAN</button>
+      </div>
+      <div class="cg-row">
+        <input class="cg-search" placeholder="highlight node…"/>
+        <span class="cg-stat"></span>
+      </div>
+      <canvas class="cg-canvas" width="560" height="360"></canvas>
+      <div class="cg-sel"></div>
+    `;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+    const cv = wrap.querySelector('.cg-canvas'), ctx = cv.getContext('2d');
+    const pathIn = wrap.querySelector('.cg-path');
+    const search = wrap.querySelector('.cg-search');
+    const stat = wrap.querySelector('.cg-stat');
+    const selEl = wrap.querySelector('.cg-sel');
+    let G = {nodes:[], edges:[]}, anim=null, hi='';
+
+    function layout(){
+      const W=cv.width, H=cv.height, n=G.nodes.length||1;
+      G.nodes.forEach((nd,i)=>{ const a=i/n*Math.PI*2;
+        nd.x = W/2 + Math.cos(a)*(80+Math.random()*120);
+        nd.y = H/2 + Math.sin(a)*(60+Math.random()*100);
+        nd.vx=0; nd.vy=0; });
+    }
+    function step(){
+      const W=cv.width, H=cv.height;
+      // repulsion
+      for(let i=0;i<G.nodes.length;i++){ const a=G.nodes[i];
+        for(let j=i+1;j<G.nodes.length;j++){ const b=G.nodes[j];
+          let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy+0.01, f=900/d2;
+          const dx2=dx*f, dy2=dy*f; a.vx+=dx2; a.vy+=dy2; b.vx-=dx2; b.vy-=dy2; } }
+      // attraction along edges
+      const idx={}; G.nodes.forEach(nd=>idx[nd.id]=nd);
+      G.edges.forEach(e=>{ const a=idx[e.from], b=idx[e.to]; if(!a||!b) return;
+        let dx=b.x-a.x, dy=b.y-a.y; a.vx+=dx*0.002; a.vy+=dy*0.002; b.vx-=dx*0.002; b.vy-=dy*0.002; });
+      // integrate + center pull + bounds
+      G.nodes.forEach(nd=>{ nd.vx+=(W/2-nd.x)*0.0008; nd.vy+=(H/2-nd.y)*0.0008;
+        nd.x+=Math.max(-6,Math.min(6,nd.vx)); nd.y+=Math.max(-6,Math.min(6,nd.vy));
+        nd.vx*=0.85; nd.vy*=0.85;
+        nd.x=Math.max(14,Math.min(W-14,nd.x)); nd.y=Math.max(14,Math.min(H-14,nd.y)); });
+    }
+    function draw(){
+      const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
+      const idx={}; G.nodes.forEach(nd=>idx[nd.id]=nd);
+      ctx.lineWidth=1; ctx.strokeStyle='rgba(0,207,255,.22)';
+      G.edges.forEach(e=>{ const a=idx[e.from], b=idx[e.to]; if(!a||!b) return;
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); });
+      G.nodes.forEach(nd=>{
+        const isHi = hi && nd.id.toLowerCase().includes(hi);
+        const r = 4 + Math.min(6, nd.imports||0);
+        ctx.beginPath(); ctx.arc(nd.x,nd.y,r,0,Math.PI*2);
+        ctx.fillStyle = nd.type==='entry' ? '#ffcf57' : (isHi ? '#eafcff' : '#00CFFF');
+        ctx.shadowColor = isHi ? '#eafcff' : 'rgba(0,207,255,.6)'; ctx.shadowBlur = isHi?14:6;
+        ctx.fill(); ctx.shadowBlur=0;
+        if(isHi || nd.type==='entry'){ ctx.fillStyle='#bfefff'; ctx.font='9px monospace';
+          ctx.fillText(nd.label, nd.x+r+2, nd.y+3); }
+      });
+    }
+    function run(){ let t=0; cancelAnimationFrame(anim);
+      (function loop(){ if(!cv.isConnected) return; if(t++<240) step(); draw(); anim=requestAnimationFrame(loop); })(); }
+
+    async function scan(){
+      const p = pathIn.value.trim() || 'core';
+      stat.textContent='◌ scanning…';
+      try{
+        const r = await fetch(API+'/knowledge/graph', { method:'POST',
+          headers:{'Content-Type':'application/json'}, body: JSON.stringify({project_path:p, max_nodes:200}) });
+        const j = await r.json();
+        if(j.status==='ok'){ G={nodes:j.nodes, edges:j.edges}; stat.textContent=`${j.node_count} nodes · ${j.edge_count} edges`;
+          layout(); run(); }
+        else stat.textContent='⚠ '+(j.detail||j.error||'scan failed');
+      }catch(e){ stat.textContent='⚠ '+e.message; }
+    }
+    wrap.querySelector('.cg-scan').addEventListener('click', e=>{ e.stopPropagation(); scan(); });
+    pathIn.addEventListener('keydown', e=>{ if(e.key==='Enter') scan(); e.stopPropagation(); });
+    search.addEventListener('input', e=>{ hi = e.target.value.trim().toLowerCase(); });
+    search.addEventListener('keydown', e=>e.stopPropagation());
+    cv.addEventListener('click', ev=>{ const r=cv.getBoundingClientRect();
+      const mx=ev.clientX-r.left, my=ev.clientY-r.top;
+      const hit=G.nodes.find(nd=>Math.hypot(nd.x-mx,nd.y-my)<8);
+      selEl.textContent = hit ? `${hit.id}  ·  imports:${hit.imports} exports:${hit.exports} ${hit.type==='entry'?'· ENTRY':''}` : ''; });
+
+    const w = shell('codegraph','CODE GRAPH', wrap, 'cgraph');
+    scan();
+    return w;
+  };
+
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
