@@ -92,9 +92,9 @@ The repo has **no frontend / no UI components / no rendered widgets** to mirror.
 
 ## Section 4 — Verdict
 
-### **INTEGRATE DIRECTLY — as a VECTOR district, NOT a Claude skill**
+### **INTEGRATE DIRECTLY — as a VECTOR district, not a CLI skill**
 
-**Runtime rule (user directive 2026-05-31):** VECTOR never uses Claude at runtime (Rule 11). This repo ships as a Claude Code / multi-CLI *skill* — that form is discarded. Only the **data corpus + BM25 engine + design-system generator** are ported, into `districts/design/knowledge/` (Python). The BM25 search needs **no LLM at all** (pure stdlib). The design-system *generation* step, where an LLM is involved, routes to **Ollama via `core/inference/provider_client.py`** — never Anthropic. End state: a native VECTOR design capability callable by the loop + HUD, fully offline.
+**Runtime rule (user directive 2026-05-31):** VECTOR is provider-agnostic — it may use ANY LLM (Ollama, Claude, GPT, Gemini, …) via `core/inference/provider_client.py` (Ollama-first, cloud fallback). What it can't depend on is the **Claude Code / multi-CLI agent harness** that this repo ships as a *skill* for — VECTOR is its own runtime, not that CLI. So that skill form is discarded; only the **data corpus + BM25 engine + design-system generator** are ported into `districts/design/knowledge/` (Python). BM25 search needs **no LLM at all** (pure stdlib). The design-system *generation* step routes through `provider_client` (whatever provider is configured — local or cloud). End state: a native VECTOR design capability callable by the loop + HUD.
 
 **Gap size: vast.** VECTOR has design *agents* but **zero design knowledge data and zero design search** — features #1–#5, #8, #10 are flat ❌, and the two ⚠️ items (UX guidance, token generation) are prose/single-theme stubs, not the repo's ~7,300-row searchable, ranked, deterministic, offline knowledge base. Reimplementing 84 styles + 160 palettes + 73 font pairings + 161 product reasoning rules + 98 UX rules + 16 stack guides as native Python would be hundreds of hours of *content authoring* (the value is the curated data, not the 263-line BM25 engine).
 
