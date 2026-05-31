@@ -23,6 +23,8 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A4 | `rag_anything` import typo — dead multimodal-RAG hook (real pkg is `raganything`, also not installed) | `core/memory/obsidian_sync.py:377` | 🐛 LOW | OPEN (only matters if enabling multimodal doc RAG) |
 | A5 | `lightrag-hku` NOT declared in requirements.txt — survives only in global site-packages | `requirements.txt` | 🐛 MED | OPEN |
 | A6 | `ContextEngine.get_vault_context` missing → LightRAG graph-RAG never feeds session_hydration_prompt() | `core/loop/context_engine.py` | 🔵 | OPEN |
+| A7 | `find_public_api` MCP tool silently dead — `api_catalog.py` README source path doesn't exist | `districts/research/api_catalog.py:7` | 🐛 MED | OPEN |
+| A8 | postiz modules (analytics_retriever, blog_publisher, post_job) verified working (69 tests) but **zero callers** — not exported in `content/__init__.py`, not wired to any orchestrator | `districts/content/__init__.py:10-17` | 🔵 | OPEN |
 | ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
 
 ---
