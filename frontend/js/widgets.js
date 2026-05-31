@@ -222,6 +222,70 @@
     return w;
   };
 
+  // Voice Studio — content script → audio in your cloned voice (voicebox absorption)
+  F.voicestudio = function(){
+    const wrap = el('div','vstudio');
+    wrap.innerHTML = `
+      <div class="vs-row">
+        <label class="vs-lbl">VOICE PROFILE</label>
+        <select class="vs-profile"><option value="owner">owner (default)</option></select>
+        <button class="vs-refresh" title="reload profiles">⟳</button>
+      </div>
+      <textarea class="vs-script" placeholder="Paste your content script here, or pull one from the script generator…"></textarea>
+      <div class="vs-row">
+        <button class="vs-gen">▶ GENERATE IN MY VOICE</button>
+        <span class="vs-status"></span>
+      </div>
+      <audio class="vs-audio" controls style="width:100%;display:none;margin-top:8px"></audio>
+      <a class="vs-dl" style="display:none;margin-top:4px" download>⬇ download .wav</a>
+    `;
+    const sel = wrap.querySelector('.vs-profile');
+    const ta  = wrap.querySelector('.vs-script');
+    const gen = wrap.querySelector('.vs-gen');
+    const stat= wrap.querySelector('.vs-status');
+    const aud = wrap.querySelector('.vs-audio');
+    const dl  = wrap.querySelector('.vs-dl');
+    const refresh = wrap.querySelector('.vs-refresh');
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    async function loadProfiles(){
+      try{
+        const r = await fetch(API + '/voice/profiles');
+        const j = await r.json();
+        const profs = (j.profiles||[]).map(p=>p.name);
+        if(profs.length){ sel.innerHTML = profs.map(n=>`<option value="${n}">${n}</option>`).join(''); }
+      }catch(e){ /* keep default */ }
+    }
+    refresh.addEventListener('click', e=>{ e.stopPropagation(); loadProfiles(); });
+
+    gen.addEventListener('click', async e=>{
+      e.stopPropagation();
+      const text = ta.value.trim();
+      if(!text){ stat.textContent='enter a script first'; return; }
+      stat.textContent='◌ synthesizing…'; gen.disabled=true;
+      try{
+        const r = await fetch(API + '/voice/studio/generate', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ text, profile: sel.value })
+        });
+        const j = await r.json();
+        if(j.status==='ok' && j.audio_url){
+          stat.textContent = '✓ done · engine: ' + (j.engine||'?');
+          aud.src = API + j.audio_url; aud.style.display='block';
+          dl.href = API + j.audio_url; dl.style.display='inline-block';
+        } else {
+          stat.textContent = '⚠ ' + (j.error || 'generation failed');
+        }
+      }catch(err){ stat.textContent='⚠ '+err.message; }
+      finally{ gen.disabled=false; }
+    });
+    ta.addEventListener('keydown', e=>e.stopPropagation());
+
+    const w = shell('voicestudio','VOICE STUDIO · MY VOICE', wrap, 'vstudio');
+    loadProfiles();
+    return w;
+  };
+
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
