@@ -32,6 +32,8 @@
       ['sep'],
       ['music','MUSIC', ()=>V.openWidget('music'), false],
       ['sep'],
+      ['vstudio','VOICE STUDIO · script → my voice', ()=>V.openWidget('voicestudio'), false],
+      ['sep'],
       ['hand','POINTER', toggleCursor, false],
       ['sep'],
       ['sound','SOUND', toggleSound, true]
