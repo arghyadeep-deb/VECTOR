@@ -174,14 +174,16 @@ class VoiceProfileStore:
             self._storage_ready = True
             return
         try:
-            from core.collections import FileStorage
+            from core.collections import FileStorage, LocalDriver
             cfg = CONFIG.get("collections", {}) or {}
             storage_cfg = cfg.get("storage", {}) or {}
-            base = Path(storage_cfg.get("base_path", "./data/storage"))
-            self._storage = FileStorage(str(base))
+            base = Path(storage_cfg.get("base_path", "./data/storage")) / "voice_refs"
+            # FileStorage needs a StorageDriver, not a path string (was the bug)
+            self._storage = FileStorage(LocalDriver(base))
             self._storage_ready = True
+            logger.info("[VECTOR][voice] reference sample storage ready at {}", base)
         except Exception as e:
-            logger.debug("[VECTOR][voice] FileStorage unavailable — reference samples stored as path only: {}", e)
+            logger.warning("[VECTOR][voice] FileStorage unavailable — reference samples stored as path only: {}", e)
 
     # ── CRUD ──────────────────────────────────────────────────────────────────
 
