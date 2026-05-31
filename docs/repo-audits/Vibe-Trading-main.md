@@ -75,10 +75,10 @@ suite). All runs below were executed against that tree.
 - `mootdx` A-share loader (repo's 2026-05-27 addition) is **absent** in VECTOR —
   small data-source gap, not blocking (akshare/tushare cover A-shares).
 
-### Score
+### Score (revised 2026-05-31 — execution now in-scope)
 - Repo features: **19**
-- VECTOR: ✅ **15** · ⚠️ **2** (Web UI not absorbed by design; mootdx loader missing) · ❌ **1** (Alpha Zoo)
-- Out of scope by design: **1** (Robinhood live trading)
+- VECTOR: ✅ **15** · ⚠️ **2** (Web UI not absorbed by design; mootdx loader missing) · ❌ **2** (Alpha Zoo, **order execution**)
+- Out of scope by design: **0** — Robinhood execution was reclassified from out-of-scope to an in-scope ❌ gap after the user requested execution capability. Its `agent/src/live/` (mandate bounds, kill switch, audit ledger) is the reference design.
 
 ---
 
