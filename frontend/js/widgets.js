@@ -291,7 +291,7 @@
     const wrap = el('div','cgraph');
     wrap.innerHTML = `
       <div class="cg-row">
-        <input class="cg-path" placeholder="path to scan (e.g. core/voice)" value="core/voice"/>
+        <input class="cg-path" placeholder="path to scan (e.g. core/memory)" value="districts/coding"/>
         <button class="cg-scan">SCAN</button>
       </div>
       <div class="cg-row">
