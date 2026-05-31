@@ -14,7 +14,8 @@
     music:'<path d="M5 12V3l8-1.5V11"/><circle cx="3.4" cy="12" r="1.8"/><circle cx="11.4" cy="11" r="1.8"/>',
     hand:'<path d="M5 8V4.5a1 1 0 0 1 2 0V7m0-1V3.2a1 1 0 0 1 2 0V7m0-1.2a1 1 0 0 1 2 0V8c0 3-1.5 5.5-4 5.5S5 11.5 5 9.5V8"/>',
     sound:'<path d="M3 6h2l3-2.5v9L5 10H3z"/><path d="M10 5.5a3 3 0 0 1 0 5M11.6 3.6a5.5 5.5 0 0 1 0 8.8"/>',
-    vstudio:'<path d="M8 1a2 2 0 0 1 2 2v4a2 2 0 1 1-4 0V3a2 2 0 0 1 2-2z"/><path d="M3 7a5 5 0 0 0 10 0M8 12v3"/><circle cx="13" cy="3" r="1.5"/>'
+    vstudio:'<path d="M8 1a2 2 0 0 1 2 2v4a2 2 0 1 1-4 0V3a2 2 0 0 1 2-2z"/><path d="M3 7a5 5 0 0 0 10 0M8 12v3"/><circle cx="13" cy="3" r="1.5"/>',
+    codegraph:'<circle cx="3" cy="4" r="1.8"/><circle cx="12" cy="3" r="1.8"/><circle cx="8" cy="9" r="1.8"/><circle cx="13" cy="12" r="1.8"/><path d="M4.5 4.5 7 8M10.5 4 8.5 8M9.5 9.5 11.5 11"/>'
   };
   const svg = p => `<svg viewBox="0 0 16 16">${p}</svg>`;
 
