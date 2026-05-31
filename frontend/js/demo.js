@@ -35,6 +35,8 @@
       ['sep'],
       ['vstudio','VOICE STUDIO · script → my voice', ()=>V.openWidget('voicestudio'), false],
       ['sep'],
+      ['codegraph','CODE GRAPH · explore the codebase', ()=>V.openWidget('codegraph'), false],
+      ['sep'],
       ['hand','POINTER', toggleCursor, false],
       ['sep'],
       ['sound','SOUND', toggleSound, true]
