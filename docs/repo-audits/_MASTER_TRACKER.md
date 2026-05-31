@@ -154,6 +154,24 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | To enable: fix import name + `pip install raganything mineru` + route via provider_client | 🔵 | OPEN (only if multimodal doc RAG wanted) |
 **Delete-readiness:** DELETE-AFTER (clone unused at runtime). Honest rec: **DROP** the dead hook unless a district genuinely needs PDF figure/table RAG. Revisit on demand.
 
+### 16. public-apis-master — DELETE-NOW
+| Item | Type | Status |
+|---|---|---|
+| Curated free-API catalog (this checkout is a gutted partial — README/catalog missing) | — | this dir adds nothing |
+| `docs/public_apis.md` = VECTOR's own hand-curated ~50-API district shortlist (NOT derived from repo) | — | ✅ separate |
+| `districts/research/api_catalog.py` scans full public-apis README → but source path missing (A7) | 🐛 | OPEN |
+**Delete-readiness:** **DELETE-NOW** the audited dir (gutted partial, zero VECTOR references, not the scanner's source path). Separately, A7: fix/restore the catalog source to revive `find_public_api`.
+
+### 17. postiz-app-main — DELETE-AFTER
+| Item | Type | Status |
+|---|---|---|
+| 3 modules absorbed (analytics_retriever, blog_publisher, post_job) — 69 tests | — | ✅ VERIFIED (`69 passed in 1.12s`) |
+| A8: export + wire the 3 modules (zero callers today) | 🔵 | OPEN |
+| `content_scheduler.py` orchestrator (post_job→publishers→analytics) | 🟢 | OPEN (worth building — user does content) |
+| Content-scheduler HUD panel (calendar + composer + analytics) | 🎨 | OPEN (worth building) |
+| Missing: persistent scheduling, unified social fan-out, more analytics platforms | 🔵 | OPEN |
+**Delete-readiness:** DELETE-AFTER (TS/AGPL repo unused; but wire A8 + build scheduler/panel first — "organs but no body"). Repo is reference for the scheduler UX.
+
 ---
 
 ## C. Delete-readiness summary
