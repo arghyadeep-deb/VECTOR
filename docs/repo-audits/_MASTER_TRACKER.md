@@ -130,6 +130,9 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Repo | When deletable |
 |---|---|
 | Understand-Anything | ✅ NOW |
+| superpowers | ✅ NOW (redundant skill clone) |
+| skills (mattpocock) | ✅ NOW (redundant skill clone) |
+| Scrapling | ✅ NOW (same-version vendored) |
 | system_prompts_leaks | NOW (if skipping optional corpus) |
 | UI-TARS | after optional VLM-mobile (or now if skipped) |
 | TradingAgents | after crypto + model-catalog harvest |
@@ -139,7 +142,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | valuecell | after execution-gating + finance panel |
 | ui-ux-pro-max-skill | KEEP corpus (vendor data, discard installer) |
 
-**Genuinely DELETE-NOW today: Understand-Anything (1).** Everything else has pending work.
+**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling (4).** Everything else has pending work.
 
 ---
 
