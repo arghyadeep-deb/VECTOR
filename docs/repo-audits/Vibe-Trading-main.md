@@ -162,9 +162,9 @@ is safe.
 
 ---
 
-### 5-line summary
+### 5-line summary (revised 2026-05-31)
 - Repo features: **19**.
-- VECTOR: ✅ **15** real & verified-by-running · ⚠️ **2** (React Web UI not absorbed by design; mootdx loader missing) · ❌ **1** (Alpha Zoo / 452 factors entirely absent).
-- Out of scope by design: **1** (Robinhood live order execution — investment district is analysis-only; correctly absent).
+- VECTOR: ✅ **15** real & verified-by-running · ⚠️ **2** (React Web UI not absorbed by design; mootdx loader missing) · ❌ **2** (Alpha Zoo / 452 factors; order execution).
+- Execution rule CHANGED: investment district is no longer analysis-only — order execution is now an in-scope gap to build (paper-first, human-confirmed RED tier, deferred to post-audit).
 - Verified live: 12 engines, 6 self-registering loaders + 8 fallback markets, 4 optimizers, metrics, Monte Carlo + Bootstrap CI (real stats), run cards, correlation, shadow account, 29 swarm presets, 74 skills, trade-journal parsers — all in `districts/investment/vector_backtest/`.
-- Verdict: **PATCH VECTOR** — port `agent/src/factors/` + `zoo/` (452 alphas) and the `mootdx` loader; small additive gap, not a rewrite.
+- Verdict: **PATCH VECTOR** — port `agent/src/factors/` + `zoo/` (452 alphas) + `mootdx` loader (additive), and later build the execution layer modeled on `agent/src/live/`.
