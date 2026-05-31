@@ -20,6 +20,10 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A1 | **Ungated live trade execution** — `create_order()` fires real orders, never routes through permission_gateway (no human-confirm, no kill switch) | `districts/investment/vector_finagent/exchange/place_order.py:84`, `agno_trading/core/auto_trader.py` | 🔴 CRITICAL | OPEN |
 | A2 | **IndentationError** — empty `if` body blocks `import districts.investment.vector_backtest` (package top-level) | `districts/investment/vector_backtest/__init__.py:21` | 🐛 HIGH | OPEN |
 | A3 | IndentationError in backtest test conftest (flagged by valuecell audit) | `vector_backtest/tests/conftest.py:10` | 🐛 MED | OPEN (verify) |
+| A4 | `rag_anything` import typo — dead multimodal-RAG hook (real pkg is `raganything`, also not installed) | `core/memory/obsidian_sync.py:377` | 🐛 LOW | OPEN (only matters if enabling multimodal doc RAG) |
+| A5 | `lightrag-hku` NOT declared in requirements.txt — survives only in global site-packages | `requirements.txt` | 🐛 MED | OPEN |
+| A6 | `ContextEngine.get_vault_context` missing → LightRAG graph-RAG never feeds session_hydration_prompt() | `core/loop/context_engine.py` | 🔵 | OPEN |
+| ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
 
 ---
 
