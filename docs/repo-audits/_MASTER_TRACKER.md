@@ -170,8 +170,11 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Vane | after UI panel + fixes |
 | valuecell | after execution-gating + finance panel |
 | ui-ux-pro-max-skill | KEEP corpus (vendor data, discard installer) |
+| ruflo | after GOAP panel decision (or now if skipped) |
+| LightRAG | NOW (clone) — keep pip package, patch A5/A6 |
+| RAG-Anything | NOW (clone unused) — drop dead hook or wire multimodal |
 
-**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling (4).** Everything else has pending work.
+**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone (5).** Everything else has pending work.
 
 ---
 
