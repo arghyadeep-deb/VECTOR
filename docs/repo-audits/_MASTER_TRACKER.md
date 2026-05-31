@@ -101,6 +101,28 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Wire few-shot into prompt-optimizer + `prompt_library_search` MCP tool | 🔵 | OPEN (optional) |
 **Delete-readiness:** DELETE-NOW if skipping prompt-engineering polish; else PATCH then delete. Pure data, CC0.
 
+### 10. superpowers-main — DELETE-NOW
+| Item | Type | Status |
+|---|---|---|
+| 14 Claude-Code skills; runtime capability covered (9✅/5⚠️) | — | ✅ VERIFIED |
+| All 14 already in `brain/.claude/skills/` (Ruflo absorption) | — | ✅ redundant clone |
+**Delete-readiness:** ✅ **DELETE-NOW** — no Python to port, no frontend; the 5 ⚠️ are interactive build-session disciplines, not missing autonomous capabilities; brain copy is canonical.
+
+### 11. skills-main — DELETE-NOW
+| Item | Type | Status |
+|---|---|---|
+| mattpocock/skills — 29 skills; runtime covered (18✅/7⚠️/4❌) | — | ✅ VERIFIED |
+| 19 already installed in `~/.claude/skills/` (this is the source clone) | — | ✅ redundant clone |
+| ❌4 are mattpocock-product/TS-only (no VECTOR value) | — | skip |
+**Delete-readiness:** ✅ **DELETE-NOW** — zero genuinely-missing runtime capability; global install keeps build-session value; copy nothing into VECTOR.
+
+### 12. Scrapling-main — DELETE-NOW
+| Item | Type | Status |
+|---|---|---|
+| Scrapling 0.4.8 fully vendored → `core/scraper/` (same version) | — | ✅ VERIFIED (parser ran live) |
+| Native `VectorScraper` wrapper on top | — | ✅ bonus |
+**Delete-readiness:** ✅ **DELETE-NOW** — same-version vendored copy, working, zero pending. Clone is redundant.
+
 ---
 
 ## C. Delete-readiness summary
