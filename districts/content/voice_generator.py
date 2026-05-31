@@ -86,6 +86,35 @@ class VoiceGenerator(AgentBase):
             logger.error(f"[VECTOR][voice_generator] Voice generation failed: {e}")
             return {"status": "error", "message": str(e)}
 
+    def generate_in_my_voice(self, text: str, profile_name: str = "owner",
+                             output_path: Optional[str] = None) -> dict:
+        """
+        Render a content script to audio in the owner's cloned voice — LOCAL, free,
+        private. Uses VoiceTTS.synthesize_to_file → VoiceCloner (chatterbox-tts) with
+        the named voice profile's reference sample. Falls back to Kokoro if cloning
+        is unavailable. This is the primary path for 'content script → my voice'.
+
+        Args:
+            text:         the script text (any length — chunked + crossfaded)
+            profile_name: voice profile holding your reference sample (default "owner")
+            output_path:  where to write the .wav (auto-generated under data/voice_output if None)
+        """
+        if output_path is None:
+            output_dir = Path(__file__).parent.parent.parent / "data" / "voice_output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / f"myvoice_{uuid.uuid4().hex[:8]}.wav")
+        try:
+            from core.voice.tts import VoiceTTS
+            result = VoiceTTS().synthesize_to_file(text, output_path, profile_name=profile_name)
+            if result.get("status") == "ok":
+                result["text_length"] = len(text)
+                self._generated_voices.append(result)
+                self.award_points(25, "voice_generated_local")
+            return result
+        except Exception as e:
+            logger.error(f"[VECTOR][voice_generator] generate_in_my_voice failed: {e}")
+            return {"status": "error", "message": str(e)}
+
     def clone_voice(self, audio_samples: list[str], text: str,
                    output_path: Optional[str] = None) -> dict:
         """
