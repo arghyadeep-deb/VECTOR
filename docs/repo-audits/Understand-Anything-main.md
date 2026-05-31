@@ -73,13 +73,15 @@ The repo's `homepage/` (Astro) renders an **interactive knowledge-graph explorer
 
 ---
 
-## Section 4 — Verdict: **SAFE TO DELETE**
+## Section 4 — Verdict: **PATCH VECTOR (build the Code-Graph panel NOW), then DELETE**
 
-**Size-of-gap reasoning:** The repo's Python-portable *value* — domain extraction + wiki parsing + knowledge-graph assembly + codebase graph merge — is **fully absorbed into `core/knowledge/` and verified by running its 105-test suite (all pass)**. The remaining 90% of the repo is a TypeScript/Astro visualization tool + multi-CLI installer that VECTOR intentionally did NOT reimplement (Rule 11: local-first Python; TS not absorbed). VECTOR independently covers the backend value via `core/knowledge/` + VectorCode `code_intel` (tree-sitter + vc_graph) and has its own 3D viz (`city3d.js`).
+**Size-of-gap reasoning:** The repo's Python-portable *value* — domain extraction + wiki parsing + knowledge-graph assembly + codebase graph merge — is **fully absorbed into `core/knowledge/` and verified by running its 105-test suite (all pass)**. BUT the repo's headline capability is *"explore the graph interactively"* — and VECTOR has no code/knowledge-graph explorer panel. Per the user (2026-05-31): the frontend IS important and must become a HUD panel **now**, not deferred. The backend JSON that feeds it already exists in `core/knowledge/`, so this is a build-now item.
 
-**The one genuine residual:** VECTOR has no *interactive code/knowledge-graph explorer panel* (the repo's homepage UI). This is captured as a **panel spec** above — the backend that feeds it already exists, so it's a future HUD panel, not lost capability.
+**What to build now (this session):**
+1. `POST /knowledge/graph` endpoint — runs `DomainExtractor` (+ graph merge) on a path → returns `{nodes, edges}` JSON.
+2. **Code-Graph HUD panel** (`frontend/js/widgets.js` `F.codegraph` + dock button) — force-directed canvas renderer: nodes colored by type, edges by relation, search box to highlight, click-to-inspect. Cyan-on-black tokens to match the HUD.
 
-**Recommendation:** **DELETE the repo.** Its absorbable value is in `core/knowledge/` (proven working). Keep this audit's panel spec so the graph-explorer UI can be built later from VECTOR's existing `core/knowledge/` JSON output. Nothing is lost by deleting.
+**Recommendation:** **PATCH (build the panel)**, then the repo is fully covered (backend in `core/knowledge/` + panel in HUD) and becomes **DELETE-safe**. Do not delete until the panel is built.
 
 ---
 
