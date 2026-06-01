@@ -3,27 +3,25 @@
 Single source of truth for every gap, bug, patch, integration, and delete-decision
 across all audited repos. Nothing gets fixed or deleted until ALL repos are audited.
 
-## RULE UPDATE — 2026-06-01
-**Multi-language local integration is ALLOWED — no reimplementing services that already work.**
+## RULE UPDATE — 2026-06-01 (FINAL)
+**Three-way decision for every absorbed or pending repo:**
 
-If a repo contains a **local service or binary** in Rust, Go, C++, TypeScript, Node.js, etc. that adds real value, VECTOR integrates it directly:
-- **Rust/Go/C++ binary** → `cargo build --release` / `go build`, then call via `asyncio.create_subprocess_exec`. Run as a persistent sidecar if needed.
-- **Node.js / TypeScript service** → `npm install && node dist/server.js`, call via HTTP/WS from VECTOR's FastAPI.
-- **Electron / desktop app** → launch as child process, control via IPC or Playwright CDP.
-- **npm CLI tool** → `npm install -g <tool>`, call via subprocess from Python wrapper.
-- **Python library** → pip install (existing rule unchanged).
+| Situation | Action |
+|-----------|--------|
+| Python absorption **works well** (verified running, no stubs) | ✅ Keep Python version. Done. |
+| Python absorption **broken/stub/wrong** | ❌ Delete the broken Python code. Integrate the **original** repo directly (compile binary / npm install / run as sidecar). |
+| Feature **skipped** because "can't convert from other language" | 🟢 Now integrate the original directly — don't skip anymore. |
 
-This is about **local services in the repo itself** — NOT about calling external cloud APIs that need API keys. The distinction: the binary/service lives on the machine and is called locally.
+**How to integrate non-Python repos locally:**
+- **Rust/Go/C++ binary** → `cargo build --release` / `go build`, call via `asyncio.create_subprocess_exec`, run as sidecar
+- **Node.js / TypeScript service** → `npm install && node dist/`, call via HTTP/WS from VECTOR's FastAPI
+- **Electron app** → launch as child process, control via IPC or Playwright CDP  
+- **npm CLI tool** → `npm install -g <tool>`, thin Python subprocess wrapper
+- **Python lib with bugs** → fix the bugs (it's already Python, just broken)
 
-Do NOT reimplement in Python if: (a) the original is high quality, (b) it's a non-trivial algorithm (crypto, ML, VLM grounding, image gen), (c) it would take >1 day to rewrite. Reimplement only when the logic is simple glue code or the language has no Python binding.
+**NOT in scope:** External cloud services that need API keys — that's a different concern. This rule is about **local services in the repos you already have on disk**.
 
-**Revised integration options:**
-- Python logic → absorb as VECTOR district/module (existing rule)
-- Rust/Go/C++ binary → compile + call via subprocess / sidecar
-- TypeScript/Node.js service → `npm install`, run locally, expose REST/WS
-- TypeScript/JS frontend → serve alongside FastAPI, iframe/proxy into HUD
-- Electron app → launch as child process, control via IPC/Playwright
-- npm CLI tool → install globally, thin Python subprocess wrapper
+If the original non-Python version is **better than the Python port** AND the Python port has bugs → replace the broken Python port with a proper integration of the original.
 
 **Delete-readiness semantics (corrected 2026-05-31):**
 - **DELETE-NOW** — all value absorbed + working + zero pending work needing the repo.
