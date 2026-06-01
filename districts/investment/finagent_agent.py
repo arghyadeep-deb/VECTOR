@@ -24,7 +24,7 @@ from core.loop.context_engine import ContextEngine
 from districts.investment.vector_finagent.terminal_launcher import FinAgentTerminalLauncher
 from loguru import logger
 
-_FINCEPT_BASE = Path(__file__).parent.parent.parent.parent / "core" / "vector_finagent"
+_FINCEPT_BASE = Path(__file__).parent / "vector_finagent"
 
 # ── Investor persona map (id → description from agent_definitions.json) ──────
 
