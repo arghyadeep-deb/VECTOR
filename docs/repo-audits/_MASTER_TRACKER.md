@@ -35,6 +35,14 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A16 | 🎨 openfang Approvals dashboard (5,411-line Alpine.js, 17 panels) not absorbed — especially the **Approvals panel** (human-in-loop for YELLOW/RED actions). No VECTOR equivalent. Build as HUD panel. | `frontend/` | 🎨 HIGH | OPEN — BUILD NOW |
 | A17 | openhuman subconscious loop pattern not harvested — cron LLM-vs-situation-report → act/escalate/noop, proactive reflections | `districts/chief_of_staff/` | 🔵 | OPEN (harvest before deleting repo) |
 | ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
+| A18 | **airllm wrong import path** — `ollama_safe.py:248` does `from core.inference.airllm.airllm_runner import AirLLMRunner` but no `airllm/` subpackage exists; file is at `core/inference/airllm_runner.py`. Crashes on first 70B call. | `core/inference/ollama_safe.py:248` | 🐛 HIGH | OPEN |
+| A19 | **airllm `AutoTokenizer` not exported** — `airllm_runner.py:85,190` imports `AutoTokenizer` from `airllm` package; airllm doesn't export this; access via `model.tokenizer` instead. Will crash when `airllm` is pip-installed. | `core/inference/airllm_runner.py:85,190` | 🐛 HIGH | OPEN |
+| A20 | **airllm wrong `cache_dir` param** — passes `cache_dir=` to `AutoModel.from_pretrained()` but airllm API uses `layer_shards_saving_path=`. Shards silently land in HF default cache. | `core/inference/airllm_runner.py:94,101,196` | 🐛 MED | OPEN |
+| A21 | **airllm commented out in requirements.txt** — `# airllm>=2.10.0` (line 31 comment); it's never installed in fresh venv | `requirements.txt:31` | 🐛 LOW | OPEN (uncomment) |
+| A22 | **OpenMythos not installed** — `open-mythos` not in requirements.txt, not pip-installed; `trainer.py` import fails silently. Fix: `pip install open-mythos>=0.5.0` | `requirements.txt` | 🐛 MED | OPEN |
+| A23 | **`train.py` is fake** — `core/training/openmythos/train.py` calls `ollama.generate()` in a loop; zero gradient descent. Misleading name alongside real `trainer.py`. Rename to `ollama_modelfile_trainer.py`. | `core/training/openmythos/train.py` | 🐛 LOW | OPEN |
+| A24 | **trainer.py wrong OpenMythos repo path** — `trainer.py:37` looks for `GitHub/kyegomez_OpenMythos/repo`; actual path is `GitHub/OpenMythos-main` | `core/training/openmythos/trainer.py:37` | 🐛 LOW | OPEN |
+| A25 | **trainer.py MythosTokenizer API mismatch** — calls `.encode(batch)` but it only has `.encode(str)`; batch tokenization will crash at training time | `core/training/openmythos/trainer.py` | 🐛 MED | OPEN |
 
 ---
 
