@@ -5,9 +5,8 @@ Person model, style model, VectorCode comms adapter.
 from loguru import logger
 
 from .person_model import PersonModel
-from .style_model import StyleModel
 from .communications_adapter import CommunicationsAdapter
 
 logger.info("[VECTOR] communications district loaded")
 
-__all__ = ["PersonModel", "StyleModel", "CommunicationsAdapter"]
+__all__ = ["PersonModel", "CommunicationsAdapter"]
