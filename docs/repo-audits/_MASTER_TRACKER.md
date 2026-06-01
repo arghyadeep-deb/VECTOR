@@ -229,9 +229,14 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | RAG-Anything | NOW (clone unused) — drop dead hook or wire multimodal |
 | public-apis | NOW (gutted partial, unused) |
 | postiz | after wiring A8 + scheduler/panel |
+| jcode | after auto-compact trigger patch (A13) |
+| openhuman | after subconscious loop harvest (A17) |
+| **openfang** | NOW (Rust non-importable; build Approvals panel separately) |
+| AutoHedge | NOW (absorption verified; DO NOT enable live_trading until A10 fixed) |
 
-**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone (8).** Everything else has pending work.
-*pocketbase has 8 failing tests (Windows socket issue only, not logic) — fix conftest.py first if you want clean green before deleting.
+**Genuinely DELETE-NOW: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone, AutoHedge-clone, openfang (10).** Everything else has pending work.
+*pocketbase: 8 failing tests (Windows socket only) — optional conftest.py fix first.
+⚠️ AutoHedge: delete clone safely; but keep `live_trading=False` and DO NOT set `SOLANA_PRIVATE_KEY` until A10 gated.
 
 ### 18. mem0-main — DELETE-NOW clone + KEEP pip + PATCH
 | Item | Type | Status |
