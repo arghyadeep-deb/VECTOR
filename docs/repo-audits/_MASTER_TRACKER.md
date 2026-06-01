@@ -362,7 +362,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 8 ✅: jcode, openhuman, openfang
 - Batch 9 ✅: nango, OpenWA, hermes-agent
 - Batch 10 ✅: OpenCLI, OpenMythos, airllm
-- Batch 11 ⏳: obsidian-mind ✅, claude-ads ✅, FinceptTerminal (in progress)
+- Batch 11 ✅: obsidian-mind, claude-ads, FinceptTerminal
 - Batch 12 ⏳: ECC, GitNexus, AI-Trader (in progress)
 - Batch 13+: ai-financial-agent, daily_stock_analysis → frontend repos → skill-collections → MCP/tooling
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
