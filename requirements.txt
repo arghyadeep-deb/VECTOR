@@ -29,6 +29,7 @@ mem0ai>=0.1.0
 # OPTIONAL (not installed by default): rag-anything>=0.1.0
 # ── GitHub repo integrations ──────────────────────────────────────────────────
 airllm>=2.10.0          # AirLLM: layer-wise 70B+ model inference on RTX 5070 Ti
+open-mythos>=0.5.0      # OpenMythos RDT architecture for custom LLM training
 code-review-graph>=2.1.0  # code-review-graph: graph-based code review + blast-radius
 # ─────────────────────────────────────────────────────────────────────────────
 annotated-types==0.7.0
