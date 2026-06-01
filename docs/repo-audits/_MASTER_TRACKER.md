@@ -271,6 +271,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 5 ✅: ruflo, LightRAG, RAG-Anything
 - Batch 6 ✅: public-apis, postiz
 - Batch 7 ✅: mem0, AutoHedge, pocketbase
-- Batch 8+ ⏳: ~56 repos remain
+- Batch 8 ✅: jcode, openhuman, openfang
+- Batch 9+ ⏳: ~53 repos remain
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **20 repos audited so far; ~56 remain.**
+- **23 repos audited so far; ~53 remain.**
