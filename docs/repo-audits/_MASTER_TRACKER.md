@@ -326,8 +326,9 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | G4: DOM pruner missing Shadow DOM, iframe, paint-order occlusion, incremental diff | ❌ | OPEN (optional) |
 | G5: No article extraction pipeline (Readability + Markdown chunking) | ❌ | OPEN |
 | G8: 130+ site adapters (LinkedIn/Amazon/etc.) — TypeScript npm only, no Python equivalent | ❌ | OPEN (needs npm bridge or native port) |
-| TypeScript npm bridge (`@jackwener/opencli`) not installed in VECTOR | ⚠️ | OPEN (optional: `npm install @jackwener/opencli`) |
-**Delete-readiness:** DELETE-AFTER (fix A18/G2; rest are optional). OpenCLI npm tool can be kept as optional external dep.
+| TypeScript npm bridge (`@jackwener/opencli`) not installed — **multi-language rule: just install it** | 🟢 | OPEN (`npm install -g @jackwener/opencli`, wire via subprocess) |
+| G3: Network intercept for SPAs — integrate npm tool directly instead of reimplementing | 🟢 | OPEN |
+**Delete-readiness:** DELETE-AFTER (fix A18/G2 + wire npm tool). Rule changed: no need to reimplement 130+ site adapters in Python.
 
 ### 25. airllm-main — INTEGRATE DIRECTLY (pip dep, delete clone)
 | Item | Type | Status |
