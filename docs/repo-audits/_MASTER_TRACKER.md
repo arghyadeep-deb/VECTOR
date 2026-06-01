@@ -176,6 +176,31 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Missing: persistent scheduling, unified social fan-out, more analytics platforms | 🔵 | OPEN |
 **Delete-readiness:** DELETE-AFTER (TS/AGPL repo unused; but wire A8 + build scheduler/panel first — "organs but no body"). Repo is reference for the scheduler UX.
 
+### 21. jcode-master — DELETE-AFTER
+| Item | Type | Status |
+|---|---|---|
+| 5 modules absorbed + wired: AmbientScheduler, SessionPersistence in autonomous_loop.py; multiedit/apply_patch/CacheTracker in coding_tools.py | — | ✅ VERIFIED (grep confirmed wiring) |
+| Trajectory auto-compact trigger NOT ported — `StoredCompactionState` field exists but 80%/95% threshold logic missing | 🔵 | OPEN (~60 lines needed in `session_persistence.py`) |
+**Delete-readiness:** DELETE-AFTER auto-compact trigger patch. Repo is the reference for that logic.
+
+### 22. openhuman-main — DELETE-AFTER
+| Item | Type | Status |
+|---|---|---|
+| 14/15 claimed items absorbed + verified (OAuthRegistry 119 providers, MemoryTree, TokenJuice, 16 agent roles, ParallelResearcher, telemetry, Sentry, OFP, ElevenLabsTTS…) | — | ✅ VERIFIED (OAuthRegistry.count()=119) |
+| "JARVIS dashboard → dashboard/" — FALSE. `dashboard/` doesn't exist. VECTOR's `frontend/` is its own original HUD. | 🐛 doc | corrected |
+| `TokenJuice` parity shallow — openhuman has 10-file rule engine with JSON overlays; VECTOR has 263-line hardcoded regex | 🔵 | OPEN (optional upgrade) |
+| **Subconscious loop** — cron-driven LLM-vs-situation-report → act/escalate/noop, proactive reflections. No VECTOR equivalent. | 🔵 | OPEN (harvest → chief_of_staff district before delete) |
+**Delete-readiness:** DELETE-AFTER harvesting subconscious loop pattern into chief_of_staff. 98.2% claim = overstated (really ~24% of Rust module count, but all Python-portable value absorbed).
+
+### 23. openfang-main — DELETE-NOW + 3 fixes
+| Item | Type | Status |
+|---|---|---|
+| MerkleChain, BudgetMeter, RateLimiter, PromptInjection, SSRF, KnowledgeGraph(105 tests), LoopGuard, VectorSandbox, PeerDiscovery, VectorMigrator, 28 LLM providers, 9 Hands, 5 channel adapters | — | ✅ VERIFIED (all ran live) |
+| `OFPNode._init_tls()` — `NameError: _C` (missing `_C = CONFIG` alias) | 🐛 | OPEN (1 line) |
+| `TaintTracker.tag()` — TypeError on dict input | 🐛 | OPEN (small) |
+| **openfang 5,411-line Alpine.js dashboard NOT absorbed** — 17 panels incl. **Approvals** (human-in-the-loop for YELLOW/RED actions). Critical missing panel. | 🎨 | OPEN — BUILD NOW |
+**Delete-readiness:** **DELETE-NOW** (Rust source non-importable by Python; all valuable logic verified in VECTOR). Dashboard must be built regardless (can't import Rust UI). Fix OFPNode + TaintTracker bugs separately.
+
 ---
 
 ## C. Delete-readiness summary
