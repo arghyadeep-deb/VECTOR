@@ -256,6 +256,17 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 24. OpenMythos-main — INTEGRATE DIRECTLY (pip install)
+| Item | Type | Status |
+|---|---|---|
+| OpenMythos RDT library: real PyPI package (`open-mythos>=0.5.0`), working train.py (DDP/FSDP, FineWeb-Edu, cosine LR) | — | ✅ VERIFIED (1B model runs) |
+| `open-mythos` missing from requirements.txt | 🐛 | OPEN — add `open-mythos>=0.5.0` |
+| `open_mythos` not pip-installed (ModuleNotFoundError) | 🐛 | OPEN — `pip install open-mythos` |
+| `core/training/openmythos/train.py` is a FAKE trainer — calls `ollama.generate()` in a loop, zero gradient descent. Misleading filename. | 🐛 HIGH | OPEN — either delete or rename to `ollama_modelfile_trainer.py` |
+| `trainer.py:37` wrong repo path `GitHub/kyegomez_OpenMythos/repo` (should be `GitHub/OpenMythos-main`) | 🐛 | OPEN |
+| `trainer.py` calls `MythosTokenizer` as batch tokenizer but it only has `.encode(str)` — will crash at training time | 🐛 MED | OPEN |
+**Delete-readiness:** KEEP as pip dependency. Fix G1/G2/G3/G4/G5. `pip install open-mythos` replaces the clone.
+
 ### 20. pocketbase-master — DELETE-NOW (after 1-line conftest fix)
 | Item | Type | Status |
 |---|---|---|
