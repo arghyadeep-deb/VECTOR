@@ -318,7 +318,7 @@ def _make_server():
         try:
             from districts.coding.git_bot import GitBot
             bot = GitBot()
-            result = await bot.get_status()
+            result = await asyncio.to_thread(bot.get_status)
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] git_status failed: {e}")
