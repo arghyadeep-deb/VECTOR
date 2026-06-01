@@ -50,8 +50,8 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A11 | pocketbase: 8 test failures (Windows `WinError 10055` socket exhaustion in asyncio tests — `conftest.py` needs `asyncio.WindowsSelectorEventLoopPolicy()`). Not a logic bug. | `tests/test_collections.py` + `conftest.py` | 🐛 LOW | OPEN (1-line fix) |
 | A12 | mem0 (`mem0ai`) not pip-installed — fixed, now active in requirements.txt | `requirements.txt` | 🐛 MED | ✅ FIXED |
 | A13 | jcode: trajectory auto-compact trigger missing — `StoredCompactionState` field exists but 80%/95% threshold logic not ported | `core/jcode/session_persistence.py` | 🔵 | OPEN (~60 lines from jcode-master reference) |
-| A14 | openfang `OFPNode._init_tls()` `NameError: _C` — needs `_C = CONFIG` alias | `core/network/ofp_protocol.py` | 🐛 LOW | OPEN (1 line) |
-| A15 | openfang `TaintTracker.tag()` TypeError on dict label input | `core/security/taint_tracker.py` | 🐛 LOW | OPEN |
+| A14 | openfang `OFPNode._init_tls()` `NameError: _C`. Fixed: moved `from core.config import CONFIG as _C` into `_init_tls()` body. | `core/network/ofp_protocol.py` | 🐛 LOW | ✅ FIXED |
+| A15 | openfang `TaintTracker.tag()` TypeError on dict label input. Fixed: `tag()` now filters non-TaintLabel inputs. | `core/security/taint_tracker.py` | 🐛 LOW | ✅ FIXED |
 | A16 | 🎨 openfang Approvals dashboard (5,411-line Alpine.js, 17 panels) not absorbed — especially the **Approvals panel** (human-in-loop for YELLOW/RED actions). No VECTOR equivalent. Build as HUD panel. | `frontend/` | 🎨 HIGH | OPEN — BUILD NOW |
 | A17 | openhuman subconscious loop pattern not harvested — cron LLM-vs-situation-report → act/escalate/noop, proactive reflections | `districts/chief_of_staff/` | 🔵 | OPEN (harvest before deleting repo) |
 | ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
