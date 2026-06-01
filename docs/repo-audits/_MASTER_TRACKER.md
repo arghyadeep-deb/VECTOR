@@ -294,6 +294,25 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 37. Web-Tools Batch (5 repos)
+| Repo | Verdict | Action | Priority |
+|---|---|---|---|
+| ai-website-cloner-template-master | INTEGRATE | Install `/clone-website` skill into `~/.claude/skills/`; add `extract_design_tokens()` to `dom_pruner.py` | MED |
+| glif-mcp-server-main | INTEGRATE | Build + add to `.mcp.json` as MCP sidecar; `GLIF_API_TOKEN` in `.env` | MED |
+| **NotFair-main** | **INTEGRATE + PATCH** | Wire `NotFair-GoogleAds` + `NotFair-MetaAds` remote MCP servers; build `geo_optimizer_agent.py`; expand SEO router | HIGH |
+| iii-main | DELETE engine / PATCH SDK | Harvest Python SDK trigger patterns → `core/event_bus/`; do NOT run Rust engine | LOW |
+| **hyperframes-main** | **INTEGRATE + PATCH** | Build producer sidecar on port 7421; add `render_via_hyperframes()` to `vector_composer.py`; install skills | HIGH |
+
+**Key gaps (W-series):**
+| # | Issue | Location | Priority |
+|---|---|---|---|
+| W5 | Add NotFair-GoogleAds + NotFair-MetaAds remote MCP servers to `.mcp.json` | `.mcp.json` | HIGH |
+| W9 | Build `geo_optimizer_agent.py` — GEO score 0-100 for ChatGPT/Claude/Perplexity/Gemini citation | `districts/marketing/` | HIGH (2026 traffic) |
+| W10 | Expand `seo.py` from 1-endpoint stub to full router | `core/api/routers/seo.py` | MED |
+| W13 | Build `@hyperframes/producer` sidecar on port 7421 | `run_vector.py` | HIGH |
+| W14 | `render_via_hyperframes()` in `vector_composer.py` with fallback to `html_renderer.py` | `core/video/` | HIGH |
+| W1-W4, W6-W8, W11-W12, W15-W17 | See `web-tools-batch.md` for full list | various | MED/LOW |
+
 ### 36. Frontend-UI Batch (5 repos)
 | Repo | Verdict | Action |
 |---|---|---|
