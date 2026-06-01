@@ -200,7 +200,31 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | public-apis | NOW (gutted partial, unused) |
 | postiz | after wiring A8 + scheduler/panel |
 
-**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis (6).** Everything else has pending work.
+**Genuinely DELETE-NOW today: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone (8).** Everything else has pending work.
+*pocketbase has 8 failing tests (Windows socket issue only, not logic) — fix conftest.py first if you want clean green before deleting.
+
+### 18. mem0-main — DELETE-NOW clone + KEEP pip + PATCH
+| Item | Type | Status |
+|---|---|---|
+| 2 VECTOR files correctly use self-hosted `Memory` (Rule 11 compliant) | — | ✅ VERIFIED |
+| A9: `MemoryClient` cloud-leak in `vectorcode/src/plugins/memory/mem0/__init__.py:175-176` | 🔴 | OPEN |
+| A12: `mem0ai` not pip-installed | 🐛 | OPEN |
+**Delete-readiness:** **DELETE-NOW the clone** — VECTOR uses it as a pip dep. PATCH A9+A12.
+
+### 19. AutoHedge-main — DELETE-NOW + PATCH A10
+| Item | Type | Status |
+|---|---|---|
+| 5 agents + Jupiter tools absorbed into `districts/investment/vector_hedgebot/` — all import clean | — | ✅ VERIFIED |
+| A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
+**Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
+
+### 20. pocketbase-master — DELETE-NOW (after 1-line conftest fix)
+| Item | Type | Status |
+|---|---|---|
+| 47/55 passed (8 fail = Windows socket exhaustion, not logic); CollectionEngine OK | — | ✅ VERIFIED |
+| A11: `asyncio.WindowsSelectorEventLoopPolicy()` in conftest.py | 🐛 LOW | OPEN |
+| Realtime SSE, MFA/OTP, admin UI — not reimplemented (not needed for single-owner) | — | by design |
+**Delete-readiness:** **DELETE-NOW** (all needed features absorbed and working). Optional: fix A11 for clean test suite first.
 
 ---
 
