@@ -135,6 +135,10 @@ class AgentBase:
     def can_vote_in_council(self) -> bool:
         return self.health_points >= 700
 
+    def subscribe_to(self, event_type: str) -> None:
+        """Register interest in an event type. No-op until event_bus wiring is implemented."""
+        pass
+
     def get_status(self) -> str:
         if self.health_points >= 800:
             return 'elite'
