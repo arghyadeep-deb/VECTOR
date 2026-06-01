@@ -172,8 +172,8 @@ class Mem0MemoryProvider(MemoryProvider):
             if self._client is not None:
                 return self._client
             try:
-                from mem0 import MemoryClient
-                self._client = MemoryClient(api_key=self._api_key)
+                from mem0 import Memory  # self-hosted OSS, data stays on device (RULE 11)
+                self._client = Memory()
                 return self._client
             except ImportError:
                 raise RuntimeError("mem0 package not installed. Run: pip install mem0ai")
