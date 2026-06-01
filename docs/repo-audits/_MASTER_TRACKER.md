@@ -294,6 +294,23 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 36. Frontend-UI Batch (5 repos)
+| Repo | Verdict | Action |
+|---|---|---|
+| **ComfyUI-master** | INTEGRATE DIRECTLY | `comfyui_adapter.py` ✅ working; gap: no auto-start sidecar; add to `run_vector.py` / `install_service.ps1` on port 8188 |
+| ComfyUI-Manager-main | INTEGRATE DIRECTLY | `git clone` into `ComfyUI/custom_nodes/` — zero VECTOR code change; gives browser UI for 1,400+ custom nodes |
+| openclaude-main | ✅ DELETE-NOW | TypeScript Claude Code fork; VECTOR's 27-provider + MoE routing + ReasoningBank is strictly more capable |
+| openclaw-main | PATCH VECTOR | 2 gaps: `ImageGenProviderRegistry`/`VideoGenProviderRegistry` (VECTOR hardcodes ComfyUI/SadTalker) + per-channel DM security policy (pairing codes, allowlists) |
+| mistral-vibe-main | PATCH VECTOR | 3 gaps: `ask_user_question` tool (structured multi-option in-task questions); tree-sitter bash AST safety guard; named permission profiles (plan/accept-edits/auto-approve → GREEN/YELLOW/RED) |
+
+**Gaps:**
+| # | Issue | Location | Type | Status |
+|---|---|---|---|---|
+| A41 | ComfyUI not auto-started as sidecar — adapter ready but ComfyUI process not launched by VECTOR | `run_vector.py` / `scripts/install_service.ps1` | 🔵 | OPEN |
+| A42 | No image/video gen provider registry — hardcoded ComfyUI/SadTalker; no cloud fallback (Replicate, Stability, etc.) | `districts/content/` | 🔵 | OPEN |
+| A43 | No `ask_user_question` tool — VECTOR can't ask structured multi-option questions mid-task | `core/mcp_server.py` | 🔵 | OPEN |
+| A44 | No tree-sitter bash AST safety guard — bash commands checked by LLM-based injection scanner only; no deterministic AST analysis | `core/loop/permission_gateway.py` | 🐛 MED | OPEN |
+
 ### 35. Tooling Batch (5 repos)
 | Repo | Verdict | Action |
 |---|---|---|
