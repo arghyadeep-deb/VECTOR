@@ -230,6 +230,7 @@ class OFPNode:
     # ── TLS ───────────────────────────────────────────────────────────────────
 
     def _init_tls(self) -> ssl.SSLContext | None:
+        from core.config import CONFIG as _C
         cert_path = _C.get("ofp_cert", "")
         key_path = _C.get("ofp_key", "")
         if cert_path and key_path:
