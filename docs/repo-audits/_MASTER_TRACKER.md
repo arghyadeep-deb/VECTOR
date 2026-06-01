@@ -38,7 +38,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | # | Issue | Location | Severity | Status |
 |---|---|---|---|---|
 | A1 | **Ungated live trade execution** — `create_order()` fires real orders, never routes through permission_gateway (no human-confirm, no kill switch) | `districts/investment/vector_finagent/exchange/place_order.py:84`, `agno_trading/core/auto_trader.py` | 🔴 CRITICAL | OPEN |
-| A2 | **IndentationError** — empty `if` body blocks `import districts.investment.vector_backtest` (package top-level) | `districts/investment/vector_backtest/__init__.py:21` | 🐛 HIGH | OPEN |
+| A2 | **IndentationError** — empty `if` body, vector_backtest unimportable. Fixed: added sys.path insert. | `districts/investment/vector_backtest/__init__.py:21` | 🐛 HIGH | ✅ FIXED |
 | A3 | IndentationError in backtest test conftest (flagged by valuecell audit) | `vector_backtest/tests/conftest.py:10` | 🐛 MED | OPEN (verify) |
 | A4 | `rag_anything` import typo — dead multimodal-RAG hook (real pkg is `raganything`, also not installed) | `core/memory/obsidian_sync.py:377` | 🐛 LOW | OPEN (only matters if enabling multimodal doc RAG) |
 | A5 | `lightrag-hku` NOT declared in requirements.txt — survives only in global site-packages | `requirements.txt` | 🐛 MED | OPEN |
