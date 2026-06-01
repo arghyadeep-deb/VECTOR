@@ -237,7 +237,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | OpenWA | NOW (50/50 pass, WebhookSigner verified) |
 | hermes-agent | NOW (35 channel adapters, all absorbed; save React pages as design ref) |
 
-**Genuinely DELETE-NOW: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone, AutoHedge-clone, openfang (10).** Everything else has pending work.
+**Genuinely DELETE-NOW: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone, AutoHedge-clone, openfang, nango, OpenWA, hermes-agent (13).** Everything else has pending work.
 *pocketbase: 8 failing tests (Windows socket only) — optional conftest.py fix first.
 ⚠️ AutoHedge: delete clone safely; but keep `live_trading=False` and DO NOT set `SOLANA_PRIVATE_KEY` until A10 gated.
 
