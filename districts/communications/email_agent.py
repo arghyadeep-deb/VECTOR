@@ -14,6 +14,7 @@ generates a draft reply (requires explicit confirmation to send).
 """
 from __future__ import annotations
 
+import sys
 import asyncio
 import datetime
 import json
@@ -22,6 +23,8 @@ import uuid
 import re
 from pathlib import Path
 
+# Ensure codebase root precedes vectorcode/src so core.config resolves to the dict version
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
