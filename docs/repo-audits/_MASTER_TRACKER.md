@@ -399,7 +399,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 11 ✅: obsidian-mind, claude-ads, FinceptTerminal
 - Batch 12 ⏳: ECC, GitNexus, AI-Trader
 - Batch 13 ⏳: ai-financial-agent, daily_stock_analysis
-- Batch 14 ⏳: open-webui, LibreChat (combined agent)
+- Batch 14 ✅: open-webui (INTEGRATE DIRECTLY, port 8080), LibreChat (INTEGRATE DIRECTLY, port 3080)
 - Batch 15 ⏳: skill-collections (7 repos), misc-collections (6 repos)
 - Batch 16 ⏳: frontend-ui (ComfyUI×2, openclaude, openclaw, mistral-vibe)
 - Batch 17 ⏳: web-tools (ai-website-cloner, glif-mcp, NotFair, iii, hyperframes)
