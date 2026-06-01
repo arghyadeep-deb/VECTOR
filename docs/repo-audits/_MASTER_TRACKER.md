@@ -264,6 +264,17 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 25. airllm-main — INTEGRATE DIRECTLY (pip dep, delete clone)
+| Item | Type | Status |
+|---|---|---|
+| Layer-streaming 70B inference library — real PyPI package; streams weights layer→GPU→evict; Llama/Qwen/Mistral/Mixtral; 4-bit/8-bit via bitsandbytes | — | ✅ VERIFIED (library is real) |
+| A18: wrong import path in `ollama_safe.py:248` (`core.inference.airllm.airllm_runner` → `core.inference.airllm_runner`) | 🐛 HIGH | OPEN |
+| A19: `AutoTokenizer` not exported from airllm — use `model.tokenizer` instead | 🐛 HIGH | OPEN |
+| A20: `cache_dir=` → `layer_shards_saving_path=` | 🐛 MED | OPEN |
+| A21: `airllm>=2.10.0` commented out in requirements.txt | 🐛 LOW | OPEN |
+| 4-bit/8-bit compression param not exposed in wrapper | 🔵 | OPEN (optional upgrade) |
+**Delete-readiness:** ✅ **DELETE-NOW the clone** — use pip. Fix A18/A19/A20/A21 before enabling.
+
 ### 24. OpenMythos-main — INTEGRATE DIRECTLY (pip install)
 | Item | Type | Status |
 |---|---|---|
