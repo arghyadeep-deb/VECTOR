@@ -300,6 +300,38 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 38. GitNexus-main — INTEGRATE AS MCP SERVER
+| Item | Status |
+|---|---|
+| `GitBot.analyze_with_gitnexus()` exists at `git_bot.py:301`, shells to `npx gitnexus@latest` | ✅ bridge exists |
+| A34: `--format json` flag removed (doesn't exist in CLI) | ✅ FIXED |
+| A35: `git_status` MCP tool now uses `asyncio.to_thread(bot.get_status)` | ✅ FIXED |
+| A36: `subprocess.run` inside async wrapped with `asyncio.to_thread` | ✅ FIXED |
+| Install: `npm install -g gitnexus` → `gitnexus analyze` → `gitnexus setup` (auto-starts MCP) | 🔵 OPEN |
+| Install 7 GitNexus skills into `~/.claude/skills/` | 🔵 OPEN |
+**Delete-readiness:** KEEP — TypeScript only, integrate as MCP server via `npx gitnexus@latest setup`.
+
+### 39. ai-financial-agent-main — PATCH VECTOR (4 targeted gaps)
+| Item | Status |
+|---|---|
+| StockAnalyst, FundamentalsBot, TechnicalBot all ✅ running (yfinance live) | ✅ VERIFIED |
+| A33: `fundamentals_bot.py:151` `_calculate_key_metrics()` returns all-zeros for live data | 🐛 OPEN |
+| No 89-field stock screener (only 2 fields covered) | 🔵 OPEN — build `districts/investment/stock_screener.py` |
+| No TTL deduplication cache on `get_quote()`, `analyze_financials()`, `get_price_data()` | 🔵 OPEN |
+| 6 React chart components (Recharts) — use as reference when building `dashboard/src/` | 🎨 OPEN (when dashboard built) |
+**Delete-readiness:** DELETE-AFTER (4 targeted extractions; TypeScript app shell not needed).
+
+### 40. daily_stock_analysis-main — PATCH VECTOR (5 targeted files)
+| Item | Status |
+|---|---|
+| TechnicalBot, SentimentBot, StockAnalyst all ✅ running; NSE quote verified (RELIANCE@1320.0) | ✅ VERIFIED |
+| A-share chip distribution + capital/money flow (AkShare/Tushare) — entirely absent in VECTOR | ❌ OPEN |
+| `AnalysisResult` schema + report formatter (150 LOC) — needed for daily push; P0 | 🔵 OPEN |
+| Investment alert/event monitor (MA cross, RSI threshold, volume spike) | 🔵 OPEN |
+| Trading calendar / holiday-aware skip | 🔵 OPEN |
+| 13 push channels → VectorCode already has 40+ but none wired to investment output | 🔵 OPEN |
+**Delete-readiness:** DELETE-AFTER (port 5 Python files: AnalysisResult schema, AkShare fetcher, alert monitor, calendar, report formatter).
+
 ### 37. Web-Tools Batch (5 repos)
 | Repo | Verdict | Action | Priority |
 |---|---|---|---|
