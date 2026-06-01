@@ -294,6 +294,22 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 34. MCP/Infra Batch (5 repos)
+| Repo | Verdict | Action |
+|---|---|---|
+| fastmcp-main | ✅ DELETE-NOW | pip package v3.2.4 already installed, VECTOR uses it |
+| modelcontextprotocol-main | DELETE-AFTER | Actually Perplexity MCP — add 4 tools (search/ask/research/reason) to `core/mcp_server.py` as thin wrapper |
+| **playwright-mcp-main** | **INTEGRATE DIRECTLY** | `npx @playwright/mcp@latest --headless --port 8931` sidecar; 25+ browser tools (navigate, click, type, snapshot); wire to `core/browser/` |
+| **firecrawl-mcp-server-main** | **INTEGRATE DIRECTLY** | 15 tools: structured scrape, recursive crawl, URL discovery, LLM extraction, autonomous research agent; fills WebScout's DuckDuckGo-only gap; wire to `districts/research/` |
+| ClawRouter-main | PATCH CONFIG | `npx @blockrun/clawrouter` — 10 free NVIDIA models (no key), 55+ paid; add to `core/config.py` as Ollama fallback |
+
+**Gaps from this batch:**
+| # | Issue | Location | Type | Status |
+|---|---|---|---|---|
+| A36 | No structured web extraction — `WebScout` only parses DDG HTML; no full-page extraction, no LLM extraction, no recursive crawl | `districts/research/web_scout.py` | 🟢 integrate | OPEN — wire firecrawl-mcp |
+| A37 | Playwright MCP not running — 25+ browser automation tools available via `npx @playwright/mcp` but not wired to VECTOR's autonomous loop | `core/mcp_server.py` | 🟢 integrate | OPEN |
+| A38 | No zero-cost LLM fallback beyond Ollama — ClawRouter provides 10 free NVIDIA models as `http://localhost:8787` OpenAI-compat endpoint | `core/config.py` | 🔵 patch | OPEN |
+
 ### 32. ECC-main — SAFE TO DELETE (3 targeted extractions first)
 | Item | Status |
 |---|---|
