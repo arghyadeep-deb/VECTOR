@@ -273,6 +273,18 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 29. FinceptTerminal-main — PATCH (absorbed, critical path bug)
+| Item | Type | Status |
+|---|---|---|
+| 361 analytics scripts in `districts/investment/vector_finagent/` (1:1 mirror of 360 FinceptTerminal entries) | — | ✅ VERIFIED (directory confirmed) |
+| FinAgentAgent, BacktestAgent, HedgeBotAgent, FundamentalsBot, TechnicalBot, SentimentBot all instantiate | — | ✅ VERIFIED |
+| A32: `_FINCEPT_BASE` wrong path — resolves outside repo; investor persona config loading silently fails | 🐛 HIGH | OPEN |
+| A33: Investor personas (Buffett/Graham/Lynch/etc.) hardcoded to OpenAI instead of `provider_client.py` | 🐛 HIGH | OPEN |
+| A34: 1,423 analytics scripts present but only 7 routes wired to Governor | 🔵 | OPEN |
+| No absorption tests exist for the 1,423 scripts | 🔵 | OPEN |
+| Qt C++ build incomplete (no .exe produced) — not needed for autonomous VECTOR | — | by design |
+**Delete-readiness:** DELETE-AFTER (fix A32/A33; build absorption tests; repo has the analytics scripts and Qt UI as reference).
+
 ### 27. claude-ads-main — PATCH (mostly done)
 | Item | Type | Status |
 |---|---|---|
