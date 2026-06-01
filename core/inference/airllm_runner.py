@@ -182,13 +182,13 @@ class AirLLMRunner:
         """Generate using AirLLM."""
         try:
             import airllm
-            from airllm import AutoTokenizer, AutoModel
+            from airllm import AutoModel  # airllm does not export AutoTokenizer; use model.tokenizer
 
-            cache_dir = self.airllm_config.get("cache_dir", "./models/airllm_cache")
+            cache_dir = self.airllm_config.get("layer_shards_saving_path", "./models/airllm_cache")
             model_name = self.loaded_model
 
-            tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
-            model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir)
+            model = AutoModel.from_pretrained(model_name, layer_shards_saving_path=cache_dir)
+            tokenizer = model.tokenizer
 
             input_ids = tokenizer(prompt, return_tensors="pt").to(model.device)
 
