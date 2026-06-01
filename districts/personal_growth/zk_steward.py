@@ -29,7 +29,7 @@ class ZKSteward(AgentBase):
         super().__init__(agent_id="zk_steward_001", name="ZKSteward", district="personal_growth")
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
-        self._vault_path = Path(CONFIG.get("paths", {}).get("obsidian_vault", str(Path.home() / "V.E.C.T.O.R Brain")))
+        self._vault_path = Path(CONFIG.get("vault_path") or CONFIG.get("obsidian", {}).get("vault_path") or str(Path.home() / "Desktop" / "V.E.C.T.O.R" / "V.E.C.T.O.R. Brain"))
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][zk_steward] initialized — vault={}", self._vault_path)
 
