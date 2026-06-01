@@ -36,9 +36,19 @@ __all__ = [
 
 
 import os
+import sys
+from pathlib import Path
 from dataclasses import dataclass, field
 
-from core.config import CONFIG
+# Ensure codebase root precedes vectorcode/src so 'core.config' resolves correctly
+_codebase_root = str(Path(__file__).parent.parent.parent)
+if _codebase_root not in sys.path:
+    sys.path.insert(0, _codebase_root)
+elif sys.path.index(_codebase_root) != 0:
+    sys.path.remove(_codebase_root)
+    sys.path.insert(0, _codebase_root)
+
+from core.config import CONFIG  # noqa: E402 — must come after sys.path fix
 
 # ── Provider dataclass ─────────────────────────────────────────────────────────
 
