@@ -149,15 +149,53 @@ class FundamentalsBot(AgentBase):
         }
 
     def _calculate_key_metrics(self, income_df, balance_df) -> dict:
-        """Calculate key financial metrics."""
-        return {
-            "profit_margin": 0.0,
-            "roe": 0.0,
-            "roa": 0.0,
-            "debt_to_equity": 0.0,
-            "current_ratio": 0.0,
-            "quick_ratio": 0.0
-        }
+        """Calculate key financial metrics from yfinance DataFrames."""
+        try:
+            import pandas as pd
+
+            def _latest(df, *keys):
+                """Get the most recent value for any of the given row keys."""
+                if df is None or df.empty:
+                    return None
+                for key in keys:
+                    matches = [r for r in df.index if key.lower() in str(r).lower()]
+                    if matches:
+                        row = df.loc[matches[0]]
+                        val = row.iloc[0] if hasattr(row, "iloc") else row
+                        try:
+                            return float(val)
+                        except (TypeError, ValueError):
+                            pass
+                return None
+
+            net_income = _latest(income_df, "Net Income")
+            revenue = _latest(income_df, "Total Revenue", "Revenue")
+            total_assets = _latest(balance_df, "Total Assets")
+            equity = _latest(balance_df, "Stockholders Equity", "Total Stockholder Equity", "Common Stock Equity")
+            total_liabilities = _latest(balance_df, "Total Liabilities Net Minority Interest", "Total Liab")
+            current_assets = _latest(balance_df, "Current Assets", "Total Current Assets")
+            current_liabilities = _latest(balance_df, "Current Liabilities", "Total Current Liabilities")
+            inventory = _latest(balance_df, "Inventory")
+
+            profit_margin = (net_income / revenue) if (net_income and revenue and revenue != 0) else 0.0
+            roe = (net_income / equity) if (net_income and equity and equity != 0) else 0.0
+            roa = (net_income / total_assets) if (net_income and total_assets and total_assets != 0) else 0.0
+            debt_to_equity = (total_liabilities / equity) if (total_liabilities and equity and equity != 0) else 0.0
+            current_ratio = (current_assets / current_liabilities) if (current_assets and current_liabilities and current_liabilities != 0) else 0.0
+            inv = inventory or 0.0
+            quick_ratio = ((current_assets - inv) / current_liabilities) if (current_assets and current_liabilities and current_liabilities != 0) else 0.0
+
+            return {
+                "profit_margin": round(profit_margin, 4),
+                "roe": round(roe, 4),
+                "roa": round(roa, 4),
+                "debt_to_equity": round(debt_to_equity, 4),
+                "current_ratio": round(current_ratio, 4),
+                "quick_ratio": round(quick_ratio, 4),
+            }
+        except Exception as e:
+            logger.warning("[VECTOR][fundamentals_bot] _calculate_key_metrics error: {}", e)
+            return {"profit_margin": 0.0, "roe": 0.0, "roa": 0.0, "debt_to_equity": 0.0, "current_ratio": 0.0, "quick_ratio": 0.0}
 
     def check_valuation(self, metric: str, threshold: float) -> dict:
         """
