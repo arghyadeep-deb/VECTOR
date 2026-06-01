@@ -293,6 +293,18 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 30. Skill-Collections Batch (6 repos) — DELETE-NOW
+| Repo | Verdict | Notes |
+|---|---|---|
+| agent-skills-main | ✅ DELETE-NOW | 23 addyosmani skills already in brain |
+| awesome-agent-skills-main | ✅ DELETE-NOW | Index-only, zero content |
+| awesome-claude-skills-master | ✅ DELETE-NOW | 27 Composio skills already in brain |
+| awesome-skills-main | ✅ DELETE-NOW | 371 skills already in brain |
+| andrej-karpathy-skills-main | ✅ DELETE-NOW | Karpathy curriculum already in brain |
+| obsidian-skills-main | ✅ DELETE-NOW | 5 skills already in brain |
+| **Anthropic-Cybersecurity-Skills-main** | **KEEP → HARVEST** | 754 skills (743 not yet installed) + MITRE ATT&CK/NIST CSF/OWASP Navigator JSON maps |
+**Action:** Copy 743 uninstalled skills → `brain/.claude/skills/`; copy `mappings/` → `districts/security/data/` for ThreatScout/MalwareHunter.
+
 ### 29. FinceptTerminal-main — PATCH (absorbed, critical path bug)
 | Item | Type | Status |
 |---|---|---|
