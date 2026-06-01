@@ -3,6 +3,16 @@
 Single source of truth for every gap, bug, patch, integration, and delete-decision
 across all audited repos. Nothing gets fixed or deleted until ALL repos are audited.
 
+## RULE UPDATE — 2026-06-01
+**Multi-language integration is ALLOWED.** VECTOR is not Python-only at the boundary. If a repo in another language (TypeScript, Go, Rust, C++, JavaScript) adds real value, integrate it directly — run it as a process, npm/cargo/go install it, or call it via subprocess/API. Do NOT reimplement in Python if the original is high quality. The "reimplement in Python" rule applied only to repos that were absorbed as source code; it does NOT mean VECTOR can't shell out to a compiled binary, serve a Node.js frontend, or pip/npm install a working library.
+
+**Revised integration options:**
+- Python logic → absorb as VECTOR module (existing rule)
+- TypeScript/JS frontend → integrate directly (serve alongside FastAPI, or iframe/proxy into HUD)
+- CLI tool (any language) → call via subprocess, `asyncio.create_subprocess_exec`
+- Library (npm/cargo/pip) → install as dependency, write thin Python wrapper
+- Full-stack app → run as sidecar service, expose via REST/WS to VECTOR's autonomous loop
+
 **Delete-readiness semantics (corrected 2026-05-31):**
 - **DELETE-NOW** — all value absorbed + working + zero pending work needing the repo.
 - **DELETE-AFTER** — absorbed, but a pending patch uses the repo as reference diff → delete only after that patch lands.
