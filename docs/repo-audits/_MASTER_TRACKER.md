@@ -384,30 +384,15 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 9 ✅: nango, OpenWA, hermes-agent
 - Batch 10 ✅: OpenCLI, OpenMythos, airllm
 - Batch 11 ✅: obsidian-mind, claude-ads, FinceptTerminal
-- Batch 12 ⏳: ECC, GitNexus, AI-Trader (in progress)
-- Batch 13+: ai-financial-agent, daily_stock_analysis → frontend repos → skill-collections → MCP/tooling
+- Batch 12 ⏳: ECC, GitNexus, AI-Trader
+- Batch 13 ⏳: ai-financial-agent, daily_stock_analysis
+- Batch 14 ⏳: open-webui, LibreChat (combined agent)
+- Batch 15 ⏳: skill-collections (7 repos), misc-collections (6 repos)
+- Batch 16 ⏳: frontend-ui (ComfyUI×2, openclaude, openclaw, mistral-vibe)
+- Batch 17 ⏳: web-tools (ai-website-cloner, glif-mcp, NotFair, iii, hyperframes)
+- Batch 18 ⏳: MCP-infra (fastmcp, modelcontextprotocol, playwright-mcp, firecrawl-mcp, ClawRouter)
+- Batch 19 ⏳: tooling (codebuff, get-shit-done, humanlayer, markitdown, code-review-graph)
+- Batch 20 ⏳: AI-agents (camel, camofox, autoresearch, agentic-inbox, Open-Generative-AI)
+- **ALL ~76 repos now assigned to agents. Awaiting results.**
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **31 repos audited; ~45 remain. ~76 total.**
-
-## E. Remaining repo queue (~50)
-### Priority 1 — prior-absorption verify (running or queued)
-- ⏳ OpenCLI, OpenMythos, airllm (batch 10)
-- ⏳ obsidian-mind, claude-ads, FinceptTerminal (batch 11)
-- ⬜ ECC, GitNexus, AI-Trader, ai-financial-agent, daily_stock_analysis
-
-### Priority 2 — repos with own frontend (panel candidates)
-- ⬜ open-webui, LibreChat, ComfyUI-master, ComfyUI-Manager
-- ⬜ openclaude, openclaw, mistral-vibe, ai-website-cloner
-- ⬜ glif-mcp, NotFair, iii, hyperframes
-
-### Priority 3 — skill/data collections (quick DELETE-NOW candidates)
-- ⬜ agent-skills, awesome-agent-skills, awesome-claude-skills, awesome-skills
-- ⬜ andrej-karpathy-skills, Anthropic-Cybersecurity-Skills, obsidian-skills, gsap-skills, open-skills
-
-### Priority 4 — MCP/tooling/infra
-- ⬜ fastmcp, modelcontextprotocol, playwright-mcp, firecrawl-mcp
-- ⬜ ClawRouter, codebuff, get-shit-done, humanlayer, markitdown
-- ⬜ camel, camofox-browser, autoresearch, agentic-inbox, Open-Generative-AI
-
-### Uncategorized
-- ⬜ agency-agents, code-review-graph, gstack, karpathy-main, llm-council-master
+- **31 audited + 45 in-flight = 76 total.**
