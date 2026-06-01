@@ -383,6 +383,36 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Realtime SSE, MFA/OTP, admin UI — not reimplemented (not needed for single-owner) | — | by design |
 **Delete-readiness:** **DELETE-NOW** (all needed features absorbed and working). Optional: fix A11 for clean test suite first.
 
+### 30. open-webui-main — INTEGRATE DIRECTLY
+| Item | Type | Status |
+|---|---|---|
+| SvelteKit + Python FastAPI (uvicorn) — run on port 8080 | 🟢 | OPEN (run `pip install -e backend/ && uvicorn open_webui.main:app --port 8080`) |
+| Proxy via HUD "KNOWLEDGE" iframe button | 🎨 | OPEN |
+| Wire Ollama: `OLLAMA_BASE_URL=http://localhost:11434` already default | — | ready |
+| RAG pipeline: VECTOR agents call `POST http://localhost:8080/api/chat/completions` to leverage knowledge bases | 🟢 | OPEN |
+| G1: No conversation-level RAG in VECTOR | ❌ | filled by Open WebUI |
+| G2: No model evaluation leaderboard | ❌ | filled by Open WebUI evaluations |
+| G3: No prompt library UI | ❌ | filled by Open WebUI workspace/prompts |
+| G4: No in-UI Ollama model management | — | filled by Open WebUI workspace/models |
+| G5: `get_vault_context` missing (pre-existing A6) | 🐛 | still OPEN in VECTOR core |
+**Delete-readiness:** KEEP — run as sidecar service. Do not copy backend into VECTOR.
+
+### 31. LibreChat-main — INTEGRATE DIRECTLY
+| Item | Type | Status |
+|---|---|---|
+| Node.js/Express + React — run on port 3080 | 🟢 | OPEN (MongoDB Docker + `node api/server/index.js`) |
+| Wire to Ollama + VECTOR API keys in `librechat.yaml` | 🟢 | OPEN |
+| Wire VECTOR MCP server (`http://localhost:8765`) as LibreChat MCP server — exposes all 14+ VECTOR tools in chat | 🟢 | HIGH VALUE |
+| Proxy via HUD "CHAT" iframe button | 🎨 | OPEN |
+| G1: No in-chat Artifacts sandbox (live React/HTML) | ❌ | filled by LibreChat |
+| G2: No chain-of-thought display UI | ❌ | filled by LibreChat Reasoning UI |
+| G3: No conversation branching | ❌ | filled by LibreChat fork feature |
+| G4: No prompt library | ❌ | filled by LibreChat |
+| G5: No conversation search | ❌ | filled by LibreChat |
+| G6: No dynamic MCP server management | ❌ | filled by LibreChat MCP config |
+| MongoDB required: `docker run -d -p 27017:27017 mongo` | dep | OPEN |
+**Delete-readiness:** KEEP — run as sidecar service. Do not port Node.js to Python.
+
 ---
 
 ## D. Audit progress
