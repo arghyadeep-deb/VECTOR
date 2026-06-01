@@ -294,6 +294,21 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 35. Tooling Batch (5 repos)
+| Repo | Verdict | Action |
+|---|---|---|
+| codebuff-main | ✅ DELETE-NOW | Full parity: `core/code_conductor/` is Python port (code_map.py, orchestrator.py, etc.) |
+| get-shit-done-main | ✅ DELETE-NOW | Archived repo; VECTOR has `vectorcode/src/gsd_loop.py` + brain commands |
+| humanlayer-main | PATCH (low) | SDK already wired to `permission_gateway.py`; repo pivoted to Go daemon. Build `core/engine/approval_daemon.py` (~80 LOC) to eliminate 30s timeout fallback |
+| **markitdown-main** | INTEGRATE (already used) | Uncomment `markitdown[all]>=0.0.1` in requirements.txt; add `convert_to_markdown` MCP tool |
+| **code-review-graph-main** | INTEGRATE (enhance adapter) | `districts/coding/code_review_graph/__init__.py` exists but: 3 functions not exposed as MCP tools; no watch-mode trigger; refactor analysis not wired |
+
+**Gaps:**
+| # | Issue | Location | Type | Status |
+|---|---|---|---|---|
+| A39 | `markitdown` commented out in requirements.txt — used in production but won't install in fresh venv | `requirements.txt:27` | 🐛 MED | OPEN |
+| A40 | code-review-graph functions not in MCP — adapter exists but `analyze_graph`, `get_refactor_suggestions`, `watch_mode` not exposed as MCP tools | `core/mcp_server.py` | 🔵 | OPEN |
+
 ### 34. MCP/Infra Batch (5 repos)
 | Repo | Verdict | Action |
 |---|---|---|
