@@ -275,6 +275,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 6 ✅: public-apis, postiz
 - Batch 7 ✅: mem0, AutoHedge, pocketbase
 - Batch 8 ✅: jcode, openhuman, openfang
-- Batch 9+ ⏳: ~53 repos remain
+- Batch 9 ✅: nango, OpenWA, hermes-agent
+- Batch 10+ ⏳: ~50 repos remain
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **23 repos audited so far; ~53 remain.**
+- **26 repos audited so far; ~50 remain.**
