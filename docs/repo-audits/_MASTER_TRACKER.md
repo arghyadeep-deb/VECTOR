@@ -4,14 +4,26 @@ Single source of truth for every gap, bug, patch, integration, and delete-decisi
 across all audited repos. Nothing gets fixed or deleted until ALL repos are audited.
 
 ## RULE UPDATE — 2026-06-01
-**Multi-language integration is ALLOWED.** VECTOR is not Python-only at the boundary. If a repo in another language (TypeScript, Go, Rust, C++, JavaScript) adds real value, integrate it directly — run it as a process, npm/cargo/go install it, or call it via subprocess/API. Do NOT reimplement in Python if the original is high quality. The "reimplement in Python" rule applied only to repos that were absorbed as source code; it does NOT mean VECTOR can't shell out to a compiled binary, serve a Node.js frontend, or pip/npm install a working library.
+**Multi-language local integration is ALLOWED — no reimplementing services that already work.**
+
+If a repo contains a **local service or binary** in Rust, Go, C++, TypeScript, Node.js, etc. that adds real value, VECTOR integrates it directly:
+- **Rust/Go/C++ binary** → `cargo build --release` / `go build`, then call via `asyncio.create_subprocess_exec`. Run as a persistent sidecar if needed.
+- **Node.js / TypeScript service** → `npm install && node dist/server.js`, call via HTTP/WS from VECTOR's FastAPI.
+- **Electron / desktop app** → launch as child process, control via IPC or Playwright CDP.
+- **npm CLI tool** → `npm install -g <tool>`, call via subprocess from Python wrapper.
+- **Python library** → pip install (existing rule unchanged).
+
+This is about **local services in the repo itself** — NOT about calling external cloud APIs that need API keys. The distinction: the binary/service lives on the machine and is called locally.
+
+Do NOT reimplement in Python if: (a) the original is high quality, (b) it's a non-trivial algorithm (crypto, ML, VLM grounding, image gen), (c) it would take >1 day to rewrite. Reimplement only when the logic is simple glue code or the language has no Python binding.
 
 **Revised integration options:**
-- Python logic → absorb as VECTOR module (existing rule)
-- TypeScript/JS frontend → integrate directly (serve alongside FastAPI, or iframe/proxy into HUD)
-- CLI tool (any language) → call via subprocess, `asyncio.create_subprocess_exec`
-- Library (npm/cargo/pip) → install as dependency, write thin Python wrapper
-- Full-stack app → run as sidecar service, expose via REST/WS to VECTOR's autonomous loop
+- Python logic → absorb as VECTOR district/module (existing rule)
+- Rust/Go/C++ binary → compile + call via subprocess / sidecar
+- TypeScript/Node.js service → `npm install`, run locally, expose REST/WS
+- TypeScript/JS frontend → serve alongside FastAPI, iframe/proxy into HUD
+- Electron app → launch as child process, control via IPC/Playwright
+- npm CLI tool → install globally, thin Python subprocess wrapper
 
 **Delete-readiness semantics (corrected 2026-05-31):**
 - **DELETE-NOW** — all value absorbed + working + zero pending work needing the repo.
