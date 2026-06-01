@@ -294,6 +294,28 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 32. ECC-main — SAFE TO DELETE (3 targeted extractions first)
+| Item | Status |
+|---|---|
+| 63 agents, 249 skills, 47 hooks — Claude Code harness plugin, not VECTOR-relevant Python | — |
+| VECTOR already has 371 brain skills > ECC's 249 | ✅ |
+| Copy 8 language-reviewer agents to `brain/.claude/agents/` (python-reviewer, fastapi-reviewer, go-reviewer, rust-reviewer, typescript-reviewer, silent-failure-hunter, tdd-guide, harness-optimizer) | 🔵 OPEN |
+| Port 2 Python hooks (~30 lines each): SessionStart context injection + compact-suggestion at 40 tool calls | 🔵 OPEN |
+| Continuous learning v2 instinct pipeline → defer Year 2 | — |
+**Delete-readiness:** DELETE-AFTER copying 8 agent .md files + writing 2 hooks.
+
+### 33. AI-Trader-main — INTEGRATE AS AGENT (don't absorb code)
+| Item | Status |
+|---|---|
+| StockAnalyst, TechnicalBot, FundamentalsBot, SentimentBot — all ✅ verified | ✅ |
+| AI-Trader is a **hosted social paper-trading network** at ai4trade.ai — not local code to absorb | — |
+| VECTOR should **register as an agent** at ai4trade.ai for community leaderboard/copy-trading | 🟢 OPEN |
+| Market hours gate (`is_market_open()` with ZoneInfo ET) — VECTOR lacks this | 🔵 OPEN |
+| Alpha Vantage NEWS_SENTIMENT structured snapshot (ETF flows, macro signals) | 🔵 OPEN (low) |
+| Leaderboard recharts pattern for future `dashboard/src/` | 🔵 OPEN (low, when dashboard built) |
+| Copy-trading / challenges / team missions → single-user VECTOR doesn't need this | — skip |
+**Delete-readiness:** DELETE-AFTER registering VECTOR as agent + porting market hours gate.
+
 ### 30. Skill-Collections Batch (6 repos) — DELETE-NOW
 | Repo | Verdict | Notes |
 |---|---|---|
