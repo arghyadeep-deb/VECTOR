@@ -10,8 +10,7 @@ Install: pip install code-review-graph  (or use local repo path)
 from pathlib import Path
 
 _CRG_REPO = Path(__file__).parent.parent.parent.parent.parent / \
-    "GitHub/tirth8205_code-review-graph/repo"
-if _CRG_REPO.exists():
+    "GitHub/code-review-graph-main"
 
 from loguru import logger
 
