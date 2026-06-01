@@ -265,6 +265,19 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 26. OpenCLI-main — PATCH VECTOR
+| Item | Type | Status |
+|---|---|---|
+| `OpenCLIAdapter` instantiates cleanly, fallback HN/GitHub scrapers working | — | ✅ VERIFIED |
+| A18: `ResearchHub` crashes on instantiation (`subscribe_to` missing from AgentBase) — silently dead in autonomous loop | 🐛 HIGH | OPEN |
+| G2: `research_hub.py:78` calls `self.request_agent_help()` — also missing from AgentBase | 🐛 MED | OPEN |
+| G3: No network intercept (fetch/XHR monkey-patch) → can't scrape SPAs (Twitter, LinkedIn, Bilibili) | ❌ | OPEN |
+| G4: DOM pruner missing Shadow DOM, iframe, paint-order occlusion, incremental diff | ❌ | OPEN (optional) |
+| G5: No article extraction pipeline (Readability + Markdown chunking) | ❌ | OPEN |
+| G8: 130+ site adapters (LinkedIn/Amazon/etc.) — TypeScript npm only, no Python equivalent | ❌ | OPEN (needs npm bridge or native port) |
+| TypeScript npm bridge (`@jackwener/opencli`) not installed in VECTOR | ⚠️ | OPEN (optional: `npm install @jackwener/opencli`) |
+**Delete-readiness:** DELETE-AFTER (fix A18/G2; rest are optional). OpenCLI npm tool can be kept as optional external dep.
+
 ### 25. airllm-main — INTEGRATE DIRECTLY (pip dep, delete clone)
 | Item | Type | Status |
 |---|---|---|
