@@ -233,6 +233,9 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | openhuman | after subconscious loop harvest (A17) |
 | **openfang** | NOW (Rust non-importable; build Approvals panel separately) |
 | AutoHedge | NOW (absorption verified; DO NOT enable live_trading until A10 fixed) |
+| nango | NOW (39/40 tests; 1 fail = Windows socket, not code) |
+| OpenWA | NOW (50/50 pass, WebhookSigner verified) |
+| hermes-agent | NOW (35 channel adapters, all absorbed; save React pages as design ref) |
 
 **Genuinely DELETE-NOW: Understand-Anything, superpowers, skills, Scrapling, LightRAG-clone, public-apis, pocketbase*, mem0-clone, AutoHedge-clone, openfang (10).** Everything else has pending work.
 *pocketbase: 8 failing tests (Windows socket only) — optional conftest.py fix first.
