@@ -245,7 +245,7 @@ def _airllm_chat(model: str, messages: list[dict]) -> str:
     import asyncio
 
     async def _run():
-        from core.inference.airllm.airllm_runner import AirLLMRunner
+        from core.inference.airllm_runner import AirLLMRunner
         runner = AirLLMRunner()
         prompt = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
         load_result = await runner.load_model(model)
