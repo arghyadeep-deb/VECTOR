@@ -166,7 +166,16 @@ class TaintTracker:
 
     def tag(self, value: Any, *labels: TaintLabel) -> TaintedValue:
         """Create a tainted value with the given labels."""
-        return TaintedValue(value=value, labels=set(labels))
+        safe_labels: set[TaintLabel] = set()
+        for lbl in labels:
+            if isinstance(lbl, TaintLabel):
+                safe_labels.add(lbl)
+            elif isinstance(lbl, str):
+                try:
+                    safe_labels.add(TaintLabel(lbl))
+                except ValueError:
+                    pass
+        return TaintedValue(value=value, labels=safe_labels)
 
     def tag_external(self, value: Any) -> TaintedValue:
         return self.tag(value, TaintLabel.EXTERNAL_NETWORK)
