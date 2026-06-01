@@ -120,13 +120,13 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | Code Graph HUD panel | 🎨 | ✅ BUILT |
 **Delete-readiness:** ✅ **DELETE-NOW** — nothing pending.
 
-### 7. UI-TARS-desktop-main — DELETE-AFTER
+### 7. UI-TARS-desktop-main — INTEGRATE (multi-language rule)
 | Item | Type | Status |
 |---|---|---|
 | `core/vision_control/` port + visual grounding | — | ✅ VERIFIED (exists, grounding real) |
-| Add pytest for `core/vision_control/` (smoke moves real mouse today) | 🔵 | OPEN (no repo needed) |
-| Optional VLM mobile operator over `phone_controller` | 🔵 harvest | OPEN (repo = reference) |
-**Delete-readiness:** DELETE-AFTER VLM-mobile harvest (or DELETE-NOW if you skip the optional mobile operator). Was wrongly marked DELETE-NOW.
+| **REVISED (multi-language rule):** UI-TARS Electron app can be run as sidecar for full VLM grounding + phone operator; no need to rewrite in Python | 🟢 | OPEN |
+| Electron desktop app → run via `subprocess` / Playwright bridge | 🟢 | OPEN (integrate, not rewrite) |
+**Delete-readiness:** KEEP — integrate the Electron app directly as a PC control sidecar.
 
 ### 8. TradingAgents-main — DELETE-AFTER
 | Item | Type | Status |
