@@ -3,9 +3,14 @@
 # make blocking calls to live services (Ollama, Pushover, etc.); a global socket
 # timeout makes any such call fail fast instead of stalling the whole suite.
 import socket
+import sys
 socket.setdefaulttimeout(20)
 
 import asyncio
+
+# Fix WinError 10055 socket exhaustion on Windows asyncio tests
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import json
 import sqlite3
 import uuid
