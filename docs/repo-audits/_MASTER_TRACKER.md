@@ -321,6 +321,66 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | 6 React chart components (Recharts) — use as reference when building `dashboard/src/` | 🎨 OPEN (when dashboard built) |
 **Delete-readiness:** DELETE-AFTER (4 targeted extractions; TypeScript app shell not needed).
 
+### 41. camel-master — SAFE TO DELETE (keep pip dep)
+`camel 0.2.90` pip-installed. VECTOR has full multi-agent framework (133 agents, GNNRouter, 8 RL algos). CAMEL is a competing framework. One gap: EvolInstruct/SelfInstruct data generation pipelines for LoRA fine-tuning — harvest to `districts/karpathy_lab/` in Month 2.
+**Delete-readiness:** DELETE-NOW source clone (keep pip dep for future data gen).
+
+### 42. camofox-browser-master — PATCH (trivial)
+VECTOR has `core/stealth_browser/server/` at v1.10.1. Repo is v1.11.2. Same 36 routes, same deps. Just copy `server.js` + `lib/` delta.
+**Delete-readiness:** DELETE-AFTER copying 69-line patch delta.
+
+### 43. autoresearch-master — PATCH (one file missing)
+`AutoresearchRunner` verified OK. `data/training_runs/train.py` does NOT exist (path logged at startup). Copy `train.py` + `prepare.py` + `program.md` from repo → `data/training_runs/`.
+**Delete-readiness:** DELETE-AFTER copying 3 files.
+
+### 44. agentic-inbox-main — SAFE TO DELETE
+TypeScript/React inbox app. VECTOR has `core/email/` schema + AI security + search + `districts/communications/email_agent.py` (13 tools). EmailAgent verified OK after A37 fix.
+**Delete-readiness:** ✅ DELETE-NOW.
+
+### 45. Open-Generative-AI-main — PATCH VECTOR (catalog expansion)
+`MuapiClient` verified OK. VECTOR has 67 models in `core/media/models.py` (not 52 as batch claimed). Repo has 239. Entire audio category (Suno music gen) missing. Add `generate_audio()` + expand model catalog.
+**Delete-readiness:** DELETE-AFTER expanding `core/media/models.py` + adding `generate_audio()`.
+
+### 46. firecrawl-mcp-server-main — INTEGRATE (pip already installed)
+`firecrawl 4.26.0` already pip-installed! VECTOR's `WebScout` doesn't use it though (only DuckDuckGo). Wire `FirecrawlApp` into `districts/research/web_scout.py` as structured scraping backend. 15 tools: scrape, crawl, map, extract, search, deep_research.
+**Delete-readiness:** DELETE-NOW source clone (use pip package).
+
+### 47. ClawRouter-main — PATCH CONFIG (npm tool)
+10 free NVIDIA models via `npx @blockrun/clawrouter` at `http://localhost:8787` (OpenAI-compat, no API key). Add one entry to `core/config.py` as Ollama fallback provider.
+**Delete-readiness:** DELETE-AFTER adding to config (npm install -g not needed, uses npx).
+
+### 48. ComfyUI-master — INTEGRATE (sidecar)
+`comfyui_adapter.py` verified OK, running at port 8188. Gap: no auto-start in `run_vector.py`. ComfyUI must be running before VECTOR for image generation to work.
+**Delete-readiness:** KEEP — ComfyUI is the image-gen engine, not a one-time absorption.
+
+### 49. mistral-vibe-main — PATCH VECTOR (3 gaps)
+3 absorptions: `ask_user_question` tool (structured multi-option in-task questions); tree-sitter bash AST safety guard (deterministic pre-execution analysis); named permission profiles (plan/accept-edits/auto-approve → GREEN/YELLOW/RED tiers).
+**Delete-readiness:** DELETE-AFTER porting 3 components.
+
+### 50. openclaw-main — PATCH VECTOR (2 gaps)
+`ImageGenProviderRegistry` + `VideoGenProviderRegistry` — VECTOR hardcodes ComfyUI/SadTalker, needs provider registry with cloud fallbacks. Per-channel DM security policy (pairing codes, allowlists).
+**Delete-readiness:** DELETE-AFTER porting 2 components.
+
+### 51. humanlayer-main — SAFE TO DELETE (SDK already wired)
+`humanlayer` now active in requirements.txt. `permission_gateway.py:19-22` already imports and uses it. Repo has pivoted to Go daemon (`hld`) + Tauri UI — optional future enhancement.
+**Delete-readiness:** ✅ DELETE-NOW source clone.
+
+### 52. code-review-graph-main — INTEGRATE (adapter fixed)
+`code_review_graph/__init__.py` IndentationError fixed (empty `if` body). Now loads clean. MCP tools not yet exposed. Wire `build_graph`, `query_impact`, `review_changes` as MCP tools in `core/mcp_server.py`.
+**Delete-readiness:** DELETE-NOW source clone (use pip package `code-review-graph>=2.1.0`).
+
+### 53. llm-council-master — SAFE TO DELETE (A18 fixed)
+LLMCouncil verified OK after A18 fix. VECTOR's `districts/governance/llm_council.py` is already more advanced than the reference repo.
+**Delete-readiness:** ✅ DELETE-NOW.
+
+### 54. agency-agents-main — PATCH VECTOR (3 small gaps)
+Core categories absorbed in 2026-05-17 session. 14 marketing agents verified. 3 remaining gaps: paid-media reference docs, support channel reference docs, mcp-builder agent .md. All are simple file copies.
+**Delete-readiness:** DELETE-AFTER copying 3 .md files.
+
+### 55. Anthropic-Cybersecurity-Skills-main — KEEP → HARVEST
+754 SKILL.md files (743 not yet installed) + MITRE ATT&CK Navigator JSON + NIST CSF mappings + OWASP maps. Install 743 skills → `brain/.claude/skills/`. Copy `mappings/` → `districts/security/data/`.
+**Delete-readiness:** DELETE-AFTER installing 743 skills and copying mappings.
+
 ### 40. daily_stock_analysis-main — PATCH VECTOR (5 targeted files)
 | Item | Status |
 |---|---|
