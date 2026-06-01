@@ -60,7 +60,8 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A28 | **Brain vault hooks never fire** — `.claude/settings.json` missing from Brain vault; all 5 lifecycle hooks (SessionStart, UserPromptSubmit, PostToolUse, PreCompact, Stop) are dead | `brain/.claude/settings.json` | 🐛 HIGH | OPEN |
 | A29 | **AdsOrchestrator runs platforms sequentially** — `for platform in platforms:` loop instead of `asyncio.gather()` → misses parallel-audit performance target | `districts/marketing/ads/ads_orchestrator.py` | 🐛 MED | OPEN |
 | A30 | **No `AdsScorer` class** — weighted scoring formula exists only in reference .md, not as testable Python code | `districts/marketing/` | 🔵 | OPEN |
-| A32 | **`_FINCEPT_BASE` wrong path** — `finagent_agent.py:27` resolves to `parent.parent.parent.parent / "core" / "vector_finagent"` (points outside repo). Correct: `Path(__file__).parent / "vector_finagent"`. Investor persona config loading fails silently. | `districts/investment/finagent_agent.py:27` | 🐛 HIGH | OPEN |
+| A32 | **Communications district crashes on import** — `__init__.py` imports `StyleModel` and `CommunicationsAdapter` which don't exist; entire district broken until fix. Fixed: removed dead imports. | `districts/communications/__init__.py` | 🐛 CRITICAL | ✅ FIXED |
+| A33 | **`_FINCEPT_BASE` wrong path** — `finagent_agent.py:27` resolves to `parent.parent.parent.parent / "core" / "vector_finagent"` (points outside repo). Correct: `Path(__file__).parent / "vector_finagent"`. Investor persona config loading fails silently. | `districts/investment/finagent_agent.py:27` | 🐛 HIGH | OPEN |
 | A33 | **FinceptTerminal investor personas hardcoded to OpenAI** — 7 AI personas (Buffett, Graham, Lynch, etc.) call OpenAI API directly instead of routing via `provider_client.py` (VECTOR Rule: all LLM calls must use provider_client, Ollama-first) | `districts/investment/vector_finagent/agents/` | 🐛 HIGH | OPEN |
 | A34 | **1,423 analytics scripts not Governor-routable** — `vector_finagent/` scripts exist but only 7 routes wired to Governor; remaining scripts unreachable from autonomous loop | `districts/investment/vector_finagent/` | 🔵 | OPEN |
 | A35 | **743 cybersecurity skills uninstalled** — `Anthropic-Cybersecurity-Skills-main` has 754 SKILL.md files; only 11 in brain; 743 not yet installed. Also has MITRE ATT&CK Navigator JSON, NIST CSF mappings, OWASP maps → valuable for ThreatScout/MalwareHunter grounding | `brain/.claude/skills/` + `districts/security/data/` | 🔵 harvest | OPEN |
@@ -502,6 +503,39 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | MongoDB required: `docker run -d -p 27017:27017 mongo` | dep | OPEN |
 **Delete-readiness:** KEEP — run as sidecar service. Do not port Node.js to Python.
 
+
+### 35. Web-Tools Batch (5 repos) — 2026-06-01
+| Repo | Verdict | Notes |
+|------|---------|-------|
+| `ai-website-cloner-template-master` | INTEGRATE DIRECTLY | Install `/clone-website` skill into `~/.claude/skills/`. No Python needed. Uses existing Playwright MCP. |
+| `glif-mcp-server-main` | INTEGRATE DIRECTLY | `npm install && npm run build`, add to `.mcp.json` as Node.js MCP sidecar. Add `GLIF_API_TOKEN` to `.env`. |
+| `NotFair-main` | INTEGRATE DIRECTLY + PATCH VECTOR | `/plugin install notfair@nowork-studio`; wire `NotFair-GoogleAds` + `NotFair-MetaAds` remote MCP servers; absorb policy rules into Python agents. |
+| `iii-main` | SAFE TO DELETE (engine) + harvest SDK patterns | Do not run Rust engine. Harvest `TriggerHandler`/`TriggerConfig` into `core/event_bus/` (W11). |
+| `hyperframes-main` | INTEGRATE DIRECTLY + PATCH VECTOR | Run `@hyperframes/producer` sidecar on port 7421. Install skills. Wire as fallback render backend. |
+
+**Gaps (W-series):**
+| # | Issue | Location | Type | Status |
+|---|---|---|---|---|
+| W1 | Install `/clone-website` skill | `~/.claude/skills/clone-website/` | 🟢 | OPEN |
+| W2 | Add `extract_design_tokens(url)` to `core/browser/dom_pruner.py` | `core/browser/dom_pruner.py` | 🔵 | OPEN |
+| W3 | Build glif-mcp-server + add to `.mcp.json` + `GLIF_API_TOKEN` in `.env` | `.mcp.json` | 🟢 | OPEN |
+| W4 | `districts/content/glif_workflow_agent.py` — glif MCP wrapper | `districts/content/` | 🔵 | OPEN |
+| W5 | Add NotFair-GoogleAds + NotFair-MetaAds to `.mcp.json` | `.mcp.json` | 🟢 | OPEN |
+| W6 | Install NotFair plugin skills into `brain/.claude/skills/notfair/` | `brain/.claude/skills/` | 🟢 | OPEN |
+| W7 | Extend `google_ads_agent.py`: GAQL fan-out + change-event + business-context.json | `districts/marketing/google_ads_agent.py` | 🔵 | OPEN |
+| W8 | Extend `meta_ads_agent.py`: Learning Phase + frequency fatigue + CBO/ABO/Advantage+ | `districts/marketing/meta_ads_agent.py` | 🔵 | OPEN |
+| W9 | Build `geo_optimizer_agent.py` — GEO score 0-100 for AI search citation (net-new) | `districts/marketing/` | 🟢 new | OPEN |
+| W10 | Expand `core/api/routers/seo.py` stub to full action router | `core/api/routers/seo.py` | 🔵 | OPEN |
+| W11 | Harvest iii-SDK trigger abstractions into `core/event_bus/` | `core/event_bus/` | 🔵 | OPEN |
+| W12 | Add unit tests for `core/loop/cron_jobs.py` | `tests/test_cron_jobs.py` | 🔵 | OPEN |
+| W13 | Build `@hyperframes/producer` + add sidecar startup on port 7421 | `run_vector.py` | 🟢 | OPEN |
+| W14 | Add `render_via_hyperframes()` to `core/video/vector_composer.py` | `core/video/vector_composer.py` | 🔵 | OPEN |
+| W15 | Install hyperframes skills (`npx skills add heygen-com/hyperframes`) | `~/.claude/skills/` | 🟢 | OPEN |
+| W16 | Harvest chunk-based streaming encode from hyperframes `chunkEncoder.ts` | `core/video/video_encoder.py` | 🔵 | OPEN |
+| W17 | Add extraction cache to `core/video/html_renderer.py` | `core/video/html_renderer.py` | 🔵 | OPEN |
+
+**Delete-readiness:** ai-website-cloner KEEP · glif-mcp KEEP · NotFair KEEP · iii DELETE-AFTER W11/W12 · hyperframes KEEP
+
 ---
 
 ## D. Audit progress
@@ -521,10 +555,10 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 14 ✅: open-webui (INTEGRATE DIRECTLY, port 8080), LibreChat (INTEGRATE DIRECTLY, port 3080)
 - Batch 15 ⏳: skill-collections (7 repos), misc-collections (6 repos)
 - Batch 16 ⏳: frontend-ui (ComfyUI×2, openclaude, openclaw, mistral-vibe)
-- Batch 17 ⏳: web-tools (ai-website-cloner, glif-mcp, NotFair, iii, hyperframes)
+- Batch 17 ✅: web-tools (ai-website-cloner, glif-mcp, NotFair, iii, hyperframes) — see Section 35
 - Batch 18 ⏳: MCP-infra (fastmcp, modelcontextprotocol, playwright-mcp, firecrawl-mcp, ClawRouter)
 - Batch 19 ⏳: tooling (codebuff, get-shit-done, humanlayer, markitdown, code-review-graph)
 - Batch 20 ⏳: AI-agents (camel, camofox, autoresearch, agentic-inbox, Open-Generative-AI)
 - **ALL ~76 repos now assigned to agents. Awaiting results.**
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **31 audited + 45 in-flight = 76 total.**
+- **32 audited + 44 in-flight = 76 total.**
