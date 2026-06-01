@@ -59,8 +59,8 @@ class EmailAgent(AgentBase):
     def __init__(self):
         super().__init__(agent_id="email_agent_001", name="EmailAgent", district="communications")
         self._memory: EpisodicMemory | None = None
-        self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
-        self._db_path = Path(CONFIG.get("paths", {}).get("email_db", str(EMAIL_DB_PATH)))
+        self._model = CONFIG.models.focus if hasattr(CONFIG, "models") else "vector-focus"
+        self._db_path = Path(EMAIL_DB_PATH)
         init_schema(self._db_path)
         logger.info("[VECTOR][email_agent] initialized — db={}", self._db_path)
         # Phase 2B: subscribe to email events
