@@ -235,6 +235,7 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 - Batch 4 ✅: superpowers, skills, Scrapling
 - Batch 5 ✅: ruflo, LightRAG, RAG-Anything
 - Batch 6 ✅: public-apis, postiz
-- Batch 7+ ⏳: ~59 repos remain in GitHub/ (folder has ~76 total)
+- Batch 7 ✅: mem0, AutoHedge, pocketbase
+- Batch 8+ ⏳: ~56 repos remain
 - **Rule: finish auditing ALL repos → then fix/harvest/delete in one pass.**
-- **17 repos audited so far; ~59 remain.**
+- **20 repos audited so far; ~56 remain.**
