@@ -270,6 +270,27 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10: Solana execution completely ungated (zero permission_gateway calls in vector_hedgebot/) | 🔴 | OPEN |
 **Delete-readiness:** **DELETE-NOW the clone** (absorption real). BUT A10 must be patched before enabling live trading. Currently safe only because `live_trading=False` by default — DO NOT set `SOLANA_PRIVATE_KEY` until A10 is fixed.
 
+### 27. claude-ads-main — PATCH (mostly done)
+| Item | Type | Status |
+|---|---|---|
+| Core Python agents instantiate: AdsOrchestratorAgent, GoogleAdsAgent, MetaAdsAgent, SEOSpecialist, CompetitorIntelAgent, CROAgent | — | ✅ VERIFIED |
+| 13/22 command routes covered autonomously; 25/26 reference files + 12 industry templates present | — | ✅ VERIFIED |
+| A29: AdsOrchestrator runs platforms sequentially instead of `asyncio.gather()` | 🐛 | OPEN |
+| A30: No `AdsScorer` Python class (scoring formula is markdown-only) | 🔵 | OPEN |
+| A31: Wave 2 sub-skills (ads-amazon, ads-attribution, ads-server-side-tracking) not installed/built | 🔵 | OPEN |
+| Zero pytest coverage for ads routing/scoring | 🔵 | OPEN |
+**Delete-readiness:** DELETE-NOW (Claude Code skill repo — its Python value is in VECTOR as districts/marketing/; skill .md files are in ~/.claude/skills/; repo is redundant). Fix A29/A30/A31 in VECTOR separately.
+
+### 28. obsidian-mind-main — PATCH (70% done)
+| Item | Type | Status |
+|---|---|---|
+| ZKSteward, PatternFinder, JournalWriter, ObsidianSync — all real working Python agents | — | ✅ VERIFIED |
+| A18 (systemic): ConsolidationBot crashes on `self.subscribe_to("memory_stored")` | 🐛 CRITICAL | OPEN |
+| A27: ZKSteward vault path wrong → 0 notes returned | 🐛 HIGH | OPEN |
+| A28: Brain vault `.claude/settings.json` missing → all 5 lifecycle hooks dead | 🐛 HIGH | OPEN |
+| 12/18 obsidian-mind slash commands missing from Brain vault | 🔵 | OPEN |
+**Delete-readiness:** DELETE-AFTER (fix A18/A27/A28; install missing 12 commands). Repo is the reference for command content.
+
 ### 26. OpenCLI-main — PATCH VECTOR
 | Item | Type | Status |
 |---|---|---|
