@@ -306,8 +306,9 @@ class GitBot(AgentBase):
         """
         try:
             import subprocess
-            result = subprocess.run(
-                ["npx", "-y", "gitnexus@latest", "analyze", "--repo", repo_path, "--format", "json"],
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["npx", "-y", "gitnexus@latest", "analyze", "--repo", repo_path],
                 capture_output=True, text=True, timeout=60,
                 cwd=repo_path,
             )
