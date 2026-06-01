@@ -29,6 +29,11 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | A10 | 🔴 **AutoHedge/Solana ungated execution** — `districts/investment/vector_hedgebot/` has no permission_gateway call. If `CONFIG["vector_hedgebot"]["live_trading"]=True` + `SOLANA_PRIVATE_KEY` set → signed blockchain transaction fires directly to Jupiter with zero owner confirmation, no council, no kill switch. (Verified: grep on vector_hedgebot/ returned 0 gateway hits.) | `districts/investment/vector_hedgebot/` | 🔴 CRITICAL | OPEN (same fix as A1 — add to RED tier + paper mode) |
 | A11 | pocketbase: 8 test failures (Windows `WinError 10055` socket exhaustion in asyncio tests — `conftest.py` needs `asyncio.WindowsSelectorEventLoopPolicy()`). Not a logic bug. | `tests/test_collections.py` + `conftest.py` | 🐛 LOW | OPEN (1-line fix) |
 | A12 | mem0 (`mem0ai`) not pip-installed — 2 VECTOR files correctly wire it but it will silently degrade if not installed | `requirements.txt` | 🐛 MED | OPEN (add `mem0ai` to requirements) |
+| A13 | jcode: trajectory auto-compact trigger missing — `StoredCompactionState` field exists but 80%/95% threshold logic not ported | `core/jcode/session_persistence.py` | 🔵 | OPEN (~60 lines from jcode-master reference) |
+| A14 | openfang `OFPNode._init_tls()` `NameError: _C` — needs `_C = CONFIG` alias | `core/network/ofp_protocol.py` | 🐛 LOW | OPEN (1 line) |
+| A15 | openfang `TaintTracker.tag()` TypeError on dict label input | `core/security/taint_tracker.py` | 🐛 LOW | OPEN |
+| A16 | 🎨 openfang Approvals dashboard (5,411-line Alpine.js, 17 panels) not absorbed — especially the **Approvals panel** (human-in-loop for YELLOW/RED actions). No VECTOR equivalent. Build as HUD panel. | `frontend/` | 🎨 HIGH | OPEN — BUILD NOW |
+| A17 | openhuman subconscious loop pattern not harvested — cron LLM-vs-situation-report → act/escalate/noop, proactive reflections | `districts/chief_of_staff/` | 🔵 | OPEN (harvest before deleting repo) |
 | ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
 
 ---
