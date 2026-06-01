@@ -37,13 +37,13 @@ Status legend: 🔴 safety · 🐛 bug · 🔵 patch/harvest · 🟢 integrate �
 | ~~A?~~ | ~~agent_base.py:56 CONFIG[models][focus] crash~~ — **DISPROVEN**: returns 'vector-focus' fine, not a bug (ruflo agent was wrong; likely saw socket-exhaustion error) | — | — | NOT A BUG |
 | A18 | **ResearchHub crashes on instantiation** — `research_hub.py:64` calls `self.subscribe_to("task_completed")` but `AgentBase` has no `subscribe_to` method → `AttributeError`. ResearchHub is silently dead in the autonomous loop. | `districts/research/research_hub.py:64` | 🐛 HIGH | OPEN |
 | A19 | **airllm wrong import path** — `ollama_safe.py:248` does `from core.inference.airllm.airllm_runner import AirLLMRunner` but no `airllm/` subpackage exists; file is at `core/inference/airllm_runner.py`. Crashes on first 70B call. | `core/inference/ollama_safe.py:248` | 🐛 HIGH | OPEN |
-| A19 | **airllm `AutoTokenizer` not exported** — `airllm_runner.py:85,190` imports `AutoTokenizer` from `airllm` package; airllm doesn't export this; access via `model.tokenizer` instead. Will crash when `airllm` is pip-installed. | `core/inference/airllm_runner.py:85,190` | 🐛 HIGH | OPEN |
-| A20 | **airllm wrong `cache_dir` param** — passes `cache_dir=` to `AutoModel.from_pretrained()` but airllm API uses `layer_shards_saving_path=`. Shards silently land in HF default cache. | `core/inference/airllm_runner.py:94,101,196` | 🐛 MED | OPEN |
-| A21 | **airllm commented out in requirements.txt** — `# airllm>=2.10.0` (line 31 comment); it's never installed in fresh venv | `requirements.txt:31` | 🐛 LOW | OPEN (uncomment) |
-| A22 | **OpenMythos not installed** — `open-mythos` not in requirements.txt, not pip-installed; `trainer.py` import fails silently. Fix: `pip install open-mythos>=0.5.0` | `requirements.txt` | 🐛 MED | OPEN |
-| A23 | **`train.py` is fake** — `core/training/openmythos/train.py` calls `ollama.generate()` in a loop; zero gradient descent. Misleading name alongside real `trainer.py`. Rename to `ollama_modelfile_trainer.py`. | `core/training/openmythos/train.py` | 🐛 LOW | OPEN |
-| A24 | **trainer.py wrong OpenMythos repo path** — `trainer.py:37` looks for `GitHub/kyegomez_OpenMythos/repo`; actual path is `GitHub/OpenMythos-main` | `core/training/openmythos/trainer.py:37` | 🐛 LOW | OPEN |
-| A25 | **trainer.py MythosTokenizer API mismatch** — calls `.encode(batch)` but it only has `.encode(str)`; batch tokenization will crash at training time | `core/training/openmythos/trainer.py` | 🐛 MED | OPEN |
+| A20 | **airllm `AutoTokenizer` not exported** — `airllm_runner.py:85,190` imports `AutoTokenizer` from `airllm` package; airllm doesn't export this; access via `model.tokenizer` instead. Will crash when `airllm` is pip-installed. | `core/inference/airllm_runner.py:85,190` | 🐛 HIGH | OPEN |
+| A21 | **airllm wrong `cache_dir` param** — passes `cache_dir=` to `AutoModel.from_pretrained()` but airllm API uses `layer_shards_saving_path=`. Shards silently land in HF default cache. | `core/inference/airllm_runner.py:94,101,196` | 🐛 MED | OPEN |
+| A22 | **airllm commented out in requirements.txt** — `# airllm>=2.10.0` (line 31 comment); it's never installed in fresh venv | `requirements.txt:31` | 🐛 LOW | OPEN (uncomment) |
+| A23 | **OpenMythos not installed** — `open-mythos` not in requirements.txt, not pip-installed; `trainer.py` import fails silently. Fix: `pip install open-mythos>=0.5.0` | `requirements.txt` | 🐛 MED | OPEN |
+| A24 | **`train.py` is fake** — `core/training/openmythos/train.py` calls `ollama.generate()` in a loop; zero gradient descent. Misleading name alongside real `trainer.py`. Rename to `ollama_modelfile_trainer.py`. | `core/training/openmythos/train.py` | 🐛 LOW | OPEN |
+| A25 | **trainer.py wrong OpenMythos repo path** — `trainer.py:37` looks for `GitHub/kyegomez_OpenMythos/repo`; actual path is `GitHub/OpenMythos-main` | `core/training/openmythos/trainer.py:37` | 🐛 LOW | OPEN |
+| A26 | **trainer.py MythosTokenizer API mismatch** — calls `.encode(batch)` but it only has `.encode(str)`; batch tokenization will crash at training time | `core/training/openmythos/trainer.py` | 🐛 MED | OPEN |
 
 ---
 
