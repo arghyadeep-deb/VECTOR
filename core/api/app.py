@@ -213,6 +213,8 @@ def create_app() -> FastAPI:
         collections,
         # Knowledge layer (Understand-Anything-main absorption)
         knowledge,
+        # Content district (postiz feedback loop)
+        content,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
