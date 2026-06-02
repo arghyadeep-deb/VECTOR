@@ -64,7 +64,7 @@ d = asyncio.run(de.evaluate([
 ]))
 check("evaluate() winner not None", lambda: d.winner is not None)
 check("winner.total_score in [0,1]", lambda: 0 <= d.winner.total_score <= 1)
-check("reasoning_chain has 2 entries", lambda: len(d.reasoning_chain) == 2)
+check("all_candidates has 2 entries", lambda: len(d.all_candidates) == 2)
 rb_state = de._get_reasoning_bank()
 print(f"  INFO ReasoningBank: {'online' if rb_state not in (None, False) else 'graceful skip (cold start)'}")
 # Verify source code wiring
