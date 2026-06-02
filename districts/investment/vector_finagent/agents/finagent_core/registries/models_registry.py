@@ -362,16 +362,43 @@ class ModelsRegistry:
         }
         provider_lower = _PROVIDER_ALIASES.get(provider_lower, provider_lower)
 
+        # Redirect "openai" to VECTOR-native when no API key is available.
+        # Also translate OpenAI model names to VECTOR equivalents.
+        if provider_lower == "openai":
+            openai_key = (
+                api_key
+                or (api_keys or {}).get("OPENAI_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+            )
+            if not openai_key:
+                _vector_logger.info(
+                    "[VECTOR][models_registry] No OPENAI_API_KEY found; "
+                    "routing openai provider → vector (provider_client)"
+                )
+                provider_lower = "vector"
+                # Map OpenAI model names to VECTOR equivalents
+                if model_id and model_id in _OPENAI_TO_VECTOR_MODEL:
+                    model_id = _OPENAI_TO_VECTOR_MODEL[model_id]
+            else:
+                # Key is available — still map model names for consistency
+                if model_id and model_id in _OPENAI_TO_VECTOR_MODEL:
+                    _vector_logger.debug(
+                        "[VECTOR][models_registry] OpenAI key present but mapping "
+                        "'{}' → '{}' as VECTOR equivalent",
+                        model_id, _OPENAI_TO_VECTOR_MODEL[model_id],
+                    )
+                    # Do NOT remap when a real OpenAI key is present — keep original name
+
         if provider_lower not in cls.MODEL_CATALOG:
-            # Unknown provider - treat as OpenAI-compatible with custom base_url
-            # This supports custom endpoints like "fincept", "local-llm", etc.
-            logger.info(f"Unknown provider '{provider}', treating as OpenAI-compatible endpoint")
-            config = {
-                "class": "agno.models.openai.OpenAIChat",
-                "models": [],
-                "api_key_env": f"{provider.upper()}_API_KEY",
-                "default_model": model_id,
-            }
+            # Unknown provider — route through VECTOR provider_client (Ollama-first)
+            # instead of hardcoding OpenAI. This ensures unknown/custom providers
+            # fall back to local inference rather than requiring an OpenAI key.
+            _vector_logger.info(
+                "[VECTOR][models_registry] Unknown provider '{}' → routing to vector (provider_client)",
+                provider,
+            )
+            provider_lower = "vector"
+            config = cls.MODEL_CATALOG["vector"]
         else:
             config = cls.MODEL_CATALOG[provider_lower]
 
