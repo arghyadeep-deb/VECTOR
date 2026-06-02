@@ -238,6 +238,11 @@ def main() -> int:
     args = parse_args()
     logger.info("[VECTOR][launcher] mode={}", args.mode)
 
+    # Start optional sidecar services (ComfyUI, etc.) — non-blocking.
+    # Skipped in smoke mode to keep the startup check fast.
+    if args.mode != "smoke":
+        _start_sidecars()
+
     if args.mode == "api":
         run_api(args.host, args.port)
         return 0
