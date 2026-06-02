@@ -213,7 +213,7 @@ class GoalSystem:
                 if progress >= 1.0:
                     goal["status"] = "completed"
                     logger.info(f"[VECTOR][goal_system] GOAL COMPLETED: {goal['title']}")
-                goal["last_updated"] = datetime.datetime.utcnow().isoformat()
+                goal["last_updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 if note:
                     goal["last_note"] = note
                 self._persist()
