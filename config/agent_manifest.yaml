@@ -391,6 +391,31 @@ districts:
       description: ComfyUI workflow adapter for image/video generation
       capabilities: [content, comfyui, image_generation]
 
+  marketing:
+    - name: seo_specialist
+      class: districts.marketing.seo_specialist.SEOSpecialist
+      model: vector-reasoning
+      description: SEO auditing, keyword research, and on-page optimisation
+      capabilities: [marketing, seo, audit]
+
+    - name: geo_optimizer
+      class: districts.marketing.geo_optimizer_agent.GEOOptimizerAgent
+      model: vector-reasoning
+      description: GEO score agent — AI search citation auditor (0-100)
+      capabilities: [marketing, geo, ai_citation, seo]
+
+    - name: ai_citation_strategist
+      class: districts.marketing.ai_citation_strategist.AICitationStrategist
+      model: vector-reasoning
+      description: Strategy for maximising AI engine citations and AEO
+      capabilities: [marketing, ai_citation, aeo, content]
+
+    - name: growth_hacker
+      class: districts.marketing.growth_hacker.GrowthHacker
+      model: vector-reasoning
+      description: Growth loops, viral mechanics, north-star metric analysis
+      capabilities: [marketing, growth, analytics]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
