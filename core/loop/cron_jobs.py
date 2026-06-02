@@ -26,6 +26,20 @@ from loguru import logger
 # ── Job implementations ──────────────────────────────────────────────────────
 
 
+async def job_subconscious_loop(*, _ctx: dict | None = None) -> dict:
+    """Every 30 min — SubconsciousLoop situation assessment and escalation check."""
+    try:
+        from districts.chief_of_staff.subconscious_loop import SubconsciousLoop
+        result = await SubconsciousLoop().run_once()
+        logger.info(
+            f"[VECTOR][cron] subconscious_loop: decision={result.get('decision', '?')}"
+        )
+        return {"status": "ok", **result}
+    except Exception as e:
+        logger.warning(f"[VECTOR][cron] subconscious_loop failed: {e}")
+        return {"status": "failed", "reason": str(e)}
+
+
 async def job_audit_verify(*, _ctx: dict | None = None) -> dict:
     """Daily 3:05 AM audit chain verification (Phase 1E)."""
     try:
