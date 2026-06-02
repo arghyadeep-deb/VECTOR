@@ -1425,11 +1425,13 @@ class AutonomousLoop:
     async def phone_loop(self) -> None:
         """Poll phone ambient server every 60s. Graceful if phone disconnected."""
         logger.info("[VECTOR][phone] loop starting")
-        try:
-            from phone_node.adb_bridge import poll_loop
-            await poll_loop(interval_sec=60)
-        except Exception as e:
-            logger.warning(f"[VECTOR][phone] loop unavailable: {e}")
+        while self._running:
+            try:
+                from phone_node.adb_bridge import poll_loop
+                await poll_loop(interval_sec=60)
+            except Exception as e:
+                logger.error("[VECTOR][phone] loop crashed: {} — restarting in 30s", e)
+                await asyncio.sleep(30)
 
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Health monitoring cycles Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
