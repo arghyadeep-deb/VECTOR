@@ -252,6 +252,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("daily-eval-harness",    "daily",  "0 3 * * *", job_daily_eval),
         ("daily-audit-verify",    "daily",  "5 3 * * *", job_audit_verify),  # Phase 1E
         ("daily-biometrics-pull", "daily",  "0 6 * * *", job_biometrics_pull),
+        ("content-scheduler",     "daily",  "0 9 * * *", job_content_scheduler),
         ("daily-review-journal",  "daily",  "30 22 * * *", job_daily_review),
         ("daily-workflow-trigger","daily",  "0 8 * * *", job_trigger_workflow),
         ("weekly-benchmark-suite","weekly", "0 1 * * 0", job_benchmark_suite),
