@@ -14,6 +14,9 @@ import subprocess
 import json
 from pathlib import Path
 
+# Ensure codebase root is first in sys.path so CONFIG resolves to the real dict,
+# not vectorcode/src/core/config.py (VectorConfig).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
