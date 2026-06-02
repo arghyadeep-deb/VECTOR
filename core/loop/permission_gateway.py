@@ -698,13 +698,22 @@ class PermissionGateway:
                     result["status"] = "error"; result["error"] = str(_e)
             elif action.action_type == "run_shell_command":
                 try:
-                    from core.control.pc_controller import PCController
-                    _shell = PCController().run_shell_command(
-                        action.params.get("command", ""),
-                        action.params.get("timeout", 30),
-                    )
-                    result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
-                    result.update(_shell)
+                    _cmd = action.params.get("command", "")
+                    # AST safety guard before execution
+                    _ast_warnings = self._check_bash_ast(_cmd)
+                    if _ast_warnings:
+                        logger.warning(f"[VECTOR][gateway] bash AST guard blocked command — {_ast_warnings}")
+                        result["status"] = "blocked"
+                        result["reason"] = "bash AST safety guard"
+                        result["ast_warnings"] = _ast_warnings
+                    else:
+                        from core.control.pc_controller import PCController
+                        _shell = PCController().run_shell_command(
+                            _cmd,
+                            action.params.get("timeout", 30),
+                        )
+                        result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
+                        result.update(_shell)
                 except Exception as _e:
                     result["status"] = "error"; result["error"] = str(_e)
             elif action.action_type.startswith("proactive_"):
