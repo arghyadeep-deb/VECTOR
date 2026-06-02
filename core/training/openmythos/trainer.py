@@ -169,7 +169,23 @@ def train(data_path: Path, epochs: int = 3, output_dir: Path = None) -> Path:
                     examples["output"],
                 )
             ]
-            return tokenizer(texts, truncation=True, max_length=512, padding="max_length")
+            # MythosTokenizer may not support batch __call__; encode one item at a time
+            if hasattr(tokenizer, '__call__'):
+                try:
+                    return tokenizer(texts, truncation=True, max_length=512, padding="max_length")
+                except (TypeError, ValueError):
+                    pass
+            # Fallback: per-item encode
+            encoded = [tokenizer.encode(text) for text in texts]
+            # Truncate / pad to max_length=512
+            input_ids = []
+            for ids in encoded:
+                if len(ids) > 512:
+                    ids = ids[:512]
+                else:
+                    ids = ids + [0] * (512 - len(ids))
+                input_ids.append(ids)
+            return {"input_ids": input_ids, "attention_mask": [[1 if t != 0 else 0 for t in ids] for ids in input_ids]}
 
         tokenized = dataset.map(tokenize, batched=True, remove_columns=dataset.column_names)
 

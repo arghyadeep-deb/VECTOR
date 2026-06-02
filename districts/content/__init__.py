@@ -15,6 +15,9 @@ from .video_merger import VideoMerger
 from .voice_generator import VoiceGenerator
 from .comfyui_adapter import ComfyUIAdapter
 from .media_studio_agent import MediaStudioAgent
+from .analytics_retriever import AnalyticsRetriever, PostMetrics
+from .blog_publisher import BlogPublisher, PublishResult
+from .post_job import PostJobTracker, JobStatus
 
 __all__ = [
     "ScriptGenerator",
@@ -25,6 +28,12 @@ __all__ = [
     "VoiceGenerator",
     "ComfyUIAdapter",
     "MediaStudioAgent",
+    "AnalyticsRetriever",
+    "PostMetrics",
+    "BlogPublisher",
+    "PublishResult",
+    "PostJobTracker",
+    "JobStatus",
 ]
 
 logger.info("[VECTOR][content] Content district loaded")
