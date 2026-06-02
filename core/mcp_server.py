@@ -4262,6 +4262,43 @@ def _add_research_tools(mcp) -> None:
     logger.info("[VECTOR][mcp] Research tools registered: research_quick, research_report, research_papers, research_news")
 
 
+def _add_code_graph_tools(mcp) -> None:
+    """Register code-review-graph MCP tools (3 tools): build, impact, review."""
+
+    @mcp.tool
+    async def code_graph_build(repo_path: str = ".") -> str:
+        """Build/update the code knowledge graph for the VECTOR codebase."""
+        try:
+            from districts.coding.code_review_graph import build_graph
+            result = build_graph(repo_path)
+            return str(result)
+        except Exception as e:
+            return f"Error: {e}"
+
+    @mcp.tool
+    async def code_graph_impact(symbol: str, depth: int = 3) -> str:
+        """Find all code impacted by changing a symbol (blast radius analysis)."""
+        try:
+            from districts.coding.code_review_graph import query_impact
+            result = query_impact(symbol, depth=depth)
+            return str(result)
+        except Exception as e:
+            return f"Error: {e}"
+
+    @mcp.tool
+    async def code_graph_review(changed_files: str) -> str:
+        """Graph-aware code review for a list of changed files (comma-separated)."""
+        try:
+            from districts.coding.code_review_graph import review_changes
+            files = [f.strip() for f in changed_files.split(",")]
+            result = review_changes(files)
+            return str(result)
+        except Exception as e:
+            return f"Error: {e}"
+
+    logger.info("[VECTOR][mcp] code_graph tools registered (3 tools)")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
