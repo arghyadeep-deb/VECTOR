@@ -15,6 +15,7 @@ from .trading_conductor_agent import TradingConductorAgent
 from .finagent_agent import FinAgentAgent
 from .hedgebot_agent import HedgeBotAgent
 from .backtest_agent import BacktestAgent
+from .execution_engine import ExecutionEngine
 
 __all__ = [
     "StockAnalyst",
@@ -25,6 +26,7 @@ __all__ = [
     "HedgeBotAgent",
     "BacktestAgent",
     "SentimentBot",
+    "ExecutionEngine",
 ]
 
 logger.info("[VECTOR][investment] Investment district loaded")
