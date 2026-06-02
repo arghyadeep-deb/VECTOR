@@ -29,6 +29,9 @@ Output JSON:
 """
 
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+from loguru import logger
 from exchange_client import (
     make_exchange, output_success, output_error,
     parse_credentials_from_stdin, run_with_error_handling,
