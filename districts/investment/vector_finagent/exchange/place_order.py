@@ -63,6 +63,53 @@ def main():
     if amount <= 0:
         output_error("Amount must be positive.", "INVALID_ARGS")
 
+    # SAFETY: Gate all execution through permission_gateway RED tier
+    try:
+        from core.loop.permission_gateway import PermissionGateway
+        from core.config import CONFIG
+        gw = PermissionGateway()
+        action_str = f"execute_trade:{symbol}:{side}:{amount}"
+        classification = gw.classify(action_str)
+        if classification not in ("GREEN",):
+            logger.warning(
+                "[VECTOR][investment] Trade blocked — tier: {} action: {}",
+                classification, action_str,
+            )
+            output_error(
+                f"Trade blocked by permission_gateway (tier={classification}). "
+                "Requires human approval.",
+                "GATEWAY_BLOCKED",
+            )
+
+        # Paper mode check (default: True — safe)
+        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+        if inv_cfg.get("paper_trading", True):
+            logger.info(
+                "[VECTOR][investment] PAPER MODE — would execute: {} {} {} {}",
+                side, amount, symbol, order_type,
+            )
+            output_success({
+                "status": "paper",
+                "symbol": symbol,
+                "side": side,
+                "amount": amount,
+                "order_type": order_type,
+                "price": price,
+                "exchange": exchange_id,
+                "simulated": True,
+            })
+
+        # Kill switch check
+        if inv_cfg.get("kill_switch", False):
+            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — trade blocked")
+            output_error("Kill switch is active. All live trading halted.", "KILL_SWITCH")
+    except (ImportError, Exception) as _gw_err:
+        logger.warning("[VECTOR][investment] Gateway check failed ({}); blocking trade for safety", _gw_err)
+        output_error(
+            f"Permission gateway unavailable ({_gw_err}). Trade blocked for safety.",
+            "GATEWAY_ERROR",
+        )
+
     credentials = parse_credentials_from_stdin()
     if not credentials.get("api_key"):
         output_error("API key required. Pass credentials via stdin JSON.", "AUTH_ERROR")
