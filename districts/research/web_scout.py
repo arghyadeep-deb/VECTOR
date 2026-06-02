@@ -54,6 +54,18 @@ class WebScout(AgentBase):
             logger.warning("[VECTOR][web_scout] Firecrawl failed: {}", e)
             return []
 
+    async def _scrape_with_playwright(self, url: str) -> str:
+        """Use playwright-mcp for JS-heavy pages that DDG can't parse."""
+        try:
+            from core.browser.playwright_mcp_client import PlaywrightMCPClient
+            client = PlaywrightMCPClient()
+            if not await client.is_available():
+                return ""
+            return await client.scrape_page(url)
+        except Exception as e:
+            logger.warning("[VECTOR][web_scout] playwright scrape failed: {}", e)
+            return ""
+
     async def search(self, query: str, max_results: int = 5) -> list[dict]:
         """
         Multi-source parallel search: Firecrawl (primary) → ParallelResearcher → DuckDuckGo.
