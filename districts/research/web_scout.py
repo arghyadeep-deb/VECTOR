@@ -106,6 +106,12 @@ class WebScout(AgentBase):
                 r = await client.get(url, headers=headers)
             results = self._parse_ddg_html(r.text, max_results)
             logger.info("[VECTOR][web_scout] search '{}' → {} results (ddg)", query, len(results))
+            # Enrich top 2 DDG results with Playwright for JS-heavy pages that DDG can't parse
+            for res in results[:2]:
+                if not res.get("content") or len(res.get("content", "")) < 100:
+                    full = await self._scrape_with_playwright(res.get("url", ""))
+                    if full:
+                        res["content"] = full[:2000]
             return results
         except Exception as e:
             logger.warning("[VECTOR][web_scout] search failed: {}", e)
