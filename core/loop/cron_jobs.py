@@ -245,6 +245,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("weekly-recipe-sync",    "weekly", "30 1 * * 0", job_recipe_sync),
         ("weekly-dspy-optimize",  "weekly", "0 2 * * 0", job_weekly_dspy_optimize),
         ("weekly-growth-report",  "weekly", "0 23 * * 0", job_weekly_growth_report),
+        # SubconsciousLoop — every 30 min (uses interval, registered separately below)
     ]
 
     registered = 0
