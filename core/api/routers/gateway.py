@@ -18,14 +18,21 @@ from loguru import logger
 
 router = APIRouter(prefix="/gateway", tags=["gateway"])
 
+# Module-level singleton so all callers share the same instance even if
+# app.state hasn't been wired (e.g. unit tests or alternative entry points).
+_gw_singleton: "PermissionGateway | None" = None  # type: ignore[name-defined]
+
 
 def _get_gw(request: Request):
-    """Retrieve the shared PermissionGateway from app state, or create a
-    transient one if the app hasn't initialised it yet (graceful fallback)."""
+    """Retrieve the shared PermissionGateway from app state, or fall back to
+    a module-level singleton so all callers always share the same instance."""
     gw = getattr(request.app.state, "permission_gateway", None)
     if gw is None:
-        from core.loop.permission_gateway import PermissionGateway
-        gw = PermissionGateway()
+        global _gw_singleton
+        if _gw_singleton is None:
+            from core.loop.permission_gateway import PermissionGateway
+            _gw_singleton = PermissionGateway()
+        return _gw_singleton
     return gw
 
 
