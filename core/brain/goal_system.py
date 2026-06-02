@@ -9,6 +9,17 @@ from loguru import logger
 from core.config import CONFIG
 
 
+# Maps goal horizon to a gateway-registered action type so every generated
+# action passes the GREEN/YELLOW gate without being classified as UNKNOWN.
+# SHORT → "research_topic" (GREEN, safe read-only query)
+# MID   → "analyze_progress" (GREEN, analysis only)
+# LONG  → "analyze_progress" (GREEN, analysis only)
+GOAL_ACTION_MAP: dict[str, str] = {
+    "SHORT": "research_topic",
+    "MID":   "analyze_progress",
+    "LONG":  "analyze_progress",
+}
+
 PRESEEDED_GOALS = [
     {
         "id": "g_kiit_attendance",
