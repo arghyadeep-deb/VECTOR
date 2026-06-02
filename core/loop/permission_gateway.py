@@ -86,10 +86,29 @@ class PermissionGateway:
             return result
 
         if level == 'YELLOW':
+            await self._notify(
+                f'YELLOW action pending: {action.action_type} — auto-executes in 10s unless rejected',
+                priority=1,
+            )
+            try:
+                confirmed = await asyncio.wait_for(
+                    self._wait_for_confirmation(action), timeout=10
+                )
+            except asyncio.TimeoutError:
+                # No explicit rejection within 10s → execute (opt-out model)
+                confirmed = True
+                logger.info(
+                    f"[VECTOR][gateway] YELLOW action {action.action_type} auto-confirmed after 10s timeout"
+                )
+            if not confirmed:
+                result = GatewayResult(False, 'YELLOW', False, {}, 'Rejected by owner')
+                self._write_audit(action, result)
+                logger.info(f"[VECTOR][gateway] YELLOW action {action.action_type} rejected by owner")
+                return result
             exec_result = await self._execute_action(action)
-            result = GatewayResult(True, 'YELLOW', True, exec_result, 'Executed with notification')
+            result = GatewayResult(True, 'YELLOW', True, exec_result, 'Executed after YELLOW window')
             self._write_audit(action, result)
-            await self._notify(f'VECTOR executed: {action.action_type}', priority=1)
+            await self._notify(f'VECTOR executed (YELLOW): {action.action_type}', priority=0)
             return result
 
         if level == 'RED':
