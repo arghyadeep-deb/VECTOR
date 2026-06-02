@@ -46,6 +46,8 @@
       ['sep'],
       ['answerengine','ANSWER ENGINE · search anything', ()=>V.openWidget('answerengine'), false],
       ['sep'],
+      ['goalplanner','GOAL PLANNER · LONG/MID/SHORT horizons', ()=>V.openWidget('goalplanner'), false],
+      ['sep'],
       ['hand','POINTER', toggleCursor, false],
       ['sep'],
       ['sound','SOUND', toggleSound, true]
