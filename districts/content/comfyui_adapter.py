@@ -132,6 +132,31 @@ class ComfyUIAdapter(AgentBase):
             logger.warning(f"[VECTOR][comfyui] list_models failed: {e}")
         return []
 
+    async def generate_via_registry(
+        self,
+        prompt: str,
+        width: int = 512,
+        height: int = 512,
+        steps: int = 20,
+    ) -> dict:
+        """Generate image via provider registry (ComfyUI → Replicate → Stability → DALL-E)."""
+        try:
+            from core.media.image_provider_registry import ImageProviderRegistry
+            registry = ImageProviderRegistry()
+            img_bytes = await registry.generate(prompt, width, height, steps)
+            if img_bytes:
+                # Save bytes to output dir and return path
+                import hashlib
+                out_path = self._output_dir / f"registry_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png"
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                out_path.write_bytes(img_bytes)
+                logger.info("[VECTOR][comfyui] image generated via registry: {}", out_path)
+                return {"status": "ok", "images": [str(out_path)], "elapsed": 0.0, "via": "registry"}
+        except Exception as e:
+            logger.warning("[VECTOR][comfyui] registry failed, falling back to direct ComfyUI: {}", e)
+        # Fallback to direct ComfyUI
+        return await self.generate(prompt=prompt, width=width, height=height, steps=steps)
+
     async def generate(
         self,
         prompt: str,
