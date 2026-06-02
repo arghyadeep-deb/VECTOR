@@ -242,6 +242,28 @@ class MuapiClient:
         logger.info("[VECTOR][muapi] uploaded {} → {}", path.name, url[:80])
         return url
 
+    # ── Audio generation ─────────────────────────────────────────────────────
+
+    async def generate_audio(self, prompt: str, duration: int = 30, model: str = "suno-v3") -> bytes | None:
+        """Generate audio/music via Muapi or Suno API."""
+        try:
+            import os
+            api_key = os.getenv("SUNO_API_KEY") or os.getenv("MUAPI_KEY")
+            if not api_key:
+                logger.warning("[VECTOR][muapi] No audio API key set (SUNO_API_KEY or MUAPI_KEY)")
+                return None
+            async with httpx.AsyncClient() as client:
+                r = await client.post(
+                    f"{BASE_URL}/audio/generate",
+                    json={"prompt": prompt, "duration": duration, "model": model},
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    timeout=120,
+                )
+                return r.content if r.status_code == 200 else None
+        except Exception as e:
+            logger.error("[VECTOR][muapi] generate_audio error: {}", e)
+            return None
+
     # ── Account ───────────────────────────────────────────────────────────────
 
     async def get_balance(self) -> float:
