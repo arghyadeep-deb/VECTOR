@@ -1,7 +1,7 @@
 """Investment router  --  /investment/* endpoints for Fincept, AutoHedge, VibeTranding agents."""
 
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from loguru import logger
 
