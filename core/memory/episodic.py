@@ -514,6 +514,39 @@ class EpisodicMemory:
             logger.error(f"Get skill failed: {e}")
             return None
 
+    def get_recent_events(self, limit: int = 20) -> list[dict]:
+        """Return the most recent episodic memory entries (used by 2AM synthesis)."""
+        try:
+            def _do():
+                with get_temp_cursor() as cursor:
+                    cursor.execute(
+                        """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                           FROM episodic_memory
+                           ORDER BY timestamp DESC
+                           LIMIT ?""",
+                        (limit,)
+                    )
+                    rows = cursor.fetchall()
+                    return [
+                        {
+                            "id": r[0],
+                            "event_type": r[1],
+                            "content": r[2],
+                            "tags": json.loads(r[3]) if r[3] else None,
+                            "metadata": json.loads(r[4]) if r[4] else None,
+                            "timestamp": r[5],
+                            "source": r[6],
+                        }
+                        for r in rows
+                    ]
+            return _with_cb(_do)
+        except CircuitBreakerOpenError:
+            logger.warning("[VECTOR][episodic] get_recent_events: circuit open — returning empty")
+            return []
+        except Exception as e:
+            logger.warning("[VECTOR][episodic] get_recent_events error: {}", e)
+            return []
+
     def get_stats(self) -> dict:
         _TABLES = ("episodic_memory", "semantic_memory", "policy_memory",
                    "reasoning_chains", "skill_memory", "agent_history")
