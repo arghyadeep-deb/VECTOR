@@ -56,6 +56,7 @@ class PermissionConfig(BaseModel):
         "read_calendar", "play_music", "set_timer", "search_web",
         "take_screenshot", "check_weather", "check_attendance",
         "progress_goal", "kickstart_goal",
+        "analyze_progress", "research_topic", "check_deadline", "review_goal",
         # concrete action types from think→act pipeline
         "git_status", "check_git", "recent_commits", "git_log",
         "daily_digest", "search_arxiv", "get_hn", "hackernews",
