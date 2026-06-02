@@ -393,9 +393,13 @@ class OllamaModelfileTrainer:
         return len(intersection) / len(expected_words)
 
 
+# Backward-compat alias — existing code that imports TrainingPipeline still works
+TrainingPipeline = OllamaModelfileTrainer
+
+
 async def main():
-    """Test the training pipeline."""
-    pipeline = TrainingPipeline()
+    """Test the Ollama modelfile trainer."""
+    pipeline = OllamaModelfileTrainer()
     logger.info(f"Training runs: {pipeline.list_training_runs()}")
 
 
