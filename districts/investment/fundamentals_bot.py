@@ -22,11 +22,12 @@ class FundamentalsBot(AgentBase):
         logger.info("[VECTOR][fundamentals_bot] FundamentalsBot initialized")
 
     def _check_yfinance(self) -> bool:
-        """Check if yfinance is available."""
+        """Check if yfinance is available and compatible with current Python version."""
         try:
             import yfinance
             return True
-        except ImportError:
+        except (ImportError, AttributeError, Exception) as e:
+            logger.warning("[VECTOR][fundamentals_bot] yfinance unavailable: {} — using mock data", e)
             return False
 
     def analyze_financials(self, ticker: str) -> dict:
