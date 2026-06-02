@@ -5,6 +5,7 @@ tree-sitter==0.25.2        # Syntax tree parsing (bash tool uses this)
 tree-sitter-bash==0.25.1   # Bash grammar for tree-sitter (bash syntax analysis)
 # ── VECTOR Research Engine (core/research_engine/) ───────────────────────────
 sqlalchemy==2.0.49         # settings + research history DB
+sqlalchemy_utc>=0.12.0    # SearXNG timezone-aware datetime (Vane integration)
 alembic==1.18.4            # DB migrations for research engine
 beautifulsoup4==4.14.3     # HTML parsing for content extraction
 langchain-ollama==1.1.0    # Ollama LangChain integration
