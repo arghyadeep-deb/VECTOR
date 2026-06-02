@@ -52,6 +52,20 @@ class ModelsRegistry:
 
     # Model providers and their configurations
     MODEL_CATALOG = {
+        # VECTOR-native: routes through core/inference/provider_client.py
+        # Ollama-first (local, free, private) → cloud API keys as fallback.
+        # Preferred default for all VECTOR districts.
+        "vector": {
+            "class": "districts.investment.vector_finagent.agents.finagent_core.registries.vector_model.VectorProviderModel",
+            "models": [
+                "vector-focus", "vector-deep", "vector-chairman",
+                "vector-coder", "vector-reasoning", "vector-multilingual",
+                "vector-ambient", "vector-r1", "vector-dev", "vector-fast",
+            ],
+            "api_key_env": None,  # No API key needed — uses Ollama + env-key fallbacks
+            "default_model": "vector-focus",
+        },
+
         # OpenAI & Compatible
         "openai": {
             "class": "agno.models.openai.OpenAIChat",
