@@ -471,6 +471,7 @@ def _make_server():
     _add_voice_profile_tools(mcp)
     _add_browser_tools(mcp)
     _add_knowledge_tools(mcp)
+    _add_code_graph_tools(mcp)
     return mcp
 
 
