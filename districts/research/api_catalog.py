@@ -11,8 +11,13 @@ import sys
 from pathlib import Path
 from functools import lru_cache
 
-_README = Path(__file__).parent.parent.parent.parent.parent / \
-    "GitHub/public-apis_public-apis/repo/README.md"
+_README = Path(__file__).parent.parent.parent.parent / "GitHub" / "public-apis-master" / "README.md"
+if not _README.exists():
+    # Try alternate naming convention used by older clone
+    _README_ALT = Path(__file__).parent.parent.parent.parent.parent / \
+        "GitHub/public-apis_public-apis/repo/README.md"
+    if _README_ALT.exists():
+        _README = _README_ALT
 
 from loguru import logger
 
