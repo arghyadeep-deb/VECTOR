@@ -322,6 +322,54 @@ def _handle_fetch_balance(req_id, exchange_id, args):
 
 
 def _handle_place_order(req_id, exchange_id, args):
+    # SAFETY: Gate all execution through permission_gateway RED tier
+    try:
+        from core.loop.permission_gateway import PermissionGateway
+        from core.config import CONFIG
+        gw = PermissionGateway()
+        sym = args.get("symbol", "UNKNOWN")
+        side = args.get("side", "unknown")
+        amount = args.get("amount", 0)
+        action_str = f"execute_trade:{sym}:{side}:{amount}"
+        classification = gw.classify(action_str)
+        if classification not in ("GREEN",):
+            logger.warning(
+                "[VECTOR][investment] ExchangeDaemon order blocked — tier: {} action: {}",
+                classification, action_str,
+            )
+            _respond(req_id, False, None,
+                     error=f"Trade blocked by permission_gateway (tier={classification})",
+                     code="GATEWAY_BLOCKED")
+            return
+
+        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+        if inv_cfg.get("paper_trading", True):
+            logger.info(
+                "[VECTOR][investment] PAPER MODE — would execute daemon order: {} {} {}",
+                side, amount, sym,
+            )
+            _respond(req_id, True, {
+                "id": "paper", "symbol": sym, "side": side,
+                "type": args.get("type"), "amount": amount,
+                "status": "paper", "simulated": True,
+            })
+            return
+
+        if inv_cfg.get("kill_switch", False):
+            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — ExchangeDaemon order blocked")
+            _respond(req_id, False, None, error="Kill switch active", code="KILL_SWITCH")
+            return
+
+    except (ImportError, Exception) as _gw_err:
+        logger.warning(
+            "[VECTOR][investment] Gateway check failed ({}); blocking daemon order for safety",
+            _gw_err,
+        )
+        _respond(req_id, False, None,
+                 error=f"Permission gateway unavailable ({_gw_err}). Trade blocked.",
+                 code="GATEWAY_ERROR")
+        return
+
     ex = _get_exchange(exchange_id, need_auth=True)
     _ensure_markets(ex, exchange_id)
     order = ex.create_order(
