@@ -167,6 +167,17 @@ def _start_sidecars() -> None:
             "cwd": str(Path(__file__).parent.parent / "GitHub" / "ComfyUI-master"),
             "health_url": "http://127.0.0.1:8188/system_stats",
         },
+        {
+            "name": "hyperframes",
+            "cmd": ["node", "packages/producer/dist/server.js", "--port", "7421"],
+            "cwd": str(Path(__file__).parent.parent / "GitHub" / "hyperframes-main"),
+        },
+        {
+            "name": "LibreChat",
+            "cmd": ["node", "api/server/index.js"],
+            "cwd": str(Path(__file__).parent.parent / "GitHub" / "LibreChat-main"),
+            "env_extra": {"PORT": "3080"},
+        },
     ]
 
     for sidecar in sidecars:
