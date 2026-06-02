@@ -6,7 +6,11 @@ API docs: https://dev.jup.ag (see /ultra/v1).
 import base64
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any, Dict
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 import httpx
 from loguru import logger
