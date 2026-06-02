@@ -556,6 +556,111 @@ Be specific and balanced.
             logger.debug("[VECTOR][stock_analyst] alpha_zoo unavailable: {}", e)
             return []
 
+    async def screen_stocks(self, symbols: list[str], filters: dict) -> list[dict]:
+        """Screen stocks by fundamental filters.
+
+        Args:
+            symbols: List of ticker symbols to evaluate.
+            filters: Dict mapping field names to constraint dicts.
+                     Example::
+
+                         {
+                             "pe_ratio":      {"max": 20},
+                             "market_cap":    {"min": 1e9},
+                             "profit_margin": {"min": 0.1},
+                         }
+
+                     Supported fields: any key returned by get_quote() or
+                     get_fundamentals() (e.g. price, market_cap, pe_ratio,
+                     forward_pe, revenue_growth, profit_margin, debt_to_equity,
+                     return_on_equity, dividend_yield, beta).
+
+        Returns:
+            List of dicts for symbols that passed all filters, each with keys
+            ``symbol``, ``data`` (merged quote+fundamentals), and ``passed=True``.
+        """
+        results = []
+        for symbol in symbols:
+            try:
+                quote = self.get_quote(symbol)
+                fundamentals = self.get_fundamentals(symbol)
+                data = {**quote, **fundamentals}
+
+                passes = True
+                for field, constraints in filters.items():
+                    val = data.get(field)
+                    if val is None:
+                        passes = False
+                        break
+                    if "min" in constraints and val < constraints["min"]:
+                        passes = False
+                        break
+                    if "max" in constraints and val > constraints["max"]:
+                        passes = False
+                        break
+
+                if passes:
+                    results.append({"symbol": symbol, "data": data, "passed": True})
+            except Exception as e:
+                logger.debug("[VECTOR][screener] {} error: {}", symbol, e)
+
+        self.award_points(len(results) * 2, "stock_screening")
+        return results
+
+    def get_equity_screener(
+        self,
+        exchange: str = "NSE",
+        market_cap_min: float = 1e9,
+        pe_max: float = 30.0,
+        limit: int = 20,
+    ) -> dict:
+        """Screen equities with expanded filter set.
+
+        Evaluates a built-in watchlist of top NSE/BSE and US large-caps and
+        returns those passing market_cap_min and pe_max thresholds.
+
+        Args:
+            exchange:       Label for the result dict (informational only).
+            market_cap_min: Minimum market capitalisation in USD (default 1 B).
+            pe_max:         Maximum trailing P/E ratio (default 30).
+            limit:          Maximum number of symbols to evaluate (default 20).
+
+        Returns:
+            Dict with keys ``exchange``, ``filters_applied``, and ``results``
+            (list of dicts with symbol, price, market_cap, pe_ratio).
+        """
+        watchlist = [
+            "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK",
+            "BHARTIARTL", "ITC", "KOTAKBANK", "LT", "SBIN",
+            "WIPRO", "HCLTECH", "SUNPHARMA", "MARUTI", "TITAN",
+            "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA",
+        ]
+        results = []
+        for sym in watchlist[:limit]:
+            try:
+                q = self.get_quote(sym)
+                f = self.get_fundamentals(sym)
+                mc = f.get("market_cap") or 0
+                pe = f.get("pe_ratio") or 999
+                if mc >= market_cap_min and pe <= pe_max:
+                    results.append({
+                        "symbol": sym,
+                        "price": q.get("price"),
+                        "market_cap": mc,
+                        "pe_ratio": pe,
+                    })
+            except Exception:
+                continue
+
+        return {
+            "exchange": exchange,
+            "filters_applied": {
+                "market_cap_min": market_cap_min,
+                "pe_max": pe_max,
+            },
+            "results": results,
+        }
+
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
         from datetime import datetime, timezone
