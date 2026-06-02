@@ -256,6 +256,13 @@ def register_default_jobs(scheduler: Any) -> int:
         else:
             logger.warning(f"[VECTOR][cron] could not register {job_id} — scheduler API mismatch")
 
+    # SubconsciousLoop — interval-based (every 30 min), not a cron expression
+    if _try_register_interval(scheduler, "subconscious-loop", 30, job_subconscious_loop):
+        registered += 1
+        logger.info("[VECTOR][cron] registered subconscious-loop (interval, 30min)")
+    else:
+        logger.warning("[VECTOR][cron] could not register subconscious-loop — scheduler API mismatch")
+
     return registered
 
 
