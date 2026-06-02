@@ -154,6 +154,23 @@ async def smoke_test() -> dict:
     }
 
 
+# ── Sidecar health check ───────────────────────────────────────────────────────
+
+def _check_sidecar_health(name: str, health_url: str, delay: int = 5) -> None:
+    """Check sidecar health after `delay` seconds and log the result."""
+    import time
+    import httpx
+    time.sleep(delay)
+    try:
+        r = httpx.get(health_url, timeout=3)
+        if r.status_code < 500:
+            logger.info("[VECTOR][sidecars] {} health check OK: {}", name, r.status_code)
+        else:
+            logger.warning("[VECTOR][sidecars] {} health check FAILED: {}", name, r.status_code)
+    except Exception as e:
+        logger.warning("[VECTOR][sidecars] {} health check unreachable: {}", name, e)
+
+
 # ── Sidecar services ───────────────────────────────────────────────────────────
 
 def _start_sidecars() -> None:
