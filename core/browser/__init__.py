@@ -5,10 +5,12 @@ Exposes:
   DOMPruner          — relevance-scored interactive element pruning (18k → ~500 tokens)
   PiiScrubber        — 17-pattern PII redaction + Pillow screenshot pixel-redaction
   BrowserAuthStore   — named Playwright storage-state profiles (login-once, reuse-later)
+  PlaywrightMCPClient — async bridge to playwright-mcp sidecar (62 browser tools, port 8931)
 """
 from .dom_pruner import DOMPruner, get_dom_pruner
 from .pii_scrub import PiiScrubber, ScrubResult, scrub_text, get_pii_scrubber
 from .auth_profiles import BrowserAuthStore, get_auth_store
+from .playwright_mcp_client import PlaywrightMCPClient
 
 __all__ = [
     "DOMPruner",
@@ -19,4 +21,5 @@ __all__ = [
     "get_pii_scrubber",
     "BrowserAuthStore",
     "get_auth_store",
+    "PlaywrightMCPClient",
 ]
