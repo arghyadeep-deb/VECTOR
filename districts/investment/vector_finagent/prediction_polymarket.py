@@ -212,6 +212,44 @@ def cmd_activity(payload: dict) -> None:
 
 
 def cmd_place_order(payload: dict) -> None:
+    # SAFETY: Gate all execution through permission_gateway RED tier
+    try:
+        from core.loop.permission_gateway import PermissionGateway
+        from core.config import CONFIG
+        gw = PermissionGateway()
+        token_id = payload.get("token_id", "UNKNOWN")[:16]
+        action_str = f"execute_trade:polymarket:{token_id}:{payload.get('side','BUY')}:{payload.get('size',0)}"
+        classification = gw.classify(action_str)
+        if classification not in ("GREEN",):
+            logger.warning(
+                "[VECTOR][investment] Polymarket order blocked — tier: {} token_id: {}",
+                classification, token_id,
+            )
+            _emit({"ok": False, "error": f"Trade blocked by permission_gateway (tier={classification})"})
+            return
+
+        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+        if inv_cfg.get("paper_trading", True):
+            logger.info(
+                "[VECTOR][investment] PAPER MODE — would place Polymarket order: {} token={}",
+                payload.get("side", "BUY"), token_id,
+            )
+            _emit({"ok": True, "status": "PAPER", "token_id": token_id, "simulated": True})
+            return
+
+        if inv_cfg.get("kill_switch", False):
+            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — Polymarket order blocked")
+            _emit({"ok": False, "error": "Kill switch is active. All live trading halted."})
+            return
+
+    except (ImportError, Exception) as _gw_err:
+        logger.warning(
+            "[VECTOR][investment] Gateway check failed ({}); blocking Polymarket order for safety",
+            _gw_err,
+        )
+        _emit({"ok": False, "error": f"Permission gateway unavailable ({_gw_err}). Trade blocked."})
+        return
+
     from py_clob_client.clob_types import OrderArgs, OrderType
 
     client = _build_client(payload)
