@@ -217,6 +217,13 @@ def _start_sidecars() -> None:
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
             logger.info("[VECTOR][sidecars] Started {} (pid={})", sidecar["name"], proc.pid)
+            if sidecar.get("health_url"):
+                t = threading.Thread(
+                    target=_check_sidecar_health,
+                    args=(sidecar["name"], sidecar["health_url"], 5),
+                    daemon=True,
+                )
+                t.start()
         except Exception as e:
             logger.warning("[VECTOR][sidecars] Failed to start {}: {}", sidecar["name"], e)
 
