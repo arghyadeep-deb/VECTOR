@@ -224,7 +224,11 @@ def run_api(host: str, port: int) -> None:
     try:
         import uvicorn
         from core.api import create_app
+        from core.loop.permission_gateway import PermissionGateway
         app = create_app()
+        # Wire the shared PermissionGateway singleton into app.state so that
+        # all gateway router endpoints share the same pending-approvals queue.
+        app.state.permission_gateway = PermissionGateway()
         logger.info("[VECTOR][api] Starting server at http://{}:{}", host, port)
         uvicorn.run(app, host=host, port=port, reload=False)
     except ImportError:
