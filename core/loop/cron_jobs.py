@@ -221,6 +221,19 @@ async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
         return {"status": "failed", "reason": str(e)}
 
 
+async def job_content_scheduler(*, _ctx: dict | None = None) -> dict:
+    """Daily at 9AM — publish all pending scheduled posts."""
+    try:
+        from districts.content.content_scheduler import ContentScheduler
+        scheduler = ContentScheduler()
+        result = await scheduler.run_pending()
+        logger.info("[VECTOR][cron] content_scheduler: published={}", result.get("published", 0))
+        return result
+    except Exception as e:
+        logger.warning("[VECTOR][cron] content_scheduler failed: {}", e)
+        return {"published": 0, "error": str(e)}
+
+
 # ── Registration ─────────────────────────────────────────────────────────────
 
 
