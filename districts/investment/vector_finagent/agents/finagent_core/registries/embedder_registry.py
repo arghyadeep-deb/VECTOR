@@ -216,13 +216,31 @@ class EmbedderRegistry:
         """
         provider_lower = provider.lower()
 
+        # Redirect "openai" embedder to VECTOR-native when no API key is available
+        if provider_lower == "openai":
+            openai_key = (
+                api_key
+                or (api_keys or {}).get("OPENAI_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+            )
+            if not openai_key:
+                _vector_logger.info(
+                    "[VECTOR][embedder_registry] No OPENAI_API_KEY found; "
+                    "routing openai embedder → vector (nomic-embed-text)"
+                )
+                provider_lower = "vector"
+                # Map OpenAI model names to nomic-embed-text
+                if model and model in _OPENAI_EMBED_TO_VECTOR:
+                    model = _OPENAI_EMBED_TO_VECTOR[model]
+
         if provider_lower not in cls.EMBEDDER_CATALOG:
             raise ValueError(f"Unknown embedder: {provider}. Available: {list(cls.EMBEDDER_CATALOG.keys())}")
 
         config = cls.EMBEDDER_CATALOG[provider_lower]
 
-        # Resolve model
-        final_model = model or config.get("default_model")
+        # Resolve model — map OpenAI embedding names to VECTOR equivalents
+        resolved_model = model or config.get("default_model")
+        final_model = _OPENAI_EMBED_TO_VECTOR.get(resolved_model, resolved_model) if resolved_model else resolved_model
 
         # Resolve API key
         final_api_key = api_key
