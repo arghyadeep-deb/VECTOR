@@ -742,6 +742,41 @@ class ChiefOfStaff(AgentBase):
             self.deduct_points(30, f"run error: {task_type}")
             return {"status": "error", "agent": self.name, "task": task_type, "error": str(e)}
 
+    async def run_subconscious(self) -> dict:
+        """
+        Trigger one iteration of SubconsciousLoop.
+
+        The subconscious loop compares the current VECTOR world state against the
+        previous situation report and decides: noop | act:<action> | escalate:<reason>.
+
+        Called by the 30-minute APScheduler job and available as a Governor
+        task type ("subconscious").
+
+        Returns dict with: decision, elapsed_ms, status
+        """
+        import time
+        t0 = time.monotonic()
+        try:
+            from districts.chief_of_staff.subconscious_loop import SubconsciousLoop
+            loop = SubconsciousLoop()
+            result = await loop.run_once()
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            logger.info(
+                f"[VECTOR][chief_of_staff] subconscious tick done "
+                f"decision={result.get('decision', '?')} elapsed={elapsed_ms}ms"
+            )
+            self.award_points(5, "subconscious_tick")
+            return {
+                "status": "ok",
+                "elapsed_ms": elapsed_ms,
+                **result,
+            }
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            logger.warning(f"[VECTOR][chief_of_staff] run_subconscious failed: {e}")
+            self.deduct_points(5, "subconscious_tick_failed")
+            return {"status": "error", "error": str(e), "elapsed_ms": elapsed_ms}
+
     # ── Autonomous scheduled loop ──────────────────────────────────────────────
 
     async def run_forever(self) -> None:
