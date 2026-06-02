@@ -3,13 +3,32 @@ from loguru import logger
 Embedder Registry - Unified access to 18+ embedding providers
 
 Provides lazy loading and standardized embedder creation for RAG.
+
+VECTOR-native embedder: provider="vector" routes to Ollama nomic-embed-text
+(local, free, private). OpenAI embedding model names are automatically
+mapped to "nomic-embed-text" when provider="openai" is requested but no
+OPENAI_API_KEY is available.
 """
 
 from typing import Dict, Any, Optional, List
 import logging
 import os
 
+from loguru import logger as _vector_logger
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# OpenAI embedding model name → VECTOR (nomic-embed-text) mapping
+# ---------------------------------------------------------------------------
+_OPENAI_EMBED_TO_VECTOR: Dict[str, str] = {
+    "text-embedding-3-small":    "nomic-embed-text",
+    "text-embedding-3-large":    "nomic-embed-text",
+    "text-embedding-ada-002":    "nomic-embed-text",
+    "text-embedding-2-small":    "nomic-embed-text",
+    "text-embedding-2-large":    "nomic-embed-text",
+    "text-search-davinci-doc-001": "nomic-embed-text",
+}
 
 
 class EmbedderRegistry:
