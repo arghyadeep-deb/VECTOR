@@ -14,7 +14,9 @@
   const POS = {
     telemetry:[2,2], market:[64,2], districts:[2,32], goals:[72,30],
     memory:[2,64], council:[40,55], security:[40,4], map:[26,20],
-    music:[40,70], chat:[2,30], webcam:[60,40]
+    music:[40,70], chat:[2,30], webcam:[60,40],
+    approvals:[66,55], librechat:[4,4], openwebui:[4,4],
+    finance:[64,30], contentscheduler:[2,30]
   };
 
   // ---- chrome wrapper -----------------------------------------------------
