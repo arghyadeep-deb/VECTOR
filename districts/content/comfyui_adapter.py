@@ -311,6 +311,84 @@ class ComfyUIAdapter(AgentBase):
 
         raise TimeoutError(f"ComfyUI did not complete prompt {prompt_id} in {self._timeout}s")
 
+    async def _wait_for_video(self, prompt_id: str) -> Optional[str]:
+        """Poll /history until prompt_id appears, then collect the video file path.
+
+        ComfyUI VHS_VideoCombine writes output under node_output["gifs"] as a list
+        of dicts with keys: filename, subfolder, type, format.
+        Falls back to scanning node_output["images"] in case of older VHS builds.
+        """
+        deadline = time.time() + self._timeout
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            while time.time() < deadline:
+                await asyncio.sleep(self._poll_interval)
+                r = await client.get(f"{self._base_url}/history/{prompt_id}")
+                if r.status_code != 200:
+                    continue
+                history = r.json()
+                if prompt_id not in history:
+                    continue
+
+                outputs = history[prompt_id].get("outputs", {})
+                for node_output in outputs.values():
+                    # VHS_VideoCombine uses "gifs" key (despite name, also covers mp4)
+                    for item in node_output.get("gifs", []):
+                        filename  = item.get("filename", "")
+                        subfolder = item.get("subfolder", "")
+                        if filename:
+                            return str(self._output_dir / subfolder / filename)
+                    # Older fallback — some nodes put video under "images"
+                    for item in node_output.get("images", []):
+                        fname = item.get("filename", "")
+                        if fname.endswith((".mp4", ".webm", ".gif")):
+                            subfolder = item.get("subfolder", "")
+                            return str(self._output_dir / subfolder / fname)
+                return None  # outputs present but no video file found
+
+        raise TimeoutError(f"ComfyUI did not complete video prompt {prompt_id} in {self._timeout}s")
+
+    async def _queue_and_poll(
+        self,
+        workflow: dict,
+        output_type: Literal["image", "video"] = "image",
+    ) -> dict:
+        """Queue a workflow and poll for completion. Returns a unified result dict."""
+        start = time.time()
+        try:
+            prompt_id = await self._queue_prompt(workflow)
+            logger.info(f"[VECTOR][comfyui] queued {output_type} prompt_id={prompt_id}")
+
+            if output_type == "video":
+                video_path = await self._wait_for_video(prompt_id)
+                elapsed = round(time.time() - start, 1)
+                self.award_points(30, "video_generated")
+                logger.info(f"[VECTOR][comfyui] video generated in {elapsed}s → {video_path}")
+                return {
+                    "status": "ok",
+                    "prompt_id": prompt_id,
+                    "video_path": video_path,
+                    "elapsed": elapsed,
+                    "error": None,
+                }
+            else:
+                images = await self._wait_for_images(prompt_id)
+                elapsed = round(time.time() - start, 1)
+                self.award_points(20, "image_generated")
+                logger.info(f"[VECTOR][comfyui] generated {len(images)} image(s) in {elapsed}s")
+                return {
+                    "status": "ok",
+                    "prompt_id": prompt_id,
+                    "images": images,
+                    "elapsed": elapsed,
+                    "error": None,
+                }
+        except Exception as e:
+            logger.error(f"[VECTOR][comfyui] _queue_and_poll failed: {e}")
+            elapsed = round(time.time() - start, 1)
+            if output_type == "video":
+                return {"status": "error", "error": str(e), "video_path": None, "elapsed": elapsed}
+            return {"status": "error", "error": str(e), "images": [], "elapsed": elapsed}
+
 
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""

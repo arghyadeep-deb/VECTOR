@@ -87,6 +87,14 @@ class AutoresearchRunner(AgentBase):
         with open(self._results_file(), "a", encoding="utf-8") as f:
             f.write(json.dumps(result) + "\n")
 
+    def _get_python_cmd(self, train_dir: str) -> list[str]:
+        """Return the correct Python command: uv run if uv.lock exists, else sys.executable."""
+        import os
+        uv_lock = os.path.join(train_dir, "uv.lock")
+        if os.path.exists(uv_lock):
+            return ["uv", "run", "python"]
+        return [sys.executable]
+
     def _run_training(self) -> dict:
         """
         Execute train.py for TIME_BUDGET_MINUTES and parse the summary output.
@@ -100,8 +108,10 @@ class AutoresearchRunner(AgentBase):
             return {}
 
         try:
+            python_cmd = self._get_python_cmd(str(self._runs_dir))
+            cmd = python_cmd + [str(self._train_script)]
             proc = subprocess.run(
-                [sys.executable, str(self._train_script)],
+                cmd,
                 cwd=str(self._runs_dir),
                 capture_output=True,
                 text=True,
