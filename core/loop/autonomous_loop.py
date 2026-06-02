@@ -1403,20 +1403,22 @@ class AutonomousLoop:
     async def obsidian_loop(self) -> None:
         """Start vault watcher + bulk ingest at startup. Never crashes."""
         logger.info("[VECTOR][obsidian] loop starting")
-        try:
-            from core.memory.obsidian_sync import ObsidianSync
-            obs = ObsidianSync()
+        while self._running:
+            try:
+                from core.memory.obsidian_sync import ObsidianSync
+                obs = ObsidianSync()
 
-            if CONFIG.get("obsidian", {}).get("ingest_on_startup", True):
-                try:
-                    count = await obs.ingest_existing()
-                    logger.info(f"[VECTOR][obsidian] startup ingest: {count} files")
-                except Exception as e:
-                    logger.warning(f"[VECTOR][obsidian] startup ingest failed: {e}")
+                if CONFIG.get("obsidian", {}).get("ingest_on_startup", True):
+                    try:
+                        count = await obs.ingest_existing()
+                        logger.info(f"[VECTOR][obsidian] startup ingest: {count} files")
+                    except Exception as e:
+                        logger.warning(f"[VECTOR][obsidian] startup ingest failed: {e}")
 
-            await obs.start_watching()
-        except Exception as e:
-            logger.error(f"[VECTOR][obsidian] loop crashed: {e}")
+                await obs.start_watching()  # blocks until vault is unavailable
+            except Exception as e:
+                logger.error("[VECTOR][obsidian] watcher crashed: {} — restarting in 30s", e)
+                await asyncio.sleep(30)
 
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Phone node poll Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
