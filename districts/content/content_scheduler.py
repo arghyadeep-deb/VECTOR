@@ -85,14 +85,30 @@ class ContentScheduler(AgentBase):
         }
 
     async def run_pending(self) -> dict:
-        """Publish all pending posts and fetch analytics."""
+        """Publish all pending posts and fetch analytics.
+
+        The state transition to PUBLISHING is attempted first.  If that fails
+        (e.g. the job was already claimed by a concurrent call) the job is
+        skipped entirely so we never risk a duplicate publish.
+        """
         tracker = self._get_tracker()
         publisher = self._get_publisher()
         pending = tracker.list_pending()
         results = []
         for job in pending:
+            # Atomically transition to PUBLISHING — skip if already claimed.
             try:
                 tracker.mark_publishing(job.job_id)
+            except Exception as e:
+                logger.warning(
+                    "[VECTOR][scheduler] Could not mark publishing {} ({}): {} — skipping",
+                    job.job_id,
+                    job.platform,
+                    e,
+                )
+                continue  # Skip rather than risk duplicate publish.
+
+            try:
                 content = job.payload.get("content", "") if isinstance(job.payload, dict) else ""
                 result = await asyncio.to_thread(
                     publisher.publish_all,
@@ -114,7 +130,10 @@ class ContentScheduler(AgentBase):
                     job.platform,
                     e,
                 )
-                tracker.mark_failed(job.job_id, str(e))
+                try:
+                    tracker.mark_failed(job.job_id, str(e))
+                except Exception:
+                    pass  # Best-effort; don't let mark_failed hide the real error.
                 self.deduct_points(5, "publish_failed")
         return {"published": len(results), "results": results}
 
