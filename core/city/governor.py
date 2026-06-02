@@ -525,6 +525,12 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "ai_citation": "marketing",
     "aeo": "marketing",
     "agentic_search": "marketing",
+    # GEO optimizer (AI citation / AEO routes)
+    "geo_score": "marketing",
+    "geo_optimizer": "marketing",
+    "ai_citation": "marketing",
+    "citation_score": "marketing",
+    "seo_geo": "marketing",
     # design district (new)
     "ui_design": "design",
     "design_tokens": "design",
