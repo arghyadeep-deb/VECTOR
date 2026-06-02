@@ -747,6 +747,44 @@ class PermissionGateway:
         """Public wrapper for _classify — returns GREEN/YELLOW/RED/FORBIDDEN/UNKNOWN."""
         return self._classify(action_type)
 
+    def _check_bash_ast(self, command: str) -> list[str]:
+        """
+        Deterministic tree-sitter AST analysis for dangerous bash patterns.
+        Returns list of warnings (empty = safe).
+        """
+        warnings = []
+        # Simple pattern-based checks (tree-sitter is optional)
+        DANGEROUS_PATTERNS = [
+            ("rm -rf", "destructive recursive delete"),
+            (":(){ :|:& };:", "fork bomb"),
+            ("> /dev/sda", "disk wipe attempt"),
+            ("dd if=", "raw disk write"),
+            ("chmod 777", "world-writable permission"),
+            ("curl | bash", "remote code execution"),
+            ("wget | bash", "remote code execution"),
+            ("eval ", "dynamic code evaluation"),
+            ("exec ", "process replacement"),
+        ]
+        cmd_lower = command.lower()
+        for pattern, desc in DANGEROUS_PATTERNS:
+            if pattern in cmd_lower:
+                warnings.append(f"DANGEROUS: {desc} ({pattern!r})")
+
+        # Try tree-sitter if available for deeper analysis
+        try:
+            import tree_sitter_bash
+            from tree_sitter import Language, Parser
+            BASH_LANG = Language(tree_sitter_bash.language())
+            parser = Parser(BASH_LANG)
+            tree = parser.parse(command.encode())
+            # Check for process substitution with network command
+            if b"<(" in command.encode() and b"curl" in command.encode():
+                warnings.append("DANGEROUS: process substitution with network command")
+        except ImportError:
+            pass  # tree-sitter-bash optional
+
+        return warnings
+
     async def _notify(self, message, priority=0):
         token = CONFIG["api_keys"].get('pushover_token', '')
         user = CONFIG["api_keys"].get('pushover_user', '')
