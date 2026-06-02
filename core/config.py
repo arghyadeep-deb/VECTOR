@@ -701,6 +701,17 @@ CONFIG: dict = {
         "edgar_api_key":     os.environ.get("EDGAR_API_KEY", ""),
         "data_cache_dir":    str(Path.home() / ".vector" / "vector_finagent" / "cache"),
     },
+    # ── Investment Safety Controls ────────────────────────────────────────────
+    # CRITICAL: paper_trading=True is the safe default. Set False ONLY after
+    # verifying all gateway/kill-switch checks pass. kill_switch=True halts
+    # ALL trade execution across every investment district immediately.
+    "investment": {
+        "paper_trading":       True,    # True = simulate only, never sends real orders
+        "kill_switch":         False,   # True = halt ALL execution immediately
+        "max_position_size":   10000,   # Maximum position size in ₹ (base currency)
+        "daily_loss_cap":      5000,    # Maximum daily loss in ₹ before auto-halt
+        "max_trades_per_day":  10,      # Maximum number of live trades per calendar day
+    },
     "trading": {
         "llm_provider":        "openai",
         "deep_think_llm":      os.environ.get("DEEP_THINK_LLM", "vector-reasoning"),
