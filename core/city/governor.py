@@ -204,6 +204,11 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "solana_holdings":      "investment",
     "token_search":         "investment",
     "token_price":          "investment",
+    # Investment execution engine — paper-first, gateway-gated real orders
+    "place_order":          "investment",
+    "execute_trade":        "investment",
+    "paper_trade":          "investment",
+    "order_history":        "investment",
     # VECTOR Quant Research — 9-engine backtest, shadow account, 29 swarm presets, 74 skills
     "vt_research":          "investment",
     "vt_backtest":          "investment",
