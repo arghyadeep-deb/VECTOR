@@ -18,7 +18,8 @@ import sys
 
 __all__ = [
     "main",
-    "TrainingPipeline",
+    "OllamaModelfileTrainer",
+    "TrainingPipeline",  # backward-compat alias
 ]
 
 from pathlib import Path
