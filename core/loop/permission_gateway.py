@@ -56,6 +56,8 @@ class PermissionGateway:
     def __init__(self):
         self.audit_log = []
         self._pending_events: dict[str, asyncio.Event] = {}
+        # Tracks full metadata for actions currently awaiting owner approval (RED tier)
+        self._pending_actions: dict[str, dict] = {}
         logger.info('[VECTOR][gateway] Permission gateway initialised')
 
     async def execute(self, action: Action) -> GatewayResult:
