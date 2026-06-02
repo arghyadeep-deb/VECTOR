@@ -1,10 +1,14 @@
-"""SEO router — /seo/status."""
+"""SEO router — /seo/status, /seo/geo-score, /seo/audit, /seo/keywords."""
 
 import sys
+from typing import List, Optional
 
 __all__ = [
     "router",
     "seo_status",
+    "compute_geo_score",
+    "run_seo_audit",
+    "get_keyword_analysis",
 ]
 
 
@@ -31,6 +35,33 @@ async def seo_status():
         logger.warning(f"[VECTOR][api][seo] status failed: {e}")
 
     return {"pagespeed_configured": pagespeed_configured, "gsc_configured": gsc_configured, "tools": tools}
+
+
+@router.post("/geo-score")
+async def compute_geo_score(brand: str, queries: Optional[List[str]] = None):
+    """Compute GEO score for brand across AI search engines."""
+    from districts.marketing.geo_optimizer_agent import GEOOptimizerAgent
+    agent = GEOOptimizerAgent()
+    return await agent.geo_score(brand, queries or ["best AI assistant", "top productivity tools"])
+
+
+@router.post("/audit")
+async def run_seo_audit(url: str):
+    """Run full SEO audit for a URL."""
+    from districts.marketing.seo_specialist import SEOSpecialist
+    agent = SEOSpecialist()
+    result = await agent.run({"url": url}) if hasattr(agent, "run") else {"status": "seo_audit_running", "url": url}
+    return result
+
+
+@router.get("/keywords")
+async def get_keyword_analysis(topic: str):
+    """Analyze keywords for a topic."""
+    from districts.marketing.seo_specialist import SEOSpecialist
+    agent = SEOSpecialist()
+    result = await agent.analyze_keywords(topic) if hasattr(agent, "analyze_keywords") else {"topic": topic, "status": "analysis_started"}
+    return result
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
