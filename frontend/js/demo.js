@@ -43,6 +43,8 @@
       ['sep'],
       ['codegraph','CODE GRAPH · explore the codebase', ()=>V.openWidget('codegraph'), false],
       ['sep'],
+      ['answerengine','ANSWER ENGINE · search anything', ()=>V.openWidget('answerengine'), false],
+      ['sep'],
       ['hand','POINTER', toggleCursor, false],
       ['sep'],
       ['sound','SOUND', toggleSound, true]
