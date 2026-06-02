@@ -86,7 +86,11 @@ async def stock_analysis(body: StockAnalysisRequest):
     """Run comprehensive stock analysis via Fincept terminal intelligence."""
     try:
         agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "investor_analysis", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] analyze failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -97,7 +101,11 @@ async def dcf_valuation(body: DCFRequest):
     """Run DCF/WACC valuation model for a company."""
     try:
         agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "corporate_finance/dcf", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] dcf failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -108,7 +116,11 @@ async def alpha_discovery(body: AlphaRequest):
     """Discover alpha signals using RSI, MACD, ROC technical indicators."""
     try:
         agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "alpha_discovery", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] alpha failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
