@@ -728,6 +728,8 @@ class ChiefOfStaff(AgentBase):
                 result = await self.route_escalation(issue)
             elif task_type == "consistency_check":
                 result = await self.enforce_consistency()
+            elif task_type == "subconscious":
+                result = await self.run_subconscious()
             else:
                 logger.info(
                     f"[VECTOR][chief_of_staff] unknown task type '{task_type}' "
