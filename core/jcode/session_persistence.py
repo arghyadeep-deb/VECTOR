@@ -45,6 +45,10 @@ def _pids_dir() -> Path:
 
 # â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+COMPACT_WARNING_THRESHOLD = 0.80   # 80% context → warn
+COMPACT_FORCE_THRESHOLD = 0.95     # 95% context → force compact
+
+
 @dataclass
 class StoredCompactionState:
     summary: str
@@ -59,6 +63,19 @@ class StoredCompactionState:
     def from_dict(cls, d: dict) -> "StoredCompactionState":
         return cls(summary=d.get("summary", ""), recent_tail=d.get("recent_tail", []),
                    compacted_at=d.get("compacted_at", ""))
+
+    def check_compact_needed(self, context_used: float, context_total: float) -> str:
+        """Returns 'none', 'warn', or 'force' based on context usage."""
+        if context_total == 0:
+            return "none"
+        ratio = context_used / context_total
+        if ratio >= COMPACT_FORCE_THRESHOLD:
+            logger.warning("[VECTOR][jcode] Context at {:.0%} — FORCING compact", ratio)
+            return "force"
+        elif ratio >= COMPACT_WARNING_THRESHOLD:
+            logger.info("[VECTOR][jcode] Context at {:.0%} — suggest compact", ratio)
+            return "warn"
+        return "none"
 
 
 @dataclass
