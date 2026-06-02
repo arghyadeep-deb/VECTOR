@@ -13,7 +13,13 @@ Governor routes:
 Requires: LLM_API_KEY (or OPENAI_API_KEY) for LLM calls.
           ZEP_API_KEY for knowledge graph operations (optional for simulation-only).
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 import sys
@@ -24,6 +30,7 @@ from pathlib import Path
 # Activate districts/intelligence/vector_social_sim/ path so "from app.X" imports resolve
 _MIRO_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_social_sim"
 if str(_MIRO_DIR) not in sys.path:
+    sys.path.insert(0, str(_MIRO_DIR))
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
