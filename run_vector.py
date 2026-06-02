@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import signal
 import sys
+import threading
 from pathlib import Path
 
 from loguru import logger
@@ -277,7 +278,21 @@ def main() -> int:
         asyncio.run(run_loop())
         return 0
     except KeyboardInterrupt:
-        logger.info("[VECTOR][launcher] stopped by owner (KeyboardInterrupt)")
+        logger.info("[VECTOR][main] Ctrl+C received — graceful shutdown")
+        # On Windows, add_signal_handler is not supported; handle shutdown here.
+        # asyncio.run() has already torn down the event loop by this point, so
+        # we create a fresh loop solely to run the drain coroutine.
+        try:
+            from core.loop.autonomous_loop import AutonomousLoop
+            _shutdown_loop_instance = AutonomousLoop.__new__(AutonomousLoop)
+            _shutdown_loop_instance._running = False
+
+            async def _drain():
+                await _graceful_shutdown(_shutdown_loop_instance, timeout=10.0)
+
+            asyncio.run(_drain())
+        except Exception as _se:
+            logger.debug("[VECTOR][main] shutdown drain skipped: {}", _se)
         return 0
 
 
