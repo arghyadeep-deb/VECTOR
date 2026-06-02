@@ -5,8 +5,14 @@ and never touches the production vector_memory.db. Covers the data layer, the sa
 filter parser, and (in later phases) migrations, storage, auth/RBAC and hooks.
 """
 
-import sqlite3
 import sys
+import asyncio
+
+# Fix WinError 10055 socket exhaustion on Windows asyncio tests (mirrors conftest.py)
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+import sqlite3
 
 import pytest
 
