@@ -186,9 +186,14 @@ def _start_sidecars() -> None:
             logger.info("[VECTOR][sidecars] {} not found, skipping", sidecar["name"])
             continue
         try:
+            env = None
+            if sidecar.get("env_extra"):
+                env = os.environ.copy()
+                env.update(sidecar["env_extra"])
             proc = subprocess.Popen(
                 sidecar["cmd"],
                 cwd=cwd,
+                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
