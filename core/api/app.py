@@ -215,6 +215,8 @@ def create_app() -> FastAPI:
         knowledge,
         # Content district (postiz feedback loop)
         content,
+        # HUD Approvals Panel — gateway pending/approve/reject
+        gateway,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
