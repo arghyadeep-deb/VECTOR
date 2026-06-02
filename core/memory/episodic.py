@@ -93,11 +93,19 @@ def _with_cb(op, *args, **kwargs):
     cb = get_registry().get("episodic_memory")
     if cb is None:
         return op(*args, **kwargs)
+    # Detect whether we are already inside a running event loop.
+    # asyncio.run() raises RuntimeError in that context, so we skip the coroutine
+    # path entirely and call the synchronous operation directly with manual CB bookkeeping.
+    _in_async = False
     try:
-        _coro = cb.call(lambda: op(*args, **kwargs))
-        return asyncio.run(_coro)
+        loop = asyncio.get_event_loop()
+        _in_async = loop.is_running()
     except RuntimeError:
-        _coro.close()
+        pass
+    if _in_async:
+        # Async context: bypass asyncio.run(); handle CB state manually.
+        _coro = cb.call(lambda: op(*args, **kwargs))
+        _coro.close()  # discard the coroutine wrapper
         from core.resilience.circuit_breaker import CircuitState
         _t = time.time()
         if cb.state == CircuitState.OPEN:
