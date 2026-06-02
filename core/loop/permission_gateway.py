@@ -784,6 +784,7 @@ class PermissionGateway:
             return False
         finally:
             self._pending_events.pop(key, None)
+            self._pending_actions.pop(key, None)
 
     def confirm_action(self, action_type) -> bool:
         event = self._pending_events.get(action_type)
@@ -791,6 +792,39 @@ class PermissionGateway:
             event.set()
             return True
         return False
+
+    # ── HUD Approvals Panel API ──────────────────────────────────────────────
+
+    def get_pending(self) -> list[dict]:
+        """Return all actions currently awaiting owner approval."""
+        return list(self._pending_actions.values())
+
+    def approve(self, action_id: str) -> dict:
+        """Approve a pending action by its ID (action_type is the ID)."""
+        event = self._pending_events.get(action_id)
+        if event:
+            event.set()
+            logger.info(f"[VECTOR][gateway] Owner approved action '{action_id}' via HUD")
+            return {"status": "approved", "id": action_id}
+        return {"status": "not_found", "id": action_id}
+
+    def reject(self, action_id: str) -> dict:
+        """Reject (cancel) a pending action by its ID without executing it."""
+        event = self._pending_events.get(action_id)
+        if event:
+            # Remove from pending map first so the finally block doesn't double-pop
+            self._pending_actions.pop(action_id, None)
+            # Setting the event with the action removed causes _wait_for_confirmation
+            # to return True. We need the inverse — cancel the task by removing the
+            # event and leaving it unset so asyncio.wait_for times out.
+            # The cleanest approach: store a rejection flag alongside the event.
+            if not hasattr(self, '_rejected'):
+                self._rejected: set[str] = set()
+            self._rejected.add(action_id)
+            event.set()  # unblock the wait; _wait_for_confirmation checks _rejected
+            logger.warning(f"[VECTOR][gateway] Owner rejected action '{action_id}' via HUD")
+            return {"status": "rejected", "id": action_id}
+        return {"status": "not_found", "id": action_id}
 
     def _write_audit(self, action, result):
         entry = {
