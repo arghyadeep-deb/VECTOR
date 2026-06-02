@@ -1,18 +1,39 @@
 """Investment router  --  /investment/* endpoints for Fincept, AutoHedge, VibeTranding agents."""
 
 
+import importlib
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from loguru import logger
 
 router = APIRouter(prefix="/investment", tags=["investment"])
 
+# Module-level agent cache — prevents a new DB connection on every request.
+_agent_cache: dict[str, Any] = {}
+
 
 def _get_agent(agent_class_path: str):
-    import importlib
-    module_path, class_name = agent_class_path.rsplit(".", 1)
-    module = importlib.import_module(module_path)
-    return getattr(module, class_name)()
+    """Return a cached agent instance for the given dotted class path.
+
+    On first call the module is imported, the class is instantiated, and the
+    result is stored in ``_agent_cache``.  Subsequent calls return the cached
+    instance immediately, avoiding repeated DB connections and heavy __init__
+    work on every HTTP request.
+    """
+    if agent_class_path not in _agent_cache:
+        try:
+            module_path, class_name = agent_class_path.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            cls = getattr(module, class_name)
+            _agent_cache[agent_class_path] = cls()
+        except Exception as e:
+            logger.warning(
+                "[VECTOR][api][investment] {} unavailable: {}", agent_class_path, e
+            )
+            return None
+    return _agent_cache[agent_class_path]
 
 
 #  --  Request models  -- 
