@@ -131,7 +131,11 @@ async def backtest(body: BacktestRequest):
     """Run quantitative backtest via Fincept's BacktestingPy provider."""
     try:
         agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "quant_backtest", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] backtest failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -142,20 +146,28 @@ async def geopolitics(body: GeopoliticsRequest):
     """Geopolitical risk analysis for investment decisions."""
     try:
         agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "geopolitics", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] geopolitics failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#  --  AutoHedge endpoints  -- 
+#  --  AutoHedge endpoints  --
 
 @router.post("/hedge")
 async def hedge_analysis(body: HedgeRequest):
     """Run AutoHedge multi-agent hedge fund analysis (ANALYSIS ONLY, never executes trades)."""
     try:
         agent = _get_agent("districts.investment.vector_hedgebot_agent.HedgeBotAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="HedgeBotAgent unavailable")
         return await agent.run({"type": "hedge_run", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] hedge failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -166,20 +178,27 @@ async def hedge_status():
     """Get current AutoHedge session status and portfolio snapshot."""
     try:
         agent = _get_agent("districts.investment.vector_hedgebot_agent.HedgeBotAgent")
-        return await agent.run({"type": "hedge_status", "params": {}
-        })
+        if agent is None:
+            raise HTTPException(status_code=503, detail="HedgeBotAgent unavailable")
+        return await agent.run({"type": "hedge_status", "params": {}})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#  --  VibeTranding endpoints  -- 
+#  --  VibeTranding endpoints  --
 
 @router.post("/research")
 async def vt_research(body: VTResearchRequest):
     """Run VibeTranding quantitative research with 74 skills and 9 backtest engines."""
     try:
         agent = _get_agent("districts.investment.vector_backtest_agent.BacktestAgent")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="BacktestAgent unavailable")
         return await agent.run({"type": "vt_research", "params": body.model_dump()})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][investment] vt_research failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -190,8 +209,11 @@ async def vt_skills():
     """List all 74 quantitative research skills available in VibeTranding."""
     try:
         agent = _get_agent("districts.investment.vector_backtest_agent.BacktestAgent")
-        return await agent.run({"type": "list_skills", "params": {}
-        })
+        if agent is None:
+            raise HTTPException(status_code=503, detail="BacktestAgent unavailable")
+        return await agent.run({"type": "list_skills", "params": {}})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
