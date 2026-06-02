@@ -20,7 +20,8 @@
     librechat:'<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 14h6M8 12v2"/><path d="M5 7h6M5 9.5h4"/>',
     openwebui:'<circle cx="8" cy="8" r="6.5"/><path d="M8 1.5v13M1.5 8h13M3 4a8 8 0 0 1 10 0M3 12a8 8 0 0 0 10 0"/>',
     finance:'<path d="M2 12l4-4 3 3 5-6"/><circle cx="13" cy="4" r="1.5"/><path d="M1.5 14.5h13"/>',
-    cscheduler:'<rect x="2" y="3" width="12" height="11" rx="1"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/><circle cx="11" cy="11" r="2.5"/><path d="M11 9.5v1.5l1 1"/>'
+    cscheduler:'<rect x="2" y="3" width="12" height="11" rx="1"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/><circle cx="11" cy="11" r="2.5"/><path d="M11 9.5v1.5l1 1"/>',
+    answerengine:'<circle cx="8" cy="7" r="5.5"/><path d="M8 4.5v2.5l1.5 1.5M8 14v-1.5"/>'
   };
   const svg = p => `<svg viewBox="0 0 16 16">${p}</svg>`;
 
