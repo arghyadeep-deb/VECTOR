@@ -461,6 +461,25 @@ def _make_server():
         except Exception as e:
             return f"Training failed: {e}"
 
+    # ── ask_user_question — owner input during agent tasks ─────────────────────
+
+    @mcp.tool
+    async def ask_user_question(question: str, options: list[str] = None) -> str:
+        """Ask the owner a structured question during an agent task. Options are selectable choices."""
+        try:
+            from core.loop.nudge_engine import NudgeEngine
+            nudge = NudgeEngine()
+            opts_str = "\n".join(f"{i+1}. {o}" for i, o in enumerate(options)) if options else ""
+            message = f"❓ VECTOR needs input:\n{question}"
+            if opts_str:
+                message += f"\n\nOptions:\n{opts_str}"
+            await nudge.push(message, priority=10)
+            return f"Question sent to owner: {question}"
+        except Exception as e:
+            from loguru import logger
+            logger.warning("[VECTOR][mcp] ask_user_question failed: {}", e)
+            return f"Could not send question: {e}"
+
     _add_expansion_tools(mcp)
     _add_claims_tools(mcp)
     _add_guidance_tools(mcp)
