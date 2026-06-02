@@ -36,8 +36,21 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 
-class TrainingPipeline:
-    """Fine-tuning pipeline for custom Ollama models."""
+class OllamaModelfileTrainer:
+    """
+    Ollama Modelfile trainer — prepares data and registers models via Ollama API.
+
+    This class does NOT perform gradient descent or weight updates.
+    It manages the Ollama modelfile lifecycle:
+      - prepare_data(): converts raw JSONL/MD/TXT into Ollama instruction format
+      - train(): iterates data through ollama.generate() to validate prompt format,
+                 then exports a Modelfile + config.json for `ollama create`
+      - export_model(): registers the prepared model in the local Ollama registry
+      - evaluate_model(): measures output similarity vs expected on held-out data
+
+    For LoRA fine-tuning with real weight updates, use:
+      core/training/openmythos/trainer.py
+    """
 
     def __init__(self):
         self.ollama_host = CONFIG["ollama_host"]
