@@ -893,6 +893,53 @@ class PermissionGateway:
     def get_audit_log(self, limit=50) -> list:
         return self.audit_log[-limit:]
 
+    # ── Permission Profiles (mistral-vibe pattern) ────────────────────────────
+    # Named trust-level presets that map to GREEN/YELLOW/RED tiers
+
+    PERMISSION_PROFILES = {
+        "plan": {
+            "description": "Read-only + analysis only. No file writes, no execution.",
+            "allowed_tiers": ("GREEN",),
+            "override_yellow": False,
+            "override_red": False,
+        },
+        "accept-edits": {
+            "description": "File reads + writes allowed. No shell execution or external calls.",
+            "allowed_tiers": ("GREEN", "YELLOW"),
+            "override_yellow": True,
+            "override_red": False,
+        },
+        "auto-approve": {
+            "description": "Full autonomy — all GREEN/YELLOW/RED actions approved automatically.",
+            "allowed_tiers": ("GREEN", "YELLOW", "RED"),
+            "override_yellow": True,
+            "override_red": True,
+        },
+    }
+
+    def set_profile(self, profile_name: str) -> dict:
+        """Set a named permission profile for the current session."""
+        if profile_name not in self.PERMISSION_PROFILES:
+            logger.warning("[VECTOR][gateway] Unknown profile: {}", profile_name)
+            return {"status": "error", "error": f"Unknown profile: {profile_name}"}
+        self._active_profile = profile_name
+        profile = self.PERMISSION_PROFILES[profile_name]
+        logger.info("[VECTOR][gateway] Profile set to '{}': {}", profile_name, profile["description"])
+        return {"status": "ok", "profile": profile_name, "description": profile["description"]}
+
+    def get_profile(self) -> str | None:
+        """Return the currently active permission profile (or None if not set)."""
+        return getattr(self, "_active_profile", None)
+
+    def profile_allows(self, tier: str) -> bool:
+        """Check if the active profile allows a given tier action."""
+        profile_name = self.get_profile()
+        if not profile_name:
+            return True  # No profile = default gateway behavior
+        profile = self.PERMISSION_PROFILES.get(profile_name, {})
+        return tier in profile.get("allowed_tiers", ("GREEN",))
+
+
 if __name__ == '__main__':
     sys.stdout.reconfigure(encoding="utf-8")
     gw = PermissionGateway()
