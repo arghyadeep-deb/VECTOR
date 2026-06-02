@@ -125,7 +125,7 @@ class DecisionEngine:
 
     def _make_situation_hash(self, candidate: Candidate) -> str:
         key = f"{candidate.action_type}:{sorted(candidate.params.items())}"
-        return hashlib.md5(key.encode()).hexdigest()[:12]
+        return hashlib.sha256(key.encode()).hexdigest()[:12]
 
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula. Mutates candidate with computed scores."""
