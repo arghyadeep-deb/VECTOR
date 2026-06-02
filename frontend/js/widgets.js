@@ -379,6 +379,246 @@
     return w;
   };
 
+  // ── Approvals Panel (A16) — YELLOW/RED actions awaiting human sign-off ──────
+  F.approvals = function(){
+    const wrap = el('div','apv-wrap');
+    const badge = el('div','apv-badge', '<span class="apv-count">0</span> PENDING');
+    const list  = el('div','apv-list');
+    wrap.appendChild(badge);
+    wrap.appendChild(list);
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+    let pollId = null;
+
+    function renderApprovals(items){
+      const count = badge.querySelector('.apv-count');
+      if(count) count.textContent = items.length;
+      list.innerHTML = '';
+      if(!items.length){
+        list.innerHTML = '<div class="apv-empty">NO PENDING APPROVALS</div>';
+        return;
+      }
+      items.forEach(item=>{
+        const isRed = (item.level||'').toUpperCase() === 'RED';
+        const ts = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+        const card = el('div','apv-card '+(isRed?'apv-red':'apv-yellow'));
+        card.innerHTML =
+          `<div class="apv-head">
+             <span class="apv-type">${item.action_type||item.id}</span>
+             <span class="badge2 ${isRed?'crit':'high'}">${(item.level||'?').toUpperCase()}</span>
+             <span class="apv-ts">${ts}</span>
+           </div>
+           <div class="apv-desc">${item.proposed_by || ''}${item.params ? ' · '+JSON.stringify(item.params).slice(0,80) : ''}</div>
+           <div class="apv-btns">
+             <button class="apv-ok">APPROVE</button>
+             <button class="apv-no">REJECT</button>
+           </div>`;
+        const id = item.id || item.action_type;
+        card.querySelector('.apv-ok').addEventListener('click', async e=>{
+          e.stopPropagation(); card.style.opacity='.4';
+          try{
+            await fetch(API+'/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
+            V.say('Approved — '+id+' executing.');
+          }catch(err){ card.style.opacity='1'; }
+          refresh();
+        });
+        card.querySelector('.apv-no').addEventListener('click', async e=>{
+          e.stopPropagation(); card.style.opacity='.4';
+          try{
+            await fetch(API+'/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
+            V.say('Rejected — '+id+' blocked.');
+          }catch(err){ card.style.opacity='1'; }
+          refresh();
+        });
+        list.appendChild(card);
+      });
+    }
+
+    async function refresh(){
+      try{
+        const r = await fetch(API+'/gateway/pending');
+        const j = await r.json();
+        renderApprovals(j.pending||[]);
+      }catch(e){ /* backend offline — keep last render */ }
+    }
+
+    const w = shell('approvals','APPROVALS', wrap, 'apv-panel');
+    refresh();
+    // auto-poll every 5 s while the widget is in the DOM
+    pollId = setInterval(()=>{ if(!w.isConnected){ clearInterval(pollId); return; } refresh(); }, 5000);
+    return w;
+  };
+
+  // ── Chat (LibreChat iframe) ───────────────────────────────────────────────
+  F.librechat = function(){
+    const frame = el('iframe');
+    frame.src = 'http://localhost:3080';
+    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
+    frame.setAttribute('allow', 'microphone; camera');
+    return shell('librechat','CHAT · LIBRECHAT', frame, 'iframe-panel');
+  };
+
+  // ── Knowledge (Open WebUI iframe) ────────────────────────────────────────
+  F.openwebui = function(){
+    const frame = el('iframe');
+    frame.src = 'http://localhost:8080';
+    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
+    frame.setAttribute('allow', 'microphone; camera');
+    return shell('openwebui','KNOWLEDGE · OPEN WEBUI', frame, 'iframe-panel');
+  };
+
+  // ── Finance Panel ─────────────────────────────────────────────────────────
+  F.finance = function(){
+    const wrap = el('div','fin-wrap');
+    wrap.innerHTML = `
+      <div class="fin-summary">
+        <div class="fin-kv"><span class="k">PORTFOLIO VALUE</span><span class="v fin-pv">—</span></div>
+        <div class="fin-kv"><span class="k">DAY P&amp;L</span><span class="v fin-pl">—</span></div>
+        <div class="fin-mkt">
+          <span class="fin-ms" data-mkt="us">US ·</span>
+          <span class="fin-ms" data-mkt="india">IN ·</span>
+          <span class="fin-ms" data-mkt="crypto">CRYPTO ·</span>
+        </div>
+      </div>
+      <div class="fin-lbl">POSITIONS</div>
+      <div class="fin-positions"><div class="fin-empty">No positions loaded</div></div>
+      <div class="fin-lbl" style="margin-top:8px">ALERTS</div>
+      <div class="fin-alerts"><div class="fin-empty">No alerts</div></div>`;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    async function loadPortfolio(){
+      try{
+        const r = await fetch(API+'/investment/portfolio');
+        const j = await r.json();
+        const pv = wrap.querySelector('.fin-pv');
+        const pl = wrap.querySelector('.fin-pl');
+        if(pv) pv.textContent = j.portfolio_value != null ? '₹'+Number(j.portfolio_value).toLocaleString() : '—';
+        if(pl){
+          const sign = j.day_pnl >= 0 ? '▲' : '▼';
+          pl.textContent = (j.day_pnl != null ? sign+' ₹'+Math.abs(j.day_pnl).toLocaleString() : '—');
+          pl.style.color = j.day_pnl >= 0 ? 'var(--ok)' : 'var(--danger)';
+        }
+        const posEl = wrap.querySelector('.fin-positions');
+        if(posEl && j.positions && j.positions.length){
+          posEl.innerHTML = j.positions.map(p=>
+            `<div class="fin-pos"><span>${p.symbol}</span><span>${p.qty}</span><span style="color:${(p.pnl||0)>=0?'var(--ok)':'var(--danger)'}">${(p.pnl||0)>=0?'▲':'▼'}${Math.abs(p.pnl||0).toFixed(2)}</span></div>`
+          ).join('');
+        }
+        const altEl = wrap.querySelector('.fin-alerts');
+        if(altEl && j.alerts && j.alerts.length){
+          altEl.innerHTML = j.alerts.map(a=>`<div class="fin-alert-row">${a}</div>`).join('');
+        }
+      }catch(e){ /* backend offline */ }
+    }
+
+    async function loadMarketStatus(){
+      try{
+        const r = await fetch(API+'/investment/market-status');
+        const j = await r.json();
+        ['us','india','crypto'].forEach(k=>{
+          const el2 = wrap.querySelector(`[data-mkt="${k}"]`);
+          if(!el2) return;
+          const info = j[k]||{};
+          el2.textContent = (info.label||k.toUpperCase())+' · '+(info.open?'OPEN':'CLOSED');
+          el2.style.color = info.open ? 'var(--ok)' : 'var(--txt-mute)';
+        });
+      }catch(e){ /* backend offline */ }
+    }
+
+    const w = shell('finance','FINANCE · PORTFOLIO', wrap, 'fin-panel');
+    loadPortfolio();
+    loadMarketStatus();
+    return w;
+  };
+
+  // ── Content Scheduler Panel ────────────────────────────────────────────────
+  F.contentscheduler = function(){
+    const wrap = el('div','csch-wrap');
+    wrap.innerHTML = `
+      <div class="csch-tabs">
+        <button class="csch-tab on" data-tab="queue">QUEUE</button>
+        <button class="csch-tab" data-tab="compose">COMPOSE</button>
+        <button class="csch-tab" data-tab="analytics">ANALYTICS</button>
+      </div>
+      <div class="csch-pane" id="csch-queue">
+        <div class="csch-list"></div>
+        <button class="csch-run">▶ RUN ALL PENDING</button>
+      </div>
+      <div class="csch-pane" id="csch-compose" style="display:none">
+        <input class="csch-title" placeholder="Post title…"/>
+        <textarea class="csch-content" placeholder="Content…"></textarea>
+        <div class="csch-platforms">
+          <label><input type="checkbox" value="twitter"> Twitter</label>
+          <label><input type="checkbox" value="linkedin"> LinkedIn</label>
+          <label><input type="checkbox" value="devto"> Dev.to</label>
+          <label><input type="checkbox" value="hashnode"> Hashnode</label>
+          <label><input type="checkbox" value="medium"> Medium</label>
+        </div>
+        <button class="csch-submit">SCHEDULE POST</button>
+        <div class="csch-status"></div>
+      </div>
+      <div class="csch-pane" id="csch-analytics" style="display:none">
+        <div class="csch-anl-list"></div>
+      </div>`;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    // Tab switching
+    wrap.querySelectorAll('.csch-tab').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        wrap.querySelectorAll('.csch-tab').forEach(b=>b.classList.remove('on'));
+        btn.classList.add('on');
+        wrap.querySelectorAll('.csch-pane').forEach(p=>p.style.display='none');
+        const pane = wrap.querySelector('#csch-'+btn.dataset.tab);
+        if(pane) pane.style.display='block';
+      });
+    });
+
+    // Stop keydown propagation inside form fields
+    wrap.querySelectorAll('input,textarea').forEach(f=>f.addEventListener('keydown',e=>e.stopPropagation()));
+
+    async function loadQueue(){
+      try{
+        const r = await fetch(API+'/content/scheduled');
+        const j = await r.json();
+        const listEl = wrap.querySelector('.csch-list');
+        if(!listEl) return;
+        const entries = Object.entries(j).filter(([k])=>k!=='error');
+        if(!entries.length){ listEl.innerHTML='<div class="fin-empty">Queue empty</div>'; return; }
+        listEl.innerHTML = entries.map(([status,count])=>
+          `<div class="csch-row"><span class="csch-status-label ${status}">${status.toUpperCase()}</span><span class="csch-cnt">${count}</span></div>`
+        ).join('');
+      }catch(e){ /* offline */ }
+    }
+
+    wrap.querySelector('.csch-run').addEventListener('click', async e=>{
+      e.stopPropagation();
+      try{ await fetch(API+'/content/run', {method:'POST'}); loadQueue(); }catch(err){}
+    });
+
+    wrap.querySelector('.csch-submit').addEventListener('click', async e=>{
+      e.stopPropagation();
+      const title   = wrap.querySelector('.csch-title').value.trim();
+      const content = wrap.querySelector('.csch-content').value.trim();
+      const platforms = [...wrap.querySelectorAll('.csch-platforms input:checked')].map(i=>i.value);
+      const stat = wrap.querySelector('.csch-status');
+      if(!title || !content || !platforms.length){ stat.textContent='Fill title, content, and pick a platform.'; return; }
+      stat.textContent = '◌ scheduling…';
+      try{
+        const r = await fetch(API+'/content/schedule', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({title, content, platforms})
+        });
+        const j = await r.json();
+        stat.textContent = j.status==='ok' ? '✓ scheduled!' : '⚠ '+JSON.stringify(j);
+        loadQueue();
+      }catch(err){ stat.textContent='⚠ '+err.message; }
+    });
+
+    const w = shell('contentscheduler','CONTENT SCHEDULER', wrap, 'csch-panel');
+    loadQueue();
+    return w;
+  };
+
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
