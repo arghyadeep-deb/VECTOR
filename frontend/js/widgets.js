@@ -653,6 +653,48 @@
     return shell('answerengine','ANSWER ENGINE', wrap, 'ae-panel');
   };
 
+  // ── GOAP Goal Planner (ruflo) ─────────────────────────────────────────────
+  F.goalplanner = function(){
+    const wrap = el('div','gp-wrap');
+    wrap.innerHTML = `
+      <div class="gp-horizons">
+        <div class="gp-h"><div class="gp-hlabel">LONG</div><div class="gp-list" id="gp-long"></div></div>
+        <div class="gp-h"><div class="gp-hlabel">MID</div><div class="gp-list" id="gp-mid"></div></div>
+        <div class="gp-h"><div class="gp-hlabel">SHORT</div><div class="gp-list" id="gp-short"></div></div>
+      </div>`;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    function pct(p){ return Math.max(0,Math.min(100,Math.round((p||0)*100))); }
+
+    async function loadGoals(){
+      try{
+        const r = await fetch(API+'/goals');
+        const j = await r.json();
+        const goals = j.goals || (Array.isArray(j)?j:[]);
+        ['long','mid','short'].forEach(h=>{
+          const listEl = wrap.querySelector('#gp-'+h);
+          if(!listEl) return;
+          const hGoals = goals.filter(g=>(g.horizon||'').toLowerCase()===h);
+          if(!hGoals.length){ listEl.innerHTML='<div class="gp-empty">—</div>'; return; }
+          listEl.innerHTML = hGoals.map(g=>{
+            const p = pct(g.progress);
+            const pri = (g.priority||0) >= 8 ? 'crit' : (g.priority||0) >= 5 ? 'high' : 'med';
+            return `<div class="gp-goal">
+              <div class="gp-gtitle"><span class="badge2 ${pri}">${g.priority||0}</span>${g.title||g.id}</div>
+              <div class="gp-bar"><div class="gp-fill" style="width:${p}%"></div></div>
+              <div class="gp-meta">${p}% · ${(g.tags||[]).slice(0,2).join(' · ')}</div>
+            </div>`;
+          }).join('');
+        });
+      }catch(e){ /* offline */ }
+    }
+
+    const w = shell('goalplanner','GOAL PLANNER · HORIZONS', wrap, 'gp-panel');
+    loadGoals();
+    setInterval(()=>{ if(w.isConnected) loadGoals(); }, 30000);
+    return w;
+  };
+
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
