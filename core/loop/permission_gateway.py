@@ -779,6 +779,10 @@ class PermissionGateway:
             # Nested wait_for causes spurious TimeoutError on Python 3.13 when the outer
             # cancels this coroutine.  Just await the event directly.
             await event.wait()
+            # Check if the HUD explicitly rejected this action
+            if hasattr(self, '_rejected') and key in self._rejected:
+                self._rejected.discard(key)
+                return False
             return True
         except asyncio.CancelledError:
             return False
