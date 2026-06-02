@@ -183,6 +183,27 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # VECTOR custom Ollama models — local RTX 5070 Ti, zero API cost.
+    # These run via OLLAMA_HOST=127.0.0.1:11434 (or remote if reconfigured).
+    # context values in tokens; type = intended use case.
+    "vector-local": {
+        "quick": [
+            ("vector-focus — main voice + multimodal (gemma4:e4b, permanent VRAM)", "vector-focus"),
+            ("vector-fast — low-latency fallback (mistral-small3.1)", "vector-fast"),
+            ("vector-coder — code generation (qwen3:14b)", "vector-coder"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("vector-chairman — council chairman (gemma4:31b dense)", "vector-chairman"),
+            ("vector-deep — overnight analysis, 65K ctx (gemma4:26b MoE)", "vector-deep"),
+            ("vector-reasoning — step-by-step reasoning (qwen3:14b)", "vector-reasoning"),
+            ("vector-r1 — R1-style chain-of-thought (deepseek-r1:14b)", "vector-r1"),
+            ("devstral:24b — code specialist, refactor + review", "devstral:24b"),
+            ("deepseek-r1:14b — chain-of-thought reasoning traces", "deepseek-r1:14b"),
+            ("qwen3:30b-a3b — large-context MoE reasoning (3B active VRAM)", "qwen3:30b-a3b"),
+            ("Custom model ID", "custom"),
+        ],
+    },
 }
 
 
