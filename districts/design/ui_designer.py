@@ -246,6 +246,16 @@ class UIDesigner(AgentBase):
                 self.award_points(20, "design_audited")
                 return {"status": "ok", "audit": result}
 
+            elif task_type == "search_corpus":
+                query = task.get("query", "")
+                results = self.search_design_corpus(
+                    query,
+                    top_k=task.get("top_k", 10),
+                    corpora=task.get("corpora", None),
+                )
+                self.award_points(10, "corpus_searched")
+                return {"status": "ok", "query": query, "results": results, "count": len(results)}
+
             else:  # tokens
                 self._get_memory().store(
                     event_type="design_tokens_requested",
