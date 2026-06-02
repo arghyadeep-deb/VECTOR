@@ -7,13 +7,29 @@ and pixel-perfect UI specifications for VECTOR's monitoring dashboard and output
 import asyncio
 import json
 import re
-
+from typing import Any
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+
+# Design corpus — lazy-loaded on first call
+_corpus_search = None
+
+
+def _get_corpus_search():
+    """Lazy import to avoid circular imports and missing-file errors at startup."""
+    global _corpus_search
+    if _corpus_search is None:
+        try:
+            from districts.design.knowledge import search_design_corpus
+            _corpus_search = search_design_corpus
+        except Exception as e:
+            logger.debug(f"[VECTOR][ui_designer] corpus unavailable: {e}")
+            _corpus_search = lambda q, **kw: []  # noqa: E731
+    return _corpus_search
 
 _VECTOR_DESIGN_TOKENS = {
     "colors": {
