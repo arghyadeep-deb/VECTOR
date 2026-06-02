@@ -317,6 +317,50 @@ def _try_register(
     return False
 
 
+def _try_register_interval(
+    scheduler: Any,
+    job_id: str,
+    minutes: int,
+    fn: Callable,
+) -> bool:
+    """Register a job with an interval trigger (every N minutes).
+
+    Supports APScheduler's add_job(trigger='interval') and simple interval APIs.
+    Falls back to cron expression every N minutes for other schedulers.
+    """
+    # 1) APScheduler-style: add_job(fn, 'interval', minutes=N, id=job_id)
+    for name in ("add_job", "schedule", "register", "add"):
+        api = getattr(scheduler, name, None)
+        if callable(api):
+            try:
+                api(fn, "interval", minutes=minutes, id=job_id, replace_existing=True)
+                return True
+            except TypeError:
+                # try without replace_existing (older APScheduler)
+                try:
+                    api(fn, "interval", minutes=minutes, id=job_id)
+                    return True
+                except Exception:
+                    pass
+            except Exception:
+                # scheduler may use a different API; try next
+                pass
+
+    # 2) Convenience method: schedule_interval(job_id, minutes, fn)
+    for name in ("schedule_interval", "add_interval", "interval"):
+        api = getattr(scheduler, name, None)
+        if callable(api):
+            try:
+                api(job_id=job_id, minutes=minutes, fn=fn)
+                return True
+            except Exception:
+                continue
+
+    # 3) Fall back to cron (every 30 min = "*/30 * * * *")
+    cron_expr = f"*/{minutes} * * * *"
+    return _try_register(scheduler, job_id, "interval", cron_expr, fn)
+
+
 async def job_benchmark_suite(*, _ctx: dict | None = None) -> dict:
     """Weekly benchmark run — exercises the absorbed ``bench`` module.
 
