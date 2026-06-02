@@ -433,6 +433,18 @@ class EmailAgent(AgentBase):
                 self.award_points(15, "draft_email_created")
                 return {"status": "ok", "draft": result}
 
+            elif task_type == "update_draft":
+                result = self.update_draft(
+                    task.get("draft_id", ""),
+                    title=task.get("title"),
+                    body=task.get("body"),
+                    to=task.get("to"),
+                )
+                if result is None:
+                    return {"status": "error", "error": "Draft not found"}
+                self.award_points(10, "draft_updated")
+                return {"status": "ok", "draft": result}
+
             elif task_type == "discard_draft":
                 result = self.discard_draft(task.get("draft_id", ""))
                 self.award_points(5, "draft_discarded")
