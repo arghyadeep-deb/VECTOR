@@ -14,6 +14,23 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
 
+class _TTLCache:
+    """Simple time-to-live cache to deduplicate repeated API calls."""
+
+    def __init__(self, ttl_seconds: int = 300):
+        self._cache: dict = {}
+        self._ttl = ttl_seconds
+
+    def get(self, key: str):
+        entry = self._cache.get(key)
+        if entry and time.time() - entry["ts"] < self._ttl:
+            return entry["val"]
+        return None
+
+    def set(self, key: str, val) -> None:
+        self._cache[key] = {"val": val, "ts": time.time()}
+
+
 class StockAnalyst(AgentBase):
     """
     Provides stock analysis using yfinance for market data
@@ -27,6 +44,7 @@ class StockAnalyst(AgentBase):
 
         self._yfinance_available = self._check_yfinance()
         self._analysis_cache: dict[str, dict] = {}
+        self._quote_cache = _TTLCache(300)
         logger.info(f"[VECTOR][stock_analyst] StockAnalyst initialized - yfinance: {self._yfinance_available}")
 
     def _check_yfinance(self) -> bool:
