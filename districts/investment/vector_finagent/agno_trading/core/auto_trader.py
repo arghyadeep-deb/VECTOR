@@ -316,6 +316,54 @@ class AutoTrader:
 
     async def _execute_trade(self, signal: TradingSignal, position_size: float):
         """Execute trade based on signal"""
+        # SAFETY: Gate all execution through permission_gateway RED tier
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            from core.config import CONFIG
+            gw = PermissionGateway()
+            action_str = f"execute_trade:{signal.symbol}:{signal.direction}:{position_size:.2f}"
+            classification = gw.classify(action_str)
+            if classification not in ("GREEN",):
+                logger.warning(
+                    "[VECTOR][investment] AutoTrader trade blocked — tier: {} action: {}",
+                    classification, action_str,
+                )
+                return
+
+            # Paper mode check (default: True — safe)
+            inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+            if inv_cfg.get("paper_trading", True):
+                logger.info(
+                    "[VECTOR][investment] PAPER MODE — would execute: {} {} ${:.2f} confidence={:.2f}",
+                    signal.direction.upper(), signal.symbol, position_size, signal.confidence,
+                )
+                # Fall through to simulated position tracking below (paper mode still records)
+
+            # Kill switch check
+            if inv_cfg.get("kill_switch", False):
+                logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — AutoTrader trade blocked")
+                return
+
+            # Max position size check (₹ or base currency)
+            max_pos = inv_cfg.get("max_position_size", 10000)
+            if position_size > max_pos:
+                logger.warning(
+                    "[VECTOR][investment] Position size ${:.2f} exceeds max_position_size ${} — capped",
+                    position_size, max_pos,
+                )
+                position_size = float(max_pos)
+
+        except (ImportError, Exception) as _gw_err:
+            logger.warning(
+                "[VECTOR][investment] Gateway check failed ({}); blocking AutoTrader trade for safety",
+                _gw_err,
+            )
+            return
+
+        logger.info(
+            "[VECTOR][investment] AutoTrader executing {} {} size=${:.2f} confidence={:.2f}",
+            signal.direction.upper(), signal.symbol, position_size, signal.confidence,
+        )
         print(f"[AutoTrader] Executing {signal.direction.upper()} on {signal.symbol}")
         print(f"[AutoTrader] Size: ${position_size:.2f}, Confidence: {signal.confidence:.2f}")
 
