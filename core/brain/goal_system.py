@@ -181,20 +181,24 @@ class GoalSystem:
         actions = []
 
         for goal in self.get_active_goals("SHORT"):
+            action_type = GOAL_ACTION_MAP.get("SHORT", "research_topic")
             actions.append({
                 "goal_id": goal["id"],
                 "title": goal["title"],
-                "action": f"progress_{goal['id']}",
+                "action": action_type,
+                "action_type": action_type,
                 "urgency": "high",
                 "source": "SHORT_goal",
             })
 
         for goal in self.get_active_goals():
             if goal.get("progress", 0) == 0.0 and goal["horizon"] in ("LONG", "MID"):
+                action_type = GOAL_ACTION_MAP.get(goal["horizon"], "analyze_progress")
                 actions.append({
                     "goal_id": goal["id"],
                     "title": f"Start: {goal['title']}",
-                    "action": f"kickstart_{goal['id']}",
+                    "action": action_type,
+                    "action_type": action_type,
                     "urgency": "medium",
                     "source": f"{goal['horizon']}_unstarter",
                 })
