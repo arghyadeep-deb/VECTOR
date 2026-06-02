@@ -505,6 +505,20 @@ Be specific and balanced.
 
         return rankings
 
+    def get_alpha_factors(self, symbol: str) -> list[str]:
+        """Return relevant alpha factor names for this symbol's sector."""
+        try:
+            from districts.investment.alpha_zoo import AlphaZooLoader
+            loader = AlphaZooLoader()
+            # Return factor names relevant to stock analysis
+            all_factors = loader.list_factors()
+            # Filter to momentum/value/quality factors
+            relevant = [f for f in all_factors if any(k in f.lower() for k in ['momentum', 'value', 'quality', 'rsi', 'macd', 'vol'])]
+            return relevant[:10]
+        except Exception as e:
+            logger.debug("[VECTOR][stock_analyst] alpha_zoo unavailable: {}", e)
+            return []
+
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
         from datetime import datetime, timezone
