@@ -629,13 +629,12 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "pydantic_review":      "coding",
     "api_review":           "coding",
     "endpoint_review":      "coding",
-    "security_review_code": "coding",
-    "vuln_scan":            "coding",
-    "secret_scan":          "coding",
-    "injection_check":      "coding",
-    "ssrf_review":          "coding",
-    "path_traversal_check": "coding",
-    "hardcoded_secrets":    "coding",
+    "code_vuln_check":      "coding",   # security_review_code → avoids collision with "security" keyword
+    "code_secret_check":    "coding",   # secret_scan → unambiguous coding route
+    "code_inject_check":    "coding",   # injection_check → unambiguous coding route
+    "code_ssrf_check":      "coding",   # ssrf_review → unambiguous coding route
+    "code_path_check":      "coding",   # path_traversal_check → unambiguous coding route
+    "code_hardcoded_check": "coding",   # hardcoded_secrets → unambiguous coding route
     "explore_code": "coding",
     "explain_file": "coding",
     "optimize": "data_analytics",
