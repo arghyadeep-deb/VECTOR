@@ -621,6 +621,38 @@
     return w;
   };
 
+  // ── Answer Engine Panel (Vane / SearXNG) ─────────────────────────────────
+  F.answerengine = function(){
+    const wrap = el('div','ae-wrap');
+    wrap.innerHTML = `
+      <div class="ae-search">
+        <input class="ae-input" placeholder="Ask anything…"/>
+        <button class="ae-btn">SEARCH</button>
+      </div>
+      <div class="ae-results"></div>`;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+    const input = wrap.querySelector('.ae-input');
+    const results = wrap.querySelector('.ae-results');
+    wrap.querySelector('.ae-btn').addEventListener('click', async e=>{
+      e.stopPropagation();
+      const q = input.value.trim();
+      if(!q) return;
+      results.innerHTML = '<div class="ae-loading">◌ Searching…</div>';
+      try {
+        const r = await fetch(API+'/research/search?q='+encodeURIComponent(q));
+        const j = await r.json();
+        const items = j.results || [];
+        results.innerHTML = items.length ? items.map(i=>
+          `<div class="ae-item">
+             <a href="${i.url||'#'}" class="ae-title" target="_blank">${i.title||'Result'}</a>
+             <div class="ae-snippet">${i.snippet||i.content||''}</div>
+           </div>`).join('') : '<div class="ae-empty">No results</div>';
+      } catch(e) { results.innerHTML = '<div class="ae-empty">Search unavailable</div>'; }
+    });
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.stopPropagation();wrap.querySelector('.ae-btn').click();} });
+    return shell('answerengine','ANSWER ENGINE', wrap, 'ae-panel');
+  };
+
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
