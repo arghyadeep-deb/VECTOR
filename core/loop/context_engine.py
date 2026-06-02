@@ -6,6 +6,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
 
+_SENSE_CACHE: dict = {
+    "screen_summary": "",
+    "presence": "unknown",
+}
+
+
+def update_sense_cache(screen_summary="", presence="unknown", **extra) -> None:
+    """Update shared sensing context for all ContextEngine instances."""
+    if isinstance(screen_summary, dict):
+        data = dict(screen_summary)
+    else:
+        data = {"screen_summary": screen_summary, "presence": presence}
+    data.update(extra)
+    if "screen_summary" in data:
+        data["screen_summary"] = str(data.get("screen_summary") or "")[:300]
+    if not data.get("presence"):
+        data["presence"] = "unknown"
+    _SENSE_CACHE.update(data)
+
 
 class ContextEngine:
     """
@@ -19,7 +38,7 @@ class ContextEngine:
         # Sense cache: populated by autonomous_loop._sense_tick() or update_sense_cache().
         # Keys written by FaceDetector: face.detected, face.identity, face.fatigue
         # Keys written by ScreenObserver: screen_summary
-        self._sense_cache: dict = {}
+        self._sense_cache = _SENSE_CACHE
         logger.info("[VECTOR][context_engine] initialized")
 
     def update_sense_cache(self, data: dict) -> None:
@@ -31,7 +50,7 @@ class ContextEngine:
           face.detected (bool), face.identity (str), face.fatigue (float)
           screen_summary (str)
         """
-        self._sense_cache.update(data)
+        update_sense_cache(data)
 
     def _get_memory(self):
         if self._memory is None:
@@ -45,14 +64,17 @@ class ContextEngine:
             self._goals = GoalSystem()
         return self._goals
 
-    def get_world_state(self) -> dict:
+    def get_world_state(self, query: str | None = None) -> dict:
         """Gather current world state across 9 domains."""
         now = datetime.datetime.now()
         mem = self._get_memory()
 
         recent_episodes = []
         try:
-            recent_episodes = mem.recall("", limit=5)
+            if query:
+                recent_episodes = mem.search_semantic(query, top_k=5)
+            else:
+                recent_episodes = mem.recall("", limit=5)
         except Exception as e:
             logger.warning(f"[VECTOR][context_engine] episode recall failed: {e}")
 
@@ -69,14 +91,14 @@ class ContextEngine:
             logger.warning(f"[VECTOR][context_engine] mem stats failed: {e}")
 
         # --- Presence / face detection from sense cache ---
-        face_data: dict = self._sense_cache.get("face", {})
+        face_data: dict = _SENSE_CACHE.get("face", {})
         if face_data.get("detected"):
             presence = "present"
         elif "detected" in face_data:
             # detected key exists but is False — camera ran, no face found
             presence = "absent"
         else:
-            presence = self._sense_cache.get("presence", "unknown")
+            presence = _SENSE_CACHE.get("presence", "unknown")
 
         owner_identity: str = face_data.get("identity", "")
         fatigue_score: float = float(face_data.get("fatigue", 0.0))
@@ -99,8 +121,41 @@ class ContextEngine:
             "presence": presence,
             "owner_identity": owner_identity,
             "fatigue_score": fatigue_score,
-            "screen_summary": self._sense_cache.get("screen_summary", ""),
+            "screen_summary": _SENSE_CACHE.get("screen_summary", ""),
         }
+
+    def _person_context_line(self, person_id: str, topic: str = "current task") -> str:
+        try:
+            from core.brain.person_model import PersonModel
+            pm = PersonModel()
+            try:
+                model = pm.get_model(person_id)
+                if not model:
+                    return ""
+                style = pm.infer_communication_style(person_id)
+                stance = pm.predict_response(person_id, topic)
+                recent = model.get("recent_interactions", [])[:3]
+                recent_topics = [
+                    str(item.get("summary", "")).replace("\n", " ")[:60]
+                    for item in recent
+                    if item.get("summary")
+                ]
+                style_str = " ".join(f"{k}={v}" for k, v in style.items())
+                trust = float(model.get("trust_score", pm.get_trust(person_id)))
+                return (
+                    f"About {model.get('name', 'person')}: "
+                    f"trust={trust:.2f} "
+                    f"{style_str} "
+                    f"expected_stance={stance} "
+                    f"recent_topics={recent_topics}"
+                )
+            finally:
+                close = getattr(pm, "close", None)
+                if callable(close):
+                    close()
+        except Exception as e:
+            logger.debug("[VECTOR][context_engine] person context unavailable: {}", e)
+            return ""
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
         """
@@ -108,7 +163,8 @@ class ContextEngine:
         Returns a context block to prepend to the LLM message.
         """
         try:
-            state = self.get_world_state()
+            query = (extra_context or {}).get("query")
+            state = self.get_world_state(query=query)
         except Exception as e:
             logger.error(f"[VECTOR][context_engine] world state failed: {e}")
             state = {
@@ -151,25 +207,51 @@ class ContextEngine:
             if episodes_str:
                 lines.append(f"Recent context: {episodes_str}")
 
+        person_id = (extra_context or {}).get("person_id")
+        if person_id:
+            about = self._person_context_line(
+                str(person_id),
+                str((extra_context or {}).get("task", "current task")),
+            )
+            if about:
+                lines.append(about)
+
         if extra_context:
             for k, v in extra_context.items():
+                if k == "person_id":
+                    continue
                 lines.append(f"{k}: {v}")
 
         lines.append("[END SESSION CONTEXT]")
         return "\n".join(lines)
 
-    def get_vault_context(self, query: str = "") -> str:
+    async def get_vault_context(self, query: str = "") -> str:
         """Query LightRAG graph for vault context to feed session hydration."""
         try:
             from core.memory.obsidian_sync import ObsidianSync
             sync = ObsidianSync()
-            if hasattr(sync, 'query_graph'):
-                return sync.query_graph(query) or ""
-            # Fallback: return recent notes summary
-            return sync.get_recent_context() if hasattr(sync, 'get_recent_context') else ""
+            if hasattr(sync, "query"):
+                return await sync.query(query) or ""
+            return ""
         except Exception as e:
             logger.warning("[VECTOR][context] get_vault_context failed: {}", e)
             return ""
+
+    def estimate_tokens(self, text: str) -> int:
+        """Rough token estimate: 1 token ≈ 4 chars for English text."""
+        return max(1, len(text) // 4)
+
+    def get_context_token_count(self) -> int:
+        """Estimate current session context size in tokens."""
+        try:
+            prompt = self.session_hydration_prompt()
+            return self.estimate_tokens(prompt)
+        except Exception:
+            return 0
+
+    def is_context_near_limit(self, limit: int = 32000) -> bool:
+        """Return True if context is within 80% of the token limit."""
+        return self.get_context_token_count() >= int(limit * 0.8)
 
     def _time_of_day(self, now: datetime.datetime) -> str:
         h = now.hour
