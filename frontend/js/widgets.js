@@ -16,7 +16,7 @@
     memory:[2,64], council:[40,55], security:[40,4], map:[26,20],
     music:[40,70], chat:[2,30], webcam:[60,40],
     approvals:[66,55], librechat:[4,4], openwebui:[4,4],
-    finance:[64,30], contentscheduler:[2,30]
+    finance:[64,30], contentscheduler:[2,30], answerengine:[30,20]
   };
 
   // ---- chrome wrapper -----------------------------------------------------
