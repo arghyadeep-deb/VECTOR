@@ -417,6 +417,7 @@ __all__ = [
     "job_daily_eval",
     "job_biometrics_pull",
     "job_daily_review",
+    "job_content_scheduler",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_trigger_workflow",
