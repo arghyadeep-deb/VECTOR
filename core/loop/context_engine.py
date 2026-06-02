@@ -158,6 +158,19 @@ class ContextEngine:
         lines.append("[END SESSION CONTEXT]")
         return "\n".join(lines)
 
+    def get_vault_context(self, query: str = "") -> str:
+        """Query LightRAG graph for vault context to feed session hydration."""
+        try:
+            from core.memory.obsidian_sync import ObsidianSync
+            sync = ObsidianSync()
+            if hasattr(sync, 'query_graph'):
+                return sync.query_graph(query) or ""
+            # Fallback: return recent notes summary
+            return sync.get_recent_context() if hasattr(sync, 'get_recent_context') else ""
+        except Exception as e:
+            logger.warning("[VECTOR][context] get_vault_context failed: {}", e)
+            return ""
+
     def _time_of_day(self, now: datetime.datetime) -> str:
         h = now.hour
         if 5 <= h < 9:
