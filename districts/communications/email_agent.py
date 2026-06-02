@@ -15,6 +15,11 @@ generates a draft reply (requires explicit confirmation to send).
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+
+import sys
 import asyncio
 import datetime
 import json
@@ -221,6 +226,31 @@ class EmailAgent(AgentBase):
             )
         conn.close()
         return {"status": "draft_saved", "draftId": draft_id, "to": to, "subject": subject}
+
+    def update_draft(self, draft_id: str, title: str = None, body: str = None,
+                     to: str = None) -> dict | None:
+        """Update an existing email draft. Returns updated draft or None if not found."""
+        conn = self._conn()
+        draft = conn.execute(
+            "SELECT * FROM emails WHERE id=? AND folder_id='draft'", (draft_id,)
+        ).fetchone()
+        if not draft:
+            conn.close()
+            return None
+        updates, params = [], []
+        if title is not None:
+            updates.append("subject=?"); params.append(title)
+        if body is not None:
+            updates.append("body=?"); params.append(body)
+        if to is not None:
+            updates.append("recipient=?"); params.append(to)
+        if updates:
+            params.append(draft_id)
+            conn.execute(f"UPDATE emails SET {','.join(updates)} WHERE id=?", params)
+            conn.commit()
+        row = conn.execute("SELECT * FROM emails WHERE id=?", (draft_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     def discard_draft(self, draft_id: str) -> dict:
         """Delete a draft email."""
