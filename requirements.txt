@@ -241,6 +241,7 @@ browserforge==1.2.4
 mcp==1.27.1
 markdownify==1.2.2
 msgspec==0.21.1
+ccxt>=4.0.0             # crypto exchange integration for trading districts
 protego==0.6.0
 apify-fingerprint-datapoints==0.13.0
 tld==0.13.2
