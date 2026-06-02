@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 from core.config import CONFIG
