@@ -198,6 +198,54 @@ def execute_trade(unsigned_transaction: str, request_id: str) -> str:
     if not request_id or not request_id.strip():
         raise ValueError("request_id is required")
 
+    # SAFETY: Gate all execution through permission_gateway RED tier
+    try:
+        from core.loop.permission_gateway import PermissionGateway
+        from core.config import CONFIG
+        gw = PermissionGateway()
+        action_str = f"execute_trade:solana_swap:{request_id[:12]}"
+        classification = gw.classify(action_str)
+        if classification not in ("GREEN",):
+            logger.warning(
+                "[VECTOR][investment] Jupiter swap blocked — tier: {} requestId: {}",
+                classification, request_id[:12],
+            )
+            return json.dumps({
+                "status": "blocked",
+                "reason": "requires_human_approval",
+                "tier": classification,
+                "requestId": request_id,
+            })
+
+        # Paper mode check (default: True — safe)
+        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+        if inv_cfg.get("paper_trading", True):
+            logger.info(
+                "[VECTOR][investment] PAPER MODE — would execute Jupiter swap requestId={}",
+                request_id[:12],
+            )
+            return json.dumps({
+                "status": "paper",
+                "requestId": request_id,
+                "simulated": True,
+                "note": "Set investment.paper_trading=False in CONFIG to enable live Solana execution",
+            })
+
+        # Kill switch check
+        if inv_cfg.get("kill_switch", False):
+            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — Jupiter swap blocked")
+            return json.dumps({"status": "killed", "reason": "kill_switch_active"})
+
+    except (ImportError, Exception) as _gw_err:
+        logger.warning(
+            "[VECTOR][investment] Gateway check failed ({}); blocking Jupiter swap for safety",
+            _gw_err,
+        )
+        return json.dumps({
+            "status": "blocked",
+            "reason": f"permission_gateway_unavailable: {_gw_err}",
+        })
+
     keypair = _get_keypair()
     tx_b64 = unsigned_transaction.strip()
 
