@@ -249,7 +249,7 @@ class WebScout(AgentBase):
                         ),
                     },
                 ],
-                timeout=2.0,
+                timeout=60.0,
             )
             if not summary:
                 raise RuntimeError("empty model response")
