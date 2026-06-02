@@ -378,6 +378,58 @@ Return recommended posting times with reasoning.
 
         return recs
 
+    async def _render_with_hyperframes_first(self, html_path: str, output_path: str) -> str | None:
+        """Try hyperframes sidecar first, fall back to VECTOR's own renderer."""
+        try:
+            from core.video.vector_composer import VectorComposer
+            vc = VectorComposer()
+            return await vc.render_via_hyperframes(html_path, output_path)
+        except Exception as e:
+            logger.debug("[VECTOR][video_gen] hyperframes unavailable: {}", e)
+            return None
+
+    async def render_html_to_video(self, html_path: str, output_path: str, **kwargs) -> dict:
+        """Render an HTML composition to video.
+
+        Tries hyperframes sidecar first (fast, GPU-accelerated), then falls
+        back to VectorComposer's built-in renderer.
+        """
+        result_path = await self._render_with_hyperframes_first(html_path, output_path)
+        if result_path:
+            self.award_points(20, "html_video_rendered_hyperframes")
+            return {"status": "ok", "path": result_path, "renderer": "hyperframes"}
+
+        # Fallback: VECTOR's built-in VectorComposer render pipeline
+        try:
+            from core.video.vector_composer import VectorComposer, ComposerJob
+            job = ComposerJob(
+                composition_path=html_path,
+                output_path=output_path,
+                **{k: v for k, v in kwargs.items() if k in ("variables", "narration", "fps", "resolution")},
+            )
+            vc = VectorComposer()
+            render_result = await vc.render(job)
+            if render_result and getattr(render_result, "output_path", None):
+                self.award_points(20, "html_video_rendered_composer")
+                return {"status": "ok", "path": render_result.output_path, "renderer": "vector_composer"}
+        except Exception as e:
+            logger.warning("[VECTOR][video_gen] VectorComposer render failed: {}", e)
+
+        return {"status": "error", "error": "all renderers failed", "html_path": html_path}
+
+    async def run(self, task: dict) -> dict:
+        """Governor dispatch interface."""
+        p = task.get("params", {})
+        action = p.get("action", "title_thumbnail")
+        if action in ("render_html", "render_video", "html_to_video"):
+            return await self.render_html_to_video(
+                html_path=p.get("html_path", ""),
+                output_path=p.get("output_path", "output.mp4"),
+            )
+        topic = p.get("topic", p.get("script", "VECTOR AI"))
+        result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
+        return {"status": "ok", **result}
+
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
         from datetime import datetime, timezone
