@@ -59,9 +59,14 @@ class StockAnalyst(AgentBase):
     def get_quote(self, symbol: str) -> dict:
         """
         Get current stock quote for a symbol.
+        Results are TTL-cached for 5 minutes to avoid redundant API calls.
         Falls back to get_nse_quote if yfinance returns an error.
         """
         symbol = symbol.upper().strip()
+
+        cached = self._quote_cache.get(symbol)
+        if cached is not None:
+            return cached
 
         if self._yfinance_available:
             result = self._get_real_quote(symbol)
@@ -70,9 +75,15 @@ class StockAnalyst(AgentBase):
                 logger.warning(f"[VECTOR][stock_analyst] yfinance failed for {symbol}, trying NSE fallback")
                 nse_result = self.get_nse_quote(symbol)
                 if nse_result.get("status") == "success":
+                    self._quote_cache.set(symbol, nse_result)
                     return nse_result
+            if result.get("status") == "success":
+                self._quote_cache.set(symbol, result)
             return result
-        return self._get_mock_quote(symbol)
+
+        result = self._get_mock_quote(symbol)
+        self._quote_cache.set(symbol, result)
+        return result
 
     def _get_real_quote(self, symbol: str) -> dict:
         """Get real quote using yfinance."""
