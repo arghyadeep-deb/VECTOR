@@ -93,11 +93,11 @@ class FundamentalsBot(AgentBase):
                 "dividends_paid": 2000000000 * (hash_val % 5 + 1)
             },
             "key_metrics": {
-                "profit_margin": round(15 + (hash_val % 20), 1),
-                "roe": round(18 + (hash_val % 15), 1),
-                "roa": round(8 + (hash_val % 10), 1),
-                "debt_to_equity": round(50 + (hash_val % 50), 1),
-                "current_ratio": round(1.5 + (hash_val % 100) / 100, 2),
+                "profit_margin": None,   # unavailable in mock mode
+                "roe": None,             # unavailable in mock mode
+                "roa": None,             # unavailable in mock mode
+                "debt_to_equity": None,  # unavailable in mock mode
+                "current_ratio": None,   # unavailable in mock mode
                 "quick_ratio": round(1.2 + (hash_val % 80) / 100, 2)
             },
             "source": "mock"
