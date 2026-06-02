@@ -48,12 +48,12 @@ class StockAnalyst(AgentBase):
         logger.info(f"[VECTOR][stock_analyst] StockAnalyst initialized - yfinance: {self._yfinance_available}")
 
     def _check_yfinance(self) -> bool:
-        """Check if yfinance is available."""
+        """Check if yfinance is available and compatible with current Python version."""
         try:
             import yfinance
             return True
-        except ImportError:
-            logger.warning("[VECTOR][stock_analyst] yfinance not installed - using mock data")
+        except (ImportError, AttributeError, Exception) as e:
+            logger.warning("[VECTOR][stock_analyst] yfinance unavailable: {} — using mock data", e)
             return False
 
     def get_quote(self, symbol: str) -> dict:
