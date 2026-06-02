@@ -231,6 +231,19 @@ class ComfyUIAdapter(AgentBase):
                 "elapsed": round(time.time() - start, 1),
             }
 
+    async def generate_image_via_registry(self, prompt: str, width: int = 512, height: int = 512) -> dict:
+        """Generate image using provider registry (ComfyUI primary, cloud fallback)."""
+        try:
+            from core.media.image_provider_registry import ImageProviderRegistry
+            registry = ImageProviderRegistry()
+            img_bytes = await registry.generate(prompt, width, height)
+            if img_bytes:
+                return {"status": "ok", "image_bytes": img_bytes}
+        except Exception as e:
+            logger.warning("[VECTOR][comfyui] registry failed, direct ComfyUI: {}", e)
+        # Fallback to direct ComfyUI
+        return await self.generate(prompt=prompt, width=width, height=height)
+
     async def generate_batch(
         self,
         prompts: list[str],
