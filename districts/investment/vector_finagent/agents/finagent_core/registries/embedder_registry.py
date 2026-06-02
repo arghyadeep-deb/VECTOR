@@ -39,6 +39,15 @@ class EmbedderRegistry:
 
     # Embedder providers and their configurations
     EMBEDDER_CATALOG = {
+        # VECTOR-native (Ollama, local, no API key needed) — default for VECTOR
+        "vector": {
+            "class": "agno.knowledge.embedder.ollama.OllamaEmbedder",
+            "models": ["nomic-embed-text", "mxbai-embed-large", "all-minilm"],
+            "api_key_env": None,
+            "default_model": "nomic-embed-text",
+            "base_url": "http://localhost:11434",
+        },
+
         # OpenAI
         "openai": {
             "class": "agno.knowledge.embedder.openai.OpenAIEmbedder",
