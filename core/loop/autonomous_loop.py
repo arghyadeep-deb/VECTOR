@@ -1283,6 +1283,36 @@ class AutonomousLoop:
         except Exception as _sq_err:
             logger.debug("[VECTOR][reflect] SuggestionQueue drain suppressed: {}", _sq_err)
 
+        # jcode — check if session context is approaching compaction thresholds
+        await self._check_session_compact()
+
+    async def _check_session_compact(self) -> None:
+        """Check if context needs compacting and notify owner if thresholds exceeded."""
+        try:
+            from core.jcode.session_persistence import StoredCompactionState, SessionPersistence
+            _sp = SessionPersistence()
+            _session = getattr(self, '_session', None)
+            # Estimate context usage from stored session message count (rough proxy)
+            _context_used = 0
+            _context_total = 200_000  # default max context window
+            if _session is not None:
+                _loaded = _sp.load(_session.id)
+                if _loaded is not None:
+                    _context_used = len(_loaded.messages) * 500  # ~500 tokens/msg average
+            _state = StoredCompactionState(summary="runtime_check")
+            result = _state.check_compact_needed(
+                context_used=float(_context_used),
+                context_total=float(_context_total),
+            )
+            if result == "force":
+                self._notify_user(
+                    "⚠️ VECTOR context nearly full (95%) — compact recommended"
+                )
+            elif result == "warn":
+                logger.info("[VECTOR][jcode] Context at 80%+ — consider compacting")
+        except Exception as e:
+            logger.debug("[VECTOR][jcode] compact check skipped: {}", e)
+
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Sync Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
     async def sync_loop(self):
