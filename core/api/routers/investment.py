@@ -163,5 +163,55 @@ async def vt_skills():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/portfolio")
+async def get_portfolio():
+    """Get current portfolio summary — positions, value, and day P&L.
+    Returns safe stub values if the StockAnalyst is unavailable.
+    """
+    try:
+        agent = _get_agent("districts.investment.stock_analyst.StockAnalyst")
+        result = await agent.run({"type": "portfolio_summary", "params": {}})
+        return result
+    except Exception as e:
+        logger.warning(f"[VECTOR][api][investment] portfolio fallback: {e}")
+        return {
+            "status": "ok",
+            "positions": [],
+            "portfolio_value": 0.0,
+            "day_pnl": 0.0,
+            "alerts": [],
+            "note": "StockAnalyst not available — wire districts.investment.stock_analyst",
+        }
+
+
+@router.get("/market-status")
+async def get_market_status():
+    """Return open/closed status for US, India, and crypto markets."""
+    import datetime
+
+    def _market_open(open_h: int, open_m: int, close_h: int, close_m: int, tz_offset: float) -> bool:
+        """Very lightweight check — no pytz required."""
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        local_h = (utc_now.hour + tz_offset) % 24
+        local_m = utc_now.minute
+        local_mins = local_h * 60 + local_m
+        open_mins = open_h * 60 + open_m
+        close_mins = close_h * 60 + close_m
+        weekday = utc_now.weekday()  # 0=Mon … 6=Sun
+        if weekday >= 5:  # Sat / Sun — all equity markets closed
+            return False
+        return open_mins <= local_mins < close_mins
+
+    # UTC offsets: IST = +5.5, ET = -4 (EDT, summer), crypto always open
+    india_open  = _market_open(9, 15, 15, 30, 5.5)
+    us_open     = _market_open(9, 30, 16, 0, -4.0)
+
+    return {
+        "us":     {"open": us_open,    "label": "NYSE/NASDAQ",  "tz": "ET"},
+        "india":  {"open": india_open, "label": "NSE/BSE",      "tz": "IST"},
+        "crypto": {"open": True,       "label": "Crypto 24/7",  "tz": "UTC"},
+    }
+
+
 if __name__ == "__main__":
     print("OK: investment.py router")
