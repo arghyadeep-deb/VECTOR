@@ -33,8 +33,7 @@ import datetime
 from pathlib import Path
 
 
-_OPENMYTHOS_REPO = Path(__file__).parent.parent.parent.parent.parent / \
-    "GitHub/kyegomez_OpenMythos/repo"
+_OPENMYTHOS_REPO = Path(__file__).parent.parent.parent.parent / "GitHub" / "OpenMythos-main"
 _DATA_DIR = Path(__file__).parent.parent.parent / "data/training_runs"
 _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
