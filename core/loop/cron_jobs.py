@@ -408,6 +408,7 @@ __all__ = [
     "job_trigger_workflow",
     "job_benchmark_suite",
     "job_recipe_sync",
+    "job_subconscious_loop",
     "_MORNING_DIGEST_WORKFLOW",
     "_run_morning_digest_fn",
 ]
