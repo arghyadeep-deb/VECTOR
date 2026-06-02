@@ -231,6 +231,39 @@ class VectorComposer:
             variables=job.variables,
         )
 
+    async def render_via_hyperframes(self, html_path: str, output_path: str,
+                                      fps: int = 30, width: int = 1920, height: int = 1080) -> str:
+        """Render HTML composition via hyperframes producer sidecar (port 7421)."""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post(
+                    "http://localhost:7421/render",
+                    json={
+                        "compositionPath": str(html_path),
+                        "outputPath": str(output_path),
+                        "fps": fps,
+                        "width": width,
+                        "height": height,
+                    },
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    logger.info("[VECTOR][composer] Rendered via hyperframes: {}", output_path)
+                    return data.get("outputUrl", output_path)
+                else:
+                    raise RuntimeError(f"hyperframes returned {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            logger.warning("[VECTOR][composer] hyperframes unavailable ({}), falling back to html_renderer", e)
+            # Fallback to VECTOR's own renderer
+            job = ComposerJob(
+                composition_path=html_path,
+                output_path=output_path,
+                fps=Fps(fps, 1),
+            )
+            result = await self.render(job)
+            return result.output_path
+
     async def _mix_audio(
         self,
         job: ComposerJob,
