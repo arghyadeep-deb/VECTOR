@@ -174,14 +174,11 @@ async def get_portfolio():
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][investment] portfolio fallback: {e}")
-        return {
-            "status": "ok",
-            "positions": [],
-            "portfolio_value": 0.0,
-            "day_pnl": 0.0,
-            "alerts": [],
-            "note": "StockAnalyst not available — wire districts.investment.stock_analyst",
-        }
+        return Response(
+            content='{"status":"unavailable","positions":[],"portfolio_value":0,"day_pnl":0,"note":"StockAnalyst offline"}',
+            status_code=503,
+            media_type="application/json",
+        )
 
 
 @router.get("/market-status")
