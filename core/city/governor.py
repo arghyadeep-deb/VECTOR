@@ -535,6 +535,13 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "ai_citation": "marketing",
     "citation_score": "marketing",
     "seo_geo": "marketing",
+    # Amazon Ads / Attribution / sGTM routes (A31 Wave 2)
+    "amazon_ads": "marketing",
+    "amazon_audit": "marketing",
+    "attribution_audit": "marketing",
+    "consent_mode": "marketing",
+    "sgtm_health": "marketing",
+    "capi_check": "marketing",
     # design district (new)
     "ui_design": "design",
     "design_tokens": "design",
