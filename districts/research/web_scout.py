@@ -118,23 +118,56 @@ class WebScout(AgentBase):
             return []
 
     def _parse_ddg_html(self, html: str, limit: int) -> list[dict]:
-        """Minimal parser for DuckDuckGo HTML results."""
-        import re
+        """Parse DuckDuckGo HTML results using BeautifulSoup (DDG changes HTML structure frequently)."""
         results = []
-        # Extract result blocks: title, URL, snippet
-        pattern = re.compile(
-            r'class="result__title"[^>]*>.*?href="([^"]+)"[^>]*>(.*?)</a>.*?'
-            r'class="result__snippet"[^>]*>(.*?)</span>',
-            re.DOTALL,
-        )
-        for m in pattern.finditer(html):
-            url = m.group(1).strip()
-            title = re.sub(r"<[^>]+>", "", m.group(2)).strip()
-            snippet = re.sub(r"<[^>]+>", "", m.group(3)).strip()
-            if url.startswith("http"):
-                results.append({"title": title, "url": url, "snippet": snippet})
-            if len(results) >= limit:
-                break
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html, "html.parser")
+            # Current DDG structure: results in <article> or <div class="results_links">
+            # Try multiple selectors for resilience
+            selectors = [
+                ('article[data-testid="result"]', 'a[data-testid="result-title-a"]', '[data-result="snippet"]'),
+                ('.result', '.result__a', '.result__snippet'),
+                ('.web-result', '.result__title a', '.result__snippet'),
+            ]
+            for result_sel, title_sel, snippet_sel in selectors:
+                items = soup.select(result_sel)
+                if items:
+                    for item in items[:limit]:
+                        title_el = item.select_one(title_sel) or item.select_one('a[href]')
+                        snippet_el = item.select_one(snippet_sel) or item.select_one('p')
+                        if title_el:
+                            url = title_el.get('href', '')
+                            if url.startswith('/url?'):
+                                from urllib.parse import parse_qs, urlparse
+                                url = parse_qs(urlparse(url).query).get('uddg', [''])[0]
+                            results.append({
+                                'title': title_el.get_text(strip=True),
+                                'url': url,
+                                'snippet': snippet_el.get_text(strip=True) if snippet_el else '',
+                            })
+                    if results:
+                        return results
+            # Last resort: any link with href starting with http
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                if href.startswith('http') and 'duckduckgo.com' not in href:
+                    results.append({'title': a.get_text(strip=True), 'url': href, 'snippet': ''})
+                    if len(results) >= limit:
+                        break
+        except ImportError:
+            # BeautifulSoup not installed — use regex fallback with updated selectors
+            import re
+            # Match any href in anchor tags that look like real URLs
+            urls = re.findall(r'href="(https?://[^"]+)"', html)
+            titles = re.findall(r'<a[^>]+href="https?://[^"]*"[^>]*>(.*?)</a>', html, re.DOTALL)
+            for url, title in zip(urls, titles):
+                if 'duckduckgo.com' not in url:
+                    results.append({'title': re.sub('<[^>]+>', '', title).strip(), 'url': url, 'snippet': ''})
+                    if len(results) >= limit:
+                        break
+        except Exception as e:
+            logger.warning("[VECTOR][web_scout] DDG parse failed: {}", e)
         return results
 
     async def fetch_page(self, url: str, stealth: bool = False) -> str:
