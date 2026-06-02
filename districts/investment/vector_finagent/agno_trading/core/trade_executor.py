@@ -189,6 +189,80 @@ class TradeExecutor:
         """
         start_time = datetime.now()
 
+        # SAFETY: Gate all execution through permission_gateway RED tier
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            from core.config import CONFIG
+            gw = PermissionGateway()
+            sym = signal.get("symbol", "UNKNOWN")
+            side = signal.get("side", "unknown")
+            qty = signal.get("quantity", 0)
+            action_str = f"execute_trade:{sym}:{side}:{qty}"
+            classification = gw.classify(action_str)
+            if classification not in ("GREEN",):
+                logger.warning(
+                    "[VECTOR][investment] TradeExecutor blocked — tier: {} action: {}",
+                    classification, action_str,
+                )
+                return {
+                    "success": False,
+                    "error": "Trade blocked by permission_gateway",
+                    "tier": classification,
+                    "reasons": [f"Gateway classification={classification}; requires human approval"],
+                    "warnings": [],
+                }
+
+            # Paper mode check (default: True — safe)
+            inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
+            if inv_cfg.get("paper_trading", True) and not paper_trading:
+                logger.warning(
+                    "[VECTOR][investment] CONFIG.investment.paper_trading=True overrides "
+                    "paper_trading=False argument — forcing paper mode",
+                )
+                paper_trading = True
+
+            # Kill switch check
+            if inv_cfg.get("kill_switch", False):
+                logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — TradeExecutor blocked")
+                return {
+                    "success": False,
+                    "error": "Kill switch is active. All live trading halted.",
+                    "reasons": ["kill_switch_active"],
+                    "warnings": [],
+                }
+
+            # Daily loss cap check (₹ / base currency)
+            portfolio_value = portfolio_data.get("total_value", 0)
+            daily_pnl = portfolio_data.get("daily_pnl", 0)
+            daily_loss_cap = inv_cfg.get("daily_loss_cap", 5000)
+            if daily_pnl < 0 and abs(daily_pnl) >= daily_loss_cap:
+                logger.warning(
+                    "[VECTOR][investment] Daily loss cap reached (₹{:.2f} >= ₹{})",
+                    abs(daily_pnl), daily_loss_cap,
+                )
+                return {
+                    "success": False,
+                    "error": f"Daily loss cap of ₹{daily_loss_cap} reached",
+                    "reasons": [f"daily_pnl={daily_pnl:.2f}"],
+                    "warnings": [],
+                }
+
+            # Max trades per day check
+            max_trades = inv_cfg.get("max_trades_per_day", 10)
+            # (daily trade count check is best-effort; rely on DB layer for hard enforcement)
+
+        except (ImportError, Exception) as _gw_err:
+            logger.warning(
+                "[VECTOR][investment] Gateway check failed ({}); blocking trade for safety",
+                _gw_err,
+            )
+            return {
+                "success": False,
+                "error": f"Permission gateway unavailable ({_gw_err}). Trade blocked for safety.",
+                "reasons": ["gateway_error"],
+                "warnings": [],
+            }
+
         # Validate signal
         validation = self.validate_trade_signal(signal, portfolio_data)
 
