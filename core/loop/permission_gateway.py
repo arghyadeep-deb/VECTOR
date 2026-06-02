@@ -765,6 +765,15 @@ class PermissionGateway:
         key = action.action_type
         event = asyncio.Event()
         self._pending_events[key] = event
+        # Record full action metadata so the HUD approvals panel can surface it
+        self._pending_actions[key] = {
+            "id": key,
+            "action_type": action.action_type,
+            "params": action.params,
+            "proposed_by": action.proposed_by,
+            "level": self._classify(action.action_type),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
         try:
             # Do NOT nest wait_for here — the outer wait_for in execute() owns the timeout.
             # Nested wait_for causes spurious TimeoutError on Python 3.13 when the outer
