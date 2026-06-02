@@ -356,3 +356,34 @@ class EmbedderRegistry:
             return dimensions[default_model]
 
         return None
+
+    @classmethod
+    def get_vector_embedder(cls, model: str = "nomic-embed-text") -> Any:
+        """
+        Convenience method: return the VECTOR-native embedder (Ollama nomic-embed-text).
+
+        This is the preferred embedder for all VECTOR districts:
+          - local, free, private — no API key
+          - nomic-embed-text is installed via `ollama pull nomic-embed-text`
+          - 768-dimensional embeddings, strong multilingual performance
+
+        Usage:
+            embedder = EmbedderRegistry.get_vector_embedder()
+        """
+        return cls.create_embedder("vector", model=model)
+
+    @classmethod
+    def map_openai_embed_model(cls, model: str) -> str:
+        """Map an OpenAI embedding model name to the VECTOR equivalent."""
+        return _OPENAI_EMBED_TO_VECTOR.get(model, model)
+
+
+if __name__ == "__main__":
+    # Real test — no mocks
+    assert "vector" in EmbedderRegistry.EMBEDDER_CATALOG, "vector provider missing"
+    assert EmbedderRegistry.is_local_embedder("vector"), "vector should be local"
+    assert EmbedderRegistry.get_default_model("vector") == "nomic-embed-text"
+    assert EmbedderRegistry.map_openai_embed_model("text-embedding-3-small") == "nomic-embed-text"
+    assert EmbedderRegistry.map_openai_embed_model("nomic-embed-text") == "nomic-embed-text"
+    assert "vector" in EmbedderRegistry.get_local_embedders()
+    print("OK embedder_registry.py")
