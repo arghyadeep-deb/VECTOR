@@ -196,6 +196,13 @@ def _start_sidecars() -> None:
             "cwd": str(Path(__file__).parent.parent / "GitHub" / "LibreChat-main"),
             "env_extra": {"PORT": "3080"},
         },
+        {
+            "name": "UI-TARS",
+            "cmd": ["npm", "run", "start:main"],
+            "cwd": str(Path(__file__).parent.parent / "GitHub" / "UI-TARS-desktop-main" / "apps" / "ui-tars"),
+            # Electron app — no HTTP health endpoint; skip health check
+            "health_url": "",
+        },
     ]
 
     for sidecar in sidecars:
@@ -226,6 +233,39 @@ def _start_sidecars() -> None:
                 t.start()
         except Exception as e:
             logger.warning("[VECTOR][sidecars] Failed to start {}: {}", sidecar["name"], e)
+
+
+def _start_background_services() -> list[object]:
+    """Start optional local background services that are safe behind consent gates."""
+    services: list[object] = []
+    try:
+        from core.config import CONFIG
+        cloud_cfg = CONFIG.get("cloud", {})
+        brain_url = cloud_cfg.get("brain_url", "")
+        if brain_url:
+            from core.cloud.heartbeat import CloudBrainHeartbeat
+            heartbeat = CloudBrainHeartbeat(
+                brain_url=brain_url,
+                api_key=cloud_cfg.get("api_key", ""),
+            )
+            if heartbeat.is_enabled():
+                services.append(asyncio.create_task(heartbeat.start_loop()))
+                logger.info("[VECTOR][background] CloudBrainHeartbeat started")
+
+        voice_cfg = CONFIG.get("voice", {})
+        ambient_enabled = bool(voice_cfg.get("ambient_enabled", False))
+        if ambient_enabled:
+            from core.voice.ambient_listener import AmbientListener, _save_consent
+            listener = AmbientListener()
+            if listener._consent_given:
+                services.append(listener.start())
+                logger.info("[VECTOR][background] AmbientListener started")
+            else:
+                _save_consent(False)
+                logger.info("[VECTOR][background] AmbientListener skipped: consent not granted")
+    except Exception as e:
+        logger.warning("[VECTOR][background] optional service startup skipped: {}", e)
+    return services
 
 
 # ── Loop runner ────────────────────────────────────────────────────────────────
@@ -287,6 +327,7 @@ def main() -> int:
     # Skipped in smoke mode to keep the startup check fast.
     if args.mode != "smoke":
         _start_sidecars()
+        _start_background_services()
 
     if args.mode == "api":
         run_api(args.host, args.port)
