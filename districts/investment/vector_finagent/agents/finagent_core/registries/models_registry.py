@@ -3,13 +3,45 @@ from loguru import logger
 Models Registry - Unified access to 40+ LLM providers
 
 Provides lazy loading and standardized model creation.
+
+VECTOR-native provider: provider="vector" routes through
+core/inference/provider_client.py (Ollama-first, cloud fallback).
+OpenAI model names are automatically mapped to VECTOR equivalents
+when provider="openai" is requested but no OPENAI_API_KEY is found.
 """
 
 from typing import Dict, Any, Optional, List
 import logging
 import os
 
+from loguru import logger as _vector_logger
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# OpenAI model name → VECTOR model name mapping
+# ---------------------------------------------------------------------------
+_OPENAI_TO_VECTOR_MODEL: Dict[str, str] = {
+    # gpt-4 family → vector-deep (high-quality, large-context)
+    "gpt-4":               "vector-deep",
+    "gpt-4o":              "vector-deep",
+    "gpt-4-turbo":         "vector-deep",
+    "gpt-4-turbo-preview": "vector-deep",
+    "gpt-4-0613":          "vector-deep",
+    "gpt-4-1106-preview":  "vector-deep",
+    # gpt-4-32k / o1 / reasoning → vector-chairman (slow deep tasks)
+    "gpt-4-32k":           "vector-chairman",
+    "gpt-4-32k-0613":      "vector-chairman",
+    "o1":                  "vector-chairman",
+    "o1-preview":          "vector-chairman",
+    # fast / mini → vector-focus (real-time conversation, permanent VRAM)
+    "gpt-4o-mini":         "vector-focus",
+    "gpt-3.5-turbo":       "vector-focus",
+    "gpt-3.5-turbo-16k":   "vector-focus",
+    "gpt-3.5-turbo-0125":  "vector-focus",
+    "gpt-3.5-turbo-1106":  "vector-focus",
+    "o1-mini":             "vector-focus",
+}
 
 
 class ModelsRegistry:
