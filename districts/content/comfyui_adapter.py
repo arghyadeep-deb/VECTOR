@@ -8,13 +8,18 @@ file paths of generated images — all without leaving the device.
 RULE 5: audio/video never leaves device; same principle applies to images.
 RULE 11: no external cloud API used for generation.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import json
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
 
 
 import httpx
