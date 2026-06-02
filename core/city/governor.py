@@ -451,6 +451,9 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "evening_brief": "chief_of_staff",
     "chief": "chief_of_staff",
     "coordinate": "chief_of_staff",
+    "subconscious": "chief_of_staff",
+    "subconscious_loop": "chief_of_staff",
+    "consistency_check": "chief_of_staff",
     # new coding agents
     "frontend": "coding",
     "dashboard_build": "coding",
