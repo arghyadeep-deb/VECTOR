@@ -1,6 +1,17 @@
 """
 Module: core/training/openmythos/train.py
-Model fine-tuning pipeline - trains custom Ollama models.
+
+Ollama Modelfile Trainer — builds and manages custom Ollama modelfiles.
+
+NOTE: This is NOT gradient-descent / LoRA / neural network training.
+It does NOT update model weights. Instead it:
+  1. Prepares instruction-following data in Ollama JSONL format
+  2. Iterates the dataset through ollama.generate() to test prompt formatting
+  3. Exports a Modelfile + config.json so the model can be registered via
+     `ollama create <name> -f Modelfile`
+
+For real LoRA fine-tuning on VECTOR's reasoning chains, see:
+  core/training/openmythos/trainer.py  (uses transformers + peft + OpenMythos RDT)
 """
 
 import sys
