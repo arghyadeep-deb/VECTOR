@@ -51,6 +51,9 @@ def get_agent(name: str):
         "ComfyUIAdapter": ComfyUIAdapter,
         "MediaStudioAgent": MediaStudioAgent,
         "media_studio": MediaStudioAgent,
+        "AnalyticsRetriever": AnalyticsRetriever,
+        "BlogPublisher": BlogPublisher,
+        "PostJobTracker": PostJobTracker,
     }
     return agents.get(name)
 
