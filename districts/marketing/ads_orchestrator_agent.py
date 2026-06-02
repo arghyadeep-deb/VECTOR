@@ -106,9 +106,17 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
             if task_type in ("ads_audit", "ads_full_audit", "ads_multi_audit"):
                 platforms = params.get("platforms", ["google", "meta"])
                 account_data = params.get("account_data", "No data provided — perform gap analysis.")
+                audit_results = await asyncio.gather(
+                    *[self._llm_audit(platform, account_data) for platform in platforms],
+                    return_exceptions=True,
+                )
                 results = {}
-                for platform in platforms:
-                    results[platform] = await self._llm_audit(platform, account_data)
+                for platform, result in zip(platforms, audit_results):
+                    if isinstance(result, Exception):
+                        logger.warning("[VECTOR][ads] {} audit failed: {}", platform, result)
+                        results[platform] = {"platform": platform, "error": str(result)}
+                    else:
+                        results[platform] = result
                 self.award_points(30, "multi_platform_audit_done")
                 self._get_memory().store(
                     content=f"Ads audit completed: {platforms}",
