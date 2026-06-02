@@ -153,6 +153,40 @@ async def smoke_test() -> dict:
     }
 
 
+# ── Sidecar services ───────────────────────────────────────────────────────────
+
+def _start_sidecars() -> None:
+    """Start optional sidecar services if available (non-blocking)."""
+    import subprocess
+    import os
+
+    sidecars = [
+        {
+            "name": "ComfyUI",
+            "cmd": ["python", "main.py", "--port", "8188", "--listen", "127.0.0.1"],
+            "cwd": str(Path(__file__).parent.parent / "GitHub" / "ComfyUI-master"),
+            "health_url": "http://127.0.0.1:8188/system_stats",
+        },
+    ]
+
+    for sidecar in sidecars:
+        cwd = sidecar["cwd"]
+        if not os.path.exists(cwd):
+            logger.info("[VECTOR][sidecars] {} not found, skipping", sidecar["name"])
+            continue
+        try:
+            proc = subprocess.Popen(
+                sidecar["cmd"],
+                cwd=cwd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+            )
+            logger.info("[VECTOR][sidecars] Started {} (pid={})", sidecar["name"], proc.pid)
+        except Exception as e:
+            logger.warning("[VECTOR][sidecars] Failed to start {}: {}", sidecar["name"], e)
+
+
 # ── Loop runner ────────────────────────────────────────────────────────────────
 
 async def run_loop() -> None:
