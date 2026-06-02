@@ -833,6 +833,37 @@ class Governor:
             )
             return None
 
+    async def _maybe_decompose(self, task: dict) -> list[dict]:
+        """
+        Decompose complex tasks into subtasks if needed.
+        Returns [task] for simple tasks, [t1, t2, ...] for complex ones.
+        """
+        task_type = task.get("type", "")
+        # Tasks that benefit from decomposition
+        DECOMPOSABLE = {"research", "analyze", "build", "plan", "review_codebase"}
+        if task_type not in DECOMPOSABLE:
+            return [task]
+
+        params = task.get("params", {})
+        complexity = params.get("complexity", "simple")
+        if complexity != "complex":
+            return [task]
+
+        # Simple heuristic decomposition
+        subtasks: list[dict] = []
+        if task_type == "research":
+            query = params.get("query", "")
+            subtasks = [
+                {"type": "search_web", "params": {"query": query}},
+                {"type": "summarize", "params": {"topic": query}},
+                {"type": "store_insight", "params": {"topic": query}},
+            ]
+        else:
+            return [task]
+
+        logger.info("[VECTOR][governor] decomposed '{}' into {} subtasks", task_type, len(subtasks))
+        return subtasks
+
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
@@ -841,6 +872,21 @@ class Governor:
         task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")
         district = task.get("district") or self.route_task(task_type)
+
+        # ── Task decomposition: complex tasks split into ordered subtasks ──
+        subtasks = await self._maybe_decompose(task)
+        if len(subtasks) > 1:
+            results = []
+            for subtask in subtasks:
+                sub_result = await self.dispatch(subtask)
+                results.append(sub_result)
+            all_ok = all(r.get("status") == "ok" for r in results)
+            return {
+                "status": "ok" if all_ok else "partial",
+                "subtask_results": results,
+                "task_id": task_id,
+                "district": district,
+            }
 
         logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
 
