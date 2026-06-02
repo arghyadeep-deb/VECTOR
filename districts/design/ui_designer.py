@@ -166,6 +166,41 @@ class UIDesigner(AgentBase):
 </body>
 </html>"""
 
+    def search_design_corpus(
+        self,
+        query: str,
+        top_k: int = 10,
+        corpora: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        BM25-style text search over the harvested UI/UX design corpus.
+
+        Args:
+            query:   Natural language query (e.g. "button hover focus state accessibility").
+            top_k:   Maximum number of results to return (default 10).
+            corpora: Optional list of specific CSV filenames to search.
+                     Defaults to all primary corpora (ux-guidelines, design, ui-reasoning, etc.)
+
+        Returns:
+            List of result dicts sorted by relevance score (descending).
+            Each dict contains: 'corpus', 'score', plus all CSV row fields.
+
+        Example:
+            results = agent.search_design_corpus("navigation mobile back button")
+            # [{'corpus': 'ux-guidelines.csv', 'score': 5, 'Category': 'Navigation', ...}]
+        """
+        try:
+            fn = _get_corpus_search()
+            results = fn(query, top_k=top_k, corpora=corpora)
+            logger.debug(
+                f"[VECTOR][ui_designer] corpus search '{query[:40]}' "
+                f"→ {len(results)} results"
+            )
+            return results
+        except Exception as e:
+            logger.warning(f"[VECTOR][ui_designer] search_design_corpus failed: {e}")
+            return []
+
     async def audit_design_consistency(self, html_content: str) -> dict:
         """LLM-assisted design audit for consistency, spacing, color usage."""
         prompt = (
