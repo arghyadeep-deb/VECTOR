@@ -390,6 +390,188 @@ class ComfyUIAdapter(AgentBase):
             return {"status": "error", "error": str(e), "images": [], "elapsed": elapsed}
 
 
+    # ── Video generation ──────────────────────────────────────────────────────
+
+    def _build_video_workflow(
+        self,
+        prompt: str,
+        width: int,
+        height: int,
+        frames: int,
+        fps: int,
+        model: str,
+    ) -> dict:
+        """Build AnimateDiff text-to-video workflow for ComfyUI.
+
+        Requires the ComfyUI-AnimateDiff-Evolved and ComfyUI-VideoHelperSuite
+        custom nodes to be installed in ComfyUI.
+        """
+        return {
+            "1": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {"ckpt_name": "v1-5-pruned-emaonly.safetensors"},
+            },
+            "2": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"clip": ["1", 1], "text": prompt},
+            },
+            "3": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"clip": ["1", 1], "text": "blurry, watermark"},
+            },
+            "4": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": width, "height": height, "batch_size": frames},
+            },
+            "5": {
+                "class_type": "ADE_LoadAnimateDiffModel",
+                "inputs": {"model_name": "mm_sd_v15_v2.ckpt"},
+            },
+            "6": {
+                "class_type": "ADE_UseEvolvedSampling",
+                "inputs": {
+                    "model": ["1", 0],
+                    "motion_model": ["5", 0],
+                    "beta_schedule": "autoselect",
+                },
+            },
+            "7": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "model": ["6", 0],
+                    "positive": ["2", 0],
+                    "negative": ["3", 0],
+                    "latent_image": ["4", 0],
+                    "seed": int(time.time()) % (2**32),
+                    "steps": 20,
+                    "cfg": 7.0,
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "denoise": 1.0,
+                },
+            },
+            "8": {
+                "class_type": "VAEDecode",
+                "inputs": {"samples": ["7", 0], "vae": ["1", 2]},
+            },
+            "9": {
+                "class_type": "VHS_VideoCombine",
+                "inputs": {
+                    "images": ["8", 0],
+                    "frame_rate": fps,
+                    "loop_count": 0,
+                    "filename_prefix": "VECTOR_video",
+                    "format": "video/h264-mp4",
+                    "pingpong": False,
+                    "save_output": True,
+                },
+            },
+        }
+
+    async def generate_video(
+        self,
+        prompt: str,
+        width: int = 512,
+        height: int = 512,
+        frames: int = 16,
+        fps: int = 8,
+        model: str = "AnimateDiff",
+    ) -> dict:
+        """Generate video via ComfyUI AnimateDiff/HunyuanVideo workflow.
+
+        Returns:
+            {
+              "status": "ok" | "error",
+              "prompt_id": str,
+              "video_path": str | None,
+              "elapsed": float,
+              "error": str | None,
+            }
+
+        Requires ComfyUI-AnimateDiff-Evolved and ComfyUI-VideoHelperSuite
+        custom nodes installed in your ComfyUI instance.
+        RULE 5: video never leaves the device.
+        """
+        if not await self.is_available():
+            return {
+                "status": "error",
+                "error": "ComfyUI not running",
+                "video_path": None,
+                "elapsed": 0.0,
+            }
+        workflow = self._build_video_workflow(prompt, width, height, frames, fps, model)
+        return await self._queue_and_poll(workflow, output_type="video")
+
+    # ── LoRA image generation ─────────────────────────────────────────────────
+
+    def _build_txt2img_workflow_with_lora(
+        self,
+        prompt: str,
+        lora_name: str,
+        lora_strength: float = 0.8,
+        negative: str = "blurry, watermark",
+        width: int = 512,
+        height: int = 512,
+        steps: int = 20,
+        checkpoint: str = "v1-5-pruned-emaonly.safetensors",
+    ) -> dict:
+        """Build txt2img workflow with LoRA injection.
+
+        Inserts a LoraLoader node (id "10") between CheckpointLoaderSimple ("4")
+        and the KSampler ("3") / CLIPTextEncode nodes ("6", "7") so the LoRA
+        modifies both model weights and text conditioning.
+        """
+        wf = _build_txt2img_workflow(
+            prompt, negative, width, height, steps, checkpoint=checkpoint
+        )
+        # Node "10" — LoRA loader; takes model+clip from checkpoint node "4"
+        wf["10"] = {
+            "class_type": "LoraLoader",
+            "inputs": {
+                "model": ["4", 0],
+                "clip": ["4", 1],
+                "lora_name": lora_name,
+                "strength_model": lora_strength,
+                "strength_clip": lora_strength,
+            },
+        }
+        # Redirect KSampler model input and both CLIP encoders through LoRA node
+        wf["3"]["inputs"]["model"] = ["10", 0]
+        wf["6"]["inputs"]["clip"]  = ["10", 1]
+        wf["7"]["inputs"]["clip"]  = ["10", 1]
+        return wf
+
+    async def generate_with_lora(
+        self,
+        prompt: str,
+        lora_name: str,
+        lora_strength: float = 0.8,
+        **kwargs,
+    ) -> dict:
+        """Generate an image with a LoRA model applied.
+
+        Args:
+            prompt:        Text prompt for image generation.
+            lora_name:     Filename of the LoRA model as it appears in ComfyUI
+                           (e.g. "my_style.safetensors").
+            lora_strength: Weight applied to both model and CLIP (0.0–1.0).
+            **kwargs:      Forwarded to _build_txt2img_workflow_with_lora
+                           (negative, width, height, steps, checkpoint).
+
+        Returns same shape as generate().
+        """
+        if not await self.is_available():
+            return {
+                "status": "error",
+                "error": "ComfyUI not running",
+                "images": [],
+                "elapsed": 0.0,
+            }
+        wf = self._build_txt2img_workflow_with_lora(
+            prompt, lora_name, lora_strength, **kwargs
+        )
+        return await self._queue_and_poll(wf, output_type="image")
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         p = task.get("params", {})
