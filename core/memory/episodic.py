@@ -102,11 +102,10 @@ def _with_cb(op, *args, **kwargs):
         _in_async = loop.is_running()
     except RuntimeError:
         pass
-    if _in_async:
-        # Async context: bypass asyncio.run(); handle CB state manually.
-        _coro = cb.call(lambda: op(*args, **kwargs))
-        _coro.close()  # discard the coroutine wrapper
-        from core.resilience.circuit_breaker import CircuitState
+    from core.resilience.circuit_breaker import CircuitState
+
+    def _run_sync_with_cb() -> object:
+        """Execute op() with manual CB bookkeeping (used when asyncio.run is unavailable)."""
         _t = time.time()
         if cb.state == CircuitState.OPEN:
             if _t - cb.last_failure_time < cb.config.recovery_timeout:
@@ -130,13 +129,29 @@ def _with_cb(op, *args, **kwargs):
                 cb.failure_count = 0
             return result
         except Exception:
+            _t2 = time.time()
             cb.failure_count += 1
-            cb.last_failure_time = _t
+            cb.last_failure_time = _t2
             if cb.state == CircuitState.CLOSED and cb.failure_count >= cb.config.failure_threshold:
                 cb.state = CircuitState.OPEN
             elif cb.state == CircuitState.HALF_OPEN:
                 cb.state = CircuitState.OPEN
             raise
+
+    if _in_async:
+        # Async context: asyncio.run() would raise "This event loop is already running".
+        # Skip the coroutine wrapper entirely and apply CB bookkeeping synchronously.
+        return _run_sync_with_cb()
+    else:
+        # Sync context: use the coroutine-based CB path (original behaviour).
+        _coro = cb.call(lambda: op(*args, **kwargs))
+        try:
+            return asyncio.run(_coro)
+        except RuntimeError:
+            # asyncio.run failed (e.g. nested loop detected at runtime despite _in_async check).
+            # Close the stale coroutine and fall back to sync CB path.
+            _coro.close()
+            return _run_sync_with_cb()
 
 # Singleton database connection with thread-safe access
 _db_connection = None
