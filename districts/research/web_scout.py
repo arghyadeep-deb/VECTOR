@@ -36,11 +36,36 @@ class WebScout(AgentBase):
 
     # ── Search ─────────────────────────────────────────────────────────────────
 
+    async def _search_firecrawl(self, query: str, max_results: int = 5) -> list[dict]:
+        """Use Firecrawl for structured web search when API key available."""
+        try:
+            import os
+            api_key = os.getenv("FIRECRAWL_API_KEY")
+            if not api_key:
+                return []
+            from firecrawl import FirecrawlApp
+            app = FirecrawlApp(api_key=api_key)
+            result = app.search(query, limit=max_results)
+            return [
+                {"title": r.get("title", ""), "url": r.get("url", ""), "content": r.get("markdown", "")}
+                for r in (result.get("data") or [])
+            ]
+        except Exception as e:
+            logger.warning("[VECTOR][web_scout] Firecrawl failed: {}", e)
+            return []
+
     async def search(self, query: str, max_results: int = 5) -> list[dict]:
         """
-        Multi-source parallel search (DuckDuckGo + Wikipedia + ArXiv).
-        Falls back to single-source DuckDuckGo if parallel researcher unavailable.
+        Multi-source parallel search: Firecrawl (primary) → ParallelResearcher → DuckDuckGo.
+        Firecrawl provides structured full-page extraction when FIRECRAWL_API_KEY is set.
+        Falls back through parallel researcher and then single-source DuckDuckGo.
         """
+        # Try Firecrawl first (structured, full-page extraction)
+        results = await self._search_firecrawl(query, max_results)
+        if results:
+            logger.info("[VECTOR][web_scout] search '{}' → {} results (firecrawl)", query, len(results))
+            return results
+
         try:
             from core.engine.research.parallel_researcher import ParallelResearcher
             researcher = ParallelResearcher()
