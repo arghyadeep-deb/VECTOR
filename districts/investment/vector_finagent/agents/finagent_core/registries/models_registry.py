@@ -428,6 +428,30 @@ class ModelsRegistry:
         if config.get("api_key_env") and not final_api_key:
             logger.warning(f"No API key found for {provider}. Expected: {config['api_key_env']}")
 
+        # Short-circuit for VECTOR-native provider — no Agno dynamic import needed
+        if provider_lower == "vector":
+            try:
+                from districts.investment.vector_finagent.agents.finagent_core.registries.vector_model import (
+                    VectorProviderModel,
+                )
+            except ImportError:
+                try:
+                    from .vector_model import VectorProviderModel  # type: ignore[no-redef]
+                except ImportError as _ve:
+                    raise ImportError(
+                        f"VectorProviderModel unavailable: {_ve}. "
+                        "Ensure vector_model.py is present in the registries/ directory."
+                    )
+            vec_model = VectorProviderModel(id=final_model_id or "vector-focus")
+            if "temperature" in kwargs:
+                vec_model.temperature = kwargs.pop("temperature")
+            if "max_tokens" in kwargs:
+                tok = kwargs.pop("max_tokens")
+                if tok is not None:
+                    vec_model.max_tokens = tok
+            logger.debug(f"Created VECTOR model: {vec_model.id}")
+            return vec_model
+
         try:
             # Dynamic import
             import importlib
