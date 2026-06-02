@@ -15,7 +15,12 @@
     hand:'<path d="M5 8V4.5a1 1 0 0 1 2 0V7m0-1V3.2a1 1 0 0 1 2 0V7m0-1.2a1 1 0 0 1 2 0V8c0 3-1.5 5.5-4 5.5S5 11.5 5 9.5V8"/>',
     sound:'<path d="M3 6h2l3-2.5v9L5 10H3z"/><path d="M10 5.5a3 3 0 0 1 0 5M11.6 3.6a5.5 5.5 0 0 1 0 8.8"/>',
     vstudio:'<path d="M8 1a2 2 0 0 1 2 2v4a2 2 0 1 1-4 0V3a2 2 0 0 1 2-2z"/><path d="M3 7a5 5 0 0 0 10 0M8 12v3"/><circle cx="13" cy="3" r="1.5"/>',
-    codegraph:'<circle cx="3" cy="4" r="1.8"/><circle cx="12" cy="3" r="1.8"/><circle cx="8" cy="9" r="1.8"/><circle cx="13" cy="12" r="1.8"/><path d="M4.5 4.5 7 8M10.5 4 8.5 8M9.5 9.5 11.5 11"/>'
+    codegraph:'<circle cx="3" cy="4" r="1.8"/><circle cx="12" cy="3" r="1.8"/><circle cx="8" cy="9" r="1.8"/><circle cx="13" cy="12" r="1.8"/><path d="M4.5 4.5 7 8M10.5 4 8.5 8M9.5 9.5 11.5 11"/>',
+    approvals:'<path d="M3 8h10M8 3v10"/><circle cx="8" cy="8" r="6.5" stroke-dasharray="3 2"/><path d="M5.5 8.5l2 2 3.5-4"/>',
+    librechat:'<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 14h6M8 12v2"/><path d="M5 7h6M5 9.5h4"/>',
+    openwebui:'<circle cx="8" cy="8" r="6.5"/><path d="M8 1.5v13M1.5 8h13M3 4a8 8 0 0 1 10 0M3 12a8 8 0 0 0 10 0"/>',
+    finance:'<path d="M2 12l4-4 3 3 5-6"/><circle cx="13" cy="4" r="1.5"/><path d="M1.5 14.5h13"/>',
+    cscheduler:'<rect x="2" y="3" width="12" height="11" rx="1"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/><circle cx="11" cy="11" r="2.5"/><path d="M11 9.5v1.5l1 1"/>'
   };
   const svg = p => `<svg viewBox="0 0 16 16">${p}</svg>`;
 
