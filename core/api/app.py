@@ -137,6 +137,16 @@ async def lifespan(app: FastAPI):
             except Exception as _conn_err:
                 logger.debug("[VECTOR][api] conn close failed: {}", _conn_err)
 
+    # Cleanup singleton episodic DB connection
+    try:
+        from core.memory.episodic import get_db_connection
+        conn = get_db_connection()
+        if conn:
+            conn.close()
+            logger.info("[VECTOR][api] Episodic DB connection closed")
+    except Exception as e:
+        logger.warning("[VECTOR][api] DB cleanup error: {}", e)
+
 
 def create_app() -> FastAPI:
     """Create and configure the modular FastAPI application."""
