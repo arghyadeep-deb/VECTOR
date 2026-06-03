@@ -124,12 +124,13 @@ class MetaCognition:
             "created_at": now,
         }
         try:
-            self._conn.execute(
-                """INSERT INTO blind_spots (id, missed_signal, context, resolved, created_at)
-                   VALUES (?, ?, ?, 0, ?)""",
-                (bid, missed_signal, context, now),
-            )
-            self._conn.commit()
+            with self.__class__._db_lock:
+                self._conn.execute(
+                    """INSERT INTO blind_spots (id, missed_signal, context, resolved, created_at)
+                       VALUES (?, ?, ?, 0, ?)""",
+                    (bid, missed_signal, context, now),
+                )
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][meta_cognition] detect_blind_spot persist failed: {e}")
         logger.warning(f"[VECTOR][meta_cognition] Blind spot detected: {missed_signal}")
