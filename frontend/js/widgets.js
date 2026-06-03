@@ -334,9 +334,6 @@
       });
     }
 
-    // render demo data immediately
-    renderSessions(D.COUNCIL||[]);
-
     async function loadCouncil(){
       try{
         // Try dedicated council sessions endpoint first
@@ -359,8 +356,12 @@
                <div class="meta"><span class="badge2 proceed">COUNCIL ELIGIBLE</span>
                  <span class="k" style="margin-left:auto">HP ${a.health_points||a.hp}</span></div>`));
           });
+        } else {
+          wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
         }
-      }catch(e2){ /* offline — demo data shown */ }
+      }catch(e2){
+        wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }
     }
 
     const w = shell('council','LLM COUNCIL', wrap, 'council');
