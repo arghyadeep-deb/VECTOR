@@ -46,12 +46,22 @@ async def security_status(request: Request):
         elif anomalies_found > 0:
             threat_level = "medium"
 
-        # Mock processes for now or get real ones
-        processes = [
-            ProcessInfo(name="ollama-serve", cpu=42.1, mem=68.5, status="running"),
-            ProcessInfo(name="whisper-worker", cpu=18.4, mem=35.2, status="running"),
-            ProcessInfo(name="vector-core", cpu=7.2, mem=22.1, status="running"),
-        ]
+        # Real process list from psutil
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
+            try:
+                info = proc.info
+                processes.append(ProcessInfo(
+                    name=info.get('name', 'unknown')[:50],
+                    cpu=round(info.get('cpu_percent') or 0.0, 1),
+                    mem=round(info.get('memory_percent') or 0.0, 1),
+                    status=info.get('status', 'unknown'),
+                ))
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        # Show top 20 by CPU
+        processes.sort(key=lambda p: p.cpu, reverse=True)
+        processes = processes[:20]
 
         # Get permission gateway audit log
         audit_log = []
