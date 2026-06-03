@@ -18,6 +18,7 @@ __all__ = [
 
 import re
 import asyncio
+import uuid
 
 _SAFE_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
