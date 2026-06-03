@@ -82,7 +82,7 @@ class MetaCognition:
             CREATE INDEX IF NOT EXISTS idx_calibration_domain ON calibration_errors(domain);
             CREATE INDEX IF NOT EXISTS idx_calibration_created ON calibration_errors(created_at);
         """)
-        self._conn.commit()
+            self._conn.commit()
 
     # ── Core Observation API (original, now persisted) ───────────────────────
 
