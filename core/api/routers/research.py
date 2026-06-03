@@ -51,10 +51,15 @@ async def research_status():
 @router.get("/search")
 async def research_search(query: str, max_results: int = 5):
     """Search the web via VECTOR's WebScout agent using DuckDuckGo."""
+    cache_key = f"search_{query[:50]}"
+    cached = research_cache.get(cache_key)
+    if cached:
+        return cached
     try:
         from districts.research.web_scout import WebScout
         scout = WebScout()
         result = await scout.run({"type": "search", "params": {"query": query, "max_results": max_results}})
+        research_cache.set(cache_key, result)
         return result
     except Exception as e:
         logger.warning(f"[VECTOR][api][research] search failed: {e}")
