@@ -316,14 +316,59 @@
 
   F.council = function(){
     const wrap = el('div');
-    D.COUNCIL.forEach(c=>{
-      wrap.appendChild(el('div','csess',
-        `<div class="q">${c.question}</div>
-         <div class="meta"><span class="badge2 ${c.recommendation}">${c.recommendation.toUpperCase()}</span>
-           <span class="badge2 ${c.stakes==='critical'?'crit':c.stakes}">${c.stakes.toUpperCase()}</span>
-           <span class="k" style="margin-left:auto">${Math.round(c.confidence*100)}% · ${c.when}</span></div>`));
-    });
-    return shell('council','LLM COUNCIL', wrap, 'council');
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    function renderSessions(sessions){
+      wrap.innerHTML = '';
+      sessions.forEach(c=>{
+        const rec = c.recommendation || c.decision || 'defer';
+        const stakes = c.stakes || c.risk_level || 'medium';
+        const conf = c.confidence != null ? Math.round(c.confidence*100) : '—';
+        const when = c.when || c.timestamp || '';
+        const q = c.question || c.topic || c.id || '';
+        wrap.appendChild(el('div','csess',
+          `<div class="q">${q}</div>
+           <div class="meta">
+             <span class="badge2 ${rec}">${rec.toUpperCase()}</span>
+             <span class="badge2 ${stakes==='critical'?'crit':stakes}">${stakes.toUpperCase()}</span>
+             <span class="k" style="margin-left:auto">${conf}% · ${when}</span>
+           </div>`));
+      });
+    }
+
+    // render demo data immediately
+    renderSessions(D.COUNCIL||[]);
+
+    async function loadCouncil(){
+      try{
+        // Try dedicated council sessions endpoint first
+        const r = await fetch(API+'/council/sessions?limit=5');
+        const j = await r.json();
+        const sessions = j.sessions || j.data || (Array.isArray(j)?j:[]);
+        if(sessions.length){ renderSessions(sessions); return; }
+      }catch(e){ /* no council endpoint — fall through to HP-based view */ }
+      // Fallback: show council-eligible agents (HP > 700) from /agents
+      try{
+        const r2 = await fetch(API+'/agents');
+        const j2 = await r2.json();
+        const agents = j2.agents || (Array.isArray(j2)?j2:[]);
+        const eligible = agents.filter(a=>(a.health_points||a.hp||0)>700);
+        if(eligible.length){
+          wrap.innerHTML = '';
+          eligible.forEach(a=>{
+            wrap.appendChild(el('div','csess',
+              `<div class="q">${a.name||a.id} · ${(a.district||'—').toUpperCase()}</div>
+               <div class="meta"><span class="badge2 proceed">COUNCIL ELIGIBLE</span>
+                 <span class="k" style="margin-left:auto">HP ${a.health_points||a.hp}</span></div>`));
+          });
+        }
+      }catch(e2){ /* offline — demo data shown */ }
+    }
+
+    const w = shell('council','LLM COUNCIL', wrap, 'council');
+    loadCouncil();
+    setInterval(()=>{ if(w.isConnected) loadCouncil(); }, 15000);
+    return w;
   };
 
   F.security = function(){
