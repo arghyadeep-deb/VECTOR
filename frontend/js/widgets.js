@@ -292,9 +292,6 @@
       });
     }
 
-    // render demo data immediately
-    renderAgents(D.agents||[]);
-
     async function loadDistricts(){
       try{
         const r = await fetch(API+'/agents');
@@ -304,7 +301,9 @@
         const title = wrap.closest && wrap.closest('.widget')
           ? wrap.closest('.widget').querySelector('.w-title') : null;
         if(title) title.textContent = 'AGENT DISTRICTS · '+agents.length;
-      }catch(e){ /* offline — demo data already shown */ }
+      }catch(e){
+        grid.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }
     }
 
     const w = shell('districts','AGENT DISTRICTS · 33', wrap, 'agents');
