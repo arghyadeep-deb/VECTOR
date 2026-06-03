@@ -463,6 +463,12 @@ class VectorSettings(BaseSettings):
     SSL_CERT_DIR: str = ""
     ACP_LOGGING_ENABLED: bool = False
 
+    # Sidecar app paths (overrides SidecarsConfig defaults)
+    VECTOR_LIBRECHAT_PATH: str = ""
+    VECTOR_COMFYUI_PATH: str = ""
+    VECTOR_UITARS_PATH: str = ""
+    VECTOR_HYPERFRAMES_PATH: str = ""
+
     # Research engine
     LDR_DATA_DIR: str = ""
     LDR_LOG_SETTINGS: str = "none"
