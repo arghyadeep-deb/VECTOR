@@ -28,9 +28,14 @@ router_singular = APIRouter(prefix="/agent", tags=["agents"])
 @router.get("", response_model=AgentListResponse)
 async def list_agents():
     """List all registered agents with their HP and status."""
+    cached = agents_cache.get("all")
+    if cached:
+        return cached
     try:
         agents = get_agents()
-        return AgentListResponse(agents=agents, count=len(agents))
+        result = AgentListResponse(agents=agents, count=len(agents))
+        agents_cache.set("all", result)
+        return result
     except Exception as e:
         logger.error(f"[VECTOR][api][agents] list failed: {e}")
         return AgentListResponse(agents=[], count=0, error=str(e))
