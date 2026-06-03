@@ -63,9 +63,14 @@ async def training_data(limit: int = Query(100, ge=1, le=500)):
 @router.get("/goals", response_model=GoalsResponse)
 async def goals_endpoint():
     """Get current goals and immediate actions."""
+    cached = goals_cache.get("active")
+    if cached:
+        return cached
     try:
         actions = get_immediate_actions(limit=5)
-        return GoalsResponse(immediate_actions=actions)
+        result = GoalsResponse(immediate_actions=actions)
+        goals_cache.set("active", result)
+        return result
     except Exception as e:
         logger.error(f"[VECTOR][api][memory] goals failed: {e}")
         return GoalsResponse(immediate_actions=[], error=str(e))

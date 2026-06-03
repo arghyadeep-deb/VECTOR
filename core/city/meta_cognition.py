@@ -197,13 +197,14 @@ class MetaCognition:
         now = datetime.now(timezone.utc).isoformat()
         predicted_confidence = max(0.0, min(1.0, predicted_confidence))
         try:
-            self._conn.execute(
-                """INSERT INTO calibration_errors
-                   (id, predicted_confidence, actual_success, domain, created_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (cid, predicted_confidence, 1 if actual_success else 0, domain, now),
-            )
-            self._conn.commit()
+            with self.__class__._db_lock:
+                self._conn.execute(
+                    """INSERT INTO calibration_errors
+                       (id, predicted_confidence, actual_success, domain, created_at)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (cid, predicted_confidence, 1 if actual_success else 0, domain, now),
+                )
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][meta_cognition] record_calibration_error failed: {e}")
         return cid
