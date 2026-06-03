@@ -78,8 +78,8 @@ async def security_status(request: Request):
             audit_log=audit_log,
         )
     except Exception as e:
-        logger.error(f"[VECTOR][api][security] status failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("[VECTOR][api][security] status failed: {}", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/confirm/{action_type}")
 async def confirm_security_action(action_type: str, request: Request):
