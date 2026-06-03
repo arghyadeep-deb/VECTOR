@@ -73,36 +73,12 @@ _ALLOWED_ORIGINS = {
     "http://127.0.0.1:8000",
 }
 
-# FIX #5: CSRF tokens persisted to a file so they survive restarts
-_CSRF_TOKEN_FILE = Path(__file__).parent.parent.parent / ".csrf_tokens.json"
+# CSRF tokens are kept purely in-memory (no disk persistence).
+# Storing tokens on disk leaks them to any process that can read the filesystem.
+# Tokens are short-lived (1h TTL) and regenerated cheaply on each request.
 _csrf_tokens: dict[str, float] = {}
 _csrf_lock = threading.Lock()
 _CSRF_TOKEN_TTL = 3600  # 1 hour
-
-def _load_csrf_tokens():
-    """Load CSRF tokens from disk on startup."""
-    global _csrf_tokens
-    try:
-        if _CSRF_TOKEN_FILE.exists():
-            import json
-            data = json.loads(_CSRF_TOKEN_FILE.read_text())
-            now = time.time()
-            # Only load non-expired tokens
-            _csrf_tokens = {k: v for k, v in data.items() if now - v < _CSRF_TOKEN_TTL}
-    except Exception:
-        _csrf_tokens = {}
-
-def _save_csrf_tokens():
-    """Persist CSRF tokens to disk."""
-    try:
-        import json
-        with _csrf_lock:
-            _CSRF_TOKEN_FILE.write_text(json.dumps(_csrf_tokens))
-    except Exception:
-        logger.warning("[VECTOR][middleware] CSRF token save failed — tokens regenerate on next request")
-
-# Load on module import
-_load_csrf_tokens()
 
 # Security headers
 _SECURITY_HEADERS = {
