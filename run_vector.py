@@ -178,27 +178,24 @@ def _start_sidecars() -> None:
     import subprocess
     import os
 
-    # ComfyUI path: CONFIG override → env var → default adjacent GitHub location
+    # Resolve sidecar paths: CONFIG["sidecars"] → env var (via Pydantic) → default GitHub location
+    _github = Path(__file__).parent.parent / "GitHub"
     try:
         from core.config import CONFIG
-        _comfyui_path = (
-            CONFIG.get("comfyui", {}).get("path", "")
-            if isinstance(CONFIG, dict)
-            else ""
-        )
+        _sc = CONFIG.get("sidecars", {}) if isinstance(CONFIG, dict) else {}
     except Exception:
-        _comfyui_path = ""
-    if not _comfyui_path:
-        _comfyui_path = os.environ.get(
-            "COMFYUI_PATH",
-            str(Path(__file__).parent.parent / "GitHub" / "ComfyUI-master"),
-        )
+        _sc = {}
+
+    def _sidecar_path(key: str, default_name: str) -> str:
+        """Return configured path for a sidecar; fall back to GitHub/<default_name>."""
+        override = _sc.get(key, "")
+        return override if override else str(_github / default_name)
 
     sidecars = [
         {
             "name": "ComfyUI",
             "cmd": ["python", "main.py", "--port", "8188", "--listen", "127.0.0.1"],
-            "cwd": _comfyui_path,
+            "cwd": _sidecar_path("comfyui_path", "ComfyUI-master"),
             "health_url": "http://127.0.0.1:8188/system_stats",
         },
         {
@@ -220,13 +217,17 @@ def _start_sidecars() -> None:
         {
             "name": "LibreChat",
             "cmd": ["node", "api/server/index.js"],
-            "cwd": str(Path(__file__).parent.parent / "GitHub" / "LibreChat-main"),
+            # No npm package — must be cloned locally.
+            # Configure: set VECTOR_LIBRECHAT_PATH env var or CONFIG["sidecars"]["librechat_path"]
+            "cwd": _sidecar_path("librechat_path", "LibreChat-main"),
             "env_extra": {"PORT": "3080"},
         },
         {
             "name": "UI-TARS",
             "cmd": ["npm", "run", "start"],
-            "cwd": str(Path(__file__).parent.parent / "GitHub" / "UI-TARS-desktop-main" / "apps" / "ui-tars"),
+            # No npm package — must be cloned locally.
+            # Configure: set VECTOR_UITARS_PATH env var or CONFIG["sidecars"]["ui_tars_path"]
+            "cwd": str(Path(_sidecar_path("ui_tars_path", "UI-TARS-desktop-main")) / "apps" / "ui-tars"),
             # Electron app — no HTTP health endpoint; skip health check
             "health_url": "",
         },
