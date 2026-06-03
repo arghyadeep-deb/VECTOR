@@ -273,17 +273,45 @@
   F.districts = function(){
     const wrap = el('div');
     const grid = el('div','grid');
-    D.agents.slice(0,18).forEach(a=>{
-      const pct = a.health_points/1000*100;
-      const cls = a.health_points<=0?'ghost':'';
-      const bar = a.health_points<=0?'low':a.health_points<400?'low':a.health_points<700?'mid':'';
-      grid.appendChild(el('div','agent '+cls,
-        `<div class="an">${a.name}</div><div class="ad">${a.district.toUpperCase()}</div>
-         <div class="hpbar ${bar}"><i style="width:${pct}%"></i></div>
-         <div class="hp"><span>HP ${a.health_points}</span><span>G${a.generation} · ${a.tier}</span></div>`));
-    });
     wrap.appendChild(grid);
-    return shell('districts','AGENT DISTRICTS · 33', wrap, 'agents');
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    function renderAgents(agents){
+      grid.innerHTML = '';
+      agents.slice(0,18).forEach(a=>{
+        const hp = a.health_points != null ? a.health_points : (a.hp != null ? a.hp : 500);
+        const pct = hp/1000*100;
+        const cls = hp<=0?'ghost':'';
+        const bar = hp<=0?'low':hp<400?'low':hp<700?'mid':'';
+        const dist = (a.district||a.agent_type||'—').toUpperCase().slice(0,12);
+        const gen = a.generation != null ? 'G'+a.generation : '';
+        const tier = a.tier || a.model || '';
+        grid.appendChild(el('div','agent '+cls,
+          `<div class="an">${a.name||a.id}</div><div class="ad">${dist}</div>
+           <div class="hpbar ${bar}"><i style="width:${pct}%"></i></div>
+           <div class="hp"><span>HP ${hp}</span><span>${[gen,tier].filter(Boolean).join(' · ')}</span></div>`));
+      });
+    }
+
+    // render demo data immediately
+    renderAgents(D.agents||[]);
+
+    async function loadDistricts(){
+      try{
+        const r = await fetch(API+'/agents');
+        const j = await r.json();
+        const agents = j.agents || j.data || (Array.isArray(j)?j:[]);
+        if(agents.length) renderAgents(agents);
+        const title = wrap.closest && wrap.closest('.widget')
+          ? wrap.closest('.widget').querySelector('.w-title') : null;
+        if(title) title.textContent = 'AGENT DISTRICTS · '+agents.length;
+      }catch(e){ /* offline — demo data already shown */ }
+    }
+
+    const w = shell('districts','AGENT DISTRICTS · 33', wrap, 'agents');
+    loadDistricts();
+    setInterval(()=>{ if(w.isConnected) loadDistricts(); }, 10000);
+    return w;
   };
 
   F.council = function(){
