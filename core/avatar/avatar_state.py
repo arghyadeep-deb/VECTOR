@@ -20,6 +20,9 @@ _DB_PATH: Path = CONFIG.get("db_path", Path("vector_memory.db"))
 _PRESENCE = CONFIG.get("presence", {})
 
 
+_avatar_db_lock = threading.Lock()
+
+
 @dataclass
 class AvatarState:
     """Cross-session mood/presence snapshot. Single row in avatar_state table."""
