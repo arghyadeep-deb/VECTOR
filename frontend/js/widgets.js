@@ -381,21 +381,6 @@
     const evtList = el('div','sec-events');
     wrap.appendChild(evtList);
 
-    // render demo approvals as initial placeholder
-    const demoApprovals = D.APPROVALS||[];
-    demoApprovals.forEach(a=>{
-      const row = el('div','appr '+(a.level==='RED'?'red':''),
-        `<div class="at">${a.action_type} <span class="badge2 ${a.level==='RED'?'crit':'high'}">${a.level}</span></div>
-         <div class="ap">${a.params} · by ${a.proposed_by}</div>
-         <div class="acts"><button class="ok2">APPROVE</button><button class="no2">DENY</button>
-           <span class="exp">${a.expires}s</span></div>`);
-      row.querySelector('.ok2').addEventListener('click',e=>{ e.stopPropagation(); row.style.opacity=.3;
-        V.say('Approved. '+a.action_type+' executing, sir.'); });
-      row.querySelector('.no2').addEventListener('click',e=>{ e.stopPropagation(); row.style.opacity=.3;
-        V.say('Denied. '+a.action_type+' blocked.'); });
-      evtList.appendChild(row);
-    });
-
     async function loadSecurity(){
       try{
         const r = await fetch(API+'/security/status');
@@ -406,7 +391,10 @@
           threatEl.textContent = level;
           threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':'var(--ok)';
         }
-      }catch(e){ /* offline */ }
+      }catch(e){
+        const threatEl = wrap.querySelector('.sec-threat');
+        if(threatEl){ threatEl.textContent = '—'; threatEl.style.color = 'var(--txt-faint)'; }
+      }
       try{
         const r2 = await fetch(API+'/security/recent?limit=5');
         const j2 = await r2.json();
@@ -422,8 +410,12 @@
                <div class="ap">${ev.description||ev.detail||ev.params||''}</div>`);
             evtList.appendChild(row);
           });
+        } else {
+          evtList.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
         }
-      }catch(e2){ /* offline */ }
+      }catch(e2){
+        evtList.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }
     }
 
     const w = shell('security','PERMISSION GATE', wrap, 'security');
