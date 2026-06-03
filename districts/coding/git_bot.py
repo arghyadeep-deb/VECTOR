@@ -301,6 +301,10 @@ class GitBot(AgentBase):
             return self.create_branch(p.get("name", "vector-branch"), p.get("repo", "."))
         if t in ("analyze_codebase", "gitnexus"):
             return await self.analyze_with_gitnexus(p.get("repo", "."))
+        if t in ("gitnexus_impact", "impact_analysis"):
+            return await self.gitnexus_impact(
+                p.get("symbol", ""), p.get("depth", 3), p.get("repo", ".")
+            )
         return {"status": "ok", "agent": self.name, "task": t}
 
     async def analyze_with_gitnexus(self, repo_path: str = ".") -> dict:
