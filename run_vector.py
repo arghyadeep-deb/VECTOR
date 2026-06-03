@@ -198,7 +198,7 @@ def _start_sidecars() -> None:
         },
         {
             "name": "UI-TARS",
-            "cmd": ["npm", "run", "start:main"],
+            "cmd": ["npm", "run", "start"],
             "cwd": str(Path(__file__).parent.parent / "GitHub" / "UI-TARS-desktop-main" / "apps" / "ui-tars"),
             # Electron app — no HTTP health endpoint; skip health check
             "health_url": "",
