@@ -517,6 +517,7 @@ class VectorSettings(BaseSettings):
     airllm: AirLLMConfig = Field(default_factory=AirLLMConfig)
     vectorcode: VectorCodeConfig = Field(default_factory=VectorCodeConfig)
     predictive_analytics: PredictiveAnalyticsConfig = Field(default_factory=PredictiveAnalyticsConfig)
+    sidecars: SidecarsConfig = Field(default_factory=SidecarsConfig)
     ads: AdsConfig = Field(default_factory=AdsConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
     emergency: EmergencyConfig = Field(default_factory=EmergencyConfig)
