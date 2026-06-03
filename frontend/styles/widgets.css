@@ -437,3 +437,12 @@
 .gp-fill{ height:100%; background:var(--accent); border-radius:2px; transition:width .4s; }
 .gp-meta{ font-size:8px; color:var(--txt-faint); }
 .gp-empty{ font-size:9px; color:var(--txt-faint); text-align:center; padding:8px 0; }
+
+/* ── Offline / backend-down state ── */
+.ve-offline {
+    font-size: 9px;
+    color: var(--txt-faint);
+    text-align: center;
+    padding: 12px 0;
+    letter-spacing: .1em;
+}
