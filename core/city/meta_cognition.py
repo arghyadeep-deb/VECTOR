@@ -47,7 +47,8 @@ class MetaCognition:
         logger.info("[VECTOR][meta_cognition] MetaCognition initialized")
 
     def _create_tables(self):
-        self._conn.executescript("""
+        with self.__class__._db_lock:
+            self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS thoughts (
                 id TEXT PRIMARY KEY,
                 thought TEXT NOT NULL,
