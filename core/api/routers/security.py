@@ -41,11 +41,14 @@ async def security_recent(limit: int = Query(15, ge=1, le=50)):
 @router.get("/status", response_model=SecurityStatusResponse)
 async def security_status(request: Request):
     """Get overall security status and telemetry."""
+    cached = security_cache.get("status")
+    if cached:
+        return cached
     try:
         # Check process anomalies
         anomalies = check_process_anomalies()
         anomalies_found = sum(1 for a in anomalies if a.get("suspicious"))
-        
+
         # Threat level logic
         threat_level = "low"
         if anomalies_found > 2:
@@ -76,7 +79,7 @@ async def security_status(request: Request):
             raw_log = request.app.state.permission_gateway.get_audit_log(limit=20)
             audit_log = [PermissionAuditEntry(**entry) for entry in raw_log]
 
-        return SecurityStatusResponse(
+        result = SecurityStatusResponse(
             threat_level=threat_level,
             active_scans=3,
             anomalies_found=anomalies_found,
@@ -84,6 +87,8 @@ async def security_status(request: Request):
             processes=processes,
             audit_log=audit_log,
         )
+        security_cache.set("status", result)
+        return result
     except Exception as e:
         logger.error("[VECTOR][api][security] status failed: {}", e)
         raise HTTPException(status_code=500, detail="Internal server error")
