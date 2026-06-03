@@ -20,15 +20,14 @@ router = APIRouter(prefix="/email", tags=["email"])
 async def email_recent():
     try:
         from core.email.schema import EMAIL_DB_PATH
-        conn = sqlite3.connect(str(EMAIL_DB_PATH))
-        conn.row_factory = sqlite3.Row
-        total = conn.execute("SELECT COUNT(*) as c FROM emails").fetchone()["c"]
-        unread = conn.execute("SELECT COUNT(*) as c FROM emails WHERE read=0").fetchone()["c"]
-        rows = conn.execute(
-            "SELECT id, subject, sender, date, read FROM emails ORDER BY date DESC LIMIT 10"
-        ).fetchall()
-        recent = [dict(r) for r in rows]
-        conn.close()
+        with sqlite3.connect(str(EMAIL_DB_PATH)) as conn:
+            conn.row_factory = sqlite3.Row
+            total = conn.execute("SELECT COUNT(*) as c FROM emails").fetchone()["c"]
+            unread = conn.execute("SELECT COUNT(*) as c FROM emails WHERE read=0").fetchone()["c"]
+            rows = conn.execute(
+                "SELECT id, subject, sender, date, read FROM emails ORDER BY date DESC LIMIT 10"
+            ).fetchall()
+            recent = [dict(r) for r in rows]
         return EmailRecentResponse(total=total, unread=unread, recent=recent)
     except Exception as e:
         logger.warning(f"[VECTOR][api][email] recent failed: {e}")
