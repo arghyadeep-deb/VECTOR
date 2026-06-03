@@ -187,9 +187,15 @@ def _start_sidecars() -> None:
         },
         {
             "name": "hyperframes",
-            "cmd": ["node", "packages/producer/dist/server.js", "--port", "7421"],
-            "cwd": str(Path(__file__).parent.parent / "GitHub" / "hyperframes-main"),
+            "cmd": ["npx", "-y", "@hyperframes/producer", "--port", "7421"],
+            "cwd": str(Path(__file__).parent),  # cwd doesn't matter for npx
             "health_url": "http://localhost:7421/health",
+        },
+        {
+            "name": "open-webui",
+            "cmd": ["uvicorn", "open_webui.main:app", "--host", "127.0.0.1", "--port", "8080"],
+            "cwd": str(Path(__file__).parent),  # runs from VECTOR root; open-webui installed via pip
+            "health_url": "http://127.0.0.1:8080/health",
         },
         {
             "name": "LibreChat",
