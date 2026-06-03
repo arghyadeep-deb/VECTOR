@@ -25,9 +25,15 @@ router = APIRouter(prefix="/security", tags=["security"])
 @router.get("/recent", response_model=SecurityRecentResponse)
 async def security_recent(limit: int = Query(15, ge=1, le=50)):
     """Get recent security events from episodic memory."""
+    cache_key = f"recent_{limit}"
+    cached = security_cache.get(cache_key)
+    if cached:
+        return cached
     try:
         events = recall_episodes("", limit=limit, event_type="security_scan")
-        return SecurityRecentResponse(events=events, count=len(events))
+        result = SecurityRecentResponse(events=events, count=len(events))
+        security_cache.set(cache_key, result)
+        return result
     except Exception as e:
         logger.error("[VECTOR][api][security] recent failed: {}", e)
         return SecurityRecentResponse(events=[], count=0, error="Internal server error")
