@@ -121,6 +121,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] Nudge engine failed to start: {e}")
 
+    # Schema version check
+    try:
+        from core.memory.db_registry import REGISTRY
+        for key, entry in REGISTRY.items():
+            if hasattr(entry, 'schema_version') and entry.schema_version > 0:
+                # Just log — don't block startup on mismatch
+                logger.info("[VECTOR][startup] DB registry: {} schema_v{}", key, entry.schema_version)
+        logger.info("[VECTOR][startup] DB registry check: {} databases tracked", len(REGISTRY))
+    except Exception as e:
+        logger.warning("[VECTOR][startup] DB registry check failed: {}", e)
+
     logger.info("[VECTOR][api] V.E.C.T.O.R. API ready")
 
     yield  # ── APP RUNS HERE ──
