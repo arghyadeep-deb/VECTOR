@@ -1,3 +1,8 @@
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import uuid
 import asyncio
@@ -325,6 +330,37 @@ class GitBot(AgentBase):
                 return {"status": "error", "error": result.stderr[:200]}
         except FileNotFoundError:
             return {"status": "not_installed", "note": "Install Node.js to use GitNexus: npx gitnexus@latest"}
+
+    async def gitnexus_impact(self, symbol: str, depth: int = 3,
+                               repo_path: str = ".") -> dict:
+        """
+        Find blast radius of changing a symbol using GitNexus impact analysis.
+        Returns all files/functions affected by changing the given symbol.
+        Requires: npm install -g gitnexus && gitnexus setup
+        """
+        try:
+            import subprocess
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["npx", "-y", "gitnexus@latest", "impact", "--symbol", symbol,
+                 "--depth", str(depth), "--repo", repo_path],
+                capture_output=True, text=True, timeout=30,
+                cwd=repo_path,
+            )
+            if result.returncode == 0:
+                import json
+                try:
+                    data = json.loads(result.stdout)
+                    self.award_points(10, f"gitnexus_impact:{symbol}")
+                    return {"status": "ok", "symbol": symbol, "impact": data}
+                except (json.JSONDecodeError, ValueError):
+                    return {"status": "ok", "symbol": symbol, "output": result.stdout[:3000]}
+            return {"status": "error", "error": result.stderr[:200]}
+        except FileNotFoundError:
+            return {"status": "error", "error": "gitnexus not installed. Run: npm install -g gitnexus"}
+        except Exception as e:
+            logger.warning("[VECTOR][git_bot] gitnexus_impact error: {}", e)
+            return {"status": "error", "error": str(e)}
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
