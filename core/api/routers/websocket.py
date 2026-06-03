@@ -25,7 +25,7 @@ import asyncio
 import datetime
 import json
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from loguru import logger
 from typing import Optional
