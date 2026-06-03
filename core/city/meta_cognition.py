@@ -140,12 +140,13 @@ class MetaCognition:
         """Mark a blind spot as resolved."""
         now = datetime.now(timezone.utc).isoformat()
         try:
-            cur = self._conn.execute(
-                """UPDATE blind_spots SET resolved=1, resolution=?, resolved_at=?
-                   WHERE missed_signal=? AND resolved=0""",
-                (resolution, now, missed_signal),
-            )
-            self._conn.commit()
+            with self.__class__._db_lock:
+                cur = self._conn.execute(
+                    """UPDATE blind_spots SET resolved=1, resolution=?, resolved_at=?
+                       WHERE missed_signal=? AND resolved=0""",
+                    (resolution, now, missed_signal),
+                )
+                self._conn.commit()
             if cur.rowcount > 0:
                 logger.info(f"[VECTOR][meta_cognition] Blind spot resolved: {missed_signal}")
                 return True
