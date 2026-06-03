@@ -43,8 +43,24 @@
       `<input placeholder="enter message…" /><button class="send">SEND ↵</button>`);
     wrap.appendChild(log); wrap.appendChild(row);
     const input = row.querySelector('input'), send = row.querySelector('.send');
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    async function submitToBackend(text){
+      try{
+        const r = await fetch(API+'/commands', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ text })
+        });
+        const j = await r.json();
+        V.say((j && (j.response || j.text || j.result)) || 'Done, sir.');
+      }catch(e){ V.say(localReply(text)); }
+    }
+
     function submit(){ const t=input.value.trim(); if(!t) return; input.value='';
-      V.ask(t); }
+      chatMsgs.push({ role:'user', text:t });
+      appendMsg(log, { role:'user', text:t });
+      if(API){ submitToBackend(t); } else { setTimeout(()=>V.say(localReply(t)), 650); }
+    }
     send.addEventListener('click', submit);
     input.addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); e.stopPropagation(); });
     const w = shell('chat','CONVERSATION', wrap, 'chat');
