@@ -44,8 +44,8 @@ async def get_pending_approvals(request: Request):
         pending = gw.get_pending() if hasattr(gw, "get_pending") else []
         return {"pending": pending, "count": len(pending)}
     except Exception as e:
-        logger.error(f"[VECTOR][api][gateway] get_pending failed: {e}")
-        return {"pending": [], "count": 0, "error": str(e)}
+        logger.error("[VECTOR][api][gateway] get_pending failed: {}", e)
+        return {"pending": [], "count": 0, "error": "Internal server error"}
 
 
 @router.post("/approve/{action_id}")
