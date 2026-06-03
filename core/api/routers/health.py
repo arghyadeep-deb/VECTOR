@@ -88,8 +88,24 @@ async def health_status():
 async def system_health():
     """System-level health: DB, Ollama, memory, loop. Used by monitoring and load balancers."""
     import datetime
+    import psutil
     checks: dict[str, dict] = {}
     all_ok = True
+
+    # 0. Real-time system resources
+    try:
+        cpu_pct = psutil.cpu_percent(interval=0.1)
+        mem = psutil.virtual_memory()
+        checks["system"] = {
+            "status": "ok",
+            "cpu_percent": cpu_pct,
+            "mem_used_percent": round(mem.percent, 1),
+            "mem_available_mb": round(mem.available / (1024 * 1024), 1),
+            "mem_total_mb": round(mem.total / (1024 * 1024), 1),
+        }
+    except Exception as e:
+        checks["system"] = {"status": "error", "error": str(e)}
+        all_ok = False
 
     # 1. Episodic DB
     try:
