@@ -56,8 +56,8 @@ async def approve_action(action_id: str, request: Request):
         result = gw.approve(action_id) if hasattr(gw, "approve") else {"status": "approved", "id": action_id}
         return result
     except Exception as e:
-        logger.error(f"[VECTOR][api][gateway] approve failed for {action_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("[VECTOR][api][gateway] approve failed for {}: {}", action_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reject/{action_id}")
@@ -68,8 +68,8 @@ async def reject_action(action_id: str, request: Request):
         result = gw.reject(action_id) if hasattr(gw, "reject") else {"status": "rejected", "id": action_id}
         return result
     except Exception as e:
-        logger.error(f"[VECTOR][api][gateway] reject failed for {action_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("[VECTOR][api][gateway] reject failed for {}: {}", action_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == "__main__":
