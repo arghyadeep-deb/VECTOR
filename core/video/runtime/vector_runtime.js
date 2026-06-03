@@ -392,3 +392,34 @@
   }
 
 })();
+
+// ── Hyperframes compatibility bridge ─────────────────────────────────────
+// hyperframes compositions use window.__hf for seek/events
+// VECTOR uses window.__vector — expose both APIs pointing to the same runtime
+if (typeof window !== 'undefined' && window.__vector && !window.__hf) {
+  window.__hf = {
+    seek: window.__vector.seekAll,
+    emit: function(eventName, detail) {
+      try {
+        window.dispatchEvent(new CustomEvent('hf:' + eventName, { detail: detail }));
+      } catch (e) {}
+    },
+    on: function(eventName, handler) {
+      window.addEventListener('hf:' + eventName, function(e) { handler(e.detail); });
+    },
+    off: function(eventName, handler) {
+      window.removeEventListener('hf:' + eventName, handler);
+    },
+    getTime: window.__vector.getCurrentTime,
+    getDuration: function() {
+      var rootEl = document.querySelector('[data-composition-id]');
+      return rootEl ? parseFloat(rootEl.getAttribute('data-duration') || '0') : 0;
+    },
+    // hyperframes-specific extensions
+    frame: function() { return Math.floor((window.__vector.getCurrentTime() || 0) * 30); },
+    fps: 30,
+  };
+  if (typeof console !== 'undefined') {
+    console.debug('[VECTOR] hyperframes __hf bridge mounted');
+  }
+}
