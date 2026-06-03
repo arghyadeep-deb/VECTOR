@@ -18,6 +18,7 @@ from loguru import logger
 from core.api.schemas import AgentAwardRequest, AgentAwardResponse, AgentListResponse
 from core.api.dependencies import get_agent_registry
 from core.api.crud import get_agents, get_agent, award_agent
+from core.api.cache import agents_cache
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 # Spec requires POST /agent/award (singular) — alias router
