@@ -28,8 +28,8 @@ async def security_recent(limit: int = Query(15, ge=1, le=50)):
         events = recall_episodes("", limit=limit, event_type="security_scan")
         return SecurityRecentResponse(events=events, count=len(events))
     except Exception as e:
-        logger.error(f"[VECTOR][api][security] recent failed: {e}")
-        return SecurityRecentResponse(events=[], count=0, error=str(e))
+        logger.error("[VECTOR][api][security] recent failed: {}", e)
+        return SecurityRecentResponse(events=[], count=0, error="Internal server error")
 
 @router.get("/status", response_model=SecurityStatusResponse)
 async def security_status(request: Request):
