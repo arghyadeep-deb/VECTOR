@@ -38,15 +38,26 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 WS_API_KEY = CONFIG.get("vector_api_key", "")
 
 
-def require_auth(websocket: WebSocket):
-    """Validate WebSocket connection authentication."""
+async def require_auth_handshake(websocket: WebSocket) -> bool:
+    """Validate WebSocket connection via first-message auth handshake.
+
+    Returns True if auth passed (or not required). Returns False and closes the
+    socket if auth is required but the handshake fails or times out.
+    Token must NOT be in the URL query string (leaks to server logs / proxies).
+    """
     if not WS_API_KEY:
         # No auth required in dev mode
-        return
-    
-    auth = websocket.query_params.get("token", "")
-    if not auth.startswith("Bearer ") or auth[7:] != WS_API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized WebSocket connection")
+        return True
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
+        token = auth_msg.get("auth", "").replace("Bearer ", "").strip()
+    except (asyncio.TimeoutError, Exception):
+        await websocket.close(code=1008, reason="Auth handshake timeout")
+        return False
+    if token != WS_API_KEY:
+        await websocket.close(code=1008, reason="Unauthorized")
+        return False
+    return True
 
 # Global connection manager for broadcasting
 class ConnectionManager:
