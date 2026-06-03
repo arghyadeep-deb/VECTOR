@@ -160,13 +160,14 @@ def create_app() -> FastAPI:
     app.state.episodic_memory = None
 
     # CORS middleware — localhost only
+    # "null" origin (file:// protocol) is intentionally excluded: it would allow
+    # any local HTML file to call the API. The HUD is served via /hud/ instead.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(CONFIG.get("allowed_origins", [
             "https://localhost:8000", "https://127.0.0.1:8000",
             "http://localhost:8000", "http://127.0.0.1:8000",
             "http://localhost:5173", "http://127.0.0.1:5173",
-            "null",  # file:// origin — browser sends "null" when HUD opened directly
         ])),
         allow_credentials=True,
         allow_methods=["GET", "POST"],
