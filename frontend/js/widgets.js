@@ -435,11 +435,36 @@
 
   F.memory = function(){
     const wrap = el('div');
-    D.MEMORY.forEach(m=>{
-      wrap.appendChild(el('div','mevt imp-'+m.importance,
-        `<span class="ew">${m.when}</span><div class="et">${m.event_type}</div><div class="ec">${m.content}</div>`));
-    });
-    return shell('memory','EPISODIC MEMORY', wrap, 'memory');
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    function renderMemories(memories){
+      wrap.innerHTML = '';
+      memories.forEach(m=>{
+        const imp = m.importance || m.event_type||'';
+        const when = m.when || m.timestamp || (m.created_at ? new Date(m.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '');
+        const evType = m.event_type || m.type || 'event';
+        const content = m.content || m.text || m.summary || '';
+        wrap.appendChild(el('div','mevt imp-'+imp,
+          `<span class="ew">${when}</span><div class="et">${evType}</div><div class="ec">${content}</div>`));
+      });
+    }
+
+    // render demo data immediately
+    renderMemories(D.MEMORY||[]);
+
+    async function loadMemory(){
+      try{
+        const r = await fetch(API+'/memory/recent?limit=20');
+        const j = await r.json();
+        const mems = j.memories || j.events || (Array.isArray(j)?j:[]);
+        if(mems.length) renderMemories(mems);
+      }catch(e){ /* offline — demo data shown */ }
+    }
+
+    const w = shell('memory','EPISODIC MEMORY', wrap, 'memory');
+    loadMemory();
+    setInterval(()=>{ if(w.isConnected) loadMemory(); }, 8000);
+    return w;
   };
 
   F.webcam = function(){
