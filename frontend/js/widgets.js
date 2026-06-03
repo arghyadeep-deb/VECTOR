@@ -373,22 +373,64 @@
 
   F.security = function(){
     const wrap = el('div');
-    wrap.appendChild(el('div', null,
-      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v" style="color:var(--ok)">LOW</span></div>
-       <div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">PENDING APPROVALS · ${D.APPROVALS.length}</div>`));
-    D.APPROVALS.forEach(a=>{
-      const w = el('div','appr '+(a.level==='RED'?'red':''),
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    const header = el('div', null,
+      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v sec-threat" style="color:var(--ok)">LOW</span></div>
+       <div class="sec-lbl" style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">RECENT EVENTS</div>`);
+    wrap.appendChild(header);
+    const evtList = el('div','sec-events');
+    wrap.appendChild(evtList);
+
+    // render demo approvals as initial placeholder
+    const demoApprovals = D.APPROVALS||[];
+    demoApprovals.forEach(a=>{
+      const row = el('div','appr '+(a.level==='RED'?'red':''),
         `<div class="at">${a.action_type} <span class="badge2 ${a.level==='RED'?'crit':'high'}">${a.level}</span></div>
          <div class="ap">${a.params} · by ${a.proposed_by}</div>
          <div class="acts"><button class="ok2">APPROVE</button><button class="no2">DENY</button>
            <span class="exp">${a.expires}s</span></div>`);
-      w.querySelector('.ok2').addEventListener('click',e=>{ e.stopPropagation(); w.style.opacity=.3;
+      row.querySelector('.ok2').addEventListener('click',e=>{ e.stopPropagation(); row.style.opacity=.3;
         V.say('Approved. '+a.action_type+' executing, sir.'); });
-      w.querySelector('.no2').addEventListener('click',e=>{ e.stopPropagation(); w.style.opacity=.3;
+      row.querySelector('.no2').addEventListener('click',e=>{ e.stopPropagation(); row.style.opacity=.3;
         V.say('Denied. '+a.action_type+' blocked.'); });
-      wrap.appendChild(w);
+      evtList.appendChild(row);
     });
-    return shell('security','PERMISSION GATE', wrap, 'security');
+
+    async function loadSecurity(){
+      try{
+        const r = await fetch(API+'/security/status');
+        const j = await r.json();
+        const threatEl = wrap.querySelector('.sec-threat');
+        if(threatEl){
+          const level = (j.threat_level||'LOW').toUpperCase();
+          threatEl.textContent = level;
+          threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':'var(--ok)';
+        }
+      }catch(e){ /* offline */ }
+      try{
+        const r2 = await fetch(API+'/security/recent?limit=5');
+        const j2 = await r2.json();
+        const events = j2.events || j2.results || (Array.isArray(j2)?j2:[]);
+        if(events.length){
+          evtList.innerHTML = '';
+          events.forEach(ev=>{
+            const level = (ev.level||ev.severity||'INFO').toUpperCase();
+            const isRed = level==='CRITICAL'||level==='RED';
+            const row = el('div','appr '+(isRed?'red':''),
+              `<div class="at">${ev.event_type||ev.type||ev.action||'event'}
+                 <span class="badge2 ${isRed?'crit':'high'}">${level}</span></div>
+               <div class="ap">${ev.description||ev.detail||ev.params||''}</div>`);
+            evtList.appendChild(row);
+          });
+        }
+      }catch(e2){ /* offline */ }
+    }
+
+    const w = shell('security','PERMISSION GATE', wrap, 'security');
+    loadSecurity();
+    setInterval(()=>{ if(w.isConnected) loadSecurity(); }, 10000);
+    return w;
   };
 
   F.memory = function(){
