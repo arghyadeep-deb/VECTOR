@@ -51,6 +51,7 @@ async def get_agent_endpoint(agent_id: str):
 
 
 async def _do_award(body: AgentAwardRequest) -> AgentAwardResponse:
+    agents_cache.invalidate()  # HP changed — next list_agents call will re-fetch
     result = award_agent(body.agent_id, body.points, body.reason)
     if result.get("status") == "not_found":
         raise HTTPException(status_code=404, detail=f"Agent not found: {body.agent_id}")
