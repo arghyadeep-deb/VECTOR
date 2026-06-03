@@ -11,7 +11,7 @@ __all__ = [
     "broadcast_event",
     "ConnectionManager",
     "manager",
-    "require_auth",
+    "require_auth_handshake",
     "router",
     "vector_ws",
     "vector_ws_state",
