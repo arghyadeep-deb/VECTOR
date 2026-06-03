@@ -440,16 +440,16 @@
       });
     }
 
-    // render demo data immediately
-    renderMemories(D.MEMORY||[]);
-
     async function loadMemory(){
       try{
         const r = await fetch(API+'/memory/recent?limit=20');
         const j = await r.json();
         const mems = j.memories || j.events || (Array.isArray(j)?j:[]);
         if(mems.length) renderMemories(mems);
-      }catch(e){ /* offline — demo data shown */ }
+        else wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }catch(e){
+        wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }
     }
 
     const w = shell('memory','EPISODIC MEMORY', wrap, 'memory');
