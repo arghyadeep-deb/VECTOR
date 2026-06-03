@@ -373,8 +373,11 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/metrics", tags=["observability"], response_class=__import__("fastapi").responses.PlainTextResponse)
-    async def prometheus_metrics():
-        """Prometheus-compatible metrics endpoint. Scrape at /metrics."""
+    async def prometheus_metrics(request: Request):
+        """Prometheus-compatible metrics endpoint. Scrape at /metrics (localhost only)."""
+        client_host = request.client.host if request.client else ""
+        if client_host not in ("127.0.0.1", "::1", "localhost"):
+            raise __import__("fastapi").HTTPException(status_code=403, detail="Metrics available from localhost only")
         lines = []
         try:
             from core.loop import autonomous_loop as _al_mod
