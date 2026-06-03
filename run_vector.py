@@ -189,6 +189,7 @@ def _start_sidecars() -> None:
             "name": "hyperframes",
             "cmd": ["node", "packages/producer/dist/server.js", "--port", "7421"],
             "cwd": str(Path(__file__).parent.parent / "GitHub" / "hyperframes-main"),
+            "health_url": "http://localhost:7421/health",
         },
         {
             "name": "LibreChat",
