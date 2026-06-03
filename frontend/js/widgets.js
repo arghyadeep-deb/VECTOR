@@ -169,19 +169,61 @@
 
   F.market = function(){
     const wrap = el('div');
-    const pts=[]; let y=60; for(let i=0;i<48;i++){ y+=(Math.random()-0.48)*10; y=Math.max(14,Math.min(96,y)); pts.push(y); }
-    const path = pts.map((p,i)=>`${(i/(pts.length-1)*340).toFixed(1)},${p.toFixed(1)}`).join(' ');
-    wrap.innerHTML = `
-      <svg viewBox="0 0 340 120" preserveAspectRatio="none">
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    // build demo SVG as initial placeholder
+    function demoSvg(){
+      const pts=[]; let y=60; for(let i=0;i<48;i++){ y+=(Math.random()-0.48)*10; y=Math.max(14,Math.min(96,y)); pts.push(y); }
+      const path = pts.map((p,i)=>`${(i/(pts.length-1)*340).toFixed(1)},${p.toFixed(1)}`).join(' ');
+      return `<svg viewBox="0 0 340 120" preserveAspectRatio="none">
         <defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="rgba(0,207,255,.35)"/><stop offset="1" stop-color="rgba(0,207,255,0)"/>
         </linearGradient></defs>
         <polygon points="0,120 ${path} 340,120" fill="url(#mg)"/>
         <polyline points="${path}" fill="none" stroke="var(--accent)" stroke-width="1.3"/>
-      </svg>
-      <div class="stat"><div><b>NIFTY 50</b> <span>24,318.40</span></div>
-        <div style="color:var(--ok)"><b>▲ 0.62%</b> <span>+150.2</span></div></div>`;
-    return shell('market','MARKET · NSE', wrap, 'market');
+      </svg>`;
+    }
+
+    wrap.innerHTML =
+      demoSvg() +
+      `<div class="stat">
+         <div><b class="mkt-name">NIFTY 50</b> <span class="mkt-price">—</span></div>
+         <div class="mkt-change" style="color:var(--txt-mute)">— · —</div>
+       </div>
+       <div class="mkt-news" style="font-size:9px;color:var(--txt-mute);margin-top:6px;line-height:1.5"></div>`;
+
+    async function loadMarket(){
+      try{
+        const r = await fetch(API+'/finance/ticker?symbol=NIFTY50');
+        const j = await r.json();
+        const priceEl = wrap.querySelector('.mkt-price');
+        const changeEl = wrap.querySelector('.mkt-change');
+        if(priceEl && j.price != null) priceEl.textContent = Number(j.price).toLocaleString('en-IN');
+        if(changeEl && j.change_pct != null){
+          const up = j.change_pct >= 0;
+          changeEl.textContent = (up?'▲ ':'▼ ')+Math.abs(j.change_pct).toFixed(2)+'%'
+            + (j.change != null ? '  +'+Number(j.change).toFixed(2) : '');
+          changeEl.style.color = up ? 'var(--ok)' : 'var(--danger)';
+        }
+      }catch(e){ /* backend offline — keep demo */ }
+    }
+
+    async function loadHeadlines(){
+      try{
+        const r = await fetch(API+'/news/headlines?limit=3');
+        const j = await r.json();
+        const items = j.headlines || j.results || [];
+        const newsEl = wrap.querySelector('.mkt-news');
+        if(newsEl && items.length)
+          newsEl.innerHTML = items.map(h=>`<div class="mkt-headline">· ${h.title||h.text||h}</div>`).join('');
+      }catch(e){ /* offline */ }
+    }
+
+    const w = shell('market','MARKET · NSE', wrap, 'market');
+    loadMarket();
+    loadHeadlines();
+    setInterval(()=>{ if(w.isConnected){ loadMarket(); loadHeadlines(); } }, 30000);
+    return w;
   };
 
   F.goals = function(){
