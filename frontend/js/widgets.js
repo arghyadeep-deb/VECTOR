@@ -132,11 +132,38 @@
       <div class="meter"><i data-vram-bar style="width:0"></i></div>
       <div class="row-kv" style="margin-top:6px"><span class="k">GPU TEMP</span><span class="v" data-temp>—</span></div>
       <div class="meter warn"><i data-temp-bar style="width:0"></i></div>
-      <div class="row-kv" style="margin-top:8px"><span class="k">ACTIVE MODEL</span><span class="v">claude-sonnet-4.6</span></div>
+      <div class="row-kv" style="margin-top:8px"><span class="k">ACTIVE MODEL</span><span class="v" data-model>claude-sonnet-4.6</span></div>
       <div class="row-kv"><span class="k">LOOP TICK</span><span class="v" data-tick>0</span></div>
       <div class="row-kv"><span class="k">UPTIME</span><span class="v" data-up>00:00:00</span></div>`;
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    const set=(sel,v)=>{ const e=wrap.querySelector(sel); if(e) e.textContent=v; };
+    const bar=(sel,v)=>{ const e=wrap.querySelector(sel); if(e) e.style.width=v+'%'; };
+
+    function fmtUptime(s){ s=Math.floor(s||0);
+      return [s/3600, s/60%60, s%60].map(n=>String(Math.floor(n)).padStart(2,'0')).join(':'); }
+
+    async function loadTelemetry(){
+      try{
+        const r = await fetch(API+'/health/system');
+        const j = await r.json();
+        const cpu = j.cpu_percent || 0;
+        const vram = j.memory_percent || 0;
+        const temp = j.gpu_temp || 0;
+        set('[data-cpu]', cpu.toFixed(0)+'%');   bar('[data-cpu-bar]', cpu);
+        set('[data-vram]', vram.toFixed(0)+'%');  bar('[data-vram-bar]', vram);
+        set('[data-temp]', temp ? temp.toFixed(0)+'°C' : '—');
+        bar('[data-temp-bar]', temp ? Math.max(0,(temp-40)/40*100) : 0);
+        if(j.loop_tick != null) set('[data-tick]', j.loop_tick);
+        if(j.uptime_seconds != null) set('[data-up]', fmtUptime(j.uptime_seconds));
+        if(j.active_model) set('[data-model]', j.active_model);
+      }catch(e){ /* backend offline — animate demo */ }
+    }
+
     const w = shell('telemetry','SYSTEM TELEMETRY', wrap, 'panel');
-    animateTelemetry(w);
+    loadTelemetry();
+    animateTelemetry(w);   // demo animation keeps running; real data overlays it when backend is up
+    setInterval(()=>{ if(w.isConnected) loadTelemetry(); }, 3000);
     return w;
   };
 
