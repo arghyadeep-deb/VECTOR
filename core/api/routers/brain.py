@@ -31,6 +31,7 @@ __all__ = [
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
+from core.api.cache import goals_cache
 
 router = APIRouter(prefix="/brain", tags=["brain"])
 
