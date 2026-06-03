@@ -206,12 +206,16 @@ def _start_sidecars() -> None:
             "cmd": ["npx", "-y", "@hyperframes/producer", "--port", "7421"],
             "cwd": str(Path(__file__).parent),  # cwd doesn't matter for npx
             "health_url": "http://localhost:7421/health",
+            # npx-based: skip cwd existence check; npx downloads on first run
+            "skip_cwd_check": True,
         },
         {
             "name": "open-webui",
             "cmd": ["uvicorn", "open_webui.main:app", "--host", "127.0.0.1", "--port", "8080"],
             "cwd": str(Path(__file__).parent),  # runs from VECTOR root; open-webui installed via pip
             "health_url": "http://127.0.0.1:8080/health",
+            # pip-based: only start if open_webui package is importable
+            "python_module_check": "open_webui",
         },
         {
             "name": "LibreChat",
