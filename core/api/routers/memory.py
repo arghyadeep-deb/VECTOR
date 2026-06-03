@@ -19,6 +19,7 @@ from loguru import logger
 
 from core.api.schemas import MemoryRecentResponse, GoalsResponse, CouncilHistoryResponse
 from core.api.crud import recall_episodes, get_immediate_actions, get_training_data
+from core.api.cache import memory_cache, goals_cache
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
