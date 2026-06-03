@@ -239,6 +239,8 @@ def create_app() -> FastAPI:
         content,
         # HUD Approvals Panel — gateway pending/approve/reject
         gateway,
+        # API key management
+        keys,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
