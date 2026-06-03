@@ -290,6 +290,10 @@ class AutoresearchRunner(AgentBase):
             "date": datetime.date.today().isoformat(),
         }
 
+        # Commit results to the experiment branch if one was created
+        if experiment_branch:
+            self._commit_experiment_result(experiment_branch, cycle_tag, summary)
+
         # RULE 8 — store reasoning chain
         try:
             self._get_memory().store_chain(
