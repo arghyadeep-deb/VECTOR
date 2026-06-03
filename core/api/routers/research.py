@@ -13,6 +13,7 @@ __all__ = [
 
 from fastapi import APIRouter
 from loguru import logger
+from core.api.cache import research_cache
 
 router = APIRouter(prefix="/research", tags=["research"])
 
