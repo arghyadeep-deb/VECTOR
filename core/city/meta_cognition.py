@@ -102,12 +102,13 @@ class MetaCognition:
             positive_signals = {"correct", "success", "confirmed", "accurate", "right", "yes"}
             accurate = 1 if any(s in outcome.lower() for s in positive_signals) else 0
         try:
-            self._conn.execute(
-                """INSERT INTO thoughts (id, thought, confidence, outcome, domain, accurate, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (tid, thought, confidence, outcome, domain, accurate, now),
-            )
-            self._conn.commit()
+            with self.__class__._db_lock:
+                self._conn.execute(
+                    """INSERT INTO thoughts (id, thought, confidence, outcome, domain, accurate, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (tid, thought, confidence, outcome, domain, accurate, now),
+                )
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][meta_cognition] observe persist failed: {e}")
 
