@@ -106,21 +106,22 @@ class AvatarState:
     def save(self) -> None:
         self.updated_at = datetime.now(timezone.utc).isoformat()
         try:
-            conn = self._get_conn()
-            conn.execute("""
-                INSERT OR REPLACE INTO avatar_state
-                (id, valence, arousal, dominance, presence_score, emotional_arc, updated_at)
-                VALUES (1, ?, ?, ?, ?, ?, ?)
-            """, (
-                round(self.valence, 4),
-                round(self.arousal, 4),
-                round(self.dominance, 4),
-                round(self.presence_score, 4),
-                json.dumps(self.emotional_arc[-10:]),  # keep last 10
-                self.updated_at,
-            ))
-            conn.commit()
-            conn.close()
+            with _avatar_db_lock:
+                conn = self._get_conn()
+                conn.execute("""
+                    INSERT OR REPLACE INTO avatar_state
+                    (id, valence, arousal, dominance, presence_score, emotional_arc, updated_at)
+                    VALUES (1, ?, ?, ?, ?, ?, ?)
+                """, (
+                    round(self.valence, 4),
+                    round(self.arousal, 4),
+                    round(self.dominance, 4),
+                    round(self.presence_score, 4),
+                    json.dumps(self.emotional_arc[-10:]),  # keep last 10
+                    self.updated_at,
+                ))
+                conn.commit()
+                conn.close()
             logger.debug("[VECTOR][avatar_state] saved (mood={})", self.mood_label)
         except Exception as e:
             logger.warning("[VECTOR][avatar_state] save failed: {}", e)
