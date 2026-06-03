@@ -313,9 +313,10 @@ def create_app() -> FastAPI:
         logger.warning(f"[VECTOR][api] web UI failed to mount: {_ui_err}")
 
     # ── VECTOR JARVIS HUD — vanilla JS frontend served at /hud/ ──────────────
+    # Uses explicit route handlers (not StaticFiles mount) so every request
+    # goes through FastAPI middleware (auth, rate-limiting, security headers).
     try:
-        from fastapi.staticfiles import StaticFiles
-        from fastapi.responses import FileResponse, RedirectResponse
+        from fastapi.responses import RedirectResponse
 
         _hud_dir = Path(__file__).parent.parent.parent / "frontend"
         _hud_html = _hud_dir / "VECTOR.html"
@@ -330,10 +331,29 @@ def create_app() -> FastAPI:
                 return FileResponse(str(_hud_html), media_type="text/html")
             return JSONResponse({"error": "HUD not found. Ensure frontend/VECTOR.html exists."}, status_code=404)
 
+        @app.get("/hud/{filepath:path}", include_in_schema=False)
+        async def hud_static(filepath: str = ""):
+            """Serve HUD static files — goes through auth middleware unlike StaticFiles mount."""
+            if not filepath or filepath == "/":
+                filepath = "VECTOR.html"
+            file_path = _hud_dir / filepath
+            # Prevent path traversal: resolved path must stay within _hud_dir
+            try:
+                file_path = file_path.resolve()
+                _hud_dir.resolve()
+                if not str(file_path).startswith(str(_hud_dir.resolve())):
+                    return JSONResponse({"error": "Forbidden"}, status_code=403)
+            except Exception:
+                return JSONResponse({"error": "Forbidden"}, status_code=403)
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(str(file_path))
+            # Default to VECTOR.html for client-side routing
+            if _hud_html.exists():
+                return FileResponse(str(_hud_html), media_type="text/html")
+            return JSONResponse({"error": "HUD not found"}, status_code=404)
+
         if _hud_dir.exists():
-            # Register specific sub-routes BEFORE the mount so /hud/ takes priority
-            app.mount("/hud", StaticFiles(directory=str(_hud_dir)), name="hud_static")
-            logger.info(f"[VECTOR][api] JARVIS HUD mounted at /hud/ from {_hud_dir}")
+            logger.info(f"[VECTOR][api] JARVIS HUD mounted at /hud/ from {_hud_dir} (auth-protected routes)")
         else:
             logger.warning("[VECTOR][api] frontend/ directory not found — HUD unavailable")
 
