@@ -33,6 +33,8 @@ class MetaCognition:
         "confirmation": "High-confidence thoughts cluster around the same conclusions",
     }
 
+    _db_lock = threading.Lock()
+
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             base = Path(__file__).parent.parent.parent / "data"
