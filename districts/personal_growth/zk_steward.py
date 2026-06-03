@@ -5,6 +5,11 @@ Reads Obsidian notes, extracts key concepts, finds non-obvious connections,
 inserts backlinks, and builds a living Master of Concepts index.
 Based on Niklas Luhmann's Zettelkasten method adapted for AI-assisted knowledge.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 import re

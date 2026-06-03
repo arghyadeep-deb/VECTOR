@@ -12,7 +12,13 @@ Governor routes:
   hedge_run, hedge_trade, solana_order, solana_execute,
   solana_holdings, token_search, token_price
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 import sys

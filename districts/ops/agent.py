@@ -4,7 +4,13 @@ OpsSwarm — orchestrates ops district Python agents.
 Wraps DevOpsAutomator, ErrorClassifier, IncidentCommander, SREMonitor
 into a unified dispatch interface for the SwarmOrchestrator.
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 from pathlib import Path

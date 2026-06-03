@@ -16,7 +16,13 @@ Usage:
     result = pub.publish_medium("My Title", "<h1>Hello</h1>", content_format="html")
     results = pub.publish_all("Title", "# Content", tags=["ai"])
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 __all__ = ["BlogPublisher", "PublishResult"]
 

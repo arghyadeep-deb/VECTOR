@@ -17,7 +17,13 @@ Usage (direct):
 Usage (governor):
     governor.dispatch({"type": "make_video", "params": {"topic": "AI in 2026", "niche": "AI"}})
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 import datetime

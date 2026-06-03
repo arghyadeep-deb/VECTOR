@@ -28,7 +28,7 @@ try {
 const swaggerDefinition = {
   openapi: '3.0.3',
   info: {
-    title: 'vector-stealth-browser',
+    title: 'camofox-browser',
     version,
     description:
       'Anti-detection browser automation server for AI agents. ' +

@@ -4,6 +4,11 @@ RapidPrototyper — Ultra-fast proof-of-concept development.
 Selects fastest viable tech, generates boilerplate, focuses on validating
 the core assumption in minimum time.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 

@@ -4,7 +4,13 @@ CodingSwarm — orchestrates coding district agents (.md prompts + Python agents
 Loads 10 .md prompt agents and wraps 14 Python AgentBase subclasses into
 a unified dispatch. Routes tasks by keyword matching across all specialists.
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 from pathlib import Path

@@ -1,5 +1,5 @@
 /**
- * Cookie file reading and parsing for vector-stealth-browser.
+ * Cookie file reading and parsing for camofox-browser.
  */
 
 import fs from 'fs/promises';

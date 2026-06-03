@@ -3,6 +3,11 @@ SRE Monitor — District: ops
 Tracks VECTOR's own system health, computes SLO, runs chaos probes,
 and writes Obsidian SLO reports. RULE 11: no Claude API at runtime.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import datetime

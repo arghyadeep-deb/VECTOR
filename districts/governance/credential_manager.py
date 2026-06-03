@@ -5,6 +5,11 @@ Wraps vectorcode/src/agent/credential_pool.py concept.
 Manages API keys for Gemini, Anthropic, OpenRouter, Bedrock.
 Reports which providers are live, which are exhausted, handles key rotation.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import os
 import datetime

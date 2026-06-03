@@ -1,5 +1,5 @@
 /**
- * Shared auth middleware for vector-stealth-browser.
+ * Shared auth middleware for camofox-browser.
  *
  * Extracts the duplicated auth pattern from cookie/storage_state endpoints
  * into a reusable Express middleware factory.
@@ -123,7 +123,7 @@ export function accessKeyMiddleware(config) {
     const token = match ? match[1]?.trim() : null;
     if (!token || !timingSafeCompare(token, config.accessKey)) {
       return res.status(401)
-        .set('WWW-Authenticate', 'Bearer realm="vector-stealth"')
+        .set('WWW-Authenticate', 'Bearer realm="camofox"')
         .json({ error: 'Unauthorized' });
     }
     next();

@@ -1,3 +1,8 @@
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import uuid
 import asyncio
@@ -28,11 +33,20 @@ class VoiceResponder(AgentBase):
         if ghost:
             self.inherit_ghost(ghost)
 
+        self._ensure_legacy_event_loop()
         self._voice_config = CONFIG.get("voice", {})
         self._kokoro_dir = Path(self._voice_config.get("kokoro_model_dir", "./models/kokoro"))
         self._tts_available = self._check_tts()
         self._response_history: list[dict] = []
         logger.info(f"[VECTOR][voice_responder] VoiceResponder initialized - TTS: {self._tts_available}")
+
+    @staticmethod
+    def _ensure_legacy_event_loop() -> None:
+        """Keep sync callers using get_event_loop().run_until_complete() working."""
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
 
     def _check_tts(self) -> bool:
         """Check if TTS (Kokoro) is available."""

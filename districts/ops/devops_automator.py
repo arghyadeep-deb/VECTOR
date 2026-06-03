@@ -5,6 +5,11 @@ cleans large logs, and backs up the memory DB.
 RULE 3: restart actions go through permission_gateway (YELLOW tier).
 RULE 11: no Claude API at runtime.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import datetime

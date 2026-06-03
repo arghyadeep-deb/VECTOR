@@ -4,6 +4,11 @@ Content Creator — editorial calendar, blog posts, newsletters, content repurpo
 Generates long-form content for VECTOR's presence, Arghyadeep's personal brand,
 and any client content managed via the agency district.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 import json

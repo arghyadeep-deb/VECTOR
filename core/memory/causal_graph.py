@@ -5,10 +5,12 @@ Persisted to the shared episodic SQLite DB (causal_nodes + causal_edges tables).
 BFS path-finding. Influence scoring.
 """
 import json
+import sqlite3
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from loguru import logger
 
@@ -21,7 +23,10 @@ class CausalGraph:
     """
 
     def __init__(self, json_path: Optional[str] = None):
-        # json_path kept for backwards-compat but ignored; SQLite is used instead
+        # A supplied json_path represents an isolated graph namespace. Production
+        # callers without a path continue to use the shared episodic SQLite DB.
+        self._json_path = str(json_path) if json_path else None
+        self._local_conn: sqlite3.Connection | None = None
         self._nodes: dict[str, dict] = {}
         self._edges: list[dict] = []
         self._adj: dict[str, list[str]] = defaultdict(list)
@@ -36,6 +41,15 @@ class CausalGraph:
     # ── DB setup ────────────────────────────────────────────────────────────
 
     def _conn(self):
+        if self._json_path:
+            if self._local_conn is None:
+                namespace = quote(str(Path(self._json_path).resolve()), safe="")
+                self._local_conn = sqlite3.connect(
+                    f"file:vector_causal_graph_{namespace}?mode=memory&cache=shared",
+                    uri=True,
+                    check_same_thread=False,
+                )
+            return self._local_conn
         from core.memory.episodic import get_db_connection
         return get_db_connection()
 

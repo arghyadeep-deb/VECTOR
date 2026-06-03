@@ -1,5 +1,5 @@
 /**
- * Download capture and DOM image extraction for vector-stealth-browser.
+ * Download capture and DOM image extraction for camofox-browser.
  *
  * Handles Playwright download events, temp file lifecycle, and
  * in-page image source extraction with optional inline data.

@@ -149,6 +149,8 @@
     // /ws/state — event bus bridge
     openWS('state', wsbase+'/ws/state', d=>{
       if(d.type==='state_event') emit('state_event', d);
+      else if(d.type==='decision_made') emit('decision_made', d);
+      else if(d.type==='hypothesis_surfaced') emit('hypothesis_surfaced', d);
     });
     // /ws/voice/stream — transcript/response/audio
     openWS('voice', wsbase+'/ws/voice/stream', d=>{

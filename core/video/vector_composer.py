@@ -264,6 +264,34 @@ class VectorComposer:
             result = await self.render(job)
             return result.output_path
 
+    async def generate_video_from_prompt(
+        self,
+        prompt: str,
+        image_path: str | None = None,
+        audio_path: str | None = None,
+        duration: int = 5,
+        output_path: str | None = None,
+    ) -> str | None:
+        """
+        Generate video from text prompt using VideoProviderRegistry.
+        Chain: SadTalker → RunwayML → Pika. Falls back gracefully.
+        """
+        try:
+            from core.media.video_provider_registry import VideoProviderRegistry
+            registry = VideoProviderRegistry()
+            result = await registry.generate(
+                prompt=prompt,
+                image_path=image_path,
+                audio_path=audio_path,
+                duration=duration,
+            )
+            if result:
+                logger.info("[VECTOR][composer] Video generated via registry: {}", result)
+            return result
+        except Exception as e:
+            logger.warning("[VECTOR][composer] video_provider_registry failed: {}", e)
+            return None
+
     async def _mix_audio(
         self,
         job: ComposerJob,

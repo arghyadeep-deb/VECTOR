@@ -5,6 +5,11 @@ Wraps vectorcode/src/agent/usage_pricing.py concept.
 Tracks per-district token consumption, costs by provider, budget alerts.
 Plugs into vectorcode_llm's session usage accumulator.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 

@@ -4,6 +4,11 @@ MinimalChangeEngineer — Enforces minimum-viable diffs.
 Reads files, identifies the smallest change that satisfies the requirement,
 flags scope creep, refuses to expand beyond task scope.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import re
 import ast

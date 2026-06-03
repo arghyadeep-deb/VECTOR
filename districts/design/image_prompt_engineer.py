@@ -5,6 +5,11 @@ Generates photography-grade prompts for ComfyUI/Stable Diffusion/Midjourney
 optimized for VECTOR's content district. Translates visual concepts into
 precise language with style, lighting, composition, and technical parameters.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import json
 import re

@@ -21,3 +21,22 @@ window.VECTOR_CONFIG = {
   // Set false to ignore everything above and force offline demo mode.
   autoConnect: true
 };
+
+// Compatibility alias for older widgets that read VECTOR_CFG.api.
+window.VECTOR_CFG = window.VECTOR_CFG || {};
+Object.defineProperty(window.VECTOR_CFG, 'api', {
+  configurable: true,
+  get() {
+    return (window.VECTOR && window.VECTOR.config && window.VECTOR.config.base)
+      || window.VECTOR_CONFIG.base
+      || '';
+  }
+});
+Object.defineProperty(window.VECTOR_CFG, 'ws', {
+  configurable: true,
+  get() {
+    return (window.VECTOR && window.VECTOR.config && window.VECTOR.config.ws)
+      || window.VECTOR_CONFIG.ws
+      || '';
+  }
+});

@@ -4,6 +4,11 @@ Experiment Tracker — manages A/B experiments on VECTOR's own behaviors.
 Tracks hypotheses, runs controlled experiments, measures outcomes,
 and generates evidence-based recommendations for improving VECTOR.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 import json

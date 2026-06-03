@@ -4,6 +4,11 @@ FP&A Analyst — rolling forecasts, variance analysis, OKR-linked budgeting.
 Financial Planning & Analysis for Arghyadeep's projects and agency work.
 Bridges numbers to business narrative — month-end close, forecast vs actuals.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import json
 import re

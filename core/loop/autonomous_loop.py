@@ -732,337 +732,341 @@ class AutonomousLoop:
         RULE 3 Ã¢â‚¬— LLM zero direct access. All through gateway.
         RULE 7 Ã¢â‚¬— update_from_outcome() AFTER every action.
         """
-        await self._publish_event(EventType.AGENT_STATE_CHANGED, {
-            "action_type": winner.action_type,
-            "state": "acting",
-            "score": winner.total_score,
-        })
+        self._active_task_count += 1
+        try:
+            await self._publish_event(EventType.AGENT_STATE_CHANGED, {
+                "action_type": winner.action_type,
+                "state": "acting",
+                "score": winner.total_score,
+            })
 
-        # Proactive (anticipation / vision) actions surface as owner nudges, never
-        # auto-execute. Route straight to the gateway (GREEN → nudge) and skip the
-        # governor, which would mis-route them to a district agent.
-        if winner.action_type.startswith("proactive_"):
-            try:
-                gw = self._get_gateway()
-                if gw is not None:
-                    from core.loop.permission_gateway import Action as _GWAction
-                    _res = await gw.execute(_GWAction(
-                        action_type=winner.action_type,
-                        params=winner.params,
-                        proposed_by=winner.source or "anticipation",
-                    ))
-                    logger.info(
-                        "[VECTOR][act] proactive '{}' surfaced (status={})",
-                        winner.action_type, _res.result.get("status") if _res.result else "?",
-                    )
-            except Exception as _pa_err:
-                logger.debug("[VECTOR][act] proactive surfacing skipped: {}", _pa_err)
-            return
-
-        # VectorCode routing Ã¢â‚¬— coding actions go through permission_gateway first, then bridge
-        # RULE 3: LLM has ZERO direct access Ã¢â‚¬— gateway always gates, even for VectorCode tasks
-        _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
-        if winner.action_type in _VC_ACTION_TYPES:
-            try:
-                # RULE 3: gate through permission_gateway before executing
-                gw = self._get_gateway()
-                if gw is not None:
-                    _level = gw.classify(winner.action_type)
-                    if _level == "FORBIDDEN":
-                        logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' is FORBIDDEN — blocked")
-                        return
-                    if _level == "RED":
+            # Proactive (anticipation / vision) actions surface as owner nudges, never
+            # auto-execute. Route straight to the gateway (GREEN → nudge) and skip the
+            # governor, which would mis-route them to a district agent.
+            if winner.action_type.startswith("proactive_"):
+                try:
+                    gw = self._get_gateway()
+                    if gw is not None:
                         from core.loop.permission_gateway import Action as _GWAction
-                        _gw_result = await gw.execute(_GWAction(
+                        _res = await gw.execute(_GWAction(
                             action_type=winner.action_type,
                             params=winner.params,
-                            proposed_by="think_loop",
+                            proposed_by=winner.source or "anticipation",
                         ))
-                        if not _gw_result.approved:
-                            logger.warning(f"[VECTOR][act] RED VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
-                            return
-                    # GREEN / YELLOW / UNKNOWN → proceed to bridge
-                from districts.coding.vectorcode_bridge import get_bridge
-                bridge = get_bridge()
-                if bridge.is_available():
-                    vc_result = await bridge.run_task(
-                        winner.params.get("title", winner.action_type),
-                        mode="run",
-                    )
-                    reward = 0.8 if vc_result.get("status") == "ok" else 0.3
-                    pm = self._get_policy()
-                    sk = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
-                    h = hashlib.sha256(sk.encode()).hexdigest()[:12]
-                    pm.update_from_outcome(winner.action_type, h, reward)
-                    logger.info(f"[VECTOR][act] VectorCode {winner.action_type} Ã¢â€ ’ {vc_result.get('status')} reward={reward}")
-                    return
-            except Exception as _vc_err:
-                logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} Ã¢â‚¬— falling through to governor")
-
-        # Gap 17: SwarmCoordinator Ã¢â‚¬— for multi-agent actions, coordinate via swarm
-        # before dispatching to the governor. Only activates when action_type
-        # suggests multi-agent work (research, analysis, complex coding).
-        _SWARM_ACTION_TYPES = {"research", "deep_research", "analyze", "code_task", "code_generate"}
-        if winner.action_type in _SWARM_ACTION_TYPES:
-            try:
-                from vectorcode.src.swarm import SwarmCoordinator, Topology
-                from core.city.agent_registry import get_registry
-                reg = get_registry()
-                alive_agents = [a for a in reg.list_all() if a.get("is_alive")]
-                if len(alive_agents) >= 3:
-                    swarm = SwarmCoordinator(topology=Topology.ADAPTIVE)
-                    for a in alive_agents[:8]:  # cap at 8 to avoid overhead
-                        swarm.register_agent(
-                            agent_id=a["id"],
-                            hp=a.get("health_points", 500),
-                            district=a.get("district", ""),
-                        )
-                    consensus = swarm.propose(
-                        action_type=winner.action_type,
-                        params=winner.params,
-                        proposer_id="autonomous_loop",
-                    )
-                    if consensus and not consensus.get("approved", True):
                         logger.info(
-                            f"[VECTOR][swarm] action '{winner.action_type}' rejected by swarm "
-                            f"({consensus.get('reason', 'no consensus')})"
+                            "[VECTOR][act] proactive '{}' surfaced (status={})",
+                            winner.action_type, _res.result.get("status") if _res.result else "?",
                         )
-                        return
-                    logger.debug(f"[VECTOR][swarm] {winner.action_type} approved by swarm")
-            except Exception as _sw_err:
-                logger.debug(f"[VECTOR][swarm] coordination skipped: {_sw_err}")
-
-        # Gap 17: Comms Ã¢â‚¬— broadcast action result to configured channels after execution.
-        # This is done post-execution (see _broadcast_result below).
-
-        # Gap 4: CounterfactualMemory -- block proposals similar to past rejections
-        try:
-            from core.memory.counterfactual import CounterfactualMemory
-            _proposal = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
-            _cf = CounterfactualMemory()
-            _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
-            if _should_avoid and _cf_score > 0.7:
-                logger.warning(
-                    "[VECTOR][counterfactual] action '{}' blocked (score={:.2f}): {}",
-                    winner.action_type, _cf_score, _cf_reason[:80],
-                )
-                _cf.record_rejection(
-                    decision_id=winner.action_type,
-                    proposal=_proposal,
-                    reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
-                )
+                except Exception as _pa_err:
+                    logger.debug("[VECTOR][act] proactive surfacing skipped: {}", _pa_err)
                 return
-            elif 0.4 < _cf_score <= 0.7 and _cf_reason:
-                logger.info(
-                    "[VECTOR][counterfactual] caution for '{}' (score={:.2f}): {}",
-                    winner.action_type, _cf_score, _cf_reason[:80],
-                )
-                winner.params = {**winner.params, "_cf_caution": _cf_reason[:120]}
-        except Exception as _cf_err:
-            logger.debug("[VECTOR][counterfactual] check skipped: {}", _cf_err)
 
-        # ThreatDetector: scan action description before execution (guidance.py)
-        action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
-        if self._scan_threats(action_desc, context="act"):
-            logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
-            return
-
-        # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
-        _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
-        if winner.action_type in _RED_ACTION_TYPES:
-            red_team = self._get_red_team()
-            if red_team is not None:
+            # VectorCode routing Ã¢â‚¬— coding actions go through permission_gateway first, then bridge
+            # RULE 3: LLM has ZERO direct access Ã¢â‚¬— gateway always gates, even for VectorCode tasks
+            _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
+            if winner.action_type in _VC_ACTION_TYPES:
                 try:
-                    review = red_team.attack_plan({
-                        "action_type": winner.action_type,
-                        "params": winner.params,
-                        "goal_ids": winner.goal_ids,
-                        "score": winner.total_score,
-                    })
-                    verdict = str(review.get("verdict", "APPROVED")).upper()
-                    if verdict.startswith("BLOCKED"):
-                        logger.warning(
-                            f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
-                            f"{review.get('reason', 'adversarial review failed')}"
+                    # RULE 3: gate through permission_gateway before executing
+                    gw = self._get_gateway()
+                    if gw is not None:
+                        _level = gw.classify(winner.action_type)
+                        if _level == "FORBIDDEN":
+                            logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' is FORBIDDEN — blocked")
+                            return
+                        if _level == "RED":
+                            from core.loop.permission_gateway import Action as _GWAction
+                            _gw_result = await gw.execute(_GWAction(
+                                action_type=winner.action_type,
+                                params=winner.params,
+                                proposed_by="think_loop",
+                            ))
+                            if not _gw_result.approved:
+                                logger.warning(f"[VECTOR][act] RED VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
+                                return
+                        # GREEN / YELLOW / UNKNOWN → proceed to bridge
+                    from districts.coding.vectorcode_bridge import get_bridge
+                    bridge = get_bridge()
+                    if bridge.is_available():
+                        vc_result = await bridge.run_task(
+                            winner.params.get("title", winner.action_type),
+                            mode="run",
                         )
+                        reward = 0.8 if vc_result.get("status") == "ok" else 0.3
+                        pm = self._get_policy()
+                        sk = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
+                        h = hashlib.sha256(sk.encode()).hexdigest()[:12]
+                        pm.update_from_outcome(winner.action_type, h, reward)
+                        logger.info(f"[VECTOR][act] VectorCode {winner.action_type} Ã¢â€ ’ {vc_result.get('status')} reward={reward}")
                         return
-                    elif verdict.startswith("MODIFY"):
-                        logger.info(
-                            f"[VECTOR][red_team] RED action '{winner.action_type}' MODIFIED: "
-                            f"{review.get('modification', '')}"
-                        )
-                        # Apply suggested modification to params if provided
-                        if "modified_params" in review:
-                            winner.params = {**winner.params, **review["modified_params"]}
-                    else:
-                        logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
-                except Exception as rte:
-                    logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
+                except Exception as _vc_err:
+                    logger.warning(f"[VECTOR][act] VectorCode routing failed: {_vc_err} Ã¢â‚¬— falling through to governor")
 
-        try:
-            # Phase 3B: check VectorCode Skills system before governor dispatch
-            # If a skill matches with confidence > 0.6, execute via skills and skip governor.
-            _skill_executed = False
-            try:
-                from vectorcode.src.skills.manager import SkillManager
-                sm = SkillManager()
-                skills = sm.match(action_type=winner.action_type, params=winner.params)
-                skill = skills[0] if skills else None
-                if skill and skill.confidence > 0.6:
-                    skill_result = sm.execute(skill.name, winner.params)
-                    if skill_result and getattr(skill_result, "status", None) != "error":
-                        result = {"status": "ok", "skill": skill.name}
-                        _skill_executed = True
-                        logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{skill.name}' (conf={skill.confidence:.2f})")
-            except Exception as _sk_err:
-                logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
-
-            if not _skill_executed:
-                result = await self._get_governor().dispatch({
-                    "type": winner.action_type,
-                    "params": winner.params,
-                    "source": "autonomous_loop",
-                })
-
-            # Check for real user feedback in episodic memory (RULE 7 Ã¢â‚¬— real outcomes)
-            user_feedback = self._get_recent_feedback(winner.action_type)
-
-            # 5-factor RL reward (Architecture.md spec):
-            completed = 1.0 if result.get("status") in ("ok", "executed") else 0.0
-            goal_progress = float(result.get("goal_progress", 0.5))
-            not_overridden = 0.0 if result.get("overridden") else 1.0
-            not_corrected = 0.0 if result.get("corrected") else 1.0
-            # Use real user feedback if available, else estimate from result
-            if user_feedback is not None:
-                uf = user_feedback
-            else:
-                uf = 0.7 if completed else 0.3
-
-            reward = (
-                uf * 0.40
-                + goal_progress * 0.25
-                + not_overridden * 0.15
-                + not_corrected * 0.15
-                + completed * 0.05
-            )
-
-            pm = self._get_policy()
-            situation_key = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
-            h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
-            pm.update_from_outcome(winner.action_type, h, reward)
-
-            # Goal feedback loop: a successful action on a linked goal advances its progress.
-            # Reward-scaled increment so high-reward outcomes move the goal more.
-            if winner.goal_ids and completed >= 1.0:
+            # Gap 17: SwarmCoordinator Ã¢â‚¬— for multi-agent actions, coordinate via swarm
+            # before dispatching to the governor. Only activates when action_type
+            # suggests multi-agent work (research, analysis, complex coding).
+            _SWARM_ACTION_TYPES = {"research", "deep_research", "analyze", "code_task", "code_generate"}
+            if winner.action_type in _SWARM_ACTION_TYPES:
                 try:
-                    gs = self._get_goals()
-                    _increment = round(0.10 * reward, 3)  # up to +0.10 per successful action
-                    for _gid in winner.goal_ids:
-                        _goal = next((g for g in gs.get_active_goals() if g["id"] == _gid), None)
-                        if _goal is not None:
-                            _new_progress = min(1.0, _goal.get("progress", 0.0) + _increment)
-                            gs.update_goal_progress(
-                                _gid, _new_progress,
-                                note=f"+{_increment} from {winner.action_type} (reward={reward:.2f})",
+                    from vectorcode.src.swarm import SwarmCoordinator, Topology
+                    from core.city.agent_registry import get_registry
+                    reg = get_registry()
+                    alive_agents = [a for a in reg.list_all() if a.get("is_alive")]
+                    if len(alive_agents) >= 3:
+                        swarm = SwarmCoordinator(topology=Topology.ADAPTIVE)
+                        for a in alive_agents[:8]:  # cap at 8 to avoid overhead
+                            swarm.register_agent(
+                                agent_id=a["id"],
+                                hp=a.get("health_points", 500),
+                                district=a.get("district", ""),
                             )
+                        consensus = swarm.propose(
+                            action_type=winner.action_type,
+                            params=winner.params,
+                            proposer_id="autonomous_loop",
+                        )
+                        if consensus and not consensus.get("approved", True):
                             logger.info(
-                                "[VECTOR][goal] '{}' progress {:.2f} → {:.2f} (+{} via {})",
-                                _gid, _goal.get("progress", 0.0), _new_progress, _increment, winner.action_type,
+                                f"[VECTOR][swarm] action '{winner.action_type}' rejected by swarm "
+                                f"({consensus.get('reason', 'no consensus')})"
                             )
-                except Exception as _gp_err:
-                    logger.warning("[VECTOR][goal] progress update suppressed: {}", _gp_err)
+                            return
+                        logger.debug(f"[VECTOR][swarm] {winner.action_type} approved by swarm")
+                except Exception as _sw_err:
+                    logger.debug(f"[VECTOR][swarm] coordination skipped: {_sw_err}")
 
-            # Gap 6: record action -> outcome causal edge so the graph populates over time
+            # Gap 17: Comms Ã¢â‚¬— broadcast action result to configured channels after execution.
+            # This is done post-execution (see _broadcast_result below).
+
+            # Gap 4: CounterfactualMemory -- block proposals similar to past rejections
             try:
-                from core.memory.causal_graph import CausalGraph
-                _cg = CausalGraph()
-                _action_id = f"action:{winner.action_type}"
-                _outcome_id = f"outcome:{result.get('status', 'unknown')}"
-                if _cg.get_node(_action_id) is None:
-                    _cg.add_node(_action_id, "action", winner.action_type)
-                if _cg.get_node(_outcome_id) is None:
-                    _cg.add_node(_outcome_id, "outcome", result.get("status", "unknown"))
-                _cg.add_edge(_action_id, _outcome_id, strength=max(0.0, min(1.0, reward)), label="action_outcome")
-            except Exception as _cg_err:
-                logger.warning("[VECTOR][loop] causal_graph record suppressed: {}", _cg_err)
+                from core.memory.counterfactual import CounterfactualMemory
+                _proposal = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+                _cf = CounterfactualMemory()
+                _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
+                if _should_avoid and _cf_score > 0.7:
+                    logger.warning(
+                        "[VECTOR][counterfactual] action '{}' blocked (score={:.2f}): {}",
+                        winner.action_type, _cf_score, _cf_reason[:80],
+                    )
+                    _cf.record_rejection(
+                        decision_id=winner.action_type,
+                        proposal=_proposal,
+                        reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
+                    )
+                    return
+                elif 0.4 < _cf_score <= 0.7 and _cf_reason:
+                    logger.info(
+                        "[VECTOR][counterfactual] caution for '{}' (score={:.2f}): {}",
+                        winner.action_type, _cf_score, _cf_reason[:80],
+                    )
+                    winner.params = {**winner.params, "_cf_caution": _cf_reason[:120]}
+            except Exception as _cf_err:
+                logger.debug("[VECTOR][counterfactual] check skipped: {}", _cf_err)
+
+            # ThreatDetector: scan action description before execution (guidance.py)
+            action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+            if self._scan_threats(action_desc, context="act"):
+                logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
+                return
+
+            # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
+            _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
+            if winner.action_type in _RED_ACTION_TYPES:
+                red_team = self._get_red_team()
+                if red_team is not None:
+                    try:
+                        review = red_team.attack_plan({
+                            "action_type": winner.action_type,
+                            "params": winner.params,
+                            "goal_ids": winner.goal_ids,
+                            "score": winner.total_score,
+                        })
+                        verdict = str(review.get("verdict", "APPROVED")).upper()
+                        if verdict.startswith("BLOCKED"):
+                            logger.warning(
+                                f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
+                                f"{review.get('reason', 'adversarial review failed')}"
+                            )
+                            return
+                        elif verdict.startswith("MODIFY"):
+                            logger.info(
+                                f"[VECTOR][red_team] RED action '{winner.action_type}' MODIFIED: "
+                                f"{review.get('modification', '')}"
+                            )
+                            # Apply suggested modification to params if provided
+                            if "modified_params" in review:
+                                winner.params = {**winner.params, **review["modified_params"]}
+                        else:
+                            logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
+                    except Exception as rte:
+                        logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
 
             try:
-                from core.loop.loop_state import save_decision
-                save_decision(winner.action_type, winner.params, winner.total_score)
-            except Exception as _sd_err:
-                logger.warning("[VECTOR][loop] save_decision suppressed: {}", _sd_err)
+                # Phase 3B: check VectorCode Skills system before governor dispatch
+                # If a skill matches with confidence > 0.6, execute via skills and skip governor.
+                _skill_executed = False
+                try:
+                    from vectorcode.src.skills.manager import SkillManager
+                    sm = SkillManager()
+                    skills = sm.match(action_type=winner.action_type, params=winner.params)
+                    skill = skills[0] if skills else None
+                    if skill and skill.confidence > 0.6:
+                        skill_result = sm.execute(skill.name, winner.params)
+                        if skill_result and getattr(skill_result, "status", None) != "error":
+                            result = {"status": "ok", "skill": skill.name}
+                            _skill_executed = True
+                            logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{skill.name}' (conf={skill.confidence:.2f})")
+                except Exception as _sk_err:
+                    logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
 
-            if winner.reasoning_chain:
-                self._get_memory().store_chain(
-                    situation=json.dumps(winner.situation) if winner.situation else winner.action_type,
-                    goal_ids=winner.goal_ids,
-                    steps=winner.reasoning_chain,
-                    action=winner.action_type,
-                    outcome=f"status={result.get('status')} reward={reward}",
-                    reward=reward,
+                if not _skill_executed:
+                    result = await self._get_governor().dispatch({
+                        "type": winner.action_type,
+                        "params": winner.params,
+                        "source": "autonomous_loop",
+                    })
+
+                # Check for real user feedback in episodic memory (RULE 7 Ã¢â‚¬— real outcomes)
+                user_feedback = self._get_recent_feedback(winner.action_type)
+
+                # 5-factor RL reward (Architecture.md spec):
+                completed = 1.0 if result.get("status") in ("ok", "executed") else 0.0
+                goal_progress = float(result.get("goal_progress", 0.5))
+                not_overridden = 0.0 if result.get("overridden") else 1.0
+                not_corrected = 0.0 if result.get("corrected") else 1.0
+                # Use real user feedback if available, else estimate from result
+                if user_feedback is not None:
+                    uf = user_feedback
+                else:
+                    uf = 0.7 if completed else 0.3
+
+                reward = (
+                    uf * 0.40
+                    + goal_progress * 0.25
+                    + not_overridden * 0.15
+                    + not_corrected * 0.15
+                    + completed * 0.05
                 )
 
-            try:
-                from core.training.data_collector import DataCollector
-                DataCollector().record(
-                    input_text=f"{winner.action_type}: {json.dumps(winner.params, default=str)}",
-                    output_text=json.dumps(result.get("data", {}), default=str),
-                    reward=reward,
-                    metadata={"source": "autonomous_loop", "goal_ids": winner.goal_ids}
-                )
-            except Exception: logger.debug("[VECTOR][loop] exception suppressed")
+                pm = self._get_policy()
+                situation_key = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
+                h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
+                pm.update_from_outcome(winner.action_type, h, reward)
 
-            self._capture_trace("act", {
-                "action": winner.action_type,
-                "result": result.get("status"),
-                "reward": reward,
-                "goal_ids": winner.goal_ids,
-            })
-            if result.get("status") in ("ok", "executed"):
-                await self._publish_event(EventType.TASK_COMPLETED, {
-                    "action_type": winner.action_type,
+                # Goal feedback loop: a successful action on a linked goal advances its progress.
+                # Reward-scaled increment so high-reward outcomes move the goal more.
+                if winner.goal_ids and completed >= 1.0:
+                    try:
+                        gs = self._get_goals()
+                        _increment = round(0.10 * reward, 3)  # up to +0.10 per successful action
+                        for _gid in winner.goal_ids:
+                            _goal = next((g for g in gs.get_active_goals() if g["id"] == _gid), None)
+                            if _goal is not None:
+                                _new_progress = min(1.0, _goal.get("progress", 0.0) + _increment)
+                                gs.update_goal_progress(
+                                    _gid, _new_progress,
+                                    note=f"+{_increment} from {winner.action_type} (reward={reward:.2f})",
+                                )
+                                logger.info(
+                                    "[VECTOR][goal] '{}' progress {:.2f} → {:.2f} (+{} via {})",
+                                    _gid, _goal.get("progress", 0.0), _new_progress, _increment, winner.action_type,
+                                )
+                    except Exception as _gp_err:
+                        logger.warning("[VECTOR][goal] progress update suppressed: {}", _gp_err)
+
+                # Gap 6: record action -> outcome causal edge so the graph populates over time
+                try:
+                    from core.memory.causal_graph import CausalGraph
+                    _cg = CausalGraph()
+                    _action_id = f"action:{winner.action_type}"
+                    _outcome_id = f"outcome:{result.get('status', 'unknown')}"
+                    if _cg.get_node(_action_id) is None:
+                        _cg.add_node(_action_id, "action", winner.action_type)
+                    if _cg.get_node(_outcome_id) is None:
+                        _cg.add_node(_outcome_id, "outcome", result.get("status", "unknown"))
+                    _cg.add_edge(_action_id, _outcome_id, strength=max(0.0, min(1.0, reward)), label="action_outcome")
+                except Exception as _cg_err:
+                    logger.warning("[VECTOR][loop] causal_graph record suppressed: {}", _cg_err)
+
+                try:
+                    from core.loop.loop_state import save_decision
+                    save_decision(winner.action_type, winner.params, winner.total_score)
+                except Exception as _sd_err:
+                    logger.warning("[VECTOR][loop] save_decision suppressed: {}", _sd_err)
+
+                if winner.reasoning_chain:
+                    self._get_memory().store_chain(
+                        situation=json.dumps(winner.situation) if winner.situation else winner.action_type,
+                        goal_ids=winner.goal_ids,
+                        steps=winner.reasoning_chain,
+                        action=winner.action_type,
+                        outcome=f"status={result.get('status')} reward={reward}",
+                        reward=reward,
+                    )
+
+                try:
+                    from core.training.data_collector import DataCollector
+                    DataCollector().record(
+                        input_text=f"{winner.action_type}: {json.dumps(winner.params, default=str)}",
+                        output_text=json.dumps(result.get("data", {}), default=str),
+                        reward=reward,
+                        metadata={"source": "autonomous_loop", "goal_ids": winner.goal_ids}
+                    )
+                except Exception: logger.debug("[VECTOR][loop] exception suppressed")
+
+                self._capture_trace("act", {
+                    "action": winner.action_type,
+                    "result": result.get("status"),
                     "reward": reward,
                     "goal_ids": winner.goal_ids,
                 })
-            else:
-                await self._publish_event(EventType.TASK_FAILED, {
-                    "action_type": winner.action_type,
-                    "status": result.get("status"),
-                    "goal_ids": winner.goal_ids,
-                })
-            logger.info(
-                f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
-                + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
-            )
-            # Gap 17: Comms broadcast Ã¢â‚¬— notify configured channels when a significant
-            # action completes. Only fires for YELLOW/RED-tier actions to avoid spam.
-            _NOTIFY_ACTION_TYPES = {"send_message_routine", "commit_code", "create_calendar_event",
-                                    "send_email", "deploy_production", "financial_transaction"}
-            if winner.action_type in _NOTIFY_ACTION_TYPES and result.get("status") == "ok":
-                try:
-                    from vectorcode.src.comms.platform_adapters import PlatformAdapters
-                    adapters = PlatformAdapters()
-                    msg = result.get("message") or f"VECTOR completed: {winner.action_type}"
-                    await adapters.broadcast(msg, channels=["telegram", "discord"], priority="low")
-                except Exception as _comms_err:
-                    logger.debug(f"[VECTOR][comms] broadcast skipped: {_comms_err}")
-        except Exception as e:
-            await self._publish_event(EventType.SYSTEM_ERROR, {
-                "action_type": getattr(winner, "action_type", "unknown"),
-                "error": str(e)[:200],
-            })
-            _capture_loop_error(e, "act_loop", district=str(getattr(winner, 'district', '') if 'winner' in dir() else ''))
-            # Gap 4: push to retry queue instead of silently dropping
-            try:
-                from core.queue.retry_queue import RetryQueue
-                RetryQueue.get().push(
-                    action_type=getattr(winner, "action_type", "unknown"),
-                    params=getattr(winner, "params", {}),
-                    proposed_by="autonomous_loop",
-                    error=str(e)[:500],
+                if result.get("status") in ("ok", "executed"):
+                    await self._publish_event(EventType.TASK_COMPLETED, {
+                        "action_type": winner.action_type,
+                        "reward": reward,
+                        "goal_ids": winner.goal_ids,
+                    })
+                else:
+                    await self._publish_event(EventType.TASK_FAILED, {
+                        "action_type": winner.action_type,
+                        "status": result.get("status"),
+                        "goal_ids": winner.goal_ids,
+                    })
+                logger.info(
+                    f"[VECTOR][act] {winner.action_type} -> {result.get('status')} reward={reward:.3f}"
+                    + (f" (user_feedback={uf:.2f})" if user_feedback is not None else "")
                 )
-            except Exception as _rq_err:
-                logger.debug(f"[VECTOR][act] retry_queue push failed: {_rq_err}")
+                # Gap 17: Comms broadcast Ã¢â‚¬— notify configured channels when a significant
+                # action completes. Only fires for YELLOW/RED-tier actions to avoid spam.
+                _NOTIFY_ACTION_TYPES = {"send_message_routine", "commit_code", "create_calendar_event",
+                                        "send_email", "deploy_production", "financial_transaction"}
+                if winner.action_type in _NOTIFY_ACTION_TYPES and result.get("status") == "ok":
+                    try:
+                        from vectorcode.src.comms.platform_adapters import PlatformAdapters
+                        adapters = PlatformAdapters()
+                        msg = result.get("message") or f"VECTOR completed: {winner.action_type}"
+                        await adapters.broadcast(msg, channels=["telegram", "discord"], priority="low")
+                    except Exception as _comms_err:
+                        logger.debug(f"[VECTOR][comms] broadcast skipped: {_comms_err}")
+            except Exception as e:
+                await self._publish_event(EventType.SYSTEM_ERROR, {
+                    "action_type": getattr(winner, "action_type", "unknown"),
+                    "error": str(e)[:200],
+                })
+                _capture_loop_error(e, "act_loop", district=str(getattr(winner, 'district', '') if 'winner' in dir() else ''))
+                # Gap 4: push to retry queue instead of silently dropping
+                try:
+                    from core.queue.retry_queue import RetryQueue
+                    RetryQueue.get().push(
+                        action_type=getattr(winner, "action_type", "unknown"),
+                        params=getattr(winner, "params", {}),
+                        proposed_by="autonomous_loop",
+                        error=str(e)[:500],
+                    )
+                except Exception as _rq_err:
+                    logger.debug(f"[VECTOR][act] retry_queue push failed: {_rq_err}")
+        finally:
+            self._active_task_count -= 1
 
     def _get_recent_feedback(self, action_type: str) -> float | None:
         """Check episodic memory for recent user feedback on this action type. Returns 0.0-1.0 or None."""
@@ -1514,44 +1518,49 @@ class AutonomousLoop:
     async def vectorcode_loop(self) -> None:
         """Start VectorCode MCP server at startup. Restarts if it crashes."""
         logger.info("[VECTOR][vectorcode] loop starting")
-        try:
-            from districts.coding.vectorcode_bridge import get_bridge
-            bridge = get_bridge()
-            if not bridge.is_available():
-                logger.warning("[VECTOR][vectorcode] VectorCode not available Ã¢â‚¬— skipping MCP server")
-                return
-            mcp_port = 9001
+        while self._running:
             try:
-                from core.config import CONFIG
-                mcp_port = CONFIG.get("vectorcode", {}).get("mcp_port", 9001)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-            proc = await bridge.start_mcp_server(port=mcp_port)
-            if proc:
-                logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
-        except Exception as e:
-            logger.warning(f"[VECTOR][vectorcode] loop failed: {e}")
+                from districts.coding.vectorcode_bridge import get_bridge
+                bridge = get_bridge()
+                if not bridge.is_available():
+                    logger.warning("[VECTOR][vectorcode] VectorCode not available Ã¢â‚¬— skipping MCP server")
+                    return
+                mcp_port = 9001
+                try:
+                    from core.config import CONFIG
+                    mcp_port = CONFIG.get("vectorcode", {}).get("mcp_port", 9001)
+                except Exception:
+                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                proc = await bridge.start_mcp_server(port=mcp_port)
+                if proc:
+                    logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
+            except Exception as e:
+                logger.error("[VECTOR][vectorcode] loop crashed: {} Ã¢â‚¬— restarting in 10s", e)
+                await asyncio.sleep(10)
 
     async def emergency_loop(self) -> None:
         """Start Emergency Response System. Never crashes."""
         logger.info("[VECTOR][emergency] loop starting")
-        try:
-            cfg = CONFIG.get("emergency", {})
-            if not cfg.get("enabled", False):
-                logger.info("[VECTOR][emergency] disabled in config")
-                return
-            from districts.emergency.main import EmergencyResponseSystem
-            self._emergency = EmergencyResponseSystem()
-            await self._emergency.start()
-            logger.info("[VECTOR][emergency] system online")
-            while self._running:
-                await asyncio.sleep(60)
-        except ImportError as e:
-            logger.warning("[VECTOR][emergency] unavailable: {}", e)
-        except asyncio.CancelledError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-        except Exception as e:
-            logger.error(f"[VECTOR][emergency] loop crashed: {e}")
+        while self._running:
+            try:
+                cfg = CONFIG.get("emergency", {})
+                if not cfg.get("enabled", False):
+                    logger.info("[VECTOR][emergency] disabled in config")
+                    return
+                from districts.emergency.main import EmergencyResponseSystem
+                self._emergency = EmergencyResponseSystem()
+                await self._emergency.start()
+                logger.info("[VECTOR][emergency] system online")
+                while self._running:
+                    await asyncio.sleep(60)
+            except ImportError as e:
+                logger.warning("[VECTOR][emergency] unavailable: {}", e)
+                return  # don't retry if the module isn't installed
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error("[VECTOR][emergency] loop crashed: {} — restarting in 30s", e)
+                await asyncio.sleep(30)
 
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Main entry Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
@@ -1733,18 +1742,17 @@ class AutonomousLoop:
             except Exception as _ce:
                 logger.debug("[VECTOR][sense] camera scan failed: {}", _ce)
 
-        self._get_context().update_sense_cache({
-            "screen_summary": screen_summary,
-            "presence": presence,
-        })
+        from core.loop.context_engine import update_sense_cache
+        update_sense_cache(screen_summary=screen_summary, presence=presence)
         logger.debug(
             "[VECTOR][sense] tick — presence={} screen_chars={}",
             presence, len(screen_summary),
         )
 
         # Vision → action: react to presence changes
-        if presence != self._last_presence:
-            await self._on_presence_change(self._last_presence, presence)
+        last_presence = getattr(self, "_last_presence", "unknown")
+        if presence != last_presence:
+            await self._on_presence_change(last_presence, presence)
             self._last_presence = presence
 
     async def _on_presence_change(self, prev: str, current: str) -> None:

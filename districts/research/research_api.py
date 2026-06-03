@@ -16,6 +16,11 @@ Search engines (free, no API key required by default):
     news     → DuckDuckGo + Wikinews + The Guardian
     web      → DuckDuckGo + SearXNG (if running locally)
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from pathlib import Path
 from datetime import datetime
 from typing import Any

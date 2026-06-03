@@ -4,6 +4,11 @@ Test Results Analyzer — transforms raw test output into actionable insights.
 Parses smoke_test.py + integration_check.py output, tracks test trends,
 identifies flaky tests, generates improvement recommendations.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import datetime

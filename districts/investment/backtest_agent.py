@@ -9,7 +9,13 @@ Governor routes:
 Requires: OPENAI_API_KEY (or LANGCHAIN_PROVIDER + matching key) in .env
 for the ReAct agent and swarms. Backtest data loaders work without API keys.
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 import sys

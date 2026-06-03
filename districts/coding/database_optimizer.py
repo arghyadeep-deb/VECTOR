@@ -4,6 +4,11 @@ Database Optimizer — tunes VECTOR's SQLite, Supabase, and Turso databases.
 Analyzes slow queries, missing indexes, schema drift, WAL health,
 and generates optimization recommendations.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 import sqlite3

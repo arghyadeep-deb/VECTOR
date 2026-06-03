@@ -5,6 +5,11 @@ Before any multi-step task runs: map it. Every step gets an owner district,
 clear inputs/outputs, failure modes, and success criteria.
 No map = no execution for complex tasks.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 import json

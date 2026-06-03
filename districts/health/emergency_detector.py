@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+
+
 import datetime
+import asyncio
 import time
 from collections import defaultdict
 from typing import Any
@@ -26,16 +33,36 @@ class HealthEmergencyDetector:
         except Exception as exc:
             logger.debug(f"[VECTOR][health_emergency] no EmergencyDetector integration: {exc}")
 
+    def _run_or_schedule(self, coro: Any, label: str) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                asyncio.run(coro)
+            except Exception as exc:
+                logger.warning(f"[VECTOR][health_emergency] {label} failed: {exc}")
+            return
+
+        try:
+            loop.create_task(coro)
+        except Exception as exc:
+            logger.warning(f"[VECTOR][health_emergency] {label} schedule failed: {exc}")
+
     def _signal_external(self, metric: str, value: float) -> None:
         try:
             from districts.emergency.main import _emit
-            import asyncio
-            asyncio.create_task(_emit("health", metric, value, "health_emergency_detector"))
+            self._run_or_schedule(
+                _emit("health", metric, value, "health_emergency_detector"),
+                "emergency emit",
+            )
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
         if self._integration is not None:
             try:
-                self._integration.process_signal("health", metric, value)
+                self._run_or_schedule(
+                    self._integration.process_signal("health", metric, value),
+                    "detector signal",
+                )
             except Exception as exc:
                 logger.warning(f"[VECTOR][health_emergency] signal failed: {exc}")
 
@@ -47,14 +74,13 @@ class HealthEmergencyDetector:
             token = CONFIG.get("pushover_token", "")
             user = CONFIG.get("pushover_user", "")
             if token and user:
-                import asyncio
                 async def _push():
                     async with httpx.AsyncClient(timeout=5) as c:
                         await c.post("https://api.pushover.net/1/messages.json", json={
                             "token": token, "user": user, "title": title, "message": message,
                             "priority": 1, "sound": "persistent",
                         })
-                asyncio.create_task(_push())
+                self._run_or_schedule(_push(), "pushover send")
         except Exception as exc:
             logger.warning(f"[VECTOR][health_emergency] pushover send failed: {exc}")
 

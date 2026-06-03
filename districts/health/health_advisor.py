@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+
+
 import datetime
+import asyncio
 from typing import Any
 
 from loguru import logger
@@ -19,10 +26,24 @@ class HealthAdvisor(AgentBase):
         self._use_llm: bool = CONFIG.get("health", {}).get("advisor_use_llm", False)
         self._max_recs: int = CONFIG.get("health", {}).get("advisor_max_recommendations", 5)
 
+    def _run_or_schedule(self, coro: Any, label: str) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                asyncio.run(coro)
+            except Exception as exc:
+                logger.warning(f"[VECTOR][health_advisor] {label} failed: {exc}")
+            return
+
+        try:
+            loop.create_task(coro)
+        except Exception as exc:
+            logger.warning(f"[VECTOR][health_advisor] {label} schedule failed: {exc}")
+
     def _send_pushover(self, title: str, message: str) -> None:
         try:
             import httpx
-            import asyncio
             token = CONFIG.get("pushover_token", "")
             user = CONFIG.get("pushover_user", "")
             if token and user:
@@ -32,7 +53,7 @@ class HealthAdvisor(AgentBase):
                             "token": token, "user": user, "title": title, "message": message,
                             "priority": 1,
                         })
-                asyncio.create_task(_push())
+                self._run_or_schedule(_push(), "pushover send")
         except Exception as exc:
             logger.warning(f"[VECTOR][health_advisor] pushover failed: {exc}")
 

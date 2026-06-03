@@ -1,5 +1,5 @@
 /**
- * Server subprocess launcher for vector-stealth-browser.
+ * Server subprocess launcher for camofox-browser.
  */
 
 import cp from 'child_process';

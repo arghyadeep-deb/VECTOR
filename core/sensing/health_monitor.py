@@ -107,31 +107,44 @@ class HealthMonitor:
             return {"cpu_percent": 0.0, "ram_percent": 0.0}
 
     def _get_wearable_data(self) -> dict:
-        """Pull wearable metrics from the connector layer (async-safe via new thread)."""
+        """Pull wearable metrics from external connector sources without recursion.
+
+        The default phone sensor connector derives its data from HealthMonitor, so
+        invoking it from here recursively creates HealthMonitor instances. Keep
+        this snapshot path synchronous and offline-safe; async callers can poll
+        WearableConnector directly.
+        """
         try:
             from districts.health.wearable_connector import WearableConnector
+            import asyncio
+
             if self._wearable_connector is None:
                 self._wearable_connector = WearableConnector()
             if not hasattr(self._wearable_connector, 'poll_all'):
                 return {"available": False, "note": "poll_all not available"}
-            # Always run in a fresh thread with its own event loop to avoid
-            # deadlocking when called from an existing async context (test or loop).
-            import threading, asyncio
 
-            result_holder: list = []
+            enabled = [
+                source for source in getattr(self._wearable_connector, "enabled_sources", [])
+                if source != "phone_sensor"
+            ]
+            if not enabled:
+                return {"available": False, "note": "no external wearable sources configured"}
 
-            def _run():
-                try:
-                    result_holder.append(asyncio.run(self._wearable_connector.poll_all()))
-                except Exception as _e:
-                    logger.debug("[VECTOR][health] wearable thread error: {}", _e)
+            try:
+                asyncio.get_running_loop()
+                return {"available": False, "note": "wearable poll skipped in active event loop"}
+            except RuntimeError:
+                pass
 
-            t = threading.Thread(target=_run, daemon=True)
-            t.start()
-            t.join(timeout=5)  # at most 5 seconds
+            original_sources = list(self._wearable_connector.enabled_sources)
+            self._wearable_connector.enabled_sources = enabled
+            try:
+                result = asyncio.run(self._wearable_connector.poll_all())
+            finally:
+                self._wearable_connector.enabled_sources = original_sources
 
-            if result_holder and result_holder[0]:
-                return {"available": True, "data": result_holder[0], "note": "connector poll"}
+            if result:
+                return {"available": True, "data": result, "note": "connector poll"}
             return {"available": False, "note": "wearable poll returned empty"}
         except Exception as exc:
             logger.warning(f"[VECTOR][health] wearable data unavailable: {exc}")

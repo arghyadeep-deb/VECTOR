@@ -8,6 +8,11 @@ Governor routes: competitor, competitive, market research, market intelligence
 CLI tools: exa (web search), g2, trustpilot, clearbit, similarweb, ahrefs
 Skill prompts: competitor-profiling, competitors
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import json

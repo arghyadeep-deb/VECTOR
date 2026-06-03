@@ -1,0 +1,32 @@
+import { z } from "zod";
+import { searchGlifs } from "../api.js";
+import { formatGlifSearchResults } from "../utils/glif-formatting.js";
+import { createTextResponse, createTool } from "../utils/tool-factory.js";
+const schema = z.object({
+    query: z.string(),
+});
+async function searchGlifsHandler(args) {
+    const { query } = args;
+    const glifs = await searchGlifs({ q: query });
+    const formattedGlifs = formatGlifSearchResults(glifs);
+    return createTextResponse(`Search results for "${query}":\n\n${formattedGlifs}`);
+}
+// Export the tool using the factory pattern
+export const { definition, handler, schema: exportedSchema, } = createTool({
+    name: "search_workflows",
+    description: "Search for workflows (glifs) by name, description, or keywords. Find AI tools for image generation, text processing, and more.",
+    schema,
+    properties: {
+        query: {
+            type: "string",
+            description: "Search query string",
+        },
+    },
+    required: ["query"],
+    annotations: {
+        title: "Search Workflows",
+        readOnlyHint: true,
+    },
+}, searchGlifsHandler);
+// For backward compatibility
+export { exportedSchema as schema };

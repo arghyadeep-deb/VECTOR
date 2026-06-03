@@ -1,10 +1,10 @@
-// lib/reporter.js -- Crash/hang reporter for vector-stealth-browser
+// lib/reporter.js -- Crash/hang reporter for camofox-browser
 // Files GitHub issues with paranoid anonymization. No env reads here.
 // Config passed via createReporter(config) from lib/config.js.
 
 import crypto from 'crypto';
 import { monitorEventLoopDelay } from 'perf_hooks';
-import { collectResourceSnapshot, classifyProxyError } from './resources.js';
+import { collectResourceSnapshot, classifyProxyError, browserProcessTreeRssMb } from './resources.js';
 
 // ============================================================================
 // Anonymization
@@ -434,7 +434,7 @@ export function createTabHealthTracker(page) {
 // collectResourceSnapshot and classifyProxyError live in lib/resources.js
 // (isolated from network code for clean separation of concerns).
 // Re-exported here for backward compatibility.
-export { collectResourceSnapshot, classifyProxyError };
+export { collectResourceSnapshot, classifyProxyError, browserProcessTreeRssMb };
 
 // ============================================================================
 // Rate limiter (sliding window, 1 hour)
@@ -467,7 +467,7 @@ class RateLimiter {
 //
 // The relay source lives at workers/crash-reporter/index.ts in this repo.
 // Verify: GET /source returns { commit, sha256 } to compare against the repo.
-// Full source: https://github.com/jo-inc/vector-stealth-browser/blob/main/workers/crash-reporter/index.ts
+// Full source: https://github.com/jo-inc/camofox-browser/blob/main/workers/crash-reporter/index.ts
 
 const DEFAULT_RELAY_URL = 'https://camofox-telemetry.askjo.workers.dev/report';
 const FETCH_TIMEOUT_MS = 5000;
@@ -492,7 +492,7 @@ export async function sendToRelay(payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return resp.ok || resp.status === 429; // rate-limited is fine, not an error
+    return resp.ok; // 429 returns false — rate-limited reports are not accepted, let callers decide whether to retry
   } catch {
     return false;
   }
@@ -634,7 +634,7 @@ export function createReporter(config) {
   _relayUrl = config.crashReportUrl || DEFAULT_RELAY_URL;
 
   const enabled = config.crashReportEnabled !== false;
-  const repo = config.crashReportRepo || 'jo-inc/vector-stealth-browser';
+  const repo = config.crashReportRepo || 'jo-inc/camofox-browser';
   const rateLimiters = {
     crash: new RateLimiter(5),   // 5 crashes/hr
     hang: new RateLimiter(5),    // 5 hangs/hr
@@ -851,12 +851,13 @@ export function createReporter(config) {
       elHistogram = monitorEventLoopDelay({ resolution: 20 });
       elHistogram.enable();
     } catch { /* unavailable */ }
-
     // Suppress false positives from OS sleep/suspend (laptop lid close, VM pause).
     // Stalls > 120s are almost certainly not event-loop bugs.
     const MAX_REPORTABLE_DRIFT_MS = 60_000;
     let suppressTicksRemaining = 0;
     const SUPPRESS_TICKS_AFTER_WAKE = 5;
+    lastTick = Date.now();
+    lastHeapUsed = process.memoryUsage().heapUsed;
 
     watchdogInterval = setInterval(() => {
       const now = Date.now();

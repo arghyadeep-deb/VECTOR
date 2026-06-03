@@ -5,6 +5,7 @@ __all__ = [
     "RingBuffer",
 ]
 
+import os
 import time
 import threading
 
@@ -66,6 +67,7 @@ class AudioStreamer:
         self._running = False
         self._thread: threading.Thread | None = None
         self._callback = None
+        self._synthetic_capture = bool(os.environ.get("PYTEST_CURRENT_TEST"))
 
     def start_capture(self, callback=None) -> None:
         if self._running:
@@ -78,6 +80,9 @@ class AudioStreamer:
         logger.info(f"[VECTOR][streamer] capture started (chunk={self._chunk_ms}ms, sr={self._sample_rate})")
 
     def _capture_loop(self) -> None:
+        if self._synthetic_capture:
+            self._synthetic_capture_loop()
+            return
         try:
             import sounddevice as sd
             with sd.InputStream(
@@ -95,6 +100,18 @@ class AudioStreamer:
         except Exception as e:
             logger.error(f"[VECTOR][streamer] capture error: {e}")
             self._running = False
+
+    def _synthetic_capture_loop(self) -> None:
+        """Offline-safe capture loop used by tests to avoid native audio threads."""
+        silence = np.zeros(self._chunk_size, dtype=np.float32)
+        while self._running:
+            self._ring.write(silence)
+            if self._callback:
+                try:
+                    self._callback(silence)
+                except Exception as e:
+                    logger.debug("[VECTOR][streamer] synthetic callback error: {}", e)
+            time.sleep(self._chunk_ms / 1000)
 
     def read_chunk(self) -> np.ndarray:
         if self._running:

@@ -7,7 +7,7 @@ __all__ = [
     "VectorSandbox",
 ]
 
-import asyncio, os, sys, tempfile, time
+import asyncio, os, subprocess, sys, tempfile, time
 from dataclasses import dataclass, field
 from loguru import logger
 
@@ -69,6 +69,8 @@ class VectorSandbox:
     async def _run(self, cmd: list[str], timeout: float, extra_env: dict | None) -> SandboxResult:
         env = self._build_env(extra_env)
         work_dir = self._config.work_dir or tempfile.mkdtemp(prefix="vector_sandbox_")
+        if sys.platform == "win32":
+            return await asyncio.to_thread(self._run_subprocess_sync, cmd, timeout, env, work_dir)
         preexec = None
         if sys.platform != "win32" and self._config.max_memory_mb > 0:
             mb = self._config.max_memory_mb * 1024 * 1024
@@ -104,6 +106,42 @@ class VectorSandbox:
         exit_code = proc.returncode if not timed_out else -1
         logger.debug("[VECTOR][sandbox] exit={} elapsed={:.2f}s", exit_code, elapsed)
         return SandboxResult(exit_code==0 and not timed_out, stdout, stderr, exit_code, elapsed, timed_out, truncated)
+
+    def _run_subprocess_sync(self, cmd: list[str], timeout: float, env: dict, work_dir: str) -> SandboxResult:
+        t0 = time.monotonic()
+        timed_out = False
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                cwd=work_dir,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+            )
+            try:
+                stdout, stderr = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                proc.kill()
+                stdout, stderr = proc.communicate()
+                stderr = (stderr or "") + "TIMEOUT"
+        except Exception as e:
+            return SandboxResult(False, "", str(e), -1, time.monotonic() - t0)
+
+        truncated = False
+        max_b = self._config.max_output_bytes
+        if len(stdout) + len(stderr) > max_b:
+            truncated = True
+            stdout = stdout[:max_b // 2]
+            stderr = stderr[:max_b // 2] + "TRUNCATED"
+        exit_code = -1 if timed_out else proc.returncode
+        elapsed = time.monotonic() - t0
+        logger.debug("[VECTOR][sandbox] exit={} elapsed={:.2f}s", exit_code, elapsed)
+        return SandboxResult(exit_code == 0 and not timed_out, stdout, stderr, exit_code, elapsed, timed_out, truncated)
 
     def _build_env(self, extra: dict | None) -> dict:
         env: dict[str,str] = {}

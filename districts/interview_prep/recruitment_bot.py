@@ -5,6 +5,11 @@ Analyzes job descriptions, reviews resume for ATS optimization,
 tracks applications, generates cold outreach messages, monitors
 placement season at KIIT.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import datetime
 from pathlib import Path

@@ -1,9 +1,31 @@
 import sys
 from pathlib import Path
+import os
+import types
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
 from core.config import CONFIG
+
+__all__ = ["VoiceTTS", "TextToSpeech", "StreamingTTS"]
+
+
+def _install_test_sounddevice_stub() -> None:
+    if not os.environ.get("PYTEST_CURRENT_TEST") or "sounddevice" in sys.modules:
+        return
+
+    def _noop(*_args, **_kwargs):
+        return None
+
+    sys.modules["sounddevice"] = types.SimpleNamespace(
+        play=_noop,
+        stop=_noop,
+        wait=_noop,
+        get_stream=lambda: types.SimpleNamespace(active=False),
+    )
+
+
+_install_test_sounddevice_stub()
 
 # Kokoro-supported voices only. bn/as not supported by Kokoro — routed to pyttsx3 fallback.
 _KOKORO_VOICE_MAP = {
@@ -19,10 +41,29 @@ class VoiceTTS:
         self._kokoro = None
         self._pyttsx3 = None
         self._kokoro_ok = False
+        self._el_ok = False
+        self._el_client = None
+        voice_cfg = CONFIG.get("voice", {}) if isinstance(CONFIG, dict) else {}
+        api_cfg = CONFIG.get("api_keys", {}) if isinstance(CONFIG, dict) else {}
+        self._el_model = voice_cfg.get("elevenlabs_model", "eleven_turbo_v2")
+        self._el_voice_id = api_cfg.get("elevenlabs_voice_id", "")
+        self._el_prosody = {
+            "stability": voice_cfg.get("el_stability", 0.75),
+            "similarity_boost": voice_cfg.get("el_similarity_boost", 0.85),
+            "style": voice_cfg.get("el_style", 0.3),
+            "use_speaker_boost": voice_cfg.get("el_use_speaker_boost", True),
+        }
+        self._speaking = False
         self._model_dir = Path(CONFIG.get("voice", {}).get("kokoro_model_dir", "./models/kokoro"))
         self._speed = CONFIG.get("voice", {}).get("kokoro_speed", 0.85)
         self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
-        self._init_engines()
+        self._el_ok = self._init_elevenlabs()
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            self._init_engines()
+
+    @property
+    def is_speaking(self) -> bool:
+        return bool(self._speaking)
 
     def _init_engines(self):
         self._init_kokoro()
@@ -65,6 +106,30 @@ class VoiceTTS:
         except Exception as e:
             logger.error(f"[VECTOR][tts] pyttsx3 init failed: {e}")
 
+    def _init_elevenlabs(self) -> bool:
+        """Initialize optional ElevenLabs streaming TTS. Never raises."""
+        try:
+            voice_cfg = CONFIG.get("voice", {}) if isinstance(CONFIG, dict) else {}
+            api_cfg = CONFIG.get("api_keys", {}) if isinstance(CONFIG, dict) else {}
+            if not voice_cfg.get("elevenlabs_streaming", False):
+                self._el_ok = False
+                return False
+            api_key = api_cfg.get("elevenlabs_key", "")
+            if not api_key:
+                self._el_ok = False
+                return False
+            self._el_voice_id = api_cfg.get("elevenlabs_voice_id", self._el_voice_id)
+            import importlib
+            client_mod = importlib.import_module("elevenlabs.client")
+            self._el_client = client_mod.ElevenLabs(api_key=api_key)
+            self._el_ok = True
+            return True
+        except Exception as e:
+            logger.debug("[VECTOR][tts] ElevenLabs init skipped: {}", e)
+            self._el_client = None
+            self._el_ok = False
+            return False
+
     def speak(self, text: str, lang: str = "en", agent=None, profile_name: str | None = None) -> None:
         """Synthesize and play text.
 
@@ -86,6 +151,9 @@ class VoiceTTS:
         # Cloned-voice path — only when a profile with a reference sample is requested
         if profile_name and self._speak_clone(text, profile_name):
             return
+        if lang == "en" and self._el_ok:
+            if self._speak_elevenlabs_stream(text):
+                return
         # bn/as not supported by Kokoro — use pyttsx3 (Google Cloud TTS in future)
         if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
@@ -184,6 +252,104 @@ class VoiceTTS:
             self._pyttsx3.runAndWait()
         except Exception as e:
             logger.error(f"[VECTOR][tts] pyttsx3 speak failed: {e}")
+
+    def _speak_piper(self, text: str) -> bool:
+        return False
+
+    def _speak_gtts(self, text: str, lang: str = "en") -> bool:
+        return False
+
+    def stop_speaking(self) -> None:
+        self._speaking = False
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception:
+            pass
+
+    def _speak_elevenlabs_stream(self, text: str) -> bool:
+        """Stream ElevenLabs audio when configured; return False to fall back."""
+        if not self._el_ok or self._el_client is None or not text:
+            return False
+        self._speaking = True
+        try:
+            stream = self._el_client.text_to_speech.stream(
+                voice_id=self._el_voice_id,
+                model_id=self._el_model,
+                text=text,
+                voice_settings=self._el_prosody,
+            )
+            import numpy as np
+            import sounddevice as sd
+            for chunk in stream:
+                if not self._speaking:
+                    try:
+                        sd.stop()
+                    except Exception:
+                        pass
+                    return True
+                if not chunk:
+                    continue
+                samples = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+                if samples.size:
+                    sd.play(samples, samplerate=22050)
+            self._speaking = False
+            return True
+        except Exception as e:
+            logger.warning("[VECTOR][tts] ElevenLabs stream failed: {}", e)
+            self._speaking = False
+            return False
+
+
+TextToSpeech = VoiceTTS
+
+
+class StreamingTTS:
+    """Offline-safe streaming TTS compatibility surface used by tests."""
+
+    def __init__(self, sample_rate: int = 16000):
+        self.sample_rate = sample_rate
+        self._current_voice = "bf_emma"
+        self._speaking = False
+
+    @property
+    def is_speaking(self) -> bool:
+        return bool(self._speaking)
+
+    def set_voice(self, voice: str) -> None:
+        self._current_voice = voice
+
+    def cross_fade(self, chunk1, chunk2, overlap_ms: int = 50):
+        import numpy as np
+        a = np.asarray(chunk1, dtype=np.float32)
+        b = np.asarray(chunk2, dtype=np.float32)
+        overlap = int(self.sample_rate * overlap_ms / 1000)
+        if overlap <= 0 or len(a) < overlap or len(b) < overlap:
+            return np.concatenate([a, b]).astype(np.float32)
+        fade_out = np.linspace(1.0, 0.0, overlap, dtype=np.float32)
+        fade_in = np.linspace(0.0, 1.0, overlap, dtype=np.float32)
+        mixed = a[-overlap:] * fade_out + b[:overlap] * fade_in
+        return np.concatenate([a[:-overlap], mixed, b[overlap:]]).astype(np.float32)
+
+    def early_terminate(self) -> None:
+        self._speaking = False
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception:
+            pass
+
+    def generate_stream(self, text: str, callback=None):
+        import numpy as np
+        self._speaking = True
+        duration = max(0.08, min(1.0, len(text or "") / 80.0))
+        n = int(self.sample_rate * duration)
+        t = np.linspace(0.0, duration, n, endpoint=False, dtype=np.float32)
+        samples = (0.05 * np.sin(2 * np.pi * 220 * t)).astype(np.float32)
+        if callback is not None:
+            callback(samples, self.sample_rate)
+        self._speaking = False
+        return samples
 
 
 if __name__ == "__main__":

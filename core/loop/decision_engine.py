@@ -2,6 +2,7 @@ import sys
 import asyncio
 import datetime
 import hashlib
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -26,6 +27,7 @@ class Candidate:
     total_score: float = 0.0
     # RULE 8 — past reasoning injected before scoring
     reasoning_steps: list[str] = field(default_factory=list)
+    reasoning_chain: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -35,6 +37,7 @@ class Decision:
     reasoning: str
     timestamp: str = field(default_factory=lambda: datetime.datetime.utcnow().isoformat())
     evaluated: int = 0
+    reasoning_chain: list[str] = field(default_factory=list)
 
 
 class DecisionEngine:
@@ -59,6 +62,12 @@ class DecisionEngine:
         self._goals = None
         self._memory = None
         self._reasoning_bank = None
+        self._neural_trainer = None
+        self._epistemic = None
+        self._metacognition = None
+        self._mc_bias_cache = None
+        self._mc_cache_time = 0.0
+        self._decision_count = 0
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
@@ -107,6 +116,76 @@ class DecisionEngine:
             self._memory = EpisodicMemory()
         return self._memory
 
+    def _get_neural_trainer(self):
+        if self._neural_trainer is None:
+            try:
+                from vectorcode.src.neural_training import VECTORTrainer
+                self._neural_trainer = VECTORTrainer("a2c", state_dim=8, action_dim=16)
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] neural trainer unavailable: {}", e)
+                self._neural_trainer = False
+        return None if self._neural_trainer is False else self._neural_trainer
+
+    def _get_epistemic(self):
+        if self._epistemic is None:
+            try:
+                from core.brain.epistemic_tracker import EpistemicTracker
+                self._epistemic = EpistemicTracker()
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] epistemic tracker unavailable: {}", e)
+                self._epistemic = False
+        return None if self._epistemic is False else self._epistemic
+
+    def _get_metacognition(self):
+        if self._metacognition is None:
+            try:
+                from core.city.meta_cognition import MetaCognition
+                self._metacognition = MetaCognition()
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] metacognition unavailable: {}", e)
+                self._metacognition = False
+        return None if self._metacognition is False else self._metacognition
+
+    def _bias_penalty(self, candidate: Candidate) -> float:
+        try:
+            import time
+            now = time.monotonic()
+            if self._mc_bias_cache is None or now - self._mc_cache_time > 300:
+                mc = self._get_metacognition()
+                if mc is None:
+                    self._mc_bias_cache = []
+                else:
+                    samples = [{
+                        "action_type": candidate.action_type,
+                        "confidence": candidate.confidence,
+                        "params": candidate.params,
+                    }]
+                    self._mc_bias_cache = mc.detect_bias(samples) or []
+                self._mc_cache_time = now
+
+            penalty = 0.0
+            for bias in self._mc_bias_cache or []:
+                bias_type = str(bias.get("bias_type", "")).lower()
+                severity = str(bias.get("severity", "low")).lower()
+                weight = {"low": 0.03, "medium": 0.06, "high": 0.10}.get(severity, 0.03)
+                if bias_type == "overconfidence" and self._finite(candidate.confidence, 0.0) > 0.85:
+                    penalty += weight
+                elif bias_type != "overconfidence":
+                    penalty += weight * 0.5
+            return max(0.0, min(1.0, penalty))
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] bias penalty skipped: {}", e)
+            return 0.0
+
+    def _finite(self, value: float, default: float = 0.0) -> float:
+        try:
+            value = float(value)
+            if math.isnan(value) or math.isinf(value):
+                return default
+            return value
+        except Exception:
+            return default
+
     def _score_goal_alignment(self, candidate: Candidate) -> float:
         """How well does this action serve active goals? 0.0-1.0"""
         if not candidate.goal_ids:
@@ -138,17 +217,46 @@ class DecisionEngine:
         goal_score = self._score_goal_alignment(candidate)
         candidate.goal_alignment = goal_score
 
-        cost_penalty = min(1.0, candidate.estimated_cost_inr / 10.0)
+        confidence = self._finite(candidate.confidence, 0.0)
+        urgency = self._finite(candidate.urgency, 0.0)
+        timing_score = self._finite(candidate.timing_score, 0.0)
+        estimated_cost = self._finite(candidate.estimated_cost_inr, 0.0)
+        cost_penalty = min(1.0, estimated_cost / 10.0)
+        bias_penalty = self._bias_penalty(candidate)
 
         total = (
             self.W_GOAL * goal_score
-            + self.W_CONF * candidate.confidence
+            + self.W_CONF * confidence
             + self.W_POLICY * policy_score
-            + self.W_URGENCY * candidate.urgency
-            + self.W_TIMING * candidate.timing_score
+            + self.W_URGENCY * urgency
+            + self.W_TIMING * timing_score
             - self.W_COST * cost_penalty
+            - bias_penalty
         )
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
+        candidate.reasoning_chain = [
+            {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
+            {"factor": "confidence", "value": confidence, "weight": self.W_CONF},
+            {"factor": "policy_score", "value": policy_score, "weight": self.W_POLICY},
+            {"factor": "urgency", "value": urgency, "weight": self.W_URGENCY},
+            {"factor": "timing_score", "value": timing_score, "weight": self.W_TIMING},
+            {"factor": "cost_penalty", "value": cost_penalty, "weight": -self.W_COST},
+        ]
+        if bias_penalty > 0.0:
+            candidate.reasoning_chain.append(
+                {"factor": "meta_cognition", "value": bias_penalty, "weight": -1.0}
+            )
+        candidate.reasoning_steps.extend([
+            f"goal_alignment={goal_score:.3f}",
+            f"confidence={confidence:.3f}",
+            f"policy_score={policy_score:.3f}",
+            f"urgency={urgency:.3f}",
+            f"timing_score={timing_score:.3f}",
+            f"cost_penalty={cost_penalty:.3f}",
+        ])
+        if bias_penalty > 0.0:
+            candidate.reasoning_steps.append(f"meta_cognition bias_penalty={bias_penalty:.3f}")
+        candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
 
     async def evaluate(self, candidates: list[Candidate]) -> Decision:
@@ -173,8 +281,35 @@ class DecisionEngine:
         for c in candidates:
             self._score_candidate(c)
 
+        trainer = self._get_neural_trainer()
+        if trainer is not None:
+            try:
+                import numpy as np
+                state = np.array(
+                    [
+                        len(candidates),
+                        max(c.total_score for c in candidates),
+                        sum(c.total_score for c in candidates) / len(candidates),
+                        max(self._finite(c.confidence, 0.0) for c in candidates),
+                        max(self._finite(c.urgency, 0.0) for c in candidates),
+                        min(self._finite(c.estimated_cost_inr, 0.0) for c in candidates),
+                        max(self._finite(c.estimated_cost_inr, 0.0) for c in candidates),
+                        1.0,
+                    ],
+                    dtype=np.float32,
+                )
+                trainer.select_action(state)
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] neural trainer select skipped: {}", e)
+
         ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
         winner = ranked[0]
+        self._decision_count += 1
+        if trainer is not None and self._decision_count % 100 == 0:
+            try:
+                trainer.save_checkpoint()
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] neural trainer checkpoint skipped: {}", e)
 
         # Log ALL candidates including rejected — RULE 8
         mem = self._get_memory()
@@ -207,6 +342,7 @@ class DecisionEngine:
             all_candidates=ranked,
             reasoning=reasoning,
             evaluated=len(candidates),
+            reasoning_chain=[reasoning],
         )
 
 

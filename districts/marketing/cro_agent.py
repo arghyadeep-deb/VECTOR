@@ -8,6 +8,11 @@ Governor routes: cro, conversion, landing page, a/b test, page not converting
 CLI tools: hotjar, optimizely, pendo, ga4 (via marketing_cli MCP tool)
 Skill prompts: cro, copywriting, analytics
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import json

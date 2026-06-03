@@ -98,7 +98,7 @@ function shimRootFor(executablePath, resourceDir) {
     .update(`${realpathSync(executablePath)}\n${realpathSync(resourceDir)}`)
     .digest('hex')
     .slice(0, 16);
-  return join(tmpdir(), 'vector-stealth-browser-external-camoufox', key);
+  return join(tmpdir(), 'camofox-browser-external-camoufox', key);
 }
 
 function ensureLaunchShim(executablePath, resourceDir) {

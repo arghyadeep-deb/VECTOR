@@ -6,6 +6,11 @@ Summarizes long conversation histories using vectorcode's structured template:
   Resolved questions | Pending questions | Active task | Remaining work.
 Prevents context overflow when district agents run long multi-turn tasks.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import asyncio
 import re
 

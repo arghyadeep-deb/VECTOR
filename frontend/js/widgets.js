@@ -418,7 +418,8 @@
         card.querySelector('.apv-ok').addEventListener('click', async e=>{
           e.stopPropagation(); card.style.opacity='.4';
           try{
-            await fetch(API+'/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
+            if (V.http) await V.http('/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
+            else await fetch(API+'/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
             V.say('Approved — '+id+' executing.');
           }catch(err){ card.style.opacity='1'; }
           refresh();
@@ -426,7 +427,8 @@
         card.querySelector('.apv-no').addEventListener('click', async e=>{
           e.stopPropagation(); card.style.opacity='.4';
           try{
-            await fetch(API+'/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
+            if (V.http) await V.http('/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
+            else await fetch(API+'/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
             V.say('Rejected — '+id+' blocked.');
           }catch(err){ card.style.opacity='1'; }
           refresh();
@@ -437,8 +439,9 @@
 
     async function refresh(){
       try{
-        const r = await fetch(API+'/gateway/pending');
-        const j = await r.json();
+        const j = V.http
+          ? await V.http('/gateway/pending')
+          : await fetch(API+'/gateway/pending').then(r => r.json());
         renderApprovals(j.pending||[]);
       }catch(e){ /* backend offline — keep last render */ }
     }

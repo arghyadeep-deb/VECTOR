@@ -226,8 +226,8 @@
           <div class="at">${a.action_type} <span class="badge2 ${isRed ? 'crit' : 'high'}">${a.level}</span></div>
           <div class="ap">${a.params} · by ${a.proposed_by}</div>
           <div class="acts">
-            <button class="ok2 live-appr-ok" data-atype="${a.action_type}">APPROVE</button>
-            <button class="no2 live-appr-no">DENY</button>
+            <button class="ok2 live-appr-ok" data-action-id="${a.id || a.action_id || a.action_type}" data-atype="${a.action_type}">APPROVE</button>
+            <button class="no2 live-appr-no" data-action-id="${a.id || a.action_id || a.action_type}">DENY</button>
             <span class="exp">${a.expires}s</span>
           </div></div>`;
       }).join('');
@@ -235,7 +235,8 @@
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const atype = btn.dataset.atype;
-        V.http('/security/confirm/' + encodeURIComponent(atype), { method: 'POST', body: {} }).catch(() => {});
+        const id = btn.dataset.actionId || atype;
+        V.http('/gateway/approve/' + encodeURIComponent(id), { method: 'POST', body: {} }).catch(() => {});
         btn.closest('.appr').style.opacity = '.3';
         if (V.say) V.say('Approved. ' + atype + ' executing.');
       });
@@ -243,6 +244,8 @@
     apprEl.querySelectorAll('.live-appr-no').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
+        const id = btn.dataset.actionId;
+        V.http('/gateway/reject/' + encodeURIComponent(id), { method: 'POST', body: {} }).catch(() => {});
         btn.closest('.appr').style.opacity = '.3';
         if (V.say) V.say('Denied.');
       });
@@ -319,6 +322,20 @@
       refreshGoals();
     });
 
+    // /brain/reasoning/chains - 15s - decision trace state for brain panels
+    poll('/brain/reasoning/chains?limit=20', 15000, data => {
+      const chains = data && (data.chains || data.decisions || data.items || (Array.isArray(data) ? data : []));
+      if (!Array.isArray(chains)) return;
+      D.DECISIONS = chains.slice(0, 20);
+    });
+
+    // /brain/persons - 30s - person graph state for relationship-aware UI
+    poll('/brain/persons', 30000, data => {
+      const persons = data && (data.persons || data.items || (Array.isArray(data) ? data : []));
+      if (!Array.isArray(persons)) return;
+      D.PERSONS = persons;
+    });
+
     // /security/status — 12s — threat level + live audit log
     poll('/security/status', 12000, data => {
       if (!data) return;
@@ -327,6 +344,14 @@
         D.APPROVALS = adaptApprovals(data.audit_log);
         refreshApprovals(D.APPROVALS);
       }
+    });
+
+    // /gateway/pending - 5s - canonical owner approval queue
+    poll('/gateway/pending', 5000, data => {
+      const pending = data && (data.pending || data.items || (Array.isArray(data) ? data : []));
+      if (!Array.isArray(pending)) return;
+      D.APPROVALS = pending;
+      refreshApprovals(D.APPROVALS);
     });
 
     // /memory/council/history — 20s — council panel
@@ -428,6 +453,33 @@
   }
 
   // ── Real-time WS event handlers ───────────────────────────────────────────
+
+  V.on('decision_made', function (msg) {
+    const data = msg && (msg.data || msg.decision || msg);
+    if (!data) return;
+    D.DECISIONS = [data].concat(D.DECISIONS || []).slice(0, 20);
+    D.MEMORY.unshift({
+      event_type: 'DECISION_MADE',
+      content: data.action || data.summary || data.content || data.id || '',
+      importance: 'high',
+      when: 'now',
+    });
+    D.MEMORY = D.MEMORY.slice(0, 50);
+    refreshMemory();
+  });
+
+  V.on('hypothesis_surfaced', function (msg) {
+    const data = msg && (msg.data || msg.hypothesis || msg);
+    if (!data) return;
+    D.MEMORY.unshift({
+      event_type: 'HYPOTHESIS_SURFACED',
+      content: data.statement || data.hypothesis || data.content || '',
+      importance: 'normal',
+      when: 'now',
+    });
+    D.MEMORY = D.MEMORY.slice(0, 50);
+    refreshMemory();
+  });
 
   V.on('state_event', function (ev) {
     if (!ev || !ev.event_type) return;

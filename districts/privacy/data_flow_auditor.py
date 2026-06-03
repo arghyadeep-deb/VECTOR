@@ -44,10 +44,7 @@ class DataFlowAuditor(AgentBase):
         logger.info("[VECTOR][privacy] Auditing all data flows")
         self.add_lesson({"action": "audit_data_flows"})
 
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        events = mem.recall("", limit=200)
-        mem.close()
+        events = self.memory.recall("", limit=200)
 
         flow_sources = collections.Counter()
         flow_destinations = collections.Counter()
@@ -108,10 +105,7 @@ class DataFlowAuditor(AgentBase):
         logger.info("[VECTOR][privacy] Finding potential data leaks")
         self.add_lesson({"action": "find_leaks"})
 
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        events = mem.recall("", limit=100)
-        mem.close()
+        events = self.memory.recall("", limit=100)
 
         leak_indicators = []
         pii_keywords = ["email", "phone", "password", "token", "api_key", "ssn", "aadhar", "credit_card", "bank"]

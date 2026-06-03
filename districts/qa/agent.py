@@ -5,7 +5,13 @@ Wraps 11 Python agents (accessibility_auditor, api_tester, evidence_collector,
 model_qa_specialist, reality_checker, silent_failure_hunter, test_engineer,
 test_results_analyzer, tool_evaluator, workflow_architect, workflow_optimizer).
 """
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 
 import asyncio
 from pathlib import Path

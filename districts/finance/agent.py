@@ -1,5 +1,11 @@
 """FinanceSwarm — orchestrates finance district (5 .md + 7 .py agents)."""
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys, asyncio, importlib
 from pathlib import Path; from typing import Any
 from loguru import logger

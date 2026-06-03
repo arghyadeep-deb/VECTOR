@@ -138,30 +138,34 @@ def _with_cb(op, *args, **kwargs):
                 cb.state = CircuitState.OPEN
             raise
 
-    if _in_async:
-        # Async context: asyncio.run() would raise "This event loop is already running".
-        # Skip the coroutine wrapper entirely and apply CB bookkeeping synchronously.
-        return _run_sync_with_cb()
-    else:
-        # Sync context: use the coroutine-based CB path (original behaviour).
-        _coro = cb.call(lambda: op(*args, **kwargs))
-        try:
-            return asyncio.run(_coro)
-        except RuntimeError:
-            # asyncio.run failed (e.g. nested loop detected at runtime despite _in_async check).
-            # Close the stale coroutine and fall back to sync CB path.
-            _coro.close()
-            return _run_sync_with_cb()
+    # Episodic memory operations are synchronous SQLite calls. Running them
+    # through asyncio.run(cb.call(...)) creates a fresh Windows socketpair per
+    # memory operation, which exhausts buffers in large test runs. Use the
+    # synchronous breaker path consistently and keep async CBs for async work.
+    return _run_sync_with_cb()
 
 # Singleton database connection with thread-safe access
 _db_connection = None
 _db_lock = threading.Lock()
 
 
+def _is_connection_closed(conn) -> bool:
+    try:
+        conn.execute("SELECT 1")
+        return False
+    except sqlite3.ProgrammingError as e:
+        return "closed" in str(e).lower()
+    except Exception:
+        return False
+
+
 def get_db_connection():
     """Get or create singleton DB connection with thread-safe initialization."""
     global _db_connection
     with _db_lock:
+        if _db_connection is not None and _is_connection_closed(_db_connection):
+            logger.warning("[VECTOR][memory] Episodic DB connection was closed; reopening")
+            _db_connection = None
         if _db_connection is None:
             if _USE_SQLCIPHER:
                 _db_connection = sqlcipher.connect(str(CONFIG['db_path']), check_same_thread=False)
@@ -273,6 +277,7 @@ class EpisodicMemory:
     
     def __init__(self):
         self.conn = get_db_connection()
+        self._semantic_fallback: dict[str, dict] = {}
         logger.info("Episodic memory initialized (singleton connection)")
 
     def store(self, event_type, content, tags=None, context=None, source='vector') -> str:
@@ -392,8 +397,15 @@ class EpisodicMemory:
             return []
     
     def remember(self, key, value, category='general', confidence=0.5) -> bool:
+        updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self._semantic_fallback[key] = {
+            "key": key,
+            "value": value,
+            "category": category,
+            "confidence": confidence,
+            "updated_at": updated_at,
+        }
         try:
-            updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
             def _do():
                 with get_temp_cursor() as cursor:
                     cursor.execute("""
@@ -408,6 +420,7 @@ class EpisodicMemory:
                 return True
             return _with_cb(_do)
         except CircuitBreakerOpenError:
+            logger.warning("[VECTOR][episodic] circuit open — semantic fact cached in memory: {}", key)
             return False
         except Exception as e:
             logger.error(f"Remember failed: {e}")
@@ -428,10 +441,10 @@ class EpisodicMemory:
                     return None
             return _with_cb(_do)
         except CircuitBreakerOpenError:
-            return None
+            return self._semantic_fallback.get(key)
         except Exception as e:
             logger.error(f"Recall fact failed: {e}")
-            return None
+            return self._semantic_fallback.get(key)
     
     def store_chain(self, situation, goal_ids, steps, action, outcome, reward) -> str:
         try:

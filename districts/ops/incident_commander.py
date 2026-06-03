@@ -4,6 +4,11 @@ Scans episodic_memory for errors and agent deaths, triages severity,
 coordinates response, and writes blameless post-mortems to Obsidian.
 RULE 11: no Claude API at runtime.
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import sys
 import asyncio
 import datetime
