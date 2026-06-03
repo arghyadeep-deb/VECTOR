@@ -24,8 +24,6 @@ __all__ = [
 
 import os
 import time
-from pathlib import Path
-
 import datetime
 from collections import defaultdict
 from fastapi import Request, HTTPException
