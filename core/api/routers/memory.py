@@ -26,9 +26,15 @@ router = APIRouter(prefix="/memory", tags=["memory"])
 @router.get("/recent", response_model=MemoryRecentResponse)
 async def recent_memory(limit: int = Query(10, ge=1, le=50)):
     """Get recent episodic events from memory."""
+    key = f"recent_{limit}"
+    cached = memory_cache.get(key)
+    if cached:
+        return cached
     try:
         events = recall_episodes("", limit=limit)
-        return MemoryRecentResponse(events=events, count=len(events))
+        result = MemoryRecentResponse(events=events, count=len(events))
+        memory_cache.set(key, result)
+        return result
     except Exception as e:
         logger.error(f"[VECTOR][api][memory] recent failed: {e}")
         return MemoryRecentResponse(events=[], count=0, error=str(e))
