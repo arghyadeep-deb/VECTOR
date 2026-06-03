@@ -855,6 +855,7 @@ CONFIG: dict = {
         "loop_interval_sec": 0.5,
     },
     "comfyui": {
+        "path": os.environ.get("COMFYUI_PATH", ""),  # Override ComfyUI install path (default: GitHub/ComfyUI-master)
         "url": os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188"),
         "output_dir": os.environ.get("COMFYUI_OUTPUT_DIR", str(Path.home() / ".vector" / "comfyui" / "output")),
         "timeout": 120.0,
