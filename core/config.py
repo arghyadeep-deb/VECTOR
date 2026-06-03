@@ -333,6 +333,33 @@ class HomeAssistantConfig(BaseModel):
     rate_limit_per_sec: int = 10
 
 
+class SidecarsConfig(BaseModel):
+    # Paths to sidecar applications that VECTOR can launch alongside itself.
+    # Leave empty ("") to use the default location under the parent of the
+    # VECTOR codebase (i.e. <codebase-parent>/GitHub/<AppName>).
+    # Set a non-empty path to point at wherever you cloned/installed the app.
+    #
+    # LibreChat: no npm package exists; must be cloned locally.
+    #   Default: <codebase-parent>/GitHub/LibreChat-main
+    #   Override: set VECTOR_LIBRECHAT_PATH env var or change this field.
+    librechat_path: str = ""
+    #
+    # ComfyUI: local Stable-Diffusion node UI; must be cloned locally.
+    #   Default: <codebase-parent>/GitHub/ComfyUI-master
+    #   Override: set VECTOR_COMFYUI_PATH env var.
+    comfyui_path: str = ""
+    #
+    # UI-TARS: Electron desktop-automation app; must be cloned locally.
+    #   Default: <codebase-parent>/GitHub/UI-TARS-desktop-main
+    #   Override: set VECTOR_UITARS_PATH env var.
+    ui_tars_path: str = ""
+    #
+    # hyperframes: local Node media-frame server; must be cloned locally.
+    #   Default: <codebase-parent>/GitHub/hyperframes-main
+    #   Override: set VECTOR_HYPERFRAMES_PATH env var.
+    hyperframes_path: str = ""
+
+
 class AdsConfig(BaseModel):
     scripts_path: str = "districts/marketing/ads/scripts"
     references_path: str = "districts/marketing/ads/references"
