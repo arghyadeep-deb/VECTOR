@@ -33,7 +33,12 @@ import datetime
 from pathlib import Path
 
 
-_OPENMYTHOS_REPO = Path(__file__).parent.parent.parent.parent / "GitHub" / "OpenMythos-main"
+_VENDOR_DIR = Path(__file__).parent / "vendor"
+_OPENMYTHOS_REPO = (
+    _VENDOR_DIR  # vendored inside VECTOR (preferred — repo deletable)
+    if _VENDOR_DIR.exists()
+    else Path(__file__).parent.parent.parent.parent / "GitHub" / "OpenMythos-main"
+)
 _DATA_DIR = Path(__file__).parent.parent.parent / "data/training_runs"
 _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
