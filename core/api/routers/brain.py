@@ -39,10 +39,15 @@ router = APIRouter(prefix="/brain", tags=["brain"])
 @router.get("/goals")
 async def get_goals():
     """List all VECTOR goals (LONG/MID/SHORT horizon)."""
+    cached = goals_cache.get("brain_goals")
+    if cached:
+        return cached
     from core.city.governor import GovernorCouncil
     gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "get_goals", "params": {}})
+        result = await gov.dispatch({"type": "get_goals", "params": {}})
+        goals_cache.set("brain_goals", result)
+        return result
     except Exception as e:
         logger.error("[VECTOR][brain] get_goals failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
