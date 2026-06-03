@@ -60,6 +60,7 @@ class AddGoalReq(BaseModel):
 @router.post("/goals/add")
 async def add_goal(body: AddGoalReq):
     """Add or update a goal."""
+    goals_cache.invalidate()  # new goal — bust all goals cache entries
     from core.city.governor import GovernorCouncil
     gov = GovernorCouncil()
     try:
