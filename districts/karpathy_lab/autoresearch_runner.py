@@ -180,6 +180,39 @@ class AutoresearchRunner(AgentBase):
             logger.warning(f"[VECTOR][autoresearch] proposal generation failed: {e}")
             return ""
 
+    # ── Git branch management ──────────────────────────────────────────────────
+
+    def _create_experiment_branch(self, tag: str) -> str | None:
+        """Create a git branch for this experiment run. Returns branch name or None."""
+        try:
+            branch = f"autoresearch/{tag}"
+            subprocess.run(
+                ["git", "checkout", "-b", branch],
+                capture_output=True, check=False,
+                cwd=str(Path(__file__).parent.parent.parent),
+            )
+            logger.info("[VECTOR][autoresearch] Created experiment branch: {}", branch)
+            return branch
+        except Exception as e:
+            logger.debug("[VECTOR][autoresearch] Could not create branch: {}", e)
+            return None
+
+    def _commit_experiment_result(self, branch: str, tag: str, result: dict) -> None:
+        """Commit experiment result to git."""
+        try:
+            import json as _json
+            cwd = str(Path(__file__).parent.parent.parent)
+            subprocess.run(["git", "add", "data/training_runs/"],
+                          capture_output=True, cwd=cwd)
+            val_bpb = result.get("val_bpb")
+            bpb_str = f"{val_bpb:.4f}" if isinstance(val_bpb, float) else str(val_bpb or "?")
+            msg = f"autoresearch/{tag}: bpb={bpb_str}"
+            subprocess.run(["git", "commit", "-m", msg, "--no-verify"],
+                          capture_output=True, cwd=cwd)
+            logger.info("[VECTOR][autoresearch] Committed result: {}", msg)
+        except Exception as e:
+            logger.debug("[VECTOR][autoresearch] Could not commit: {}", e)
+
     # ── Main experiment loop ───────────────────────────────────────────────────
 
     async def run_experiment_cycle(self) -> dict:
