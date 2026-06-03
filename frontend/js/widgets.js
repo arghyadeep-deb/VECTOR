@@ -228,18 +228,46 @@
 
   F.goals = function(){
     const wrap = el('div');
-    ['LONG','MID','SHORT'].forEach(h=>{
-      wrap.appendChild(el('div','dlbl', h+' HORIZON').cloneNode());
-      const lbl = el('div', null, `<div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:6px 0 3px">${h} HORIZON</div>`);
-      wrap.appendChild(lbl);
-      D.GOALS[h].forEach(g=>{
-        const row = el('div', null,
-          `<div class="row-kv"><span class="v">${g.title}</span><span class="k">${Math.round(g.progress*100)}%</span></div>
-           <div class="meter ${g.progress<0.4?'dn':g.progress<0.7?'warn':''}"><i style="width:${g.progress*100}%"></i></div>`);
-        wrap.appendChild(row);
+    const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+
+    function renderGoalsData(goalsObj){
+      wrap.innerHTML = '';
+      ['LONG','MID','SHORT'].forEach(h=>{
+        const lbl = el('div', null, `<div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:6px 0 3px">${h} HORIZON</div>`);
+        wrap.appendChild(lbl);
+        const items = goalsObj[h] || [];
+        if(!items.length){ wrap.appendChild(el('div',null,'<div style="font-size:9px;color:var(--txt-mute);padding:2px 0">—</div>')); return; }
+        items.forEach(g=>{
+          const p = g.progress != null ? Math.min(1, g.progress) : 0;
+          const row = el('div', null,
+            `<div class="row-kv"><span class="v">${g.title}</span><span class="k">${Math.round(p*100)}%</span></div>
+             <div class="meter ${p<0.4?'dn':p<0.7?'warn':''}"><i style="width:${p*100}%"></i></div>`);
+          wrap.appendChild(row);
+        });
       });
-    });
-    return shell('goals','GOALS', wrap, 'panel');
+    }
+
+    // render demo data immediately as fallback
+    renderGoalsData(D.GOALS);
+
+    async function loadGoals(){
+      try{
+        const r = await fetch(API+'/goals');
+        const j = await r.json();
+        const goals = j.goals || (Array.isArray(j)?j:[]);
+        const byHorizon = { LONG:[], MID:[], SHORT:[] };
+        goals.forEach(g=>{
+          const h = (g.horizon||'').toUpperCase();
+          if(byHorizon[h]) byHorizon[h].push(g);
+        });
+        renderGoalsData(byHorizon);
+      }catch(e){ /* offline — demo data already shown */ }
+    }
+
+    const w = shell('goals','GOALS', wrap, 'panel');
+    loadGoals();
+    setInterval(()=>{ if(w.isConnected) loadGoals(); }, 30000);
+    return w;
   };
 
   F.districts = function(){
