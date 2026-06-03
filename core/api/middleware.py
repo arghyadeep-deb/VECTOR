@@ -285,7 +285,7 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 def generate_csrf_token() -> str:
-    """Generate a new CSRF token, store it, and persist to disk."""
+    """Generate a new CSRF token and store it in-memory."""
     token = uuid.uuid4().hex + uuid.uuid4().hex  # 64-char hex
     with _csrf_lock:
         # Clean expired tokens
@@ -294,7 +294,6 @@ def generate_csrf_token() -> str:
         for k in expired:
             del _csrf_tokens[k]
         _csrf_tokens[token] = now
-    _save_csrf_tokens()  # FIX #5: persist so tokens survive restart
     return token
 
 
