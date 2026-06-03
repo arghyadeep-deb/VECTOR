@@ -223,6 +223,10 @@ class AutoresearchRunner(AgentBase):
         if not self._train_script.exists():
             return {"status": "no_train_script", "message": str(self._train_script)}
 
+        # Create a git branch for this experiment cycle
+        cycle_tag = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+        experiment_branch = self._create_experiment_branch(cycle_tag)
+
         experiments = []
         original_code = self._train_script.read_text(encoding="utf-8")
         best_code = original_code
