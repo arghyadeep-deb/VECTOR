@@ -247,9 +247,6 @@
       });
     }
 
-    // render demo data immediately as fallback
-    renderGoalsData(D.GOALS);
-
     async function loadGoals(){
       try{
         const r = await fetch(API+'/goals');
@@ -261,7 +258,9 @@
           if(byHorizon[h]) byHorizon[h].push(g);
         });
         renderGoalsData(byHorizon);
-      }catch(e){ /* offline — demo data already shown */ }
+      }catch(e){
+        wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
+      }
     }
 
     const w = shell('goals','GOALS', wrap, 'panel');
