@@ -115,13 +115,17 @@ class MultiDBManager:
 
     async def write_all(self, table: str, record: dict) -> dict:
         """Write to local + cloud simultaneously."""
+        # Add transaction ID for deduplication across local + cloud
+        txn_id = record.get('id') or str(uuid.uuid4())
+        record_with_txn = {**record, '_txn_id': txn_id}
+
         # Local write is synchronous
-        local_ok = self.write_local(table, record)
+        local_ok = self.write_local(table, record_with_txn)
 
         # Cloud writes are async
-        cloud = await self.write_cloud(table, record)
+        cloud = await self.write_cloud(table, record_with_txn)
 
-        return {"local": local_ok, **cloud}
+        return {"local": local_ok, **cloud, "txn_id": txn_id}
 
     # â”€â”€â”€ Sync Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
