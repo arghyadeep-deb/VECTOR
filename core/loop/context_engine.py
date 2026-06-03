@@ -222,6 +222,16 @@ class ContextEngine:
                     continue
                 lines.append(f"{k}: {v}")
 
+        # Available commands (from brain vault)
+        try:
+            from vectorcode.src.command_registry import get_command_registry
+            reg = get_command_registry()
+            cmd_names = list(reg.load().keys())[:15]
+            if cmd_names:
+                lines.append(f"Brain commands: {', '.join('/' + c for c in cmd_names)}")
+        except Exception:
+            pass
+
         lines.append("[END SESSION CONTEXT]")
         return "\n".join(lines)
 
