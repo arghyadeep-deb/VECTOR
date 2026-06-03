@@ -120,14 +120,20 @@
     body:{ text, source:'hud', priority: priority||'normal' } }); }
 
   // ---- WebSocket adapter (spec §7) --------------------------------------
+  // Auth token is sent as the first JSON message after connection (not in URL)
+  // to avoid leaking credentials to server logs, proxies, and browser history.
   const sockets = {};
-  function openWS(name, url, onMsg){
+  function openWS(name, url, onMsg, authToken){
     try{
       const ws = new WebSocket(url);
       ws.onmessage = e => { let d; try{ d=JSON.parse(e.data); }catch(_){ return; } onMsg(d, ws); };
       ws.onclose  = () => emit('ws:close', { name });
       ws.onerror  = () => emit('ws:error', { name });
-      ws.onopen   = () => emit('ws:open',  { name });
+      ws.onopen   = () => {
+        // Send auth handshake as first message if a token is configured
+        if(authToken) ws.send(JSON.stringify({ auth: 'Bearer ' + authToken }));
+        emit('ws:open', { name });
+      };
       sockets[name] = ws; return ws;
     }catch(e){ console.warn('[VECTOR] ws fail', name, e); }
   }
@@ -137,34 +143,34 @@
     // CSRF for browser mutations
     try{ const c = await http('/csrf-token'); CFG.csrf = c.csrf_token; }catch(e){}
     const wsbase = CFG.ws || CFG.base.replace(/^http/,'ws');
-    const tok = CFG.apiKey ? ('?token=Bearer+'+encodeURIComponent(CFG.apiKey)) : '';
+    const tok = CFG.apiKey || '';
 
     // /ws — command + status + orb_state
-    openWS('main', wsbase+'/ws'+tok, d=>{
+    openWS('main', wsbase+'/ws', d=>{
       if(d.type==='orb_state' && STATES.includes(d.state)) go(d.state);
       else if(d.type==='response'){ say(d.text); emit('response', d); }
       else if(d.type==='status'){ emit('status', d); }
       else if(d.type==='error'){ emit('error', d); }
-    });
+    }, tok);
     // /ws/state — event bus bridge
     openWS('state', wsbase+'/ws/state', d=>{
       if(d.type==='state_event') emit('state_event', d);
       else if(d.type==='decision_made') emit('decision_made', d);
       else if(d.type==='hypothesis_surfaced') emit('hypothesis_surfaced', d);
-    });
+    }, tok);
     // /ws/voice/stream — transcript/response/audio
     openWS('voice', wsbase+'/ws/voice/stream', d=>{
       if(d.type==='transcript'){ api.chat.push({ role:'user', text:d.text }); listen(); }
       else if(d.type==='response'){ say(d.text); }
       else if(d.type==='audio'){ emit('audio', d); }
       else if(d.type==='done'){ /* speaking timeout handles return to idle */ }
-    });
+    }, tok);
     // /gesture/ws — hand landmarks
-    openWS('gesture', wsbase+'/gesture/ws', d=>emit('gesture', d));
+    openWS('gesture', wsbase+'/gesture/ws', d=>emit('gesture', d), tok);
     // /camera/ws — jpeg frames + detections
-    openWS('camera', wsbase+'/camera/ws', d=>emit('camera', d));
+    openWS('camera', wsbase+'/camera/ws', d=>emit('camera', d), tok);
     // /notifications/ws — hypotheses
-    openWS('notify', wsbase+'/notifications/ws', d=>emit('notify', d));
+    openWS('notify', wsbase+'/notifications/ws', d=>emit('notify', d), tok);
 
     emit('connected', CFG);
     return sockets;
