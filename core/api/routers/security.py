@@ -18,6 +18,7 @@ from loguru import logger
 from core.api.schemas import SecurityStatusResponse, ProcessInfo, PermissionAuditEntry, SecurityRecentResponse
 from core.api.crud import recall_episodes
 from core.control.security.threat_detector import check_process_anomalies
+from core.api.cache import security_cache
 
 router = APIRouter(prefix="/security", tags=["security"])
 
