@@ -947,6 +947,24 @@ CONFIG: dict = {
         "wiki_root": os.environ.get("VECTOR_WIKI_ROOT",
                                     str(Path(_s.VECTOR_HOME).parent / "V.E.C.T.O.R. Brain")),
     },
+    # ── Sidecar app paths ─────────────────────────────────────────────────────
+    # These apps have no pip/npm package; they must be cloned locally.
+    # Defaults point to <codebase-parent>/GitHub/<AppName> — the conventional
+    # layout used when all repos live next to each other.
+    # Override any path via the corresponding env var or .env key so that the
+    # cloned repos can live anywhere (or be deleted entirely — VECTOR silently
+    # skips sidecars whose directory does not exist).
+    #
+    #   VECTOR_LIBRECHAT_PATH   — LibreChat clone  (node api/server/index.js)
+    #   VECTOR_COMFYUI_PATH     — ComfyUI clone    (python main.py)
+    #   VECTOR_UITARS_PATH      — UI-TARS-desktop  (npm run start in apps/ui-tars)
+    #   VECTOR_HYPERFRAMES_PATH — hyperframes clone (node packages/producer/dist/server.js)
+    "sidecars": {
+        "librechat_path":   _s.VECTOR_LIBRECHAT_PATH or _s.sidecars.librechat_path,
+        "comfyui_path":     _s.VECTOR_COMFYUI_PATH or _s.sidecars.comfyui_path,
+        "ui_tars_path":     _s.VECTOR_UITARS_PATH or _s.sidecars.ui_tars_path,
+        "hyperframes_path": _s.VECTOR_HYPERFRAMES_PATH or _s.sidecars.hyperframes_path,
+    },
 }
 
 # ── Afterburner: inject CONFIG values into os.environ for absorbed code ──────
