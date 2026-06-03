@@ -14,6 +14,7 @@ __all__ = [
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
+from core.api.cache import health_cache
 
 router = APIRouter(prefix="/health", tags=["health"])
 
