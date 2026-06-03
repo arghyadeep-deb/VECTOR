@@ -104,6 +104,42 @@ class _VCAgentRegistry:
             self._tool = ToolAgent()
         return self._tool
 
+    @property
+    def brain_agents(self) -> dict[str, dict]:
+        """Load all brain/.claude/agents/*.md as callable agent definitions."""
+        if not hasattr(self, '_brain_agents_cache'):
+            brain_agents: dict[str, dict] = {}
+            brain_dir = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\.claude\agents")
+            fallback_dir = Path(__file__).parent.parent.parent.parent / "brain" / ".claude" / "agents"
+
+            for agents_dir in [brain_dir, fallback_dir]:
+                if agents_dir.exists():
+                    for md_file in agents_dir.glob("**/*.md"):
+                        name = md_file.stem
+                        try:
+                            content = md_file.read_text(encoding="utf-8", errors="ignore")
+                        except Exception:
+                            content = ""
+                        description = ""
+                        # Extract description from frontmatter
+                        if "description:" in content[:500]:
+                            for line in content[:500].splitlines():
+                                if line.strip().startswith("description:"):
+                                    description = line.split(":", 1)[1].strip().strip('"\'')
+                                    break
+                        brain_agents[name] = {
+                            "name": name,
+                            "description": description or f"Brain agent: {name}",
+                            "path": str(md_file),
+                            "content": content[:5000],
+                        }
+                    break  # use first found directory
+
+            self._brain_agents_cache = brain_agents
+            logger.info("[VECTOR][vc_agents] Loaded {} brain agents", len(brain_agents))
+
+        return self._brain_agents_cache
+
     def status(self) -> dict:
         """Return which agents are initialized."""
         return {
