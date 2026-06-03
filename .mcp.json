@@ -37,6 +37,14 @@
     "playwright": {
       "command": "npx",
       "args": ["@playwright/mcp@latest", "--headless", "--port", "8931"]
+    },
+    "glif": {
+      "command": "node",
+      "args": ["core/mcp_servers/glif/index.js"],
+      "cwd": "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/V.E.C.T.O.R. Codebase",
+      "env": {
+        "GLIF_API_TOKEN": "${GLIF_API_TOKEN}"
+      }
     }
   }
 }
