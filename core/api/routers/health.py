@@ -88,6 +88,9 @@ async def health_status():
 @router.get("/system")
 async def system_health():
     """System-level health: DB, Ollama, memory, loop. Used by monitoring and load balancers."""
+    cached = health_cache.get("system")
+    if cached:
+        return cached
     import datetime
     import psutil
     checks: dict[str, dict] = {}
