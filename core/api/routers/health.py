@@ -161,8 +161,10 @@ async def system_health():
         checks["memory"] = {"status": "error", "error": str(e)}
         all_ok = False
 
-    return {
+    result = {
         "status": "ok" if all_ok else "degraded",
         "checks": checks,
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
     }
+    health_cache.set("system", result)
+    return result
