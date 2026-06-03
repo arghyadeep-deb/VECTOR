@@ -178,11 +178,27 @@ def _start_sidecars() -> None:
     import subprocess
     import os
 
+    # ComfyUI path: CONFIG override → env var → default adjacent GitHub location
+    try:
+        from core.config import CONFIG
+        _comfyui_path = (
+            CONFIG.get("comfyui", {}).get("path", "")
+            if isinstance(CONFIG, dict)
+            else ""
+        )
+    except Exception:
+        _comfyui_path = ""
+    if not _comfyui_path:
+        _comfyui_path = os.environ.get(
+            "COMFYUI_PATH",
+            str(Path(__file__).parent.parent / "GitHub" / "ComfyUI-master"),
+        )
+
     sidecars = [
         {
             "name": "ComfyUI",
             "cmd": ["python", "main.py", "--port", "8188", "--listen", "127.0.0.1"],
-            "cwd": str(Path(__file__).parent.parent / "GitHub" / "ComfyUI-master"),
+            "cwd": _comfyui_path,
             "health_url": "http://127.0.0.1:8188/system_stats",
         },
         {
