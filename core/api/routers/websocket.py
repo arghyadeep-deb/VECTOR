@@ -193,12 +193,10 @@ async def vector_ws(websocket: WebSocket):
             {"type": "response", ...}    ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ command response
             {"type": "error",   ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ error message
     """
-    try:
-        require_auth(websocket)
-    except HTTPException:
-        await websocket.close(code=4001, reason="Unauthorized")
-        return
     await manager.connect(websocket)
+    if not await require_auth_handshake(websocket):
+        manager.disconnect(websocket)
+        return
     try:
         # Send initial status burst
         await manager.send_personal(websocket, await _build_status_payload())
