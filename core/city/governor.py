@@ -713,6 +713,22 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "what_if": "science",
     "experiment": "science",
     "science": "science",
+    # Emergency district
+    "emergency": "emergency",
+    "emergency_alert": "emergency",
+    "incident": "emergency",
+    "escalate_emergency": "emergency",
+    "runbook": "emergency",
+    "detect_anomaly": "emergency",
+    "classify_emergency": "emergency",
+    # Predictive analytics district
+    "predict": "predictive_analytics",
+    "forecast": "predictive_analytics",
+    "anomaly_prediction": "predictive_analytics",
+    "time_series": "predictive_analytics",
+    "causal_simulate": "predictive_analytics",
+    "strategy_recommend": "predictive_analytics",
+    "prediction_store": "predictive_analytics",
 }
 
 
