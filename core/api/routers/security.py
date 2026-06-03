@@ -10,6 +10,8 @@ __all__ = [
 ]
 
 
+import psutil
+
 from fastapi import APIRouter, Request, HTTPException, Query
 from loguru import logger
 
