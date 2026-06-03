@@ -234,7 +234,17 @@ def _start_sidecars() -> None:
 
     for sidecar in sidecars:
         cwd = sidecar["cwd"]
-        if not os.path.exists(cwd):
+        # Python module check: skip if required pip package is not installed
+        if sidecar.get("python_module_check"):
+            import importlib.util
+            if importlib.util.find_spec(sidecar["python_module_check"]) is None:
+                logger.info(
+                    "[VECTOR][sidecars] {} skipped — pip package '{}' not installed",
+                    sidecar["name"], sidecar["python_module_check"],
+                )
+                continue
+        # cwd check: skip if directory doesn't exist (unless skip_cwd_check is set)
+        if not sidecar.get("skip_cwd_check") and not os.path.exists(cwd):
             logger.info("[VECTOR][sidecars] {} not found, skipping", sidecar["name"])
             continue
         try:
