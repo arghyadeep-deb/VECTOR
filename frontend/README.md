@@ -23,8 +23,8 @@ keeping the structure, and serve `VECTOR.html` as `index.html`.
 ```
 VECTOR.html
 styles/  core.css  widgets.css
-js/      config.js  data.js  orb.js  ambient.js  vector-core.js  widgets.js  audio.js
-         gestures.js  face.js  speech.js  cinematic.js  terminal.js  demo.js
+js/      config.js  data.js  orb.js  ambient.js  vector-core.js  voice_stream.js  widgets.js
+         audio.js  gestures.js  face.js  speech.js  cinematic.js  terminal.js  demo.js
 ```
 
 `js/demo.js` is the **Director** dev panel + scripted demo + offline seed data.
