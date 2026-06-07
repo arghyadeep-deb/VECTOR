@@ -60,7 +60,7 @@ class StockAnalyst(AgentBase):
         """
         Get current stock quote for a symbol.
         Results are TTL-cached for 5 minutes to avoid redundant API calls.
-        Falls back to get_nse_quote if yfinance returns an error.
+        Fallback chain: yfinance -> Yahoo Finance HTTP (raw ticker) -> NSE/BSE -> mock.
         """
         symbol = symbol.upper().strip()
 
@@ -81,9 +81,69 @@ class StockAnalyst(AgentBase):
                 self._quote_cache.set(symbol, result)
             return result
 
+        # yfinance not installed — try real HTTP sources before falling back to mock
+        http_result = self._fetch_yahoo_chart(symbol)
+        if http_result.get("status") == "success":
+            self._quote_cache.set(symbol, http_result)
+            return http_result
+
+        nse_result = self.get_nse_quote(symbol)
+        if nse_result.get("status") == "success":
+            self._quote_cache.set(symbol, nse_result)
+            return nse_result
+
+        logger.warning(f"[VECTOR][stock_analyst] No live source available for {symbol} — using mock data")
         result = self._get_mock_quote(symbol)
         self._quote_cache.set(symbol, result)
         return result
+
+    def _fetch_yahoo_chart(self, ticker: str) -> dict:
+        """
+        Fetch a quote for a raw ticker symbol from the Yahoo Finance chart API
+        via httpx (no yfinance dependency, no auth). Used as the primary
+        no-yfinance fallback for global tickers (AAPL, MSFT, etc.).
+        """
+        import httpx
+
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+            f"?interval=1d&range=1d"
+        )
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                response.raise_for_status()
+                data = response.json()
+
+            result_obj = data.get("chart", {}).get("result", [])
+            if not result_obj:
+                return {"status": "error", "symbol": ticker, "error": f"No chart result for {ticker}"}
+
+            meta = result_obj[0].get("meta", {})
+            price = meta.get("regularMarketPrice")
+            prev_close = meta.get("previousClose") or meta.get("chartPreviousClose")
+            change = round(price - prev_close, 4) if (price and prev_close) else None
+            change_pct = round((change / prev_close) * 100, 4) if (change is not None and prev_close) else None
+
+            self.award_points(5, f"http_quote_{ticker}")
+            logger.info(f"[VECTOR][stock_analyst] Yahoo HTTP quote fetched: {ticker} @ {price}")
+
+            return {
+                "status": "success",
+                "symbol": ticker,
+                "price": price,
+                "change": change,
+                "change_percent": change_pct,
+                "volume": meta.get("regularMarketVolume"),
+                "day_high": meta.get("regularMarketDayHigh"),
+                "day_low": meta.get("regularMarketDayLow"),
+                "52w_high": meta.get("fiftyTwoWeekHigh"),
+                "52w_low": meta.get("fiftyTwoWeekLow"),
+                "source": "yahoo_finance_http"
+            }
+        except Exception as e:
+            logger.warning(f"[VECTOR][stock_analyst] Yahoo HTTP chart fetch failed for {ticker}: {e}")
+            return {"status": "error", "symbol": ticker, "error": str(e)}
 
     def _get_real_quote(self, symbol: str) -> dict:
         """Get real quote using yfinance."""
