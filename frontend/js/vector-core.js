@@ -177,6 +177,15 @@
   }
   function disconnect(){ Object.values(sockets).forEach(ws=>{ try{ws.close();}catch(_){}}); }
 
+  // ---- raw socket access (for binary streams e.g. mic audio) -------------
+  function wsConnected(name){ const ws = sockets[name]; return !!ws && ws.readyState === WebSocket.OPEN; }
+  function wsSend(name, data){
+    const ws = sockets[name];
+    if(!ws || ws.readyState !== WebSocket.OPEN) return false;
+    try{ ws.send(typeof data === 'string' ? data : data); return true; }
+    catch(e){ console.warn('[VECTOR] ws send fail', name, e); return false; }
+  }
+
   // ---- caption strip + chat/music are bound by widgets.js ---------------
   function noop(){}
   const api = {
