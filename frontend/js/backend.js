@@ -212,6 +212,24 @@
     }));
   }
 
+  // Live per-second countdown for pending approval expiry — ticks all
+  // `.exp[data-expires-at]` spans down to 0 between poll refreshes, since
+  // the backend only reports a snapshot "expires in Ns" on each poll.
+  function tickApprovalCountdowns() {
+    const body = qs('security', '.w-body');
+    if (!body) return;
+    body.querySelectorAll('.exp[data-expires-at]').forEach(el => {
+      const expiresAt = Number(el.dataset.expiresAt);
+      const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      el.textContent = remaining + 's';
+      if (remaining <= 0) {
+        const row = el.closest('.appr');
+        if (row) row.style.opacity = '.3';
+      }
+    });
+  }
+  setInterval(tickApprovalCountdowns, 1000);
+
   function refreshApprovals(approvals) {
     if (!widgetOpen('security')) return;
     const body = qs('security', '.w-body');
