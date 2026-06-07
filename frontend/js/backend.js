@@ -3,7 +3,8 @@
    Loaded after all other modules. Listens for the 'connected' event that
    VECTOR.html's autoConnect() already fires, then polls 30+ endpoints and
    pushes real data into D.* and the open widget DOM.
-   Falls back silently — seed data from data.js is always the safety net.
+   Poll failures are surfaced through VECTOR.setRuntimeMode when available;
+   seed data from data.js remains visible as explicit demo/degraded state.
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -222,15 +223,17 @@
       `<div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">LIVE PENDING · ${approvals.length}</div>` +
       approvals.map(a => {
         const isRed = a.level === 'RED';
+        const expiresAt = Date.now() + (Number(a.expires) || 0) * 1000;
         return `<div class="appr ${isRed ? 'red' : ''}" style="margin-bottom:4px">
           <div class="at">${a.action_type} <span class="badge2 ${isRed ? 'crit' : 'high'}">${a.level}</span></div>
           <div class="ap">${a.params} · by ${a.proposed_by}</div>
           <div class="acts">
             <button class="ok2 live-appr-ok" data-action-id="${a.id || a.action_id || a.action_type}" data-atype="${a.action_type}">APPROVE</button>
             <button class="no2 live-appr-no" data-action-id="${a.id || a.action_id || a.action_type}">DENY</button>
-            <span class="exp">${a.expires}s</span>
+            <span class="exp" data-expires-at="${expiresAt}">${a.expires}s</span>
           </div></div>`;
       }).join('');
+    tickApprovalCountdowns();
     apprEl.querySelectorAll('.live-appr-ok').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -270,21 +273,38 @@
   // ── Poll helpers ──────────────────────────────────────────────────────────
 
   let _tick = 0;
+  let pollingStarted = false;
+  const pollTimers = [];
+  let successfulPolls = 0;
+  let failedPolls = 0;
+
+  function markRuntime(mode, detail) {
+    if (typeof V.setRuntimeMode === 'function') V.setRuntimeMode(mode, detail);
+  }
 
   async function poll(path, interval, handler) {
     async function run() {
       try {
         const data = await V.http(path);
+        successfulPolls += 1;
+        failedPolls = 0;
+        markRuntime('live', V.config.base || path);
         handler(data);
-      } catch (_) { /* silent — seed data stays */ }
+      } catch (err) {
+        failedPolls += 1;
+        const detail = path + ' failed' + (err && err.message ? ': ' + err.message : '');
+        if (!successfulPolls || failedPolls >= 2) markRuntime('degraded', detail);
+      }
     }
     run();
-    setInterval(run, interval);
+    pollTimers.push(setInterval(run, interval));
   }
 
   // ── Main polling setup ────────────────────────────────────────────────────
 
   function startPolling() {
+    if (pollingStarted) return;
+    pollingStarted = true;
 
     // /status — 5s — uptime, agent count, loop state
     poll('/status', 5000, data => {
@@ -293,6 +313,35 @@
       if (data.agents) {
         setTel('[data-tick]', String(_tick++));
       }
+    });
+
+    // /world/snapshot — 5s — unified live context shared by HUD panels
+    poll('/world/snapshot', 5000, data => {
+      if (!data) return;
+      D.WORLD = data;
+      if (data.runtime && data.runtime.uptime_seconds != null) {
+        setTel('[data-up]', fmtUptime(data.runtime.uptime_seconds));
+      }
+      if (data.agents && Array.isArray(data.agents.sample) && data.agents.sample.length) {
+        D.agents = data.agents.sample.map(adaptAgent);
+        refreshDistricts();
+        if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
+      }
+      if (data.memory && Array.isArray(data.memory.recent) && data.memory.recent.length) {
+        D.MEMORY = adaptMemory(data.memory.recent);
+        refreshMemory();
+      }
+      if (data.safety && Array.isArray(data.safety.pending_approvals)) {
+        D.APPROVALS = data.safety.pending_approvals;
+        refreshApprovals(D.APPROVALS);
+      }
+      if (data.sensing && data.sensing.system_load) {
+        const load = data.sensing.system_load;
+        if (load.cpu_percent != null) setTel('[data-cpu]', Number(load.cpu_percent).toFixed(0) + '%');
+        if (load.mem_used_percent != null) setTel('[data-vram]', Number(load.mem_used_percent).toFixed(0) + '%');
+      }
+      const glyph = document.getElementById('glyphNet');
+      if (glyph) glyph.textContent = 'WORLD · ' + String(data.status || 'OK').toUpperCase();
     });
 
     // /agents — 8s — districts panel
@@ -571,6 +620,7 @@
 
   V.on('connected', function () {
     console.info('[VECTOR] backend.js: polling started');
+    markRuntime('connecting', V.config.base || 'backend');
     startPolling();
   });
 
