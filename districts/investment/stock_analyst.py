@@ -412,12 +412,80 @@ Be balanced and provide specific reasoning.
     def get_fundamentals(self, symbol: str) -> dict:
         """
         Get fundamental data for a stock.
+        Fallback chain: yfinance -> Yahoo Finance HTTP quoteSummary -> mock.
         """
         symbol = symbol.upper()
 
         if self._yfinance_available:
-            return self._get_real_fundamentals(symbol)
+            result = self._get_real_fundamentals(symbol)
+            if result.get("status") == "success":
+                return result
+
+        http_result = self._fetch_yahoo_fundamentals(symbol)
+        if http_result.get("status") == "success":
+            return http_result
+
+        logger.warning(f"[VECTOR][stock_analyst] No live fundamentals source for {symbol} — using mock data")
         return self._get_mock_fundamentals(symbol)
+
+    def _fetch_yahoo_fundamentals(self, symbol: str) -> dict:
+        """
+        Fetch fundamentals from the Yahoo Finance quoteSummary HTTP API
+        via httpx (no yfinance dependency, no auth).
+        """
+        import httpx
+
+        modules = "assetProfile,defaultKeyStatistics,financialData,summaryDetail"
+        url = (
+            f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
+            f"?modules={modules}"
+        )
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                response.raise_for_status()
+                data = response.json()
+
+            results = data.get("quoteSummary", {}).get("result")
+            if not results:
+                return {"status": "error", "symbol": symbol, "error": f"No quoteSummary result for {symbol}"}
+
+            result = results[0]
+            profile = result.get("assetProfile", {})
+            stats = result.get("defaultKeyStatistics", {})
+            financials = result.get("financialData", {})
+            summary = result.get("summaryDetail", {})
+
+            def _raw(block: dict, key: str):
+                val = block.get(key)
+                return val.get("raw") if isinstance(val, dict) else val
+
+            self.award_points(5, f"http_fundamentals_{symbol}")
+            logger.info(f"[VECTOR][stock_analyst] Yahoo HTTP fundamentals fetched: {symbol}")
+
+            return {
+                "status": "success",
+                "symbol": symbol,
+                "company_name": profile.get("longName") or profile.get("shortName"),
+                "sector": profile.get("sector"),
+                "industry": profile.get("industry"),
+                "market_cap": _raw(summary, "marketCap") or _raw(stats, "marketCap"),
+                "pe_ratio": _raw(summary, "trailingPE"),
+                "forward_pe": _raw(summary, "forwardPE"),
+                "peg_ratio": _raw(stats, "pegRatio"),
+                "eps": _raw(stats, "trailingEps"),
+                "revenue": _raw(financials, "totalRevenue"),
+                "revenue_growth": _raw(financials, "revenueGrowth"),
+                "profit_margin": _raw(financials, "profitMargins"),
+                "debt_to_equity": _raw(financials, "debtToEquity"),
+                "return_on_equity": _raw(financials, "returnOnEquity"),
+                "dividend_yield": _raw(summary, "dividendYield"),
+                "beta": _raw(summary, "beta"),
+                "source": "yahoo_finance_http"
+            }
+        except Exception as e:
+            logger.warning(f"[VECTOR][stock_analyst] Yahoo HTTP fundamentals fetch failed for {symbol}: {e}")
+            return {"status": "error", "symbol": symbol, "error": str(e)}
 
     def _get_real_fundamentals(self, symbol: str) -> dict:
         """Get real fundamentals using yfinance."""
