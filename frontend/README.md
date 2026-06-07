@@ -85,7 +85,7 @@ straight to the UI:
 |---|---|
 | `/ws` | `orb_state` → FSM state · `response` → `say()` · `status` → event |
 | `/ws/state` | `state_event` (DECISION_MADE, AGENT_HP_CHANGED…) → `VECTOR.on('state_event')` |
-| `/ws/voice/stream` | `transcript` → chat + listen · `response` → say · `audio` → event |
+| `/ws/voice/stream` | `transcript` → chat + listen · `response` → say · `audio` → event — `voice_stream.js` streams raw mic audio (getUserMedia + MediaRecorder, webm/opus chunks) here so VECTOR's own Whisper/Kokoro pipeline handles voice instead of the browser's cloud SpeechRecognition; `speech.js` falls back to SpeechRecognition only when this socket is unavailable |
 | `/gesture/ws` | `{x,y,gesture}` → hand cursor (point/pinch/open_palm/fist/swipe) |
 | `/camera/ws` | `{frame,detections}` → vision widget (`VECTOR.on('camera')`) |
 | `/notifications/ws` | hypotheses (`VECTOR.on('notify')`) |
