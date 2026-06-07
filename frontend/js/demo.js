@@ -6,6 +6,14 @@
 (function (global) {
   'use strict';
   const V = global.VECTOR;
+  const runtimeState = {
+    mode: 'demo',
+    label: 'DEMO DATA',
+    detail: 'No backend verified.',
+    base: '',
+    lastOk: '',
+    lastError: ''
+  };
   const ico = {
     mic:'<path d="M8 1a2 2 0 0 1 2 2v4a2 2 0 1 1-4 0V3a2 2 0 0 1 2-2z"/><path d="M3 7a5 5 0 0 0 10 0M8 12v3"/>',
     screen:'<rect x="1.5" y="2" width="13" height="9"/><path d="M6 14h4M8 11v3"/>',
@@ -22,7 +30,9 @@
     finance:'<path d="M2 12l4-4 3 3 5-6"/><circle cx="13" cy="4" r="1.5"/><path d="M1.5 14.5h13"/>',
     cscheduler:'<rect x="2" y="3" width="12" height="11" rx="1"/><path d="M5 1.5v3M11 1.5v3M2 7h12"/><circle cx="11" cy="11" r="2.5"/><path d="M11 9.5v1.5l1 1"/>',
     answerengine:'<circle cx="8" cy="7" r="5.5"/><path d="M8 4.5v2.5l1.5 1.5M8 14v-1.5"/>',
-    goalplanner:'<circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/><path d="M9.5 3h4M9.5 8h4M9.5 13h4"/>'
+    goalplanner:'<circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/><path d="M9.5 3h4M9.5 8h4M9.5 13h4"/>',
+    missioncontrol:'<path d="M2 3h12v10H2z"/><path d="M4 6h4M4 8.5h6M4 11h3"/><circle cx="12" cy="6" r="1.3"/><path d="M11 10l1 1 2-2"/>'
+    ,features:'<rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><path d="M7 4.5h2M7 11.5h2M4.5 7v2M11.5 7v2"/>'
   };
   const svg = p => `<svg viewBox="0 0 16 16">${p}</svg>`;
 
@@ -37,6 +47,10 @@
       ['cam','VISION', ()=>{ V.vision.toggle(); setOn('cam', V.vision.on); }, false],
       ['sep'],
       ['grid','SITUATION ROOM', ()=>V.situationRoom(), false],
+      ['sep'],
+      ['features','BACKEND FEATURES', ()=>V.openWidget('features'), false],
+      ['sep'],
+      ['missioncontrol','MISSION CONTROL', ()=>V.openWidget('missioncontrol'), false],
       ['sep'],
       ['music','MUSIC', ()=>V.openWidget('music'), false],
       ['sep'],
@@ -73,6 +87,47 @@
     const on=!global.VectorAudio.enabled; global.VectorAudio.setEnabled(on); setOn('sound',on);
   }
   function setOn(key,on){ const b=document.querySelector(`#dock .d-btn[data-key="${key}"]`); if(b) b.classList.toggle('on',on); }
+
+  function runtimeLabel(state){
+    if(state.mode === 'live') return '● LIVE · '+(state.base || state.detail || 'backend verified');
+    if(state.mode === 'connecting') return 'CONNECTING · '+(state.base || 'backend');
+    if(state.mode === 'degraded') return 'DEGRADED · '+(state.detail || state.lastError || 'backend unavailable');
+    return 'DEMO MODE · '+(state.detail || 'seed data only');
+  }
+
+  function runtimeColor(mode){
+    if(mode === 'live') return 'var(--ok)';
+    if(mode === 'connecting') return 'var(--warn)';
+    if(mode === 'degraded') return 'var(--danger)';
+    return 'var(--txt-faint)';
+  }
+
+  function updateRuntimeBadge(){
+    const stat=document.getElementById('d-stat');
+    if(stat){
+      stat.textContent=runtimeLabel(runtimeState);
+      stat.style.color=runtimeColor(runtimeState.mode);
+      stat.dataset.mode=runtimeState.mode;
+    }
+    const stage=document.getElementById('stage');
+    if(stage){
+      stage.dataset.runtimeMode=runtimeState.mode;
+      stage.dataset.runtimeDetail=runtimeState.detail || runtimeState.lastError || '';
+    }
+  }
+
+  function setRuntimeMode(mode, detail){
+    runtimeState.mode=mode || 'demo';
+    runtimeState.detail=detail || runtimeState.detail || '';
+    runtimeState.base=(V.config && V.config.base) || runtimeState.base || '';
+    if(mode === 'live') runtimeState.lastOk=new Date().toISOString();
+    if(mode === 'degraded') runtimeState.lastError=detail || runtimeState.lastError || 'backend unavailable';
+    updateRuntimeBadge();
+    V.emit('runtime:mode', Object.assign({}, runtimeState));
+    return Object.assign({}, runtimeState);
+  }
+  V.setRuntimeMode=setRuntimeMode;
+  V.getRuntimeMode=()=>Object.assign({}, runtimeState);
   function toggleCursor(){
     const C=global.VectorCursor;
     if(C.mode==='off'){ C.mouse(); setOn('hand',true); }
@@ -96,7 +151,7 @@
           <input class="di" id="d-key" placeholder="VECTOR_API_KEY (optional)" />
           <div class="dbtns"><button class="db prim" id="d-conn">CONNECT</button>
             <button class="db" id="d-disc">DISCONNECT</button></div>
-          <div class="dlbl" id="d-stat">offline · demo data</div>
+          <div class="dlbl" id="d-stat" data-mode="demo">DEMO MODE · seed data only</div>
         </div>
       </div>`;
     const mk=(host,label,fn,prim)=>{ const b=document.createElement('button');
@@ -119,7 +174,17 @@
     mk('g-hud','SITUATION', ()=>V.situationRoom());
     mk('g-hud','VOICE', ()=>{ if(global.VectorSpeech) global.VectorSpeech.toggle(); });
 
-    ['chat','music','map','webcam','telemetry','market','goals','districts','council','security','memory']
+    [
+      'chat','music','map','webcam','telemetry','market','goals','goalplanner',
+      'districts','council','security','memory','approvals','finance',
+      'contentscheduler','answerengine','voicestudio','codegraph',
+      'features','missioncontrol','corepanel','agentspanel','brainpanel','knowledgepanel',
+      'codeintel','vectorcodepanel','trading','backtest','hedgebot',
+      'intelligencepanel','shadowbroker','mediastudio','comfyui',
+      'hyperframes','contentpanel','designpanel','researchpanel','pccontrol',
+      'camerapanel','healthpanel','learningpanel','workpanel','privacypanel',
+      'analyticspanel','personalpanel','platformpanel','city3d'
+    ]
       .forEach(id=>mk('g-wid', id.toUpperCase(), ()=>V.openWidget(id)));
 
     mk('g-cur','POINTER', ()=>{ global.VectorCursor.mouse(); setOn('hand',true); });
@@ -133,15 +198,16 @@
       e.stopPropagation();
       const base=document.getElementById('d-base').value.trim()||'http://127.0.0.1:8000';
       const apiKey=document.getElementById('d-key').value.trim();
-      const stat=document.getElementById('d-stat'); stat.textContent='connecting…';
-      try{ await V.connect({ base, apiKey }); stat.textContent='● live · '+base; stat.style.color='var(--ok)'; }
-      catch(err){ stat.textContent='connect failed · using demo data'; stat.style.color='var(--danger)'; }
+      setRuntimeMode('connecting', base);
+      try{ await V.connect({ base, apiKey }); setRuntimeMode('connecting', 'waiting for backend health check · '+base); }
+      catch(err){ setRuntimeMode('degraded', 'connect failed · demo seed data only'); }
     });
     document.getElementById('d-disc').addEventListener('click',e=>{ e.stopPropagation();
-      V.disconnect(); const s=document.getElementById('d-stat'); s.textContent='offline · demo data'; s.style.color=''; });
+      V.disconnect(); setRuntimeMode('demo', 'manual disconnect · seed data only'); });
 
-    V.on('ws:open',({name})=>{ const s=document.getElementById('d-stat'); if(s){ s.textContent='● live · '+name+' ok'; s.style.color='var(--ok)'; }});
+    V.on('ws:open',({name})=>{ if(runtimeState.mode !== 'live') setRuntimeMode('connecting', 'websocket '+name+' open · waiting for HTTP health'); });
     V.on('ws:close',({name})=>{ const s=document.getElementById('d-stat'); if(s && !V.config.base){ }});
+    updateRuntimeBadge();
   }
 
   // ---- keyboard shortcuts ------------------------------------------------
@@ -171,7 +237,7 @@
       [7300, ()=>{ V.openWidget('music'); V.say('Opening the music widget.'); }],
       [9200, ()=>{ V.openWorkspace(); }],
       [9600, ()=>{ V.say('Engaging the workspace. Here is your full status.'); }],
-      [12000,()=>{ V.listen(); V.chat.push({role:'user', text:'Pull up the map of London.'}); }],
+      [12000,()=>{ V.listen(); V.chat.push({role:'user', text:'Pull up the map of Bhubaneswar.'}); }],
       [13200,()=>{ V.process(); }],
       [13900,()=>{ V.showMap(); V.say('Tactical map online.'); }],
       [16200,()=>{ V.closeWorkspace(); }],
