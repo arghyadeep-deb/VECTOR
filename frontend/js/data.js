@@ -121,17 +121,18 @@
     { title:'Thunderstruck',  artist:'AC/DC',    dur:292, pos:0,   art:'#3a2f1a' }
   ];
 
-  // Map: lat/lng "pins" rendered on the abstract dark map (London-area like ref)
+  // Map: lat/lng "pins" rendered on the abstract dark map — localized to the
+  // owner's actual base (KIIT, Bhubaneswar, Odisha) instead of generic demo geo
   const MAP = {
-    label:'GREATER LONDON · UK',
-    center:[51.509,-0.118], zoom:9,
+    label:'BHUBANESWAR · ODISHA, IN',
+    center:[20.296,85.824], zoom:10,
     pins:[
-      { name:'London',     x:0.52, y:0.55, kind:'home' },
-      { name:'Reading',    x:0.30, y:0.52, kind:'node' },
-      { name:'Guildford',  x:0.44, y:0.70, kind:'node' },
-      { name:'Chelmsford', x:0.74, y:0.40, kind:'node' },
-      { name:'Watford',    x:0.46, y:0.40, kind:'node' },
-      { name:'Crawley',    x:0.56, y:0.78, kind:'alert' }
+      { name:'KIIT Campus', x:0.50, y:0.30, kind:'home' },
+      { name:'Bhubaneswar', x:0.48, y:0.52, kind:'node' },
+      { name:'Cuttack',     x:0.58, y:0.22, kind:'node' },
+      { name:'Khordha',     x:0.30, y:0.66, kind:'node' },
+      { name:'Puri',        x:0.40, y:0.86, kind:'node' },
+      { name:'Konark',      x:0.68, y:0.80, kind:'alert' }
     ]
   };
 
