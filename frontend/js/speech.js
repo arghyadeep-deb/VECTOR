@@ -62,7 +62,28 @@
   }
 
   // ---- control -----------------------------------------------------------
+  // When the backend's local Whisper/Kokoro pipeline is reachable
+  // (/ws/voice/stream open), stream raw mic audio to it and let *that*
+  // handle transcription + reply — the browser's cloud SpeechRecognition
+  // stays dormant. Falls back to SpeechRecognition only when the backend
+  // voice socket is unavailable.
+  function backendStreaming(){ return !!(global.VectorVoiceStream && global.VectorVoiceStream.backendReady()); }
+
   function start(){
+    if(backendStreaming()){
+      global.VectorVoiceStream.start().then(ok=>{
+        if(!ok){ _startRecognition(); return; }
+        active=true; wantOn=true;
+        V.wake(); V.listen();
+        V.caption('Voice online — streaming to local pipeline…');
+        setTimeout(()=>{ if(V.state==='idle') V.caption(''); }, 2600);
+      });
+      return true;
+    }
+    return _startRecognition();
+  }
+
+  function _startRecognition(){
     if(!supported()){ V.caption('Voice recognition not supported in this browser.'); setTimeout(()=>V.caption(''),2400); return false; }
     if(!rec) build();
     wantOn=true; active=true;
@@ -71,8 +92,13 @@
     V.caption('Voice online — say “Hey VECTOR”.'); setTimeout(()=>{ if(V.state==='idle') V.caption(''); }, 2600);
     return true;
   }
-  function stop(){ wantOn=false; active=false; listeningCmd=false; clearTimeout(restartT); clearTimeout(cmdTimer);
-    if(rec){ try{ rec.stop(); }catch(e){} } V.caption(''); }
+
+  function stop(){
+    wantOn=false; active=false; listeningCmd=false; clearTimeout(restartT); clearTimeout(cmdTimer);
+    if(global.VectorVoiceStream && global.VectorVoiceStream.active) global.VectorVoiceStream.stop();
+    if(rec){ try{ rec.stop(); }catch(e){} }
+    V.caption('');
+  }
   function toggle(){ active? stop():start(); return active; }
 
   global.VectorSpeech = { start, stop, toggle, supported, get active(){ return active; } };
