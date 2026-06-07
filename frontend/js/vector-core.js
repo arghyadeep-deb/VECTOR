@@ -198,6 +198,8 @@
     openWidget, closeWidget, showMap,
     // backend
     connect, disconnect, http, command, get config(){ return CFG; },
+    // raw WS access — used by voice_stream.js to push mic audio to /ws/voice/stream
+    wsConnected, wsSend,
     // events
     on, off, emit,
     // bound late by widgets.js / orb.js:
