@@ -254,12 +254,13 @@ def _start_sidecars() -> None:
     sidecars = [
         {
             "name": "MongoDB",
-            # Portable mongod for LibreChat — no installer/admin needed. Skips if absent.
+            # Portable mongod for LibreChat — no installer/admin needed.
             "cmd": [_mongod, "--dbpath", str(Path(_mongo_dir) / "data"),
                     "--port", "27017", "--bind_ip", "127.0.0.1"],
             "cwd": _mongo_dir,
             "health_url": "",  # native protocol, no HTTP health
-            "skip_cwd_check": not bool(_mongod and os.path.exists(_mongod)),
+            "skip_cwd_check": True,
+            "requires_binary": _mongod,  # skip cleanly if the portable mongod isn't present
         },
         {
             "name": "ComfyUI",
