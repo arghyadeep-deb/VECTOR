@@ -969,6 +969,13 @@ class AutonomousLoop:
                 h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
                 pm.update_from_outcome(winner.action_type, h, reward)
 
+                # Close the neural learning loop: train the policy network on the
+                # real reward for the action it observed at decision time.
+                try:
+                    self._get_decision_engine().record_outcome(reward)
+                except Exception as _ne:
+                    logger.debug(f"[VECTOR][act] neural record_outcome skipped: {_ne}")
+
                 # Goal feedback loop: a successful action on a linked goal advances its progress.
                 # Reward-scaled increment so high-reward outcomes move the goal more.
                 if winner.goal_ids and completed >= 1.0:
