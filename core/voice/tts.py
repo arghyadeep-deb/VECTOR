@@ -266,7 +266,39 @@ class VoiceTTS:
         return False
 
     def _speak_gtts(self, text: str, lang: str = "en") -> bool:
-        return False
+        """Google Translate TTS (gTTS) — free, no API key. Real fallback for the
+        languages Kokoro doesn't ship voices for (bn/as). Returns True on success
+        so the caller can skip the generic pyttsx3 voice; degrades silently
+        (returns False) if `gtts` isn't installed or the request fails, so the
+        existing pyttsx3 fallback still speaks something.
+        """
+        gtts_lang = _GTTS_LANG_MAP.get(lang, lang)
+        if gtts_lang not in _GTTS_SUPPORTED:
+            return False
+        tmp_path = None
+        try:
+            from gtts import gTTS
+            import tempfile
+            import soundfile as sf
+            import sounddevice as sd
+
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                gTTS(text=text, lang=gtts_lang).write_to_fp(tmp)
+                tmp_path = tmp.name
+            samples, sample_rate = sf.read(tmp_path, dtype="float32")
+            logger.info(f"[VECTOR][tts] gTTS speaking '{text[:40]}...' lang={gtts_lang}")
+            sd.play(samples, samplerate=sample_rate)
+            sd.wait()
+            return True
+        except Exception as e:
+            logger.debug(f"[VECTOR][tts] gTTS unavailable/failed ({e}) — falling back")
+            return False
+        finally:
+            if tmp_path:
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
 
     def stop_speaking(self) -> None:
         self._speaking = False
