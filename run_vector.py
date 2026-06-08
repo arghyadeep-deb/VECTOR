@@ -287,6 +287,10 @@ def _start_sidecars() -> None:
             "cwd": _ow_back,
             "health_url": "http://127.0.0.1:8080/health",
             "requires_subdir": ".venv",  # skip+warn until the venv is set up
+            # open-webui prints a Unicode banner on startup; Windows' default
+            # cp1252 console encoding can't render it and the process dies with
+            # UnicodeEncodeError before the server ever binds to the port.
+            "env_extra": {"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"},
         },
         {
             "name": "LibreChat",
