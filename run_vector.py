@@ -302,6 +302,16 @@ def _start_sidecars() -> None:
             "requires_subdir": "node_modules",  # skip with a clear warning if deps aren't installed
         },
         {
+            "name": "shadowbroker",
+            # Intelligence district — real-time geo/SIGINT/flight/ship intelligence server.
+            # Health endpoint is /api/health (NOT /health).
+            "cmd": ["python", "districts/intelligence/shadowbroker_server/main.py"],
+            "cwd": str(Path(__file__).parent),
+            "env_extra": {"PORT": "8765"},
+            "health_url": "http://127.0.0.1:8765/api/health",
+            "skip_cwd_check": True,
+        },
+        {
             "name": "UI-TARS",
             "cmd": ["npm", "run", "start"],
             # No npm package — must be cloned locally.
