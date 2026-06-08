@@ -878,7 +878,7 @@ class PermissionGateway:
             ("set-executionpolicy", "execution-policy tamper"),
         ]
         for pattern, desc in DANGEROUS_PATTERNS:
-            if pattern in norm:
+            if any(pattern in n for n in norms):
                 warnings.append(f"DANGEROUS: {desc} ({pattern!r})")
 
         return warnings
