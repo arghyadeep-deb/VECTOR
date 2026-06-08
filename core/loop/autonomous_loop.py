@@ -880,6 +880,7 @@ class AutonomousLoop:
             action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
             if self._scan_threats(action_desc, context="act"):
                 logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
+                self._record_external_rejection(winner.action_type, winner.params, "blocked by ThreatDetector")
                 return
 
             # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
