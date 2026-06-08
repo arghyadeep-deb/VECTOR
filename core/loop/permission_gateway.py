@@ -828,11 +828,17 @@ class PermissionGateway:
                 warnings.append(f"DANGEROUS: shell metacharacter {m!r} (chaining/substitution/redirection)")
 
         # 2) Tokenize to normalize away quote/whitespace obfuscation. Fail closed.
-        try:
-            tokens = shlex.split(command, posix=(os.name != "nt"))
-        except ValueError:
-            return ["DANGEROUS: unparseable shell command (unbalanced quotes) — blocked"]
-        norm = " ".join(tokens).lower()
+        #    Check BOTH posix and non-posix tokenizations (defense in depth):
+        #    posix mode strips quotes the way bash/Git-Bash does (``r''m`` → ``rm``),
+        #    non-posix matches cmd.exe — shell=True may route through either.
+        norms: list[str] = []
+        for _posix in (True, False):
+            try:
+                norms.append(" ".join(shlex.split(command, posix=_posix)).lower())
+            except ValueError:
+                return ["DANGEROUS: unparseable shell command (unbalanced quotes) — blocked"]
+        # Also include a whitespace-collapsed raw form as a final safety net.
+        norms.append(" ".join(command.lower().split()))
 
         # 3) Destructive patterns matched on normalized tokens (POSIX + Windows).
         DANGEROUS_PATTERNS = [
