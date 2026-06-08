@@ -211,6 +211,18 @@ class PermissionGateway:
                 return "proceed"
             if verdict == "reject":
                 logger.warning("[VECTOR][gateway] Council REJECTED {}: {}", action.action_type, rationale[:80])
+                # Gap 4: feed the council's verdict into CounterfactualMemory so
+                # should_avoid() learns from genuine external rejections, not just
+                # its own auto-blocks.
+                try:
+                    from core.memory.counterfactual import CounterfactualMemory
+                    proposal = f"{action.action_type} {json.dumps(action.params, default=str)}"
+                    CounterfactualMemory().record_rejection(
+                        decision_id=action.action_type, proposal=proposal,
+                        reason=f"council REJECTED: {rationale[:160]}",
+                    )
+                except Exception as _cf_err:
+                    logger.debug("[VECTOR][gateway] counterfactual record skipped: {}", _cf_err)
                 return "reject"
             return "defer"
         except Exception as _ce:
