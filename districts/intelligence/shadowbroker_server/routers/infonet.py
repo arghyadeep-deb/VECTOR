@@ -556,7 +556,6 @@ def append_event(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
 
     try:
         from services.mesh.mesh_hashchain import infonet
-from pathlib import Path
         event = infonet.append(
             event_type=event_type,
             node_id=node_id,
