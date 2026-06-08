@@ -285,6 +285,14 @@ class DecisionEngine:
         for c in candidates:
             self._score_candidate(c)
 
+        ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
+        winner = ranked[0]
+        self._decision_count += 1
+
+        # Neural learning loop: record (state, action) for this decision so
+        # record_outcome() can train the network on the real reward later.
+        # The score-based winner remains the executed action (safe); the net
+        # learns to predict reward-maximizing actions over the real action space.
         trainer = self._get_neural_trainer()
         if trainer is not None:
             try:
@@ -302,18 +310,10 @@ class DecisionEngine:
                     ],
                     dtype=np.float32,
                 )
-                trainer.select_action(state)
+                self._last_neural = {"state": state, "action": self._action_id(winner.action_type)}
             except Exception as e:
-                logger.debug("[VECTOR][decision_engine] neural trainer select skipped: {}", e)
-
-        ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
-        winner = ranked[0]
-        self._decision_count += 1
-        if trainer is not None and self._decision_count % 100 == 0:
-            try:
-                trainer.save_checkpoint()
-            except Exception as e:
-                logger.debug("[VECTOR][decision_engine] neural trainer checkpoint skipped: {}", e)
+                self._last_neural = None
+                logger.debug("[VECTOR][decision_engine] neural state build skipped: {}", e)
 
         # Log ALL candidates including rejected — RULE 8
         mem = self._get_memory()
