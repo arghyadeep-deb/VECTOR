@@ -264,12 +264,13 @@ def _start_sidecars() -> None:
         },
         {
             "name": "open-webui",
-            # Launch from the cloned repo's backend dir, where the `open_webui`
-            # module lives (the pip package is NOT required). One-time setup:
-            #   pip install -r <open-webui-main>/backend/requirements.txt
-            "cmd": ["uvicorn", "open_webui.main:app", "--host", "127.0.0.1", "--port", "8080"],
-            "cwd": str(Path(_sidecar_path("open_webui_path", "open-webui-main")) / "backend"),
+            # Runs from the cloned repo's backend dir in its OWN isolated .venv,
+            # where the `open_webui` module + its deps live (no global pip install).
+            "cmd": [_venv_python(_ow_back), "-m", "uvicorn", "open_webui.main:app",
+                    "--host", "127.0.0.1", "--port", "8080"],
+            "cwd": _ow_back,
             "health_url": "http://127.0.0.1:8080/health",
+            "requires_subdir": ".venv",  # skip+warn until the venv is set up
         },
         {
             "name": "LibreChat",
