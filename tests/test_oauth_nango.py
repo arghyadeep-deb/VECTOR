@@ -219,7 +219,9 @@ class TestTokenStorageRoundTrip:
     def test_auth_mode_survives_round_trip(self, tmp_path):
         import core.engine.oauth.flows as flows_mod
         orig_dir = flows_mod._TOKEN_DIR
+        orig_kr = flows_mod._KEYRING_AVAILABLE
         flows_mod._TOKEN_DIR = tmp_path
+        flows_mod._KEYRING_AVAILABLE = False  # isolate from real OS keyring
         try:
             from core.engine.oauth.flows import OAuthFlowManager, OAuthToken
             mgr = OAuthFlowManager()
@@ -232,6 +234,7 @@ class TestTokenStorageRoundTrip:
             assert retrieved.extra.get("oauth_token_secret") == "secret_xyz"
         finally:
             flows_mod._TOKEN_DIR = orig_dir
+            flows_mod._KEYRING_AVAILABLE = orig_kr
 
 
 # ── refresh_expiring_tokens (no live network) ─────────────────────────────────
