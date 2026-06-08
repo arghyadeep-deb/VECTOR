@@ -323,6 +323,10 @@ def _start_sidecars() -> None:
         if not sidecar.get("skip_cwd_check") and not os.path.exists(cwd):
             logger.info("[VECTOR][sidecars] {} not found, skipping", sidecar["name"])
             continue
+        # binary check: skip silently if a required executable isn't present
+        if "requires_binary" in sidecar and not (sidecar["requires_binary"] and os.path.exists(sidecar["requires_binary"])):
+            logger.info("[VECTOR][sidecars] {} skipped — binary not found", sidecar["name"])
+            continue
         # dependency check: skip with a clear, actionable message if deps aren't installed
         if sidecar.get("requires_subdir"):
             dep = os.path.join(cwd, sidecar["requires_subdir"])
