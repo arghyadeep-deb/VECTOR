@@ -68,6 +68,10 @@ class DecisionEngine:
         self._mc_bias_cache = None
         self._mc_cache_time = 0.0
         self._decision_count = 0
+        # Neural learning loop state (closed by record_outcome)
+        self._last_neural = None          # {"state": np.ndarray, "action": int}
+        self._action_index: dict[str, int] = {}  # action_type -> stable action id
+        self._neural_action_dim = 16
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
