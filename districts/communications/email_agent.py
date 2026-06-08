@@ -489,6 +489,10 @@ class EmailAgent(AgentBase):
                 )
                 return {"status": "ok", **result}
 
+            elif task_type == "poll_inbox":
+                result = self.poll_inbox()
+                return {"status": "ok", **result}
+
             elif task_type == "store_incoming":
                 email_id = self.store_incoming_email(
                     task.get("sender", ""), task.get("subject", ""),
