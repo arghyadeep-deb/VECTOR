@@ -130,6 +130,51 @@ class DecisionEngine:
                 self._neural_trainer = False
         return None if self._neural_trainer is False else self._neural_trainer
 
+    def _action_id(self, action_type: str) -> int:
+        """Map an action_type to a stable index in [0, action_dim)."""
+        if action_type not in self._action_index:
+            self._action_index[action_type] = len(self._action_index) % self._neural_action_dim
+        return self._action_index[action_type]
+
+    def record_outcome(self, reward: float, next_state=None) -> None:
+        """Close the neural learning loop: train the policy network on the real
+        reward for the action it last observed. Called by the autonomous loop
+        AFTER an action executes and its 5-factor reward is computed.
+
+        This is what makes the network actually LEARN — previously select_action
+        was called and discarded, and the net never saw an outcome.
+        """
+        if not self._last_neural:
+            return
+        trainer = self._get_neural_trainer()
+        if trainer is None:
+            return
+        try:
+            import numpy as np
+            state = self._last_neural["state"]
+            exp = {
+                "state": state,
+                "action": int(self._last_neural["action"]),
+                "reward": float(reward),
+                "next_state": next_state if next_state is not None else state,
+                "done": True,
+            }
+            metrics = trainer.train_episode([exp])
+            logger.debug(
+                "[VECTOR][decision_engine] neural learn: reward={:.3f} loss={:.4f} ep={}",
+                reward, metrics.get("total", metrics.get("loss", 0.0)), metrics.get("episode", 0),
+            )
+            # Periodic checkpoint with a real path (old code called save_checkpoint()
+            # with no arg → TypeError, so it never actually saved).
+            if self._decision_count % 100 == 0:
+                from core.runtime_paths import data_path
+                ckpt = Path(data_path("models")) / "neural_policy.pt"
+                trainer.save_checkpoint(ckpt)
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] record_outcome skipped: {}", e)
+        finally:
+            self._last_neural = None
+
     def _get_epistemic(self):
         if self._epistemic is None:
             try:
