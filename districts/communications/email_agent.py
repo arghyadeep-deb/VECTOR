@@ -316,6 +316,25 @@ class EmailAgent(AgentBase):
         conn.close()
         return email_id
 
+    def poll_inbox(self) -> dict:
+        """Pull unseen messages from the configured IMAP mailbox into the
+        local inbox. Degrades to a no-op (empty result) when IMAP_HOST/
+        IMAP_USER/IMAP_PASS aren't configured — see core/email/receiver.py.
+        """
+        fetched = fetch_new_emails()
+        stored = []
+        for msg in fetched:
+            email_id = self.store_incoming_email(
+                sender=msg.sender, subject=msg.subject, body=msg.body,
+                message_id=msg.message_id, thread_id=msg.thread_id,
+                raw_headers=msg.raw_headers,
+            )
+            stored.append(email_id)
+        if stored:
+            self.award_points(5, "inbox_polled")
+            logger.info(f"[VECTOR][email_agent] poll_inbox stored {len(stored)} new email(s)")
+        return {"fetched": len(fetched), "stored": stored}
+
     # ── Auto-draft on new email ───────────────────────────────────────────────
 
     async def handle_new_email(self, email_id: str, sender: str, subject: str,
