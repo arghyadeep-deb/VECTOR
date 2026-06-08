@@ -203,12 +203,14 @@ class UPIParser(AgentBase):
         return {"status": "ok", "transactions": txns, "count": len(txns)}
 
     async def run_forever(self) -> None:
-        logger.info("[VECTOR][upi_parser] run_forever — waiting for SMS ingestion calls")
+        logger.info("[VECTOR][upi_parser] run_forever — polling phone SMS via ADB every 5min")
         while self.is_alive:
             try:
-                await asyncio.sleep(60)
+                self.ingest_from_phone()
+                await asyncio.sleep(300)
             except Exception as e:
                 logger.error(f"[VECTOR][upi_parser] tick: {e}")
+                await asyncio.sleep(60)
         logger.warning("[VECTOR][upi_parser] died — HP=0")
 
 
