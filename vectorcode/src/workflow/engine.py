@@ -331,10 +331,10 @@ class WorkflowEngine:
                 success=True,
                 output="true",
             )
-        # Simple expression evaluation — check if key exists and is truthy
-        # Supports: "node_id.success", "node_id.output contains 'text'"
+        # Safe expression evaluation — restricted AST walker, never eval().
+        # Supports dict access, comparisons, boolean logic, membership.
         try:
-            result = str(eval(expr, {"__builtins__": {}}, {"outputs": outputs}))  # noqa: S307
+            result = str(_safe_eval_condition(expr, outputs))
         except Exception:
             result = "false"
         return WorkflowStepResult(
