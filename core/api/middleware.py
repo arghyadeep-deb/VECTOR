@@ -23,6 +23,7 @@ __all__ = [
 ]
 
 import os
+import hmac
 import time
 import datetime
 from collections import defaultdict
@@ -207,7 +208,7 @@ async def logging_middleware(request: Request, call_next):
     logger.log(
         log_level,
         f"[VECTOR][api][{request_id}] {request.method} {request.url.path} "
-        f"→ {response.status_code} ({elapsed_ms}ms)",
+            f"-> {response.status_code} ({elapsed_ms}ms)",
     )
     
     response.headers["X-Request-ID"] = request_id
