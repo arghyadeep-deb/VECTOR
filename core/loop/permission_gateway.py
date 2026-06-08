@@ -214,7 +214,7 @@ class PermissionGateway:
                 return "reject"
             return "defer"
         except Exception as _ce:
-            logger.debug("[VECTOR][gateway] _handle_red_tier failed, deferring to owner: {}", _ce)
+            logger.warning("[VECTOR][gateway] Council deliberation failed, deferring RED-tier action to owner: {}", _ce)
             return "defer"
 
     def _record_unknown_action(self, action_type: str):
