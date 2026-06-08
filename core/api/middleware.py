@@ -175,7 +175,8 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer ") or auth[7:] != _API_KEY:
+    # Constant-time comparison — avoids leaking the key via response timing.
+    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], _API_KEY):
         return JSONResponse(
             status_code=401,
             headers={"WWW-Authenticate": "Bearer"},
