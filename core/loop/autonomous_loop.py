@@ -897,10 +897,12 @@ class AutonomousLoop:
                         })
                         verdict = str(review.get("verdict", "APPROVED")).upper()
                         if verdict.startswith("BLOCKED"):
+                            _rt_reason = review.get('reason', 'adversarial review failed')
                             logger.warning(
                                 f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
-                                f"{review.get('reason', 'adversarial review failed')}"
+                                f"{_rt_reason}"
                             )
+                            self._record_external_rejection(winner.action_type, winner.params, f"red_team: {_rt_reason}")
                             return
                         elif verdict.startswith("MODIFY"):
                             logger.info(
