@@ -161,12 +161,14 @@ class VoiceTTS:
         if lang == "en" and self._el_ok:
             if self._speak_elevenlabs_stream(text):
                 return
-        # bn/as not supported by Kokoro — use pyttsx3 (Google Cloud TTS in future)
+        # bn/as not supported by Kokoro — try gTTS (real online voices) before pyttsx3
         if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
         else:
             if lang in _KOKORO_UNSUPPORTED:
-                logger.info(f"[VECTOR][tts] {lang} not in Kokoro — using pyttsx3 (Google TTS TODO)")
+                if self._speak_gtts(text, lang):
+                    return
+                logger.info(f"[VECTOR][tts] {lang} gTTS unavailable — using pyttsx3 fallback")
             self._speak_pyttsx3(text)
 
     def _speak_clone(self, text: str, profile_name: str) -> bool:
