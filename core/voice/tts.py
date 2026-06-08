@@ -42,6 +42,32 @@ _KOKORO_UNSUPPORTED = {"bn", "as"}  # routed through gTTS (then pyttsx3) below
 _GTTS_SUPPORTED = {"en", "hi", "bn", "ja"}
 _GTTS_LANG_MAP = {"as": "bn"}
 
+import re as _re
+_SENTENCE_SPLIT = _re.compile(r"(?<=[.!?।])\s+")  # includes Devanagari danda ।
+
+
+def _chunk_sentences(text: str, max_chars: int = 200) -> list[str]:
+    """Group text into sentence-aligned chunks (≤ max_chars each) so TTS can
+    stream: synthesize+play the first chunk while later chunks are still being
+    synthesized, instead of waiting for the whole text. Returns [text] for short
+    input so short replies keep the exact single-shot path."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    parts = [p for p in _SENTENCE_SPLIT.split(text) if p]
+    chunks: list[str] = []
+    cur = ""
+    for p in parts:
+        if len(cur) + len(p) + 1 <= max_chars:
+            cur = f"{cur} {p}".strip()
+        else:
+            if cur:
+                chunks.append(cur)
+            cur = p
+    if cur:
+        chunks.append(cur)
+    return chunks or [text]
+
 
 class VoiceTTS:
     def __init__(self):
