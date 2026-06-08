@@ -202,7 +202,10 @@ async def sb_sse():
 @router.get("/health")
 async def sb_health():
     """Quick reachability check. Used by start scripts."""
-    return JSONResponse(await _proxy_get("/health"))
+    payload = await _proxy_get("/api/health")
+    if isinstance(payload, dict) and payload.get("error"):
+        return JSONResponse(payload, status_code=503)
+    return JSONResponse(payload)
 
 
 if __name__ == "__main__":
