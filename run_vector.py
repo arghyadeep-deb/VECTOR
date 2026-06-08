@@ -245,7 +245,22 @@ def _start_sidecars() -> None:
     _comfy_dir = _sidecar_path("comfyui_path", "ComfyUI-master")
     _ow_back = str(Path(_sidecar_path("open_webui_path", "open-webui-main")) / "backend")
 
+    # Portable MongoDB (for LibreChat) — bundled binary under GitHub/mongodb-portable.
+    _mongo_dir = _sidecar_path("mongodb_path", "mongodb-portable")
+    import glob as _glob
+    _mongod = next(iter(_glob.glob(str(Path(_mongo_dir) / "**" / "mongod.exe"), recursive=True)
+                        or _glob.glob(str(Path(_mongo_dir) / "**" / "bin" / "mongod"), recursive=True)), "")
+
     sidecars = [
+        {
+            "name": "MongoDB",
+            # Portable mongod for LibreChat — no installer/admin needed. Skips if absent.
+            "cmd": [_mongod, "--dbpath", str(Path(_mongo_dir) / "data"),
+                    "--port", "27017", "--bind_ip", "127.0.0.1"],
+            "cwd": _mongo_dir,
+            "health_url": "",  # native protocol, no HTTP health
+            "skip_cwd_check": not bool(_mongod and os.path.exists(_mongod)),
+        },
         {
             "name": "ComfyUI",
             # Runs in ComfyUI's isolated .venv (created by setup) — falls back to
