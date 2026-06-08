@@ -800,39 +800,80 @@ class PermissionGateway:
 
     def _check_bash_ast(self, command: str) -> list[str]:
         """
-        Deterministic tree-sitter AST analysis for dangerous bash patterns.
-        Returns list of warnings (empty = safe).
-        """
-        warnings = []
-        # Simple pattern-based checks (tree-sitter is optional)
-        DANGEROUS_PATTERNS = [
-            ("rm -rf", "destructive recursive delete"),
-            (":(){ :|:& };:", "fork bomb"),
-            ("> /dev/sda", "disk wipe attempt"),
-            ("dd if=", "raw disk write"),
-            ("chmod 777", "world-writable permission"),
-            ("curl | bash", "remote code execution"),
-            ("wget | bash", "remote code execution"),
-            ("eval ", "dynamic code evaluation"),
-            ("exec ", "process replacement"),
-        ]
-        cmd_lower = command.lower()
-        for pattern, desc in DANGEROUS_PATTERNS:
-            if pattern in cmd_lower:
-                warnings.append(f"DANGEROUS: {desc} ({pattern!r})")
+        Deterministic guard for dangerous shell commands (cross-platform).
 
-        # Try tree-sitter if available for deeper analysis
+        Hardened over the old substring matcher, which was defeated by quote/
+        whitespace obfuscation (``r''m -rf``) and was bash-only — blind to every
+        destructive Windows command despite Windows being the primary platform.
+
+        This version:
+          1. Blocks shell metacharacters that enable command chaining /
+             substitution / redirection (``;`` ``&&`` ``|`` ``$(`` `` ` `` ``>`` …) —
+             the primary injection vector; each fragment can look benign.
+          2. Tokenizes with ``shlex`` to defeat quote/space obfuscation, then
+             matches a denylist of destructive binaries+flags on BOTH POSIX and
+             Windows shells.
+          3. Fails closed: unparseable input (e.g. unbalanced quotes) is blocked.
+
+        Returns a list of warnings (empty = safe). Any non-empty list ⇒ blocked.
+        """
+        warnings: list[str] = []
+        if not command or not command.strip():
+            return ["empty command"]
+
+        # 1) Chaining / substitution / redirection metacharacters — block outright.
+        META = [";", "&&", "||", "|", "`", "$(", "${", ">>", ">", "<(", "<", "\n", "\r", "&"]
+        for m in META:
+            if m in command:
+                warnings.append(f"DANGEROUS: shell metacharacter {m!r} (chaining/substitution/redirection)")
+
+        # 2) Tokenize to normalize away quote/whitespace obfuscation. Fail closed.
         try:
-            import tree_sitter_bash
-            from tree_sitter import Language, Parser
-            BASH_LANG = Language(tree_sitter_bash.language())
-            parser = Parser(BASH_LANG)
-            tree = parser.parse(command.encode())
-            # Check for process substitution with network command
-            if b"<(" in command.encode() and b"curl" in command.encode():
-                warnings.append("DANGEROUS: process substitution with network command")
-        except ImportError:
-            pass  # tree-sitter-bash optional
+            tokens = shlex.split(command, posix=(os.name != "nt"))
+        except ValueError:
+            return ["DANGEROUS: unparseable shell command (unbalanced quotes) — blocked"]
+        norm = " ".join(tokens).lower()
+
+        # 3) Destructive patterns matched on normalized tokens (POSIX + Windows).
+        DANGEROUS_PATTERNS = [
+            # ── POSIX ──────────────────────────────────────────────
+            ("rm -rf", "destructive recursive delete"),
+            ("rm -fr", "destructive recursive delete"),
+            ("rm -r -f", "destructive recursive delete"),
+            (":(){", "fork bomb"),
+            ("> /dev/sd", "disk wipe attempt"),
+            ("of=/dev/sd", "raw disk write"),
+            ("dd if=", "raw disk write"),
+            ("mkfs", "filesystem format"),
+            ("chmod 777", "world-writable permission"),
+            ("chmod -r 777", "world-writable recursive permission"),
+            ("chown -r", "recursive ownership change"),
+            ("curl", "network fetch (review for pipe-to-shell)"),
+            ("wget", "network fetch (review for pipe-to-shell)"),
+            ("eval", "dynamic code evaluation"),
+            ("exec", "process replacement"),
+            # ── Windows cmd ────────────────────────────────────────
+            ("del /f", "force file delete"),
+            ("del /q", "quiet file delete"),
+            ("del /s", "recursive file delete"),
+            ("rd /s", "recursive directory delete"),
+            ("rmdir /s", "recursive directory delete"),
+            ("format ", "disk format"),
+            ("diskpart", "disk partition tool"),
+            ("cipher /w", "secure disk wipe"),
+            ("reg delete", "registry key delete"),
+            ("shutdown", "system shutdown/restart"),
+            # ── PowerShell ─────────────────────────────────────────
+            ("remove-item", "recursive/forced delete (review -recurse/-force)"),
+            ("invoke-expression", "dynamic code evaluation"),
+            ("iex ", "dynamic code evaluation"),
+            ("invoke-webrequest", "network fetch (review for pipe-to-iex)"),
+            ("start-process", "spawn arbitrary process"),
+            ("set-executionpolicy", "execution-policy tamper"),
+        ]
+        for pattern, desc in DANGEROUS_PATTERNS:
+            if pattern in norm:
+                warnings.append(f"DANGEROUS: {desc} ({pattern!r})")
 
         return warnings
 
