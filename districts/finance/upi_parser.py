@@ -190,6 +190,8 @@ class UPIParser(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        if task.get("type") == "poll_sms":
+            return self.ingest_from_phone(p.get("count", 20))
         sms = p.get("sms", "")
         if sms:
             result = parse_sms(sms)
