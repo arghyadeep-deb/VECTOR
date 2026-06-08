@@ -7,9 +7,62 @@
 
 from __future__ import annotations
 
+import ast
 import concurrent.futures
+import operator
 import time
 from typing import Any, Dict, List, Optional
+
+
+# ── Restricted condition evaluator ──────────────────────────────────────────
+# Replaces eval() — even eval(expr, {"__builtins__": {}}) is escapable via
+# ().__class__.__bases__[0].__subclasses__()... and would be RCE if a workflow's
+# condition_expr were ever attacker-influenced. This AST walker permits only the
+# node types a condition legitimately needs (dict access, comparisons, boolean
+# logic, membership, constants) and rejects everything else (calls, attribute
+# access, names other than `outputs`).
+_SAFE_CMP_OPS = {
+    ast.Eq: operator.eq, ast.NotEq: operator.ne,
+    ast.Lt: operator.lt, ast.LtE: operator.le,
+    ast.Gt: operator.gt, ast.GtE: operator.ge,
+    ast.In: lambda a, b: a in b, ast.NotIn: lambda a, b: a not in b,
+}
+
+
+def _safe_eval_condition(expr: str, outputs: Dict[str, str]) -> bool:
+    """Evaluate a workflow condition expression without eval(). Returns bool."""
+    def _ev(node: ast.AST) -> Any:
+        if isinstance(node, ast.Expression):
+            return _ev(node.body)
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.Name):
+            if node.id == "outputs":
+                return outputs
+            raise ValueError(f"name not allowed: {node.id}")
+        if isinstance(node, ast.Subscript):
+            return _ev(node.value)[_ev(node.slice)]
+        if isinstance(node, ast.BoolOp):
+            vals = [_ev(v) for v in node.values]
+            return all(vals) if isinstance(node.op, ast.And) else any(vals)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not _ev(node.operand)
+        if isinstance(node, ast.Compare):
+            left = _ev(node.left)
+            for op, comp in zip(node.ops, node.comparators):
+                fn = _SAFE_CMP_OPS.get(type(op))
+                if fn is None:
+                    raise ValueError(f"operator not allowed: {type(op).__name__}")
+                right = _ev(comp)
+                if not fn(left, right):
+                    return False
+                left = right
+            return True
+        raise ValueError(f"node not allowed: {type(node).__name__}")
+
+    tree = ast.parse(expr, mode="eval")
+    return bool(_ev(tree))
+# ────────────────────────────────────────────────────────────────────────────
 
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.workflow.graph import WorkflowGraph
