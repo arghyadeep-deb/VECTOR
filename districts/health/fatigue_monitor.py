@@ -101,9 +101,19 @@ class FatigueMonitor(AgentBase):
         if self._session_start is None:
             self._session_start = datetime.datetime.now()
 
-        # Check 1: EAR-based fatigue
+        # Check 1: EAR-based fatigue (depends on health_monitor populating world_state)
         ear = self._get_ear_from_world_state()
-        if ear is not None and ear < _EAR_FATIGUE_THRESHOLD:
+        if ear is None:
+            if not self._ear_unavailable_warned:
+                logger.warning(
+                    "[VECTOR][fatigue_monitor] EAR score unavailable in world_state — "
+                    "health_monitor camera sensing isn't populating health.ear_score; "
+                    "camera-based eye-fatigue detection is disabled, falling back to "
+                    "session-duration-only checks"
+                )
+                self._ear_unavailable_warned = True
+        elif ear < _EAR_FATIGUE_THRESHOLD:
+            self._ear_unavailable_warned = False
             status["fatigue"] = True
             status["reason"] = f"EAR={ear:.3f} below threshold {_EAR_FATIGUE_THRESHOLD}"
             self._record_fatigue_event(status["reason"], "moderate")
