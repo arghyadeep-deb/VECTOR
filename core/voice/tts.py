@@ -267,10 +267,28 @@ class VoiceTTS:
             import sounddevice as sd
             import numpy as np
             voice = _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
-            samples, sample_rate = self._kokoro.create(text, voice=voice, speed=self._speed)
-            logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}...' voice={voice}")
-            sd.play(samples.astype(np.float32), samplerate=sample_rate)
-            sd.wait()
+            chunks = _chunk_sentences(text)
+
+            # Short text: single-shot path, unchanged.
+            if len(chunks) <= 1:
+                samples, sample_rate = self._kokoro.create(text, voice=voice, speed=self._speed)
+                logger.info(f"[VECTOR][tts] Kokoro speaking '{text[:40]}...' voice={voice}")
+                sd.play(samples.astype(np.float32), samplerate=sample_rate)
+                sd.wait()
+                return
+
+            # Long text: stream — synthesize the NEXT chunk while the CURRENT one
+            # plays, so time-to-first-audio is one short sentence, not the whole reply.
+            from concurrent.futures import ThreadPoolExecutor
+            logger.info(f"[VECTOR][tts] Kokoro streaming {len(chunks)} chunks voice={voice}")
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(self._kokoro.create, chunks[0], voice=voice, speed=self._speed)
+                for i in range(len(chunks)):
+                    samples, sample_rate = future.result()
+                    if i + 1 < len(chunks):  # kick off next synth before playing current
+                        future = ex.submit(self._kokoro.create, chunks[i + 1], voice=voice, speed=self._speed)
+                    sd.play(samples.astype(np.float32), samplerate=sample_rate)
+                    sd.wait()
         except Exception as e:
             logger.warning(f"[VECTOR][tts] Kokoro speak failed: {e} — falling back to pyttsx3")
             self._speak_pyttsx3(text)
