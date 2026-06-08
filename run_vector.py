@@ -294,6 +294,16 @@ def _start_sidecars() -> None:
         if not sidecar.get("skip_cwd_check") and not os.path.exists(cwd):
             logger.info("[VECTOR][sidecars] {} not found, skipping", sidecar["name"])
             continue
+        # dependency check: skip with a clear, actionable message if deps aren't installed
+        if sidecar.get("requires_subdir"):
+            dep = os.path.join(cwd, sidecar["requires_subdir"])
+            if not os.path.exists(dep):
+                logger.warning(
+                    "[VECTOR][sidecars] {} skipped — '{}' missing. Run one-time setup in {} "
+                    "(e.g. `npm ci`), then restart.",
+                    sidecar["name"], sidecar["requires_subdir"], cwd,
+                )
+                continue
         try:
             env = None
             if sidecar.get("env_extra"):
