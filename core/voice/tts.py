@@ -33,7 +33,14 @@ _KOKORO_VOICE_MAP = {
     "hi": "hf_alpha",
     "ja": "jf_alpha",
 }
-_KOKORO_UNSUPPORTED = {"bn", "as"}  # Google Cloud TTS eventually; pyttsx3 for now
+_KOKORO_UNSUPPORTED = {"bn", "as"}  # routed through gTTS (then pyttsx3) below
+
+# gTTS (Google Translate TTS) language codes — free, no API key. Google Translate's
+# TTS endpoint has no native Assamese voice, so Assamese text is routed through the
+# closest available regional voice (Bengali) rather than silently degrading to the
+# generic pyttsx3 voice.
+_GTTS_SUPPORTED = {"en", "hi", "bn", "ja"}
+_GTTS_LANG_MAP = {"as": "bn"}
 
 
 class VoiceTTS:
