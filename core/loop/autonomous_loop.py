@@ -1382,27 +1382,17 @@ class AutonomousLoop:
                             logger.info(f"[VECTOR][sync] remote command: {cmd_type} {cmd_params}")
                             if cmd_type == "research":
                                 raw_query = cmd_params.get("query", "")
-                                # Scan for prompt injection from remote brain server
-                                try:
-                                    from core.security.prompt_injection_scanner import scan_text
-                                    scan_result = scan_text(raw_query)
-                                    if scan_result and scan_result.get("severity") == "CRITICAL":
-                                        logger.critical("[VECTOR][sync] Prompt injection detected in brain server response — BLOCKED")
-                                        raw_query = ""
-                                except Exception:
-                                    pass
+                                # Scan for prompt injection from remote brain server (untrusted input)
+                                if raw_query and not _scan_incoming(raw_query, context="brain_server.research"):
+                                    logger.critical("[VECTOR][sync] Prompt injection detected in brain server research query — BLOCKED")
+                                    raw_query = ""
                                 self._pending_voice = {"intent": "research", "text": raw_query, "source": "brain_server"}
                             elif cmd_type == "voice_broadcast":
                                 raw_text = cmd_params.get("text", "")
-                                # Scan for prompt injection from remote brain server
-                                try:
-                                    from core.security.prompt_injection_scanner import scan_text
-                                    scan_result = scan_text(raw_text)
-                                    if scan_result and scan_result.get("severity") == "CRITICAL":
-                                        logger.critical("[VECTOR][sync] Prompt injection detected in voice_broadcast — BLOCKED")
-                                        raw_text = ""
-                                except Exception:
-                                    pass
+                                # Scan for prompt injection from remote brain server (untrusted input)
+                                if raw_text and not _scan_incoming(raw_text, context="brain_server.voice_broadcast"):
+                                    logger.critical("[VECTOR][sync] Prompt injection detected in voice_broadcast — BLOCKED")
+                                    raw_text = ""
                                 self._pending_voice = {"intent": "voice_broadcast", "text": raw_text, "source": "brain_server"}
                             elif cmd_type == "deploy":
                                 logger.warning(f"[VECTOR][sync] deploy command received Ã¢â‚¬— routing to permission gateway")
