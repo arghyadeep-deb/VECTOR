@@ -36,6 +36,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.email.schema import get_connection, init_schema, EMAIL_DB_PATH
+from core.email.receiver import fetch_new_emails
 from core.email.ai_security import is_prompt_injection, verify_draft
 from core.email.search import parse_search_query
 from core.email.helpers import strip_html_to_text, build_quoted_reply_block
