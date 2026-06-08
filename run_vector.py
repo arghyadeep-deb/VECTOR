@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
+import os
 import signal
 import sys
 import threading
+import tempfile
 from pathlib import Path
 
 from loguru import logger
@@ -110,6 +113,47 @@ def _setup_signal_handlers(
 
 
 # ── Smoke test ─────────────────────────────────────────────────────────────────
+
+def bootstrap_agents() -> int:
+    """Register manifest-defined VECTOR City agents for API/loop runtime.
+
+    Specialist agents are loaded from config/agent_manifest.yaml. If optional
+    dependencies prevent a specialist from importing, a baseline AgentBase is
+    registered for that district so governor-routed endpoints do not run with
+    an empty district.
+    """
+    from core.city.agent_base import AgentBase
+    from core.city.agent_registry import get_registry
+    from core.city.declarative_manifest import ManifestLoader
+
+    registry = get_registry()
+    loader = ManifestLoader()
+    definitions = loader.load()
+    registered = loader.register_all(definitions, registry)
+
+    districts = sorted({entry.get("district", "") for entry in definitions if entry.get("district")})
+    for district in districts:
+        if registry.get_by_district(district):
+            continue
+        agent_id = f"baseline_{district}"
+        if registry.get(agent_id):
+            continue
+        registry.register(
+            AgentBase(
+                agent_id=agent_id,
+                name=f"{district.replace('_', ' ').title()}Baseline",
+                district=district,
+            )
+        )
+        registered += 1
+
+    logger.info(
+        "[VECTOR][bootstrap] registered {} agents across {} manifest districts",
+        registered,
+        len(districts),
+    )
+    return registered
+
 
 async def smoke_test() -> dict:
     """Verify the local spine can initialize and make one decision safely."""
@@ -208,19 +252,21 @@ def _start_sidecars() -> None:
         },
         {
             "name": "open-webui",
+            # Launch from the cloned repo's backend dir, where the `open_webui`
+            # module lives (the pip package is NOT required). One-time setup:
+            #   pip install -r <open-webui-main>/backend/requirements.txt
             "cmd": ["uvicorn", "open_webui.main:app", "--host", "127.0.0.1", "--port", "8080"],
-            "cwd": str(Path(__file__).parent),  # runs from VECTOR root; open-webui installed via pip
+            "cwd": str(Path(_sidecar_path("open_webui_path", "open-webui-main")) / "backend"),
             "health_url": "http://127.0.0.1:8080/health",
-            # pip-based: only start if open_webui package is importable
-            "python_module_check": "open_webui",
         },
         {
             "name": "LibreChat",
             "cmd": ["node", "api/server/index.js"],
-            # No npm package — must be cloned locally.
-            # Configure: set VECTOR_LIBRECHAT_PATH env var or CONFIG["sidecars"]["librechat_path"]
+            # Cloned locally. Configure via VECTOR_LIBRECHAT_PATH / CONFIG["sidecars"]["librechat_path"].
+            # One-time setup in that dir: `npm ci` then `npm run frontend` (build), plus a .env + MongoDB.
             "cwd": _sidecar_path("librechat_path", "LibreChat-main"),
             "env_extra": {"PORT": "3080"},
+            "requires_subdir": "node_modules",  # skip with a clear warning if deps aren't installed
         },
         {
             "name": "UI-TARS",
@@ -349,7 +395,7 @@ def parse_args() -> argparse.Namespace:
         "mode",
         nargs="?",
         default="loop",
-        choices=("loop", "api", "smoke"),
+        choices=("loop", "api", "smoke", "doctor"),
         help="Default is loop. Use smoke for a one-shot startup check.",
     )
     parser.add_argument("--host", default="127.0.0.1")
@@ -363,7 +409,7 @@ def main() -> int:
 
     # Start optional sidecar services (ComfyUI, etc.) — non-blocking.
     # Skipped in smoke mode to keep the startup check fast.
-    if args.mode != "smoke":
+    if args.mode not in ("smoke", "doctor"):
         _start_sidecars()
         _start_background_services()
 
@@ -372,9 +418,20 @@ def main() -> int:
         return 0
 
     if args.mode == "smoke":
+        os.environ.setdefault(
+            "VECTOR_TEST_DATA_DIR",
+            str(Path(tempfile.gettempdir()) / "vector_smoke_data"),
+        )
         result = asyncio.run(smoke_test())
         print(result)
         return 0 if result.get("status") == "ok" else 1
+
+    if args.mode == "doctor":
+        from core.runtime.doctor import run_dependency_doctor
+
+        report = run_dependency_doctor(include_optional=True).to_dict()
+        print(json.dumps(report, indent=2))
+        return 0 if report.get("required_failed", 1) == 0 else 1
 
     # mode == "loop"
     try:
