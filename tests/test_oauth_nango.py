@@ -197,7 +197,11 @@ class TestTokenStorageRoundTrip:
     def test_absolute_timestamp_survives_round_trip(self, tmp_path):
         import core.engine.oauth.flows as flows_mod
         orig_dir = flows_mod._TOKEN_DIR
+        orig_kr = flows_mod._KEYRING_AVAILABLE
         flows_mod._TOKEN_DIR = tmp_path
+        # Isolate from the real OS keyring — store_token/_load_raw prefer keyring
+        # when available, which would leak a real persisted token into the test.
+        flows_mod._KEYRING_AVAILABLE = False
         try:
             from core.engine.oauth.flows import OAuthFlowManager, OAuthToken
             mgr = OAuthFlowManager()
@@ -210,6 +214,7 @@ class TestTokenStorageRoundTrip:
             assert not retrieved.is_expired()
         finally:
             flows_mod._TOKEN_DIR = orig_dir
+            flows_mod._KEYRING_AVAILABLE = orig_kr
 
     def test_auth_mode_survives_round_trip(self, tmp_path):
         import core.engine.oauth.flows as flows_mod
