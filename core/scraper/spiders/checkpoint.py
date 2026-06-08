@@ -87,13 +87,38 @@ class CheckpointManager:
             return None
 
     async def _try_load_legacy_pickle(self, path: AsyncPath) -> Optional[CheckpointData]:
-        """Try to load legacy pickle-format checkpoint. Deprecated."""
+        """Try to load legacy pickle-format checkpoint. Deprecated.
+
+        Uses a RestrictedUnpickler that only permits the handful of classes a
+        checkpoint legitimately contains — any other global (arbitrary callables,
+        os/subprocess, etc.) raises, neutralizing the pickle RCE vector while
+        still allowing genuine legacy checkpoints to migrate to JSON.
+        """
+        import io
         import pickle
+
+        _ALLOWED = {
+            ("core.scraper.spiders.checkpoint", "CheckpointData"),
+            ("core.scraper.spiders.request", "Request"),
+            ("builtins", "set"), ("builtins", "frozenset"),
+            ("builtins", "list"), ("builtins", "dict"), ("builtins", "tuple"),
+            ("builtins", "bytes"), ("builtins", "str"),
+            ("builtins", "int"), ("builtins", "float"), ("builtins", "bool"),
+        }
+
+        class _RestrictedUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                if (module, name) in _ALLOWED:
+                    return super().find_class(module, name)
+                raise pickle.UnpicklingError(
+                    f"blocked unsafe pickle global {module}.{name}"
+                )
+
         try:
             async with await anyio.open_file(path, "rb") as f:
                 content = await f.read()
-            data = pickle.loads(content)
-            log.warning("[VECTOR][scraper] loaded legacy pickle checkpoint — consider re-saving to migrate")
+            data = _RestrictedUnpickler(io.BytesIO(content)).load()
+            log.warning("[VECTOR][scraper] loaded legacy pickle checkpoint (restricted unpickler) — consider re-saving to migrate")
             return data
         except Exception as e:
             log.error(f"[VECTOR][scraper] legacy pickle load also failed: {e}")
