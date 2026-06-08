@@ -12,6 +12,7 @@ __all__ = [
 
 from pathlib import Path
 from core.config import CONFIG
+from core.runtime_paths import data_path
 from loguru import logger
 import asyncio, datetime, httpx
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ GREEN = CONFIG['permission']['green']
 YELLOW = CONFIG['permission']['yellow']
 RED = CONFIG['permission']['red']
 FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
+OWNER_APPROVAL_ONLY = {'financial_transaction'}
 
 class PermissionGateway:
     def __init__(self):
@@ -117,7 +119,11 @@ class PermissionGateway:
 
         if level == 'RED':
             # A7: CouncilBrain deliberation before HumanLayer/asyncio fallback
-            _council_verdict = await self._handle_red_tier(action)
+            _council_verdict = (
+                "defer"
+                if action.action_type in OWNER_APPROVAL_ONLY
+                else await self._handle_red_tier(action)
+            )
             if _council_verdict == "proceed":
                 exec_result = await self._execute_action(action)
                 result = GatewayResult(True, 'RED', True, exec_result, 'Council approved (auto-proceed)')
@@ -181,7 +187,7 @@ class PermissionGateway:
             rationale = deliberation.get("rationale", "")
             # Log to council_log.jsonl
             try:
-                log_path = Path("data") / "council_log.jsonl"
+                log_path = data_path("council_log.jsonl")
                 log_path.parent.mkdir(parents=True, exist_ok=True)
                 entry = {
                     "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -195,7 +201,7 @@ class PermissionGateway:
                 with log_path.open("a", encoding="utf-8") as fh:
                     fh.write(json.dumps(entry) + "\n")
             except Exception as _log_err:
-                logger.debug("[VECTOR][gateway] council_log write failed: {}", _log_err)
+                logger.warning("[VECTOR][gateway] council_log write failed — RED-tier deliberation audit trail incomplete: {}", _log_err)
             logger.info(
                 "[VECTOR][gateway] Council verdict={} conf={:.2f} for action={}",
                 verdict, confidence, action.action_type,
