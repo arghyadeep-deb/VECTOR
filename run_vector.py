@@ -235,11 +235,23 @@ def _start_sidecars() -> None:
         override = _sc.get(key, "")
         return override if override else str(_github / default_name)
 
+    def _venv_python(base_dir: str) -> str:
+        """Return the isolated venv's python for a sidecar dir, else global 'python'.
+        Sidecars run in their OWN venv so their deps never collide with VECTOR's."""
+        win = os.name == "nt"
+        cand = Path(base_dir) / ".venv" / ("Scripts" if win else "bin") / ("python.exe" if win else "python")
+        return str(cand) if cand.exists() else "python"
+
+    _comfy_dir = _sidecar_path("comfyui_path", "ComfyUI-master")
+    _ow_back = str(Path(_sidecar_path("open_webui_path", "open-webui-main")) / "backend")
+
     sidecars = [
         {
             "name": "ComfyUI",
-            "cmd": ["python", "main.py", "--port", "8188", "--listen", "127.0.0.1"],
-            "cwd": _sidecar_path("comfyui_path", "ComfyUI-master"),
+            # Runs in ComfyUI's isolated .venv (created by setup) — falls back to
+            # global python if that venv isn't present.
+            "cmd": [_venv_python(_comfy_dir), "main.py", "--port", "8188", "--listen", "127.0.0.1"],
+            "cwd": _comfy_dir,
             "health_url": "http://127.0.0.1:8188/system_stats",
         },
         {
