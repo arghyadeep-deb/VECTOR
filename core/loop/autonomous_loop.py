@@ -1547,8 +1547,18 @@ class AutonomousLoop:
                 proc = await bridge.start_mcp_server(port=mcp_port)
                 if proc:
                     logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
+                    # Block until the process exits — without this the loop
+                    # re-spawns a new MCP process on every iteration (runaway).
+                    try:
+                        await asyncio.get_event_loop().run_in_executor(None, proc.wait)
+                    except Exception:
+                        pass
+                    logger.info("[VECTOR][vectorcode] MCP server exited — restarting in 5s")
+                    await asyncio.sleep(5)
+                else:
+                    await asyncio.sleep(30)
             except Exception as e:
-                logger.error("[VECTOR][vectorcode] loop crashed: {} Ã¢â‚¬— restarting in 10s", e)
+                logger.error("[VECTOR][vectorcode] loop crashed: {} — restarting in 10s", e)
                 await asyncio.sleep(10)
 
     async def emergency_loop(self) -> None:
