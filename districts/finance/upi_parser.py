@@ -133,6 +133,46 @@ class UPIParser(AgentBase):
         logger.info(f"[VECTOR][upi_parser] {txn['direction']} Rs.{txn['amount']} [{txn['category']}]")
         return txn
 
+    def ingest_from_phone(self, count: int = 20) -> dict:
+        """Pull recent SMS from the connected Android phone via ADB
+        (PhoneController.get_sms_recent) and ingest any UPI/bank transaction
+        messages. The last-seen SMS epoch timestamp is persisted in
+        semantic_memory so re-polling never reprocesses the same messages.
+        """
+        from core.control.phone_controller import PhoneController
+        phone = PhoneController()
+        if not phone.is_connected():
+            logger.debug("[VECTOR][upi_parser] no phone connected — skipping SMS poll")
+            return {"status": "no_phone", "ingested": 0}
+
+        last_fact = self._memory.recall_fact("upi_parser:last_sms_ts")
+        last_value = last_fact.get("value") if last_fact else None
+        last_ts = int(last_value) if last_value and str(last_value).isdigit() else 0
+
+        messages = phone.get_sms_recent(count)
+        ingested = 0
+        newest_ts = last_ts
+        for msg in messages:
+            try:
+                ts = int(msg.get("timestamp", "0"))
+            except (TypeError, ValueError):
+                ts = 0
+            if ts <= last_ts:
+                continue
+            newest_ts = max(newest_ts, ts)
+            if self.ingest(msg.get("body", "")) is not None:
+                ingested += 1
+
+        if newest_ts > last_ts:
+            self._memory.remember(
+                key="upi_parser:last_sms_ts", value=str(newest_ts),
+                category="upi_parser_state", confidence=1.0,
+            )
+
+        if ingested:
+            logger.info(f"[VECTOR][upi_parser] ingested {ingested} transaction SMS via ADB")
+        return {"status": "ok", "scanned": len(messages), "ingested": ingested}
+
     def fetch_transactions(self, days: int = 30) -> list[dict]:
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
         try:
