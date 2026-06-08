@@ -658,11 +658,11 @@ class PermissionGateway:
                         result["exit_code"] = getattr(sandbox_result, "exit_code", 0)
                         result["sandbox"] = "container"
                     except Exception as _sandbox_err:
-                        # Sandbox not available — log but don't block
-                        logger.warning(f"[VECTOR][gateway] sandbox unavailable: {_sandbox_err}")
-                        result["status"] = "ok"
+                        # Sandbox not available — FAIL CLOSED, never run unsandboxed
+                        logger.error(f"[VECTOR][gateway] sandbox unavailable — refusing to execute code: {_sandbox_err}")
+                        result["status"] = "error"
                         result["sandbox"] = "unavailable"
-                        result["note"] = f"sandbox skipped: {_sandbox_err}"
+                        result["error"] = f"code execution blocked: no sandbox available ({_sandbox_err})"
             elif action.action_type in ("code_task", "code_review_vc", "code_generate",
                                         "code_fix", "code_debug", "run_tests"):
                 try:
