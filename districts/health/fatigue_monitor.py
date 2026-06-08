@@ -38,6 +38,7 @@ class FatigueMonitor(AgentBase):
         self._session_start: datetime.datetime | None = None
         self._last_break: datetime.datetime | None = None
         self._fatigue_count = 0
+        self._ear_unavailable_warned = False
         logger.info(f"[VECTOR][fatigue_monitor] ready gen={generation}")
         # Phase 2B: subscribe to health events
         self.subscribe_to("health_alert")
