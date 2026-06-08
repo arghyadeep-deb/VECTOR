@@ -236,6 +236,19 @@ class AutonomousLoop:
             logger.debug(f"[VECTOR][guidance] threat scan error: {e}")
         return False
 
+    def _record_external_rejection(self, action_type: str, params: dict, reason: str) -> None:
+        """Gap 4: feed genuine external rejections (ThreatDetector, RedTeam, council,
+        HumanLayer) into CounterfactualMemory so should_avoid() learns from them —
+        not just from its own auto-blocks."""
+        try:
+            from core.memory.counterfactual import CounterfactualMemory
+            proposal = f"{action_type} {json.dumps(params, default=str)}"
+            CounterfactualMemory().record_rejection(
+                decision_id=action_type, proposal=proposal, reason=reason[:200],
+            )
+        except Exception as e:
+            logger.debug(f"[VECTOR][counterfactual] external rejection record skipped: {e}")
+
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Scheduler + Workflow integrations (VectorCode-absorbed) Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
     def _get_scheduler(self):
