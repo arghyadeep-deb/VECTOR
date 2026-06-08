@@ -635,7 +635,8 @@ class PermissionGateway:
                 )
             elif action.action_type == "execute_code":
                 # Real isolated execution via core/sandbox (WASM/Docker).
-                # Falls back to a pass-through "ok" if sandbox unavailable.
+                # FAIL CLOSED: if the sandbox is unavailable we refuse to run —
+                # code must NEVER execute unsandboxed on the host.
                 code = action.params.get("code", "")
                 language = action.params.get("language", "python")
                 if not code:
