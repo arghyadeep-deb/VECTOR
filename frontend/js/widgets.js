@@ -9,6 +9,23 @@
   const chatMsgs = [];        // buffered conversation
 
   const el = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+  const apiBase = () => (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
+  async function apiGet(path){
+    if(V && V.http) return V.http(path);
+    const r = await fetch(apiBase()+path);
+    if(!r.ok) throw new Error(path+' -> '+r.status);
+    return r.json();
+  }
+  async function apiPost(path, body){
+    if(V && V.http) return V.http(path, { method:'POST', body:body||{} });
+    const r = await fetch(apiBase()+path, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body||{})
+    });
+    if(!r.ok) throw new Error(path+' -> '+r.status);
+    return r.json();
+  }
 
   // default layout positions (left/top in %, of #workspace) -----------------
   const POS = {
@@ -45,21 +62,22 @@
     const input = row.querySelector('input'), send = row.querySelector('.send');
     const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
 
+    function localFallbackReply(text, reason){
+      if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('degraded', reason || 'backend command failed');
+      return 'LOCAL DEMO FALLBACK · '+localReply(text);
+    }
+
     async function submitToBackend(text){
       try{
-        const r = await fetch(API+'/commands', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ text })
-        });
-        const j = await r.json();
+        const j = await apiPost('/command', { text });
         V.say((j && (j.response || j.text || j.result)) || 'Done, sir.');
-      }catch(e){ V.say(localReply(text)); }
+      }catch(e){ V.say(localFallbackReply(text, 'chat /command failed')); }
     }
 
     function submit(){ const t=input.value.trim(); if(!t) return; input.value='';
       chatMsgs.push({ role:'user', text:t });
       appendMsg(log, { role:'user', text:t });
-      if(API){ submitToBackend(t); } else { setTimeout(()=>V.say(localReply(t)), 650); }
+      if(API){ submitToBackend(t); } else { setTimeout(()=>V.say(localFallbackReply(t, 'chat using demo mode')), 650); }
     }
     send.addEventListener('click', submit);
     input.addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); e.stopPropagation(); });
@@ -126,6 +144,7 @@
   F.telemetry = function(){
     const wrap = el('div');
     wrap.innerHTML = `
+      <div class="ve-source" data-source data-mode="simulated">SIMULATED · waiting for backend metrics</div>
       <div class="row-kv"><span class="k">CPU · RTX HOST</span><span class="v" data-cpu>—</span></div>
       <div class="meter"><i data-cpu-bar style="width:0"></i></div>
       <div class="row-kv" style="margin-top:6px"><span class="k">VRAM</span><span class="v" data-vram>—</span></div>
@@ -139,14 +158,15 @@
 
     const set=(sel,v)=>{ const e=wrap.querySelector(sel); if(e) e.textContent=v; };
     const bar=(sel,v)=>{ const e=wrap.querySelector(sel); if(e) e.style.width=v+'%'; };
+    const source=(mode,msg)=>{ const e=wrap.querySelector('[data-source]'); if(e){ e.textContent=msg; e.dataset.mode=mode; } };
 
     function fmtUptime(s){ s=Math.floor(s||0);
       return [s/3600, s/60%60, s%60].map(n=>String(Math.floor(n)).padStart(2,'0')).join(':'); }
 
     async function loadTelemetry(){
       try{
-        const r = await fetch(API+'/health/system');
-        const j = await r.json();
+        const j = await apiGet('/health/system');
+        source('live', 'LIVE · backend metrics');
         const cpu = j.cpu_percent || 0;
         const vram = j.memory_percent || 0;
         const temp = j.gpu_temp || 0;
@@ -157,12 +177,15 @@
         if(j.loop_tick != null) set('[data-tick]', j.loop_tick);
         if(j.uptime_seconds != null) set('[data-up]', fmtUptime(j.uptime_seconds));
         if(j.active_model) set('[data-model]', j.active_model);
-      }catch(e){ /* backend offline — animate demo */ }
+      }catch(e){
+        source('simulated', 'SIMULATED · backend metrics unavailable');
+        if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('degraded', 'telemetry backend unavailable');
+      }
     }
 
     const w = shell('telemetry','SYSTEM TELEMETRY', wrap, 'panel');
     loadTelemetry();
-    animateTelemetry(w);   // demo animation keeps running; real data overlays it when backend is up
+    animateTelemetry(w);   // simulated baseline; live data overwrites values when backend is up
     setInterval(()=>{ if(w.isConnected) loadTelemetry(); }, 3000);
     return w;
   };
@@ -194,8 +217,7 @@
 
     async function loadMarket(){
       try{
-        const r = await fetch(API+'/finance/ticker?symbol=NIFTY50');
-        const j = await r.json();
+        const j = await apiGet('/finance/ticker?symbol=NIFTY50');
         const priceEl = wrap.querySelector('.mkt-price');
         const changeEl = wrap.querySelector('.mkt-change');
         if(priceEl && j.price != null) priceEl.textContent = Number(j.price).toLocaleString('en-IN');
@@ -210,8 +232,7 @@
 
     async function loadHeadlines(){
       try{
-        const r = await fetch(API+'/news/headlines?limit=3');
-        const j = await r.json();
+        const j = await apiGet('/news/headlines?limit=3');
         const items = j.headlines || j.results || [];
         const newsEl = wrap.querySelector('.mkt-news');
         if(newsEl && items.length)
@@ -249,8 +270,7 @@
 
     async function loadGoals(){
       try{
-        const r = await fetch(API+'/goals');
-        const j = await r.json();
+        const j = await apiGet('/brain/goals');
         const goals = j.goals || (Array.isArray(j)?j:[]);
         const byHorizon = { LONG:[], MID:[], SHORT:[] };
         goals.forEach(g=>{
@@ -294,8 +314,7 @@
 
     async function loadDistricts(){
       try{
-        const r = await fetch(API+'/agents');
-        const j = await r.json();
+        const j = await apiGet('/agents');
         const agents = j.agents || j.data || (Array.isArray(j)?j:[]);
         if(agents.length) renderAgents(agents);
         const title = wrap.closest && wrap.closest('.widget')
@@ -336,16 +355,14 @@
 
     async function loadCouncil(){
       try{
-        // Try dedicated council sessions endpoint first
-        const r = await fetch(API+'/council/sessions?limit=5');
-        const j = await r.json();
+        // Canonical council history endpoint
+        const j = await apiGet('/memory/council/history?limit=5');
         const sessions = j.sessions || j.data || (Array.isArray(j)?j:[]);
         if(sessions.length){ renderSessions(sessions); return; }
       }catch(e){ /* no council endpoint — fall through to HP-based view */ }
       // Fallback: show council-eligible agents (HP > 700) from /agents
       try{
-        const r2 = await fetch(API+'/agents');
-        const j2 = await r2.json();
+        const j2 = await apiGet('/agents');
         const agents = j2.agents || (Array.isArray(j2)?j2:[]);
         const eligible = agents.filter(a=>(a.health_points||a.hp||0)>700);
         if(eligible.length){
@@ -383,8 +400,7 @@
 
     async function loadSecurity(){
       try{
-        const r = await fetch(API+'/security/status');
-        const j = await r.json();
+        const j = await apiGet('/security/status');
         const threatEl = wrap.querySelector('.sec-threat');
         if(threatEl){
           const level = (j.threat_level||'LOW').toUpperCase();
@@ -396,8 +412,7 @@
         if(threatEl){ threatEl.textContent = '—'; threatEl.style.color = 'var(--txt-faint)'; }
       }
       try{
-        const r2 = await fetch(API+'/security/recent?limit=5');
-        const j2 = await r2.json();
+        const j2 = await apiGet('/security/recent?limit=5');
         const events = j2.events || j2.results || (Array.isArray(j2)?j2:[]);
         if(events.length){
           evtList.innerHTML = '';
@@ -442,8 +457,7 @@
 
     async function loadMemory(){
       try{
-        const r = await fetch(API+'/memory/recent?limit=20');
-        const j = await r.json();
+        const j = await apiGet('/memory/recent?limit=20');
         const mems = j.memories || j.events || (Array.isArray(j)?j:[]);
         if(mems.length) renderMemories(mems);
         else wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
@@ -460,7 +474,7 @@
 
   F.webcam = function(){
     const wrap = el('div');
-    const feed = el('div','feed', `<div class="off">CAMERA · YOLO STANDBY</div>`);
+    const feed = el('div','feed', `<div class="off">CAMERA · LOCAL PREVIEW STANDBY</div>`);
     wrap.appendChild(feed);
     const w = shell('webcam','VISION FEED', wrap, 'cam');
     // try to attach real webcam
@@ -496,8 +510,7 @@
 
     async function loadProfiles(){
       try{
-        const r = await fetch(API + '/voice/profiles');
-        const j = await r.json();
+        const j = await apiGet('/voice/profiles');
         const profs = (j.profiles||[]).map(p=>p.name);
         if(profs.length){ sel.innerHTML = profs.map(n=>`<option value="${n}">${n}</option>`).join(''); }
       }catch(e){ /* keep default */ }
@@ -510,11 +523,7 @@
       if(!text){ stat.textContent='enter a script first'; return; }
       stat.textContent='◌ synthesizing…'; gen.disabled=true;
       try{
-        const r = await fetch(API + '/voice/studio/generate', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ text, profile: sel.value })
-        });
-        const j = await r.json();
+        const j = await apiPost('/voice/studio/generate', { text, profile: sel.value });
         if(j.status==='ok' && j.audio_url){
           stat.textContent = '✓ done · engine: ' + (j.engine||'?');
           aud.src = API + j.audio_url; aud.style.display='block';
@@ -603,9 +612,7 @@
       const p = pathIn.value.trim() || 'core';
       stat.textContent='◌ scanning…';
       try{
-        const r = await fetch(API+'/knowledge/graph', { method:'POST',
-          headers:{'Content-Type':'application/json'}, body: JSON.stringify({project_path:p, max_nodes:200}) });
-        const j = await r.json();
+        const j = await apiPost('/knowledge/graph', {project_path:p, max_nodes:200});
         if(j.status==='ok'){ G={nodes:j.nodes, edges:j.edges}; stat.textContent=`${j.node_count} nodes · ${j.edge_count} edges`;
           layout(); run(); }
         else stat.textContent='⚠ '+(j.detail||j.error||'scan failed');
@@ -662,8 +669,7 @@
         card.querySelector('.apv-ok').addEventListener('click', async e=>{
           e.stopPropagation(); card.style.opacity='.4';
           try{
-            if (V.http) await V.http('/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
-            else await fetch(API+'/gateway/approve/'+encodeURIComponent(id), {method:'POST'});
+            await apiPost('/gateway/approve/'+encodeURIComponent(id), {});
             V.say('Approved — '+id+' executing.');
           }catch(err){ card.style.opacity='1'; }
           refresh();
@@ -671,8 +677,7 @@
         card.querySelector('.apv-no').addEventListener('click', async e=>{
           e.stopPropagation(); card.style.opacity='.4';
           try{
-            if (V.http) await V.http('/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
-            else await fetch(API+'/gateway/reject/'+encodeURIComponent(id), {method:'POST'});
+            await apiPost('/gateway/reject/'+encodeURIComponent(id), {});
             V.say('Rejected — '+id+' blocked.');
           }catch(err){ card.style.opacity='1'; }
           refresh();
@@ -683,9 +688,7 @@
 
     async function refresh(){
       try{
-        const j = V.http
-          ? await V.http('/gateway/pending')
-          : await fetch(API+'/gateway/pending').then(r => r.json());
+        const j = await apiGet('/gateway/pending');
         renderApprovals(j.pending||[]);
       }catch(e){ /* backend offline — keep last render */ }
     }
@@ -715,6 +718,18 @@
     return shell('openwebui','KNOWLEDGE · OPEN WEBUI', frame, 'iframe-panel');
   };
 
+  // ── ComfyUI (full node-editor web UI iframe) ─────────────────────────────
+  // Bespoke iframe to the running ComfyUI server at :8188 — defined here so it
+  // takes precedence over the generic feature-registry status panel (the
+  // registry only fills F[id] when no bespoke renderer exists). This makes the
+  // panel actually usable for image/video generation, like librechat/openwebui.
+  F.comfyui = function(){
+    const frame = el('iframe');
+    frame.src = 'http://127.0.0.1:8188';
+    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
+    return shell('comfyui','MEDIA · COMFYUI', frame, 'iframe-panel');
+  };
+
   // ── Finance Panel ─────────────────────────────────────────────────────────
   F.finance = function(){
     const wrap = el('div','fin-wrap');
@@ -736,8 +751,7 @@
 
     async function loadPortfolio(){
       try{
-        const r = await fetch(API+'/investment/portfolio');
-        const j = await r.json();
+        const j = await apiGet('/investment/portfolio');
         const pv = wrap.querySelector('.fin-pv');
         const pl = wrap.querySelector('.fin-pl');
         if(pv) pv.textContent = j.portfolio_value != null ? '₹'+Number(j.portfolio_value).toLocaleString() : '—';
@@ -761,8 +775,7 @@
 
     async function loadMarketStatus(){
       try{
-        const r = await fetch(API+'/investment/market-status');
-        const j = await r.json();
+        const j = await apiGet('/investment/market-status');
         ['us','india','crypto'].forEach(k=>{
           const el2 = wrap.querySelector(`[data-mkt="${k}"]`);
           if(!el2) return;
@@ -827,8 +840,7 @@
 
     async function loadQueue(){
       try{
-        const r = await fetch(API+'/content/scheduled');
-        const j = await r.json();
+        const j = await apiGet('/content/scheduled');
         const listEl = wrap.querySelector('.csch-list');
         if(!listEl) return;
         const entries = Object.entries(j).filter(([k])=>k!=='error');
@@ -841,7 +853,7 @@
 
     wrap.querySelector('.csch-run').addEventListener('click', async e=>{
       e.stopPropagation();
-      try{ await fetch(API+'/content/run', {method:'POST'}); loadQueue(); }catch(err){}
+      try{ await apiPost('/content/run', {}); loadQueue(); }catch(err){}
     });
 
     wrap.querySelector('.csch-submit').addEventListener('click', async e=>{
@@ -853,11 +865,7 @@
       if(!title || !content || !platforms.length){ stat.textContent='Fill title, content, and pick a platform.'; return; }
       stat.textContent = '◌ scheduling…';
       try{
-        const r = await fetch(API+'/content/schedule', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({title, content, platforms})
-        });
-        const j = await r.json();
+        const j = await apiPost('/content/schedule', {title, content, platforms});
         stat.textContent = j.status==='ok' ? '✓ scheduled!' : '⚠ '+JSON.stringify(j);
         loadQueue();
       }catch(err){ stat.textContent='⚠ '+err.message; }
@@ -886,8 +894,7 @@
       if(!q) return;
       results.innerHTML = '<div class="ae-loading">◌ Searching…</div>';
       try {
-        const r = await fetch(API+'/research/search?q='+encodeURIComponent(q));
-        const j = await r.json();
+        const j = await apiGet('/research/search?query='+encodeURIComponent(q));
         const items = j.results || [];
         results.innerHTML = items.length ? items.map(i=>
           `<div class="ae-item">
@@ -915,8 +922,7 @@
 
     async function loadGoals(){
       try{
-        const r = await fetch(API+'/goals');
-        const j = await r.json();
+        const j = await apiGet('/brain/goals');
         const goals = j.goals || (Array.isArray(j)?j:[]);
         ['long','mid','short'].forEach(h=>{
           const listEl = wrap.querySelector('#gp-'+h);
@@ -941,6 +947,613 @@
     setInterval(()=>{ if(w.isConnected) loadGoals(); }, 30000);
     return w;
   };
+
+  // Backend feature launcher: keeps mounted API domains openable without
+  // pretending every domain already has a bespoke HUD design.
+  const FEATURE_REGISTRY = [
+    { id:'features', title:'BACKEND FEATURES', summary:'Mounted main-API feature map and launch surface.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/health/production-readiness','/tools/registry','/providers/routes'] },
+    { id:'missioncontrol', title:'MISSION CONTROL', summary:'Create, decompose, review, run, recover, and inspect gateway-safe missions.', health:'/missions', endpoints:['/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] },
+    { id:'corepanel', title:'CORE SYSTEMS', summary:'Core folder coverage: brain, loop, memory, inference, voice, sensing, media, research, safety, telemetry, trading, and platform internals.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/loop/status','/brain/goals','/memory/recent','/inference/stats','/voice/status','/sensing/status','/media/models','/research/status','/security/status','/tools/registry','/providers/routes','/metering/status','/scheduler/jobs','/sandbox/status','/mcp/status','/network/peers','/investment/market-status'] },
+    { id:'agentspanel', title:'AGENTS + A2A', summary:'Agent roster, awards, district invocation, and A2A sessions.', health:'/agents', endpoints:['/agents','/a2a/agents','/a2a/events','/city/districts','/city/dispatch'] },
+    { id:'brainpanel', title:'BRAIN + REASONING', summary:'Goals, hypotheses, epistemic state, reasoning chains, and person models.', health:'/brain/epistemic/summary', endpoints:['/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary','/brain/reasoning/chains','/brain/persons'] },
+    { id:'knowledgepanel', title:'KNOWLEDGE GRAPH', summary:'Domain scan, wiki/graph merge, graph generation, and knowledge status.', health:'/knowledge/status', endpoints:['/knowledge/status','/knowledge/scan-domain','/knowledge/parse-wiki','/knowledge/merge-graph','/knowledge/graph'] },
+    { id:'codeintel', title:'CODE INTEL', summary:'Repository search, index, symbol graph, impact, flow, context, and project health.', health:'/code-intel/status', endpoints:['/code-intel/status','/code-intel/health','/code-intel/projects','/code-intel/symbols','/code-intel/graph/circular'] },
+    { id:'vectorcodepanel', title:'VECTORCODE', summary:'VectorCode launch and status bridge.', health:'/vectorcode/status', endpoints:['/vectorcode/status','/vectorcode/launch'] },
+    { id:'trading', title:'INVESTMENT + TRADING', summary:'Investment analysis, DCF, alpha, hedge, portfolio, and market status.', health:'/investment/market-status', endpoints:['/investment/market-status','/investment/portfolio','/investment/research/skills','/investment/analyze','/investment/dcf','/investment/alpha','/investment/hedge'] },
+    { id:'backtest', title:'BACKTEST', summary:'Main API backtest request surface. Deep swarm sessions live in the side backtest server.', health:'/investment/market-status', endpoints:['/investment/backtest','/investment/portfolio','/investment/market-status'] },
+    { id:'hedgebot', title:'HEDGEBOT', summary:'Hedge intelligence status and hedge request endpoint.', health:'/investment/hedge/status', endpoints:['/investment/hedge/status','/investment/hedge','/investment/geopolitics'] },
+    { id:'intelligencepanel', title:'INTELLIGENCE', summary:'Flights, vessels, satellites, conflicts, fires, outages, CCTV, reports, and pins.', health:'/intelligence/status', endpoints:['/intelligence/status','/intelligence/all','/intelligence/summary','/intelligence/report','/intelligence/flights','/intelligence/vessels','/intelligence/satellites','/intelligence/conflicts','/intelligence/pins'] },
+    { id:'shadowbroker', title:'SHADOWBROKER', summary:'Geocode, layers, summary, pins, commands, SSE, and health.', health:'/sb/health', endpoints:['/sb/health','/sb/summary','/sb/layer/{name}','/sb/pins','/sb/cmd','/sb/sse'] },
+    { id:'mediastudio', title:'MEDIA STUDIO', summary:'Main API media model catalog. Generation/status lives in the Studio side server.', health:'/media/models', endpoints:['/media/models','studio:/api/media/status','studio:/api/media/generate','studio:/api/media/models','studio:/api/workflows'] },
+    { id:'comfyui', title:'COMFYUI', summary:'Local image/video generation adapter. Requires local ComfyUI; full controls are Studio-side today.', health:'/media/models', endpoints:['/media/models','studio:/api/media/status','comfyui:http://127.0.0.1:8188'] },
+    { id:'hyperframes', title:'HYPERFRAMES', summary:'Video render sidecar used by composer fallback path. Main API exposes composition list only.', health:'/video/compositions', endpoints:['/video/compositions','sidecar:http://127.0.0.1:7421/render','studio:/render'] },
+    { id:'contentpanel', title:'CONTENT OPS', summary:'Scheduled content queue, scheduling, run trigger, ads, SEO, and news operations.', health:'/content/scheduled', endpoints:['/content/scheduled','/content/schedule','/content/run','/ads/references','/seo/status','/news/daily-brief'] },
+    { id:'designpanel', title:'DESIGN', summary:'Component specs, image prompts, UX research, and design tokens.', health:'/media/models', endpoints:['/design/component-spec','/design/image-prompt','/design/ux-research','/design/tokens'] },
+    { id:'researchpanel', title:'RESEARCH', summary:'Search, news, papers, Reddit, and research status.', health:'/research/status', endpoints:['/research/status','/research/search?query=vector','/research/news','/research/papers','/research/reddit'] },
+    { id:'pccontrol', title:'PC CONTROL', summary:'Local PC screenshot, type, click, and app launch gates. Phone endpoints are excluded.', health:'/sensing/status', endpoints:['/control/pc/screenshot','/control/pc/type','/control/pc/click','/control/pc/launch-app','/sensing/status','/sensing/screen'] },
+    { id:'camerapanel', title:'CAMERA', summary:'Camera start/stop/status and visual sensing.', health:'/camera/status', endpoints:['/camera/status','/camera/start','/camera/stop','/sensing/health'] },
+    { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
+    { id:'learningpanel', title:'LEARNING', summary:'Video ingest, course tracking, concept extraction, quiz generation, languages, and skills.', health:'/skills/map', endpoints:['/skills/map','/learning/ingest-video','/learning/track-course','/learning/extract-concepts','/learning/quiz-generate','/languages/{lang}/study-guide'] },
+    { id:'workpanel', title:'WORKFLOW + PROJECTS', summary:'Projects, tasks, scheduler jobs, queues, ops incidents, and chief briefs.', health:'/scheduler/jobs', endpoints:['/projects/list','/tasks/','/scheduler/jobs','/queue/retry/stats','/ops/slo-check','/chief/morning-brief'] },
+    { id:'privacypanel', title:'PRIVACY + KEYS', summary:'Privacy scans, redaction, audit flow, key status, rotation, revocation, and OAuth integrations.', health:'/keys/status', endpoints:['/privacy/scan-sharing','/privacy/gdpr-check','/privacy/redact','/privacy/audit-flow','/keys/status','/oauth/integrations'] },
+    { id:'analyticspanel', title:'ANALYTICS', summary:'Pipeline health, ETL runs, reports, and benchmarks.', health:'/analytics/pipeline-health', endpoints:['/analytics/pipeline-health','/analytics/etl-run','/analytics/report','/analytics/benchmark'] },
+    { id:'personalpanel', title:'PERSONAL OS', summary:'Relationships, calls, reflection, patterns, interviews, startups, and simulations.', health:'/relationships/contacts', endpoints:['/relationships/contacts','/calls/contacts','/reflection/daily-review','/patterns/habits','/interview/start','/startups/validate-idea','/simulation/status'] },
+    { id:'platformpanel', title:'PLATFORM', summary:'Collections, governance, migration, mining, scraper, sandbox, network, MCP, and mission execution.', health:'/mcp/status', endpoints:['/api/collections','/governance/autopilot/status','/migration/sources','/mining/status','/scraper/status','/sandbox/status','/network/peers','/mcp/status','/health/production-readiness','/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] }
+  ];
+
+  const FEATURE_BLUEPRINTS = {
+    corepanel: { mode:'command core', focus:['runtime','brain','memory','safety'], widgets:['telemetry','brainpanel','memory','security'], reads:['/world/snapshot','/status','/system','/loop/status'] },
+    agentspanel: { mode:'coordination', focus:['roster','A2A','districts','dispatch'], widgets:['districts','council','city3d'], reads:['/agents','/a2a/agents','/a2a/events','/city/districts'] },
+    brainpanel: { mode:'reasoning', focus:['goals','hypotheses','epistemic state','persons'], widgets:['goals','goalplanner','council'], reads:['/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary','/brain/reasoning/chains'] },
+    knowledgepanel: { mode:'knowledge ops', focus:['status','domain scan','wiki parse','graph merge'], widgets:['codegraph','memory'], reads:['/knowledge/status'] },
+    codeintel: { mode:'engineering intel', focus:['project health','symbols','context','circular graph'], widgets:['codegraph','vectorcodepanel'], reads:['/code-intel/status','/code-intel/health','/code-intel/projects','/code-intel/symbols'] },
+    vectorcodepanel: { mode:'coding bridge', focus:['status','launch','sessions','tooling'], widgets:['codegraph','codeintel'], reads:['/vectorcode/status'] },
+    trading: { mode:'market desk', focus:['market status','portfolio','research skills','analysis'], widgets:['finance','market','backtest','hedgebot'], reads:['/investment/market-status','/investment/portfolio','/investment/research/skills'] },
+    backtest: { mode:'strategy lab', focus:['request surface','portfolio context','market state','side swarm'], widgets:['trading','hedgebot'], reads:['/investment/market-status','/investment/portfolio'] },
+    hedgebot: { mode:'hedge desk', focus:['hedge status','geopolitics','risk','request queue'], widgets:['trading','market'], reads:['/investment/hedge/status','/investment/market-status'] },
+    intelligencepanel: { mode:'signal room', focus:['summary','flights','vessels','conflicts'], widgets:['map','shadowbroker'], reads:['/intelligence/status','/intelligence/summary','/intelligence/all','/intelligence/flights'] },
+    shadowbroker: { mode:'sidecar intel', focus:['health','summary','pins','layers'], widgets:['intelligencepanel','map'], reads:['/sb/health','/sb/summary','/sb/pins'] },
+    mediastudio: { mode:'studio catalog', focus:['models','generation sidecar','workflows','status'], widgets:['comfyui','hyperframes','voicestudio'], reads:['/media/models'] },
+    comfyui: { mode:'local generation', focus:['model catalog','ComfyUI sidecar','workflow queue','upload path'], widgets:['mediastudio','hyperframes'], reads:['/media/models'] },
+    hyperframes: { mode:'video render', focus:['composition list','render sidecar','composer fallback','exports'], widgets:['mediastudio','comfyui'], reads:['/video/compositions'] },
+    contentpanel: { mode:'growth ops', focus:['queue','schedule','ads','SEO'], widgets:['contentscheduler','researchpanel'], reads:['/content/scheduled','/ads/references','/seo/status','/news/daily-brief'] },
+    designpanel: { mode:'design lab', focus:['component specs','image prompts','UX research','tokens'], widgets:['mediastudio','contentpanel'], reads:['/media/models'] },
+    researchpanel: { mode:'research desk', focus:['status','search','news','papers'], widgets:['answerengine','knowledgepanel'], reads:['/research/status','/research/search?query=vector','/research/news','/research/papers'] },
+    pccontrol: { mode:'local control', focus:['YELLOW gate','screenshot','type','click'], widgets:['security','approvals','webcam'], reads:['/sensing/status','/sensing/screen','/gateway/pending'] },
+    camerapanel: { mode:'vision control', focus:['status','start','stop','sensing health'], widgets:['webcam','pccontrol'], reads:['/camera/status','/sensing/health'] },
+    healthpanel: { mode:'body systems', focus:['fatigue','biometrics','sleep','exercise'], widgets:['telemetry','personalpanel'], reads:['/health/status','/health/system','/health/biometrics','/health/sleep'] },
+    learningpanel: { mode:'learning stack', focus:['skills map','video ingest','courses','quiz'], widgets:['goalplanner','personalpanel'], reads:['/skills/map'] },
+    workpanel: { mode:'operations', focus:['projects','tasks','scheduler','queue'], widgets:['goals','goalplanner','analyticspanel'], reads:['/projects/list','/tasks/','/scheduler/jobs','/queue/retry/stats'] },
+    privacypanel: { mode:'trust boundary', focus:['privacy scan','redaction','key status','OAuth'], widgets:['security','approvals'], reads:['/keys/status','/oauth/integrations'] },
+    analyticspanel: { mode:'data ops', focus:['pipeline','ETL','reports','benchmarks'], widgets:['telemetry','workpanel'], reads:['/analytics/pipeline-health'] },
+    personalpanel: { mode:'personal OS', focus:['relationships','calls','reflection','patterns'], widgets:['memory','goals','healthpanel'], reads:['/relationships/contacts','/calls/contacts','/patterns/habits','/simulation/status'] },
+    missioncontrol: { mode:'mission ops', focus:['objective','decompose','review','run'], widgets:['security','approvals','platformpanel'], reads:['/missions'] },
+    platformpanel: { mode:'platform control', focus:['collections','governance','sandbox','missions'], widgets:['missioncontrol','security','telemetry','workpanel'], reads:['/api/collections','/governance/autopilot/status','/sandbox/status','/mcp/status','/missions'] }
+  };
+
+  function renderJsonPreview(data){
+    const raw = JSON.stringify(data, null, 2);
+    return escapeHtml(raw.length > 1400 ? raw.slice(0, 1400)+'\n...' : raw);
+  }
+
+  function previewValue(data){
+    if(Array.isArray(data)) return data.length + ' items';
+    if(!data || typeof data !== 'object') return data == null ? 'ok' : String(data).slice(0, 24);
+    const keys = Object.keys(data);
+    for(const k of ['status','state','health','threat_level','count','total','uptime_seconds']){
+      if(data[k] != null) return String(data[k]).slice(0, 28);
+    }
+    for(const k of keys){
+      const v = data[k];
+      if(Array.isArray(v)) return `${k}: ${v.length}`;
+      if(v && typeof v === 'object') return `${k}: ${Object.keys(v).length}`;
+      if(v != null) return `${k}: ${String(v).slice(0, 18)}`;
+    }
+    return keys.length + ' keys';
+  }
+
+  function endpointMeta(path){
+    const side = /^(studio:|sidecar:|comfyui:)/.test(path);
+    const label = side ? path.replace(/^(studio:|sidecar:|comfyui:)/, '') : path;
+    const safePrefixes = [
+      '/world/snapshot','/status','/system','/health','/agents','/a2a/agents','/a2a/events',
+      '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic',
+      '/brain/reasoning','/brain/persons','/knowledge/status','/code-intel/status',
+      '/code-intel/health','/code-intel/projects','/code-intel/symbols',
+      '/code-intel/graph/circular','/vectorcode/status','/investment/market-status',
+      '/investment/portfolio','/investment/research/skills','/investment/hedge/status',
+      '/intelligence','/sb/health','/sb/summary','/sb/pins','/media/models',
+      '/video/compositions','/content/scheduled','/ads/references','/seo/status',
+      '/news/daily-brief','/research','/sensing','/camera/status','/skills/map',
+      '/relationships/contacts','/calls/contacts','/patterns/habits','/simulation/status',
+      '/scheduler/jobs','/projects/list','/tasks/','/queue/retry/stats','/ops/slo-check',
+      '/keys/status','/oauth/integrations','/analytics/pipeline-health',
+      '/api/collections','/governance/autopilot/status','/migration/sources','/mining/status',
+      '/scraper/status','/sandbox/status','/network/peers','/mcp/status','/tools/registry',
+      '/providers/routes','/missions'
+    ];
+    const readable = !side && safePrefixes.some(prefix => path === prefix || path.startsWith(prefix+'/') || path.startsWith(prefix+'?'));
+    return { label, readable, tag: side ? 'SIDE' : (readable ? 'GET' : 'ACTION') };
+  }
+
+  function missionStatusClass(status){
+    status = String(status || '').toLowerCase();
+    if(status === 'completed' || status === 'executed') return 'ok';
+    if(status === 'blocked' || status === 'failed') return 'bad';
+    if(status === 'running') return 'run';
+    return 'plan';
+  }
+
+  function renderMissionSteps(steps){
+    if(!steps || !steps.length) return '<div class="mc-empty">No steps planned.</div>';
+    return steps.map((step, idx)=>`
+      <div class="mc-step ${missionStatusClass(step.status)}">
+        <div class="mc-step-head">
+          <span>${escapeHtml(step.id || ('step-'+(idx+1)))}</span>
+          <b>${escapeHtml(step.status || 'planned')}</b>
+        </div>
+        <div class="mc-action">${escapeHtml(step.action_type || 'respond')}</div>
+        <div class="mc-meta">
+          <span>${escapeHtml(step.source || 'explicit')}</span>
+          <span>${Math.round(Number(step.confidence == null ? 1 : step.confidence) * 100)}%</span>
+          ${step.requires_review ? '<span class="mc-review">REVIEW</span>' : ''}
+        </div>
+        <pre>${renderJsonPreview(step.params || {})}</pre>
+      </div>`).join('');
+  }
+
+  function renderMissionList(missions){
+    if(!missions || !missions.length) return '<div class="mc-empty">No missions yet.</div>';
+    return missions.slice(0, 10).map(m=>`
+      <button class="mc-mission ${missionStatusClass(m.status)}" data-id="${escapeHtml(m.id)}">
+        <span>${escapeHtml(m.objective || m.id)}</span>
+        <b>${escapeHtml(m.status || 'planned')}</b>
+      </button>`).join('');
+  }
+
+  function renderMissionEvents(events){
+    if(!events || !events.length) return '<div class="mc-empty">No timeline yet.</div>';
+    return events.slice(-12).reverse().map(ev=>`
+      <div class="mc-event">
+        <div><b>${escapeHtml(ev.type || 'event')}</b><span>${escapeHtml((ev.timestamp || '').slice(11,19))}</span></div>
+        <p>${escapeHtml(ev.message || '')}</p>
+      </div>`).join('');
+  }
+
+  function renderMissionArtifacts(artifacts){
+    if(!artifacts || !artifacts.length) return '<div class="mc-empty">No artifacts yet.</div>';
+    return artifacts.slice(-8).reverse().map(a=>`
+      <div class="mc-artifact">
+        <div><b>${escapeHtml(a.title || 'Artifact')}</b><span>${escapeHtml(a.type || 'result')}</span></div>
+        <pre>${renderJsonPreview(a.content || {})}</pre>
+      </div>`).join('');
+  }
+
+  function actionTypeFromEndpoint(path){
+    const known = {
+      '/control/pc/screenshot':'pc_screenshot',
+      '/control/pc/type':'pc_type',
+      '/control/pc/click':'pc_click',
+      '/control/pc/launch-app':'pc_launch_app',
+      '/camera/start':'camera_start',
+      '/camera/stop':'camera_stop',
+      '/content/run':'content_run',
+      '/privacy/redact':'privacy_redact',
+      '/keys/rotate':'key_rotate',
+      '/keys/revoke':'key_revoke'
+    };
+    if(known[path]) return known[path];
+    return String(path || '')
+      .replace(/\?.*$/, '')
+      .replace(/^\//, '')
+      .replace(/\{([^}]+)\}/g, '$1')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase() || 'unknown_action';
+  }
+
+  function makeFeaturePanel(cfg){
+    const blueprint = FEATURE_BLUEPRINTS[cfg.id] || {
+      mode:'main API',
+      focus:['status','readouts','actions','links'],
+      widgets:[],
+      reads:(cfg.endpoints || []).filter(p=>endpointMeta(p).readable).slice(0, 4)
+    };
+    const readableEndpoints = (cfg.endpoints || []).filter(p=>endpointMeta(p).readable);
+    const actionEndpoints = (cfg.endpoints || []).filter(p=>!endpointMeta(p).readable);
+    const wrap = el('div','feature-wrap');
+    wrap.innerHTML = `
+      <div class="feature-hero">
+        <div>
+          <div class="feature-mode">${escapeHtml(blueprint.mode)}</div>
+          <div class="feature-summary">${escapeHtml(cfg.summary)}</div>
+        </div>
+        <div class="feature-status">checking ${escapeHtml(cfg.health || cfg.endpoints[0] || '/status')}...</div>
+      </div>
+      <div class="feature-focus">${(blueprint.focus || []).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}</div>
+      <div class="feature-layout">
+        <section class="feature-card-panel">
+          <div class="feature-section-title">Live Readouts</div>
+          <div class="feature-kpis"></div>
+        </section>
+        <section class="feature-card-panel">
+          <div class="feature-section-title">Open Tools</div>
+          <div class="feature-tools"></div>
+        </section>
+        <section class="feature-card-panel">
+          <div class="feature-section-title">Endpoint Surface</div>
+          <div class="feature-list"></div>
+        </section>
+        <section class="feature-card-panel">
+          <div class="feature-section-title">Action Rail</div>
+          <div class="feature-actions"></div>
+        </section>
+      </div>
+      <pre class="feature-json"></pre>`;
+    const status = wrap.querySelector('.feature-status');
+    const list = wrap.querySelector('.feature-list');
+    const json = wrap.querySelector('.feature-json');
+    const kpis = wrap.querySelector('.feature-kpis');
+    const tools = wrap.querySelector('.feature-tools');
+    const actions = wrap.querySelector('.feature-actions');
+
+    kpis.innerHTML = (blueprint.reads || readableEndpoints).slice(0, 6).map(path =>
+      `<button class="feature-kpi" data-path="${escapeHtml(path)}"><span>${escapeHtml(path)}</span><b>...</b></button>`
+    ).join('') || '<div class="feature-empty">No safe readouts exposed.</div>';
+
+    tools.innerHTML = (blueprint.widgets || []).map(id =>
+      `<button class="feature-tool" data-widget="${escapeHtml(id)}">${escapeHtml(id)}</button>`
+    ).join('') || '<div class="feature-empty">No linked widget.</div>';
+
+    list.innerHTML = readableEndpoints.map(path => {
+      const meta = endpointMeta(path);
+      return `<button class="feature-endpoint" data-path="${escapeHtml(path)}"><span>${meta.tag}</span> ${escapeHtml(meta.label)}</button>`;
+    }).join('') || '<div class="feature-empty">No direct main-API reads.</div>';
+
+    actions.innerHTML = actionEndpoints.map(path => {
+      const meta = endpointMeta(path);
+      return `<button class="feature-action" data-path="${escapeHtml(path)}"><span>${meta.tag}</span> ${escapeHtml(meta.label)}</button>`;
+    }).join('') || '<div class="feature-empty">No gated actions listed.</div>';
+
+    async function check(){
+      if(!cfg.health || /^(studio:|sidecar:|comfyui:)/.test(cfg.health)){
+        status.textContent = 'side system: status is outside the main API';
+        return;
+      }
+      try{
+        const data = await apiGet(cfg.health);
+        status.textContent = 'online: '+cfg.health;
+        json.textContent = renderJsonPreview(data);
+      }catch(e){
+        status.textContent = 'unavailable: '+cfg.health;
+        json.textContent = e.message || String(e);
+      }
+    }
+
+    async function loadPath(path, label){
+      try{
+        status.textContent = 'loading '+(label || path);
+        const data = await apiGet(path);
+        status.textContent = 'loaded '+path;
+        json.textContent = renderJsonPreview(data);
+        return data;
+      }catch(err){
+        status.textContent = 'request failed: '+path;
+        json.textContent = err.message || String(err);
+        throw err;
+      }
+    }
+
+    list.addEventListener('click', async e=>{
+      const btn = e.target.closest('.feature-endpoint');
+      if(!btn) return;
+      await loadPath(btn.dataset.path).catch(()=>{});
+    });
+
+    kpis.addEventListener('click', async e=>{
+      const btn = e.target.closest('.feature-kpi');
+      if(!btn) return;
+      await loadPath(btn.dataset.path).catch(()=>{});
+    });
+
+    tools.addEventListener('click', e=>{
+      const btn = e.target.closest('.feature-tool');
+      if(btn) V.openWidget(btn.dataset.widget);
+    });
+
+    actions.addEventListener('click', async e=>{
+      const btn = e.target.closest('.feature-action');
+      if(!btn) return;
+      const path = btn.dataset.path;
+      const actionType = actionTypeFromEndpoint(path);
+      status.textContent = 'planning gated action: '+actionType;
+      try{
+        const data = await apiPost('/execute/plan', {
+          action_type: actionType,
+          params: { endpoint: path },
+          proposed_by: 'hud.'+cfg.id
+        });
+        status.textContent = 'plan ready: '+actionType;
+        json.textContent = renderJsonPreview(data);
+      }catch(err){
+        status.textContent = 'plan failed: '+actionType;
+        json.textContent = err.message || String(err);
+      }
+    });
+
+    async function hydrateReadouts(){
+      const buttons = [...kpis.querySelectorAll('.feature-kpi')];
+      for(const btn of buttons){
+        try{
+          const data = await apiGet(btn.dataset.path);
+          const val = btn.querySelector('b');
+          if(val) val.textContent = previewValue(data);
+        }catch(err){
+          const val = btn.querySelector('b');
+          if(val) val.textContent = 'offline';
+        }
+      }
+    }
+
+    const w = shell(cfg.id, cfg.title, wrap, 'feature-panel');
+    check();
+    hydrateReadouts();
+    return w;
+  }
+
+  F.missioncontrol = function(){
+    const wrap = el('div','mc-wrap');
+    wrap.innerHTML = `
+      <div class="mc-top">
+        <textarea class="mc-objective" spellcheck="false" placeholder="mission objective"></textarea>
+        <div class="mc-actions">
+          <button class="mc-btn primary" data-act="decompose">DECOMPOSE</button>
+          <button class="mc-btn" data-act="advise">LLM PLAN</button>
+          <button class="mc-btn" data-act="plan">PLAN</button>
+          <button class="mc-btn" data-act="dry">DRY RUN</button>
+          <button class="mc-btn danger" data-act="run">RUN</button>
+          <button class="mc-btn" data-act="retry">RETRY</button>
+          <button class="mc-btn danger" data-act="rollback">ROLLBACK</button>
+          <button class="mc-btn" data-act="refresh">REFRESH</button>
+        </div>
+      </div>
+      <div class="mc-grid">
+        <section class="mc-pane">
+          <div class="mc-title">Mission History</div>
+          <div class="mc-list"></div>
+        </section>
+        <section class="mc-pane">
+          <div class="mc-title">Review Steps</div>
+          <div class="mc-status">idle</div>
+          <div class="mc-steps"></div>
+        </section>
+        <section class="mc-pane">
+          <div class="mc-title">Timeline</div>
+          <div class="mc-events"></div>
+        </section>
+        <section class="mc-pane">
+          <div class="mc-title">Artifacts</div>
+          <div class="mc-artifacts"></div>
+        </section>
+      </div>
+      <pre class="feature-json mc-json"></pre>`;
+    const input = wrap.querySelector('.mc-objective');
+    const list = wrap.querySelector('.mc-list');
+    const stepsEl = wrap.querySelector('.mc-steps');
+    const eventsEl = wrap.querySelector('.mc-events');
+    const artifactsEl = wrap.querySelector('.mc-artifacts');
+    const status = wrap.querySelector('.mc-status');
+    const json = wrap.querySelector('.mc-json');
+    let currentMission = null;
+    let pollJobId = null;
+    let pollTimer = null;
+
+    async function loadMissions(){
+      try{
+        const data = await apiGet('/missions');
+        list.innerHTML = renderMissionList(data.missions || []);
+        if(!currentMission && data.missions && data.missions.length) selectMission(data.missions[0]);
+        return data;
+      }catch(err){
+        list.innerHTML = '<div class="mc-empty">Missions unavailable.</div>';
+        status.textContent = 'backend unavailable';
+        json.textContent = err.message || String(err);
+      }
+    }
+
+    function selectMission(mission){
+      currentMission = mission;
+      input.value = mission.objective || input.value;
+      status.textContent = (mission.review_required ? 'review required: ' : '') + (mission.reason || mission.status || 'planned');
+      stepsEl.innerHTML = renderMissionSteps(mission.steps || []);
+      eventsEl.innerHTML = renderMissionEvents(mission.events || []);
+      artifactsEl.innerHTML = renderMissionArtifacts(mission.artifacts || []);
+      json.textContent = renderJsonPreview(mission);
+    }
+
+    async function postMission(path, extra){
+      const objective = input.value.trim();
+      if(!objective){
+        status.textContent = 'objective required';
+        return null;
+      }
+      status.textContent = 'posting '+path;
+      const data = await apiPost(path, Object.assign({
+        objective,
+        decompose: true,
+        proposed_by: 'hud.missioncontrol'
+      }, extra || {}));
+      const mission = data.mission || null;
+      if(mission) selectMission(mission);
+      else {
+        status.textContent = data.status || 'decomposed';
+        const decomposition = data.decomposition || {};
+        stepsEl.innerHTML = renderMissionSteps(decomposition.steps || []);
+        json.textContent = renderJsonPreview(data);
+      }
+      await loadMissions();
+      return data;
+    }
+
+    function stopJobPoll(){
+      if(pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+      pollJobId = null;
+    }
+
+    async function pollJob(jobId){
+      if(!jobId) return;
+      pollJobId = jobId;
+      try{
+        const data = await apiGet('/missions/jobs/'+encodeURIComponent(jobId));
+        const job = data.job || {};
+        if(data.mission) selectMission(data.mission);
+        status.textContent = 'job '+job.id+' · '+job.status;
+        json.textContent = renderJsonPreview(data);
+        if(['completed','blocked','failed','cancelled'].includes(String(job.status || '').toLowerCase())){
+          stopJobPoll();
+          await loadMissions();
+        }
+      }catch(err){
+        status.textContent = 'job poll failed';
+        json.textContent = err.message || String(err);
+        stopJobPoll();
+      }
+    }
+
+    function startJobPoll(jobId){
+      stopJobPoll();
+      pollJobId = jobId;
+      pollJob(jobId);
+      pollTimer = setInterval(()=>{
+        if(!wrap.isConnected){ stopJobPoll(); return; }
+        pollJob(pollJobId);
+      }, 1400);
+    }
+
+    async function runAsync(){
+      const data = await postMission('/missions/run-async', { dry_run:false });
+      const job = data && data.job;
+      if(job && job.id) startJobPoll(job.id);
+      return data;
+    }
+
+    async function recoverMission(kind){
+      if(!currentMission || !currentMission.id){
+        status.textContent = 'select a mission first';
+        return null;
+      }
+      const path = '/missions/'+encodeURIComponent(currentMission.id)+'/'+kind;
+      const body = kind === 'rollback'
+        ? { reason:'Owner requested rollback review from Mission Control.' }
+        : {};
+      status.textContent = kind+' requested';
+      const data = await apiPost(path, body);
+      if(data.mission) selectMission(data.mission);
+      await loadMissions();
+      return data;
+    }
+
+    wrap.querySelector('.mc-actions').addEventListener('click', async e=>{
+      const btn = e.target.closest('[data-act]');
+      if(!btn) return;
+      const act = btn.dataset.act;
+      try{
+        if(act === 'refresh') await loadMissions();
+        if(act === 'decompose') await postMission('/missions/decompose');
+        if(act === 'advise') await postMission('/missions/advise');
+        if(act === 'plan') await postMission('/missions/plan');
+        if(act === 'dry') await postMission('/missions/run', { dry_run:true });
+        if(act === 'run') await runAsync();
+        if(act === 'retry') await recoverMission('retry');
+        if(act === 'rollback') await recoverMission('rollback');
+      }catch(err){
+        status.textContent = 'request failed';
+        json.textContent = err.message || String(err);
+      }
+    });
+
+    list.addEventListener('click', async e=>{
+      const btn = e.target.closest('.mc-mission');
+      if(!btn) return;
+      try{
+        const data = await apiGet('/missions/'+encodeURIComponent(btn.dataset.id));
+        selectMission(data.mission);
+      }catch(err){
+        status.textContent = 'load failed';
+        json.textContent = err.message || String(err);
+      }
+    });
+
+    const w = shell('missioncontrol','MISSION CONTROL', wrap, 'mission-panel feature-panel');
+    loadMissions();
+    const cleanup = setInterval(()=>{ if(!w.isConnected){ clearInterval(cleanup); stopJobPoll(); } }, 2000);
+    return w;
+  };
+
+  const CORE_GROUPS = [
+    { title:'BRAIN + LOOP', copy:'Decision engine, context hydration, goals, autonomous loop, planner, nudges, task queue.', widgets:['brainpanel','goals','goalplanner'], endpoints:['/brain/goals','/brain/epistemic/summary','/brain/reasoning/chains','/loop/status','/tasks/'] },
+    { title:'CITY + AGENTS', copy:'Governor, agent registry, A2A sessions, district dispatch, HP/evolution contracts.', widgets:['agentspanel','districts','council','city3d'], endpoints:['/agents','/a2a/agents','/city/districts','/city/evolution/generations'] },
+    { title:'MEMORY + KNOWLEDGE', copy:'Episodic/semantic/policy memory, reasoning chains, Obsidian sync, graph merge.', widgets:['memory','knowledgepanel'], endpoints:['/memory/recent','/memory/goals','/memory/council/history','/knowledge/status'] },
+    { title:'INFERENCE', copy:'Provider routing, model catalogs, smart routing, fallback chain, budget-aware inference.', widgets:['telemetry'], endpoints:['/inference/stats','/inference/models','/inference/providers','/providers/routes'] },
+    { title:'VOICE', copy:'Wake word, STT/TTS, profiles, cloning, streamer, ambient listener, voice studio.', widgets:['voicestudio'], endpoints:['/voice/status','/voice/profiles','/voice/studio/generate'] },
+    { title:'SENSING + CONTROL', copy:'Camera, screen observer, PC control, GUI/browser control, local sensing.', widgets:['camerapanel','webcam','pccontrol'], endpoints:['/sensing/status','/sensing/health','/camera/status','/control/pc/screenshot'] },
+    { title:'SAFETY', copy:'Permission gateway, prompt-injection guard, SSRF guard, taint tracking, audit, keys.', widgets:['security','approvals','privacypanel'], endpoints:['/security/status','/gateway/pending','/audit/recent','/keys/status'] },
+    { title:'RESEARCH + SCRAPER', copy:'Advanced search engine, citations, library tools, stealth browser, adaptive scraper.', widgets:['researchpanel','answerengine'], endpoints:['/research/status','/research/search?query=vector','/scraper/status'] },
+    { title:'MEDIA + VIDEO', copy:'Generative studio, media model catalog, image/video providers, composer, Hyperframes sidecar.', widgets:['mediastudio','comfyui','hyperframes'], endpoints:['/media/models','/video/compositions'] },
+    { title:'TRADING', copy:'Core trading agents, analysts, researchers, risk managers, market status bridge.', widgets:['trading','backtest','hedgebot'], endpoints:['/investment/market-status','/investment/portfolio','/finance/cost-tracker'] },
+    { title:'TELEMETRY + RESILIENCE', copy:'GPU/energy metrics, metering, rate limits, circuit breakers, recovery playbooks.', widgets:['telemetry','platformpanel'], endpoints:['/system','/metering/status','/queue/retry/stats','/sandbox/status'] },
+    { title:'PLATFORM', copy:'Collections, scheduler, MCP, network peers, sandbox, audit, mission execution, API middleware/runtime.', widgets:['missioncontrol','platformpanel','workpanel'], endpoints:['/api/collections','/scheduler/jobs','/mcp/status','/network/peers','/tools/registry','/missions'] }
+  ];
+
+  F.corepanel = function(){
+    const wrap = el('div','core-wrap');
+    wrap.innerHTML = `
+      <div class="core-top">
+        <div><span class="core-k">CORE MODULES</span><span class="core-v">${CORE_GROUPS.length}</span></div>
+        <div><span class="core-k">MODE</span><span class="core-v">MAIN API</span></div>
+        <div><span class="core-k">UI</span><span class="core-v">VANILLA HUD</span></div>
+      </div>
+      <div class="core-grid"></div>
+      <pre class="feature-json core-json"></pre>`;
+    const grid = wrap.querySelector('.core-grid');
+    const json = wrap.querySelector('.core-json');
+    grid.innerHTML = CORE_GROUPS.map((g, idx)=>`
+      <div class="core-card" data-idx="${idx}">
+        <div class="core-card-head">
+          <span>${escapeHtml(g.title)}</span>
+          <button class="core-open" data-widget="${escapeHtml(g.widgets[0])}">OPEN</button>
+        </div>
+        <div class="core-copy">${escapeHtml(g.copy)}</div>
+        <div class="core-widgets">${g.widgets.map(w=>`<button data-widget="${escapeHtml(w)}">${escapeHtml(w)}</button>`).join('')}</div>
+      </div>`).join('');
+    grid.addEventListener('click', async e=>{
+      const wbtn = e.target.closest('[data-widget]');
+      if(wbtn){
+        V.openWidget(wbtn.dataset.widget);
+        return;
+      }
+      const card = e.target.closest('.core-card');
+      if(!card) return;
+      const group = CORE_GROUPS[Number(card.dataset.idx)];
+      json.textContent = 'Checking '+group.title+'...\n'+group.endpoints.join('\n');
+      const results = [];
+      for(const path of group.endpoints){
+        try{
+          const data = await apiGet(path);
+          results.push({ path, ok:true, preview:data });
+        }catch(err){
+          results.push({ path, ok:false, error:err.message || String(err) });
+        }
+      }
+      json.textContent = renderJsonPreview(results);
+    });
+    return shell('corepanel','CORE SYSTEMS', wrap, 'core-panel feature-panel');
+  };
+
+  function registerFeaturePanels(){
+    FEATURE_REGISTRY.forEach(cfg=>{
+      if(cfg.id === 'features') return;
+      if(!F[cfg.id]) F[cfg.id] = function(){ return makeFeaturePanel(cfg); };
+    });
+  }
+
+  F.features = function(){
+    const wrap = el('div','feature-index');
+    wrap.innerHTML = FEATURE_REGISTRY.filter(f=>f.id !== 'features').map(f=>`
+      <button class="feature-card" data-id="${escapeHtml(f.id)}">
+        <span class="feature-card-title">${escapeHtml(f.title)}</span>
+        <span class="feature-card-copy">${escapeHtml(f.summary)}</span>
+      </button>`).join('');
+    wrap.addEventListener('click', e=>{
+      const card = e.target.closest('.feature-card');
+      if(card) V.openWidget(card.dataset.id);
+    });
+    return shell('features','BACKEND FEATURES', wrap, 'feature-panel');
+  };
+
+  registerFeaturePanels();
+  global.VectorFeatureRegistry = FEATURE_REGISTRY.slice();
 
   // ---- open / close -------------------------------------------------------
   function openWidget(id, opts){
@@ -1052,11 +1665,9 @@
     heroVideo.srcObject=null; }
   V.vision = { open:visionOpen, close:visionClose, toggle(){ visionOn?visionClose():visionOpen(); }, get on(){ return visionOn; } };
 
-  // ---- engage / disengage the curated workspace --------------------------
-  const DEFAULT_SET = ['telemetry','market','districts','goals','memory','council'];
+  // ---- engage / disengage the command-driven workspace -------------------
   V.on('workspace', ({open})=>{
-    if(open){ DEFAULT_SET.forEach((id,i)=>setTimeout(()=>openWidget(id), i*80)); }
-    else { Object.keys(live).forEach(id=>closeWidget(id)); }
+    if(!open){ Object.keys(live).forEach(id=>closeWidget(id)); }
   });
   V.on('widget:open', ({id,opts})=>openWidget(id,opts));
   V.on('widget:close', ({id})=>closeWidget(id));
@@ -1064,19 +1675,71 @@
   // ---- helpers ------------------------------------------------------------
   function fmt(s){ s=Math.floor(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
   function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  const PANEL_MATCHERS = [
+    ['features', /\b(features?|backend features?|feature map|feature launcher|backend map)\b/],
+    ['corepanel', /\b(core systems?|core panel|core folder|core modules?|vector core)\b/],
+    ['agentspanel', /\b(agent system|agents panel|a2a|agent protocol|agent roster)\b/],
+    ['brainpanel', /\b(brain panel|reasoning|hypotheses?|epistemic|person model)\b/],
+    ['knowledgepanel', /\b(knowledge graph|knowledge panel|wiki merge|domain scan)\b/],
+    ['codeintel', /\b(code intel|code intelligence|symbol graph|impact analysis|dependency graph)\b/],
+    ['vectorcodepanel', /\b(vectorcode|vector code)\b/],
+    ['trading', /\b(trading|investment|investments|dcf|alpha|portfolio intelligence)\b/],
+    ['backtest', /\b(backtest|backtesting|back test)\b/],
+    ['hedgebot', /\b(hedgebot|hedge bot|hedge intelligence)\b/],
+    ['intelligencepanel', /\b(intelligence|flights?|vessels?|satellites?|conflicts?|outages?|cctv)\b/],
+    ['shadowbroker', /\b(shadowbroker|shadow broker|sb panel|intel map)\b/],
+    ['mediastudio', /\b(media studio|studio server|generative studio|image generation|video generation)\b/],
+    ['comfyui', /\b(comfyui|comfy ui|stable diffusion)\b/],
+    ['hyperframes', /\b(hyperframes?|video render|composer render)\b/],
+    ['contentpanel', /\b(content ops|ads|seo|news ops|growth)\b/],
+    ['designpanel', /\b(design panel|component spec|image prompt|ux research|design tokens)\b/],
+    ['researchpanel', /\b(research panel|papers?|reddit research|research status)\b/],
+    ['pccontrol', /\b(pc control|computer control|screenshot|type|click|launch app)\b/],
+    ['camerapanel', /\b(camera status|camera controls|visual sensing)\b/],
+    ['healthpanel', /\b(health panel|fatigue|biometrics|sleep|exercise)\b/],
+    ['learningpanel', /\b(learning|course|quiz|languages?|skills map)\b/],
+    ['workpanel', /\b(workflow|projects?|tasks?|ops|scheduler jobs?|queues?)\b/],
+    ['privacypanel', /\b(privacy|keys?|oauth|redact|gdpr)\b/],
+    ['analyticspanel', /\b(analytics|etl|pipeline health|benchmark)\b/],
+    ['personalpanel', /\b(personal os|relationships?|calls?|reflection|patterns?|interview|startup|simulation)\b/],
+    ['platformpanel', /\b(platform|collections?|governance|migration|mining|scraper|sandbox|mcp)\b/],
+    ['city3d', /\b(city3d|city 3d|city view|district city|3d city)\b/],
+    ['approvals', /\b(approval|approvals|pending approvals|permission queue)\b/],
+    ['finance', /\b(finance|portfolio|investment panel|market status)\b/],
+    ['contentscheduler', /\b(content scheduler|scheduler panel|schedule content|content queue)\b/],
+    ['answerengine', /\b(answer engine|search panel|research search|web search)\b/],
+    ['goalplanner', /\b(goal planner|planner|horizons)\b/],
+    ['voicestudio', /\b(voice studio|voice clone|tts studio)\b/],
+    ['codegraph', /\b(code graph|knowledge graph|graph panel)\b/],
+    ['districts', /\b(district|districts|agent|agents)\b/],
+    ['security', /\b(security|permission gate|threat)\b/],
+    ['council', /\b(council|llm council)\b/],
+    ['memory', /\b(memory|episodic|events?)\b/],
+    ['telemetry', /\b(telemetry|system|cpu|ram|vram)\b/],
+    ['market', /\b(market|stock|nifty|ticker)\b/],
+    ['goals', /\b(goals?|objectives?)\b/],
+    ['chat', /\b(chat|conversation)\b/],
+    ['music', /\b(music|spotify|play)\b/],
+    ['map', /\b(map|tactical map)\b/],
+    ['webcam', /\b(webcam|camera panel)\b/],
+  ];
+
+  function requestedOpen(t){
+    return /\b(open|show|bring up|pull up|launch|summon|display)\b/.test(t);
+  }
+
   function localReply(t){ t=t.toLowerCase();
-    if(/\b(situation|war ?room|everything|full picture|brief me)\b/.test(t)){ V.situationRoom(); return 'Engaging the situation room, sir. Vision, markets and comms are live.'; }
-    if(/\b(camera|vision|see me|eyes|look at me)\b/.test(t)){ V.vision.open(); return 'Vision online. I have eyes on you, sir.'; }
+    if(/\b(situation|war ?room|everything|full picture|brief me)\b/.test(t)){ V.situationRoom(); return 'Workspace ready. Tell me which panel to open.'; }
+    if(/\b(camera|vision|see me|eyes|look at me)\b/.test(t) && requestedOpen(t)){ V.vision.open(); return 'Vision online.'; }
     if(/\b(close|hide|stop).*(camera|vision)\b/.test(t)){ V.vision.close(); return 'Vision offline.'; }
-    if(t.includes('map')) { V.showMap(); return 'Pulling up the tactical map now, sir.'; }
-    if(t.includes('music')||t.includes('play')||t.includes('spotify')){ V.openWidget('music'); return 'Opening the music widget.'; }
-    if(t.includes('goal')) { V.openWidget('goals'); return 'Here are your goals. You are tracking six.'; }
-    if(t.includes('security')||t.includes('approv')||t.includes('threat')) { V.openWidget('security'); return 'Threat level is low. Two approvals await your review, sir.'; }
-    if(t.includes('district')||t.includes('agent')) { V.openWidget('districts'); return 'Thirty-three districts online. Most agents are healthy.'; }
-    if(t.includes('council')) { V.openWidget('council'); return 'The council has three recent sessions logged.'; }
-    if(t.includes('memory')||t.includes('event')) { V.openWidget('memory'); return 'Recent episodic memory is on screen.'; }
-    if(t.includes('telemetry')||t.includes('system')||t.includes('cpu')) { V.openWidget('telemetry'); return 'System telemetry up. The host is running cool.'; }
-    if(t.includes('market')||t.includes('stock')||t.includes('nifty')) { V.openWidget('market'); return 'Markets are up zero point six percent today.'; }
+    if(requestedOpen(t)){
+      const match = PANEL_MATCHERS.find(([, rx])=>rx.test(t));
+      if(match){
+        if(match[0] === 'map') V.showMap();
+        else V.openWidget(match[0]);
+        return 'Opening '+match[0].replace(/([a-z])([A-Z])/g, '$1 $2')+'.';
+      }
+    }
     if(t.includes('workspace')||t.includes('hud')||t.includes('engage')) { V.openWorkspace(); return 'Workspace engaged.'; }
     if(t.includes('news')) return 'Three stories trending. A new open-weight model matches frontier reasoning at a fraction of the cost.';
     if(t.includes('time')||t.includes('clock')) return 'It is '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+', sir.';
@@ -1087,16 +1750,16 @@
 
   // ---- situation room: the multi-feed "war room" arrangement ------------
   function situationRoom(){
-    V.vision.open();                         // your face, full-bleed
-    // float a few panels around the feed (upper area, sides) like the reels
-    setTimeout(()=>{ openWidget('market',  { pos:[58,8]  }); }, 220);
-    setTimeout(()=>{ openWidget('webcam',  { pos:[3,8]   }); }, 380);
-    setTimeout(()=>{ openWidget('chat',    { pos:[3,52]  }); }, 540);
-    setTimeout(()=>{ openWidget('security',{ pos:[60,46] }); }, 700);
+    V.openWorkspace();
   }
   V.situationRoom = situationRoom;
 
   // ---- unified command handler (chat input, terminal, and voice all use it)
+  function sayLocalFallback(text, reason, delay){
+    if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('degraded', reason || 'backend command failed');
+    setTimeout(()=>V.say('LOCAL DEMO FALLBACK · '+localReply(text)), delay == null ? 500 : delay);
+  }
+
   V.ask = function(text){
     if(!text) return; text = String(text).trim(); if(!text) return;
     V.chat.push({ role:'user', text });
@@ -1105,9 +1768,9 @@
     if(V.config && V.config.base){
       // live backend: let /command drive the response
       V.command(text).then(r=>{ V.say((r && (r.response||r.text)) || 'Done, sir.'); })
-        .catch(()=>{ setTimeout(()=>V.say(localReply(text)), 500); });
+        .catch(()=>{ sayLocalFallback(text, 'voice/chat /command failed', 500); });
     } else {
-      setTimeout(()=>V.say(localReply(text)), 650);
+      sayLocalFallback(text, 'voice/chat using demo mode', 650);
     }
   };
 
@@ -1132,10 +1795,15 @@
       const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640,height:480 }, audio:false });
       const v=document.createElement('video'); v.autoplay=true; v.playsInline=true; v.muted=true; v.srcObject=stream;
       feed.innerHTML=''; feed.appendChild(v);
-      // mock YOLO box
+      const source=el('div','ve-source cam-source','SIMULATED · detector overlay only');
+      source.dataset.mode='simulated';
+      feed.appendChild(source);
       const det=el('div','det'); det.style.cssText='left:30%;top:24%;width:40%;height:54%';
-      det.appendChild(el('span',null,'person · 0.97')); feed.appendChild(det);
-    }catch(e){ /* keep CAMERA OFFLINE placeholder */ }
+      det.appendChild(el('span',null,'SIMULATED DETECTION · person')); feed.appendChild(det);
+    }catch(e){
+      feed.innerHTML = '<div class="off">CAMERA UNAVAILABLE · no local preview</div>';
+      if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('degraded', 'camera preview unavailable');
+    }
   }
 
   global.VectorWidgets = { openWidget, closeWidget, grabAt, dragMove, release };
