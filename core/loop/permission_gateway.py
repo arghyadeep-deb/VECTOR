@@ -14,7 +14,7 @@ from pathlib import Path
 from core.config import CONFIG
 from core.runtime_paths import data_path
 from loguru import logger
-import asyncio, datetime, httpx
+import asyncio, datetime, httpx, os, shlex
 from dataclasses import dataclass, field
 
 # HumanLayer — RED-tier enforcement (RULE 3, VECTOR_FIT.md: critical)
