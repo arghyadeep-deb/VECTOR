@@ -317,7 +317,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "animate_image": "content",
     "lipsync": "content",
     "lip_sync": "content",
-    "background_remove": "content",
     "upscale": "content",
     "media_status": "content",
     "comfyui": "content",
