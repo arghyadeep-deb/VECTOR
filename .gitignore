@@ -81,6 +81,11 @@ dist/
 districts/investment/vector_finagent/qt/build/
 
 # Cryptographic key files — never commit private keys
+*.pem
+*.p12
+*.pfx
+*.key
+certs/*.key
 districts/intelligence/**/*.key
 districts/intelligence/**/wormhole_secure_store.key
 
@@ -104,4 +109,31 @@ data/verification/
 
 # Archived prompts (Session 1 cleanup)
 data/archived_prompts/
+
+# Runtime/test-generated artifacts
+.coverage
+.pytest_cache/
+test_tmp/
+*.tmp
+*.bak
+data/feedback/action_*.json
+data/missions/
+data/rejected_runs/*.json
+data/reports/cycle_*.md
+data/runtime/
+data/security/incidents/
+districts/investment/vector_backtest/sessions/
+
+# Frontend local artifacts
+frontend/screenshots/
+frontend/uploads/
+
+# Claude Code internal dirs inside subdirectories
+frontend/js/.claude/
+
+# Shadowbroker runtime cache (generated at startup — not source)
+districts/intelligence/shadowbroker_server/data/*_cache.json
+districts/intelligence/shadowbroker_server/data/*_cache_meta.json
+districts/intelligence/shadowbroker_server/data/*_history.json
+districts/intelligence/shadowbroker_server/data/*_sightings.json
 
