@@ -1,0 +1,71 @@
+playbooks:
+  - id: brute_force
+    name: Brute Force Response
+    trigger_rules:
+      - Brute Force Login Attempts
+    steps:
+      - action: log_evidence
+        params:
+          category: authentication
+      - action: notify
+        params:
+          message: Brute force authentication activity detected.
+
+  - id: data_destruction
+    name: Data Destruction Response
+    trigger_rules:
+      - Data Destruction Attempt
+    steps:
+      - action: log_evidence
+        params:
+          category: destructive_activity
+      - action: capture_process_snapshot
+        params: {}
+      - action: escalate_to_human
+        params:
+          message: Data destruction attempt requires immediate review.
+
+  - id: log_clearing
+    name: Log Clearing Response
+    trigger_rules:
+      - Log File Clearing Detected
+    steps:
+      - action: log_evidence
+        params:
+          category: defense_evasion
+      - action: notify
+        params:
+          message: Log clearing behavior detected.
+
+  - id: port_scan
+    name: Port Scan Response
+    trigger_rules:
+      - Network Port Scan
+    steps:
+      - action: log_evidence
+        params:
+          category: reconnaissance
+
+  - id: powershell_execution
+    name: Suspicious PowerShell Response
+    trigger_rules:
+      - Suspicious PowerShell Execution
+    steps:
+      - action: log_evidence
+        params:
+          category: execution
+      - action: notify
+        params:
+          message: Suspicious PowerShell execution detected.
+
+  - id: process_injection
+    name: Process Injection Response
+    trigger_rules:
+      - Process Injection Attempt
+    steps:
+      - action: log_evidence
+        params:
+          category: privilege_escalation
+      - action: escalate_to_human
+        params:
+          message: Process injection indicator detected.
