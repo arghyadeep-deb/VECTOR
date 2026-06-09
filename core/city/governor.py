@@ -565,7 +565,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "editorial_calendar": "marketing",
     "newsletter": "marketing",
     "blog": "marketing",
-    "ai_citation": "marketing",
     "aeo": "marketing",
     "agentic_search": "marketing",
     # GEO optimizer (AI citation / AEO routes)
