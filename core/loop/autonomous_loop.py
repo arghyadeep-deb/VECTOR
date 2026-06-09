@@ -889,7 +889,7 @@ class AutonomousLoop:
                 red_team = self._get_red_team()
                 if red_team is not None:
                     try:
-                        review = red_team.attack_plan({
+                        review = await red_team.attack_plan({
                             "action_type": winner.action_type,
                             "params": winner.params,
                             "goal_ids": winner.goal_ids,
