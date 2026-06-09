@@ -62,7 +62,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "context_artifacts": "coding",
     # coding_assistant tools (core/coding_assistant/)
     "search_replace": "coding",
-    "apply_patch": "coding",
     "bash_execute": "coding",
     "run_command": "coding",
     "grep_code": "coding",
@@ -429,6 +428,11 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "skill_gap":            "skills",
     "mastery":              "skills",
     "skill_map":            "skills",
+    "epistemic_summary":    "brain",
+    "goal_summary":         "brain",
+    "brain_summary":        "brain",
+    "identify_habits":      "pattern_detective",
+    "habit_status":         "pattern_detective",
     "market_scan":          "startups",
     "idea_validate":        "startups",
     "competitor_spy":       "startups",
@@ -813,11 +817,11 @@ class Governor:
             ).strip().lower()
             # Validate the response is a known district
             if result in districts:
-                logger.info(f"[VECTOR][governor] LLM classified '{task_type}' → {result}")
+                logger.info(f"[VECTOR][governor] LLM classified '{task_type}' -> {result}")
                 return result
         except Exception as e:
             logger.warning(f"[VECTOR][governor] LLM classify failed: {e}")
-        logger.warning(f"[VECTOR][governor] unknown task '{task_type}' → defaulting to research")
+        logger.warning(f"[VECTOR][governor] unknown task '{task_type}' -> defaulting to research")
         return "research"
 
     async def _should_convene_council(self, task: dict) -> bool:
@@ -909,13 +913,15 @@ class Governor:
                 "district": district,
             }
 
-        logger.info(f"[VECTOR][governor] dispatch {task_id} → {district} ({task_type})")
+        logger.info(f"[VECTOR][governor] dispatch {task_id} -> {district} ({task_type})")
 
         # â"€â"€ Rate limit check (GCRA per district, 500 tokens/min) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
         try:
             from core.metering.rate_limiter import get_rate_limiter
             rl = get_rate_limiter()
-            allowed, wait_ms = rl.check(f"district_{district}", "tool_call")
+            rate_result = rl.check(f"district_{district}", "tool_call")
+            allowed = rate_result.allowed
+            wait_ms = rate_result.retry_after_secs * 1000.0
             if not allowed:
                 logger.warning(
                     "[VECTOR][governor] rate limit hit district={} wait={:.0f}ms",
@@ -1036,7 +1042,12 @@ class Governor:
                 if hasattr(agent, "run"):
                     result = await agent.run(task)
                 else:
-                    result = {"status": "stub", "agent": agent.name}
+                    result = {
+                        "status": "error",
+                        "reason": "agent_missing_run",
+                        "agent": getattr(agent, "name", ""),
+                        "district": district,
+                    }
 
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
@@ -1100,6 +1111,9 @@ class Governor:
                 avg_hp = sum(a.health_points for a in agents) / len(agents)
                 summary[district] = {"agents": count, "avg_hp": round(avg_hp)}
         return summary
+
+
+GovernorCouncil = Governor
 
 
 if __name__ == "__main__":
