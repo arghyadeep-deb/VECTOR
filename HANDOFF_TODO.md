@@ -1,54 +1,48 @@
 # VECTOR — Remaining Work (handoff for Claude Code)
 
-State as of 2026-06-10: zero syntax errors repo-wide; voice Phases 1-5 +
-venture pipeline + speaker verification + approvals/ventures HUD widgets +
-nightly self-check all code-complete and committed. Nothing below blocks
-daily use except item 0.
+State as of 2026-06-11: items 0 (local scrub), 1-2, 4 (doctor+smoke), 5, 7, 8,
+9 (instagram/tiktok/twitter), and 10 (gate wiring, mojibake, voice_stream.js)
+DONE — see "DONE 2026-06-11" at the bottom. Remaining: owner-manual items
+below + GitHub force-push decision (item 0b).
 
 Context Claude Code should know:
 - Python 3.12 required (`pyproject.toml`), repo stores LF, working tree CRLF.
-- `scripts/precommit_syntax_gate.py` exists — install via item 2 BEFORE editing.
+- Pre-commit syntax gate INSTALLED and verified (blocks unparseable staged files).
 - Design doc for voice: `docs/REALTIME_CONVERSATION_DESIGN.md`.
 - 75 agents registered in `config/agent_manifest.yaml`; governor routing map
-  in `core/city/governor.py` (~line 140-600).
+  in `core/city/governor.py`.
 
 ---
 
-## 0. SECURITY — do first (5 min, partly manual)
+## 0a. KEY ROTATION — owner manual, DO FIRST
 
-`.env` was tracked in git until commit 45eb07ce0; secrets remain in ~3000
-commits of history.
+Local git history is scrubbed (verified: `git log --all -- .env` empty;
+backup bundle at `../VECTOR-backup-20260611.bundle`). But the keys lived in
+~3000 commits that were pushed to GitHub, so rotate every key in .env at its
+provider (OpenAI/Anthropic/ElevenLabs/etc) regardless of the push decision.
 
-> Prompt: "Rotate help: list every key name in my .env (don't print values).
-> Then scrub .env from all git history with git-filter-repo, preserving my
-> working tree. Verify with: git log --all --oneline -- .env returning empty."
+## 0b. GITHUB PUSH — needs owner decision
 
-Then rotate each key at its provider (manual — OpenAI/Anthropic/ElevenLabs/etc).
+Force-push of scrubbed history to github.com/arghyadeep-deb/VECTOR was
+REJECTED: history contains 4 blobs >100MB (models/kokoro/*.onnx ×2,
+models/piper/*.onnx, a 293MB cmake .gch on main). Options:
+(a) authorize `git filter-repo --strip-blobs-bigger-than 100M` (model files
+    already backed up at `../model-backup-20260611/`, restored to disk after,
+    then gitignore models/*.onnx) → force-push main;
+(b) delete the GitHub repo and re-push fresh scrubbed history;
+(c) leave GitHub stale (secrets remain there — rotation then mandatory).
 
-## 1-4. ONE-COMMAND ACTIVATIONS + FIRST RUNS (~30 min total)
+## 3. ENROLL OWNER VOICE (needs your mic, ~2 min)
 
 ```
-python scripts/install_git_hooks.py        # commit gate live
-pip install resemblyzer
-python scripts/enroll_owner_voice.py       # speaker verification live (needs mic)
-python run_vector.py doctor                # dependency report
-python run_vector.py smoke                 # spine boots?
-python districts/news_trends/venture_pipeline.py --live   # first pipeline run
+python scripts/enroll_owner_voice.py       # resemblyzer is now installed
 ```
 
-> Prompt for failures: "I ran `python run_vector.py smoke` and got <paste
-> error>. Diagnose and fix — the spine is core/loop/autonomous_loop.py,
-> entry run_vector.py."
+## 4b. VENTURE PIPELINE FIRST LIVE RUN (owner-triggered)
 
-## 5. RUN THE TEST SUITE (never validated this session)
-
-> Prompt: "Run pytest on this repo (146 test files in tests/). Triage
-> failures into: (a) broken by recent changes — fix those; (b) pre-existing
-> failures — list them, fix only quick wins; (c) environment/missing-dep
-> skips — note them. Recent changes touched: core/voice/realtime.py,
-> speaker_verify.py, core/api/routers/voice_ws.py, core/loop/cron_jobs.py,
-> autonomous_loop.py (singleton + wake_think), core/api/tasks.py,
-> core/api/routers/{tasks,startups}.py, nudge_engine.py, frontend/js/*."
+```
+python districts/news_trends/venture_pipeline.py --live   # hits Reddit/HN
+```
 
 ## 6. VOICE RUNTIME TUNING (after first HUD conversation)
 
