@@ -129,7 +129,10 @@ class EmergencyLog:
             )
             self._conn.commit()
             return True
-        except sqlite3.IntegrityError:
+        except Exception as e:
+            # sqlcipher3's IntegrityError is not a subclass of sqlite3's
+            if type(e).__name__ != "IntegrityError":
+                raise
             logger.warning("[EmergencyLog] duplicate event_id: {}", entry.event_id)
             return False
 
