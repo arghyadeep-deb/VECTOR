@@ -62,12 +62,10 @@ class TestEpisodicEmbeddingsTable(unittest.TestCase):
         mod.CONFIG["db_path"] = str(self._tmp_path)
         mod._db_connection = None
         mem = mod.EpisodicMemory()
-        conn = sqlite3.connect(str(self._tmp_path))
+        conn = mod.get_db_connection()
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(episodic_embeddings)")
         columns = {row[1] for row in cursor.fetchall()}
-        conn.close()
-        mod._db_connection = None
         self.assertIn("id", columns)
         self.assertIn("embedding", columns)
         self.assertIn("model", columns)
