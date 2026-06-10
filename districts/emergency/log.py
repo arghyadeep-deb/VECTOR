@@ -31,12 +31,24 @@ class EmergencyLogEntry:
 
 
 class EmergencyLog:
-    def __init__(self, db_path: str = "vector_memory.db"):
-        self._db_path = db_path
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+    def __init__(self, db_path: str | None = None):
+        from core.config import CONFIG
+        self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
+        self._conn = self._open_conn(self._db_path)
         self._conn.row_factory = sqlite3.Row
         self._enable_wal()
         self._ensure_table()
+
+    @staticmethod
+    def _open_conn(db_path: str) -> sqlite3.Connection:
+        """Own connection (private row_factory) — SQLCipher-keyed when active."""
+        try:
+            from core.memory import episodic
+            if getattr(episodic, "_USE_SQLCIPHER", False):
+                return episodic._open_sqlcipher_connection(db_path)
+        except Exception as e:
+            logger.warning("[EmergencyLog] SQLCipher open failed, plain sqlite: {}", e)
+        return sqlite3.connect(db_path, check_same_thread=False)
 
     def _enable_wal(self) -> None:
         try:
