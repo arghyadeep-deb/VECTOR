@@ -186,6 +186,167 @@ class Uploader(AgentBase):
 
         return self._simulate_upload("instagram", video_path, caption)
 
+    def _dry_run_enabled(self) -> bool:
+        """Real uploads to tiktok/twitter are opt-in: CONFIG content.upload_dry_run defaults True."""
+        try:
+            content_cfg = CONFIG.get("content", {}) or {}
+            if isinstance(content_cfg, dict):
+                return bool(content_cfg.get("upload_dry_run", True))
+            return bool(getattr(content_cfg, "upload_dry_run", True))
+        except Exception:
+            return True
+
+    async def upload_to_tiktok(self, video_path: str, caption: str,
+                               hashtags: list[str] | None = None) -> dict:
+        """
+        Upload video to TikTok via the Content Posting API (direct post).
+        Needs api_keys.tiktok_access_token. Honors upload_dry_run.
+        """
+        path = Path(video_path)
+        if not path.exists():
+            return {"status": "error", "message": "Video file not found"}
+
+        token = self._api_credentials.get("tiktok_access_token", "")
+        if not token or self._dry_run_enabled():
+            return self._simulate_upload("tiktok", video_path, caption)
+
+        try:
+            import httpx
+
+            tags_str = " ".join("#" + h for h in (hashtags or [])[:10])
+            title = (caption + " " + tags_str).strip()[:2200]
+            video_size = path.stat().st_size
+
+            headers = {"Authorization": f"Bearer {token}"}
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                init = await client.post(
+                    "https://open.tiktokapis.com/v2/post/publish/video/init/",
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={
+                        "post_info": {"title": title, "privacy_level": "SELF_ONLY"},
+                        "source_info": {
+                            "source": "FILE_UPLOAD",
+                            "video_size": video_size,
+                            "chunk_size": video_size,
+                            "total_chunk_count": 1,
+                        },
+                    },
+                )
+                if init.status_code != 200:
+                    raise RuntimeError(f"init failed: {init.status_code} {init.text[:200]}")
+                data = init.json().get("data", {})
+                publish_id = data.get("publish_id")
+                upload_url = data.get("upload_url")
+                if not upload_url:
+                    raise RuntimeError(f"no upload_url in init response: {init.text[:200]}")
+
+                put = await client.put(
+                    upload_url,
+                    headers={
+                        "Content-Type": "video/mp4",
+                        "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
+                    },
+                    content=path.read_bytes(),
+                )
+                if put.status_code not in (200, 201, 206):
+                    raise RuntimeError(f"upload failed: {put.status_code} {put.text[:200]}")
+
+            upload_record = {
+                "id": str(uuid.uuid4()),
+                "platform": "tiktok",
+                "video_id": publish_id,
+                "title": caption[:100],
+                "status": "published",
+                "timestamp": self._get_timestamp(),
+            }
+            self._upload_history.append(upload_record)
+            self.award_points(25, "tiktok_uploaded")
+            return {"status": "success", "platform": "tiktok", **upload_record}
+
+        except Exception as e:
+            logger.error(f"[VECTOR][uploader] TikTok upload failed: {e}")
+
+        return self._simulate_upload("tiktok", video_path, caption)
+
+    async def upload_to_twitter(self, video_path: str, text: str,
+                                hashtags: list[str] | None = None) -> dict:
+        """
+        Post a video tweet via X API v2 chunked media upload + POST /2/tweets.
+        Needs api_keys.twitter_access_token (OAuth2 user token with media.write).
+        Honors upload_dry_run.
+        """
+        path = Path(video_path)
+        if not path.exists():
+            return {"status": "error", "message": "Video file not found"}
+
+        token = self._api_credentials.get("twitter_access_token", "")
+        if not token or self._dry_run_enabled():
+            return self._simulate_upload("twitter", video_path, text)
+
+        try:
+            import httpx
+
+            tags_str = " ".join("#" + h for h in (hashtags or [])[:5])
+            tweet_text = (text + " " + tags_str).strip()[:280]
+            video_bytes = path.read_bytes()
+            headers = {"Authorization": f"Bearer {token}"}
+            media_base = "https://api.x.com/2/media/upload"
+
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                init = await client.post(media_base, headers=headers, data={
+                    "command": "INIT",
+                    "total_bytes": str(len(video_bytes)),
+                    "media_type": "video/mp4",
+                    "media_category": "tweet_video",
+                })
+                if init.status_code not in (200, 201, 202):
+                    raise RuntimeError(f"INIT failed: {init.status_code} {init.text[:200]}")
+                media_id = (init.json().get("data") or init.json()).get("id") or init.json().get("media_id_string")
+                if not media_id:
+                    raise RuntimeError(f"no media id: {init.text[:200]}")
+
+                chunk_size = 4 * 1024 * 1024
+                for i in range(0, len(video_bytes), chunk_size):
+                    append = await client.post(
+                        media_base, headers=headers,
+                        data={"command": "APPEND", "media_id": media_id,
+                              "segment_index": str(i // chunk_size)},
+                        files={"media": video_bytes[i:i + chunk_size]},
+                    )
+                    if append.status_code not in (200, 201, 204):
+                        raise RuntimeError(f"APPEND failed: {append.status_code} {append.text[:200]}")
+
+                final = await client.post(media_base, headers=headers,
+                                          data={"command": "FINALIZE", "media_id": media_id})
+                if final.status_code not in (200, 201):
+                    raise RuntimeError(f"FINALIZE failed: {final.status_code} {final.text[:200]}")
+
+                tweet = await client.post(
+                    "https://api.x.com/2/tweets",
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"text": tweet_text, "media": {"media_ids": [str(media_id)]}},
+                )
+                if tweet.status_code != 201:
+                    raise RuntimeError(f"tweet failed: {tweet.status_code} {tweet.text[:200]}")
+                tweet_id = tweet.json().get("data", {}).get("id")
+
+            upload_record = {
+                "id": str(uuid.uuid4()),
+                "platform": "twitter",
+                "video_id": tweet_id,
+                "title": text[:100],
+                "status": "published",
+                "timestamp": self._get_timestamp(),
+            }
+            self._upload_history.append(upload_record)
+            self.award_points(25, "twitter_uploaded")
+            return {"status": "success", "platform": "twitter", **upload_record}
+
+        except Exception as e:
+            logger.error(f"[VECTOR][uploader] Twitter upload failed: {e}")
+
+        return self._simulate_upload("twitter", video_path, text)
+
     def _simulate_upload(self, platform: str, video_path: str, title: str) -> dict:
         """Simulate upload when API is not configured."""
         logger.info(f"[VECTOR][uploader] Simulating {platform} upload")
