@@ -63,21 +63,26 @@ Symptoms → knobs (all in CONFIG["voice"], read by core/voice/realtime.py):
 > Prompt: "Voice issue: <symptom>. Relevant: core/voice/realtime.py
 > (feed_pcm/endpointing), core/voice/vad.py, frontend/js/voice_duplex.js."
 
-## 7. DEDUPLICATION SESSION (careful — needs tests green first)
+## 7. DEDUPLICATION SESSION — EVALUATED 2026-06-11, VERDICT: keep all separate
 
-Duplicate implementations, BOTH USED, APIs may diverge — compare before merging:
-- `core/event_bus/circuit_breaker.py` (2 importers) vs
-  `core/resilience/circuit_breaker.py` (6 importers)
-- `core/engine/providers/model_router.py` (3) vs `core/inference/model_router.py` (1)
-- `core/persona/` vs `core/personality/` (both define ConsistencyEnforcer; 2 vs 7 importers)
+All three pairs compared API-by-API. None are mergeable; do not re-attempt:
+- **CircuitBreaker**: `core/event_bus/circuit_breaker.py` is SYNC-first
+  (`call(fn)`, `get_stats()`, `CircuitBreaker(name, ...)`) used inside
+  `core/event_bus/bus.py`'s synchronous delivery path; `core/resilience/`
+  is ASYNC-only (`async call(fn, *args)`, asyncio.Lock, config object,
+  registry, force_open/close). A shim would change sync→async semantics in
+  the bus delivery path. Incompatible — keep both.
+- **ModelRouter**: name collision, not duplicates. `core/engine/providers/`
+  maps tier hints → Ollama models (port of router.rs); `core/inference/`
+  classifies tasks → LoRA adapter hot-swap. Different classes, different
+  jobs. Keep both.
+- **persona vs personality**: layered, not duplicated —
+  `core/personality/middleware.py` imports from `core.persona`; all external
+  callers (voice routers, avatar, inference) use `core.personality`. The two
+  ConsistencyEnforcers differ in scope (district output audit vs persona
+  consistency). Merging = broad blast radius for no gain. Keep both.
 - NOT duplicates (name collisions, different fields — rename only if touched):
   WSCommandRequest/Response in core/api/schemas.py vs routers/websocket.py
-
-> Prompt: "Consolidate the duplicate CircuitBreaker implementations: diff
-> the two classes' APIs, pick the richer one (resilience/), make the other
-> module a compatibility re-export shim, update the 2 importers, run
-> affected tests. Then same evaluation for ModelRouter and persona/personality
-> — but ONLY merge if APIs are actually compatible; otherwise document why."
 
 ## 8. DUPLEX SESSION LIFECYCLE (design decision needed from your testing)
 
