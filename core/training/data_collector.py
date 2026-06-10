@@ -7,12 +7,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from loguru import logger
+from core.runtime_paths import data_path
+
+_PACKAGED_TRAINING_ROOT = Path(__file__).resolve().parents[2] / "data" / "training"
 
 
 class DataCollector:
     def __init__(self, db_path: str = ""):
         self.db_path = db_path
-        self._feedback_dir = Path("data/feedback")
+        self._feedback_dir = data_path("feedback")
         self._feedback_dir.mkdir(parents=True, exist_ok=True)
         logger.info("[Training] DataCollector initialized")
 
@@ -67,7 +70,7 @@ class DataCollector:
 
     def collect_from_feedback(self, days: int = 7) -> list[dict]:
         try:
-            feedback_path = Path(self.db_path) / "feedback" if self.db_path else Path("data/feedback")
+            feedback_path = Path(self.db_path) / "feedback" if self.db_path else data_path("feedback")
             if not feedback_path.exists():
                 logger.warning("[Training] Feedback path not found: {}", feedback_path)
                 return []
@@ -96,14 +99,18 @@ class DataCollector:
 
     def collect_from_domain(self, domain: str, count: int = 100) -> list[dict]:
         domain_paths = {
-            "coding": Path("data/training/coding"),
-            "research": Path("data/training/research"),
-            "voice": Path("data/training/voice"),
+            "coding": data_path("training", "coding"),
+            "research": data_path("training", "research"),
+            "voice": data_path("training", "voice"),
         }
         base = domain_paths.get(domain)
         if not base or not base.exists():
-            logger.warning("[Training] Domain path not found for '{}'", domain)
-            return []
+            packaged_base = _PACKAGED_TRAINING_ROOT / domain
+            if packaged_base.exists():
+                base = packaged_base
+            else:
+                logger.warning("[Training] Domain path not found for '{}'", domain)
+                return []
         examples = []
         for f in sorted(base.glob("*.jsonl"))[:5]:
             try:
@@ -186,8 +193,8 @@ class DataCollector:
 
     def _fallback_episodic(self, days: int, min_reward: float) -> list[dict]:
         fallback_paths = [
-            Path("data/episodic_memory"),
-            Path("data/memory"),
+            data_path("episodic_memory"),
+            data_path("memory"),
             Path("memory_data"),
         ]
         for p in fallback_paths:

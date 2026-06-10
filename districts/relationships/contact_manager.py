@@ -24,7 +24,9 @@ class ContactManager(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
-        self.db_path = Path("./data/contacts.db")
+        from core.runtime_paths import data_path
+
+        self.db_path = data_path("contacts.db")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
         logger.info("[VECTOR][relationships] ContactManager ready")

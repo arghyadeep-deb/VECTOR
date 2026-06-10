@@ -189,28 +189,14 @@ class TradeExecutor:
         """
         start_time = datetime.now()
 
-        # SAFETY: Gate all execution through permission_gateway RED tier
+        # SAFETY: paper by default; live execution requires owner approval.
         try:
-            from core.loop.permission_gateway import PermissionGateway
             from core.config import CONFIG
-            gw = PermissionGateway()
+            from districts.investment.safety import approve_live_trade_sync
+
             sym = signal.get("symbol", "UNKNOWN")
             side = signal.get("side", "unknown")
             qty = signal.get("quantity", 0)
-            action_str = f"execute_trade:{sym}:{side}:{qty}"
-            classification = gw.classify(action_str)
-            if classification not in ("GREEN",):
-                logger.warning(
-                    "[VECTOR][investment] TradeExecutor blocked — tier: {} action: {}",
-                    classification, action_str,
-                )
-                return {
-                    "success": False,
-                    "error": "Trade blocked by permission_gateway",
-                    "tier": classification,
-                    "reasons": [f"Gateway classification={classification}; requires human approval"],
-                    "warnings": [],
-                }
 
             # Paper mode check (default: True — safe)
             inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
@@ -221,13 +207,19 @@ class TradeExecutor:
                 )
                 paper_trading = True
 
-            # Kill switch check
-            if inv_cfg.get("kill_switch", False):
-                logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — TradeExecutor blocked")
+            decision = approve_live_trade_sync(
+                platform="agno_trading",
+                operation="execute_trade",
+                details={"symbol": sym, "side": side, "quantity": qty},
+                proposed_by="agno_trade_executor",
+            )
+            if decision["status"] == "paper":
+                paper_trading = True
+            elif decision["status"] != "approved":
                 return {
                     "success": False,
-                    "error": "Kill switch is active. All live trading halted.",
-                    "reasons": ["kill_switch_active"],
+                    "error": f"Trade blocked: {decision.get('reason', 'not_approved')}",
+                    "reasons": [decision.get("reason", "not_approved")],
                     "warnings": [],
                 }
 

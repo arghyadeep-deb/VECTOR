@@ -51,7 +51,9 @@ class VoiceGenerator(AgentBase):
             return {"status": "error", "message": "TTS engine not available"}
 
         if output_path is None:
-            output_dir = Path(__file__).parent.parent.parent.parent / "data" / "voice_output"
+            from core.runtime_paths import data_path
+
+            output_dir = data_path("voice_output")
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = str(output_dir / f"voice_{uuid.uuid4().hex[:8]}.wav")
 
@@ -105,7 +107,9 @@ class VoiceGenerator(AgentBase):
             output_path:  where to write the .wav (auto-generated under data/voice_output if None)
         """
         if output_path is None:
-            output_dir = Path(__file__).parent.parent.parent / "data" / "voice_output"
+            from core.runtime_paths import data_path
+
+            output_dir = data_path("voice_output")
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = str(output_dir / f"myvoice_{uuid.uuid4().hex[:8]}.wav")
         try:
@@ -132,7 +136,9 @@ class VoiceGenerator(AgentBase):
             return {"status": "error", "message": "No valid audio samples provided"}
 
         if output_path is None:
-            output_dir = Path(__file__).parent.parent.parent.parent / "data" / "voice_output"
+            from core.runtime_paths import data_path
+
+            output_dir = data_path("voice_output")
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = str(output_dir / f"cloned_{uuid.uuid4().hex[:8]}.wav")
 
@@ -269,7 +275,9 @@ class VoiceGenerator(AgentBase):
         Generate voice audio for multiple texts in batch.
         """
         if output_dir is None:
-            output_dir = Path(__file__).parent.parent.parent.parent / "data" / "voice_output"
+            from core.runtime_paths import data_path
+
+            output_dir = data_path("voice_output")
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 

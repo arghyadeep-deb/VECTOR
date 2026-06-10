@@ -61,7 +61,9 @@ class NetworkMonitor:
         self._connection_history: list[dict[str, Any]] = []
         self._rate_tracker: dict[str, list[float]] = defaultdict(list)
         self._last_scan: dict[str, int] = defaultdict(int)
-        self._blocklist_path = Path("data/security/ip_blocklist.txt")
+        from core.runtime_paths import data_path
+
+        self._blocklist_path = data_path("security", "ip_blocklist.txt")
         self._load_blocklist()
 
     def _load_blocklist(self) -> None:

@@ -75,7 +75,7 @@ class ShadowBrokerClient:
                 loop = asyncio.get_running_loop()
                 loop.create_task(self.close())
             except RuntimeError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                pass
 
     def _sign_headers(self, method: str, path: str, body: bytes = b"") -> dict[str, str]:
         """Generate HMAC authentication headers for a request.

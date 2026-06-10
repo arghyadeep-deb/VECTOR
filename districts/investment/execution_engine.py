@@ -153,18 +153,24 @@ class ExecutionEngine(AgentBase):
                 "message": "PAPER MODE — set paper_trading=False for live",
             }
 
-        # Live execution — requires RED tier gateway approval
+        # Live execution — requires explicit financial_transaction approval
         try:
-            from core.loop.permission_gateway import PermissionGateway, Action
-            gw = PermissionGateway()
-            action = Action(
-                action_type="execute_trade",
-                params={"symbol": symbol, "side": side, "quantity": quantity, "price": price},
+            from districts.investment.safety import approve_live_trade
+
+            decision = await approve_live_trade(
+                platform="zerodha",
+                operation="place_order",
+                details={
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "price": price,
+                    "order_type": order_type,
+                },
                 proposed_by=self.name,
             )
-            result = await gw.execute(action)
-            if not result.approved:
-                reason = f"Gateway rejected: {result.reason}"
+            if decision["status"] != "approved":
+                reason = f"Gateway rejected: {decision.get('reason', 'not_approved')}"
                 self._log_order(order_id, symbol, side, quantity, price, "gateway_rejected", False, reason)
                 return {"status": "rejected", "reason": reason, "order_id": order_id}
         except Exception as e:

@@ -29,7 +29,9 @@ class CallScreener(AgentBase):
         self._call_history: list[dict] = []
         self._spam_threshold = 0.7
         self._auto_reject_enabled = True
-        self._contacts_file = Path(__file__).parent.parent.parent.parent / "data" / "call_contacts.json"
+        from core.runtime_paths import data_path
+
+        self._contacts_file = data_path("call_contacts.json")
         self._load_contacts()
         logger.info(f"[VECTOR][call_screener] CallScreener initialized - {len(self._known_contacts)} contacts")
 
@@ -213,6 +215,10 @@ class CallScreener(AgentBase):
             "verdict": "spam" if score >= 0.7 else "likely_spam" if score >= 0.5 else "unknown"
         }
 
+    def _calculate_spam_score(self, caller_id: str) -> float:
+        """Compatibility helper used by the unknown/private caller path."""
+        return float(self.get_spam_score(caller_id).get("score", 0.5))
+
     def _analyze_spam_with_llm(self, caller_id: str) -> dict:
         """Use LLM to analyze caller ID patterns for spam."""
         prompt = f"""Analyze this caller ID/number for spam likelihood:
@@ -320,7 +326,26 @@ Respond with ONLY: SPAM or NOT_SPAM
 
 
     async def run(self, task: dict) -> dict:
+        action = task.get("type", "")
         p = task.get("params", {})
+        if action == "list_call_contacts":
+            return {
+                "status": "ok",
+                "contacts": list(self._known_contacts.values()),
+                "count": len(self._known_contacts),
+            }
+        if action == "add_call_contact":
+            result = self.add_contact(
+                caller_id=p.get("number", p.get("caller_id", "")),
+                name=p.get("name", ""),
+                relation=p.get("tier", p.get("relation", "known")),
+                notes=p.get("notes", ""),
+                priority=p.get("priority", "normal"),
+            )
+            result["status"] = "ok"
+            return result
+        if action == "call_history":
+            return {"status": "ok", "history": self.get_call_history(), "count": len(self._call_history)}
         result = self.screen_call(p.get("caller_id", "unknown"))
         return {"status": "ok", **result}
 

@@ -73,6 +73,7 @@ class PermissionConfig(BaseModel):
         "send_message_routine", "create_calendar_event", "commit_code",
         "download_file", "set_reminder", "write_note_personal",
         "launch_app", "run_shell_command",
+        "pc_screenshot", "pc_type", "pc_click", "pc_launch_app",
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
         # VectorCode write/execute actions
@@ -379,6 +380,25 @@ class VectorSettings(BaseSettings):
         case_sensitive=False,
     )
 
+    def _mapping_value(self, key: str, default=None):
+        if not hasattr(self, key):
+            return default
+        value = getattr(self, key)
+        if isinstance(value, BaseModel):
+            return value.model_dump()
+        return value
+
+    def get(self, key: str, default=None):
+        return self._mapping_value(key, default)
+
+    def __getitem__(self, key: str):
+        if not hasattr(self, key):
+            raise KeyError(key)
+        return self._mapping_value(key)
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and hasattr(self, key)
+
     # Core — mapped from env var names
     VECTOR_ENV: str = "development"
     VECTOR_DEBUG: bool = False
@@ -558,6 +578,15 @@ def _secret(value: str) -> "_Redacted":
     return _Redacted(value)
 
 
+def _normalize_base_url(value: str, default: str = "http://127.0.0.1:11434") -> str:
+    value = (value or default).strip()
+    if not value:
+        return default
+    if "://" not in value:
+        value = f"http://{value}"
+    return value.rstrip("/")
+
+
 CONFIG: dict = {
     "owner_name": "Arghyadeep",
     "system_name": "VECTOR",
@@ -615,7 +644,7 @@ CONFIG: dict = {
     "llm_pricing": {},          # override per-model pricing for budget tracking
     "vault_path": Path(_s.VECTOR_VAULT_PATH),
     "db_path": _BASE_DIR / "vector_memory.db",
-    "ollama_host": _s.OLLAMA_HOST,
+    "ollama_host": _normalize_base_url(_s.OLLAMA_HOST),
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "oauth": {
         "github_client_id": _s.OAUTH_GITHUB_CLIENT_ID,

@@ -463,4 +463,24 @@ districts:
     - name: ai_citation_strategist
       class: districts.marketing.ai_citation_strategist.AICitationStrategist
       model: vector-reasoning
-      description: Strategy f
+      description: Strategy for maximising AI engine citations and AEO
+      capabilities: [marketing, ai_citation, aeo, content]
+
+    - name: growth_hacker
+      class: districts.marketing.growth_hacker.GrowthHacker
+      model: vector-reasoning
+      description: Growth loops, viral mechanics, north-star metric analysis
+      capabilities: [marketing, growth, analytics]
+
+  skills:
+    - name: skill_mapper
+      class: districts.skills.skill_mapper.SkillMapper
+      model: vector-reasoning
+      description: Skill graph construction and gap identification
+      capabilities: [skills, mapping, gaps]
+
+    - name: mastery_tracker
+      class: districts.skills.mastery_tracker.MasteryTracker
+      model: vector-focus
+      description: Skill mastery progression and plateau detection
+      capabilities: [skills, mastery, tracking]

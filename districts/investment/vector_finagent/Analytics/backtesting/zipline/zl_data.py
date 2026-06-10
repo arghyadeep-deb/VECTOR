@@ -8,6 +8,7 @@ bcolz bundle ingestion.
 """
 
 import sys
+import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -18,6 +19,18 @@ from typing import Dict, Any, List, Optional, Tuple
 # (zipline_provider.run_backtest) inspect this to flag the result with
 # `usingSyntheticData: true` so the UI can warn the user. Reset on each call.
 _LAST_FETCH_SYNTHETIC_SYMBOLS: set = set()
+
+
+def _synthetic_allowed() -> bool:
+    return os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() in {"1", "true", "yes"}
+
+
+def _synthetic_or_raise(reason: str, symbols: List[str], start_date: str, end_date: str) -> Dict[str, pd.DataFrame]:
+    if not _synthetic_allowed():
+        raise RuntimeError(
+            f"{reason}; refusing synthetic market data unless VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+        )
+    return _generate_synthetic_data(symbols, start_date, end_date)
 
 
 def was_last_fetch_synthetic() -> bool:
@@ -45,7 +58,7 @@ def fetch_yfinance_data(
     except ImportError:
         print('[ZL-DATA] yfinance not installed, using synthetic data', file=sys.stderr)
         _LAST_FETCH_SYNTHETIC_SYMBOLS.update(symbols)
-        return _generate_synthetic_data(symbols, start_date, end_date)
+        return _synthetic_or_raise("yfinance is not installed", symbols, start_date, end_date)
 
     result = {}
     for sym in symbols:
@@ -57,7 +70,7 @@ def fetch_yfinance_data(
             if df.empty:
                 print(f'[ZL-DATA] No data for {sym}, using synthetic', file=sys.stderr)
                 _LAST_FETCH_SYNTHETIC_SYMBOLS.add(sym)
-                synth = _generate_synthetic_data([sym], start_date, end_date)
+                synth = _synthetic_or_raise(f"No real market data for {sym}", [sym], start_date, end_date)
                 result[sym] = synth[sym]
                 continue
 
@@ -85,11 +98,10 @@ def fetch_yfinance_data(
             print(f'[ZL-DATA] {sym}: {len(df)} bars loaded', file=sys.stderr)
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.zipline.zl_data] caught Exception: %s", e)
             print(f'[ZL-DATA] Error fetching {sym}: {e}, using synthetic', file=sys.stderr)
             _LAST_FETCH_SYNTHETIC_SYMBOLS.add(sym)
-            synth = _generate_synthetic_data([sym], start_date, end_date)
+            synth = _synthetic_or_raise(f"Error fetching real market data for {sym}: {e}", [sym], start_date, end_date)
             result[sym] = synth[sym]
 
     return result

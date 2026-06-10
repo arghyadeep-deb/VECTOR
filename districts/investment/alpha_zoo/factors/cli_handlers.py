@@ -699,7 +699,7 @@ def cmd_alpha_bench(args: argparse.Namespace) -> int:
 def cmd_alpha_compare(args: argparse.Namespace) -> int:
     """``vibe-trading alpha compare <id1> [<id2> ...] | --all | --zoo X``.
 
-    Stub for W4; reports validated targets so callers can wire scripts.
+    Reports validated targets until W4 compare scoring is implemented.
     """
     try:
         targets: list[str]
@@ -724,7 +724,7 @@ def cmd_alpha_compare(args: argparse.Namespace) -> int:
             if _console
             else "alpha compare not yet implemented (W4)"
         )
-        print(json.dumps({"status": "stub", "targets": targets, "reason": "W4 not implemented"}, indent=2))
+        print(json.dumps({"status": "unavailable", "targets": targets, "reason": "W4 not implemented"}, indent=2))
         return 0
     except Exception as exc:  # noqa: BLE001
         return _handle_exception(args, "alpha compare failed", exc)

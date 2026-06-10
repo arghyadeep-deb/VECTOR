@@ -142,6 +142,8 @@ class SentimentAnalyzer:
                 logger.debug("[SentimentAnalyzer] embedding: {} (conf={:.2f}, {:.1f}ms)", result.emotion, result.confidence, elapsed * 1000)
                 if result.confidence >= 0.6:
                     return result
+        if self._method != "llm":
+            return result
         llm_result = self._llm_analyze(text)
         elapsed = time.perf_counter() - start
         if llm_result.confidence > result.confidence:
@@ -167,6 +169,9 @@ class SentimentAnalyzer:
             scores["urgent"] = urgency
             best_emotion = "urgent"
             best_score = urgency
+        elif best_score <= 0.0:
+            best_emotion = "neutral"
+            best_score = 0.0
         return SentimentResult(
             emotion=best_emotion,
             intensity=min(1.0, best_score * 1.5),

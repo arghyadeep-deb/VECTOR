@@ -11,6 +11,7 @@ from pathlib import Path
 
 from loguru import logger
 from core.config import CONFIG
+from core.runtime_paths import data_path
 from core.resilience.bulkhead_executor import BulkheadRegistry, BulkheadRejectedError
 
 _END_PHRASES = {"that's all vector", "thats all vector", "stop vector", "goodbye vector"}
@@ -20,7 +21,7 @@ _WAKE_MODES = {
     "vector_private": "private",
 }
 _SILENCE_TIMEOUT_SEC = 45.0
-_CONSENT_PATH = Path(__file__).parent.parent.parent / "data" / "consent.json"
+_CONSENT_PATH = data_path("consent.json")
 
 
 def _load_consent() -> bool:

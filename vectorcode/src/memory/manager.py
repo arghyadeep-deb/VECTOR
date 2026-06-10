@@ -21,7 +21,7 @@ except ImportError:
     CONFIG = {}
 
 from loguru import logger
-from memory.provider import MemoryProvider, VectorBuiltinMemoryProvider
+from .provider import MemoryProvider, VectorBuiltinMemoryProvider
 
 
 # ── Context fencing helpers ───────────────────────────────────────────────────

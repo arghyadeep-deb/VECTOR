@@ -322,28 +322,36 @@ def _handle_fetch_balance(req_id, exchange_id, args):
 
 
 def _handle_place_order(req_id, exchange_id, args):
-    # SAFETY: Gate all execution through permission_gateway RED tier
+    # SAFETY: paper by default; live execution requires owner approval.
     try:
-        from core.loop.permission_gateway import PermissionGateway
-        from core.config import CONFIG
-        gw = PermissionGateway()
+        from districts.investment.safety import approve_live_trade_sync
+
         sym = args.get("symbol", "UNKNOWN")
         side = args.get("side", "unknown")
         amount = args.get("amount", 0)
-        action_str = f"execute_trade:{sym}:{side}:{amount}"
-        classification = gw.classify(action_str)
-        if classification not in ("GREEN",):
+        decision = approve_live_trade_sync(
+            platform=f"ccxt:{exchange_id}",
+            operation="place_order",
+            details={
+                "symbol": sym,
+                "side": side,
+                "amount": amount,
+                "order_type": args.get("type"),
+                "price": args.get("price"),
+            },
+            proposed_by="vector_finagent_exchange_daemon",
+        )
+        if decision["status"] not in ("paper", "approved"):
             logger.warning(
-                "[VECTOR][investment] ExchangeDaemon order blocked — tier: {} action: {}",
-                classification, action_str,
+                "[VECTOR][investment] ExchangeDaemon order blocked — reason: {} symbol: {}",
+                decision.get("reason"), sym,
             )
             _respond(req_id, False, None,
-                     error=f"Trade blocked by permission_gateway (tier={classification})",
+                     error=f"Trade blocked: {decision.get('reason', 'not_approved')}",
                      code="GATEWAY_BLOCKED")
             return
 
-        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
-        if inv_cfg.get("paper_trading", True):
+        if decision["status"] == "paper":
             logger.info(
                 "[VECTOR][investment] PAPER MODE — would execute daemon order: {} {} {}",
                 side, amount, sym,
@@ -353,11 +361,6 @@ def _handle_place_order(req_id, exchange_id, args):
                 "type": args.get("type"), "amount": amount,
                 "status": "paper", "simulated": True,
             })
-            return
-
-        if inv_cfg.get("kill_switch", False):
-            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — ExchangeDaemon order blocked")
-            _respond(req_id, False, None, error="Kill switch active", code="KILL_SWITCH")
             return
 
     except (ImportError, Exception) as _gw_err:

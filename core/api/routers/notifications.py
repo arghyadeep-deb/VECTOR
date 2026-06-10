@@ -1,11 +1,12 @@
 """
-VECTOR notifications router — Gap 5 A5.
-HTTP endpoints for pending hypothesis surfacing + WebSocket push stub.
+VECTOR notifications router - pending hypothesis HTTP endpoints and WebSocket push.
 """
 from __future__ import annotations
 
 __all__ = ["router"]
 
+
+import asyncio
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
@@ -46,8 +47,35 @@ async def hypothesis_websocket(ws: WebSocket) -> None:
     """WebSocket endpoint: clients receive HYPOTHESIS_SURFACED events in real time."""
     await ws.accept()
     logger.info("[VECTOR][notifications] WebSocket client connected")
+    bus = None
+    subscription = None
+    outbound: asyncio.Queue[dict] = asyncio.Queue(maxsize=100)
+
+    async def _send_event(event) -> None:
+        payload = {
+            "event": getattr(event.event_type, "value", str(event.event_type)),
+            "data": getattr(event, "data", {}),
+            "source": getattr(event, "source", ""),
+            "correlation_id": getattr(event, "correlation_id", ""),
+            "timestamp": getattr(event, "timestamp", 0),
+        }
+        try:
+            outbound.put_nowait(payload)
+        except asyncio.QueueFull:
+            logger.warning("[VECTOR][notifications] dropping websocket event; client queue full")
+
+    async def _sender() -> None:
+        while True:
+            payload = await outbound.get()
+            await ws.send_json(payload)
+
+    sender_task = asyncio.create_task(_sender())
     try:
         from core.event_bus.types import EventType
+        from core.event_bus.bus import get_event_bus
+
+        bus = await get_event_bus()
+        subscription = bus.subscribe(EventType.HYPOTHESIS_SURFACED, _send_event)
         # Send any currently pending hypotheses immediately on connect
         try:
             from core.brain.suggestion_queue import SuggestionQueue
@@ -61,7 +89,7 @@ async def hypothesis_websocket(ws: WebSocket) -> None:
                 })
         except Exception as _sq_err:
             logger.debug("[VECTOR][notifications] ws initial push failed: {}", _sq_err)
-        # Keep connection alive; real-time push is handled by publish_event subscribers
+
         while True:
             try:
                 msg = await ws.receive_text()
@@ -72,4 +100,14 @@ async def hypothesis_websocket(ws: WebSocket) -> None:
     except Exception as e:
         logger.warning("[VECTOR][notifications] WebSocket error: {}", e)
     finally:
+        if bus is not None and subscription is not None:
+            try:
+                bus.unsubscribe(subscription)
+            except Exception as unsub_err:
+                logger.debug("[VECTOR][notifications] unsubscribe failed: {}", unsub_err)
+        sender_task.cancel()
+        try:
+            await sender_task
+        except asyncio.CancelledError:
+            pass
         logger.info("[VECTOR][notifications] WebSocket client disconnected")

@@ -322,8 +322,7 @@ class VoiceProfileStore:
         if not self._storage_ready or self._storage is None:
             return None
         try:
-            data, _ = self._storage.get(profile.reference_key)
-            return data
+            return self._storage.get(profile.reference_key)
         except Exception as e:
             logger.warning("[VECTOR][voice] could not retrieve reference sample: {}", e)
             return None

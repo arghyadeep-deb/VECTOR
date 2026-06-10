@@ -618,15 +618,15 @@ turso>=0.5.0
 
 2. **Configuration**
    ```bash
-   # Copy example configuration
-   cp .env.example .env
+   # Local development can run with defaults.
+   # For production, copy the template and fill real secrets outside git:
+   cp .env.production.example .env.production
    
-   # Edit .env with your credentials:
-   # - Supabase URL and anon key
-   # - Cloudflare API tokens
-   # - Fly.io access tokens
-   # - Ollama model preferences
-   # - Obsidian vault path
+   # Required production values:
+   # - VECTOR_API_KEY
+   # - VECTOR_JWT_SECRET
+   # - HUMANLAYER_API_KEY
+   # - VECTOR_COMFYUI_PATH / VECTOR_LIBRECHAT_PATH / VECTOR_UITARS_PATH if using sidecars
    ```
 
 3. **Service Initialization**
@@ -645,6 +645,8 @@ turso>=0.5.0
 4. **Verification**
    - Check logs for startup confirmation
    - Verify API endpoints responding at http://localhost:8000
+   - Run `python run_vector.py doctor`
+   - Run `GET /health/production-readiness` before production use
    - Observe initial district agent spawns in logs
    - Confirm Obsidian vault integration (if configured)
 

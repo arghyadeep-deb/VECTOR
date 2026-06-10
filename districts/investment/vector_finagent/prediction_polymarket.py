@@ -66,8 +66,7 @@ def _require_pyclob():
         from py_clob_client.client import ClobClient  # noqa: F401
         return True
     except Exception as exc:
-        logger.debug("[VECTOR][prediction_polymarket] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][prediction_polymarket] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][prediction_polymarket] py_clob_client unavailable: {}", exc)
         _fail(
             "py_clob_client is not installed. Run: pip install py-clob-client eth-account",
             detail=str(exc),
@@ -212,34 +211,37 @@ def cmd_activity(payload: dict) -> None:
 
 
 def cmd_place_order(payload: dict) -> None:
-    # SAFETY: Gate all execution through permission_gateway RED tier
+    # SAFETY: paper by default; live execution requires owner approval.
     try:
-        from core.loop.permission_gateway import PermissionGateway
-        from core.config import CONFIG
-        gw = PermissionGateway()
+        from districts.investment.safety import approve_live_trade_sync
+
         token_id = payload.get("token_id", "UNKNOWN")[:16]
-        action_str = f"execute_trade:polymarket:{token_id}:{payload.get('side','BUY')}:{payload.get('size',0)}"
-        classification = gw.classify(action_str)
-        if classification not in ("GREEN",):
+        decision = approve_live_trade_sync(
+            platform="polymarket",
+            operation="place_order",
+            details={
+                "token_id": token_id,
+                "side": payload.get("side", "BUY"),
+                "size": payload.get("size", 0),
+                "price": payload.get("price", 0),
+                "order_type": payload.get("order_type", "GTC"),
+            },
+            proposed_by="vector_finagent",
+        )
+        if decision["status"] not in ("paper", "approved"):
             logger.warning(
-                "[VECTOR][investment] Polymarket order blocked — tier: {} token_id: {}",
-                classification, token_id,
+                "[VECTOR][investment] Polymarket order blocked — reason: {} token_id: {}",
+                decision.get("reason"), token_id,
             )
-            _emit({"ok": False, "error": f"Trade blocked by permission_gateway (tier={classification})"})
+            _emit({"ok": False, "error": f"Trade blocked: {decision.get('reason', 'not_approved')}"})
             return
 
-        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
-        if inv_cfg.get("paper_trading", True):
+        if decision["status"] == "paper":
             logger.info(
                 "[VECTOR][investment] PAPER MODE — would place Polymarket order: {} token={}",
                 payload.get("side", "BUY"), token_id,
             )
             _emit({"ok": True, "status": "PAPER", "token_id": token_id, "simulated": True})
-            return
-
-        if inv_cfg.get("kill_switch", False):
-            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — Polymarket order blocked")
-            _emit({"ok": False, "error": "Kill switch is active. All live trading halted."})
             return
 
     except (ImportError, Exception) as _gw_err:

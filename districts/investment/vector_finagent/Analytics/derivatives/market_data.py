@@ -354,34 +354,87 @@ class YahooFinanceProvider(MarketDataProvider):
         if not self.connection_status:
             raise ConnectionError("Not connected to Yahoo Finance")
 
-        # Placeholder implementation
-        # In real implementation, use yfinance library
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise RuntimeError("yfinance is required for YahooFinanceProvider") from exc
+
         logger.info(f"Fetching spot price for {symbol} from Yahoo Finance")
-        return 100.0  # Placeholder
+        ticker = yf.Ticker(symbol)
+        fast_info = getattr(ticker, "fast_info", None)
+        price = None
+        if fast_info is not None:
+            price = getattr(fast_info, "last_price", None) or getattr(fast_info, "lastPrice", None)
+            if price is None and hasattr(fast_info, "get"):
+                price = fast_info.get("last_price") or fast_info.get("lastPrice")
+        if price is None:
+            hist = ticker.history(period="5d")
+            if not hist.empty and "Close" in hist:
+                price = hist["Close"].dropna().iloc[-1]
+        if price is None or float(price) <= 0:
+            raise ValueError(f"No Yahoo Finance spot price available for {symbol}")
+        return float(price)
 
     def get_risk_free_rate(self, currency: str = "USD", maturity: float = 0.25) -> float:
         """Get treasury rate as risk-free rate"""
         if not self.connection_status:
             raise ConnectionError("Not connected to Yahoo Finance")
 
-        # Placeholder implementation
-        return 0.02  # 2% placeholder
+        if currency.upper() != "USD":
+            raise NotImplementedError(
+                f"YahooFinanceProvider risk-free rates are implemented for USD only, not {currency}"
+            )
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise RuntimeError("yfinance is required for YahooFinanceProvider") from exc
+
+        treasury_symbol = "^IRX" if maturity <= 0.5 else "^TNX"
+        hist = yf.Ticker(treasury_symbol).history(period="10d")
+        if hist.empty or "Close" not in hist:
+            raise ValueError(f"No treasury data available from Yahoo Finance for {treasury_symbol}")
+        return float(hist["Close"].dropna().iloc[-1]) / 100.0
 
     def get_dividend_yield(self, symbol: str) -> float:
         """Get dividend yield from Yahoo Finance"""
         if not self.connection_status:
             raise ConnectionError("Not connected to Yahoo Finance")
 
-        # Placeholder implementation
-        return 0.015  # 1.5% placeholder
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise RuntimeError("yfinance is required for YahooFinanceProvider") from exc
+
+        ticker = yf.Ticker(symbol)
+        info = getattr(ticker, "info", {}) or {}
+        dividend_yield = info.get("dividendYield") or info.get("trailingAnnualDividendYield")
+        if dividend_yield is None:
+            dividends = ticker.dividends
+            hist = ticker.history(period="1y")
+            if dividends is None or dividends.empty or hist.empty or "Close" not in hist:
+                return 0.0
+            last_price = float(hist["Close"].dropna().iloc[-1])
+            dividend_yield = 0.0 if last_price <= 0 else float(dividends.tail(4).sum()) / last_price
+        return max(float(dividend_yield), 0.0)
 
     def get_volatility(self, symbol: str, maturity: float, strike: float = None) -> float:
         """Calculate historical volatility"""
         if not self.connection_status:
             raise ConnectionError("Not connected to Yahoo Finance")
 
-        # Placeholder implementation
-        return 0.25  # 25% placeholder
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise RuntimeError("yfinance is required for YahooFinanceProvider") from exc
+
+        lookback_days = max(int((maturity or 0.25) * 365 * 2), 60)
+        hist = yf.Ticker(symbol).history(period=f"{lookback_days}d")
+        if hist.empty or "Close" not in hist:
+            raise ValueError(f"No Yahoo Finance history available for {symbol}")
+        returns = hist["Close"].dropna().pct_change().dropna()
+        if returns.empty:
+            raise ValueError(f"Insufficient Yahoo Finance history to calculate volatility for {symbol}")
+        return float(returns.std() * np.sqrt(252))
 
     def get_yield_curve(self, currency: str, curve_type: str = "government") -> CurveData:
         """Get treasury yield curve"""

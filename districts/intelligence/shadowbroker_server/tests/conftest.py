@@ -1,7 +1,14 @@
 import asyncio
+import sys
+from pathlib import Path
 
 import pytest
 from unittest.mock import patch, MagicMock
+
+
+SERVER_ROOT = Path(__file__).resolve().parents[1]
+if str(SERVER_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVER_ROOT))
 
 
 @pytest.fixture(autouse=True)

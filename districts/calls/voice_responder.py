@@ -150,7 +150,9 @@ V.E.C.T.O.R. Response:"""
         voice_settings = self.VOICE_OPTIONS.get(voice, self.VOICE_OPTIONS["default"])
 
         if output_path is None:
-            output_dir = Path(__file__).parent.parent.parent.parent / "data" / "voice_output"
+            from core.runtime_paths import data_path
+
+            output_dir = data_path("voice_output")
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = str(output_dir / f"response_{uuid.uuid4().hex[:8]}.wav")
 

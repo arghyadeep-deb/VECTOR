@@ -120,10 +120,7 @@ async def _sign_evm_payment(
         sig = account.signHash(msg_hash)
         return base64.b64encode(sig.signature).decode()
     except ImportError:
-        logger.debug("[VECTOR][payment] eth_account not installed — using placeholder signature")
-        # Placeholder for future implementation
-        placeholder = {"private_key": private_key_hex[:10] + "...", "payment": str(payment)}
-        return base64.b64encode(json.dumps(placeholder).encode()).decode()
+        raise RuntimeError("eth_account is required for EVM x402 payment signing")
     except Exception as e:
         logger.error("[VECTOR][payment] EVM signing error: {}", e)
         raise
@@ -149,8 +146,7 @@ async def _sign_solana_payment(
         sig = sk.sign(message)
         return base64.b64encode(sig).decode()
     except ImportError:
-        logger.debug("[VECTOR][payment] cryptography not installed — using placeholder")
-        return base64.b64encode(private_key_bytes[:16]).decode()
+        raise RuntimeError("cryptography is required for Solana x402 payment signing")
     except Exception as e:
         logger.error("[VECTOR][payment] Solana signing error: {}", e)
         raise
@@ -176,6 +172,22 @@ class X402Client:
 
     async def sign_payment(self, payment: PaymentDetails) -> str:
         """Sign a payment and return the x402-payment header value."""
+        from districts.investment.safety import approve_live_trade
+
+        decision = await approve_live_trade(
+            platform=f"x402:{payment.chain}",
+            operation="sign_payment",
+            details={
+                "amount_usdc": payment.amount_usdc,
+                "recipient_address": payment.recipient_address,
+                "memo": payment.memo,
+                "deadline": payment.deadline,
+            },
+            proposed_by="smart_routing_payment",
+        )
+        if decision["status"] != "approved":
+            raise RuntimeError(f"x402 payment blocked: {decision.get('reason', 'not_approved')}")
+
         if payment.chain == "solana" and self._sol_key:
             sig = await _sign_solana_payment(self._sol_key, payment)
         elif self._evm_key:

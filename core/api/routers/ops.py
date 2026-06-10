@@ -37,10 +37,28 @@ async def incident_command(body: IncidentCommandReq):
 @router.get("/slo-check")
 async def slo_check():
     """Check current SLO status and error budgets."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "slo_check", "params": {}})
+        import datetime
+
+        from core.api.routers.status import get_uptime_seconds
+
+        uptime = get_uptime_seconds()
+        return {
+            "status": "ok",
+            "service": "vector-api",
+            "uptime_seconds": uptime,
+            "slo": {
+                "availability_target": 0.99,
+                "latency_p95_ms_target": 1000,
+                "error_budget_status": "not_configured",
+            },
+            "checks": {
+                "api_process": "ok",
+                "external_monitoring": "not_configured",
+                "ops_agents": "not_registered",
+            },
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
     except Exception as e:
         logger.error("[VECTOR][ops] slo_check failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

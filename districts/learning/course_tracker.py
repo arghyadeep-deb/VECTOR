@@ -24,7 +24,9 @@ class CourseTracker(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
-        self.db_path = Path("./data/learning_courses.db")
+        from core.runtime_paths import data_path
+
+        self.db_path = data_path("learning_courses.db")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
         logger.info("[VECTOR][learning] CourseTracker ready")

@@ -8,9 +8,11 @@
    apiKey empty here and have your server inject it, or pass it via the URL:
        VECTOR.html?base=http://127.0.0.1:8000&key=YOUR_KEY
    ========================================================================== */
+const VECTOR_SERVED_BY_API = location.pathname.startsWith('/hud');
+
 window.VECTOR_CONFIG = {
-  // Backend base URL (FastAPI). Empty string = run on built-in demo data.
-  base: 'http://127.0.0.1:8000',
+  // Backend base URL (FastAPI). Static files stay offline; /hud/ uses same-origin API.
+  base: VECTOR_SERVED_BY_API ? location.origin : '',
 
   // Optional WebSocket base. Leave blank to derive from `base` (http→ws).
   ws: '',
@@ -18,8 +20,8 @@ window.VECTOR_CONFIG = {
   // Bearer token (VECTOR_API_KEY). Leave '' for localhost-only / no-auth.
   apiKey: '',
 
-  // Set false to ignore everything above and force offline demo mode.
-  autoConnect: true
+  // Static file QA/demo mode is offline by default.
+  autoConnect: VECTOR_SERVED_BY_API
 };
 
 // Compatibility alias for older widgets that read VECTOR_CFG.api.

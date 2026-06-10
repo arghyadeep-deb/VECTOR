@@ -16,7 +16,7 @@ import random
 from core.config import CONFIG  # noqa: F401
 from loguru import logger
 from core.memory.episodic import EpisodicMemory
-from memory.faiss_index import FAISSIndex
+from .faiss_index import FAISSIndex
 
 # ── Embedding helpers ─────────────────────────────────────────────────────────
 

@@ -45,6 +45,7 @@ class DeadlineWatcher(AgentBase):
         cutoff_start = today.isoformat()
         cutoff_end = (today + datetime.timedelta(days=within_days)).isoformat()
         try:
+            self._memory = EpisodicMemory()
             cur = self._memory.conn.cursor()
             cur.execute(
                 "SELECT key, value FROM semantic_memory "

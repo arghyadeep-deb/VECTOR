@@ -36,16 +36,19 @@ from core.api.cache import goals_cache
 router = APIRouter(prefix="/brain", tags=["brain"])
 
 
+def _goal_system():
+    from core.brain.goal_system import GoalSystem
+    return GoalSystem()
+
+
 @router.get("/goals")
 async def get_goals():
     """List all VECTOR goals (LONG/MID/SHORT horizon)."""
     cached = goals_cache.get("brain_goals")
     if cached:
         return cached
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        result = await gov.dispatch({"type": "get_goals", "params": {}})
+        result = {"goals": _goal_system().get_active_goals()}
         goals_cache.set("brain_goals", result)
         return result
     except Exception as e:
@@ -61,10 +64,13 @@ class AddGoalReq(BaseModel):
 async def add_goal(body: AddGoalReq):
     """Add or update a goal."""
     goals_cache.invalidate()  # new goal — bust all goals cache entries
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "add_goal", "params": body.model_dump()})
+        goal_id = _goal_system().add_goal(
+            title=body.title,
+            horizon=body.horizon,
+            priority=int(body.priority),
+        )
+        return {"status": "ok", "goal_id": goal_id}
     except Exception as e:
         logger.error("[VECTOR][brain] add_goal failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,10 +78,8 @@ async def add_goal(body: AddGoalReq):
 @router.get("/goals/immediate")
 async def immediate_actions():
     """Get immediate action candidates."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "immediate_actions", "params": {}})
+        return {"actions": _goal_system().generate_immediate_actions()}
     except Exception as e:
         logger.error("[VECTOR][brain] immediate_actions failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -167,10 +171,12 @@ async def red_team_audit(body: RedTeamAuditReq):
 @router.get("/epistemic/summary")
 async def epistemic_summary():
     """VECTOR self-knowledge map."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "epistemic_summary", "params": {}})
+        from core.brain.epistemic_tracker import EpistemicTracker
+
+        tracker = EpistemicTracker()
+        summary = tracker.get_knowledge_summary()
+        return {"status": "ok", "summary": summary, **summary}
     except Exception as e:
         logger.error("[VECTOR][brain] epistemic_summary failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -178,10 +184,12 @@ async def epistemic_summary():
 @router.get("/epistemic/staleness")
 async def epistemic_staleness():
     """List stale knowledge areas."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "epistemic_staleness", "params": {}})
+        from core.brain.epistemic_tracker import EpistemicTracker
+
+        tracker = EpistemicTracker()
+        stale_claims = tracker.get_stale_claims()
+        return {"status": "ok", "stale_claims": stale_claims, "count": len(stale_claims)}
     except Exception as e:
         logger.error("[VECTOR][brain] epistemic_staleness failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

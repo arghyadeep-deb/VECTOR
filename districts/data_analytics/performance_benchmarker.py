@@ -492,4 +492,6 @@ if __name__ == "__main__":
         print(
             f"OK performance_benchmarker.py HP={agent.health_points} "
             f"memory_store_avg={mem_result['store']['avg']}s"
-        )
+        )
+
+    asyncio.run(_smoke())

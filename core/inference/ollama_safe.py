@@ -452,23 +452,29 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
 
     Returns empty string if no fallback succeeds.
     """
+    fallback_messages = _to_vectorcode_messages(messages)
+
     # Try LiteLLM
-    try:
-        from vectorcode.src.vc_engine.litellm import LiteLLMEngine  # type: ignore
-        engine = LiteLLMEngine()
-        result = engine.generate(messages, model=model, max_tokens=2048)
-        text = (result or {}).get("content") or (result or {}).get("text", "")
-        if text:
-            logger.info(f"[VECTOR][ollama_safe] fallback: litellm -> {model}")
-            return text
-    except Exception as exc:
-        logger.debug(f"[VECTOR][ollama_safe] litellm fallback unavailable: {exc}")
+    litellm_model = os.getenv("VECTOR_LITELLM_FALLBACK_MODEL", "").strip() or model
+    if _is_litellm_candidate(litellm_model):
+        try:
+            from vectorcode.src.vc_engine.litellm import LiteLLMEngine  # type: ignore
+            engine = LiteLLMEngine()
+            result = engine.generate(fallback_messages, model=litellm_model, max_tokens=2048)
+            text = (result or {}).get("content") or (result or {}).get("text", "")
+            if text:
+                logger.info(f"[VECTOR][ollama_safe] fallback: litellm -> {litellm_model}")
+                return text
+        except Exception as exc:
+            logger.debug(f"[VECTOR][ollama_safe] litellm fallback unavailable: {exc}")
+    else:
+        logger.debug(f"[VECTOR][ollama_safe] litellm fallback skipped for local model: {model}")
 
     # Try Apple Foundation Models (macOS Sonoma+ only)
     try:
         from vectorcode.src.vc_engine.apple_fm_shim import AppleFMEngine  # type: ignore
         engine = AppleFMEngine()
-        result = engine.generate(messages, model=model, max_tokens=2048)
+        result = engine.generate(fallback_messages, model=model, max_tokens=2048)
         text = (result or {}).get("content") or (result or {}).get("text", "")
         if text:
             logger.info(f"[VECTOR][ollama_safe] fallback: apple_fm -> {model}")
@@ -480,7 +486,7 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
     try:
         from vectorcode.src.vc_engine.gemma_cpp import GemmaCppEngine  # type: ignore
         engine = GemmaCppEngine()
-        result = engine.generate(messages, model=model, max_tokens=2048)
+        result = engine.generate(fallback_messages, model=model, max_tokens=2048)
         text = (result or {}).get("content") or (result or {}).get("text", "")
         if text:
             logger.info(f"[VECTOR][ollama_safe] fallback: gemma_cpp -> {model}")
@@ -489,3 +495,55 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
         logger.debug(f"[VECTOR][ollama_safe] gemma_cpp fallback unavailable: {exc}")
 
     return ""
+
+
+def _to_vectorcode_messages(messages: list[dict]):
+    """Convert OpenAI-style dict messages to vectorcode Message objects."""
+    from vectorcode.src.vc_core.types import Message, Role
+
+    role_map = {
+        "system": Role.SYSTEM,
+        "user": Role.USER,
+        "assistant": Role.ASSISTANT,
+        "tool": Role.TOOL,
+    }
+    converted = []
+    for item in messages:
+        role = role_map.get(str(item.get("role", "user")).lower(), Role.USER)
+        converted.append(
+            Message(
+                role=role,
+                content=str(item.get("content") or ""),
+                name=item.get("name"),
+                tool_call_id=item.get("tool_call_id"),
+                metadata={"source": "ollama_safe_fallback"},
+            )
+        )
+    return converted
+
+
+def _is_litellm_candidate(model: str) -> bool:
+    """Return True when a model name is explicit enough for LiteLLM routing."""
+    if not model:
+        return False
+    if "/" in model:
+        return True
+    known_prefixes = (
+        "gpt-",
+        "o1",
+        "o3",
+        "o4",
+        "claude-",
+        "gemini/",
+        "gemini-",
+        "groq/",
+        "deepseek/",
+        "mistral/",
+        "openrouter/",
+        "together/",
+        "fireworks/",
+        "perplexity/",
+        "cohere/",
+        "xai/",
+    )
+    return model.startswith(known_prefixes)

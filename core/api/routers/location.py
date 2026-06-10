@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 router = APIRouter(prefix="/location", tags=["location"])
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/location", tags=["location"])
 @router.get("/current")
 async def current_location():
     """Return current location via IP geolocation (ip-api.com free tier)."""
+    last_error = ""
     try:
         import httpx
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -31,20 +32,15 @@ async def current_location():
                     "timezone": d.get("timezone", ""),
                     "source": "ip-api",
                 }
+            last_error = f"ip-api returned HTTP {r.status_code}"
     except Exception as e:
+        last_error = str(e)
         logger.warning(f"[VECTOR][location] IP geolocation failed: {e}")
 
-    # Fallback: owner's known location (Bhubaneswar, KIIT)
-    return {
-        "lat": 20.3549,
-        "lon": 85.8193,
-        "city": "Bhubaneswar",
-        "region": "Odisha",
-        "country": "India",
-        "isp": "",
-        "timezone": "Asia/Kolkata",
-        "source": "fallback",
-    }
+    raise HTTPException(
+        status_code=503,
+        detail={"status": "unavailable", "source": "ip-api", "reason": last_error or "location unavailable"},
+    )
 
 
 if __name__ == "__main__":

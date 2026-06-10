@@ -11,6 +11,7 @@ from typing import Any
 from loguru import logger
 
 from core.config import CONFIG
+from core.runtime_paths import data_path
 from districts.security.log_aggregator import LogAggregator, LogEvent
 from districts.security.detection_rules import DetectionRules, RuleMatch
 from districts.security.incident_playbook_runner import IncidentPlaybookRunner, Incident
@@ -34,7 +35,8 @@ class SIEMPipeline:
         self.detection_rules = DetectionRules(rules_dir=rules_dir)
         self.playbook_runner = IncidentPlaybookRunner(
             playbooks_dir=playbooks_dir,
-            db_path=incidents_db_path or str(Path(db_path or "data/security/logs.db").parent / "incidents.db"),
+            db_path=incidents_db_path
+            or str((Path(db_path).parent if db_path else data_path("security")) / "incidents.db"),
         )
         self._alerts: list[dict] = []
         self._sink_id: int | None = None

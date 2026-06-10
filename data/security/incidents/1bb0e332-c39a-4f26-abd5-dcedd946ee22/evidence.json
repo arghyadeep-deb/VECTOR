@@ -1,7 +1,0 @@
-{
-  "rule_id": "T1110_brute_force",
-  "event": "{'source': 'log_aggregator', 'level': 'WARNING', 'message': 'login fail: incorrect password for admin@host'}",
-  "count": 7,
-  "threshold": 5,
-  "window_sec": 60
-}

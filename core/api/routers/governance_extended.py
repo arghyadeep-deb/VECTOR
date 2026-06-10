@@ -53,10 +53,20 @@ async def delegate_task(body: DelegateTaskReq):
 @router.get("/autopilot/status")
 async def autopilot_status():
     """Autonomous task execution status."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "autopilot_status", "params": {}})
+        from districts.governance.autopilot import Autopilot, _CHAIN_RULES, _STOP_SIGNALS
+
+        return {
+            "status": "ok",
+            "agent": "Autopilot",
+            "district": "governance",
+            "enabled": True,
+            "running": False,
+            "max_chain_depth": Autopilot.MAX_CHAIN_DEPTH,
+            "chain_rules": len(_CHAIN_RULES),
+            "stop_signals": len(_STOP_SIGNALS),
+            "actions": ["classify", "autopilot_trigger"],
+        }
     except Exception as e:
         logger.error("[VECTOR][governance] autopilot_status failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

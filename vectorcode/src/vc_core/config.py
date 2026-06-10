@@ -1312,6 +1312,53 @@ class VectorConfig:
     digest: DigestConfig = field(default_factory=DigestConfig)
     mining: Optional["MiningConfig"] = None
 
+    _vector_compat_defaults = {
+        "version": "1.0.0",
+        "env": "dev",
+        "debug": False,
+        "ollama_host": "http://127.0.0.1:11434",
+        "data_dir": str(Path.home() / ".vector"),
+        "models": {
+            "ambient": "vector-ambient",
+            "focus": "vector-focus",
+            "multilingual": "vector-multilingual",
+            "reasoning": "vector-reasoning",
+            "coder": "vector-coder",
+            "dev": "vector-dev",
+            "r1": "vector-r1",
+            "embed": "nomic-embed-text",
+            "chairman": "vector-chairman",
+        },
+        "permission": {"green": [], "yellow": [], "red": []},
+        "api_keys": {},
+        "browser": {},
+        "blog": {},
+        "resilience": {},
+    }
+
+    def _mapping_value(self, key: str, default=None):
+        if hasattr(self, key):
+            value = getattr(self, key)
+            if hasattr(value, "__dataclass_fields__"):
+                from dataclasses import asdict
+
+                return asdict(value)
+            return value
+        return self._vector_compat_defaults.get(key, default)
+
+    def get(self, key: str, default=None):
+        return self._mapping_value(key, default)
+
+    def __getitem__(self, key: str):
+        sentinel = object()
+        value = self._mapping_value(key, sentinel)
+        if value is sentinel:
+            raise KeyError(key)
+        return value
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and (hasattr(self, key) or key in self._vector_compat_defaults)
+
     @property
     def memory(self) -> StorageConfig:
         """Backward-compatible accessor — canonical location is tools.storage."""

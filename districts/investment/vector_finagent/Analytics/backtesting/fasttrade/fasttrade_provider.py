@@ -66,6 +66,7 @@ LIMITATIONS:
 """
 
 import sys
+import os
 import json
 import pandas as pd
 import numpy as np
@@ -336,7 +337,8 @@ class FastTradeProvider(BacktestingProviderBase):
         """
         Prepare OHLCV data for backtesting
 
-        Tries to load from yfinance first, falls back to synthetic data if unavailable.
+        Tries to load from yfinance first. Synthetic fallback is disabled by
+        default and requires VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1.
         """
         self._log('Preparing market data...')
 
@@ -356,6 +358,11 @@ class FastTradeProvider(BacktestingProviderBase):
 
         # Fallback to synthetic data if yfinance fails
         if data.empty:
+            if os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() not in {"1", "true", "yes"}:
+                raise RuntimeError(
+                    f"Yahoo Finance returned no data for {symbol}; refusing synthetic market data unless "
+                    "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                )
             import sys
             # Use deterministic seed based on symbol name (not constant 42)
             sym_seed = sum(ord(c) for c in symbol) % (2**31)

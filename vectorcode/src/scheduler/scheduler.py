@@ -1,11 +1,21 @@
-"""Scheduler shim — re-exports from core.scheduler.scheduler."""
-import sys, os
+"""Scheduler shim - re-exports from core.scheduler.scheduler."""
 try:
     from core.scheduler.scheduler import TaskScheduler, ScheduledTask
-except ImportError:
+except ImportError as exc:
+    _SCHEDULER_IMPORT_ERROR = exc
+
     class TaskScheduler:
-        """TaskScheduler stub — core.scheduler not found."""
-        pass
+        """Unavailable scheduler shim."""
+
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                "core.scheduler.scheduler.TaskScheduler is unavailable"
+            ) from _SCHEDULER_IMPORT_ERROR
+
     class ScheduledTask:
-        """ScheduledTask stub."""
-        pass
+        """Unavailable scheduled task shim."""
+
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                "core.scheduler.scheduler.ScheduledTask is unavailable"
+            ) from _SCHEDULER_IMPORT_ERROR

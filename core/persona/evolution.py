@@ -6,10 +6,11 @@ from pathlib import Path
 
 from loguru import logger
 from core.config import CONFIG
+from core.runtime_paths import data_path
 
 __all__ = ["PersonaEvolution"]
 
-_DB_DIR = Path(CONFIG.get("data_dir", "data")) / "persona"
+_DB_DIR = data_path("persona")
 
 
 class PersonaEvolution:

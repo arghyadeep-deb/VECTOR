@@ -13,6 +13,7 @@ Features:
 
 import json
 import sys
+import re
 from typing import Dict, List, Any, Optional, Union, Callable
 import warnings
 warnings.filterwarnings('ignore')
@@ -373,16 +374,36 @@ class FeatureExpressionEngine:
         Returns:
             Calculated feature series
         """
-        # Simple expression evaluation (production would use proper parser)
-        # For now, this is a placeholder implementation
-        # Real implementation would parse AST and evaluate
+        if not expression or not isinstance(expression, str):
+            raise ValueError("expression must be a non-empty string")
+        if pd is None or np is None:
+            raise RuntimeError("pandas and numpy are required for feature expression evaluation")
 
-        # Example: Just return close for demonstration
-        if '$close' in expression and 'Ref' not in expression:
-            return self.data['close']
-        else:
-            # Placeholder - real implementation would parse and evaluate
-            return self.data['close']
+        def _column(name: str) -> pd.Series:
+            if name not in self.data.columns:
+                raise KeyError(f"Unknown feature column: {name}")
+            return self.data[name]
+
+        safe_expression = re.sub(
+            r"\$([A-Za-z_][A-Za-z0-9_]*)",
+            lambda match: f'__column("{match.group(1)}")',
+            expression,
+        )
+        allowed_globals = {"__builtins__": {}}
+        allowed_locals = {
+            "__column": _column,
+            **self.functions,
+        }
+        try:
+            result = eval(safe_expression, allowed_globals, allowed_locals)
+        except Exception as exc:
+            raise ValueError(f"Invalid feature expression {expression!r}: {exc}") from exc
+
+        if isinstance(result, pd.Series):
+            return result
+        if np.isscalar(result):
+            return pd.Series(result, index=self.data.index)
+        raise TypeError(f"Feature expression returned unsupported type: {type(result).__name__}")
 
 
 def main():

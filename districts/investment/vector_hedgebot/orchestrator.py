@@ -24,8 +24,8 @@ class VECTORHedge:
         self.description = description
         self.output_type = output_type
         self.output_file_path = output_file_path
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+        self.output_dir = Path(output_dir).expanduser()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Initializing Automated Trading System")
         self.conversation = Conversation(time_enabled=True)

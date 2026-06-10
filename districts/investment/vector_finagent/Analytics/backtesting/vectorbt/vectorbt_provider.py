@@ -11,6 +11,7 @@ Delegates to specialized modules:
 
 from loguru import logger
 import sys
+import os
 import json
 from typing import Dict, Any
 from pathlib import Path
@@ -23,6 +24,7 @@ _BACKTESTING_DIR = _SCRIPT_DIR.parent
 if str(_BACKTESTING_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKTESTING_DIR))
 if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 
 from base.base_provider import (
     BacktestingProviderBase,
@@ -56,9 +58,8 @@ class VectorBTProvider(BacktestingProviderBase):
         try:
             import vectorbt as vbt
             return vbt.__version__
-        except Exception:
-            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vectorbt_provider] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vectorbt_provider] caught Exception: %s", _sve)
+        except Exception as exc:
+            logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vectorbt_provider] caught Exception: %s", exc)
             return "pure-numpy"
 
     @property
@@ -1238,6 +1239,7 @@ class VectorBTProvider(BacktestingProviderBase):
             # Load full OHLCV data instead of just close
             normalized_symbols = self._normalize_symbols(symbols)
             using_synthetic = False
+            allow_synthetic = os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() in {"1", "true", "yes"}
 
             try:
                 import yfinance as yf
@@ -1264,6 +1266,11 @@ class VectorBTProvider(BacktestingProviderBase):
                     volume_series = raw_data['Volume'].iloc[:, 0].values
 
             except Exception as e:
+                if not allow_synthetic:
+                    raise RuntimeError(
+                        f"Indicator sweep data load failed for {normalized_symbols}: {e}; refusing synthetic market data unless "
+                        "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                    ) from e
                 print(f"[INDICATOR_SWEEP] Data load failed: {e}, using synthetic")
                 using_synthetic = True
                 # Generate synthetic OHLCV
@@ -1608,7 +1615,7 @@ class VectorBTProvider(BacktestingProviderBase):
 
     def _load_market_data(self, symbols: list, start_date: str, end_date: str):
         """
-        Load market data via yfinance, falling back to synthetic if unavailable.
+        Load market data via yfinance.
 
         Args:
             symbols: List of ticker symbols
@@ -1622,6 +1629,7 @@ class VectorBTProvider(BacktestingProviderBase):
         import numpy as np
 
         using_synthetic = False
+        allow_synthetic = os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() in {"1", "true", "yes"}
 
         # --- Normalize symbols for yfinance compatibility ---
         normalized_symbols = self._normalize_symbols(symbols)
@@ -1663,12 +1671,22 @@ class VectorBTProvider(BacktestingProviderBase):
             close_series = close_series.round(4)
 
         except ImportError:
+            if not allow_synthetic:
+                raise RuntimeError(
+                    "yfinance is not installed; refusing synthetic market data unless "
+                    "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                )
             print('[VBT] WARNING: yfinance not installed - using SYNTHETIC data. '
                   'Results will NOT reflect real market conditions. '
                   'Install yfinance: pip install yfinance', file=sys.stderr)
             using_synthetic = True
             close_series = self._generate_synthetic_data(symbols, start_date, end_date)
         except Exception as e:
+            if not allow_synthetic:
+                raise RuntimeError(
+                    f"Data download failed for {normalized_symbols}: {e}; refusing synthetic market data unless "
+                    "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                ) from e
             print(f'[VBT] WARNING: Data download failed for {normalized_symbols}: {e} - '
                   f'using SYNTHETIC data. Results will NOT reflect real market conditions.',
                   file=sys.stderr)

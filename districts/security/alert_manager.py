@@ -38,7 +38,9 @@ _STATUSES = {"NEW", "ACKNOWLEDGED", "INVESTIGATING", "RESOLVED", "CLOSED"}
 
 class AlertManager:
     def __init__(self, db_path: str | None = None):
-        self._db_path = db_path or str(Path("data/security/alerts.db"))
+        from core.runtime_paths import data_path
+
+        self._db_path = db_path or str(data_path("security", "alerts.db"))
         self._dedup_cache: dict[str, float] = {}
         self._dedup_ttl: float = 300.0
         self._pushover_token: str = CONFIG.get("api_keys", {}).get("pushover_token", "") or CONFIG.get("pushover_token", "")

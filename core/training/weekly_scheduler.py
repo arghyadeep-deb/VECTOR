@@ -21,6 +21,7 @@ from pathlib import Path
 from datetime import datetime
 
 from loguru import logger
+from core.runtime_paths import data_path
 
 __all__ = ["WeeklyTrainingScheduler"]
 
@@ -33,19 +34,19 @@ class WeeklyTrainingScheduler:
     """APScheduler-backed weekly training cron.
 
     Runs SelfImprovementCycle.run_weekly() on the configured schedule and
-    persists results to data/reports/scheduler_log.jsonl.
+    persists results to the configured VECTOR data root.
     """
 
     def __init__(
         self,
-        adapters_dir: str = "data/adapters",
-        log_path: str = "data/reports/scheduler_log.jsonl",
+        adapters_dir: str | None = None,
+        log_path: str | None = None,
         hour: int = _CRON_HOUR,
         minute: int = _CRON_MINUTE,
         day_of_week: str = _CRON_DAY_OF_WEEK,
     ) -> None:
-        self._adapters_dir = adapters_dir
-        self._log_path = Path(log_path)
+        self._adapters_dir = adapters_dir or str(data_path("adapters"))
+        self._log_path = Path(log_path) if log_path else data_path("reports", "scheduler_log.jsonl")
         self._hour = hour
         self._minute = minute
         self._day_of_week = day_of_week
@@ -161,7 +162,7 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     import time
 
-    sched = WeeklyTrainingScheduler(log_path="data/reports/test_scheduler_log.jsonl")
+    sched = WeeklyTrainingScheduler(log_path=str(data_path("reports", "test_scheduler_log.jsonl")))
     started = sched.start()
     print(f"Scheduler started: {started}")
     if started:
@@ -180,5 +181,5 @@ if __name__ == "__main__":
     print(f"Log entries: {len(log)}")
     shutil.rmtree(tmp, ignore_errors=True)
     # Cleanup test log
-    Path("data/reports/test_scheduler_log.jsonl").unlink(missing_ok=True)
+    data_path("reports", "test_scheduler_log.jsonl").unlink(missing_ok=True)
     print("weekly_scheduler.py OK")

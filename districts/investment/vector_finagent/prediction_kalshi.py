@@ -282,35 +282,46 @@ def cmd_settlements(payload: dict) -> None:
     _emit({"ok": True, "settlements": data.get("settlements", []) or []})
 
 
+def _kalshi_trade_decision(payload: dict, operation: str, details: dict) -> dict:
+    from districts.investment.safety import approve_live_trade_sync
+
+    return approve_live_trade_sync(
+        platform="kalshi",
+        operation=operation,
+        details=details,
+        proposed_by="vector_finagent",
+    )
+
+
 def cmd_place_order(payload: dict) -> None:
-    # SAFETY: Gate all execution through permission_gateway RED tier
+    # SAFETY: paper by default; live execution requires owner approval.
     try:
-        from core.loop.permission_gateway import PermissionGateway
-        from core.config import CONFIG
-        gw = PermissionGateway()
         ticker = payload.get("ticker", "UNKNOWN")
-        action_str = f"execute_trade:kalshi:{ticker}:{payload.get('action','buy')}:{payload.get('count',0)}"
-        classification = gw.classify(action_str)
-        if classification not in ("GREEN",):
+        decision = _kalshi_trade_decision(
+            payload,
+            "place_order",
+            {
+                "ticker": ticker,
+                "action": payload.get("action", "buy"),
+                "side": payload.get("side", "yes"),
+                "count": payload.get("count", 0),
+                "order_type": payload.get("order_type", "limit"),
+            },
+        )
+        if decision["status"] not in ("paper", "approved"):
             logger.warning(
-                "[VECTOR][investment] Kalshi order blocked — tier: {} ticker: {}",
-                classification, ticker,
+                "[VECTOR][investment] Kalshi order blocked — reason: {} ticker: {}",
+                decision.get("reason"), ticker,
             )
-            _emit({"ok": False, "error": f"Trade blocked by permission_gateway (tier={classification})"})
+            _emit({"ok": False, "error": f"Trade blocked: {decision.get('reason', 'not_approved')}"})
             return
 
-        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
-        if inv_cfg.get("paper_trading", True):
+        if decision["status"] == "paper":
             logger.info(
                 "[VECTOR][investment] PAPER MODE — would place Kalshi order: {} {}",
                 payload.get("action", "buy"), ticker,
             )
             _emit({"ok": True, "status": "PAPER", "ticker": ticker, "simulated": True})
-            return
-
-        if inv_cfg.get("kill_switch", False):
-            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — Kalshi order blocked")
-            _emit({"ok": False, "error": "Kill switch is active. All live trading halted."})
             return
 
     except (ImportError, Exception) as _gw_err:
@@ -424,6 +435,44 @@ def cmd_place_orders_batch(payload: dict) -> None:
     orders_in = payload.get("orders") or []
     if not isinstance(orders_in, list) or not orders_in:
         _fail("place_orders_batch requires a non-empty `orders` list")
+        return
+
+    try:
+        decision = _kalshi_trade_decision(
+            payload,
+            "place_orders_batch",
+            {
+                "count": len(orders_in),
+                "orders": [
+                    {
+                        "ticker": o.get("ticker", "UNKNOWN"),
+                        "action": o.get("action", "buy"),
+                        "side": o.get("side", "yes"),
+                        "count": o.get("count", 0),
+                        "order_type": o.get("order_type", "limit"),
+                    }
+                    for o in orders_in[:10]
+                ],
+            },
+        )
+        if decision["status"] == "paper":
+            _emit({
+                "ok": True,
+                "status": "PAPER",
+                "simulated": True,
+                "orders": [],
+                "count": len(orders_in),
+            })
+            return
+        if decision["status"] != "approved":
+            _emit({"ok": False, "error": f"Trade blocked: {decision.get('reason', 'not_approved')}"})
+            return
+    except Exception as _gw_err:
+        logger.warning(
+            "[VECTOR][investment] Gateway check failed ({}); blocking Kalshi batch for safety",
+            _gw_err,
+        )
+        _emit({"ok": False, "error": f"Permission gateway unavailable ({_gw_err}). Trade blocked."})
         return
 
     body = {"orders": []}

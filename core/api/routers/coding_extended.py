@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from loguru import logger
 
 router = APIRouter(prefix="/coding", tags=["coding"])
@@ -69,7 +69,7 @@ async def rapid_prototype(body: RapidPrototypeReq):
 
 class DbOptimizeReq(BaseModel):
     query: str = ""
-    schema: str = ""
+    schema_text: str = Field("", alias="schema")
 
 @router.post("/db-optimize")
 async def db_optimize(body: DbOptimizeReq):
@@ -77,7 +77,7 @@ async def db_optimize(body: DbOptimizeReq):
     from core.city.governor import GovernorCouncil
     gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "db_optimize", "params": body.model_dump()})
+        return await gov.dispatch({"type": "db_optimize", "params": body.model_dump(by_alias=True)})
     except Exception as e:
         logger.error("[VECTOR][coding] db_optimize failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

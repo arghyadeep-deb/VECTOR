@@ -116,6 +116,20 @@ class TestAgentRegistry:
         assert "id" in entry or "agent_id" in entry
         assert "name" in entry
 
+    def test_list_all_does_not_call_operational_get_status(self):
+        class OperationalStatusAgent(AgentBase):
+            def get_status(self):  # pragma: no cover - should never be called
+                raise AssertionError("operational get_status should not run during registry listing")
+
+        reg = AgentRegistry()
+        agent = OperationalStatusAgent(str(uuid.uuid4()), "OpsStatusBot", "coding")
+        reg.register(agent)
+
+        listing = reg.list_all()
+
+        assert len(listing) == 1
+        assert listing[0]["status"] == "healthy"
+
     def test_list_all_deduplicates(self):
         reg = AgentRegistry()
         a = make_agent("UniqueBot", "coding")

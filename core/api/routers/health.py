@@ -3,9 +3,12 @@
 __all__ = [
     "aggregate_biometrics",
     "check_fatigue",
+    "doctor",
     "health_status",
     "log_exercise",
     "LogExerciseReq",
+    "readiness",
+    "production_readiness",
     "router",
     "track_sleep",
     "TrackSleepReq",
@@ -76,13 +79,63 @@ async def log_exercise(body: LogExerciseReq):
 @router.get("/status")
 async def health_status():
     """Overall health district status."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "health_status", "params": {}})
+        import datetime
+
+        from core.city.agent_registry import get_registry
+
+        health_agents = get_registry().get_by_district("health")
+        return {
+            "status": "ok",
+            "district": "health",
+            "agents": [
+                {
+                    "id": getattr(agent, "id", ""),
+                    "name": getattr(agent, "name", "unknown"),
+                    "health_points": getattr(agent, "health_points", 0),
+                    "is_alive": bool(getattr(agent, "health_points", 0) > 0),
+                }
+                for agent in health_agents
+            ],
+            "capabilities": ["check_fatigue", "track_sleep", "aggregate_biometrics", "log_exercise"],
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
     except Exception as e:
         logger.error("[VECTOR][health] health_status failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/readiness")
+async def readiness():
+    """Core runtime readiness for local production-style operation."""
+    from core.runtime.doctor import run_dependency_doctor
+
+    report = run_dependency_doctor(include_optional=False).to_dict()
+    if report["required_failed"]:
+        raise HTTPException(status_code=503, detail=report)
+    return report
+
+
+@router.get("/production-readiness")
+async def production_readiness():
+    """Strict production readiness: secrets, approval, encryption, and sidecars."""
+    from core.runtime.doctor import run_dependency_doctor
+
+    report = run_dependency_doctor(include_optional=True, production=True).to_dict()
+    if report["required_failed"]:
+        raise HTTPException(status_code=503, detail=report)
+    return report
+
+
+@router.get("/doctor")
+async def doctor():
+    """Full offline-safe dependency doctor, including optional warning checks."""
+    from core.runtime.doctor import run_dependency_doctor
+
+    report = run_dependency_doctor(include_optional=True).to_dict()
+    if report["required_failed"]:
+        raise HTTPException(status_code=503, detail=report)
+    return report
 
 
 @router.get("/system")

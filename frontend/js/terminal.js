@@ -5,7 +5,17 @@
 (function (global) {
   'use strict';
   const V = global.VECTOR;
-  const WIDGETS = ['chat','music','map','webcam','telemetry','market','goals','districts','council','security','memory'];
+  const WIDGETS = [
+    'chat','music','map','webcam','telemetry','market','goals','goalplanner',
+    'districts','council','security','memory','approvals','finance',
+    'contentscheduler','answerengine','voicestudio','codegraph',
+    'librechat','openwebui','city3d','features','missioncontrol','corepanel','agentspanel','brainpanel',
+    'knowledgepanel','codeintel','vectorcodepanel','trading','backtest',
+    'hedgebot','intelligencepanel','shadowbroker','mediastudio','comfyui',
+    'hyperframes','contentpanel','designpanel','researchpanel','pccontrol',
+    'camerapanel','healthpanel','learningpanel','workpanel','privacypanel',
+    'analyticspanel','personalpanel','platformpanel'
+  ];
   let box=null, logEl=null, input=null, hist=[], hi=0;
 
   function build(){
@@ -51,7 +61,7 @@
         if(a1==='off'){ V.vision.close(); return ok('vision offline'); }
         V.vision.open(); return ok('vision online · cam hero');
       case 'situation': case 'situationroom': case 'warroom':
-        V.situationRoom(); return ok('situation room engaged');
+        V.situationRoom(); return ok('workspace ready · open a panel when needed');
       case 'voice': case 'listen-mode':
         if(global.VectorSpeech){ const on=global.VectorSpeech.toggle(); return ok('voice '+(on?'online · say “Hey VECTOR”':'offline')); }
         return err('speech recognition unavailable');
@@ -63,8 +73,12 @@
       case 'say': case 'speak': if(!arg) return err('usage: say <text>'); V.say(arg); return;
       case 'map': V.showMap(arg?{label:arg.toUpperCase()}:undefined); return ok('tactical map');
       case 'connect': if(!parts[1]) return err('usage: connect <base-url> [api-key]');
-        V.connect({ base:parts[1], apiKey:parts[2]||'' }); return ok('connecting → '+parts[1]);
-      case 'disconnect': V.disconnect(); return ok('disconnected · demo data');
+        if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('connecting', parts[1]);
+        V.connect({ base:parts[1], apiKey:parts[2]||'' }); return ok('connecting → '+parts[1]+' · waiting for backend health');
+      case 'disconnect':
+        V.disconnect();
+        if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('demo', 'terminal disconnect · seed data only');
+        return ok('disconnected · demo mode · seed data only');
       default:
         if(WIDGETS.includes(cmd)) return openName(cmd);
         return err('unknown command: '+esc(cmd)+' — type "help"');

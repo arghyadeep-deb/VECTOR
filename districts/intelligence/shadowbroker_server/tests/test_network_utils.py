@@ -1,5 +1,6 @@
 """Tests for network_utils — fetch_with_curl, circuit breaker, domain fail cache."""
 
+import os
 import time
 import pytest
 from unittest.mock import patch, MagicMock
@@ -90,7 +91,8 @@ class TestCircuitBreaker:
         mock_result.stdout = '{"data": true}\n200'
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch.dict(os.environ, {"SHADOWBROKER_ENABLE_WINDOWS_CURL_FALLBACK": "1"}), \
+             patch("subprocess.run", return_value=mock_result) as mock_run:
             result = fetch_with_curl("https://skip-to-curl.com/api")
             assert result.status_code == 200
             assert result.json()["data"] is True

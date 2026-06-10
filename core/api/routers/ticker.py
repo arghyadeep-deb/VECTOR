@@ -1,4 +1,4 @@
-"""VECTOR ticker router Ã¢â‚¬— feeds the dashboard's top stock strip and bottom news strip.
+"""VECTOR ticker router - feeds the dashboard's top stock strip and bottom news strip.
 
 Endpoints:
     GET /finance/ticker?symbols=AAPL,MSFT,SPY  -> latest quote per symbol
@@ -6,9 +6,12 @@ Endpoints:
 
 Both endpoints are designed to be cheap and pollable every 30-60 seconds from
 the dashboard. They wrap existing infrastructure rather than re-fetching:
-- Finance: yfinance via core/trading/dataflows/y_finance.py if importable,
-  else a hard-coded mock so the marquee always demos.
-- News: districts/research/news_aggregator.py if importable, else a fallback.
+- Finance: yfinance via core/trading/dataflows/y_finance.py if importable.
+- News: districts/research/news_aggregator.py if importable.
+
+Production rule: never return fake market prices or fake headlines as if they
+were live data. If providers are unavailable, return an explicit unavailable
+status with empty payloads.
 """
 import asyncio
 
@@ -36,20 +39,6 @@ _news_cache: tuple[float, list[dict]] = (0.0, [])
 
 
 # ---- Finance --------------------------------------------------------------
-
-_FALLBACK_QUOTES = [
-    {"symbol": "AAPL", "price": 234.07, "change_pct": +0.42, "currency": "USD"},
-    {"symbol": "MSFT", "price": 428.13, "change_pct": -0.18, "currency": "USD"},
-    {"symbol": "NVDA", "price": 1182.50, "change_pct": +1.24, "currency": "USD"},
-    {"symbol": "GOOGL", "price": 178.94, "change_pct": +0.31, "currency": "USD"},
-    {"symbol": "TSLA", "price": 248.63, "change_pct": -1.07, "currency": "USD"},
-    {"symbol": "META", "price": 502.39, "change_pct": +0.65, "currency": "USD"},
-    {"symbol": "SPY", "price": 545.18, "change_pct": +0.12, "currency": "USD"},
-    {"symbol": "QQQ", "price": 471.24, "change_pct": +0.27, "currency": "USD"},
-    {"symbol": "BTC-USD", "price": 67342.10, "change_pct": +2.18, "currency": "USD"},
-    {"symbol": "ETH-USD", "price": 2456.71, "change_pct": +1.43, "currency": "USD"},
-]
-
 
 def _yfinance_quote(symbol: str) -> dict | None:
     """One-shot quote via yfinance. Synchronous, called inside asyncio.to_thread."""
@@ -81,7 +70,7 @@ async def finance_ticker(
     """Return latest quotes for a comma-separated symbol list."""
     syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
     if not syms:
-        return JSONResponse({"quotes": _FALLBACK_QUOTES, "source": "fallback"})
+        return JSONResponse({"quotes": [], "source": "none", "status": "empty_request"})
 
     now = time.time()
     out: list[dict] = []
@@ -99,32 +88,29 @@ async def finance_ticker(
             *(asyncio.to_thread(_yfinance_quote, s) for s in misses),
             return_exceptions=True,
         )
-        used_fallback = False
+        failures: list[str] = []
         for s, q in zip(misses, results):
             if isinstance(q, dict):
                 _finance_cache[s] = (now, q)
                 out.append(q)
             else:
-                used_fallback = True
-                fb = next((x for x in _FALLBACK_QUOTES if x["symbol"] == s), None)
-                if fb:
-                    out.append(fb)
-        return JSONResponse({"quotes": out, "source": "yfinance" if not used_fallback else "mixed"})
+                failures.append(s)
+        status = "ok" if not failures else ("partial" if out else "unavailable")
+        http_status = 200 if out else 503
+        return JSONResponse(
+            {
+                "quotes": out,
+                "source": "yfinance",
+                "status": status,
+                "failed_symbols": failures,
+            },
+            status_code=http_status,
+        )
 
-    return JSONResponse({"quotes": out, "source": "cache"})
+    return JSONResponse({"quotes": out, "source": "cache", "status": "ok"})
 
 
 # ---- News -----------------------------------------------------------------
-
-_FALLBACK_NEWS = [
-    {"title": "BREAKING: VECTOR autonomous loop online", "source": "VECTOR", "ts": 0},
-    {"title": "Markets mixed as central banks signal caution", "source": "Reuters", "ts": 0},
-    {"title": "AI agents cross 1B daily decisions globally", "source": "TechCrunch", "ts": 0},
-    {"title": "Defense talks resume in Geneva", "source": "AP", "ts": 0},
-    {"title": "New satellite constellation reaches LEO", "source": "Spaceflight Now", "ts": 0},
-    {"title": "Energy markets stabilize after volatile week", "source": "Bloomberg", "ts": 0},
-]
-
 
 def _aggregator_headlines(limit: int) -> list[dict] | None:
     """Use districts/research/news_aggregator.py if importable."""
@@ -166,14 +152,17 @@ async def news_headlines(limit: int = Query(default=20, ge=1, le=100)):
     global _news_cache
     now = time.time()
     if _news_cache[1] and (now - _news_cache[0]) < _NEWS_TTL_S:
-        return JSONResponse({"headlines": _news_cache[1][:limit], "source": "cache"})
+        return JSONResponse({"headlines": _news_cache[1][:limit], "source": "cache", "status": "ok"})
 
     items = await asyncio.to_thread(_aggregator_headlines, limit)
     if not items:
-        items = list(_FALLBACK_NEWS)
+        return JSONResponse(
+            {"headlines": [], "source": "aggregator", "status": "unavailable"},
+            status_code=503,
+        )
 
     _news_cache = (now, items)
-    return JSONResponse({"headlines": items[:limit], "source": "aggregator" if items != _FALLBACK_NEWS else "fallback"})
+    return JSONResponse({"headlines": items[:limit], "source": "aggregator", "status": "ok"})
 
 
 if __name__ == "__main__":

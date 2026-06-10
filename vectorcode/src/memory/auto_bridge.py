@@ -21,7 +21,7 @@ try:
     from core.memory.episodic import EpisodicMemory
 except ImportError:
     EpisodicMemory = None
-from memory.faiss_index import FAISSIndex
+from .faiss_index import FAISSIndex
 
 # ── Embedding helper (same pattern as pattern_store) ─────────────────────────
 

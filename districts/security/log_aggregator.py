@@ -39,7 +39,9 @@ class LogEvent(BaseModel):
 
 class LogAggregator:
     def __init__(self, db_path: str | None = None):
-        self._db_path = db_path or str(Path("data/security/logs.db"))
+        from core.runtime_paths import data_path
+
+        self._db_path = db_path or str(data_path("security", "logs.db"))
         self._queue: asyncio.Queue[LogEvent] = asyncio.Queue(maxsize=10000)
         self._forward_queue: asyncio.Queue[LogEvent] | None = None
         self._running = False

@@ -31,7 +31,9 @@ class ClientManager(AgentBase):
         self._clients: dict[str, dict] = {}
         self._engagement_history: list[dict] = []
         self._episodic = EpisodicMemory()
-        self._client_file = Path(__file__).parent.parent.parent.parent / "data" / "clients.json"
+        from core.runtime_paths import data_path
+
+        self._client_file = data_path("clients.json")
         self._load_clients()
         logger.info(f"[VECTOR][client_manager] ClientManager initialized - {len(self._clients)} clients")
 

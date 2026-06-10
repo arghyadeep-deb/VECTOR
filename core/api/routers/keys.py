@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import os
 import secrets
+from typing import Iterable
 from fastapi import APIRouter, Request, HTTPException
 from loguru import logger
 
@@ -16,8 +17,26 @@ router = APIRouter(prefix="/keys", tags=["keys"])
 def _require_localhost(request: Request) -> None:
     """Enforce localhost-only access for key management."""
     host = request.client.host if request.client else ""
-    if host not in ("127.0.0.1", "::1", "localhost"):
+    if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
         raise HTTPException(status_code=403, detail="Key management available from localhost only")
+
+
+def _extract_bearer(authorization_values: Iterable[str]) -> str:
+    for value in authorization_values:
+        scheme, _, token = str(value).partition(" ")
+        if scheme.lower() == "bearer" and token:
+            return token.strip()
+    return ""
+
+
+def _require_current_key_if_configured(request: Request) -> None:
+    """Require the current VECTOR_API_KEY for key mutation when one is configured."""
+    current = os.environ.get("VECTOR_API_KEY", "")
+    if not current:
+        return
+    supplied = _extract_bearer(request.headers.getlist("authorization"))
+    if not supplied or not secrets.compare_digest(supplied, current):
+        raise HTTPException(status_code=401, detail="Current VECTOR_API_KEY bearer token required")
 
 
 @router.get("/status")
@@ -40,6 +59,7 @@ async def rotate_key(request: Request):
     Requires the current key as Bearer token (or localhost-only if no key set).
     """
     _require_localhost(request)
+    _require_current_key_if_configured(request)
 
     new_key = secrets.token_urlsafe(32)
 
@@ -80,6 +100,7 @@ async def revoke_key(request: Request):
     Useful for maintenance mode.
     """
     _require_localhost(request)
+    _require_current_key_if_configured(request)
 
     os.environ["VECTOR_API_KEY"] = ""
 

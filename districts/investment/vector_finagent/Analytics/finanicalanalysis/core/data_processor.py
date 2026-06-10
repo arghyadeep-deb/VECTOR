@@ -32,6 +32,7 @@ PARAMETERS:
 
 import pandas as pd
 import numpy as np
+import copy
 from typing import Dict, List, Optional, Union, Any
 from datetime import datetime, date
 from dataclasses import dataclass, field
@@ -536,13 +537,50 @@ class DataProcessor:
                          target_currency: str,
                          exchange_rates: Dict[str, float]) -> FinancialStatements:
         """Convert financial statements to target currency"""
-        # This is a placeholder for currency conversion functionality
-        # In practice, this would handle translation methods (current rate vs temporal)
-        # and multinational operations as per CFA Level II curriculum
-        pass
+        source_currency = (statements.company_info.presentation_currency or "").upper()
+        target_currency = (target_currency or "").upper()
+        if not target_currency:
+            raise ValueError("target_currency is required")
+        if source_currency == target_currency:
+            return copy.deepcopy(statements)
+
+        pair_keys = (
+            f"{source_currency}_{target_currency}",
+            f"{source_currency}/{target_currency}",
+            target_currency,
+        )
+        rate = next((exchange_rates[key] for key in pair_keys if key in exchange_rates), None)
+        if rate is None:
+            inverse_keys = (
+                f"{target_currency}_{source_currency}",
+                f"{target_currency}/{source_currency}",
+                source_currency,
+            )
+            inverse = next((exchange_rates[key] for key in inverse_keys if key in exchange_rates), None)
+            if inverse:
+                rate = 1.0 / inverse
+        if rate is None or rate <= 0:
+            raise ValueError(f"No positive FX rate available for {source_currency}->{target_currency}")
+
+        converted = copy.deepcopy(statements)
+        for section_name in ("income_statement", "balance_sheet", "cash_flow", "equity_statement"):
+            section = getattr(converted, section_name, {})
+            for key, value in list(section.items()):
+                if isinstance(value, (int, float, np.number)):
+                    section[key] = float(value) * float(rate)
+        converted.company_info.presentation_currency = target_currency
+        return converted
 
     def adjust_for_inflation(self, statements: FinancialStatements,
                              inflation_rate: float) -> FinancialStatements:
         """Adjust financial statements for inflation (hyperinflationary economies)"""
-        # Placeholder for inflation adjustment methods
-        pass
+        if inflation_rate <= -1.0:
+            raise ValueError("inflation_rate must be greater than -100%")
+        factor = 1.0 + float(inflation_rate)
+        adjusted = copy.deepcopy(statements)
+        for section_name in ("income_statement", "balance_sheet", "cash_flow", "equity_statement"):
+            section = getattr(adjusted, section_name, {})
+            for key, value in list(section.items()):
+                if isinstance(value, (int, float, np.number)):
+                    section[key] = float(value) * factor
+        return adjusted

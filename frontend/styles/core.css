@@ -324,3 +324,65 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
 ::-webkit-scrollbar{ width:6px; height:6px; }
 ::-webkit-scrollbar-thumb{ background:rgba(0,207,255,.25); border-radius:3px; }
 ::-webkit-scrollbar-track{ background:transparent; }
+
+@media (max-width: 640px) {
+  :root {
+    --frame-pad: 18px;
+    --orb-size: min(300px, 74vw);
+  }
+
+  #frame .glyph {
+    font-size: 8px;
+    letter-spacing: .12em;
+  }
+
+  #frame .glyph.tl,
+  #frame .glyph.bl {
+    left: 42px;
+  }
+
+  #frame .glyph.tr,
+  #frame .glyph.br {
+    right: 42px;
+  }
+
+  .ticker {
+    height: 22px;
+    font-size: 10px;
+  }
+
+  .ticker.top {
+    top: calc(var(--frame-pad) + 28px);
+  }
+
+  .ticker.bot {
+    display: none;
+  }
+
+  .ticker .track {
+    gap: 22px;
+  }
+
+  .tk-badge {
+    font-size: 8px;
+    padding: 2px 5px;
+    margin-right: 8px;
+  }
+
+  #hint {
+    width: min(310px, calc(100vw - 52px));
+    bottom: 11%;
+    font-size: 9px;
+    line-height: 1.5;
+    letter-spacing: .18em;
+  }
+
+  #clock .t {
+    font-size: 26px;
+  }
+
+  #clock .d {
+    font-size: 9px;
+    letter-spacing: .24em;
+  }
+}

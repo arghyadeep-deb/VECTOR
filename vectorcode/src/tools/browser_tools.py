@@ -5,9 +5,8 @@ All actions that touch the browser are gated through the PermissionGateway:
   - YELLOW (execute + notify):  navigate, screenshot, click, extract_text
   - RED    (owner must confirm): submit_form
 
-Playwright is an optional dependency.  If it is not installed the class still
-imports and all methods return graceful stub responses so nothing downstream
-crashes.
+Playwright is an optional dependency. If it is not installed the class still
+imports, but browser actions fail explicitly instead of pretending to succeed.
 
 Usage (sync wrapper)
 --------------------
@@ -27,14 +26,14 @@ try:
     _GATEWAY_AVAILABLE = True
 except ImportError:
     _GATEWAY_AVAILABLE = False
-    logger.warning("[VECTOR][browser_tools] PermissionGateway not importable — running ungated (test mode)")
+    logger.warning("[VECTOR][browser_tools] PermissionGateway not importable - browser actions fail closed")
 
 try:
     from playwright.async_api import async_playwright, Browser, Page, Playwright
     _PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     _PLAYWRIGHT_AVAILABLE = False
-    logger.warning("[VECTOR][browser_tools] playwright not installed — stub mode active")
+    logger.warning("[VECTOR][browser_tools] playwright not installed - browser actions unavailable")
 
 # ── Permission level constants ─────────────────────────────────────────────────
 
@@ -65,7 +64,7 @@ class BrowserTools:
         self._playwright: "Playwright | None" = None
         self._browser: "Browser | None" = None
         self._page: "Page | None" = None
-        self._gateway = PermissionGateway() if _GATEWAY_AVAILABLE else _StubGateway()
+        self._gateway = PermissionGateway() if _GATEWAY_AVAILABLE else _UnavailableGateway()
         logger.info("[VECTOR][browser_tools] BrowserTools initialised (playwright=%s)", _PLAYWRIGHT_AVAILABLE)
 
     # ── lazy init ─────────────────────────────────────────────────────────────
@@ -75,8 +74,7 @@ class BrowserTools:
         if self._page is not None:
             return
         if not _PLAYWRIGHT_AVAILABLE:
-            logger.warning("[VECTOR][browser_tools] playwright unavailable — cannot launch browser")
-            return
+            raise RuntimeError("Playwright is not installed; browser automation is unavailable")
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(headless=True)
         self._page = await self._browser.new_page()
@@ -92,7 +90,7 @@ class BrowserTools:
             return ""
         await self._ensure_browser()
         if self._page is None:
-            return "[stub] navigate: playwright unavailable"
+            raise RuntimeError("Browser page is unavailable after Playwright startup")
         await self._page.goto(url)
         title = await self._page.title()
         logger.info(f"[VECTOR][browser_tools] Navigated to {url} — title: {title!r}")
@@ -196,14 +194,17 @@ class BrowserTools:
         logger.info("[VECTOR][browser_tools] Browser closed")
 
 
-# ── Stub gateway (when core not importable) ───────────────────────────────────
+# ── Unavailable gateway (when core not importable) ────────────────────────────
 
-class _StubGateway:
-    """Permissive stub used when PermissionGateway cannot be imported."""
+class _UnavailableGateway:
+    """Fail-closed gateway used when PermissionGateway cannot be imported."""
 
     def check(self, level: str, action: str, params: dict) -> bool:
-        logger.debug(f"[VECTOR][browser_tools][stub_gw] check({level}, {action}) → True")
-        return True
+        logger.error(
+            "[VECTOR][browser_tools] blocking %s because PermissionGateway is unavailable",
+            action,
+        )
+        return False
 
 
 # ── Monkey-patch check() onto real PermissionGateway ─────────────────────────

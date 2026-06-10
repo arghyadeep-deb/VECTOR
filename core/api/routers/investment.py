@@ -4,7 +4,7 @@
 import importlib
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
 
@@ -162,7 +162,7 @@ async def geopolitics(body: GeopoliticsRequest):
 async def hedge_analysis(body: HedgeRequest):
     """Run AutoHedge multi-agent hedge fund analysis (ANALYSIS ONLY, never executes trades)."""
     try:
-        agent = _get_agent("districts.investment.vector_hedgebot_agent.HedgeBotAgent")
+        agent = _get_agent("districts.investment.hedgebot_agent.HedgeBotAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="HedgeBotAgent unavailable")
         return await agent.run({"type": "hedge_run", "params": body.model_dump()})
@@ -177,7 +177,7 @@ async def hedge_analysis(body: HedgeRequest):
 async def hedge_status():
     """Get current AutoHedge session status and portfolio snapshot."""
     try:
-        agent = _get_agent("districts.investment.vector_hedgebot_agent.HedgeBotAgent")
+        agent = _get_agent("districts.investment.hedgebot_agent.HedgeBotAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="HedgeBotAgent unavailable")
         return await agent.run({"type": "hedge_status", "params": {}})
@@ -193,7 +193,7 @@ async def hedge_status():
 async def vt_research(body: VTResearchRequest):
     """Run VibeTranding quantitative research with 74 skills and 9 backtest engines."""
     try:
-        agent = _get_agent("districts.investment.vector_backtest_agent.BacktestAgent")
+        agent = _get_agent("districts.investment.backtest_agent.BacktestAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="BacktestAgent unavailable")
         return await agent.run({"type": "vt_research", "params": body.model_dump()})
@@ -208,7 +208,7 @@ async def vt_research(body: VTResearchRequest):
 async def vt_skills():
     """List all 74 quantitative research skills available in VibeTranding."""
     try:
-        agent = _get_agent("districts.investment.vector_backtest_agent.BacktestAgent")
+        agent = _get_agent("districts.investment.backtest_agent.BacktestAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="BacktestAgent unavailable")
         return await agent.run({"type": "list_skills", "params": {}})
@@ -220,20 +220,18 @@ async def vt_skills():
 
 @router.get("/portfolio")
 async def get_portfolio():
-    """Get current portfolio summary — positions, value, and day P&L.
-    Returns safe stub values if the StockAnalyst is unavailable.
-    """
+    """Get current portfolio summary: positions, value, and day P&L."""
     try:
         agent = _get_agent("districts.investment.stock_analyst.StockAnalyst")
+        if agent is None:
+            raise HTTPException(status_code=503, detail="StockAnalyst unavailable")
         result = await agent.run({"type": "portfolio_summary", "params": {}})
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning(f"[VECTOR][api][investment] portfolio fallback: {e}")
-        return Response(
-            content='{"status":"unavailable","positions":[],"portfolio_value":0,"day_pnl":0,"note":"StockAnalyst offline"}',
-            status_code=503,
-            media_type="application/json",
-        )
+        logger.error(f"[VECTOR][api][investment] portfolio failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/market-status")

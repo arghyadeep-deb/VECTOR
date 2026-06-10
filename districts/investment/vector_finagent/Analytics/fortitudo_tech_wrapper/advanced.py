@@ -13,6 +13,7 @@ Usage:
 import numpy as np
 import pandas as pd
 import json
+import math
 from typing import Dict, Any, Optional, Tuple
 import warnings
 
@@ -354,8 +355,9 @@ def create_volatility_surface_from_options(
     """
     Create volatility surface from option prices (helper function)
 
-    This is a placeholder for implied volatility calculation.
-    In practice, you'd use numerical methods to invert Black-Scholes.
+    Uses Black-Scholes call-price inversion. The current function signature
+    does not include option type, so callers needing puts should add an
+    explicit option_type input instead of relying on fake data.
 
     Args:
         spot_price: Current stock price
@@ -368,13 +370,52 @@ def create_volatility_surface_from_options(
     Returns:
         Implied volatility surface matrix
     """
-    # This is a simplified example
-    # Real implementation would use Newton-Raphson or similar
     n_maturities = len(maturities)
     n_strikes = len(strikes)
+    prices = np.asarray(market_prices, dtype=float)
+    if prices.shape != (n_maturities, n_strikes):
+        raise ValueError(
+            f"market_prices shape {prices.shape} does not match "
+            f"(len(maturities), len(strikes))={(n_maturities, n_strikes)}"
+        )
 
-    # Placeholder: return random volatilities for demonstration
-    vol_surface = np.random.uniform(0.15, 0.40, (n_maturities, n_strikes))
+    def _norm_cdf(x: float) -> float:
+        return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+    def _bs_call_price(spot: float, strike: float, t: float, rate: float, q: float, vol: float) -> float:
+        if t <= 0:
+            return max(spot - strike, 0.0)
+        if vol <= 0:
+            forward_intrinsic = spot * math.exp(-q * t) - strike * math.exp(-rate * t)
+            return max(forward_intrinsic, 0.0)
+        sqrt_t = math.sqrt(t)
+        d1 = (math.log(spot / strike) + (rate - q + 0.5 * vol * vol) * t) / (vol * sqrt_t)
+        d2 = d1 - vol * sqrt_t
+        return spot * math.exp(-q * t) * _norm_cdf(d1) - strike * math.exp(-rate * t) * _norm_cdf(d2)
+
+    def _implied_vol(price: float, strike: float, maturity: float) -> float:
+        intrinsic = max(spot_price * math.exp(-dividend_yield * maturity) - strike * math.exp(-risk_free_rate * maturity), 0.0)
+        upper_bound = spot_price * math.exp(-dividend_yield * maturity)
+        if not np.isfinite(price) or price < intrinsic - 1e-8 or price > upper_bound + 1e-8:
+            raise ValueError(
+                f"Invalid call option price {price} for strike={strike}, maturity={maturity}"
+            )
+        low, high = 1e-6, 5.0
+        for _ in range(100):
+            mid = (low + high) / 2.0
+            model_price = _bs_call_price(
+                spot_price, strike, maturity, risk_free_rate, dividend_yield, mid
+            )
+            if model_price < price:
+                low = mid
+            else:
+                high = mid
+        return (low + high) / 2.0
+
+    vol_surface = np.empty((n_maturities, n_strikes), dtype=float)
+    for i, maturity in enumerate(maturities):
+        for j, strike in enumerate(strikes):
+            vol_surface[i, j] = _implied_vol(float(prices[i, j]), float(strike), float(maturity))
 
     return vol_surface
 

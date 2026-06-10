@@ -24,7 +24,9 @@ class DataPrep(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
-        self.data_dir = Path("./data/datasets")
+        from core.runtime_paths import data_path
+
+        self.data_dir = data_path("datasets")
         self.data_dir.mkdir(parents=True, exist_ok=True)
         logger.info("[VECTOR][karpathy_lab] DataPrep ready")
 

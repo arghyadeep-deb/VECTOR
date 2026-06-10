@@ -187,10 +187,25 @@ class AgentRegistry:
                 continue
             seen_ids.add(agent_id)
             data["agent_id"] = agent_id
-            data["status"] = agent.get_status() if hasattr(agent, "get_status") else "unknown"
+            data["status"] = self._lifecycle_status(agent)
             data["is_alive"] = bool(getattr(agent, "health_points", 0) > 0)
             agents.append(data)
         return agents
+
+    def _lifecycle_status(self, agent) -> str:
+        """Return HP-based lifecycle state without calling agent operational APIs."""
+        hp = float(getattr(agent, "health_points", 0) or 0)
+        if hp >= 800:
+            return "elite"
+        if hp >= 600:
+            return "strong"
+        if hp >= 400:
+            return "healthy"
+        if hp >= 200:
+            return "weakened"
+        if hp >= 1:
+            return "critical"
+        return "dead"
 
     def count_by_district(self) -> dict[str, int]:
         counts: dict[str, int] = {}

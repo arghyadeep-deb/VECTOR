@@ -24,9 +24,11 @@ class VideoIngestor(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
-        self.download_dir = Path("./data/lectures")
+        from core.runtime_paths import data_path
+
+        self.download_dir = data_path("lectures")
         self.download_dir.mkdir(parents=True, exist_ok=True)
-        self.transcripts_dir = Path("./data/transcripts")
+        self.transcripts_dir = data_path("transcripts")
         self.transcripts_dir.mkdir(parents=True, exist_ok=True)
         logger.info("[VECTOR][learning] VideoIngestor ready")
 

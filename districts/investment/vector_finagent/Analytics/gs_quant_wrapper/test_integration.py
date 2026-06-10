@@ -8,9 +8,12 @@ Tests all wrapper modules working together in a realistic workflow.
 
 import sys
 import os
+import importlib.util
 
 # Add paths - adjust for both relative and absolute execution
 script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 
 # Try to find site-packages
 possible_paths = [
@@ -27,6 +30,13 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta
 import json
+
+if importlib.util.find_spec("gs_quant") is None:
+    if "pytest" in sys.modules:
+        import pytest
+
+        pytest.skip("gs_quant package is not installed", allow_module_level=True)
+    raise ModuleNotFoundError("gs_quant package is not installed")
 
 # Import all wrapper modules
 from datetime_utils import DateTimeUtils, DateTimeConfig

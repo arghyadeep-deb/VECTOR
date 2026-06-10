@@ -16,6 +16,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from core.config import CONFIG
+from core.runtime_paths import data_path
 
 
 @dataclass
@@ -38,8 +39,9 @@ class Incident(BaseModel):
 
 class IncidentPlaybookRunner:
     def __init__(self, playbooks_dir: str | None = None, db_path: str | None = None):
-        self._playbooks_dir = Path(playbooks_dir or "data/security/playbooks")
-        self._db_path = db_path or str(Path("data/security/incidents.db"))
+        self._playbooks_dir = Path(playbooks_dir) if playbooks_dir else data_path("security", "playbooks")
+        self._packaged_playbooks_dir = Path(__file__).parent / "data" / "playbooks"
+        self._db_path = db_path or str(data_path("security", "incidents.db"))
         self._playbooks: dict[str, Any] = {}
         self._event_queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=1000)
         self._running = False
@@ -73,10 +75,11 @@ class IncidentPlaybookRunner:
 
     def _load_playbooks(self) -> None:
         self._playbooks = {}
-        if not self._playbooks_dir.exists():
+        playbooks_dir = self._playbooks_dir if self._playbooks_dir.exists() else self._packaged_playbooks_dir
+        if not playbooks_dir.exists():
             logger.warning("[VECTOR][incident_playbook] playbooks dir not found: {}", self._playbooks_dir)
             return
-        for yaml_file in sorted(self._playbooks_dir.glob("*.yaml")):
+        for yaml_file in sorted(playbooks_dir.glob("*.yaml")):
             try:
                 with open(yaml_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
@@ -234,14 +237,14 @@ class IncidentPlaybookRunner:
                 ["tasklist", "/FO", "CSV", "/NH"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             )
-            snapshot_path = Path(f"data/security/incidents/{incident_id}_processes.csv")
+            snapshot_path = data_path("security", "incidents", f"{incident_id}_processes.csv")
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             snapshot_path.write_text(result.stdout, encoding="utf-8")
             net_result = subprocess.run(
                 ["netstat", "-ano"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             )
-            net_path = Path(f"data/security/incidents/{incident_id}_netstat.txt")
+            net_path = data_path("security", "incidents", f"{incident_id}_netstat.txt")
             net_path.write_text(net_result.stdout, encoding="utf-8")
             logger.info("[VECTOR][incident_playbook] process snapshot saved to {}", snapshot_path)
             return {"status": "ok", "process_count": len(result.stdout.splitlines()), "netstat_path": str(net_path)}
@@ -270,7 +273,7 @@ class IncidentPlaybookRunner:
         return {"status": "ok", "message": message}
 
     async def _action_log_evidence(self, params: dict, evidence: dict, incident_id: str) -> dict:
-        incident_dir = Path(f"data/security/incidents/{incident_id}")
+        incident_dir = data_path("security", "incidents", incident_id)
         incident_dir.mkdir(parents=True, exist_ok=True)
         ev_path = incident_dir / "evidence.json"
         ev_path.write_text(json.dumps(evidence, indent=2, default=str), encoding="utf-8")

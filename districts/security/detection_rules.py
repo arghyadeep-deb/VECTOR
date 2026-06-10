@@ -44,7 +44,10 @@ class RuleMatch:
 
 class DetectionRules:
     def __init__(self, rules_dir: str | None = None):
-        self._rules_dir = Path(rules_dir or "data/security/rules")
+        from core.runtime_paths import data_path
+
+        self._rules_dir = Path(rules_dir) if rules_dir else data_path("security", "rules")
+        self._packaged_rules_dir = Path(__file__).parent / "data" / "rules"
         self._rules: list[DetectionRule] = []
         self._event_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=10000)
         self._running = False
@@ -53,10 +56,11 @@ class DetectionRules:
 
     def _load_rules(self) -> None:
         self._rules = []
-        if not self._rules_dir.exists():
+        rules_dir = self._rules_dir if self._rules_dir.exists() else self._packaged_rules_dir
+        if not rules_dir.exists():
             logger.warning("[VECTOR][detection_rules] rules dir not found: {}", self._rules_dir)
             return
-        for yaml_file in sorted(self._rules_dir.glob("*.yaml")):
+        for yaml_file in sorted(rules_dir.glob("*.yaml")):
             try:
                 with open(yaml_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)

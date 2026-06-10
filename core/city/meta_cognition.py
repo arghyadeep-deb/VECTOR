@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from loguru import logger
+from core.runtime_paths import data_path
 
 from core.config import CONFIG
 
@@ -37,7 +38,7 @@ class MetaCognition:
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
-            base = Path(__file__).parent.parent.parent / "data"
+            base = data_path()
             base.mkdir(parents=True, exist_ok=True)
             db_path = str(base / "meta_cognition.db")
         self._db_path = db_path

@@ -830,7 +830,7 @@ def _add_expansion_tools(mcp) -> None:
         @mcp.tool
         def agent_spawn(agent_type: str, name: str = "") -> str:
             """Spawn a new agent by type. Returns agent_id or error."""
-            return _safe_json({"status": "stub", "message": f"agent_spawn for '{agent_type}' requires district-specific factory — use agent_list to see existing agents"})
+            return _safe_json({"status": "unavailable", "message": f"agent_spawn for '{agent_type}' requires a district-specific factory; use agent_list to see existing agents"})
 
         @mcp.tool
         def agent_metrics(agent_id: str) -> str:
@@ -1273,13 +1273,13 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def task_assign(task_id: str, district: str) -> str:
-            """Assign a task to a district (stub — assign at creation time)."""
-            return _safe_json({"status": "stub", "message": "Use task_create with district parameter instead"})
+            """Assign a task to a district."""
+            return _safe_json({"status": "redirect", "message": "Use task_create with district parameter instead"})
 
         @mcp.tool
         def task_complete(task_id: str) -> str:
-            """Mark a task as complete (stub — tasks complete automatically)."""
-            return _safe_json({"status": "stub", "message": "VECTOR tasks complete automatically — use task_delete to remove"})
+            """Mark a task as complete."""
+            return _safe_json({"status": "redirect", "message": "VECTOR tasks complete automatically; use task_delete to remove"})
     except ImportError as e:
         logger.warning(f"[VECTOR][mcp] task tools unavailable: {e}")
         for n, d in [("task_list", "List tasks"), ("task_status", "Task status"), ("task_update", "Update task"), ("task_delete", "Delete task"), ("task_submit_bg", "Submit BG task"), ("task_create", "Create task"), ("task_assign", "Assign task"), ("task_complete", "Complete task")]:
@@ -1840,7 +1840,7 @@ def _add_expansion_tools(mcp) -> None:
     @mcp.tool
     def test_report() -> str:
         """Get the last test run summary."""
-        return _safe_json({"status": "stub", "message": "Run test_run first to generate a report"})
+        return _safe_json({"status": "requires_run", "message": "Run test_run first to generate a report"})
 
     @mcp.tool
     def test_status() -> str:
@@ -1929,7 +1929,7 @@ class Test{cls_name}:
             result = _chat(f"Generate pytest test cases for this module:\n\n{source[:3000]}")
             return _safe_json({"module": module, "generated_tests": result[:5000]})
         except ImportError:
-            return _safe_json({"status": "stub", "note": "Requires vectorcode_llm — run: pip install -e vectorcode"})
+            return _safe_json({"status": "unavailable", "note": "Requires vectorcode_llm; run: pip install -e vectorcode"})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -2185,7 +2185,7 @@ class Test{cls_name}:
                 result = chat(f"Translate the following text to {target_lang}:\n\n{content[:2000]}")
                 return _safe_json({"translation": result, "target_lang": target_lang})
             except Exception:
-                return _safe_json({"status": "stub", "message": "Translation requires vectorcode_llm module"})
+                return _safe_json({"status": "unavailable", "message": "Translation requires vectorcode_llm module"})
 
         @mcp.tool
         def doc_embed(content: str) -> str:
@@ -2978,7 +2978,7 @@ class Test{cls_name}:
                     return _safe_json({"ok": True, "imported": count, "source": other_path})
                 except Exception as e:
                     return _safe_json({"error": str(e)})
-            return _safe_json({"status": "stub", "note": "Provide other_path to a knowledge graph JSON export to merge"})
+            return _safe_json({"status": "requires_input", "note": "Provide other_path to a knowledge graph JSON export to merge"})
 
         @mcp.tool
         def graph_compare(other_path: str = "") -> str:
@@ -3502,7 +3502,7 @@ class Test{cls_name}:
         @mcp.tool
         def worker_assign(task_id: str, district: str) -> str:
             """Assign worker to a district."""
-            return _safe_json({"status": "stub", "message": "Use task_create with district parameter"})
+            return _safe_json({"status": "redirect", "message": "Use task_create with district parameter"})
 
         @mcp.tool
         def worker_reset() -> str:
@@ -3526,7 +3526,7 @@ class Test{cls_name}:
         @mcp.tool
         def worker_resume(task_id: str) -> str:
             """Resume a paused worker task."""
-            return _safe_json({"status": "stub", "task_id": task_id, "note": "Re-submit the task to resume via worker_submit or worker_restart"})
+            return _safe_json({"status": "redirect", "task_id": task_id, "note": "Re-submit the task to resume via worker_submit or worker_restart"})
 
         @mcp.tool
         def worker_priority(task_id: str, priority: str = "normal") -> str:
@@ -3632,8 +3632,8 @@ class Test{cls_name}:
 
         @mcp.tool
         def worker_migrate(target_queue: str = "") -> str:
-            """Migrate workers to new queue (stub — single queue system)."""
-            return _safe_json({"status": "stub", "note": "VECTOR uses a single task queue. Re-submit tasks to redistribute."})
+            """Migrate workers to new queue."""
+            return _safe_json({"status": "unsupported", "note": "VECTOR uses a single task queue. Re-submit tasks to redistribute."})
 
         @mcp.tool
         def worker_export(path: str = "") -> str:
@@ -3861,7 +3861,7 @@ class Test{cls_name}:
         @mcp.tool
         def config_hooks() -> str:
             """View hook config."""
-            return _safe_json({"status": "stub", "message": "Hooks are configured via coding_assistant hooks manager"})
+            return _safe_json({"status": "redirect", "message": "Hooks are configured via coding_assistant hooks manager"})
 
         @mcp.tool
         def config_set(key: str, value: str) -> str:

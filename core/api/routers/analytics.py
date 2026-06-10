@@ -21,10 +21,34 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/pipeline-health")
 async def pipeline_health():
     """Data pipeline health: DB stats, NULL columns."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "pipeline_health", "params": {}})
+        import datetime
+
+        from core.memory.episodic import EpisodicMemory
+
+        stats = EpisodicMemory().get_stats()
+        return {
+            "status": "ok",
+            "pipelines": {
+                "episodic_memory": {
+                    "status": "ok",
+                    "rows": stats.get("episodic_memory", 0),
+                },
+                "semantic_memory": {
+                    "status": "ok",
+                    "rows": stats.get("semantic_memory", 0),
+                },
+                "reasoning_chains": {
+                    "status": "ok",
+                    "rows": stats.get("reasoning_chains", 0),
+                },
+            },
+            "checks": {
+                "db_stats": "ok",
+                "etl_workers": "not_configured",
+            },
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
     except Exception as e:
         logger.error("[VECTOR][analytics] pipeline_health failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

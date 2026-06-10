@@ -13,12 +13,14 @@ __all__ = [
     "voice_status",
 ]
 
+import importlib.util
 import time
 
 from fastapi import APIRouter, UploadFile, File
 from loguru import logger
 
 from core.api.schemas import VoiceResponse
+from core.config import CONFIG
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -78,6 +80,16 @@ async def voice_endpoint(audio: UploadFile = File(...)):
             proposed_by="voice",
         )
         result = await gw.execute(action)
+        if isinstance(result, dict):
+            response_text = (
+                result.get("response")
+                or result.get("message")
+                or result.get("output")
+                or result.get("reasoning")
+                or "Done."
+            )
+        else:
+            response_text = str(result or "Done.")
 
         # Step 4b: Consistency check with PersonalityEngine (if enabled)
         if CONFIG.get("personality", {}).get("enabled", True):
@@ -138,20 +150,28 @@ def _load_context_engine():
 async def voice_status():
     """Get status of the voice pipeline components."""
     try:
-        # Check if modules are even importable/present
-        from core.voice.stt import WhisperSTT
-        from core.voice.tts import VoiceTTS
-        from core.voice.ambient_listener import AmbientListener
-        
-        # In a real system, we might check if they are initialized
-        # For now, we report "ready" if imports work and config is ok
+        voice_cfg = CONFIG.get("voice", {}) if isinstance(CONFIG, dict) else {}
+        stt_available = importlib.util.find_spec("core.voice.stt") is not None
+        tts_available = importlib.util.find_spec("core.voice.tts") is not None
+        listener_available = importlib.util.find_spec("core.voice.ambient_listener") is not None
+        ambient_enabled = bool(voice_cfg.get("ambient_enabled", False))
+        try:
+            from core.voice.ambient_listener import has_ambient_consent
+
+            consent_granted = has_ambient_consent()
+        except Exception:
+            consent_granted = False
+
         return {
+            "status": "ok",
             "stt_engine": "Whisper",
-            "stt_status": "active",
-            "tts_engine": "Kokoro",
-            "tts_status": "ready",
-            "listener_status": "armed",
-            "wake_word": "Hey Vector"
+            "stt_status": "available" if stt_available else "missing",
+            "tts_engine": "local",
+            "tts_status": "available" if tts_available else "missing",
+            "listener_status": "armed" if (listener_available and ambient_enabled and consent_granted) else "standby",
+            "ambient_enabled": ambient_enabled,
+            "ambient_consent": consent_granted,
+            "wake_word": voice_cfg.get("wake_word", "Hey Vector"),
         }
     except Exception as e:
         logger.error(f"[VECTOR][api][voice] status check failed: {e}")

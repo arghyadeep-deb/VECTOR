@@ -439,6 +439,14 @@ _KNOWN_COMPROMISED_PEER_PUSH_SECRET_SHA256 = (
 def _validate_admin_startup() -> None:
     admin_key = _current_admin_key()
 
+    if admin_key and len(admin_key) < 32 and not _debug_mode_enabled():
+        logger.critical(
+            "ADMIN_KEY is too short (%s chars, minimum 32). Refusing to start "
+            "outside MESH_DEBUG_MODE.",
+            len(admin_key),
+        )
+        sys.exit(1)
+
     if not admin_key or len(admin_key) < 32:
         import secrets
 

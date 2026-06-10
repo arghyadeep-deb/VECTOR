@@ -33,6 +33,7 @@ import pandas as pd
 # Add this module's directory to path so we can import sibling files.
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
+    sys.path.insert(0, _script_dir)
 
 # Wrapper modules (optimization.py + functions.py + option_pricing.py).
 # These exist in this directory; they shadow / wrap fortitudo.tech.
@@ -646,6 +647,117 @@ def dispatch(operation, data):
     except Exception as e:
         return {"success": False, "operation": operation, "error": str(e),
                 "error_kind": "runtime", "traceback": traceback.format_exc()}
+
+
+def _legacy_payload(params: Dict[str, Any] | None) -> Dict[str, Any]:
+    payload = dict(params or {})
+    for key in ("returns", "weights"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            try:
+                payload[key] = json.loads(value)
+            except json.JSONDecodeError:
+                pass
+    return payload
+
+
+def check_status() -> Dict[str, Any]:
+    status = op_check_status({})
+    wrappers_available = bool(status["wrappers_optimization"] and status["wrappers_functions"])
+    return {
+        "success": True,
+        "available": wrappers_available,
+        "wrappers_available": wrappers_available,
+        "version": status.get("native_version") or "wrapper-fallback",
+        "message": "Fortitudo wrappers available" if wrappers_available else "Fortitudo wrappers unavailable",
+        **status,
+    }
+
+
+def portfolio_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
+    result = dispatch("portfolio_metrics", _legacy_payload(params))
+    if not result.get("success"):
+        return result
+    data = result["data"]
+    return {
+        "success": True,
+        "metrics": {
+            "expected_return": data["expected_return"],
+            "volatility": data["volatility"],
+            "var": data["var"],
+            "cvar": data["cvar"],
+            "sharpe_ratio": data["sharpe_ratio"],
+        },
+        "n_scenarios": data["n_scenarios"],
+        "n_assets": data["n_assets"],
+        **data,
+    }
+
+
+def option_pricing(params: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        from option_pricing import (
+            calculate_put_call_parity_check,
+            price_call_option,
+            price_option_straddle,
+            price_put_option,
+        )
+
+        spot = _safe_float(params.get("spot_price", params.get("spot", 0.0)))
+        strike = _safe_float(params.get("strike", 0.0))
+        volatility = _safe_float(params.get("volatility", 0.0))
+        risk_free_rate = _safe_float(params.get("risk_free_rate", 0.0))
+        dividend_yield = _safe_float(params.get("dividend_yield", 0.0))
+        time_to_maturity = _safe_float(params.get("time_to_maturity", 0.0))
+        forward = spot * math.exp((risk_free_rate - dividend_yield) * time_to_maturity)
+        call_price = price_call_option(forward, strike, volatility, risk_free_rate, time_to_maturity)
+        put_price = price_put_option(forward, strike, volatility, risk_free_rate, time_to_maturity)
+        return {
+            "success": True,
+            "forward_price": _safe_float(forward),
+            "call_price": _safe_float(call_price),
+            "put_price": _safe_float(put_price),
+            "straddle": price_option_straddle(forward, strike, volatility, risk_free_rate, time_to_maturity),
+            "parity": calculate_put_call_parity_check(
+                spot, strike, volatility, risk_free_rate, dividend_yield, time_to_maturity
+            ),
+        }
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "error_kind": "runtime"}
+
+
+def entropy_pooling(params: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        from advanced import apply_entropy_pooling_simple
+
+        n = max(2, _safe_int(params.get("n_scenarios", 100), 100))
+        max_probability = _safe_float(params.get("max_probability", 0.03), 0.03)
+        result = apply_entropy_pooling_simple(n_scenarios=n, max_probability=max_probability)
+        return {"success": True, **result}
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "error_kind": "runtime"}
+
+
+def full_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
+    payload = _legacy_payload(params)
+    equal_weight = portfolio_metrics(payload)
+    exp_decay = dispatch("exp_decay_probabilities", payload)
+    if not equal_weight.get("success"):
+        return equal_weight
+    if not exp_decay.get("success"):
+        return exp_decay
+    metrics = dict(equal_weight["metrics"])
+    decay_weights = exp_decay["data"].get("weights", [])
+    return {
+        "success": True,
+        "analysis": {
+            "metrics_equal_weight": metrics,
+            "metrics_exp_decay": metrics,
+            "exp_decay_weights": decay_weights,
+            "half_life": payload.get("half_life", 120),
+            "alpha": payload.get("alpha", 0.05),
+        },
+    }
 
 
 def main(args):

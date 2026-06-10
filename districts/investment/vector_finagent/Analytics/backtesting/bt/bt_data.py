@@ -7,6 +7,7 @@ bt.Backtest(). Falls back to synthetic GBM data when yfinance unavailable.
 """
 
 import sys
+import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -15,6 +16,18 @@ from typing import Dict, Any, List, Optional
 
 # Module-level flag to track synthetic data usage across calls
 _last_fetch_used_synthetic = False
+
+
+def _synthetic_allowed() -> bool:
+    return os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() in {"1", "true", "yes"}
+
+
+def _synthetic_or_raise(reason: str, symbols: List[str], start_date: str, end_date: str) -> pd.DataFrame:
+    if not _synthetic_allowed():
+        raise RuntimeError(
+            f"{reason}; refusing synthetic market data unless VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+        )
+    return _generate_synthetic(symbols, start_date, end_date)
 
 
 def fetch_data(
@@ -41,7 +54,7 @@ def fetch_data(
         print('[BT-DATA] WARNING: yfinance not installed, using SYNTHETIC data. '
               'Install yfinance: pip install yfinance', file=sys.stderr)
         _last_fetch_used_synthetic = True
-        return _generate_synthetic(symbols, start_date, end_date)
+        return _synthetic_or_raise("yfinance is not installed", symbols, start_date, end_date)
 
     frames = {}
     any_synthetic = False
@@ -53,7 +66,7 @@ def fetch_data(
 
             if df.empty:
                 print(f'[BT-DATA] WARNING: No data for {sym}, using SYNTHETIC', file=sys.stderr)
-                synth = _generate_synthetic([sym], start_date, end_date)
+                synth = _synthetic_or_raise(f"No real market data for {sym}", [sym], start_date, end_date)
                 frames[sym] = synth[sym]
                 any_synthetic = True
                 continue
@@ -72,10 +85,9 @@ def fetch_data(
             print(f'[BT-DATA] {sym}: {len(df)} bars loaded', file=sys.stderr)
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_data] caught Exception: %s", e)
             print(f'[BT-DATA] WARNING: Error fetching {sym}: {e}, using SYNTHETIC', file=sys.stderr)
-            synth = _generate_synthetic([sym], start_date, end_date)
+            synth = _synthetic_or_raise(f"Error fetching real market data for {sym}: {e}", [sym], start_date, end_date)
             frames[sym] = synth[sym]
             any_synthetic = True
 
@@ -101,6 +113,11 @@ def fetch_ohlcv(
     try:
         import yfinance as yf
     except ImportError:
+        if not _synthetic_allowed():
+            raise RuntimeError(
+                "yfinance is not installed; refusing synthetic OHLCV unless "
+                "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+            )
         return _generate_ohlcv_synthetic(symbols, start_date, end_date)
 
     result = {}
@@ -128,6 +145,11 @@ def fetch_ohlcv(
                     df[col] = df[col].round(4)
             result[sym] = df
         except Exception as e:
+            if not _synthetic_allowed():
+                raise RuntimeError(
+                    f"Error fetching real OHLCV for {sym}: {e}; refusing synthetic OHLCV unless "
+                    "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                ) from e
             synth = _generate_ohlcv_synthetic([sym], start_date, end_date)
             result[sym] = synth[sym]
     return result

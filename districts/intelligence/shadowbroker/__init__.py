@@ -8,6 +8,7 @@ from pathlib import Path
 
 _SDK_DIR = str(Path(__file__).parent)
 if _SDK_DIR not in sys.path:
+    sys.path.insert(0, _SDK_DIR)
 
 from sb_query import ShadowBrokerClient  # noqa: E402
 from sb_alerts import AlertDispatcher     # noqa: E402

@@ -10,13 +10,13 @@ from core.config import CONFIG
 from core.resilience.circuit_breaker import CircuitBreakerOpenError
 from core.breaker_registry import get_registry
 from loguru import logger
-import asyncio, uuid, json, os, sqlite3, datetime, threading
+import asyncio, uuid, json, os, sqlite3, datetime, threading, shutil
 from contextlib import contextmanager
 
 # Try SQLCipher for AES-256 encryption; fall back to plain sqlite3
-# Supports both sqlcipher3-binary (pip install sqlcipher3-binary) and pysqlcipher3
+# Supports sqlcipher3 (preferred on Python 3.13+) and pysqlcipher3.
 try:
-    import sqlcipher3 as sqlcipher  # sqlcipher3-binary package
+    import sqlcipher3 as sqlcipher
     _USE_SQLCIPHER = True
     logger.info("[VECTOR][memory] SQLCipher (sqlcipher3) available — AES-256 encryption enabled")
 except ImportError:
@@ -27,9 +27,18 @@ except ImportError:
     except ImportError:
         sqlcipher = None
         _USE_SQLCIPHER = False
-        logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite (install sqlcipher3-binary to encrypt)")
+        logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite (install sqlcipher3 to encrypt)")
 
 _DB_KEY = None  # resolved lazily below
+_MIGRATABLE_TABLES = (
+    "episodic_memory",
+    "semantic_memory",
+    "policy_memory",
+    "reasoning_chains",
+    "skill_memory",
+    "agent_history",
+    "episodic_embeddings",
+)
 
 def _get_db_key() -> str:
     """Derive encryption key from env var or OS keyring. Never hardcoded."""
@@ -66,6 +75,88 @@ def _get_db_key() -> str:
     # Plain SQLite — no encryption key needed
     _DB_KEY = ""
     return _DB_KEY
+
+
+def _sql_literal(value: str) -> str:
+    """Return a single-quoted SQL literal for SQLCipher PRAGMA statements."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _backup_path(path) -> str:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+    return f"{path}.plaintext.bak.{stamp}"
+
+
+def _copy_plaintext_rows(plain_path: str, encrypted_conn) -> None:
+    plain_conn = sqlite3.connect(plain_path)
+    try:
+        existing = {
+            row[0]
+            for row in plain_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        for table in _MIGRATABLE_TABLES:
+            if table not in existing:
+                continue
+            columns = [row[1] for row in plain_conn.execute(f'PRAGMA table_info("{table}")').fetchall()]
+            if not columns:
+                continue
+            quoted_cols = ", ".join(f'"{col}"' for col in columns)
+            placeholders = ", ".join("?" for _ in columns)
+            rows = plain_conn.execute(f'SELECT {quoted_cols} FROM "{table}"').fetchall()
+            if rows:
+                encrypted_conn.executemany(
+                    f'INSERT OR IGNORE INTO "{table}" ({quoted_cols}) VALUES ({placeholders})',
+                    rows,
+                )
+        encrypted_conn.execute("DELETE FROM episodic_memory_fts")
+        encrypted_conn.execute(
+            """
+            INSERT INTO episodic_memory_fts
+            (id, event_type, content, tags, source, timestamp, context_snapshot)
+            SELECT id, event_type, content, tags, source, timestamp, context_snapshot
+            FROM episodic_memory
+            """
+        )
+        encrypted_conn.commit()
+    finally:
+        plain_conn.close()
+
+
+def _open_sqlcipher_connection(path: str):
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        db_key = _get_db_key()
+        conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_db_to_sqlcipher(path: str):
+    backup = _backup_path(path)
+    shutil.copy2(path, backup)
+    os.replace(path, backup + ".active")
+    active_backup = backup + ".active"
+    logger.warning(
+        "[VECTOR][memory] Migrating plaintext SQLite memory DB to SQLCipher; plaintext backup={}",
+        active_backup,
+    )
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        db_key = _get_db_key()
+        conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        _create_tables(conn)
+        _copy_plaintext_rows(active_backup, conn)
+        logger.info("[VECTOR][memory] SQLCipher migration completed")
+        return conn
+    except Exception:
+        conn.close()
+        if os.path.exists(path):
+            os.remove(path)
+        os.replace(active_backup, path)
+        raise
 
 # In-memory buffer for writes when circuit breaker is open
 _memory_buffer: list[dict] = []
@@ -168,10 +259,21 @@ def get_db_connection():
             _db_connection = None
         if _db_connection is None:
             if _USE_SQLCIPHER:
-                _db_connection = sqlcipher.connect(str(CONFIG['db_path']), check_same_thread=False)
-                # Use parameterized-style key setting (no f-string SQL)
-                db_key = _get_db_key()
-                _db_connection.execute("PRAGMA key=?", (db_key,))
+                db_path = str(CONFIG['db_path'])
+                try:
+                    _db_connection = _open_sqlcipher_connection(db_path)
+                except Exception as exc:
+                    if os.path.exists(db_path):
+                        try:
+                            plain_conn = sqlite3.connect(db_path)
+                            plain_conn.execute("SELECT count(*) FROM sqlite_master")
+                            plain_conn.close()
+                            _db_connection = _migrate_plaintext_db_to_sqlcipher(db_path)
+                        except Exception:
+                            logger.error("[VECTOR][memory] SQLCipher migration failed: {}", exc)
+                            raise
+                    else:
+                        raise
             else:
                 _db_connection = sqlite3.connect(CONFIG['db_path'], check_same_thread=False)
             _db_connection.execute("PRAGMA journal_mode=WAL")

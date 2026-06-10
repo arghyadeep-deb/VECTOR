@@ -36,10 +36,24 @@ async def detect_patterns(body: DetectPatternsReq):
 @router.get("/habits")
 async def identify_habits():
     """Identify recurring habits (positive and negative)."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "identify_habits", "params": {}})
+        from core.api.crud import recall_episodes
+
+        events = recall_episodes("habits", limit=10, event_type="habits_found")
+        habits = []
+        for event in events:
+            habits.append({
+                "timestamp": event.get("timestamp"),
+                "content": event.get("content", ""),
+                "source": event.get("source", "memory"),
+                "tags": event.get("tags", []),
+            })
+        return {
+            "status": "ok",
+            "habits": habits,
+            "count": len(habits),
+            "note": "Use POST /patterns/detect to run fresh pattern analysis.",
+        }
     except Exception as e:
         logger.error("[VECTOR][patterns] identify_habits failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

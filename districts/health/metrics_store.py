@@ -10,7 +10,7 @@ from typing import Any
 from loguru import logger
 
 
-_DEFAULT_DB = str(Path(__file__).parent.parent.parent / "data" / "health" / "health_metrics.db")
+_DEFAULT_DB = str(__import__("core.runtime_paths", fromlist=["data_path"]).data_path("health", "health_metrics.db"))
 
 
 class MetricsStore:

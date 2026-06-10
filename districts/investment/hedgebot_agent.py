@@ -15,13 +15,13 @@ Governor routes:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 
 import asyncio
-import sys
 import uuid
 
 from core.config import CONFIG
@@ -68,8 +68,10 @@ class HedgeBotAgent(AgentBase):
             try:
                 from districts.investment.vector_hedgebot.orchestrator import VECTORHedge
                 cfg = CONFIG.get("vector_hedgebot", {}) if isinstance(CONFIG, dict) else {}
+                output_dir = Path(cfg.get("output_dir", "~/.vector/vector_hedgebot/outputs")).expanduser()
+                output_dir.mkdir(parents=True, exist_ok=True)
                 hedge = VECTORHedge(
-                    output_dir=cfg.get("output_dir", "outputs"),
+                    output_dir=str(output_dir),
                     output_type=output_type,
                 )
                 result = hedge.run(task=task)
@@ -190,10 +192,49 @@ class HedgeBotAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
+    async def hedge_status(self) -> dict:
+        """Return a lightweight AutoHedge status without starting the agent swarm."""
+        cfg = CONFIG.get("vector_hedgebot", {}) if isinstance(CONFIG, dict) else {}
+        output_dir = Path(cfg.get("output_dir", "~/.vector/vector_hedgebot/outputs")).expanduser()
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        recent_outputs = []
+        for path in sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)[:10]:
+            if path.is_file():
+                stat = path.stat()
+                recent_outputs.append(
+                    {
+                        "name": path.name,
+                        "path": str(path),
+                        "bytes": stat.st_size,
+                        "modified": stat.st_mtime,
+                    }
+                )
+
+        return {
+            "status": "ok",
+            "agent": self.name,
+            "district": self.district,
+            "hp": self.health_points,
+            "live_execution_enabled": bool(os.getenv("SOLANA_PRIVATE_KEY") and os.getenv("JUPITER_API_KEY")),
+            "output_dir": str(output_dir),
+            "recent_outputs": recent_outputs,
+            "actions": [
+                "hedge_run",
+                "token_search",
+                "token_price",
+                "solana_holdings",
+                "solana_order",
+                "solana_execute",
+            ],
+        }
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "hedge_run")
+        action = task.get("type") or p.get("action", "hedge_run")
 
+        if action == "hedge_status":
+            return await self.hedge_status()
         if action in ("hedge_run", "hedge_trade"):
             return await self.hedge_run(
                 task=p.get("task", p.get("query", "")),

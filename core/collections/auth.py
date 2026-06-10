@@ -95,10 +95,24 @@ class JWTManager:
         cfg = (CONFIG.get("collections", {}) or {}).get("jwt", {}) or {}
         secret = cfg.get("secret") or os.environ.get("VECTOR_JWT_SECRET", "")
         if not secret:
-            # Derive a stable dev secret from the DB key so tokens survive restarts,
-            # but warn loudly — production must set VECTOR_JWT_SECRET.
-            logger.warning("[VECTOR][collections] no VECTOR_JWT_SECRET set - using dev fallback")
-            secret = hashlib.sha256(b"vector-collections-dev-secret").hexdigest()
+            vector_home = CONFIG.get("vector_home") or os.environ.get("VECTOR_HOME") or ".vector"
+            secret_path = os.path.join(str(vector_home), "collections_jwt_secret")
+            try:
+                os.makedirs(os.path.dirname(secret_path), exist_ok=True)
+                if os.path.exists(secret_path):
+                    with open(secret_path, "r", encoding="utf-8") as f:
+                        secret = f.read().strip()
+                if not secret:
+                    secret = secrets.token_urlsafe(48)
+                    with open(secret_path, "w", encoding="utf-8") as f:
+                        f.write(secret)
+                logger.warning(
+                    "[VECTOR][collections] VECTOR_JWT_SECRET not set - using persistent local secret at {}",
+                    secret_path,
+                )
+            except Exception as exc:
+                logger.warning("[VECTOR][collections] local JWT secret file unavailable: {}", exc)
+                secret = secrets.token_urlsafe(48)
         return secret
 
     def issue(self, claims: dict, ttl: int, token_type: str) -> str:

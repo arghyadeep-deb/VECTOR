@@ -172,7 +172,9 @@ class TestCouncilLog(unittest.TestCase):
         cb = _patched_council("DEFER — log test", confidence=0.5)
         original = council_mod.CouncilBrain
         council_mod.CouncilBrain = lambda: cb
-        log_path = Path("data") / "council_log.jsonl"
+        from core.runtime_paths import data_path
+
+        log_path = data_path("council_log.jsonl")
         before_size = log_path.stat().st_size if log_path.exists() else 0
         try:
             pg = PermissionGateway()
@@ -199,7 +201,9 @@ class TestCouncilLog(unittest.TestCase):
             pg = PermissionGateway()
             action = Action("delete_files_marker_a7", {"path": "/x"}, "test")
             asyncio.run(pg._handle_red_tier(action))
-            log_path = Path("data") / "council_log.jsonl"
+            from core.runtime_paths import data_path
+
+            log_path = data_path("council_log.jsonl")
             with log_path.open(encoding="utf-8") as fh:
                 last = json.loads(fh.readlines()[-1])
             self.assertEqual(last["action_type"], "delete_files_marker_a7")

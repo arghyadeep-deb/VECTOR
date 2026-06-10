@@ -6,12 +6,13 @@ from typing import Any
 
 from loguru import logger
 from core.config import CONFIG
+from core.runtime_paths import data_path
 from core.persona.schemas import PersonaIdentity
 
 __all__ = ["PersonaIdentityLoader"]
 
 _DEFAULT_IDENTITY = PersonaIdentity()
-_DATA_DIR = Path(CONFIG.get("data_dir", "data")) / "persona"
+_DATA_DIR = data_path("persona")
 
 
 class PersonaIdentityLoader:

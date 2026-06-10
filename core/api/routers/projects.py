@@ -36,10 +36,14 @@ async def create_project(body: CreateProjectReq):
 @router.get("/list")
 async def list_projects():
     """List all active projects with progress."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "list_projects", "params": {}})
+        projects = _read_project_deadlines(within_days=365)
+        return {
+            "status": "ok",
+            "projects": projects,
+            "count": len(projects),
+            "source": "semantic_memory.project_deadline",
+        }
     except Exception as e:
         logger.error("[VECTOR][projects] list_projects failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -63,10 +67,44 @@ async def track_experiment(body: TrackExperimentReq):
 @router.get("/deadline")
 async def upcoming_deadlines():
     """Get upcoming project deadlines."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "upcoming_deadlines", "params": {}})
+        deadlines = _read_project_deadlines(within_days=30)
+        return {"status": "ok", "deadlines": deadlines, "count": len(deadlines)}
     except Exception as e:
         logger.error("[VECTOR][projects] upcoming_deadlines failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _read_project_deadlines(within_days: int = 30) -> list[dict]:
+    import datetime
+
+    from core.memory.episodic import EpisodicMemory
+
+    today = datetime.date.today()
+    cutoff_end = today + datetime.timedelta(days=within_days)
+    rows = []
+    memory = EpisodicMemory()
+    cur = memory.conn.cursor()
+    cur.execute(
+        "SELECT key, value FROM semantic_memory WHERE category = ? ORDER BY key ASC",
+        ("project_deadline",),
+    )
+    for key, value in cur.fetchall():
+        parts = str(key).split(":", 2)
+        if len(parts) < 3:
+            continue
+        try:
+            due_date = datetime.date.fromisoformat(parts[1])
+        except ValueError:
+            continue
+        if not (today <= due_date <= cutoff_end):
+            continue
+        val_parts = str(value).split("|")
+        rows.append({
+            "name": val_parts[0] if val_parts and val_parts[0] else parts[2].replace("_", " "),
+            "date": due_date.isoformat(),
+            "days_away": (due_date - today).days,
+            "project_id": val_parts[1] if len(val_parts) > 1 else "",
+            "urgency": val_parts[2] if len(val_parts) > 2 else "medium",
+        })
+    return sorted(rows, key=lambda item: item["days_away"])

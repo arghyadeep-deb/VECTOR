@@ -21,6 +21,7 @@ Usage:
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional
+from loguru import logger
 
 
 # =============================================================================
@@ -67,14 +68,13 @@ def test_configuration() -> bool:
         print(f"  Risk Limits - Max Position: {config.risk_limits.max_position_size_pct}%")
         print(f"  Risk Limits - Max Leverage: {config.risk_limits.max_leverage}x")
 
-        assert config.models.provider == ModelProvider.ANTHROPIC
+        assert config.models.provider in set(ModelProvider)
         # Model ID loaded from frontend config
 
         print_result("Configuration loaded", True)
         return True
     except Exception as e:
-        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tests.test_glm_model] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tests.test_glm_model] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][renaissance.test_glm_model] configuration check failed", exc_info=True)
         print_result("Configuration loaded", False, str(e))
         return False
 

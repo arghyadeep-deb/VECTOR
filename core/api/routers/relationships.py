@@ -1,5 +1,7 @@
 """VECTOR relationships router - /relationships/* endpoints."""
 
+import sqlite3
+
 __all__ = [
     "add_contact",
     "AddContactReq",
@@ -21,10 +23,35 @@ router = APIRouter(prefix="/relationships", tags=["relationships"])
 @router.get("/contacts")
 async def list_contacts():
     """List managed contacts with relationship metadata."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "list_contacts", "params": {}})
+        from core.runtime_paths import data_path
+
+        db_path = data_path("contacts.db")
+        if not db_path.exists():
+            return {"status": "ok", "contacts": [], "total_contacts": 0, "source": "contacts.db"}
+
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            has_contacts = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'contacts'"
+            ).fetchone()
+            if not has_contacts:
+                return {"status": "ok", "contacts": [], "total_contacts": 0, "source": "contacts.db"}
+            cursor = conn.execute(
+                """
+                SELECT name, phone, email, notes, added_at, last_contacted, contact_count
+                FROM contacts
+                ORDER BY name COLLATE NOCASE ASC
+                LIMIT 500
+                """
+            )
+            contacts = [dict(row) for row in cursor.fetchall()]
+        return {
+            "status": "ok",
+            "contacts": contacts,
+            "total_contacts": len(contacts),
+            "source": "contacts.db",
+        }
     except Exception as e:
         logger.error("[VECTOR][relationships] list_contacts failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

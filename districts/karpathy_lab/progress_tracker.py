@@ -29,7 +29,9 @@ class ProgressTracker(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
-        self.runs_dir = Path(CONFIG.get("karpathy", {}).get("runs_dir", "./data/training_runs"))
+        from core.runtime_paths import data_path
+
+        self.runs_dir = Path(CONFIG.get("karpathy", {}).get("runs_dir") or data_path("training_runs"))
         self.runs_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.runs_dir / "runs.db"
         self._current_run: str | None = None

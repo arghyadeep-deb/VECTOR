@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import sys
 import asyncio
 import json
+import mimetypes
 import time
 import uuid
 from pathlib import Path
@@ -271,6 +272,125 @@ class ComfyUIAdapter(AgentBase):
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return 0
+
+    async def get_system_stats(self) -> dict:
+        """Return ComfyUI system stats such as RAM/VRAM, or an unavailable payload."""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"{self._base_url}/system_stats")
+                if r.status_code == 200:
+                    return {"status": "ok", "stats": r.json()}
+                return {"status": "unavailable", "http_status": r.status_code, "stats": {}}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "stats": {}}
+
+    async def get_node_info(self, node_class: str | None = None) -> dict:
+        """Return ComfyUI node definitions for all nodes or a single node class."""
+        path = "/object_info" if not node_class else f"/object_info/{node_class}"
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(f"{self._base_url}{path}")
+                if r.status_code == 200:
+                    return {"status": "ok", "nodes": r.json()}
+                return {"status": "unavailable", "http_status": r.status_code, "nodes": {}}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "nodes": {}}
+
+    async def list_model_types(self) -> dict:
+        """Return ComfyUI model folder/type names from /models."""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"{self._base_url}/models")
+                if r.status_code == 200:
+                    data = r.json()
+                    model_types = data if isinstance(data, list) else data.get("models", [])
+                    return {"status": "ok", "model_types": model_types}
+                return {"status": "unavailable", "http_status": r.status_code, "model_types": []}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "model_types": []}
+
+    async def list_models_by_type(self, model_type: str) -> dict:
+        """Return model filenames for a ComfyUI model folder/type."""
+        safe_type = model_type.strip().strip("/")
+        if not safe_type:
+            return {"status": "error", "error": "model_type is required", "models": []}
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(f"{self._base_url}/models/{safe_type}")
+                if r.status_code == 200:
+                    data = r.json()
+                    models = data if isinstance(data, list) else data.get("models", [])
+                    return {"status": "ok", "model_type": safe_type, "models": models}
+                return {"status": "unavailable", "http_status": r.status_code, "model_type": safe_type, "models": []}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "model_type": safe_type, "models": []}
+
+    async def get_history(self, prompt_id: str | None = None) -> dict:
+        """Return legacy ComfyUI history for all prompts or one prompt_id."""
+        path = "/history" if not prompt_id else f"/history/{prompt_id}"
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(f"{self._base_url}{path}")
+                if r.status_code == 200:
+                    return {"status": "ok", "history": r.json()}
+                return {"status": "unavailable", "http_status": r.status_code, "history": {}}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "history": {}}
+
+    async def get_jobs(self, job_id: str | None = None) -> dict:
+        """Return ComfyUI jobs if the installed server exposes the newer /jobs API."""
+        path = "/jobs" if not job_id else f"/jobs/{job_id}"
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(f"{self._base_url}{path}")
+                if r.status_code == 200:
+                    return {"status": "ok", "jobs": r.json()}
+                return {"status": "unavailable", "http_status": r.status_code, "jobs": {}}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e), "jobs": {}}
+
+    async def interrupt(self, prompt_id: str | None = None) -> dict:
+        """Interrupt current ComfyUI execution, optionally targeting a prompt_id."""
+        payload = {"prompt_id": prompt_id} if prompt_id else {}
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.post(f"{self._base_url}/interrupt", json=payload)
+                if r.status_code < 400:
+                    return {"status": "ok", "interrupted": True}
+                return {"status": "error", "interrupted": False, "http_status": r.status_code, "detail": r.text[:300]}
+        except Exception as e:
+            return {"status": "unavailable", "interrupted": False, "error": str(e)}
+
+    async def free_memory(self, unload_models: bool = True, free_memory: bool = True) -> dict:
+        """Ask ComfyUI to unload models and/or release VRAM."""
+        payload = {"unload_models": unload_models, "free_memory": free_memory}
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.post(f"{self._base_url}/free", json=payload)
+                if r.status_code < 400:
+                    return {"status": "ok", "freed": True}
+                return {"status": "error", "freed": False, "http_status": r.status_code, "detail": r.text[:300]}
+        except Exception as e:
+            return {"status": "unavailable", "freed": False, "error": str(e)}
+
+    async def upload_image(self, image_path: str, image_type: str = "input", overwrite: bool = False) -> dict:
+        """Upload an image to ComfyUI for img2img, inpainting, or ControlNet workflows."""
+        path = Path(image_path)
+        if not path.exists() or not path.is_file():
+            return {"status": "error", "error": f"image not found: {image_path}"}
+        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                with path.open("rb") as fh:
+                    files = {"image": (path.name, fh, mime)}
+                    data = {"type": image_type, "overwrite": str(bool(overwrite)).lower()}
+                    r = await client.post(f"{self._base_url}/upload/image", files=files, data=data)
+                if r.status_code < 400:
+                    payload = r.json() if r.headers.get("content-type", "").startswith("application/json") else {"raw": r.text}
+                    return {"status": "ok", "image": payload}
+                return {"status": "error", "http_status": r.status_code, "error": r.text[:300]}
+        except Exception as e:
+            return {"status": "unavailable", "error": str(e)}
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

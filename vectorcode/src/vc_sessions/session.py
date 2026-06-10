@@ -81,6 +81,7 @@ class SessionStore:
         self._create_tables()
 
     def _create_tables(self) -> None:
+        self._migrate_legacy_sessions_table()
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS sessions (
                 session_id    TEXT PRIMARY KEY,
@@ -91,6 +92,9 @@ class SessionStore:
                 last_activity REAL,
                 metadata      TEXT DEFAULT '{}'
             );
+        """)
+        self._ensure_session_columns()
+        self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS session_messages (
                 id         INTEGER PRIMARY KEY,
                 session_id TEXT NOT NULL,
@@ -107,6 +111,39 @@ class SessionStore:
                 ON sessions(user_id);
         """)
         self._conn.commit()
+
+    def _migrate_legacy_sessions_table(self) -> None:
+        rows = self._conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+        ).fetchall()
+        if not rows:
+            return
+        columns = {
+            row[1]
+            for row in self._conn.execute("PRAGMA table_info(sessions)").fetchall()
+        }
+        required = {"session_id", "user_id", "created_at", "last_activity"}
+        if required.issubset(columns):
+            return
+        backup_name = f"sessions_legacy_{int(time.time())}"
+        self._conn.execute(f"ALTER TABLE sessions RENAME TO {backup_name}")
+
+    def _ensure_session_columns(self) -> None:
+        existing = {
+            row[1]
+            for row in self._conn.execute("PRAGMA table_info(sessions)").fetchall()
+        }
+        columns = {
+            "user_id": "TEXT",
+            "display_name": "TEXT DEFAULT ''",
+            "channel_ids": "TEXT DEFAULT '{}'",
+            "created_at": "REAL",
+            "last_activity": "REAL",
+            "metadata": "TEXT DEFAULT '{}'",
+        }
+        for name, ddl in columns.items():
+            if name not in existing:
+                self._conn.execute(f"ALTER TABLE sessions ADD COLUMN {name} {ddl}")
 
     def get_or_create(
         self,

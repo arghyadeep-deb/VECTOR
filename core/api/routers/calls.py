@@ -1,5 +1,7 @@
 """VECTOR calls router - /calls/* endpoints."""
 
+import json
+
 __all__ = [
     "add_call_contact",
     "AddCallContactReq",
@@ -68,10 +70,28 @@ async def voice_respond(body: VoiceRespondReq):
 @router.get("/contacts")
 async def list_call_contacts():
     """List call screening whitelist."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
     try:
-        return await gov.dispatch({"type": "list_call_contacts", "params": {}})
+        from core.runtime_paths import data_path
+
+        contacts_path = data_path("call_contacts.json")
+        if not contacts_path.exists():
+            return {"status": "ok", "contacts": [], "count": 0, "source": "call_contacts.json"}
+
+        raw = json.loads(contacts_path.read_text(encoding="utf-8") or "{}")
+        contacts_blob = raw.get("contacts", raw)
+        if isinstance(contacts_blob, dict):
+            contacts = [
+                {"number": number, **details}
+                if isinstance(details, dict)
+                else {"number": number, "name": str(details)}
+                for number, details in contacts_blob.items()
+            ]
+        elif isinstance(contacts_blob, list):
+            contacts = contacts_blob
+        else:
+            contacts = []
+
+        return {"status": "ok", "contacts": contacts, "count": len(contacts), "source": "call_contacts.json"}
     except Exception as e:
         logger.error("[VECTOR][calls] list_call_contacts failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

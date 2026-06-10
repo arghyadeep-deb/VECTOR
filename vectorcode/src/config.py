@@ -164,6 +164,39 @@ class VectorConfig:
             node = node[k]
         return node
 
+    def __getitem__(self, key: str):
+        if key in self._cfg:
+            return self._cfg[key]
+        compat_defaults = {
+            "version": "1.0.0",
+            "env": "dev",
+            "debug": False,
+            "ollama_host": "http://127.0.0.1:11434",
+            "data_dir": str(Path.home() / ".vector"),
+            "models": {
+                "ambient": "vector-ambient",
+                "focus": "vector-focus",
+                "multilingual": "vector-multilingual",
+                "reasoning": "vector-reasoning",
+                "coder": "vector-coder",
+                "dev": "vector-dev",
+                "r1": "vector-r1",
+                "embed": "nomic-embed-text",
+                "chairman": "vector-chairman",
+            },
+            "permission": {"green": [], "yellow": [], "red": []},
+            "api_keys": {},
+            "browser": {},
+            "blog": {},
+            "resilience": {},
+        }
+        if key in compat_defaults:
+            return compat_defaults[key]
+        raise KeyError(key)
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and key in self._cfg
+
     @property
     def default_model(self) -> str:
         return self.get("model", "default", default="ollama/vector-focus")

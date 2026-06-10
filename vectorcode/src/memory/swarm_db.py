@@ -287,10 +287,10 @@ class SwarmDatabase:
 
 
 if __name__ == "__main__":
-    import tempfile, os
+    import tempfile, os, sys
     # Use temp dir for test isolation
     _DB_ROOT_orig = _DB_ROOT
-    import memory.swarm_db as _mod
+    _mod = sys.modules[__name__]
     with tempfile.TemporaryDirectory() as tmp:
         _mod._DB_ROOT = Path(tmp)
         db = SwarmDatabase("test-swarm-001")

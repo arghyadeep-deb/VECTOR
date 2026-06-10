@@ -1708,22 +1708,10 @@ class ZiplineProvider(BacktestingProviderBase):
             # (synthetic data has a very specific seed pattern, but we can't
             # reliably distinguish - just return False as best guess)
             return close, False
-        # Fallback: generate synthetic GBM
-        print(f'[ZL] WARNING: Using SYNTHETIC data for {sym}. '
-              f'Install yfinance (pip install yfinance) for real data.', file=sys.stderr)
-        dates = pd.bdate_range(start=start_date, end=end_date, tz='UTC')
-        import numpy as np
-        # Use deterministic seed: sum of char codes (NOT hash() which is randomized per-run)
-        seed = sum(ord(c) for c in sym) % (2**31)
-        np.random.seed(seed)
-        price = 100.0
-        prices = []
-        for _ in range(len(dates)):
-            ret = np.random.normal(0.0003, 0.015)
-            price *= (1 + ret)
-            prices.append(price)
-        close = pd.Series(prices, index=dates, name='close')
-        return close, True
+        raise RuntimeError(
+            f"No real close-price data available for {sym}; refusing synthetic market data unless "
+            "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+        )
 
     # ========================================================================
     # Indicator Signals

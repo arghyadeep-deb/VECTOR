@@ -64,6 +64,7 @@ LIMITATIONS:
 """
 
 import sys
+import os
 import json
 import pandas as pd
 import numpy as np
@@ -882,7 +883,13 @@ class BacktestingPyProvider(BacktestingProviderBase):
             except Exception as e:
                 self._log(f'Failed to fetch real data for {symbol}: {e} - falling back to synthetic data')
 
-            # Fallback: Generate synthetic data with clear warning
+            if os.environ.get("VECTOR_ALLOW_SYNTHETIC_MARKET_DATA", "").lower() not in {"1", "true", "yes"}:
+                raise RuntimeError(
+                    f"No real market data available for {symbol}; refusing synthetic market data unless "
+                    "VECTOR_ALLOW_SYNTHETIC_MARKET_DATA=1"
+                )
+
+            # Explicitly enabled fallback: generate synthetic data with clear warning.
             self._last_load_was_real = False
             import sys
             print(f'[WARNING] Using SYNTHETIC data for {symbol}. Results are NOT based on real market data. '

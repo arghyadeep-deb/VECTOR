@@ -19,6 +19,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.runtime_paths import data_path
+from core.training.self_improvement_cycle import SelfImprovementCycle
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -29,7 +32,6 @@ def _tmp_cycle(adapters_subdir: str = "adapters"):
     tmp = tempfile.mkdtemp()
     adapters_dir = os.path.join(tmp, adapters_subdir)
     os.makedirs(adapters_dir, exist_ok=True)
-    from core.training.self_improvement_cycle import SelfImprovementCycle
     cycle = SelfImprovementCycle(adapters_dir=adapters_dir)
     return cycle, tmp
 
@@ -309,8 +311,8 @@ class TestSelfImprovementCycleEndToEnd(unittest.TestCase):
 
     def test_report_file_created(self):
         self.cycle.run_weekly()
-        reports = list(Path("data/reports").glob("cycle_*.md"))
-        self.assertGreater(len(reports), 0, "No cycle report .md file found in data/reports/")
+        reports = list(data_path("reports").glob("cycle_*.md"))
+        self.assertGreater(len(reports), 0, f"No cycle report .md file found in {data_path('reports')}/")
 
     def test_collect_phase_sample_count(self):
         result = self.cycle.run_weekly()

@@ -94,13 +94,20 @@ def _import_mcp_server():
     Raises:
         ImportError: If the module cannot be imported.
     """
-    agent_dir = Path(__file__).resolve().parent.parent
+    agent_dir = Path(__file__).resolve().parents[1]
     if str(agent_dir) not in sys.path:
+        sys.path.insert(0, str(agent_dir))
 
-    # Use importlib so we can re-import cleanly in tests.
-    if "mcp_server" in sys.modules:
-        return sys.modules["mcp_server"]
-    return importlib.import_module("mcp_server")
+    # Load by absolute path so core.mcp_server or another district cannot shadow it.
+    module_name = "vector_backtest_mcp_server_for_tests"
+    sys.modules.pop(module_name, None)
+    spec = importlib.util.spec_from_file_location(module_name, agent_dir / "mcp_server.py")
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load mcp_server.py from {agent_dir}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_mcp_server_imports_without_raising() -> None:

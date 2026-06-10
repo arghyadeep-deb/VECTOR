@@ -119,7 +119,7 @@ class Autopilot(AgentBase):
             source="autopilot",
         )
 
-        if result.get("status") not in ("ok", "stub"):
+        if result.get("status") != "ok":
             logger.warning("[VECTOR][autopilot] task failed at depth {} — stopping", chain_depth)
             return result
 

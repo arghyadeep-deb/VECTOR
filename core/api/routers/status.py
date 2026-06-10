@@ -14,6 +14,7 @@ __all__ = [
 
 import time
 import datetime as dt
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -31,6 +32,14 @@ if not _OLLAMA_HOST.startswith("http"):
     _OLLAMA_HOST = "http://" + _OLLAMA_HOST
 
 START_TIME = dt.datetime.now(dt.timezone.utc)
+_STATUS_CACHE: dict[str, Any] = {
+    "models": None,
+    "models_ts": 0.0,
+    "tts": None,
+    "tts_ts": 0.0,
+}
+_OLLAMA_STATUS_TTL_SECONDS = 30.0
+_TTS_STATUS_TTL_SECONDS = 300.0
 
 
 def get_uptime_seconds() -> int:
@@ -56,8 +65,7 @@ async def status_endpoint():
         agent_count = 0
         districts = []
 
-    # Dynamically check Ollama models
-    models_status = await _check_ollama_models()
+    models_status = await _check_ollama_models_cached()
 
     # Last reflect timestamp from episodic memory
     last_reflect = None
@@ -69,23 +77,9 @@ async def status_endpoint():
     except Exception:
         logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
 
-    _loop_running = False
-    try:
-        from core.loop.autonomous_loop import AutonomousLoop
-        _loop = AutonomousLoop()
-        _loop_running = getattr(_loop, "_running", False)
-    except Exception:
-        logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
+    _loop_running = _get_loop_running()
 
-    # Surface TTS engine so UI can warn about Kokoro missing
-    try:
-        from core.voice.tts import VoiceTTS
-        _tts = VoiceTTS()
-        models_status["tts_engine"] = "kokoro" if _tts._kokoro_ok else "pyttsx3"
-        models_status["tts_kokoro_ok"] = str(_tts._kokoro_ok).lower()
-    except Exception:
-        models_status["tts_engine"] = "unknown"
-        models_status["tts_kokoro_ok"] = False
+    models_status.update(_get_tts_status_cached())
 
     return StatusResponse(
         loop_running=_loop_running,
@@ -96,6 +90,43 @@ async def status_endpoint():
         vector_version="1.0.0",
         last_reflect=last_reflect,
     )
+
+
+def _get_loop_running() -> bool:
+    """Read loop state without constructing the expensive autonomous loop."""
+    return False
+
+
+def _get_tts_status_cached() -> dict[str, str]:
+    """Expose voice engine status without loading audio models on every poll."""
+    now = time.monotonic()
+    cached = _STATUS_CACHE.get("tts")
+    if cached and now - float(_STATUS_CACHE.get("tts_ts") or 0.0) < _TTS_STATUS_TTL_SECONDS:
+        return dict(cached)
+
+    status = {"tts_engine": "unknown", "tts_kokoro_ok": "false"}
+    try:
+        from pathlib import Path
+
+        voice_cfg = CONFIG.get("voice", {}) if isinstance(CONFIG, dict) else {}
+        model_dir = Path(voice_cfg.get("kokoro_model_dir", "./models/kokoro"))
+        has_kokoro_files = (
+            (model_dir / "voices-v1.0.bin").exists()
+            and (
+                (model_dir / "kokoro-v1.0.onnx").exists()
+                or (model_dir / "kokoro-v1.0.fp16-gpu.onnx").exists()
+            )
+        )
+        status = {
+            "tts_engine": "kokoro_configured" if has_kokoro_files else "pyttsx3",
+            "tts_kokoro_ok": "unknown" if has_kokoro_files else "false",
+        }
+    except Exception:
+        logger.debug("[VECTOR][api][status] tts status unavailable", exc_info=True)
+
+    _STATUS_CACHE["tts"] = status
+    _STATUS_CACHE["tts_ts"] = now
+    return dict(status)
 
 _prev_net = {"bytes_sent": 0, "bytes_recv": 0, "ts": 0.0}
 
@@ -187,7 +218,7 @@ async def _check_ollama_models() -> dict:
     """Dynamically check which Ollama models are loaded."""
     models_status = {}
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=0.5) as client:
             r = await client.get(f"{_OLLAMA_HOST}/api/tags")
             if r.status_code == 200:
                 loaded = [m["name"] for m in r.json().get("models", [])]
@@ -202,7 +233,7 @@ async def _check_ollama_models() -> dict:
                         "chairman": "vector-chairman",
                     }.get(model_key, model_key)
 
-                    models_status[model_key] = "loaded" if model_name in loaded else "unloaded"
+                    models_status[model_key] = "loaded" if _ollama_model_loaded(model_name, loaded) else "unloaded"
             else:
                 for key in ["focus", "reasoning", "coder", "ambient", "deep", "chairman"]:
                     models_status[key] = "error"
@@ -214,6 +245,28 @@ async def _check_ollama_models() -> dict:
         models_status = {"focus": "unknown", "reasoning": "unknown"}
 
     return models_status
+
+
+def _ollama_model_loaded(model_name: str, loaded_names: list[str]) -> bool:
+    """Match Ollama model names with or without tags, e.g. vector-focus[:latest]."""
+    expected = model_name.split(":", 1)[0]
+    for loaded in loaded_names:
+        base = str(loaded).split(":", 1)[0]
+        if loaded == model_name or base == expected:
+            return True
+    return False
+
+
+async def _check_ollama_models_cached() -> dict[str, str]:
+    now = time.monotonic()
+    cached = _STATUS_CACHE.get("models")
+    if cached and now - float(_STATUS_CACHE.get("models_ts") or 0.0) < _OLLAMA_STATUS_TTL_SECONDS:
+        return dict(cached)
+
+    models_status = await _check_ollama_models()
+    _STATUS_CACHE["models"] = models_status
+    _STATUS_CACHE["models_ts"] = now
+    return dict(models_status)
 
 
 @router.get("/daily")

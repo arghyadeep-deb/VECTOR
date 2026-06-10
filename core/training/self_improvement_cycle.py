@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 
 from loguru import logger
+from core.runtime_paths import data_path
 from core.training.training_config import AdapterConfig, TrainingArgs, EvalConfig
 from core.training.data_collector import DataCollector
 from core.training.lora_trainer import LoRATrainer
@@ -13,13 +14,13 @@ from core.training.benchmarks import CodingBenchmark, ResearchBenchmark
 
 
 class SelfImprovementCycle:
-    def __init__(self, adapters_dir: str = "data/adapters"):
+    def __init__(self, adapters_dir: str | None = None):
         self.data_collector = DataCollector()
-        self.trainer = LoRATrainer(adapters_dir)
+        self.trainer = LoRATrainer(adapters_dir or str(data_path("adapters")))
         self.eval_harness = EvalHarness()
         self.eval_harness.register_benchmark("coding", CodingBenchmark)
         self.eval_harness.register_benchmark("research", ResearchBenchmark)
-        self.reports_dir = Path("data/reports")
+        self.reports_dir = data_path("reports")
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         logger.info("[Training] SelfImprovementCycle initialized")
 
@@ -108,7 +109,7 @@ class SelfImprovementCycle:
         logger.info("[Training] Phase 3/4: Evaluating adapters")
         adapters = self.trainer.list_adapters()
         results = {}
-        rejected_dir = Path("data/rejected_runs")
+        rejected_dir = data_path("rejected_runs")
         rejected_dir.mkdir(parents=True, exist_ok=True)
         for adapter in adapters:
             name = adapter.get("name", "unknown")

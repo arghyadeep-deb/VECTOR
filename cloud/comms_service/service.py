@@ -28,9 +28,11 @@ _vc_bridge = None
 
 @app.get("/status")
 async def status():
+    state = "online" if _vc_bridge is not None else "degraded"
     return {
-        "status": "online",
+        "status": state,
         "vectorcode_running": _vc_bridge is not None,
+        "degraded_reason": None if _vc_bridge is not None else "VectorCodeBridge is not running",
         "timestamp": datetime.datetime.now().isoformat(),
     }
 
@@ -115,7 +117,7 @@ def start_vectorcode_gateway() -> None:
         _vc_bridge.start_mcp_server(port=9001)
         logger.info("[VECTOR][comms] VectorCode gateway started on port 9001")
     except ImportError:
-        logger.warning("[VECTOR][comms] VectorCodeBridge not found — messaging in stub mode")
+        logger.warning("[VECTOR][comms] VectorCodeBridge not found - messaging bridge unavailable")
     except Exception as e:
         logger.warning(f"[VECTOR][comms] VectorCode gateway start failed: {e}")
 

@@ -8,18 +8,19 @@ import os
 import sys
 import importlib
 import traceback
+from loguru import logger
 
 # Set up path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
 # Import the framework first to ensure stubs are registered
 try:
     from AlgorithmImports import *
     print("OK: AlgorithmImports loaded successfully")
 except Exception as e:
-    logger.debug("[VECTOR][strategies.test_strategies] caught Exception: %s", _sve)
-    logger.debug("[VECTOR][strategies.test_strategies] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][strategies.test_strategies] AlgorithmImports failed", exc_info=True)
     print(f"FATAL: AlgorithmImports failed to load: {e}")
     traceback.print_exc()
     sys.exit(1)
@@ -46,7 +47,7 @@ def get_strategy_files():
                     strategies.append((subdir, f[:-3]))
     return strategies
 
-def test_strategy_import(subdir, module_name):
+def check_strategy_import(subdir, module_name):
     """Test that a strategy module can be imported and its class instantiated."""
     errors = []
 
@@ -117,7 +118,7 @@ def main():
 
     for subdir, module_name in strategies:
         display_name = f"{subdir}/{module_name}" if subdir else module_name
-        errors = test_strategy_import(subdir, module_name)
+        errors = check_strategy_import(subdir, module_name)
 
         if errors:
             failed += 1

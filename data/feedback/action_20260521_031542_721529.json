@@ -1,1 +1,0 @@
-{"instruction": "test_action: {\"cmd\": \"ls\"}", "input": "autonomous_loop", "output": "{\"files\": [\"a.txt\"]}", "score": 0.8}

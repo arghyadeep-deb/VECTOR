@@ -316,32 +316,35 @@ class AutoTrader:
 
     async def _execute_trade(self, signal: TradingSignal, position_size: float):
         """Execute trade based on signal"""
-        # SAFETY: Gate all execution through permission_gateway RED tier
+        # SAFETY: paper by default; live execution requires owner approval.
         try:
-            from core.loop.permission_gateway import PermissionGateway
             from core.config import CONFIG
-            gw = PermissionGateway()
-            action_str = f"execute_trade:{signal.symbol}:{signal.direction}:{position_size:.2f}"
-            classification = gw.classify(action_str)
-            if classification not in ("GREEN",):
-                logger.warning(
-                    "[VECTOR][investment] AutoTrader trade blocked — tier: {} action: {}",
-                    classification, action_str,
-                )
-                return
+            from districts.investment.safety import approve_live_trade
 
             # Paper mode check (default: True — safe)
             inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
-            if inv_cfg.get("paper_trading", True):
+            decision = await approve_live_trade(
+                platform="agno_autotrader",
+                operation="execute_trade",
+                details={
+                    "symbol": signal.symbol,
+                    "direction": signal.direction,
+                    "position_size": position_size,
+                    "confidence": signal.confidence,
+                },
+                proposed_by="agno_auto_trader",
+            )
+            if decision["status"] == "paper":
                 logger.info(
                     "[VECTOR][investment] PAPER MODE — would execute: {} {} ${:.2f} confidence={:.2f}",
                     signal.direction.upper(), signal.symbol, position_size, signal.confidence,
                 )
                 # Fall through to simulated position tracking below (paper mode still records)
-
-            # Kill switch check
-            if inv_cfg.get("kill_switch", False):
-                logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — AutoTrader trade blocked")
+            elif decision["status"] != "approved":
+                logger.warning(
+                    "[VECTOR][investment] AutoTrader trade blocked — reason: {}",
+                    decision.get("reason"),
+                )
                 return
 
             # Max position size check (₹ or base currency)

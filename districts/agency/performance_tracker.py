@@ -26,7 +26,9 @@ class PerformanceTracker(AgentBase):
         self._alerts: list[dict] = []
         self._thresholds: dict[str, float] = {}
         self._episodic = EpisodicMemory()
-        self._data_file = Path(__file__).parent.parent.parent.parent / "data" / "performance_metrics.json"
+        from core.runtime_paths import data_path
+
+        self._data_file = data_path("performance_metrics.json")
         self._load_data()
         logger.info(f"[VECTOR][performance_tracker] PerformanceTracker initialized")
 

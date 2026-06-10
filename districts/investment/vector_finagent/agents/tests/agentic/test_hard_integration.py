@@ -36,11 +36,19 @@ from pathlib import Path
 
 # ── Gating ──────────────────────────────────────────────────────────────────
 if os.environ.get("AGENTIC_INTEGRATION") != "1":
+    if "pytest" in sys.modules:
+        import pytest
+
+        pytest.skip("AGENTIC_INTEGRATION!=1 — opt-in hard integration test", allow_module_level=True)
     print("AGENTIC_INTEGRATION!=1 — skipping (set =1 to opt in).")
     sys.exit(0)
 
 _TOKEN = os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("AGENTIC_TEST_API_KEY")
 if not _TOKEN:
+    if "pytest" in sys.modules:
+        import pytest
+
+        pytest.skip("ANTHROPIC_AUTH_TOKEN/AGENTIC_TEST_API_KEY unset", allow_module_level=True)
     print("ANTHROPIC_AUTH_TOKEN unset — skipping.")
     sys.exit(0)
 

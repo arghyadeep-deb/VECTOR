@@ -198,28 +198,29 @@ def execute_trade(unsigned_transaction: str, request_id: str) -> str:
     if not request_id or not request_id.strip():
         raise ValueError("request_id is required")
 
-    # SAFETY: Gate all execution through permission_gateway RED tier
+    # SAFETY: paper by default; live execution requires owner approval.
     try:
-        from core.loop.permission_gateway import PermissionGateway
-        from core.config import CONFIG
-        gw = PermissionGateway()
-        action_str = f"execute_trade:solana_swap:{request_id[:12]}"
-        classification = gw.classify(action_str)
-        if classification not in ("GREEN",):
+        from districts.investment.safety import approve_live_trade_sync
+
+        decision = approve_live_trade_sync(
+            platform="jupiter",
+            operation="solana_swap",
+            details={"request_id": request_id[:12]},
+            proposed_by="vector_hedgebot",
+        )
+        if decision["status"] not in ("paper", "approved"):
             logger.warning(
-                "[VECTOR][investment] Jupiter swap blocked — tier: {} requestId: {}",
-                classification, request_id[:12],
+                "[VECTOR][investment] Jupiter swap blocked — reason: {} requestId: {}",
+                decision.get("reason"), request_id[:12],
             )
             return json.dumps({
                 "status": "blocked",
-                "reason": "requires_human_approval",
-                "tier": classification,
+                "reason": decision.get("reason", "not_approved"),
                 "requestId": request_id,
             })
 
         # Paper mode check (default: True — safe)
-        inv_cfg = CONFIG.get("investment", {}) if isinstance(CONFIG, dict) else {}
-        if inv_cfg.get("paper_trading", True):
+        if decision["status"] == "paper":
             logger.info(
                 "[VECTOR][investment] PAPER MODE — would execute Jupiter swap requestId={}",
                 request_id[:12],
@@ -230,11 +231,6 @@ def execute_trade(unsigned_transaction: str, request_id: str) -> str:
                 "simulated": True,
                 "note": "Set investment.paper_trading=False in CONFIG to enable live Solana execution",
             })
-
-        # Kill switch check
-        if inv_cfg.get("kill_switch", False):
-            logger.warning("[VECTOR][investment] KILL SWITCH ACTIVE — Jupiter swap blocked")
-            return json.dumps({"status": "killed", "reason": "kill_switch_active"})
 
     except (ImportError, Exception) as _gw_err:
         logger.warning(
