@@ -48,14 +48,13 @@ class TestEpisodicEmbeddingsTable(unittest.TestCase):
         mod.CONFIG["db_path"] = str(self._tmp_path)
         mod._db_connection = None
         mem = mod.EpisodicMemory()
-        conn = sqlite3.connect(str(self._tmp_path))
+        # use the module connector — plain sqlite3 can't read a SQLCipher DB
+        conn = mod.get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='episodic_embeddings'"
         )
         row = cursor.fetchone()
-        conn.close()
-        mod._db_connection = None
         self.assertIsNotNone(row, "episodic_embeddings table must exist")
 
     def test_table_has_id_column(self):
