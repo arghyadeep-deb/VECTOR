@@ -152,7 +152,9 @@ class Uploader(AgentBase):
             async with httpx.AsyncClient(timeout=300.0) as client:
                 response = await client.post(media_url, data=media_data)
 
-            if response.status_code == 200:
+                if response.status_code != 200:
+                    raise RuntimeError(f"media create failed: {response.status_code} {response.text[:200]}")
+
                 result = response.json()
                 creation_id = result.get("id")
 
@@ -163,6 +165,8 @@ class Uploader(AgentBase):
                 }
 
                 publish_response = await client.post(publish_url, data=publish_data)
+                if publish_response.status_code != 200:
+                    raise RuntimeError(f"media publish failed: {publish_response.status_code} {publish_response.text[:200]}")
 
                 upload_record = {
                     "id": str(uuid.uuid4()),
