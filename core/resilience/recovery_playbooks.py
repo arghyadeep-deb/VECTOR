@@ -229,24 +229,31 @@ class DBCorruptionPlaybook(RecoveryPlaybook):
 
     async def run(self) -> PlaybookResult:
         import time
-        import sqlite3
         from pathlib import Path
+
+        from core.config import CONFIG
 
         start = time.time()
         actions = []
 
-        db_path = Path("vector_memory.db")
+        db_path = Path(str(CONFIG.get("db_path", "vector_memory.db")))
         if db_path.exists():
             try:
-                conn = sqlite3.connect(str(db_path))
+                # MUST use the SQLCipher-aware singleton — plain sqlite3 reads
+                # an encrypted DB as "corrupt" and this playbook would rename
+                # the live memory DB away.
+                from core.memory.episodic import get_db_connection
+                conn = get_db_connection()
                 conn.execute("PRAGMA integrity_check")
-                conn.close()
                 actions.append("DB integrity check passed")
             except Exception as e:
                 actions.append(f"DB corruption detected: {e}")
                 backup = db_path.with_suffix(".db.corrupt_backup")
-                db_path.rename(backup)
-                actions.append(f"Backed up corrupted DB to {backup.name}")
+                try:
+                    db_path.rename(backup)
+                    actions.append(f"Backed up corrupted DB to {backup.name}")
+                except OSError as rename_err:
+                    actions.append(f"Backup rename skipped (file in use): {rename_err}")
 
         return PlaybookResult(
             name=self.name, success=True,
