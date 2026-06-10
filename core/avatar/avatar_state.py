@@ -90,7 +90,7 @@ class AvatarState:
             with _avatar_db_lock:
                 conn = cls._get_conn()
                 row = conn.execute("SELECT * FROM avatar_state WHERE id = 1").fetchone()
-                conn.close()
+                # shared singleton connection — do not close
             if row is None:
                 logger.debug("[VECTOR][avatar_state] no saved state, using defaults")
                 return cls()
