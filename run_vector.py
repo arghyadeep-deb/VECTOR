@@ -415,6 +415,13 @@ async def run_loop() -> None:
     """Start the autonomous loop. Runs until interrupted."""
     asyncio.get_running_loop().set_exception_handler(_asyncio_exception_handler)
 
+    # Populate the agent registry before the loop starts — otherwise every
+    # governor dispatch returns {"status": "no_agents"}.
+    try:
+        bootstrap_agents()
+    except Exception as e:
+        logger.error("[VECTOR][loop] bootstrap_agents failed — city starts empty: {}", e)
+
     from core.loop.autonomous_loop import AutonomousLoop
     loop_instance = AutonomousLoop()
 
