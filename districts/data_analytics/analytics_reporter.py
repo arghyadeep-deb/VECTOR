@@ -290,6 +290,7 @@ class AnalyticsReporter(AgentBase):
             elif "district" in a:
                 anomaly_md += f"  - {a['district']}: {a['issue']} [{a['severity']}]\n"
 
+        anomaly_section = anomaly_md or "  None detected.\n"
         content = (
             f"## Executive Brief\n\n{brief}\n\n"
             f"## Summary\n\n"
@@ -302,7 +303,7 @@ class AnalyticsReporter(AgentBase):
             f"| Anomalies Detected | {len(anomalies)} |\n\n"
             f"## Activity by Event Type\n\n```\n{chart_types}```\n\n"
             f"## Activity by Hour of Day\n\n```\n{chart_hours}```\n\n"
-            f"## Anomalies\n\n{anomaly_md or '  None detected.\n'}"
+            f"## Anomalies\n\n{anomaly_section}"
         )
 
         try:

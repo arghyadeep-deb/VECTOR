@@ -23,6 +23,7 @@ _SCRIPT_DIR = Path(__file__).parent
 _BACKTESTING_DIR = _SCRIPT_DIR.parent
 for _p in [str(_BACKTESTING_DIR), str(_SCRIPT_DIR)]:
     if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from bt_strategies import _STRATEGY_REGISTRY, _register, _rebalance_algo, _BT_AVAILABLE, _bt
 

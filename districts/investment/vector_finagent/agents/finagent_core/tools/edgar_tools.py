@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Ensure the scripts root is on sys.path so mcp.edgar is importable
 _SCRIPTS_ROOT = str(Path(__file__).parent.parent.parent.parent)
 if _SCRIPTS_ROOT not in sys.path:
+    sys.path.insert(0, _SCRIPTS_ROOT)
 
 
 def _call(command: str, *args) -> str:

@@ -20,6 +20,7 @@ from datetime import datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
 from utils import (
     get_data_dir, get_model_path, get_index_path, get_meta_path,

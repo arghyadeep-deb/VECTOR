@@ -19,6 +19,7 @@ import os
 # Add the script's directory to Python path to find statsmodels_wrapper
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 
 import json
 import numpy as np

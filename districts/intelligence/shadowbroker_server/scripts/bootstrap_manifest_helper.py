@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = ROOT / "backend"
 
 if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from services.mesh.mesh_bootstrap_manifest import (  # noqa: E402
     bootstrap_signer_public_key_b64,

@@ -46,6 +46,7 @@ logging.basicConfig(
 # Add parent dirs to path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
 logger = logging.getLogger(__name__)
 

@@ -23,3 +23,4 @@ from pathlib import Path
 # imports resolve correctly — same pattern as the original repo root.
 _MLOPS_DIR = Path(__file__).resolve().parent
 if str(_MLOPS_DIR) not in sys.path:
+    sys.path.insert(0, str(_MLOPS_DIR))

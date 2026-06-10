@@ -124,6 +124,7 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
     # Load the strategy class
     try:
         if strategies_dir and os.path.isdir(strategies_dir) and strategies_dir not in sys.path:
+            sys.path.insert(0, strategies_dir)
 
         # Find strategy file from registry
         registry_path = os.path.join(strategies_dir, "_registry.py") if strategies_dir else ""

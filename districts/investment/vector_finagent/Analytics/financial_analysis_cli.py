@@ -24,6 +24,7 @@ from datetime import date
 
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
 if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 
 from finanicalanalysis import (
     DataProcessor, CompanyInfo, FinancialPeriod, ReportingStandard, DataSource,

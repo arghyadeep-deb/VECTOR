@@ -37,6 +37,7 @@ logging.basicConfig(
 # Add parent directory to path
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 # Timeout for discovery operations (seconds)
 DISCOVERY_TIMEOUT = 30.0

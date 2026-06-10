@@ -24,6 +24,7 @@ _BACKTESTING_DIR = _SCRIPT_DIR.parent
 if str(_BACKTESTING_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKTESTING_DIR))
 if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 
 from base.base_provider import (
     BacktestingProviderBase,

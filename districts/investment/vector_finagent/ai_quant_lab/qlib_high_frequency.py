@@ -26,6 +26,7 @@ import numpy as np
 # ── Exchange client path ──────────────────────────────────────────────────────
 _EXCHANGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "exchange")
 if _EXCHANGE_DIR not in sys.path:
+    sys.path.insert(0, _EXCHANGE_DIR)
 
 import warnings
 warnings.filterwarnings("ignore")

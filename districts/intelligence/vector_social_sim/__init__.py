@@ -23,3 +23,4 @@ from pathlib import Path
 # Add core/vector_social_sim/ to sys.path so all "from app.X" imports resolve
 _SOCIAL_SIM_DIR = Path(__file__).resolve().parent
 if str(_SOCIAL_SIM_DIR) not in sys.path:
+    sys.path.insert(0, str(_SOCIAL_SIM_DIR))

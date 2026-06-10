@@ -18,6 +18,7 @@ except ImportError:
 
 _vc_src = str(Path(__file__).resolve().parent.parent.parent.parent / "vectorcode" / "src")
 if _vc_src not in sys.path:
+    sys.path.insert(0, _vc_src)
 
 __path__ = [_vc_src]
 

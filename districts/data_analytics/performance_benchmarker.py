@@ -240,6 +240,7 @@ class PerformanceBenchmarker(AgentBase):
             "write journal entry for today",
         ]
         try:
+            sys.path.insert(
                 0,
                 str(
                     Path(__file__).parent.parent.parent.parent
@@ -491,6 +492,4 @@ if __name__ == "__main__":
         print(
             f"OK performance_benchmarker.py HP={agent.health_points} "
             f"memory_store_avg={mem_result['store']['avg']}s"
-        )
-
-    asyncio.run(_smoke())
+        )

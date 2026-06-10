@@ -42,6 +42,7 @@ def _strip_emoji(text: str) -> str:
 from pathlib import Path
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 logger = logging.getLogger(__name__)
 
