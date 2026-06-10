@@ -158,21 +158,15 @@ async def lifespan(app: FastAPI):
     logger.info("[VECTOR][api] Shutting down...")
     if nudge_task is not None:
         nudge_task.cancel()
-    for key in ["episodic_memory"]:
-        obj = getattr(app.state, key, None)
-        if obj and hasattr(obj, "conn"):
-            try:
-                obj.conn.close()
-            except Exception as _conn_err:
-                logger.debug("[VECTOR][api] conn close failed: {}", _conn_err)
-
-    # Cleanup singleton episodic DB connection
+    # app.state.episodic_memory.conn IS the module singleton — close it once,
+    # through the helper that also clears the global and resets the circuit
+    # breaker. Bare conn.close() left a dead-but-"healthy" singleton behind
+    # (sqlcipher ProgrammingError isn't a sqlite3 subclass) and poisoned every
+    # memory op until process restart.
     try:
-        from core.memory.episodic import get_db_connection
-        conn = get_db_connection()
-        if conn:
-            conn.close()
-            logger.info("[VECTOR][api] Episodic DB connection closed")
+        from core.memory.episodic import close_db_connection
+        close_db_connection()
+        logger.info("[VECTOR][api] Episodic DB connection closed")
     except Exception as e:
         logger.warning("[VECTOR][api] DB cleanup error: {}", e)
 
