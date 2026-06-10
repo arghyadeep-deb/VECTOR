@@ -66,7 +66,10 @@ class AvatarState:
     # ── persistence ──────────────────────────────────────────────────────────
     @classmethod
     def _get_conn(cls) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+        # Main DB may be SQLCipher-encrypted — must go through episodic's
+        # singleton connector (plain sqlite3.connect → "file is not a database").
+        from core.memory.episodic import get_db_connection
+        conn = get_db_connection()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS avatar_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
