@@ -145,6 +145,10 @@ class TestBrainRouterCompiles(unittest.TestCase):
 # ── DecisionTrace dashboard component presence ────────────────────────────────
 
 
+@unittest.skipUnless(
+    (Path(__file__).parent.parent.parent / "dashboard" / "src").exists(),
+    "Next.js dashboard was superseded by the frontend/ HUD (served at /hud/)",
+)
 class TestDecisionTraceDashboardComponent(unittest.TestCase):
     """dashboard/src/components/panels/DecisionTrace.tsx exists and is wired."""
 
@@ -197,6 +201,10 @@ class TestDecisionTraceDashboardComponent(unittest.TestCase):
 # ── Last 20 decisions cap ─────────────────────────────────────────────────────
 
 
+@unittest.skipUnless(
+    (Path(__file__).parent.parent.parent / "dashboard" / "src").exists(),
+    "Next.js dashboard was superseded by the frontend/ HUD (served at /hud/)",
+)
 class TestDecisionTraceCap(unittest.TestCase):
     """Decision trace maintains at most 20 entries."""
 

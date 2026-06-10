@@ -354,6 +354,10 @@ class TestBroadcastEventHelper(unittest.TestCase):
 # ── Dashboard wiring ──────────────────────────────────────────────────────────
 
 
+@unittest.skipUnless(
+    (Path(__file__).parent.parent.parent / "dashboard" / "src").exists(),
+    "Next.js dashboard was superseded by the frontend/ HUD (served at /hud/)",
+)
 class TestDashboardWiring(unittest.TestCase):
     """App.tsx connects to /ws/state and handles state_event messages."""
 

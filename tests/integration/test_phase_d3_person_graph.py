@@ -250,6 +250,10 @@ class TestUpdateTrustEndpoint(unittest.TestCase):
 # ── PersonGraph.tsx component ─────────────────────────────────────────────────
 
 
+@unittest.skipUnless(
+    (Path(__file__).parent.parent.parent / "dashboard" / "src").exists(),
+    "Next.js dashboard was superseded by the frontend/ HUD (served at /hud/)",
+)
 class TestPersonGraphDashboard(unittest.TestCase):
     """dashboard/src/components/panels/PersonGraph.tsx exists with required features."""
 
