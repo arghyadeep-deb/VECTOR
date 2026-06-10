@@ -1,0 +1,588 @@
+"""RealtimeConversation — full-duplex voice orchestrator (design Phases 2-5).
+
+Implements docs/REALTIME_CONVERSATION_DESIGN.md on top of existing modules:
+  ConversationManager (FSM)  · VoiceActivityDetector (endpointing + barge-in)
+  WhisperSTT/FasterWhisperSTT (partial + final transcripts)
+  VoiceTTS/Kokoro (per-sentence synthesis) · rules_engine (instant bypass)
+  Governor (action handoff, RULE 3 intact)  · nudge_engine (proactive speech)
+  presence.allow_proactive (DND / reactive-mode gate)
+
+Transport-agnostic: the WS router passes a `send_json` coroutine; everything
+else is callbacks. One instance per connected duplex client.
+
+Turn lifecycle (§6 of the design):
+  LISTENING -> USER_SPEAKING (VAD speech) -> partial decodes every ~600ms
+  -> endpoint at `endpoint_silence_ms` of silence -> final transcript
+  -> PROCESSING (rules bypass | intent classify) ->
+       chat:   streaming LLM -> sentence TTS  (VECTOR_SPEAKING)
+       action: spoken ack -> governor.dispatch() async -> completion spoken
+  -> LISTENING.  Barge-in (§7): speech while VECTOR_SPEAKING cancels the
+  speak task, sends {"type":"stop_audio"}, returns to LISTENING.
+"""
+
+from __future__ import annotations
+
+__all__ = ["RealtimeConversation"]
+
+import asyncio
+import base64
+import io
+import json
+import re
+import time
+
+import numpy as np
+from loguru import logger
+
+from core.config import CONFIG
+
+
+# ── sentence streaming helpers (shared with the legacy push-to-talk path) ────
+
+_SENTENCE_ENDS = (".", "!", "?", "\n")
+
+
+def pop_sentence(buf: str, max_chars: int = 220) -> tuple[str, str]:
+    """Split off the first complete sentence from buf. Returns (sentence, rest)."""
+    for i, ch in enumerate(buf):
+        if ch in _SENTENCE_ENDS:
+            nxt = buf[i + 1:i + 2]
+            if ch == "." and nxt.isdigit():
+                continue
+            return buf[:i + 1].strip(), buf[i + 1:]
+    if len(buf) > max_chars:
+        cut = buf.rfind(" ", 0, max_chars)
+        cut = cut if cut > 0 else max_chars
+        return buf[:cut].strip(), buf[cut:]
+    return "", buf
+
+
+def tts_wav(text: str, speed: float = 0.85) -> bytes | None:
+    """Synthesize one sentence with Kokoro -> WAV bytes. Never raises."""
+    try:
+        import soundfile as sf
+        from core.voice.tts import VoiceTTS
+        tts = VoiceTTS()
+        if not tts._kokoro_ok:
+            return None
+        voice = CONFIG.get("voice", {}).get("kokoro_voice", "bf_emma")
+        samples, sample_rate = tts._kokoro.create(text, voice=voice, speed=speed)
+        buf = io.BytesIO()
+        sf.write(buf, samples, sample_rate, format="WAV")
+        return buf.getvalue()
+    except Exception as e:
+        logger.warning(f"[VECTOR][realtime] tts failed: {e}")
+        return None
+
+
+# ── Phase 4: intent classification (chat vs action) ──────────────────────────
+# Phrases that mean "go do something" route to the governor; everything else
+# is conversational and answered directly by the streaming LLM.
+
+_ACTION_PATTERNS: list[tuple[str, str]] = [
+    (r"\b(check|show)\b.*\battendance\b", "check_attendance"),
+    (r"\bgit (status|log)\b", "git_status"),
+    (r"\b(commit|push)\b.*\b(code|changes|repo)\b", "git_status"),
+    (r"\b(write|fix|refactor|debug|implement)\b.*\b(code|bug|function|module|test)\b", "code_task"),
+    (r"\b(research|investigate|deep.?dive)\b", "daily_digest"),
+    (r"\b(search|find)\b.*\b(arxiv|papers?)\b", "search_arxiv"),
+    (r"\b(search|look up|google)\b", "search_web"),
+    (r"\b(monitor|watch|track)\b", "monitor"),
+    (r"\b(scan|audit)\b.*\b(security|repo|system)\b", "security_scan"),
+    (r"\bfinance report\b|\bmonthly report\b", "monthly_report"),
+    (r"\b(schedule|remind me)\b", "schedule_task"),
+    (r"\b(run|execute)\b.*\b(backtest|strategy)\b", "backtest"),
+    (r"\b(summarize|digest)\b.*\b(news|feeds?)\b", "daily_digest"),
+]
+
+
+def classify_intent(text: str) -> str | None:
+    """Return a governor task type for action-like utterances, else None (chat)."""
+    low = text.lower()
+    for pattern, task_type in _ACTION_PATTERNS:
+        if re.search(pattern, low):
+            return task_type
+    return None
+
+
+def _in_quiet_hours(now_minutes: int, spec: str) -> bool:
+    """spec '23:30-07:00' (may wrap midnight). Empty spec -> never quiet."""
+    try:
+        if not spec or "-" not in spec:
+            return False
+        a, b = spec.split("-", 1)
+        ah, am = (int(x) for x in a.strip().split(":"))
+        bh, bm = (int(x) for x in b.strip().split(":"))
+        start, end = ah * 60 + am, bh * 60 + bm
+        if start == end:
+            return False
+        if start < end:
+            return start <= now_minutes < end
+        return now_minutes >= start or now_minutes < end  # wraps midnight
+    except Exception:
+        return False
+
+
+class RealtimeConversation:
+    """One full-duplex voice session. Feed PCM in; JSON events come out."""
+
+    def __init__(self, send_json, orb=None):
+        self._send = send_json                  # async callable(dict)
+        self._orb = orb                         # async callable(str) | None
+        voice_cfg = CONFIG.get("voice", {})
+        self._sr = 16000
+        self._endpoint_ms = int(voice_cfg.get("endpoint_silence_ms", 280))
+        self._bargein = bool(voice_cfg.get("bargein_enabled", True))
+        self._bargein_debounce_ms = int(voice_cfg.get("bargein_debounce_ms", 120))
+        self._partial_interval = float(voice_cfg.get("partial_interval_sec", 0.6))
+        self._proactive = bool(voice_cfg.get("proactive_speech", True))
+        self._proactive_min_priority = float(voice_cfg.get("proactive_min_priority", 0.7))
+        self._quiet_hours = str(voice_cfg.get("quiet_hours", "00:00-08:00"))
+
+        from core.voice.conversation_manager import ConversationManager
+        self._conv = ConversationManager()
+
+        from core.voice.vad import VoiceActivityDetector
+        self._vad = VoiceActivityDetector()
+        self._vad._min_silence_ms = self._endpoint_ms      # realtime endpointing
+        self._base_vad_threshold = self._vad._energy_threshold
+
+        self._stt = None                        # lazy — model load is heavy
+        self._utterance: list[np.ndarray] = []
+        self._utterance_started = 0.0
+        self._last_partial = 0.0
+        self._partial_busy = False
+        self._client_playing = False            # echo guard flag from client
+        self._bargein_speech_ms = 0.0
+        self._speak_task: asyncio.Task | None = None
+        self._cancel_speak = asyncio.Event()
+        self._nudge_unsub = None
+        self._closed = False
+
+    # ── session ──────────────────────────────────────────────────────────────
+
+    async def start(self, user_id: str = "owner") -> None:
+        self._conv.start_session(user_id)
+        self._conv.transition("LISTENING")
+        await self._state("LISTENING")
+        if self._proactive:
+            self._subscribe_nudges()
+        logger.info("[VECTOR][realtime] session started")
+
+    async def stop(self) -> None:
+        self._closed = True
+        await self._cancel_speaking()
+        if self._nudge_unsub:
+            try:
+                self._nudge_unsub()
+            except Exception:
+                pass
+            self._nudge_unsub = None
+        self._conv.end_session()
+        logger.info("[VECTOR][realtime] session ended")
+
+    def set_client_playing(self, playing: bool) -> None:
+        """Echo guard: client reports speaker playback; raise VAD threshold."""
+        self._client_playing = playing
+        self._vad._energy_threshold = (
+            self._base_vad_threshold * 2.5 if playing else self._base_vad_threshold
+        )
+
+    # ── audio in (Phase 2 + Phase 3) ─────────────────────────────────────────
+
+    async def feed_pcm(self, pcm_bytes: bytes) -> None:
+        """One int16 mono 16kHz frame from the client (~20-130ms)."""
+        if self._closed or not pcm_bytes:
+            return
+        frame = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+        frame_ms = len(frame) / self._sr * 1000.0
+        is_speech = self._vad.is_speech(frame, self._sr)
+        state = str(self._conv.current_state)
+
+        # Phase 3 — barge-in: user speaks while VECTOR is speaking
+        if state == "VECTOR_SPEAKING":
+            if self._bargein and is_speech:
+                self._bargein_speech_ms += frame_ms
+                if self._bargein_speech_ms >= self._bargein_debounce_ms:
+                    await self._barge_in(frame)
+            else:
+                self._bargein_speech_ms = 0.0
+            return
+
+        if state == "PROCESSING":
+            return  # ignore audio while thinking (next phase could queue it)
+
+        # Phase 2 — endpointing
+        if is_speech:
+            if state == "LISTENING":
+                self._conv.transition("USER_SPEAKING")
+                await self._state("USER_SPEAKING")
+                self._utterance = []
+                self._utterance_started = time.monotonic()
+                self._last_partial = time.monotonic()
+            self._utterance.append(frame)
+            # partial transcript every ~partial_interval while speaking
+            if (time.monotonic() - self._last_partial) >= self._partial_interval:
+                self._last_partial = time.monotonic()
+                asyncio.create_task(self._partial_decode())
+        elif state == "USER_SPEAKING":
+            self._utterance.append(frame)        # trailing context for STT
+            # VAD flipped back to SILENCE == endpoint reached
+            if self._vad.state == "SILENCE":
+                audio = np.concatenate(self._utterance) if self._utterance else np.zeros(0)
+                self._utterance = []
+                self._conv.transition("PROCESSING")
+                await self._state("PROCESSING")
+                asyncio.create_task(self._finalize_utterance(audio))
+
+    async def _barge_in(self, seed_frame: np.ndarray) -> None:
+        logger.info("[VECTOR][realtime] barge-in — interrupting")
+        self._bargein_speech_ms = 0.0
+        self._conv.interrupt()                   # VECTOR_SPEAKING -> INTERRUPTED
+        await self._cancel_speaking()
+        await self._safe_send({"type": "stop_audio"})
+        self._conv.transition("LISTENING")
+        await self._state("LISTENING")
+        # the speech that triggered the interrupt starts the next utterance
+        self._conv.transition("USER_SPEAKING")
+        await self._state("USER_SPEAKING")
+        self._utterance = [seed_frame]
+        self._utterance_started = time.monotonic()
+        self._last_partial = time.monotonic()
+
+    # ── STT (Phase 2) ─────────────────────────────────────────────────────────
+
+    def _get_stt(self):
+        if self._stt is None:
+            voice_cfg = CONFIG.get("voice", {})
+            realtime_model = voice_cfg.get("realtime_stt_model", "small")
+            try:
+                from core.voice.stt import FasterWhisperSTT
+                stt = FasterWhisperSTT()
+            except Exception:
+                from core.voice.stt import WhisperSTT
+                stt = WhisperSTT()
+            stt._model_name = realtime_model     # latency choice, see design §11
+            self._stt = stt
+        return self._stt
+
+    async def _partial_decode(self) -> None:
+        if self._partial_busy or not self._utterance:
+            return
+        self._partial_busy = True
+        try:
+            audio = np.concatenate(self._utterance)
+            text = await asyncio.to_thread(self._get_stt().transcribe, audio, self._sr)
+            if text and str(self._conv.current_state) == "USER_SPEAKING":
+                await self._safe_send({"type": "partial_transcript", "text": text})
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] partial decode skipped: {e}")
+        finally:
+            self._partial_busy = False
+
+    async def _finalize_utterance(self, audio: np.ndarray) -> None:
+        try:
+            if audio.size < self._sr // 4:       # <250ms of audio — noise blip
+                self._back_to_listening()
+                await self._state("LISTENING")
+                return
+            text = await asyncio.to_thread(self._get_stt().transcribe, audio, self._sr)
+            text = (text or "").strip()
+            if not text:
+                self._back_to_listening()
+                await self._state("LISTENING")
+                return
+            await self._safe_send({"type": "final_transcript", "text": text})
+
+            # prompt-injection scan before the text reaches any LLM (design §11)
+            try:
+                from core.security.prompt_injection import scan_text
+                if not scan_text(text, "realtime_voice").clean:
+                    await self._speak_text("I'm not acting on that input.")
+                    self._back_to_listening()
+                    await self._state("LISTENING")
+                    return
+            except Exception:
+                pass
+
+            await self._respond(text)
+        except Exception as e:
+            logger.error(f"[VECTOR][realtime] finalize failed: {e}")
+            self._back_to_listening()
+            await self._state("LISTENING")
+
+    def _back_to_listening(self) -> None:
+        cur = str(self._conv.current_state)
+        if cur != "LISTENING":
+            self._conv.transition("LISTENING")
+
+    # ── respond (Phases 1+4) ──────────────────────────────────────────────────
+
+    async def _respond(self, text: str) -> None:
+        # 1. rules-engine bypass — instant, no LLM
+        try:
+            from core.security.rules_engine import get_rules_engine
+            engine = get_rules_engine()
+            rule = engine.match(text)
+            if rule:
+                answer = engine.execute_rule(rule, {}) or "Done."
+                await self._safe_send({"type": "response", "text": answer})
+                await self._speak_text(answer)
+                self._store_turn(text, answer, ["bypass", rule.category])
+                self._back_to_listening()
+                await self._state("LISTENING")
+                return
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] rules bypass skipped: {e}")
+
+        # 2. Phase 4 — action handoff to governor (RULE 3: gateway untouched)
+        task_type = classify_intent(text)
+        if task_type:
+            ack = "On it."
+            await self._safe_send({"type": "action_ack", "task_type": task_type, "text": ack})
+            await self._speak_text(ack)
+            asyncio.create_task(self._run_action(task_type, text))
+            await self._publish_voice_event(text, task_type)
+            self._back_to_listening()
+            await self._state("LISTENING")
+            return
+
+        # 3. chat — streaming LLM -> sentence TTS
+        self._cancel_speak.clear()
+        self._speak_task = asyncio.create_task(self._stream_chat(text))
+        try:
+            await self._speak_task
+        except asyncio.CancelledError:
+            logger.info("[VECTOR][realtime] speak task cancelled (barge-in)")
+        finally:
+            self._speak_task = None
+            if str(self._conv.current_state) == "VECTOR_SPEAKING":
+                self._conv.transition("LISTENING")
+                await self._state("LISTENING")
+            await self._safe_send({"type": "done"})
+
+    async def _stream_chat(self, text: str) -> None:
+        import httpx
+
+        ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+        model = CONFIG.get("models", {}).get("focus", "vector-focus")
+        speed = 0.85
+        prompt = text
+        try:
+            if CONFIG.get("personality", {}).get("enabled", True):
+                from core.personality import PersonalityEngine
+                if not hasattr(RealtimeConversation, "_pe"):
+                    RealtimeConversation._pe = PersonalityEngine()
+                result = RealtimeConversation._pe.process(text)
+                sp = result.get("system_prompt", "")
+                tone = result.get("tone_config")
+                if tone:
+                    speed = tone.speed
+                if sp:
+                    prompt = f"{sp}\n\nUser: {text}"
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] personality skipped: {e}")
+
+        full, buf, seq = "", "", 0
+        speaking = False
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream(
+                "POST", f"{ollama_host}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": True, "keep_alive": -1},
+            ) as r:
+                if r.status_code != 200:
+                    raise RuntimeError(f"ollama status {r.status_code}")
+                async for line in r.aiter_lines():
+                    if self._cancel_speak.is_set():
+                        return
+                    if not line.strip():
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    token = payload.get("response", "")
+                    if token:
+                        full += token
+                        buf += token
+                        await self._safe_send({"type": "response_partial", "text": full})
+                        sentence, buf = pop_sentence(buf)
+                        if sentence:
+                            if not speaking:
+                                speaking = True
+                                self._conv.transition("VECTOR_SPEAKING")
+                                await self._state("VECTOR_SPEAKING")
+                            await self._emit_sentence(sentence, speed, seq)
+                            seq += 1
+                    if payload.get("done"):
+                        break
+        tail = buf.strip()
+        if tail and not self._cancel_speak.is_set():
+            if not speaking:
+                self._conv.transition("VECTOR_SPEAKING")
+                await self._state("VECTOR_SPEAKING")
+            await self._emit_sentence(tail, speed, seq)
+        if full.strip():
+            await self._safe_send({"type": "response", "text": full.strip()})
+            self._store_turn(text, full.strip(), ["chat", "realtime"])
+
+    async def _emit_sentence(self, sentence: str, speed: float, seq: int) -> None:
+        if self._cancel_speak.is_set():
+            return
+        wav = await asyncio.to_thread(tts_wav, sentence, speed)
+        if wav and not self._cancel_speak.is_set():
+            await self._safe_send({
+                "type": "audio",
+                "data": base64.b64encode(wav).decode(),
+                "sample_rate": 24000,
+                "seq": seq,
+            })
+
+    async def _speak_text(self, text: str) -> None:
+        """Speak a short standalone line (ack / nudge / bypass answer)."""
+        prev = str(self._conv.current_state)
+        if prev in ("LISTENING", "PROCESSING", "IDLE"):
+            # FSM only allows VECTOR_SPEAKING from PROCESSING
+            if prev != "PROCESSING":
+                self._conv.transition("USER_SPEAKING")
+                self._conv.transition("PROCESSING")
+            self._conv.transition("VECTOR_SPEAKING")
+            await self._state("VECTOR_SPEAKING")
+        await self._emit_sentence(text, 0.85, 0)
+        if str(self._conv.current_state) == "VECTOR_SPEAKING":
+            self._conv.transition("LISTENING")
+            await self._state("LISTENING")
+
+    # ── Phase 4: governor handoff ─────────────────────────────────────────────
+
+    async def _run_action(self, task_type: str, text: str) -> None:
+        try:
+            from core.city.governor import Governor
+            result = await Governor().dispatch({
+                "type": task_type,
+                "params": {"query": text, "user_message": text},
+                "source": "voice_realtime",
+            })
+            status = result.get("status", "unknown")
+            if status == "ok":
+                summary = str(
+                    result.get("summary")
+                    or result.get("message")
+                    or f"{task_type.replace('_', ' ')} finished."
+                )[:280]
+            elif status == "no_agents":
+                summary = f"No agent is registered for {task_type.replace('_', ' ')} yet."
+            else:
+                summary = f"{task_type.replace('_', ' ')} came back with status {status}."
+            if not self._closed:
+                await self._safe_send({"type": "action_result", "task_type": task_type,
+                                       "status": status, "text": summary})
+                await self._speak_text(summary)
+            self._store_turn(text, summary, ["action", task_type])
+        except Exception as e:
+            logger.error(f"[VECTOR][realtime] action '{task_type}' failed: {e}")
+            if not self._closed:
+                await self._speak_text("That task hit an error. Details are in the log.")
+
+    async def _publish_voice_event(self, text: str, task_type: str) -> None:
+        """Wake the autonomous loop via the event bus (kills the 10s poll path)."""
+        try:
+            from core.event_bus.bus import get_event_bus
+            from core.event_bus.types import Event, EventType
+            bus = await get_event_bus()
+            await bus.publish(Event(
+                event_type=EventType.VOICE_INPUT,
+                data={"text": text, "task_type": task_type},
+                source="voice_realtime",
+            ))
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] voice event publish skipped: {e}")
+
+    # ── Phase 5: proactive speech ─────────────────────────────────────────────
+
+    def _subscribe_nudges(self) -> None:
+        try:
+            from core.loop.nudge_engine import nudge_engine
+            if hasattr(nudge_engine, "subscribe"):
+                self._nudge_unsub = nudge_engine.subscribe(self._on_nudge)
+                logger.info("[VECTOR][realtime] proactive speech armed")
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] nudge subscribe skipped: {e}")
+
+    def _on_nudge(self, nudge: dict) -> None:
+        """Sync callback from nudge_engine — schedule async speech if allowed."""
+        try:
+            asyncio.get_running_loop().create_task(self._maybe_speak_nudge(nudge))
+        except RuntimeError:
+            pass  # no running loop in caller thread — skip
+
+    async def _maybe_speak_nudge(self, nudge: dict) -> None:
+        if self._closed or not nudge:
+            return
+        state = str(self._conv.current_state)
+        if state not in ("IDLE", "LISTENING"):
+            return                                # never talk over a turn
+        priority = float(nudge.get("priority", 0.5))
+        if priority < self._proactive_min_priority:
+            return
+        now = time.localtime()
+        if _in_quiet_hours(now.tm_hour * 60 + now.tm_min, self._quiet_hours):
+            return
+        try:
+            from core.loop.presence import allow_proactive
+            if not allow_proactive("realtime_voice"):
+                return
+        except Exception:
+            pass
+        text = str(nudge.get("text", "")).strip()
+        if not text:
+            return
+        logger.info("[VECTOR][realtime] proactive: {}", text[:80])
+        await self._safe_send({"type": "proactive", "text": text})
+        await self._speak_text(text)
+        self._store_turn("(proactive)", text, ["proactive", str(nudge.get("rule", ""))])
+
+    # ── plumbing ──────────────────────────────────────────────────────────────
+
+    async def _cancel_speaking(self) -> None:
+        self._cancel_speak.set()
+        task = self._speak_task
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        self._speak_task = None
+
+    async def _state(self, value: str) -> None:
+        await self._safe_send({"type": "state", "value": value})
+        if self._orb is not None:
+            try:
+                orb_map = {"LISTENING": "listening", "USER_SPEAKING": "listening",
+                           "PROCESSING": "processing", "VECTOR_SPEAKING": "speaking",
+                           "IDLE": "idle"}
+                await self._orb(orb_map.get(value, "idle"))
+            except Exception:
+                pass
+
+    async def _safe_send(self, payload: dict) -> None:
+        if self._closed:
+            return
+        try:
+            await self._send(payload)
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] send failed (client gone?): {e}")
+            self._closed = True
+
+    def _store_turn(self, user_text: str, vector_text: str, tags: list[str]) -> None:
+        try:
+            from core.memory.episodic import EpisodicMemory
+            EpisodicMemory().store(
+                event_type="realtime_conversation",
+                content=f"Q: {user_text} | A: {vector_text}",
+                tags=["voice"] + tags,
+                source="realtime_voice",
+            )
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] episodic store skipped: {e}")

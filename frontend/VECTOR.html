@@ -101,6 +101,7 @@
 <script src="js/vector-core.js"></script>
 <script src="js/voice_stream.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/voice_duplex.js"></script>
 <script src="js/widgets.js"></script>
 <script src="js/gestures.js"></script>
 <script src="js/face.js"></script>
@@ -198,9 +199,4 @@
     if(!cfg.autoConnect || !cfg.base) return;     // stay on demo data
     V.connect({ base:cfg.base, ws:cfg.ws, apiKey:cfg.apiKey })
       .then(()=>console.info('[VECTOR] connected →', cfg.base))
-      .catch(err=>console.warn('[VECTOR] backend unreachable — demo mode.', err));
-  })();
-})();
-</script>
-</body>
-</html>
+      .catch(err=>console.warn('[VECTOR] backend unreachable — demo mode.', err)

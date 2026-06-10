@@ -147,8 +147,14 @@
   // Sentence-streamed WAVs from /ws/voice/stream: each 'audio' message is one
   // complete WAV. Decode independently, play strictly in order. While server
   // audio plays, drive speakEnv so the orb reacts, and suppress browser TTS.
-  let srvQueue=[], srvPlaying=false, srvLastAt=0;
+  let srvQueue=[], srvPlaying=false, srvLastAt=0, srvSource=null;
   function serverVoiceRecent(){ return srvPlaying || (Date.now()-srvLastAt) < 3000; }
+  function flushServerAudio(){
+    // barge-in: stop the current sentence and drop everything queued
+    srvQueue=[];
+    if(srvSource){ try{ srvSource.onended=null; srvSource.stop(); }catch(e){} srvSource=null; }
+    if(srvPlaying){ srvPlaying=false; speakEnv=0; if(V) V.emit('server-voice',{playing:false}); }
+  }
   function b64ToArrayBuffer(b64){
     const bin=atob(b64), len=bin.length, buf=new Uint8Array(len);
     for(let i=0;i<len;i++) buf[i]=bin.charCodeAt(i);
@@ -165,12 +171,19 @@
   function pumpServerAudio(){
     if(srvPlaying || !srvQueue.length || !ctx) return;
     srvPlaying=true; srvLastAt=Date.now();
+    if(V) V.emit('server-voice',{playing:true});   // echo guard for duplex mic
     const buf=srvQueue.shift();
     const src=ctx.createBufferSource(); src.buffer=buf; src.connect(master);
+    srvSource=src;
     const env=setInterval(()=>{ speakEnv=0.35+Math.random()*0.45; }, 90);
-    src.onended=()=>{ clearInterval(env); speakEnv=0; srvPlaying=false; srvLastAt=Date.now(); pumpServerAudio(); };
-    try{ src.start(); }catch(e){ clearInterval(env); speakEnv=0; srvPlaying=false; console.warn('[audio] server wav play failed', e); }
+    src.onended=()=>{
+      clearInterval(env); speakEnv=0; srvPlaying=false; srvSource=null; srvLastAt=Date.now();
+      if(!srvQueue.length && V) V.emit('server-voice',{playing:false});
+      pumpServerAudio();
+    };
+    try{ src.start(); }catch(e){ clearInterval(env); speakEnv=0; srvPlaying=false; srvSource=null; console.warn('[audio] server wav play failed', e); }
   }
+  if(V) V.on('audio:flush', flushServerAudio);
 
   // first-gesture unlock
   ['click','keydown','pointerdown'].forEach(ev=>addEventListener(ev, function once(){

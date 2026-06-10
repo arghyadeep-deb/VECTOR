@@ -153,6 +153,62 @@ async def voice_stream(websocket: WebSocket):
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 
+@router.websocket("/duplex")
+async def voice_duplex(websocket: WebSocket):
+    """Full-duplex realtime conversation (design Phases 2-5).
+
+    Client -> Server: binary frames = int16 mono 16kHz PCM (continuous)
+                      {"type":"playing","value":bool}  — echo guard
+                      {"type":"control","action":"end_session"}
+    Server -> Client: state / partial_transcript / final_transcript /
+                      response_partial / response / audio / stop_audio /
+                      action_ack / action_result / proactive / done
+    """
+    await websocket.accept()
+    logger.info("[VECTOR][voice_ws] duplex client connected")
+
+    async def _orb(state: str) -> None:
+        try:
+            from core.api.routers.websocket import broadcast_event  # type: ignore
+            await broadcast_event({"type": "orb_state", "state": state})
+        except Exception as _e:
+            logger.debug(f"[VECTOR][voice_ws] orb broadcast skipped: {_e}")
+
+    from core.voice.realtime import RealtimeConversation
+    rc = RealtimeConversation(send_json=websocket.send_json, orb=_orb)
+    await rc.start()
+    try:
+        while True:
+            raw = await websocket.receive()
+            if raw.get("type") == "websocket.disconnect":
+                break
+            if raw.get("type") != "websocket.receive":
+                continue
+            if "bytes" in raw and raw["bytes"]:
+                await rc.feed_pcm(raw["bytes"])
+            elif "text" in raw:
+                try:
+                    msg = json.loads(raw["text"])
+                except json.JSONDecodeError:
+                    continue
+                mtype = msg.get("type", "")
+                if mtype == "playing":
+                    rc.set_client_playing(bool(msg.get("value")))
+                elif mtype == "control" and msg.get("action") == "end_session":
+                    break
+                # auth handshake messages ({"auth": ...}) are accepted silently
+    except WebSocketDisconnect:
+        logger.info("[VECTOR][voice_ws] duplex client disconnected")
+    except Exception as e:
+        logger.error(f"[VECTOR][voice_ws] duplex error: {e}")
+    finally:
+        await rc.stop()
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 def _parse_intent(text: str) -> dict | None:
     """Extract location queries from natural voice commands.
     

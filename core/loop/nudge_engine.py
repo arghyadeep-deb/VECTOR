@@ -23,6 +23,7 @@ class NudgeEngine:
         self._session_start = time.time()
         self._last_idle_time = 0.0
         self._check_interval = 30
+        self._subscribers: list = []
 
     @property
     def latest(self) -> dict | None:
@@ -31,20 +32,46 @@ class NudgeEngine:
     def dismiss(self):
         self._latest = None
 
-    def push(self, text: str, source: str = "proactive", need: str = "") -> dict:
+    def subscribe(self, callback):
+        """Register callback(nudge_dict), fired on every new nudge.
+
+        Used by the realtime voice layer (design Phase 5: proactive speech).
+        Returns an unsubscribe function. Subscriber failures are swallowed so
+        one bad subscriber can't break nudge generation.
+        """
+        self._subscribers.append(callback)
+
+        def _unsubscribe():
+            try:
+                self._subscribers.remove(callback)
+            except ValueError:
+                pass
+        return _unsubscribe
+
+    def _notify(self, nudge: dict) -> None:
+        for cb in list(self._subscribers):
+            try:
+                cb(nudge)
+            except Exception as e:
+                logger.debug(f"[VECTOR][nudge] subscriber error suppressed: {e}")
+
+    def push(self, text: str, source: str = "proactive", need: str = "", priority: float = 0.8) -> dict:
         """Surface a proactive nudge directly (e.g. from the anticipation engine).
 
         The frontend polls /nudge/latest, so setting _latest here makes the
-        prediction visible to the owner without an LLM round-trip.
+        prediction visible to the owner without an LLM round-trip. Subscribers
+        (realtime voice) are notified so high-priority nudges can be SPOKEN.
         """
         self._latest = {
             "text": text,
             "rule": source,
             "need": need,
+            "priority": priority,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "signals": {},
         }
         logger.info(f"[VECTOR][nudge] (proactive) {source}: {text}")
+        self._notify(self._latest)
         return self._latest
 
     async def tick(self):
@@ -59,6 +86,7 @@ class NudgeEngine:
                 "signals": signals,
             }
             logger.info(f"[VECTOR][nudge] {rule['name']}: {text}")
+            self._notify(self._latest)
 
     def _collect_signals(self) -> dict:
         signals = {
