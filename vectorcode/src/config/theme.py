@@ -79,7 +79,6 @@ def _parse_toml_theme(text: str) -> dict:
     """
     try:
         import tomllib  # Python 3.11+
-from pathlib import Path
         raw = tomllib.loads(text)
         # tomllib won't unescape \\x1b — handle manually
         result: dict = {}
