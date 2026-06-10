@@ -143,8 +143,6 @@ class MemoryPersona:
                         "context": context,
                     })
             return results
-        finally:
-            conn.close()
 
     def infer_implicit_feedback(self, user_text_before: str, user_text_after: str) -> PersonalityLesson | None:
         if not user_text_after:
