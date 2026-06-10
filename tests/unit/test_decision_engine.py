@@ -197,12 +197,13 @@ class TestA2CTrainer:
         await engine.evaluate([c])
         assert 0.0 <= c.total_score <= 1.0
 
-    async def test_trainer_select_action_works(self):
+    async def test_evaluate_records_neural_state_and_learn_on_outcome(self):
+        # New contract (audit 2026-06-08): evaluate() records _last_neural
+        # (state + chosen action); record_outcome(reward) trains the network.
         engine = DecisionEngine()
         mock_trainer = MagicMock()
-        mock_trainer.select_action.return_value = 5
+        mock_trainer.train_episode.return_value = {"total": 0.1, "episode": 1}
         mock_trainer.save_checkpoint.return_value = None
-        mock_trainer.load_checkpoint.return_value = None
         engine._get_neural_trainer = MagicMock(return_value=mock_trainer)
         engine._get_policy = MagicMock()
         engine._get_policy().get_score.return_value = 0.5
@@ -216,28 +217,23 @@ class TestA2CTrainer:
         engine._get_reasoning_bank = MagicMock(return_value=None)
         c = make_candidate("search_web", confidence=0.5)
         await engine.evaluate([c])
-        mock_trainer.select_action.assert_called_once()
+        assert engine._last_neural is not None
+        assert "state" in engine._last_neural and "action" in engine._last_neural
+        engine.record_outcome(0.8)
+        mock_trainer.train_episode.assert_called_once()
+        assert engine._last_neural is None  # consumed after learning
 
     async def test_checkpoint_saved_periodically(self):
+        # Checkpoint fires inside record_outcome when _decision_count % 100 == 0.
         engine = DecisionEngine()
         mock_trainer = MagicMock()
-        mock_trainer.select_action.return_value = 5
+        mock_trainer.train_episode.return_value = {"total": 0.1, "episode": 1}
         mock_trainer.save_checkpoint.return_value = None
-        mock_trainer.load_checkpoint.return_value = None
         engine._get_neural_trainer = MagicMock(return_value=mock_trainer)
-        engine._get_policy = MagicMock()
-        engine._get_policy().get_score.return_value = 0.5
-        engine._get_goals = MagicMock()
-        engine._get_goals().get_active_goals.return_value = []
-        engine._get_memory = MagicMock()
-        engine._get_memory().store.return_value = None
-        engine._get_epistemic = MagicMock()
-        engine._get_epistemic().get_belief.return_value = None
-        engine._get_epistemic().update_belief.return_value = None
-        engine._get_reasoning_bank = MagicMock(return_value=None)
-        for i in range(100):
-            c = make_candidate(f"action_{i}", confidence=0.5)
-            await engine.evaluate([c])
+        import numpy as np
+        engine._decision_count = 100
+        engine._last_neural = {"state": np.zeros(8, dtype=np.float32), "action": 3}
+        engine.record_outcome(0.5)
         assert mock_trainer.save_checkpoint.called
 
 
