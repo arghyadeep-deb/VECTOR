@@ -1,4 +1,4 @@
-"""Audit router Ã¢â‚¬— /audit/recent + /audit/verify."""
+"""Audit router — /audit/recent + /audit/verify."""
 
 from pathlib import Path
 import sys
@@ -65,4 +65,4 @@ async def audit_verify():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("Ã¢Å“… audit.py OK")
+    print("✅ audit.py OK")

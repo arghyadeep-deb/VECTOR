@@ -1,4 +1,4 @@
-"""WebSocket endpoint for streaming voice ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â push-to-talk flow.
+"""WebSocket endpoint for streaming voice — push-to-talk flow.
 
 Protocol:
   Client -> Server: binary audio chunks (webm/opus)

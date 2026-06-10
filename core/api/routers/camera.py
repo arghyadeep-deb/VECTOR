@@ -1,4 +1,4 @@
-"""VECTOR camera router ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â live webcam stream with YOLO object detection."""
+"""VECTOR camera router — live webcam stream with YOLO object detection."""
 
 __all__ = [
     "camera_status",
@@ -57,7 +57,7 @@ async def camera_ws(ws: WebSocket):
     try:
         import cv2
 
-        # Try to load YOLO ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gracefully skip if not available
+        # Try to load YOLO — gracefully skip if not available
         try:
             from ultralytics import YOLO
             model = YOLO("yolov8n.pt")
@@ -102,7 +102,7 @@ async def camera_ws(ws: WebSocket):
                 except Exception as e:
                     logger.warning(f"[VECTOR][camera] Detection error: {e}")
 
-            # Encode frame to JPEG ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ base64
+            # Encode frame to JPEG → base64
             ok, buf = cv2.imencode(".jpg", frame, encode_params)
             if not ok:
                 continue

@@ -437,11 +437,11 @@ def _deprecated_get_security_posture_warnings(settings=None) -> list[str]:
     )
     if gate_recovery_envelope_requested and not gate_recovery_envelope_ack:
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬— envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true without MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — envelope_recovery and envelope_always gates remain disabled until you explicitly acknowledge the recovery-material privacy tradeoff."
         )
     elif gate_recovery_envelope_effective(snapshot):
         warnings.append(
-            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true Ã¢â‚¬— gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
+            "MESH_GATE_RECOVERY_ENVELOPE_ENABLE=true with MESH_GATE_RECOVERY_ENVELOPE_ENABLE_ACKNOWLEDGE=true — gates configured for envelope_recovery or envelope_always may retain recovery envelopes."
         )
 
     gate_plaintext_persist_requested = bool(getattr(snapshot, "MESH_GATE_PLAINTEXT_PERSIST", False))

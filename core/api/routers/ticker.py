@@ -126,7 +126,7 @@ def _aggregator_headlines(limit: int) -> list[dict] | None:
             if hasattr(agg, fn):
                 items: Any = getattr(agg, fn)(limit) if callable(getattr(agg, fn)) else None
                 if asyncio.iscoroutine(items):
-                    return None  # async path Ã¢â‚¬— handled at call site
+                    return None  # async path — handled at call site
                 if isinstance(items, list):
                     return [_norm_headline(it) for it in items][:limit]
         return None

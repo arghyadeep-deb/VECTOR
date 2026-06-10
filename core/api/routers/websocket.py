@@ -67,12 +67,12 @@ class ConnectionManager:
     async def connect(self, ws: WebSocket):
         await ws.accept()
         self._connections.append(ws)
-        logger.info(f"[VECTOR][ws] Client connected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {len(self._connections)} total")
+        logger.info(f"[VECTOR][ws] Client connected — {len(self._connections)} total")
 
     def disconnect(self, ws: WebSocket):
         if ws in self._connections:
             self._connections.remove(ws)
-        logger.info(f"[VECTOR][ws] Client disconnected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {len(self._connections)} total")
+        logger.info(f"[VECTOR][ws] Client disconnected — {len(self._connections)} total")
 
     async def broadcast(self, message: dict):
         """Send a message to all connected clients."""
@@ -181,17 +181,17 @@ async def vector_ws(websocket: WebSocket):
     immediately before any data is sent.
 
     Message protocol:
-        Client ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Server:
-            {"action": "ping"}           ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ heartbeat
-            {"action": "command", "text": "..."}  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ execute command via intelligence stack
-            {"action": "subscribe", "channel": "status"}  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ start streaming
+        Client → Server:
+            {"action": "ping"}           → heartbeat
+            {"action": "command", "text": "..."}  → execute command via intelligence stack
+            {"action": "subscribe", "channel": "status"}  → start streaming
 
-        Server ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Client:
-            {"type": "status",  ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ full system status (every 2s)
-            {"type": "events",  ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ recent memory events (every 5s)
-            {"type": "agent",   ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ single agent update
-            {"type": "response", ...}    ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ command response
-            {"type": "error",   ...}     ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ error message
+        Server → Client:
+            {"type": "status",  ...}     → full system status (every 2s)
+            {"type": "events",  ...}     → recent memory events (every 5s)
+            {"type": "agent",   ...}     → single agent update
+            {"type": "response", ...}    → command response
+            {"type": "error",   ...}     → error message
     """
     await manager.connect(websocket)
     if not await require_auth_handshake(websocket):
@@ -203,7 +203,7 @@ async def vector_ws(websocket: WebSocket):
         await manager.send_personal(websocket, await _build_recent_events())
 
         while True:
-            # Non-blocking receive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â timeout after 30s to allow background pushes
+            # Non-blocking receive — timeout after 30s to allow background pushes
             try:
                 raw = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
             except asyncio.TimeoutError:
@@ -242,7 +242,7 @@ async def vector_ws(websocket: WebSocket):
                     from core.loop.permission_gateway import PermissionGateway, Action
                     from core.memory.policy import PolicyMemory
 
-                    # RULE 1 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Session hydration
+                    # RULE 1 — Session hydration
                     ctx = ContextEngine()
                     hydration = ctx.session_hydration_prompt()
 
@@ -442,4 +442,4 @@ async def ws_command_http(request: WSCommandRequest):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ websocket.py OK")
+    print("✅ websocket.py OK")
