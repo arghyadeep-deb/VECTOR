@@ -124,7 +124,7 @@ class AvatarState:
                     self.updated_at,
                 ))
                 conn.commit()
-                conn.close()
+                # shared singleton connection — do not close
             logger.debug("[VECTOR][avatar_state] saved (mood={})", self.mood_label)
         except Exception as e:
             logger.warning("[VECTOR][avatar_state] save failed: {}", e)
