@@ -428,6 +428,19 @@ class Uploader(AgentBase):
                             schedule["metadata"].get("caption", ""),
                             schedule["metadata"].get("hashtags", [])
                         )
+                    elif schedule["platform"] == "tiktok":
+                        result = await self.upload_to_tiktok(
+                            schedule["video_path"],
+                            schedule["metadata"].get("caption", ""),
+                            schedule["metadata"].get("hashtags", [])
+                        )
+                    elif schedule["platform"] == "twitter":
+                        result = await self.upload_to_twitter(
+                            schedule["video_path"],
+                            schedule["metadata"].get("caption", "")
+                            or schedule["metadata"].get("title", ""),
+                            schedule["metadata"].get("hashtags", [])
+                        )
                     else:
                         result = self._simulate_upload(
                             schedule["platform"],
