@@ -279,6 +279,24 @@ districts:
       description: Opportunity detection from news and trend signals
       capabilities: [intelligence, opportunities, signals]
 
+    - name: social_miner
+      class: districts.news_trends.social_miner.SocialMiner
+      model: vector-focus
+      description: Mine user problem statements from Reddit + HN (30-day window)
+      capabilities: [social_mining, problems, reddit, hackernews]
+
+    - name: problem_clusterer
+      class: districts.news_trends.problem_clusterer.ProblemClusterer
+      model: vector-reasoning
+      description: Cluster mined problems, rank by demand, flag software-solvable
+      capabilities: [clustering, ranking, demand_analysis]
+
+    - name: venture_pipeline
+      class: districts.news_trends.venture_pipeline.VenturePipeline
+      model: vector-reasoning
+      description: End-to-end side-hustle pipeline - mine, cluster, validate, draft, report
+      capabilities: [venture, orchestration, side_hustle]
+
   learning:
     - name: course_tracker
       class: districts.learning.course_tracker.CourseTracker
@@ -407,24 +425,4 @@ districts:
     - name: ai_citation_strategist
       class: districts.marketing.ai_citation_strategist.AICitationStrategist
       model: vector-reasoning
-      description: Strategy for maximising AI engine citations and AEO
-      capabilities: [marketing, ai_citation, aeo, content]
-
-    - name: growth_hacker
-      class: districts.marketing.growth_hacker.GrowthHacker
-      model: vector-reasoning
-      description: Growth loops, viral mechanics, north-star metric analysis
-      capabilities: [marketing, growth, analytics]
-
-  skills:
-    - name: skill_mapper
-      class: districts.skills.skill_mapper.SkillMapper
-      model: vector-reasoning
-      description: Skill graph construction and gap identification
-      capabilities: [skills, mapping, gaps]
-
-    - name: mastery_tracker
-      class: districts.skills.mastery_tracker.MasteryTracker
-      model: vector-focus
-      description: Skill mastery progression and plateau detection
-      capabilities: [skills, mastery, tracking]
+      description: Strategy f

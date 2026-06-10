@@ -80,6 +80,9 @@ def tts_wav(text: str, speed: float = 0.85) -> bytes | None:
 # is conversational and answered directly by the streaming LLM.
 
 _ACTION_PATTERNS: list[tuple[str, str]] = [
+    (r"\b(venture|side.?hustle|business idea)\b.*\b(pipeline|scan|search|run)\b", "venture_pipeline"),
+    (r"\brun\b.*\bventure pipeline\b", "venture_pipeline"),
+    (r"\b(mine|scan)\b.*\b(reddit|social|problems)\b", "mine_social"),
     (r"\b(check|show)\b.*\battendance\b", "check_attendance"),
     (r"\bgit (status|log)\b", "git_status"),
     (r"\b(commit|push)\b.*\b(code|changes|repo)\b", "git_status"),

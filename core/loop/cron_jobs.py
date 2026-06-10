@@ -210,6 +210,23 @@ async def job_trigger_workflow(*, _ctx: dict | None = None) -> dict:
         return {"status": "failed", "reason": str(e)}
 
 
+async def job_venture_pipeline(*, _ctx: dict | None = None) -> dict:
+    """Weekly (Mon 07:00) — side-hustle discovery pipeline.
+
+    Mines Reddit+HN problems (30d), clusters + ranks demand, validates the top
+    software-solvable ideas through the startups district, drafts marketing
+    scripts, writes data/venture/venture_report_*.md, and pushes a high-priority
+    nudge (spoken by the realtime voice layer when the owner is present).
+    Publishing and building remain owner-approved actions.
+    """
+    try:
+        from districts.news_trends.venture_pipeline import VenturePipeline
+        return await VenturePipeline().execute()
+    except Exception as e:
+        logger.warning(f"[VECTOR][cron] venture_pipeline failed: {e}")
+        return {"status": "failed", "reason": str(e)}
+
+
 async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
     """Weekly growth analyst report (Sunday)."""
     try:
@@ -259,6 +276,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("weekly-recipe-sync",    "weekly", "30 1 * * 0", job_recipe_sync),
         ("weekly-dspy-optimize",  "weekly", "0 2 * * 0", job_weekly_dspy_optimize),
         ("weekly-growth-report",  "weekly", "0 23 * * 0", job_weekly_growth_report),
+        ("weekly-venture-pipeline","weekly", "0 7 * * 1", job_venture_pipeline),
         # SubconsciousLoop — every 30 min (uses interval, registered separately below)
     ]
 
@@ -420,6 +438,7 @@ __all__ = [
     "job_content_scheduler",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
+    "job_venture_pipeline",
     "job_trigger_workflow",
     "job_benchmark_suite",
     "job_recipe_sync",
