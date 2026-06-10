@@ -50,7 +50,8 @@ def test_daily_reviewer_review_llm_unavailable():
         vault = Path(d)
         (vault / "Reflections").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.review())
     assert ok is True
     assert bot.health_points > 0
@@ -70,7 +71,8 @@ def test_journal_writer_daily_llm_unavailable():
         vault = Path(d)
         (vault / "Journals").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.write_daily())
     assert ok is True
 
@@ -82,7 +84,8 @@ def test_journal_writer_weekly_llm_unavailable():
         vault = Path(d)
         (vault / "Reviews").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.write_weekly())
     assert ok is True
 
@@ -101,7 +104,8 @@ def test_growth_analyst_analyse_llm_unavailable():
         vault = Path(d)
         (vault / "Reflections").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.analyse())
     assert ok is True
 
@@ -183,7 +187,8 @@ def test_exercise_logger_weekly_report():
         vault = Path(d)
         (vault / "Health").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.weekly_report())
     assert ok is True
 
@@ -291,7 +296,8 @@ def test_budget_analyst_analyse():
         vault = Path(d)
         (vault / "Finance").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.analyse())
     assert ok is True
 
@@ -348,7 +354,8 @@ def test_project_planner_create_project():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             proj = bot.create_project("Test Project", "Build something useful", "2026-12-31")
     assert proj["id"]
     assert proj["name"] == "Test Project"
@@ -362,7 +369,8 @@ def test_project_planner_list_active():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             bot.create_project("P1", "Goal 1", "2026-06-01")
             bot.create_project("P2", "Goal 2", "2026-07-01")
     projects = bot.list_active_projects()
@@ -418,7 +426,8 @@ def test_progress_tracker_weekly_report():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.weekly_report())
     assert ok is True
 
@@ -448,7 +457,8 @@ def test_doc_writer_readme():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             ok = bot.write_doc("VECTOR", "readme", context="Autonomous AI agent")
     assert ok is True
 
@@ -460,7 +470,8 @@ def test_doc_writer_all_types():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
+             patch("ollama.chat", side_effect=Exception("offline")):
             for doc_type in DocWriter.DOC_TYPES:
                 ok = bot.write_doc("TestProj", doc_type)
                 assert ok is True, f"Failed for doc_type={doc_type}"
