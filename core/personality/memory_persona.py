@@ -115,8 +115,7 @@ class MemoryPersona:
         logger.debug("[MemoryPersona] stored lesson: {} in '{}' (outcome={})", lesson.response_type, lesson.context, lesson.outcome)
 
     def query_top_preferences(self, context: str = "", sentiment: str = "") -> list[dict[str, Any]]:
-        conn = sqlite3.connect(self._db_path)
-        try:
+        with self._conn() as conn:
             like_ctx = f"%{context}%" if context else "%"
             params: list[Any] = [like_ctx]
             where_sentiment = ""
