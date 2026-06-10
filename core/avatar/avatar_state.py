@@ -65,11 +65,16 @@ class AvatarState:
 
     # ── persistence ──────────────────────────────────────────────────────────
     @classmethod
-    def _get_conn(cls) -> sqlite3.Connection:
-        # Main DB may be SQLCipher-encrypted — must go through episodic's
-        # singleton connector (plain sqlite3.connect → "file is not a database").
-        from core.memory.episodic import get_db_connection
-        conn = get_db_connection()
+    def _get_conn(cls) -> tuple[sqlite3.Connection, bool]:
+        """Returns (conn, private). The main DB may be SQLCipher-encrypted so it
+        must go through episodic's singleton (never closed here); a redirected
+        _DB_PATH (tests) gets a private plain connection the caller closes."""
+        main_db = str(CONFIG.get("db_path", "vector_memory.db"))
+        if str(_DB_PATH) != main_db:
+            conn, private = sqlite3.connect(str(_DB_PATH), check_same_thread=False), True
+        else:
+            from core.memory.episodic import get_db_connection
+            conn, private = get_db_connection(), False
         conn.execute("""
             CREATE TABLE IF NOT EXISTS avatar_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
