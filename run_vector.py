@@ -188,8 +188,13 @@ async def smoke_test() -> dict:
     decision = await DecisionEngine().evaluate(candidates)
     stats = memory.get_stats()
 
+    # An empty city means governor dispatches all no-op — fail the smoke so the
+    # nightly self-check cron surfaces it.
+    agents_registered = bootstrap_agents()
+
     return {
-        "status": "ok",
+        "status": "ok" if agents_registered > 0 else "error",
+        "agents_registered": agents_registered,
         "hydration_chars": len(context_prompt),
         "candidates_evaluated": decision.evaluated,
         "winner": decision.winner.action_type,
