@@ -133,7 +133,6 @@ def _has_ollama() -> bool:
     # Also probe the default Ollama API endpoint
     try:
         import urllib.request
-from pathlib import Path
         urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1)
         return True
     except Exception:
