@@ -9,6 +9,29 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+# Tests in this module repoint CONFIG["db_path"] at throwaway temp files.
+# Restore the real path + singleton when the module finishes, otherwise every
+# test file that runs after this one inherits a deleted tmp DB and the
+# episodic circuit breaker opens for the rest of the suite.
+_ORIG_DB_PATH = None
+
+
+def setUpModule():
+    global _ORIG_DB_PATH
+    import core.memory.episodic as mod
+    _ORIG_DB_PATH = mod.CONFIG.get("db_path", "vector_memory.db")
+
+
+def tearDownModule():
+    import core.memory.episodic as mod
+    mod.CONFIG["db_path"] = _ORIG_DB_PATH
+    try:
+        if mod._db_connection is not None:
+            mod._db_connection.close()
+    except Exception:
+        pass
+    mod._db_connection = None
+
 
 # ── episodic_embeddings table ─────────────────────────────────────────────────
 
