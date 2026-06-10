@@ -116,12 +116,14 @@ data/archived_prompts/
 test_tmp/
 *.tmp
 *.bak
-data/feedback/action_*.json
+data/feedback/
 data/missions/
-data/rejected_runs/*.json
-data/reports/cycle_*.md
+data/rejected_runs/
+data/reports/
 data/runtime/
 data/security/incidents/
+.claude/screenshots/
+.claude/scheduled_tasks.lock
 districts/investment/vector_backtest/sessions/
 
 # Frontend local artifacts
