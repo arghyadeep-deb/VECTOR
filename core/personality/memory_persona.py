@@ -103,8 +103,7 @@ class MemoryPersona:
     def store_lesson(self, lesson: PersonalityLesson) -> None:
         if not self._enabled:
             return
-        conn = sqlite3.connect(self._db_path)
-        try:
+        with self._conn() as conn:
             conn.execute(
                 "INSERT INTO personality_lessons (context, user_sentiment, response_type, outcome, timestamp, source, confidence) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -113,8 +112,6 @@ class MemoryPersona:
                  lesson.source, lesson.confidence),
             )
             conn.commit()
-        finally:
-            conn.close()
         logger.debug("[MemoryPersona] stored lesson: {} in '{}' (outcome={})", lesson.response_type, lesson.context, lesson.outcome)
 
     def query_top_preferences(self, context: str = "", sentiment: str = "") -> list[dict[str, Any]]:
