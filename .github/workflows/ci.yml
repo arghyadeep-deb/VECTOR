@@ -31,7 +31,7 @@ jobs:
 
       - name: Syntax check all Python files
         run: |
-          find core/ agents/ -name "*.py" | xargs python -m py_compile
+          python -m compileall -q core districts vectorcode scripts agents tests
           echo "✅ Syntax check passed"
 
       - name: Core module smoke tests
