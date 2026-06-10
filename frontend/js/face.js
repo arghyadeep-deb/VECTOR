@@ -13,7 +13,7 @@
   function init(){
     if(fd || typeof FaceDetection==='undefined') return !!fd;
     try{
-      fd = new FaceDetection({ locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/${f}` });
+      fd = new FaceDetection({ locateFile:f=>`vendor/mediapipe/face_detection/${f}` });
       fd.setOptions({ model:'short', minDetectionConfidence:0.5 });
       fd.onResults(onResults);
       ready=true;

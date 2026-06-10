@@ -69,6 +69,8 @@
 <script src="js/vector-core.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/voice_duplex.js"></script>
+<script src="js/approvals.js"></script>
+<script src="js/ventures.js"></script>
 <script src="js/widgets.js"></script>
 <script src="js/gestures.js"></script>
 <script src="js/face.js"></script>
@@ -183,6 +185,4 @@
       V.setRuntimeMode('connecting', 'waiting for backend health');
       await V.connect({ base:cfg.base, ws:cfg.ws, apiKey:cfg.apiKey });
     }catch(e){
-      V.setRuntimeMode('degraded', 'backend autoconnect failed');
-      console.warn('VECTOR production autoconnect failed', e);
-   
+      V.setRuntimeMode('degraded', 'backend autoconne

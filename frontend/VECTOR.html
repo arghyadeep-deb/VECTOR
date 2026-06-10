@@ -8,8 +8,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-<script src="https://cdn.jsdelivr.net/npm/three@0.162/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.162/examples/js/controls/OrbitControls.js"></script>
+<!-- three.js — vendored locally (offline-first). ESM build exposed as window.THREE;
+     city3d.js reads THREE lazily on widget open, after this module has loaded.
+     (The old CDN UMD path 404s for r150+ — this also FIXES the 3D city.) -->
+<script type="module">
+  import * as THREE from './vendor/three/three.module.min.js';
+  window.THREE = THREE;
+  window.dispatchEvent(new Event('three-ready'));
+</script>
 <link rel="stylesheet" href="styles/core.css" />
 <link rel="stylesheet" href="styles/widgets.css" />
 </head>
@@ -88,10 +94,11 @@
 <!-- Leaflet (real dark map; graceful fallback to abstract if offline) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-<!-- MediaPipe Hands + Face (graceful: features degrade if they fail) -->
-<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
-<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/face_detection.js" crossorigin="anonymous"></script>
+<!-- MediaPipe Hands + Face — vendored locally incl. wasm/tflite assets (offline-first).
+     locateFile in gestures.js / face.js points at these vendor dirs. -->
+<script async src="vendor/mediapipe/hands/hands.js"></script>
+<script async src="vendor/mediapipe/camera_utils/camera_utils.js"></script>
+<script async src="vendor/mediapipe/face_detection/face_detection.js"></script>
 
 <!-- VECTOR modules -->
 <script src="js/config.js"></script>
@@ -102,6 +109,8 @@
 <script src="js/voice_stream.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/voice_duplex.js"></script>
+<script src="js/approvals.js"></script>
+<script src="js/ventures.js"></script>
 <script src="js/widgets.js"></script>
 <script src="js/gestures.js"></script>
 <script src="js/face.js"></script>
@@ -196,7 +205,4 @@
     const q = new URLSearchParams(location.search);
     if(q.get('base')) cfg.base = q.get('base');
     if(q.get('key'))  cfg.apiKey = q.get('key');
-    if(!cfg.autoConnect || !cfg.base) return;     // stay on demo data
-    V.connect({ base:cfg.base, ws:cfg.ws, apiKey:cfg.apiKey })
-      .then(()=>console.info('[VECTOR] connected →', cfg.base))
-      .catch(err=>console.warn('[VECTOR] backend unreachable — demo mode.', err)
+    if(!cfg.autoConnect || !cfg.base) return;     // stay on demo da

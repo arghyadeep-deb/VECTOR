@@ -40,7 +40,7 @@
     if(typeof Hands==='undefined'){ V.say('Hand tracking library unavailable. Falling back to pointer.'); enableMouse(); return false; }
     try{
       const video=document.getElementById('handcam');
-      mp=new Hands({ locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
+      mp=new Hands({ locateFile:f=>`vendor/mediapipe/hands/${f}` });
       mp.setOptions({ maxNumHands:1, modelComplexity:0, minDetectionConfidence:.6, minTrackingConfidence:.6 });
       mp.onResults(onHand);
       mpCam=new Camera(video,{ onFrame:async()=>{ await mp.send({image:video}); }, width:640, height:480 });
