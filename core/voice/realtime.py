@@ -163,6 +163,15 @@ class RealtimeConversation:
         self._closed = False
         self._speaker_owner = True   # last utterance verified as owner?
 
+        # Phase 6 — session idle timeout → IDLE, wake word resumes (design §6)
+        self._conversation_timeout = float(voice_cfg.get("conversation_timeout_sec", 30))
+        self._last_activity = time.monotonic()
+        self._wake_detector = None
+        self._wake_failed = False
+        self._wake_buffer: list[np.ndarray] = []
+        self._wake_buffer_ms = 0.0
+        self._wake_busy = False
+
     # ── session ──────────────────────────────────────────────────────────────
 
     async def start(self, user_id: str = "owner") -> None:
