@@ -253,7 +253,7 @@ cssselect==1.4.0
 # ── SQLite encryption (Phase 1D) ─────────────────────────────────────────────
 # Optional: install to encrypt vector_memory.db at rest.
 # Set VECTOR_DB_KEY env var to activate. Falls back to plain sqlite3 if not installed.
-sqlcipher3-binary==0.5.4
+sqlcipher3==0.6.2
 
 
 # ── Voice TTS (Phase 5A) ──────────────────────────────────────────────────────
@@ -267,3 +267,10 @@ sqlcipher3-binary==0.5.4
 # Optional but strongly recommended; without it a WEAK numpy fallback is used.
 # Install: pip install resemblyzer   then re-run: python scripts/enroll_owner_voice.py
 # resemblyzer>=0.1.4
+
+# ── Camera sensing (core/sensing/camera.py) ──────────────────────────────────
+# Optional: face ID (FaceDetector) + EAR fatigue scoring (FatigueMonitor).
+# Without these, sensing degrades to unknown-faces / neutral fatigue 5.0.
+# Install: pip install face-recognition mediapipe
+# face-recognition>=1.3.0
+# mediapipe>=0.10.0
