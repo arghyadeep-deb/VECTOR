@@ -48,14 +48,30 @@ _FEEDBACK_NEUTRAL = {
 
 class MemoryPersona:
     def __init__(self, db_path: str | None = None):
+        # Explicit db_path (tests) → private plain-sqlite connections.
+        # Default → the main DB, which may be SQLCipher-encrypted, so it MUST
+        # go through episodic's singleton connector (plain sqlite3.connect
+        # fails with "file is not a database").
+        self._private_db_path = db_path
         self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
         self._ensure_table()
         self._enabled = CONFIG.get("personality", {}).get("learning_enabled", True)
         logger.info("[MemoryPersona] initialized (enabled={})", self._enabled)
 
+    @contextmanager
+    def _conn(self):
+        if self._private_db_path is not None:
+            conn = sqlite3.connect(self._private_db_path)
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            from core.memory.episodic import get_db_connection
+            yield get_db_connection()   # shared singleton — never close it here
+
     def _ensure_table(self) -> None:
-        conn = sqlite3.connect(self._db_path)
-        try:
+        with self._conn() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS personality_lessons (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,8 +85,6 @@ class MemoryPersona:
                 )
             """)
             conn.commit()
-        finally:
-            conn.close()
 
     def detect_feedback(self, user_text: str) -> dict[str, Any] | None:
         lower = user_text.lower().strip()
