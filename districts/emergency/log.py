@@ -35,9 +35,21 @@ class EmergencyLog:
         from core.config import CONFIG
         self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
         self._conn = self._open_conn(self._db_path)
-        self._conn.row_factory = sqlite3.Row
+        self._conn.row_factory = self._row_class(self._conn)
         self._enable_wal()
         self._ensure_table()
+
+    @staticmethod
+    def _row_class(conn):
+        """sqlite3.Row rejects sqlcipher cursors — pick the driver's own Row."""
+        mod = type(conn).__module__
+        if mod.startswith("sqlcipher3"):
+            from sqlcipher3 import dbapi2
+            return dbapi2.Row
+        if mod.startswith("pysqlcipher3"):
+            from pysqlcipher3 import dbapi2
+            return dbapi2.Row
+        return sqlite3.Row
 
     @staticmethod
     def _open_conn(db_path: str) -> sqlite3.Connection:
