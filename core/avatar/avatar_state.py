@@ -87,15 +87,16 @@ class AvatarState:
             )
         """)
         conn.commit()
-        return conn
+        return conn, private
 
     @classmethod
     def load(cls) -> "AvatarState":
         try:
             with _avatar_db_lock:
-                conn = cls._get_conn()
+                conn, private = cls._get_conn()
                 row = conn.execute("SELECT * FROM avatar_state WHERE id = 1").fetchone()
-                # shared singleton connection — do not close
+                if private:
+                    conn.close()
             if row is None:
                 logger.debug("[VECTOR][avatar_state] no saved state, using defaults")
                 return cls()
