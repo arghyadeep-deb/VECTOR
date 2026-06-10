@@ -212,6 +212,19 @@ class RealtimeConversation:
         is_speech = self._vad.is_speech(frame, self._sr)
         state = str(self._conv.current_state)
 
+        # Phase 6 — IDLE: only the wake word gets us out
+        if state == "IDLE":
+            await self._idle_frame(frame, is_speech)
+            return
+
+        # Idle timer: anything except quiet LISTENING counts as activity
+        if is_speech or state != "LISTENING":
+            self._last_activity = time.monotonic()
+        elif (self._conversation_timeout > 0
+              and (time.monotonic() - self._last_activity) >= self._conversation_timeout):
+            await self._go_idle()
+            return
+
         # Phase 3 — barge-in: user speaks while VECTOR is speaking
         if state == "VECTOR_SPEAKING":
             if self._bargein and is_speech:
