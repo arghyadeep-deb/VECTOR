@@ -132,10 +132,44 @@
       if(to==='fortress') SND.alert();
     });
     V.on('wake', ()=>{ humLevel(.06); });
-    V.on('say', ({text})=>{ if(text) speak(text); });
+    V.on('say', ({text})=>{
+      // Server (Kokoro) audio takes priority — only use browser TTS when no
+      // server audio arrived for this turn (e.g. backend TTS unavailable).
+      if(text && !serverVoiceRecent()) speak(text);
+    });
+    V.on('audio', d=>enqueueServerAudio(d));
     V.on('widget:open', ()=>SND.open());
     V.on('widget:close', ()=>SND.close());
     V.on('workspace', ({open})=>open?chord([660,990],.3):SND.close());
+  }
+
+  // ---- server (Kokoro) audio playback queue ------------------------------
+  // Sentence-streamed WAVs from /ws/voice/stream: each 'audio' message is one
+  // complete WAV. Decode independently, play strictly in order. While server
+  // audio plays, drive speakEnv so the orb reacts, and suppress browser TTS.
+  let srvQueue=[], srvPlaying=false, srvLastAt=0;
+  function serverVoiceRecent(){ return srvPlaying || (Date.now()-srvLastAt) < 3000; }
+  function b64ToArrayBuffer(b64){
+    const bin=atob(b64), len=bin.length, buf=new Uint8Array(len);
+    for(let i=0;i<len;i++) buf[i]=bin.charCodeAt(i);
+    return buf.buffer;
+  }
+  function enqueueServerAudio(d){
+    if(!d || !d.data || !enabled) return;
+    const c=ensure(); if(!c) return; resume();
+    srvLastAt=Date.now();
+    c.decodeAudioData(b64ToArrayBuffer(d.data))
+      .then(buf=>{ srvQueue.push(buf); pumpServerAudio(); })
+      .catch(e=>console.warn('[audio] server wav decode failed', e));
+  }
+  function pumpServerAudio(){
+    if(srvPlaying || !srvQueue.length || !ctx) return;
+    srvPlaying=true; srvLastAt=Date.now();
+    const buf=srvQueue.shift();
+    const src=ctx.createBufferSource(); src.buffer=buf; src.connect(master);
+    const env=setInterval(()=>{ speakEnv=0.35+Math.random()*0.45; }, 90);
+    src.onended=()=>{ clearInterval(env); speakEnv=0; srvPlaying=false; srvLastAt=Date.now(); pumpServerAudio(); };
+    try{ src.start(); }catch(e){ clearInterval(env); speakEnv=0; srvPlaying=false; console.warn('[audio] server wav play failed', e); }
   }
 
   // first-gesture unlock

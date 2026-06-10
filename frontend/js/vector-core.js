@@ -161,6 +161,11 @@
     // /ws/voice/stream — transcript/response/audio
     openWS('voice', wsbase+'/ws/voice/stream', d=>{
       if(d.type==='transcript'){ api.chat.push({ role:'user', text:d.text }); listen(); }
+      else if(d.type==='response_partial'){
+        // streaming path: live caption while the LLM is still generating
+        if(state!=='speaking'){ go('speaking'); api.orb.setSub('SPEAKING'); }
+        api.caption(d.text);
+      }
       else if(d.type==='response'){ say(d.text); }
       else if(d.type==='audio'){ emit('audio', d); }
       else if(d.type==='done'){ /* speaking timeout handles return to idle */ }
