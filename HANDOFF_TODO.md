@@ -78,42 +78,37 @@ All three pairs compared API-by-API. None are mergeable; do not re-attempt:
 - NOT duplicates (name collisions, different fields — rename only if touched):
   WSCommandRequest/Response in core/api/schemas.py vs routers/websocket.py
 
-## 8. DUPLEX SESSION LIFECYCLE (design decision needed from your testing)
+## DONE 2026-06-11 (don't redo)
 
-Currently /ws/voice/duplex listens forever. Design §6 wants: 30s inactivity →
-IDLE → wake word ("Vector") to resume. Needs openwakeword frames fed from the
-duplex stream (core/voice/wake_word.py exists).
+- **Item 0 (local)**: .env scrubbed from all history via git-filter-repo
+  (verified empty); 943MB backup bundle + on-disk .env untouched. Push
+  blocked → see 0b above. Runtime-artifact dirs untracked + gitignored
+  (data/{security/incidents,rejected_runs,reports,feedback}, screenshots).
+- **Items 1-2**: git pre-commit hook installed + verified; resemblyzer
+  installed (via webrtcvad-wheels — plain webrtcvad needs a C compiler).
+- **Item 4**: doctor → required_failed: 0; smoke → ok, 75 agents/28 districts.
+- **Item 5**: full suite triaged. Root cause of the 120s hang:
+  tests/test_phase2_districts.py patched `ollama.chat` but districts route
+  through `core.inference.vectorcode_llm.chat` → 11 patches re-seamed.
+- **Item 7**: evaluated, all pairs kept separate (see verdicts above).
+- **Item 8**: DONE — idle timeout + wake-word resume in core/voice/realtime.py
+  (`_go_idle`/`_idle_frame`/`_wake_up`; openwakeword per-frame when available,
+  STT-burst KWS fallback otherwise; barge-in regression-tested).
+- **Item 9**: DONE — upload_to_tiktok (Content Posting API) +
+  upload_to_twitter (X v2 chunked media) implemented behind
+  CONFIG content.upload_dry_run (default True); Instagram client-scope bug
+  fixed (publish POST ran after AsyncClient closed); scheduled-upload
+  routing covers all 4 platforms.
+- **Item 10**: pre_commit_gate.py → syntax gate wired (blocking, exit 2);
+  mojibake fully cleaned (both `Ã¢â‚¬` and `â†’` families, 300+ lines,
+  0 left repo-wide); voice_stream.js was already removed.
+- **Bonus**: loop mode now calls bootstrap_agents() (was: empty city, every
+  governor dispatch returned no_agents); agent_base self-test matches
+  hp_validator clamp+EMA; 32 broken vectorcode files restored (a sys.path
+  cleanup had deleted if-bodies / left stray mid-try imports);
+  compileall = 0 errors repo-wide.
 
-> Prompt: "In core/voice/realtime.py add session timeout: after
-> CONFIG[voice][conversation_timeout_sec] (default 30) of no speech, transition
-> to IDLE and require wake word to resume. Feed frames to
-> core/voice/wake_word.py's openwakeword model while IDLE; on detection,
-> transition to LISTENING + send a 'state' event. Don't break barge-in."
-
-## 9. CONTENT UPLOADER STUBS
-
-`districts/content/uploader.py`: YouTube works; instagram/tiktok/twitter/
-facebook are listed in PLATFORMS but unimplemented.
-
-> Prompt: "Implement upload_to_instagram (Graph API, reels),
-> upload_to_tiktok (Content Posting API), upload_to_twitter (v2 media) in
-> districts/content/uploader.py following the upload_to_youtube pattern —
-> OAuth creds from core/engine/oauth/registry.py, each behind a
-> CONFIG-gated dry_run default of True."
-
-## 10. SMALL ITEMS
-
-- `.claude/hooks/pre_commit_gate.py` (was write-protected for Cowork): append
-  a call to `scripts/precommit_syntax_gate.py`, blocking on rc!=0 (exit 2).
-- Mojibake cleanup: comments contain `Ã¢â‚¬` sequences from an encoding
-  accident. Safe approach: only rewrite lines matching the corruption inside
-  COMMENTS/docstrings, verify compileall after, commit via the (now installed)
-  gate. Cosmetic — do last.
-- `frontend/js/voice_stream.js` legacy push-to-talk can be removed once duplex
-  is proven (vector-core.js voice WS handler stays — same endpoint serves both).
-- Optional: GitHub Actions CI (compileall + pytest) if the repo ever gets a remote.
-
-## DONE THIS SESSION (don't redo)
+## DONE 2026-06-10 (previous session)
 
 44 syntax-error files restored · .env untracked · voice Phases 1-5 ·
 venture pipeline (SocialMiner/ProblemClusterer/VenturePipeline + weekly cron)
