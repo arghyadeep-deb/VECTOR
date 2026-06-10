@@ -569,7 +569,11 @@ class RealtimeConversation:
     async def _speak_text(self, text: str) -> None:
         """Speak a short standalone line (ack / nudge / bypass answer)."""
         prev = str(self._conv.current_state)
-        if prev in ("LISTENING", "PROCESSING", "IDLE"):
+        if prev == "IDLE":
+            # FSM: IDLE only allows LISTENING — step through it first
+            self._conv.transition("LISTENING")
+            prev = "LISTENING"
+        if prev in ("LISTENING", "PROCESSING"):
             # FSM only allows VECTOR_SPEAKING from PROCESSING
             if prev != "PROCESSING":
                 self._conv.transition("USER_SPEAKING")
@@ -577,6 +581,7 @@ class RealtimeConversation:
             self._conv.transition("VECTOR_SPEAKING")
             await self._state("VECTOR_SPEAKING")
         await self._emit_sentence(text, 0.85, 0)
+        self._last_activity = time.monotonic()   # don't instantly re-idle after speaking
         if str(self._conv.current_state) == "VECTOR_SPEAKING":
             self._conv.transition("LISTENING")
             await self._state("LISTENING")
