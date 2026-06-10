@@ -70,10 +70,10 @@ class VectorScraper:
     Unified VECTOR scraping interface — one class for all three fetcher tiers.
 
     Tier selection:
-        fetch()         â†’ HTTP with TLS fingerprint (fastest, ~100ms)
-        fetch_stealth() â†’ Anti-bot browser (Cloudflare bypass, ~3-8s)
-        fetch_dynamic() â†’ Standard Playwright browser (JS sites, ~2-5s)
-        crawl()         â†’ Spider framework (multi-page, checkpointed)
+        fetch()         → HTTP with TLS fingerprint (fastest, ~100ms)
+        fetch_stealth() → Anti-bot browser (Cloudflare bypass, ~3-8s)
+        fetch_dynamic() → Standard Playwright browser (JS sites, ~2-5s)
+        crawl()         → Spider framework (multi-page, checkpointed)
 
     All methods:
         - Check SSRF guard before fetching
@@ -177,7 +177,7 @@ class VectorScraper:
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             self._audit("fetch_http", url, result.status_code)
-            logger.info("[VECTOR][scraper] fetch {} â†’ {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] fetch {} → {}", url[:60], result.status_code)
             return result
 
         except Exception as e:
@@ -230,7 +230,7 @@ class VectorScraper:
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
             self._audit("fetch_stealth", url, result.status_code)
-            logger.info("[VECTOR][scraper] stealth {} â†’ {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] stealth {} → {}", url[:60], result.status_code)
             return result
 
         except Exception as e:
@@ -278,7 +278,7 @@ class VectorScraper:
                 result.content = "\n".join(resp.css(selector).getall())
 
             self._audit("fetch_dynamic", url, result.status_code)
-            logger.info("[VECTOR][scraper] dynamic {} â†’ {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] dynamic {} → {}", url[:60], result.status_code)
             return result
 
         except Exception as e:

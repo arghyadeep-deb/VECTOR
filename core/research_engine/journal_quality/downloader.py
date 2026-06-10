@@ -202,7 +202,7 @@ def _fetch_institutions(data_dir: Path, progress_cb=None) -> int:
     return get_source("institutions").fetch(data_dir, progress_cb=progress_cb)
 
 
-# Map source key â†’ module-level shim *name*, resolved at call time so
+# Map source key → module-level shim *name*, resolved at call time so
 # `mock.patch` substitutions on the module attribute take effect (capturing
 # function objects in a dict at import time would defeat patching).
 _FETCH_SHIM_NAMES = {
@@ -228,7 +228,7 @@ def get_journal_data_status() -> dict:
           "version": Optional[str],
           "latest_version": str,
           "needs_update": bool,
-          "files": dict[str, bool],    # legacy: filename â†’ present
+          "files": dict[str, bool],    # legacy: filename → present
           "sources": list[dict],       # per-source detail for the banner
           "data_dir": str,
         }
@@ -329,7 +329,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
         free_bytes is not None
         and free_bytes < JOURNAL_QUALITY_MIN_FREE_DISK_BYTES
     ):
-        # No fetch ran â†’ invalidate any stale counts from a prior call
+        # No fetch ran → invalidate any stale counts from a prior call
         # so `get_download_state()["counts"]` cannot leak them.
         _download_state["counts"] = None
         return False, (
@@ -361,7 +361,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
         try:
             owner_pid = int(sentinel.read_text().strip())
         except (OSError, ValueError):
-            return False  # unreadable / malformed â†’ treat as orphan
+            return False  # unreadable / malformed → treat as orphan
         if owner_pid == os.getpid():
             # Same process. Something is wrong (we should never race
             # with ourselves — the module-level lock guards that) but
@@ -449,7 +449,7 @@ def download_journal_data(force: bool = False) -> tuple[bool, str]:
             # Per-partition callback: the chunked sources (openalex
             # sources + institutions) call this on every partition so
             # the dashboard's bar moves smoothly. One-shot sources
-            # don't call it and stay at the initial 5% â†’ final 100%.
+            # don't call it and stay at the initial 5% → final 100%.
             def _on_progress(done, total, detail):
                 pct = int(5 + (done / total) * 90) if total > 0 else 5
                 _set_source_state(

@@ -52,4 +52,4 @@ async def channels_status():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("âœ… channels.py OK")
+    print("✅ channels.py OK")

@@ -185,7 +185,7 @@ class OpenAlexSource(DataSource):
 
         # ``id``-rename drift runs *before* the row-count floor: a
         # renamed identifier makes every record drop out at parse time
-        # (src_id empty â†’ continue), so ``sources`` is empty and the
+        # (src_id empty → continue), so ``sources`` is empty and the
         # row-count floor would fire first with a generic RuntimeError
         # that hides the actual cause.
         if parsed_records >= 10_000 and parsed_with_id == 0:

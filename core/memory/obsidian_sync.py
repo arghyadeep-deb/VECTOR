@@ -77,7 +77,7 @@ class ObsidianSync:
         _bypass_gateway: bool = False,
     ) -> Path:
         """
-        Write a note to the vault. Atomic (tmp â†’ rename).
+        Write a note to the vault. Atomic (tmp → rename).
         Raises PermissionDeniedError for protected paths or un-gated personal writes.
         """
         target_dir = self._vault / folder
@@ -368,7 +368,7 @@ class ObsidianSync:
         return await self.ingest_to_rag_anything(file_path)
 
     async def ingest_to_rag_anything(self, file_path: str | Path) -> bool:
-        """Multi-modal ingestion (PDF, image, audio) via RagAnything â†’ same LightRAG graph."""
+        """Multi-modal ingestion (PDF, image, audio) via RagAnything → same LightRAG graph."""
         await self._init_rag()
         if self._rag is None:
             return False
@@ -480,6 +480,6 @@ if __name__ == "__main__":
             personal_path = sync.write_note("journal", "x", "00 Notes", [], _bypass_gateway=True)
             assert personal_path.exists()
 
-        print("âœ… obsidian_sync.py OK")
+        print("✅ obsidian_sync.py OK")
 
     asyncio.run(_smoke())

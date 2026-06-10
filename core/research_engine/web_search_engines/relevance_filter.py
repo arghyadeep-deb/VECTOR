@@ -49,14 +49,14 @@ _MAX_UNWRAP_DEPTH = 10
 
 # Matches standalone integers in the LLM response. ``\b`` ensures we
 # don't match digits glued to letters ("v2"), and the negative lookbehind
-# for ``.`` rejects the fractional part of decimals ("0.5" â†’ just "0").
+# for ``.`` rejects the fractional part of decimals ("0.5" → just "0").
 # Combined with the prompt instruction to output ONLY the numbers, this
 # is robust against prose like "The top 3 results from 2024 are ...".
 _INT_RE = re.compile(r"(?<![\w.])\d+\b")
 
 # Wall-clock timeout passed to ``as_completed`` when batches run in
 # parallel. Note: this bounds the time from iteration start until all
-# parallel batches complete, not per-batch. A single batch (â‰¤ 10
+# parallel batches complete, not per-batch. A single batch (≤ 10
 # previews on a 9B-class local model) typically completes in 5-15s.
 # When Ollama serializes requests (OLLAMA_NUM_PARALLEL=1, the default)
 # 10 parallel submissions effectively run sequentially server-side, so
@@ -76,7 +76,7 @@ _FILTER_WALL_TIMEOUT_S = 300.0
 # whether a paper's primary topic actually matches the query, leading to
 # "paper mentions LLMs in passing" sources leaking past the filter. 800
 # comfortably fits a typical abstract opening while keeping total prompt
-# size bounded (â‰ˆ16KB for 20 previews).
+# size bounded (≈16KB for 20 previews).
 _SNIPPET_CHAR_CAP = 800
 
 
@@ -304,7 +304,7 @@ def filter_previews_for_relevance(
         )
         return previews[:unavailable_cap]
 
-    # Normalise None â†’ [] for the aggregation pass below; a batch that
+    # Normalise None → [] for the aggregation pass below; a batch that
     # was cancelled or errored just contributes nothing. Assign to a
     # new variable with a narrower type so mypy can prove the list
     # elements are no longer Optional.

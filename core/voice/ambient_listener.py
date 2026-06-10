@@ -66,7 +66,7 @@ _ACTION_TYPES = (
 class AmbientListener:
     """
     Orchestrates the full voice pipeline:
-    wake_word â†’ STT â†’ language_detect â†’ intent classify (Ollama) â†’ permission_gateway â†’ TTS â†’ memory
+    wake_word → STT → language_detect → intent classify (Ollama) → permission_gateway → TTS → memory
 
     Conversation memory: last 8 turns stored, injected into every Ollama call.
     Personality: VECTOR_PERSONALITY system prompt on all calls.
@@ -206,7 +206,7 @@ class AmbientListener:
         self._last_speech_time = time.time()
         logger.info(f"[VECTOR][voice] WAKE detected (mode={mode}) — session open")
 
-        # Seed conversation history from recent episodic memory (bridges chatâ†”voice silo)
+        # Seed conversation history from recent episodic memory (bridges chat↔voice silo)
         if not self._conversation_history:
             try:
                 from core.memory.episodic import get_temp_cursor
@@ -604,6 +604,6 @@ if __name__ == "__main__":
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         all_ok = all(components.values())
-        print(f"âœ… ambient_listener OK {components}" if all_ok else f"âš ï¸ ambient_listener partial {components}")
+        print(f"✅ ambient_listener OK {components}" if all_ok else f"âš ï¸ ambient_listener partial {components}")
 
     asyncio.run(_smoke())

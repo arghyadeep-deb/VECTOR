@@ -285,9 +285,9 @@ INSTRUCTIONS:
 5. Keep it under 100 characters if possible
 
 EXAMPLE TRANSFORMATIONS:
-"What are the latest findings about mRNA vaccines and COVID-19?" â†’ "mRNA vaccines COVID-19 recent findings"
-"How does machine learning impact climate change prediction?" â†’ "machine learning "climate change" prediction"
-"Tell me about quantum computing approaches for encryption" â†’ "quantum computing encryption"
+"What are the latest findings about mRNA vaccines and COVID-19?" → "mRNA vaccines COVID-19 recent findings"
+"How does machine learning impact climate change prediction?" → "machine learning "climate change" prediction"
+"Tell me about quantum computing approaches for encryption" → "quantum computing encryption"
 
 Return ONLY the optimized search query with no explanation.
 """

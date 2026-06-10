@@ -2,7 +2,7 @@
 VECTOR MCP Server — exposes district capabilities as MCP tools.
 
 Run:  python core/mcp_server.py
-Transport: stdio (default) â†’ works with Claude Code, Cursor, any MCP client.
+Transport: stdio (default) → works with Claude Code, Cursor, any MCP client.
 HTTP/SSE:  python core/mcp_server.py --transport sse --port 9000
 
 RULE 11: All Ollama calls go through ollama_safe, never direct.
@@ -123,7 +123,7 @@ def _make_server():
                 cwd=str(cli_dir),
             )
             out = result.stdout.strip() or result.stderr.strip() or "No output"
-            logger.info(f"[VECTOR][mcp] marketing_cli {tool_name} â†’ {len(out)} chars")
+            logger.info(f"[VECTOR][mcp] marketing_cli {tool_name} → {len(out)} chars")
             return out
         except subprocess.TimeoutExpired:
             return f"CLI tool '{tool_name}' timed out after 30s"
@@ -987,7 +987,7 @@ def _add_expansion_tools(mcp) -> None:
 
         @mcp.tool
         def memory_pattern_save(task: str, plan: str, outcome: str, reward: float = 0.0) -> str:
-            """Save a taskâ†’planâ†’outcome reasoning pattern."""
+            """Save a task→plan→outcome reasoning pattern."""
             try:
                 from core.memory.reasoning_memory import get_reasoning_memory
                 rm = get_reasoning_memory()
@@ -3972,7 +3972,7 @@ def _add_guidance_tools(mcp) -> None:
 
         @mcp.tool
         async def check_action_authority(action: str, current_level: str = "agent") -> str:
-            """Check if action requires authority escalation (agentâ†’humanâ†’institutional)."""
+            """Check if action requires authority escalation (agent→human→institutional)."""
             gsys = _get_gsys()
             irrev = gsys["authority_gate"].classify_action(action)
             needs_esc, req_level = gsys["authority_gate"].requires_escalation(action, current_level)
@@ -4367,11 +4367,11 @@ if __name__ == "__main__":
     if not _FASTMCP_AVAILABLE:
         print("âš ï¸  fastmcp not installed — install with: pip install fastmcp")
         print("   Verifying server scaffold only...")
-        print("âœ… mcp_server.py scaffold OK (fastmcp not installed)")
+        print("✅ mcp_server.py scaffold OK (fastmcp not installed)")
     else:
         mcp = _make_server()
         tools = [t for t in dir(mcp) if not t.startswith("_")]
-        print(f"âœ… mcp_server.py OK — {mcp.name} server built")
+        print(f"✅ mcp_server.py OK — {mcp.name} server built")
         print("   Tools exposed: recall_memory, store_memory, get_world_state, get_goals,")
         print("                  search_web, mine_reddit, read_paper, convene_council,")
         print("                  review_code, git_status, karpathy_session, karpathy_streak,")

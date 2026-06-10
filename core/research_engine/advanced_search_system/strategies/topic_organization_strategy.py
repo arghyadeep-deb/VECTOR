@@ -1315,7 +1315,7 @@ Otherwise, respond with only the follow-up question, nothing else.
             for hist in self.iteration_history:
                 if hist["type"] == "initial":
                     history_lines.append(
-                        f"\n**Initial Search:** {hist['sources_count']} sources â†’ {hist['topics_count']} topics"
+                        f"\n**Initial Search:** {hist['sources_count']} sources → {hist['topics_count']} topics"
                     )
                 else:
                     history_lines.append(
@@ -1325,7 +1325,7 @@ Otherwise, respond with only the follow-up question, nothing else.
                         f"  - Added {hist['new_sources']} new sources"
                     )
                     history_lines.append(
-                        f"  - Topics: {hist['topics_before']} â†’ {hist['topics_after']}"
+                        f"  - Topics: {hist['topics_before']} → {hist['topics_after']}"
                     )
             topic_graph_str += "\n".join(history_lines)
 
@@ -1517,7 +1517,7 @@ Otherwise, respond with only the follow-up question, nothing else.
 
             if relationships:
                 for t1, t2 in relationships:
-                    lines.append(f"- **{t1}** â†” **{t2}**")
+                    lines.append(f"- **{t1}** ↔ **{t2}**")
 
         return "\n".join(lines)
 
@@ -1584,7 +1584,7 @@ Otherwise, respond with only the follow-up question, nothing else.
             for hist in self.iteration_history:
                 if hist["type"] == "initial":
                     lines.append(
-                        f"\n**Initial Search:** {hist['sources_count']} sources â†’ {hist['topics_count']} topics"
+                        f"\n**Initial Search:** {hist['sources_count']} sources → {hist['topics_count']} topics"
                     )
                 else:
                     lines.append(
@@ -1592,7 +1592,7 @@ Otherwise, respond with only the follow-up question, nothing else.
                     )
                     lines.append(f"  - Added {hist['new_sources']} new sources")
                     lines.append(
-                        f"  - Topics: {hist['topics_before']} â†’ {hist['topics_after']}"
+                        f"  - Topics: {hist['topics_before']} → {hist['topics_after']}"
                     )
 
         return "\n".join(lines)

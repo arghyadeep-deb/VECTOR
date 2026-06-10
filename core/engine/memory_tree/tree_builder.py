@@ -92,7 +92,7 @@ class MemorySource:
 
 class MemoryTree:
     """
-    Hierarchical memory tree: Source â†’ Topic â†’ Chunk.
+    Hierarchical memory tree: Source → Topic → Chunk.
 
     Usage:
         tree = MemoryTree()

@@ -78,6 +78,7 @@ from pydantic import Field
 # Ensure vectorcode root is on path
 _repo_root = Path(__file__).resolve().parent.parent
 if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 from atroposlib.envs.base import ScoredDataGroup, ScoredDataItem
 from atroposlib.envs.server_handling.server_manager import APIServerConfig

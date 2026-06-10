@@ -128,7 +128,7 @@ class EarlyStopConstrainedStrategy(ParallelConstrainedStrategy):
 
                 # Update progress
                 if self.progress_callback:
-                    symbol = "âœ“" if score >= 0.8 else "â—‹"
+                    symbol = "✓" if score >= 0.8 else "○"
                     self.progress_callback(
                         f"{symbol} {candidate.name} | {constraint.type.value}: {int(score * 100)}%",
                         None,

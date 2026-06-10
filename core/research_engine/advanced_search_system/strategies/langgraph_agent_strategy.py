@@ -420,7 +420,7 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
         # tool factory closures so engines created per tool call inherit it.
         self.programmatic_mode = programmatic_mode
         # search.iterations (typically 1-5) controls pipeline strategies.
-        # For an agent, each "iteration" is one LLMâ†’tool round-trip, so we
+        # For an agent, each "iteration" is one LLM→tool round-trip, so we
         # need many more.  Treat any value below the agent minimum as "use
         # default" rather than clamping to a uselessly low number.
         self.max_iterations = (

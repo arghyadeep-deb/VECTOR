@@ -828,4 +828,4 @@ if __name__ == '__main__':
     assert len(training) >= 1, 'training data failed'
     stats = mem.get_stats()
     mem.close()
-    print(f"âœ… episodic.py OK — {stats}")
+    print(f"✅ episodic.py OK — {stats}")

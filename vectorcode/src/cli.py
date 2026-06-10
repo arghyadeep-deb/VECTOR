@@ -964,6 +964,7 @@ def cmd_tools(args):
         _vc = str(Path(__file__).parent)
         for p in [_py, _vc]:
             if p not in sys.path:
+                sys.path.insert(0, p)
 
         # Import tools to trigger self-registration (use discovery from registry)
         from tools.registry import registry, discover_builtin_tools

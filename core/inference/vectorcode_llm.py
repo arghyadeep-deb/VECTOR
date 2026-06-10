@@ -7,7 +7,7 @@ ollama_safe directly. When you add paid API keys, they register here and all
 district agents get them automatically — zero code changes needed in districts.
 
 Provider priority chain (always preserves Rule 11 — local first):
-  Tier 0 — local:      Ollama â†’ AirLLM â†’ LiteLLM â†’ Gemma.cpp
+  Tier 0 — local:      Ollama → AirLLM → LiteLLM → Gemma.cpp
   Tier 1 — free cloud: Gemini API free tier (15 req/min, 1M tokens/day)
   Tier 2 — paid cloud: Anthropic Claude API  [plug-in when keys added]
                         OpenRouter (300+ models) [plug-in when keys added]
@@ -248,7 +248,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
     if not api_key:
         return ""
 
-    # Map local model names â†’ Gemini equivalents
+    # Map local model names → Gemini equivalents
     gemini_model = _map_to_gemini_model(model_hint)
     prompt = _messages_to_text(messages)
     t0 = time.perf_counter()

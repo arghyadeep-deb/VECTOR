@@ -6,7 +6,7 @@ Environment variable LDR_LOG_SETTINGS controls the verbosity:
 - "none" or "false": No settings logging at all (default)
 - "summary" or "info": Only log count and summary of settings
 - "debug" or "full": Log complete settings (with sensitive keys redacted)
-- "debug_unsafe"/"unsafe"/"raw": REMOVED for security â€” maps to "none" with a deprecation warning
+- "debug_unsafe"/"unsafe"/"raw": REMOVED for security — maps to "none" with a deprecation warning
 """
 
 import os
@@ -44,7 +44,7 @@ elif SETTINGS_LOG_LEVEL in ("debug_unsafe", "unsafe", "raw"):
         DeprecationWarning,
         stacklevel=2,
     )
-    # logger.warning() won't work here â€” loguru is disabled at module load time
+    # logger.warning() won't work here — loguru is disabled at module load time
     # (see __init__.py). Write directly to stderr so users actually see this.
     import sys
 
@@ -78,7 +78,7 @@ def log_settings(
         - "none": No output
         - "summary": Log count and basic info at INFO level
         - "debug": Log full settings at DEBUG level (sensitive keys redacted)
-        - "debug_unsafe"/"unsafe"/"raw": REMOVED â€” maps to "none" with a deprecation warning
+        - "debug_unsafe"/"unsafe"/"raw": REMOVED — maps to "none" with a deprecation warning
     """
     log_level = force_level or SETTINGS_LOG_LEVEL
 

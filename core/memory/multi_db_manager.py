@@ -460,7 +460,7 @@ class MultiDBManager:
             json.dump(dump, f, default=str, indent=2)
 
         total_rows = sum(len(v) for v in dump["tables"].values())
-        logger.info(f"[VECTOR][backup] {total_rows} rows â†’ {backup_path}")
+        logger.info(f"[VECTOR][backup] {total_rows} rows → {backup_path}")
         return backup_path
 
     def restore(self, backup_path: str, overwrite: bool = False) -> dict:
@@ -550,6 +550,6 @@ if __name__ == "__main__":
         # Test stats
         stats = mgr.get_stats()
 
-        print(f"âœ… multi_db_manager OK — local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
+        print(f"✅ multi_db_manager OK — local_write={ok}, health={health['overall']}, queue={stats['queue_size']}")
 
     asyncio.run(_smoke())

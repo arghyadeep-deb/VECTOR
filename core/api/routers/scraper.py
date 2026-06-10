@@ -45,4 +45,4 @@ async def scraper_status():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("âœ… scraper.py OK")
+    print("✅ scraper.py OK")

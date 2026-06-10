@@ -131,4 +131,4 @@ if __name__ == "__main__":
     assert "@" in mid["outgoing_message_id"]
     assert escape_html("<script>") == "&lt;script&gt;"
     assert strip_html_to_text("<p>Hello <b>world</b></p>") == "Hello world"
-    print("âœ… helpers.py OK")
+    print("✅ helpers.py OK")

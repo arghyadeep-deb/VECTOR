@@ -290,7 +290,7 @@ def get_available_engines(
             own name).
 
     Returns:
-        Dict of engine_name â†’ config for engines that passed all checks.
+        Dict of engine_name → config for engines that passed all checks.
     """
     if not settings_snapshot:
         logger.warning(

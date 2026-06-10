@@ -284,7 +284,7 @@ class StealthBrowserClient:
         close_after: bool = True,
     ) -> dict:
         """
-        Full scrape cycle: create tab â†’ navigate â†’ wait â†’ snapshot â†’ links â†’ close.
+        Full scrape cycle: create tab → navigate → wait → snapshot → links → close.
         Returns {url, snapshot, links, tab_id}.
         """
         tab = await self.create_tab("about:blank", user_id=user_id)

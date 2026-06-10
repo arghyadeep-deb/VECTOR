@@ -246,7 +246,7 @@ class AmbientScheduler:
         if "next_wake" in kwargs:
             state.next_wake = datetime.fromisoformat(kwargs["next_wake"])
         self.save_state(state)
-        logger.info("[VECTOR][ambient] status â†’ {}", status.value)
+        logger.info("[VECTOR][ambient] status → {}", status.value)
 
     # â”€â”€ Directives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

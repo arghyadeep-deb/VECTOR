@@ -21,7 +21,7 @@ from .base_strategy import BaseSearchStrategy
 
 class SourceBasedSearchStrategy(BaseSearchStrategy):
     """
-    Source-based search strategy: iterative question generation â†’ parallel search â†’ final synthesis.
+    Source-based search strategy: iterative question generation → parallel search → final synthesis.
 
     ## High-level flow (analyze_topic):
 
@@ -81,7 +81,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
             include_text_content: Whether to fetch full page content (not just snippets)
             use_cross_engine_filter: Whether to apply LLM-based relevance filtering
                 after all iterations. When True, the filter may reduce result count
-                significantly (e.g. 60 â†’ 10). When False, all accumulated results pass through.
+                significantly (e.g. 60 → 10). When False, all accumulated results pass through.
             filter_reorder: Whether the cross-engine filter should reorder by relevance
             filter_reindex: Whether the cross-engine filter should reassign citation indices
             cross_engine_max_results: Max results the filter keeps (default 100)
@@ -237,7 +237,7 @@ class SourceBasedSearchStrategy(BaseSearchStrategy):
                 # ITERATION 1: Search the original query verbatim + LLM-generated questions.
                 # The original query is included as-is (if search_original_query=True)
                 # because the LLM may misinterpret ambiguous queries (e.g. "local deep
-                # research" â†’ Austin heat islands). The verbatim query ensures at least
+                # research" → Austin heat islands). The verbatim query ensures at least
                 # one search hits the right topic.
                 if iteration == 1:
                     # Check if user query is too long for direct search

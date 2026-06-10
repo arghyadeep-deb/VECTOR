@@ -434,7 +434,7 @@ def run_chat() -> None:
             continue
 
         # Regular chat
-        console.print(f"[dim]  â†³ vector-focus thinking...[/dim]")
+        console.print(f"[dim]  ↳ vector-focus thinking...[/dim]")
         try:
             response = _chat_with_vector(user_input, history, console)
             history.append({"role": "user", "content": user_input})

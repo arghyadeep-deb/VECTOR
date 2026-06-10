@@ -799,9 +799,9 @@ Return one {entity_type} name per line. Only include names that could satisfy th
                     self.progress_callback and i < 5
                 ):  # Report progress for top candidates
                     conf_emoji = (
-                        "âœ“"
+                        "✓"
                         if evidence.confidence >= self.evidence_threshold
-                        else "â—‹"
+                        else "○"
                     )
                     self.progress_callback(
                         f"{conf_emoji} {candidate.name} | {constraint.type.value}: {evidence.confidence:.0%}",

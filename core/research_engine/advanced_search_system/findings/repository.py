@@ -255,7 +255,7 @@ class FindingsRepository(BaseFindingsRepository):
             )
 
             # Check if knowledge exceeds a reasonable token limit (rough estimate based on characters)
-            # 1 token â‰ˆ 4 characters in English
+            # 1 token ≈ 4 characters in English
             estimated_tokens = len(current_knowledge) / 4
             max_safe_tokens = (
                 12000  # Adjust based on your model's context window

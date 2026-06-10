@@ -2,7 +2,7 @@
 VECTOR Stealth Browser — YouTube Transcript Extraction
 Two-mode transcript extraction:
   Mode 1 (fast, free): yt-dlp subprocess — no browser needed
-  Mode 2 (browser fallback): StealthBrowserClient â†’ /youtube/transcript endpoint
+  Mode 2 (browser fallback): StealthBrowserClient → /youtube/transcript endpoint
 
 Usage:
     result = asyncio.run(get_youtube_transcript("https://youtu.be/dQw4w9WgXcQ"))
@@ -99,7 +99,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                 try:
                     import httpx
                     vtt = httpx.get(sub_url, timeout=15.0).text
-                    # Strip VTT markup â†’ plain text
+                    # Strip VTT markup → plain text
                     lines = []
                     for line in vtt.split("\n"):
                         line = line.strip()

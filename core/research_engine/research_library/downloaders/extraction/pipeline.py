@@ -123,8 +123,8 @@ def extract_content(
     Pipeline:
         1. trafilatura (primary — best benchmarks, multilingual, markdown)
         2. newspaper4k (parallel — strong on news/forum pages)
-        â†’ pick the higher-quality result from steps 1-2
-        3. readability â†’ justext (fallback if both above fail, with 80% safety)
+        → pick the higher-quality result from steps 1-2
+        3. readability → justext (fallback if both above fail, with 80% safety)
         4. soup.get_text() (last resort)
 
     Args:
@@ -169,7 +169,7 @@ def extract_content(
             )
         )
     else:
-        # Fallback: readability â†’ justext
+        # Fallback: readability → justext
         logger.warning(
             "Pipeline: primary extractors insufficient, using fallback"
         )
@@ -410,8 +410,8 @@ def fetch_and_extract(
 
     Pipeline:
         1. Specialized downloader (arXiv PDF, PubMed API, etc.) if URL matches
-        2. Static HTTP fetch â†’ Playwright fallback (if JS needed)
-           â†’ trafilatura â†’ readability â†’ justext
+        2. Static HTTP fetch → Playwright fallback (if JS needed)
+           → trafilatura → readability → justext
 
     Args:
         url: The URL to fetch.
@@ -436,7 +436,7 @@ def fetch_and_extract(
     try:
         # download() returns extracted text as UTF-8 bytes (not raw HTML):
         # AutoHTMLDownloader inherits HTMLDownloader.download() which runs
-        # _fetch_html() â†’ _extract_content() â†’ the full extraction pipeline.
+        # _fetch_html() → _extract_content() → the full extraction pipeline.
         result = downloader.download(url)
         if result:
             return result.decode("utf-8", errors="replace")
@@ -471,7 +471,7 @@ def batch_fetch_and_extract(
         language: Language for justext stoplist.
 
     Returns:
-        Dict mapping URL â†’ extracted text (or None if failed).
+        Dict mapping URL → extracted text (or None if failed).
     """
     from ..playwright_html import AutoHTMLDownloader
 

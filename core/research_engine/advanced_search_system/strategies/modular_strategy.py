@@ -1058,7 +1058,7 @@ Provide a clear, factual answer that addresses the original question and explain
                     if not result.should_reject:
                         results.append(candidate)
                         logger.info(
-                            f"âœ… Accepted: {candidate.name} (score: {result.total_score:.2%})"
+                            f"✅ Accepted: {candidate.name} (score: {result.total_score:.2%})"
                         )
 
                         # Check for excellent candidates

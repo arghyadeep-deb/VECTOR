@@ -54,7 +54,7 @@ class Planner:
     def plan_for_energy(self, limit: int = 4) -> list[dict]:
         """
         Same as plan() but filters by current energy level from health monitor.
-        High energy â†’ all actions. Low energy â†’ only urgency=high actions.
+        High energy → all actions. Low energy → only urgency=high actions.
         """
         try:
             actions = self.plan(limit=limit * 2)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     next_action = planner.get_next_action()
     ok = isinstance(actions, list) and isinstance(energy_actions, list)
     print(
-        f"âœ… planner OK — planned={len(actions)}, energy_filtered={len(energy_actions)}, "
+        f"✅ planner OK — planned={len(actions)}, energy_filtered={len(energy_actions)}, "
         f"next={next_action['action'] if next_action else 'None'}"
         if ok else "âŒ FAILED"
     )

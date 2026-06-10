@@ -8,7 +8,7 @@ manages concurrency, injects memory context, fires typing indicators,
 and handles streaming responses back to the channel.
 
 Architecture:
-  ChannelMessage â†’ ChannelRuntime.dispatch() â†’ Agent â†’ streaming reply â†’ Channel.send()
+  ChannelMessage → ChannelRuntime.dispatch() → Agent → streaming reply → Channel.send()
 
 Integrates with VECTOR's existing vectorcode channel adapters.
 """
@@ -116,7 +116,7 @@ def _build_context_block(msg: ChannelMessage) -> str:
 # â”€â”€ ChannelRuntime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 AgentHandler = Callable[[str, str, str], Awaitable[str]]
-# (agent_name, system_prompt_hint, user_message) â†’ response
+# (agent_name, system_prompt_hint, user_message) → response
 
 
 class ChannelRuntime:
@@ -270,7 +270,7 @@ class ChannelRuntime:
 
     @staticmethod
     async def _default_reply(msg: SendMessage) -> None:
-        logger.info("[VECTOR][channel_runtime] reply â†’ {}: {}", msg.recipient, msg.content[:80])
+        logger.info("[VECTOR][channel_runtime] reply → {}: {}", msg.recipient, msg.content[:80])
 
 
 if __name__ == "__main__":

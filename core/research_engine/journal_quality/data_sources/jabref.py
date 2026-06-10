@@ -1,7 +1,7 @@
 """JabRef journal abbreviations data source.
 
 Downloads ~14 small CSV files from the JabRef GitHub repo and merges
-them into a single gzipped JSON mapping abbreviations â†’ full names.
+them into a single gzipped JSON mapping abbreviations → full names.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class JabRefSource(DataSource):
     )
     license = "CC0 1.0"
     license_url = "https://creativecommons.org/publicdomain/zero/1.0/"
-    description = "~66K journal abbreviation â†’ full name mappings"
+    description = "~66K journal abbreviation → full name mappings"
     filename = "jabref_abbreviations.json.gz"
     count_label = "abbreviations"
     auto_download = True  # ~0.5 MB total across 14 files
@@ -85,11 +85,11 @@ class JabRefSource(DataSource):
                             logger.warning(
                                 "jabref collision "
                                 f"[{filename}] {abbrev_lower!r}: "
-                                f"{abbrev_to_full[abbrev_lower]!r} â†’ "
+                                f"{abbrev_to_full[abbrev_lower]!r} → "
                                 f"{full_name!r}"
                             )
                         abbrev_to_full[abbrev_lower] = full_name
-                        # Also store without dots: "Phys Rev Lett" â†’ same
+                        # Also store without dots: "Phys Rev Lett" → same
                         no_dots = abbreviation.replace(".", "").strip().lower()
                         if no_dots != abbreviation.lower():
                             if (
@@ -99,7 +99,7 @@ class JabRefSource(DataSource):
                                 logger.warning(
                                     "jabref collision (no-dots) "
                                     f"[{filename}] {no_dots!r}: "
-                                    f"{abbrev_to_full[no_dots]!r} â†’ "
+                                    f"{abbrev_to_full[no_dots]!r} → "
                                     f"{full_name!r}"
                                 )
                             abbrev_to_full[no_dots] = full_name

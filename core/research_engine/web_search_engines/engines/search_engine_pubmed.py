@@ -264,10 +264,10 @@ CRITICAL RULES:
 8. Use wildcards for variations: vaccin*[Title/Abstract]
 
 EXAMPLE QUERIES:
-âœ“ GOOD: (mRNA[Title/Abstract] OR "messenger RNA"[Title/Abstract]) AND vaccin*[Title/Abstract]
-âœ“ GOOD: (influenza[Title/Abstract] OR flu[Title/Abstract]) AND treatment[Title/Abstract]
-âœ— BAD: (mRNA[Title/Abstract]) AND "specific disease"[Mesh] AND treatment[Title/Abstract] AND 2023[dp]
-âœ— BAD: "Here's a query to find articles about vaccines..."
+✓ GOOD: (mRNA[Title/Abstract] OR "messenger RNA"[Title/Abstract]) AND vaccin*[Title/Abstract]
+✓ GOOD: (influenza[Title/Abstract] OR flu[Title/Abstract]) AND treatment[Title/Abstract]
+✗ BAD: (mRNA[Title/Abstract]) AND "specific disease"[Mesh] AND treatment[Title/Abstract] AND 2023[dp]
+✗ BAD: "Here's a query to find articles about vaccines..."
 
 Return ONLY the search query without any explanations.
 """

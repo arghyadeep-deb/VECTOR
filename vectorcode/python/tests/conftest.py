@@ -11,6 +11,7 @@ _PROJECT_ROOT = _VC_ROOT.parent                      # V.E.C.T.O.R. Codebase/
 for p in (_PROJECT_ROOT, _VC_ROOT, _VC_SRC):
     p_str = str(p)
     if p_str not in sys.path:
+        sys.path.insert(0, p_str)
 
 # Gap 15: Legacy tests are now enabled.
 # Previously: collect_ignore_glob = ["legacy_ported/*"]

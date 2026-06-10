@@ -343,7 +343,7 @@ def create_search_engine(
         # Apply the setting
         if should_filter and hasattr(engine, "llm") and engine.llm:
             engine.enable_llm_relevance_filter = True
-            logger.info(f"âœ“ Enabled LLM relevance filtering for {engine_name}")
+            logger.info(f"✓ Enabled LLM relevance filtering for {engine_name}")
         elif should_filter:
             logger.warning(
                 f"LLM relevance filtering requested for {engine_name} "

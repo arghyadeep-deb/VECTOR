@@ -200,7 +200,7 @@ class ErrorReporter:
             ],
             ErrorCategory.RATE_LIMIT_ERROR: [
                 "The API has reached its rate limit",
-                "Enable LLM Rate Limiting in Settings â†’ Rate Limiting â†’ Enable LLM Rate Limiting",
+                "Enable LLM Rate Limiting in Settings → Rate Limiting → Enable LLM Rate Limiting",
                 "Once enabled, the system will automatically learn and adapt to API limits",
                 "Consider upgrading to a paid API plan for higher limits",
                 "Try using a different model temporarily",

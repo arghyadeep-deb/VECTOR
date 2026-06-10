@@ -1,5 +1,5 @@
 """
-Batch DOI â†’ OpenAlex source_id enrichment.
+Batch DOI → OpenAlex source_id enrichment.
 
 Resolves paper DOIs to OpenAlex source IDs in a single batch HTTP request
 (up to 50 DOIs per call). This populates ``openalex_source_id`` and
@@ -57,7 +57,7 @@ def enrich_results_with_source_ids(
 
     For results that have a DOI but no ``openalex_source_id``, makes a
     single batch request to the OpenAlex works endpoint to resolve
-    DOI â†’ journal/conference source_id.
+    DOI → journal/conference source_id.
 
     The results list is modified in-place and also returned.
 

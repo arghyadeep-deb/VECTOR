@@ -178,9 +178,9 @@ class InstitutionSource(DataSource):
             )
 
         payload = {
-            "i": institutions,  # institution ID â†’ compact record
-            "r": ror_index,  # ROR ID â†’ institution ID
-            "nm": name_index,  # lower-cased name â†’ institution ID
+            "i": institutions,  # institution ID → compact record
+            "r": ror_index,  # ROR ID → institution ID
+            "nm": name_index,  # lower-cased name → institution ID
         }
 
         output = data_dir / self.filename

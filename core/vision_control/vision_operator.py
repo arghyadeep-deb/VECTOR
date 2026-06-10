@@ -53,10 +53,10 @@ DRAG_ACTIONS     = {"drag", "select"}
 TYPE_ACTIONS     = {"type", "input_text"}
 HOTKEY_ACTIONS   = {"hotkey", "key_press", "press"}
 
-# Direction â†’ scroll amount mapping
+# Direction → scroll amount mapping
 SCROLL_MAP = {"up": -3, "down": 3, "left": -3, "right": 3}
 
-# VECTOR hotkey name â†’ pyautogui key name
+# VECTOR hotkey name → pyautogui key name
 KEY_MAP = {
     "ctrl": "ctrl", "control": "ctrl",
     "shift": "shift", "alt": "alt",

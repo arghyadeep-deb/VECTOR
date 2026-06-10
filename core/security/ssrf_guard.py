@@ -168,7 +168,7 @@ class SSRFGuard:
                         for network in _PRIVATE_NETWORKS:
                             if ip in network:
                                 logger.warning(
-                                    "[VECTOR][ssrf] blocked DNS-resolved IP: {} â†’ {}",
+                                    "[VECTOR][ssrf] blocked DNS-resolved IP: {} → {}",
                                     host, ip_str,
                                 )
                                 return SSRFCheckResult(

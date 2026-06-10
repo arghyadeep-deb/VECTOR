@@ -3,10 +3,10 @@ VECTOR Vision Control — GUI Agent
 Python port of UI-TARS-desktop/packages/ui-tars/sdk/src/GUIAgent.ts
 
 The main VLM-driven GUI automation loop:
-  screenshot â†’ VLM predicts action â†’ parse â†’ execute â†’ repeat
+  screenshot → VLM predicts action → parse → execute → repeat
 
 Supports pause/resume/stop by the owner (human-in-the-loop).
-Uses VECTOR's inference stack (Ollama vision model â†’ Gemini â†’ GPT-4o fallback).
+Uses VECTOR's inference stack (Ollama vision model → Gemini → GPT-4o fallback).
 
 Usage:
     agent = GUIAgent()
@@ -69,7 +69,7 @@ Current task: {instruction}"""
 class GUIAgent:
     """
     VECTOR's VLM-driven GUI automation agent.
-    Runs a continuous loop: screenshot â†’ VLM â†’ parse action â†’ execute â†’ repeat.
+    Runs a continuous loop: screenshot → VLM → parse action → execute → repeat.
     Supports pause/resume/stop for human-in-the-loop control.
     """
 
@@ -295,7 +295,7 @@ class GUIAgent:
     ) -> str:
         """
         Call VECTOR's multimodal VLM with the current screenshot.
-        Uses provider_client for Ollama â†’ Gemini â†’ GPT-4o fallback chain.
+        Uses provider_client for Ollama → Gemini → GPT-4o fallback chain.
         """
         # Build conversation context (last 3 steps to avoid context overflow)
         ctx_parts = []

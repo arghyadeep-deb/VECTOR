@@ -73,7 +73,7 @@ class StdioTransport:
 
     def connect(self) -> None:
         cmd = self._cmd
-        # Windows: npx â†’ npx.cmd
+        # Windows: npx → npx.cmd
         if sys.platform == "win32" and self._cmd in ("npx", "node"):
             cmd = self._cmd + (".cmd" if self._cmd == "npx" else ".exe")
         self._proc = subprocess.Popen(
@@ -125,7 +125,7 @@ class HttpTransport:
         self._req_id  = 0
 
     def connect(self) -> None:
-        logger.debug("[VECTOR][mcp_client] http transport â†’ {}", self._url)
+        logger.debug("[VECTOR][mcp_client] http transport → {}", self._url)
 
     def disconnect(self) -> None:
         pass
@@ -166,7 +166,7 @@ class MCPClient:
         self._debug     = debug
         self._timeout   = default_timeout
         self._transports: dict[str, StdioTransport | HttpTransport] = {}
-        self._tools_cache: dict[str, list[dict]] = {}  # server_name â†’ tools
+        self._tools_cache: dict[str, list[dict]] = {}  # server_name → tools
         self._connected  = False
 
     async def connect(self) -> None:

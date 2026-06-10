@@ -542,13 +542,13 @@ class CitationFormatter:
            ``utilities/search_utilities.format_links_to_markdown``
            emits a ``Collection:`` line per source for library results,
            which the formatter parses back into this argument.
-        2. Empty URL or non-http(s) scheme (``file://``, ``local:``, ...) â†’
+        2. Empty URL or non-http(s) scheme (``file://``, ``local:``, ...) →
            ``"local"``. Uniform fallback when no collection name is
            available.
-        3. ``URLClassifier`` matches a known academic source â†’ use the
+        3. ``URLClassifier`` matches a known academic source → use the
            enum value (``arxiv``, ``pubmed``, ``pmc``, ``biorxiv``,
            ``medrxiv``, ``semantic_scholar``, ``doi``).
-        4. Otherwise â†’ fall back to ``_extract_domain`` (e.g.
+        4. Otherwise → fall back to ``_extract_domain`` (e.g.
            ``arxiv.org``, ``nytimes.com``).
         """
         if collection:
@@ -571,7 +571,7 @@ class CitationFormatter:
             return self._extract_domain(url)
 
         url_type = URLClassifier.classify(url)
-        # Generic HTML/PDF/INVALID â†’ fall back to domain. Everything else
+        # Generic HTML/PDF/INVALID → fall back to domain. Everything else
         # is a known academic source whose enum value is the short tag.
         if url_type in (URLType.HTML, URLType.PDF, URLType.INVALID):
             return self._extract_domain(url)

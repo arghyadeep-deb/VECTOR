@@ -1379,7 +1379,7 @@ class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
     async def _handle_proxy_setup(
         self, session: AcpSessionLoop, text_prompt: str, message_id: str
     ) -> PromptResponse:
-        # Proxy setup removed â€” VECTOR uses environment variables directly
+        # Proxy setup removed — VECTOR uses environment variables directly
         return await self._command_reply(
             session,
             "Proxy configuration is managed via environment variables in VECTOR.",

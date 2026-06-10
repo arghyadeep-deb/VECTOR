@@ -83,7 +83,7 @@ async def ingest_external_task(
     """
     External task ingestion endpoint (Gap 3).
     Accepts tasks from phone, cloud agents, ESP32, webhooks.
-    Validates through permission gateway before injecting into the thinkâ†’act pipeline.
+    Validates through permission gateway before injecting into the think→act pipeline.
     """
     _check_api_key(authorization)
     _check_rate(authorization)

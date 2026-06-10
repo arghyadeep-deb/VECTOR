@@ -10,6 +10,7 @@ from pathlib import Path as _Path
 # Ensure parent dir is on sys.path so we can find utils.py
 _parent = str(_Path(__file__).parent.parent)
 if _parent not in sys.path:
+    sys.path.insert(0, _parent)
 
 # Import and re-export EVERYTHING from utils.py (top-level VectorCode module)
 try:

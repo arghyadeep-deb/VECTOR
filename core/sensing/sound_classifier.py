@@ -174,7 +174,7 @@ class SoundClassifier:
                 blocking=True,
             )
             label = self.classify_frame(recording)
-            logger.debug(f"[VECTOR][sound] sample_and_classify â†’ {label}")
+            logger.debug(f"[VECTOR][sound] sample_and_classify → {label}")
             return label
 
         except Exception as exc:
@@ -216,14 +216,14 @@ if __name__ == "__main__":
         assert result == "alert", f"Expected 'alert', got {result!r}"
 
         # 3. speech-like — moderate amplitude, rapid sign changes
-        #    alternating Â±0.1 â†’ ZCR ~ 1.0, RMS ~ 0.1 â†’ speech
+        #    alternating ±0.1 → ZCR ~ 1.0, RMS ~ 0.1 → speech
         speech = np.tile(np.array([0.1, -0.1], dtype=np.float32), 4000)
         result = classifier.classify_frame(speech)
         assert result == "speech", f"Expected 'speech', got {result!r}"
 
         # 4. background — moderate RMS, low ZCR (low-freq sine proxy)
         t = np.linspace(0, 0.5, 8000, dtype=np.float32)
-        # 20 Hz sine: ~40 zero-crossings in 8000 samples â†’ ZCR â‰ˆ 0.005
+        # 20 Hz sine: ~40 zero-crossings in 8000 samples → ZCR ≈ 0.005
         background = np.sin(2 * np.pi * 20 * t) * 0.05
         result = classifier.classify_frame(background)
         assert result == "background", f"Expected 'background', got {result!r}"
@@ -247,4 +247,4 @@ if __name__ == "__main__":
         logger.error(f"[VECTOR][sound] SoundClassifier smoke test FAILED: {exc}")
         ok = False
 
-    print("âœ… sound_classifier.py OK" if ok else "âŒ sound_classifier.py FAILED")
+    print("✅ sound_classifier.py OK" if ok else "âŒ sound_classifier.py FAILED")

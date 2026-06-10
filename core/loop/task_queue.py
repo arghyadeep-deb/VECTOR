@@ -9,7 +9,7 @@ Usage:
 
     tq = TaskQueue.get()
     task_id = tq.submit(some_coroutine(), name="Research AI news", priority=Priority.LOW)
-    tq.status(task_id)   # â†’ Task dataclass
+    tq.status(task_id)   # → Task dataclass
     tq.cancel(task_id)
 """
 import sys
@@ -60,7 +60,7 @@ class Task:
     district:     str               = "core"
     tags:         list[str]         = field(default_factory=list)
     status:       TaskStatus        = TaskStatus.QUEUED
-    progress:     float             = 0.0          # 0.0 â†’ 1.0
+    progress:     float             = 0.0          # 0.0 → 1.0
     result:       Any               = None
     error:        str | None        = None
     submitted_at: float             = field(default_factory=time.time)
@@ -95,10 +95,10 @@ class TaskQueue:
     """
     Singleton parallel execution engine.
 
-    submit()  â†’ returns task_id immediately, work runs in background
-    status()  â†’ Task dataclass with live progress/status
-    cancel()  â†’ cancels if still running
-    list_*()  â†’ introspection helpers
+    submit()  → returns task_id immediately, work runs in background
+    status()  → Task dataclass with live progress/status
+    cancel()  → cancels if still running
+    list_*()  → introspection helpers
 
     On complete/fail fires three notifications:
       1. Terminal line  — printed directly via loguru (chat picks it up)
@@ -160,7 +160,7 @@ class TaskQueue:
             elif asyncio.iscoroutinefunction(work):
                 aio = loop.create_task(self._run_coro(task_id, work()))
             else:
-                # blocking callable â†’ offload to thread pool
+                # blocking callable → offload to thread pool
                 aio = loop.create_task(self._run_in_thread(task_id, work))
             self._aio_tasks[task_id] = aio
         except RuntimeError:
@@ -282,7 +282,7 @@ class TaskQueue:
     # â”€â”€ Notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _on_complete(self, task: Task) -> None:
-        msg = f"[âœ“ BG] {task.name} ({task.elapsed}s)"
+        msg = f"[✓ BG] {task.name} ({task.elapsed}s)"
 
         # 1. Terminal line
         self._notify_terminal(msg)
@@ -294,7 +294,7 @@ class TaskQueue:
         await self._pushover(msg)
 
     async def _on_failed(self, task: Task) -> None:
-        msg = f"[âœ— BG] {task.name} FAILED: {task.error or '?'} ({task.elapsed}s)"
+        msg = f"[✗ BG] {task.name} FAILED: {task.error or '?'} ({task.elapsed}s)"
 
         self._notify_terminal(msg)
         await self._store_episodic(task, success=False)
@@ -377,6 +377,6 @@ if __name__ == "__main__":
         assert s["completed_today"] >= 2
         print(f"  summary: {s['completed_today']} completed, {s['running']} running")
 
-        print(f"âœ… task_queue.py OK")
+        print(f"✅ task_queue.py OK")
 
     asyncio.run(_smoke())

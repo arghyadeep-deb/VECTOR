@@ -5,9 +5,9 @@ AI-based background removal using ONNX runtime + OpenCV.
 Outputs transparent RGBA video/images for overlay compositing.
 
 Supported output formats:
-  .webm â†’ VP9 with alpha (HTML5-native, ~1MB/4s @ 1080p)
-  .mov  â†’ ProRes 4444 with alpha (editing round-trip)
-  .png  â†’ single RGBA still
+  .webm → VP9 with alpha (HTML5-native, ~1MB/4s @ 1080p)
+  .mov  → ProRes 4444 with alpha (editing round-trip)
+  .png  → single RGBA still
 
 Models (auto-downloaded):
   u2net       — general purpose (best quality)
@@ -101,7 +101,7 @@ class BGSession:
         model_path = self._ensure_model()
         try:
             import onnxruntime as ort
-            # Prefer CUDA (RTX 5070 Ti) â†’ CPU fallback
+            # Prefer CUDA (RTX 5070 Ti) → CPU fallback
             providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
             self._session = ort.InferenceSession(str(model_path), providers=providers)
             active = self._session.get_providers()[0]
@@ -145,7 +145,7 @@ class BGSession:
         frame_rgb: np.ndarray,
         alpha: np.ndarray,
     ) -> np.ndarray:
-        """Combine RGB frame with alpha mask â†’ RGBA uint8."""
+        """Combine RGB frame with alpha mask → RGBA uint8."""
         alpha_u8 = (alpha * 255).astype(np.uint8)
         rgba = np.dstack([frame_rgb, alpha_u8])
         return rgba
@@ -202,7 +202,7 @@ class BackgroundRemover:
         input_path: str,
         output_path: str,
     ) -> RemoveResult:
-        """Remove background from a single image â†’ PNG with alpha."""
+        """Remove background from a single image → PNG with alpha."""
         import cv2
 
         # Try rembg shortcut first (simpler)
@@ -245,7 +245,7 @@ class BackgroundRemover:
         on_progress: Optional[Callable[[ProgressEvent], None]] = None,
     ) -> RemoveResult:
         """
-        Remove background from a video â†’ WebM/MOV with alpha channel.
+        Remove background from a video → WebM/MOV with alpha channel.
         Optionally also produce an inverse alpha background plate.
         """
         try:

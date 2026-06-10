@@ -45,7 +45,7 @@ _ARCH       = platform.machine().lower()
 _BIN_NAME   = "sd-cli.exe" if _IS_WINDOWS else "sd-cli"
 _BIN_PATH   = _BIN_DIR / _BIN_NAME
 
-# Model catalog — id â†’ {name, sd_version, base_dim, hf_repo, filename}
+# Model catalog — id → {name, sd_version, base_dim, hf_repo, filename}
 LOCAL_MODEL_CATALOG: dict[str, dict] = {
     "sd15": {
         "name": "Stable Diffusion 1.5",
@@ -203,7 +203,7 @@ class LocalInference:
                                 pct = round(downloaded / total * 100)
                                 if pct % 10 == 0:
                                     logger.debug("[VECTOR][local_inf] {} {}%", model_id, pct)
-            logger.info("[VECTOR][local_inf] {} downloaded â†’ {}", model_id, out_path)
+            logger.info("[VECTOR][local_inf] {} downloaded → {}", model_id, out_path)
             return True
         except Exception as e:
             if out_path.exists():
@@ -281,7 +281,7 @@ class LocalInference:
             raise RuntimeError(f"sd.cpp exited with code {returncode}. Logs: {chr(10).join(logs[-5:])}")
         if not output_path.exists():
             raise RuntimeError("sd.cpp completed but output PNG not found")
-        logger.info("[VECTOR][local_inf] Generated â†’ {}", output_path)
+        logger.info("[VECTOR][local_inf] Generated → {}", output_path)
         return {"image_path": str(output_path), "model": model, "width": width, "height": height}
 
     async def cancel(self) -> None:

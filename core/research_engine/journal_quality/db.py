@@ -12,11 +12,11 @@ own short-lived writable engine, populates the schema, runs ANALYZE
 The DB compiles five gzipped JSON snapshots (downloaded by
 `journal_quality.downloader`) into one queryable file:
 
-- OpenAlex sources â†’ `sources` table (with predatory + DOAJ flags)
-- Stop Predatory Journals â†’ `predatory_journals/_publishers/_hijacked`
-- DOAJ â†’ cross-referenced into `sources`
-- JabRef abbreviations â†’ `abbreviations` table
-- OpenAlex Institutions â†’ `institutions` table
+- OpenAlex sources → `sources` table (with predatory + DOAJ flags)
+- Stop Predatory Journals → `predatory_journals/_publishers/_hijacked`
+- DOAJ → cross-referenced into `sources`
+- JabRef abbreviations → `abbreviations` table
+- OpenAlex Institutions → `institutions` table
 
 Built fresh on every download, no migrations.
 """
@@ -81,7 +81,7 @@ _BATCH_SIZE = 5000
 # which tracks upstream source-data freshness.
 JOURNAL_QUALITY_SCHEMA_VERSION = 3
 
-# Quality tier â†’ score range, used by the dashboard tier filter.
+# Quality tier → score range, used by the dashboard tier filter.
 _TIER_RANGES = {
     "elite": (9, 10),
     "strong": (7, 8),
@@ -140,7 +140,7 @@ class JournalQualityDB:
         self._engine: Optional[Engine] = None
         self._SessionLocal: Optional[sessionmaker[Session]] = None
         # RLock (not Lock): _ensure_engine holds the lock while calling
-        # _build_or_raise â†’ build_db â†’ reset_db â†’ self.reset(), which
+        # _build_or_raise → build_db → reset_db → self.reset(), which
         # re-acquires the same lock. A non-reentrant Lock would deadlock
         # the very first request on a fresh install.
         self._lock = threading.RLock()
@@ -171,9 +171,9 @@ class JournalQualityDB:
                 # engine. Catches two failure modes at open time instead
                 # of letting them propagate to first query:
                 #   1. Schema drift — ORM changed since this file was
-                #      built (PRAGMA user_version mismatch) â†’ rebuild.
+                #      built (PRAGMA user_version mismatch) → rebuild.
                 #   2. Corruption — file exists but isn't a valid DB
-                #      (truncated build, disk error) â†’ rebuild.
+                #      (truncated build, disk error) → rebuild.
                 if not self._validate_existing_db(path):
                     self._build_or_raise(path)
 
@@ -227,7 +227,7 @@ class JournalQualityDB:
         """Log WARNING once if ``version.json`` is behind ``JOURNAL_DATA_VERSION``."""
         if self._stale_version_warned:
             return
-        # Lazy import to avoid any downloader â†’ db cycle even though
+        # Lazy import to avoid any downloader → db cycle even though
         # today's module graph doesn't have one.
         from .downloader import JOURNAL_DATA_VERSION
 
@@ -578,7 +578,7 @@ class JournalQualityDB:
     ) -> Optional[dict]:
         """Look up an institution.
 
-        Order: openalex_id â†’ ror â†’ name. Returns a dict with full-name
+        Order: openalex_id → ror → name. Returns a dict with full-name
         keys (``name``, ``country``, ``type``, ``h_index``,
         ``impact_factor``, ``works_count``, ``cited_by_count``, ``ror_id``)
         or ``None`` if no match. The on-disk snapshot uses one-character
@@ -741,7 +741,7 @@ class JournalQualityDB:
             # MEDLINE-style "Title : long subtitle" — try the segment
             # before the colon. Catches PubMed names like
             #   "Molecular therapy : the journal of the American Society..."
-            # â†’ "Molecular therapy"
+            # → "Molecular therapy"
             if " : " in norm:
                 head = norm.split(" : ", 1)[0].strip()
                 if head and head != norm:

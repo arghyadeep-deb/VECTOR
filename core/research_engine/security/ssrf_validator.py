@@ -125,7 +125,7 @@ def is_ip_blocked(
     try:
         ip = ipaddress.ip_address(ip_str)
 
-        # Unwrap IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 â†’ 127.0.0.1)
+        # Unwrap IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 → 127.0.0.1)
         # These bypass IPv4 range checks if not converted.
         if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
             ip = ip.ipv4_mapped

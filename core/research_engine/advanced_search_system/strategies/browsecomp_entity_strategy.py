@@ -280,7 +280,7 @@ class BrowseCompEntityStrategy(BaseSearchStrategy):
                     best_candidate = evaluated[0]
                     if best_candidate.confidence > 0.8:
                         logger.info(
-                            f"âœ… Found high-confidence match: {best_candidate.name} ({best_candidate.confidence:.2%})"
+                            f"✅ Found high-confidence match: {best_candidate.name} ({best_candidate.confidence:.2%})"
                         )
                         break
 

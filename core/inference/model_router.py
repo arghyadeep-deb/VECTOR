@@ -128,7 +128,7 @@ class ModelRouter:
         adapter_name = self._domain_adapter_map.get(domain, "")
         model_name = self.base_model
         available = self.list_adapters()
-        logger.info("[ModelRouter] Routed '{}' â†’ domain={} (conf={:.2f}) adapter={}",
+        logger.info("[ModelRouter] Routed '{}' → domain={} (conf={:.2f}) adapter={}",
                      task[:60], domain, classification.confidence, adapter_name or "none")
         return RoutingResult(
             model_name=model_name,
@@ -204,7 +204,7 @@ class ModelRouter:
 
     def register_adapter_for_domain(self, domain: str, adapter_name: str) -> None:
         self._domain_adapter_map[domain] = adapter_name
-        logger.info("[ModelRouter] Mapped domain '{}' â†’ adapter '{}'", domain, adapter_name)
+        logger.info("[ModelRouter] Mapped domain '{}' → adapter '{}'", domain, adapter_name)
 
     def _load_adapter_map(self) -> None:
         map_path = self.adapter_dir / "domain_map.json"
@@ -212,6 +212,6 @@ class ModelRouter:
             try:
                 data = json.loads(map_path.read_text(encoding="utf-8"))
                 self._domain_adapter_map = data.get("mappings", {})
-                logger.info("[ModelRouter] Loaded {} domainâ†’adapter mappings", len(self._domain_adapter_map))
+                logger.info("[ModelRouter] Loaded {} domain→adapter mappings", len(self._domain_adapter_map))
             except Exception as e:
                 logger.warning("[ModelRouter] Failed to load domain map: {}", e)

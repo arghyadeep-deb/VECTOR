@@ -12,7 +12,7 @@ Scoring tiers (tried in order, first match wins):
   2. OpenAlex        — h-index, quartile, DOAJ from ~217K bundled sources;
                        preprint repos can be lifted via institution affiliations
   3. DOAJ            — quality floor (5) for listed OA journals;
-                       DOAJ Seal â†’ 8
+                       DOAJ Seal → 8
   3.5 Institutions   — author affiliation lookup when no venue matched
                        (capped at 6, never beats a real venue)
 
@@ -446,12 +446,12 @@ class JournalReputationFilter(BaseFilter):
         # Try JabRef abbreviation expansion (deterministic, instant)
         expanded = self.__data_manager.expand_abbreviation(cleaned)
         if expanded:
-            logger.warning(f"Abbreviation expanded: '{cleaned}' â†’ '{expanded}'")
+            logger.warning(f"Abbreviation expanded: '{cleaned}' → '{expanded}'")
             return expanded
 
         if cleaned != journal_name:
             logger.warning(
-                f"Regex-cleaned journal name: '{journal_name}' â†’ '{cleaned}'"
+                f"Regex-cleaned journal name: '{journal_name}' → '{cleaned}'"
             )
         return cleaned
 
@@ -473,7 +473,7 @@ class JournalReputationFilter(BaseFilter):
         # Strip a leading [bracketed-original-language] prefix that
         # MEDLINE uses for non-English journals:
         #   "[Rinsho ketsueki] The Japanese journal of clinical hematology"
-        # â†’ "The Japanese journal of clinical hematology"
+        # → "The Japanese journal of clinical hematology"
         name = re.sub(r"^\[[^\]]+\]\s*", "", name)
 
         # Strip trailing publisher suffixes that some search engines glue
@@ -491,11 +491,11 @@ class JournalReputationFilter(BaseFilter):
             flags=re.IGNORECASE,
         )
 
-        # Strip a leading 4-digit year ("2015 Plasma Phys. ..." â†’ "Plasma Phys. ...")
+        # Strip a leading 4-digit year ("2015 Plasma Phys. ..." → "Plasma Phys. ...")
         name = re.sub(r"^(?:19|20)\d{2}\s+", "", name)
 
         # Strip a leading ordinal volume marker, e.g.
-        # "31st Conference on Neural Information Processing Systems" â†’ "Conference on …"
+        # "31st Conference on Neural Information Processing Systems" → "Conference on …"
         # Without this the OpenAlex name lookup fails on most conference
         # entries because the canonical name has no ordinal prefix.
         name = re.sub(
@@ -581,7 +581,7 @@ class JournalReputationFilter(BaseFilter):
         # Strip trailing truncated volume/page markers: ", v", ", p",
         # ", vol" — these appear when the search engine preview cut the
         # citation mid-keyword ("Plasma Physics and Controlled Fusion,
-        # vol. 63, no. 8" â†’ "Plasma Physics and Controlled Fusion, v").
+        # vol. 63, no. 8" → "Plasma Physics and Controlled Fusion, v").
         name = re.sub(
             r",\s*(?:v|vol|p|pp|no|n)\.?\s*$",
             "",
@@ -591,11 +591,11 @@ class JournalReputationFilter(BaseFilter):
         # Remove trailing punctuation and whitespace
         name = re.sub(r"[,;.\s]+$", "", name)
         # Strip a trailing 4-digit year/volume (conferences: "NeurIPS 2023"
-        # â†’ "NeurIPS"). Comes after the punctuation strip so any trailing
+        # → "NeurIPS"). Comes after the punctuation strip so any trailing
         # comma/period is already gone, and after the parenthesized-year
         # regex above so we don't double-process "(2023)".
         name = re.sub(r"\s+\d{4}\s*$", "", name)
-        # Normalize "&" â†’ "and" for consistent matching
+        # Normalize "&" → "and" for consistent matching
         name = re.sub(r"\s*&\s*", " and ", name)
         # Normalize internal whitespace
         return re.sub(r"\s+", " ", name).strip()
@@ -605,7 +605,7 @@ class JournalReputationFilter(BaseFilter):
 
         The regex + JabRef abbreviation tiers handle the common cases
         (volume/year/page stripping, well-known abbreviations like
-        "Phys. Rev. Lett." â†’ "Physical Review Letters"). They cannot
+        "Phys. Rev. Lett." → "Physical Review Letters"). They cannot
         handle locations ("ICML 2023, Honolulu"), unusual abbreviations
         not in the JabRef list, or non-English title transliterations.
 
@@ -934,7 +934,7 @@ JOURNAL INFORMATION:
             )
             if score is not None:
                 logger.warning(
-                    f"Tier 2 (OpenAlex): '{journal_name}' â†’ "
+                    f"Tier 2 (OpenAlex): '{journal_name}' → "
                     f"score {score}/10 "
                     f"(quartile: {oa_quartile or '—'}, h-index: {h_idx})"
                 )
@@ -946,8 +946,8 @@ JOURNAL INFORMATION:
                 # low Tier-2 floor because they aren't peer-reviewed. If
                 # the authors are at a strong institution, lift the score
                 # via the institution tier — taking max so a real venue
-                # match (â‰¥6) is never demoted. Only applies to repository
-                # source types and only when score is weak (â‰¤5).
+                # match (≥6) is never demoted. Only applies to repository
+                # source types and only when score is weak (≤5).
                 if oa_type == "repository" and score <= 5:
                     affs = result.get("affiliations")
                     if affs:
@@ -955,7 +955,7 @@ JOURNAL INFORMATION:
                         if inst is not None and inst > score:
                             logger.warning(
                                 f"Tier 2+3.5 (preprint lift): "
-                                f"'{journal_name}' {score} â†’ {inst} via "
+                                f"'{journal_name}' {score} → {inst} via "
                                 f"institutions: {_format_affiliations(affs)}"
                             )
                             return inst, "institution"
@@ -971,7 +971,7 @@ JOURNAL INFORMATION:
                     has_doaj_seal=seal,
                 )
                 logger.warning(
-                    f"Tier 3 (DOAJ): '{journal_name}' â†’ "
+                    f"Tier 3 (DOAJ): '{journal_name}' → "
                     f"score {score}/10 (DOAJ Seal: {seal})"
                 )
                 return score, "doaj"
@@ -987,7 +987,7 @@ JOURNAL INFORMATION:
             inst_score = dm.score_from_affiliations(affiliations)
             if inst_score is not None:
                 logger.warning(
-                    f"Tier 3.5 (Institution): '{journal_name}' â†’ "
+                    f"Tier 3.5 (Institution): '{journal_name}' → "
                     f"score {inst_score}/10 from institutions: "
                     f"{_format_affiliations(affiliations)}"
                 )
@@ -1022,7 +1022,7 @@ JOURNAL INFORMATION:
 
                         if is_fresh and is_valid:
                             logger.info(
-                                f"DB cache hit: '{journal_name}' â†’ "
+                                f"DB cache hit: '{journal_name}' → "
                                 f"score {cached.quality}/10 [cached LLM]"
                             )
                             # Cache hit on a Journal row written by the
@@ -1068,7 +1068,7 @@ JOURNAL INFORMATION:
             relabeled = self.__llm_clean_journal_name(journal_name)
             if relabeled and relabeled != journal_name:
                 logger.warning(
-                    f"Tier 3.6 (LLM cleanup): '{journal_name}' â†’ "
+                    f"Tier 3.6 (LLM cleanup): '{journal_name}' → "
                     f"'{relabeled}', retrying bundled tiers"
                 )
                 oa_retry = dm.lookup_openalex(name=relabeled)
@@ -1089,8 +1089,8 @@ JOURNAL INFORMATION:
                     )
                     if score is not None:
                         logger.info(
-                            f"Tier 3.6 (LLM cleanup â†’ OpenAlex): "
-                            f"'{journal_name}' (as '{relabeled}') â†’ "
+                            f"Tier 3.6 (LLM cleanup → OpenAlex): "
+                            f"'{journal_name}' (as '{relabeled}') → "
                             f"score {score}/10"
                         )
                         # Tier 3.6 is a Tier 2 retry under a cleaned
@@ -1122,7 +1122,7 @@ JOURNAL INFORMATION:
                         seal_bonus = True
                     else:
                         # Bump lands outside the canonical score set
-                        # (e.g. q=8 â†’ 9, and 9 âˆ‰ VALID_QUALITY_SCORES).
+                        # (e.g. q=8 → 9, and 9 ∉ VALID_QUALITY_SCORES).
                         # Log the skip so operators can see the Seal
                         # had no effect instead of dropping silently.
                         logger.warning(
@@ -1133,7 +1133,7 @@ JOURNAL INFORMATION:
                         )
                 self.__save_llm_score_to_db(name=journal_name, quality=quality)
                 logger.warning(
-                    f"Tier 4 (LLM): '{journal_name}' â†’ "
+                    f"Tier 4 (LLM): '{journal_name}' → "
                     f"score {quality}/10 "
                     f"[via SearXNG + LLM analysis"
                     f"{', +1 DOAJ Seal bonus' if seal_bonus else ''}]"
@@ -1167,7 +1167,7 @@ JOURNAL INFORMATION:
         elif _is_likely_conference(journal_name):
             score = dm.derive_quality_score(source_type="conference")
             logger.warning(
-                f"Conference heuristic: '{journal_name}' â†’ "
+                f"Conference heuristic: '{journal_name}' → "
                 f"score {score}/10 (detected as conference by name pattern)"
             )
             return score, "conference"
@@ -1309,7 +1309,7 @@ JOURNAL INFORMATION:
                         result["journal_quality"] = inst_score
                         logger.warning(
                             f"Tier 3.5 (Institution, no venue): "
-                            f"'{result.get('title', '')[:60]}' â†’ "
+                            f"'{result.get('title', '')[:60]}' → "
                             f"score {inst_score}/10 from institutions: "
                             f"{_format_affiliations(affs)}"
                         )
@@ -1374,7 +1374,7 @@ JOURNAL INFORMATION:
                 score, source_tag = journal_scores[clean_name]
 
                 if score is None:
-                    # Predatory â†’ auto-remove. Include original journal_ref
+                    # Predatory → auto-remove. Include original journal_ref
                     # and URL in the log so false-positive reports can be
                     # debugged without re-running the query.
                     logger.warning(
@@ -1414,7 +1414,7 @@ JOURNAL INFORMATION:
                 if s is not None and s < self.__threshold
             )
             logger.info(
-                f"Journal quality filter: {len(results)} â†’ "
+                f"Journal quality filter: {len(results)} → "
                 f"{len(filtered)} results | "
                 f"{len(journal_scores)} unique journals scored | "
                 f"{passed_count} passed, {below_count} below threshold, "

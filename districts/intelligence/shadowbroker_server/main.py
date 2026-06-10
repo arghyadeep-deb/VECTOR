@@ -1730,7 +1730,7 @@ def _schedule_public_event_propagation(event_dict: dict[str, Any]) -> None:
 
 _PEER_PUSH_INTERVAL_S = 10
 _PEER_PUSH_BATCH_SIZE = 50
-_peer_push_last_index: dict[str, int] = {}  # peer_url â†’ last pushed event index
+_peer_push_last_index: dict[str, int] = {}  # peer_url → last pushed event index
 
 
 def _http_peer_push_loop() -> None:
@@ -1799,7 +1799,7 @@ def _http_peer_push_loop() -> None:
                         _peer_push_last_index[normalized] = last_idx + len(batch)
                         logger.info(
                             f"Pushed {len(batch)} event(s) to {normalized[:40]} "
-                            f"(idx {last_idx}â†’{last_idx + len(batch)})"
+                            f"(idx {last_idx}→{last_idx + len(batch)})"
                         )
                     else:
                         logger.warning(f"Peer push to {normalized[:40]} returned {resp.status_code}")
@@ -1817,7 +1817,7 @@ def _http_peer_push_loop() -> None:
 # THEIR events from peers (needed when this node is behind NAT).
 
 _GATE_PULL_INTERVAL_S = 10
-_gate_pull_last_count: dict[str, dict[str, int]] = {}  # peer â†’ {gate_id â†’ known count}
+_gate_pull_last_count: dict[str, dict[str, int]] = {}  # peer → {gate_id → known count}
 
 
 def _http_gate_pull_loop() -> None:
@@ -1945,7 +1945,7 @@ def _http_gate_pull_loop() -> None:
 
 # â”€â”€â”€ Background Gate Message Push Worker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-_gate_push_last_count: dict[str, dict[str, int]] = {}  # peer â†’ {gate_id â†’ count}
+_gate_push_last_count: dict[str, dict[str, int]] = {}  # peer → {gate_id → count}
 
 
 def _http_gate_push_loop() -> None:
@@ -3574,7 +3574,7 @@ def _json_safe(value):
 
 
 def _sanitize_payload(value):
-    """Thread-safe snapshot with NaNâ†’None. Cheaper than _json_safe: only deep-
+    """Thread-safe snapshot with NaN→None. Cheaper than _json_safe: only deep-
     copies dicts (for thread safety) and replaces non-finite floats. Lists are
     shallow-copied — orjson handles the leaf serialisation natively."""
     if isinstance(value, float):
@@ -6253,8 +6253,8 @@ async def oracle_predict(request: Request):
     """Place a prediction on a market outcome. FINAL decision.
 
     Body: {node_id, market_title, side, stake_amount?: number}
-    - stake_amount = 0 or omitted â†’ FREE PICK (earn rep if correct)
-    - stake_amount > 0 â†’ STAKE REP (risk rep, split loser pool if correct)
+    - stake_amount = 0 or omitted → FREE PICK (earn rep if correct)
+    - stake_amount > 0 → STAKE REP (risk rep, split loser pool if correct)
     - side can be "yes"/"no" or an outcome name for multi-outcome markets
     """
     from services.mesh.mesh_oracle import oracle_ledger

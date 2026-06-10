@@ -1120,7 +1120,7 @@ class DownloadService:
             )
             session.commit()
             logger.info(
-                f"âœ“ SUCCESS: Got text from {extraction_source.upper()} API for '{resource.title[:50]}...'"
+                f"✓ SUCCESS: Got text from {extraction_source.upper()} API for '{resource.title[:50]}...'"
             )
             return True, None
         except Exception as e:
@@ -1143,7 +1143,7 @@ class DownloadService:
         if not downloader:
             error_msg = "No compatible downloader found"
             logger.warning(
-                f"âœ— FAILED: {error_msg} for '{resource.title[:50]}...'"
+                f"✗ FAILED: {error_msg} for '{resource.title[:50]}...'"
             )
             self._record_failed_text_extraction(
                 session, resource, error=error_msg
@@ -1156,7 +1156,7 @@ class DownloadService:
         if not result.is_success or not result.content:
             error_msg = result.skip_reason or "Failed to download PDF"
             logger.warning(
-                f"âœ— FAILED: Could not download PDF for '{resource.title[:50]}...' | Error: {error_msg}"
+                f"✗ FAILED: Could not download PDF for '{resource.title[:50]}...' | Error: {error_msg}"
             )
             self._record_failed_text_extraction(
                 session, resource, error=f"PDF download failed: {error_msg}"
@@ -1187,7 +1187,7 @@ class DownloadService:
             )
             session.commit()
             logger.info(
-                f"âœ“ SUCCESS: Extracted text from '{resource.title[:50]}...'"
+                f"✓ SUCCESS: Extracted text from '{resource.title[:50]}...'"
             )
             return True, None
         except Exception as e:

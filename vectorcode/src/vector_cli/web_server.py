@@ -30,6 +30,7 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from vector_cli import __version__, __release_date__
 from vector_cli.config import (

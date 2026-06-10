@@ -166,7 +166,7 @@ class Wan2GPClient:
             or _load_config().get("url", "")
         )
         self._base_url = _normalize_url(cfg_url)
-        self._fn_cache: dict[str, str | None] = {}  # model_id â†’ resolved fn name
+        self._fn_cache: dict[str, str | None] = {}  # model_id → resolved fn name
         self._known_api_names: list[str] = []
         if self._base_url:
             logger.debug("[VECTOR][wan2gp] server={}", self._base_url)
@@ -297,7 +297,7 @@ class Wan2GPClient:
     # â”€â”€ Gradio SSE generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def _gradio_call(self, fn: str, payload: dict) -> object:
-        """Gradio v4 protocol: POST /gradio_api/call/<fn> â†’ event_id â†’ SSE stream."""
+        """Gradio v4 protocol: POST /gradio_api/call/<fn> → event_id → SSE stream."""
         base = self._base_url
         async with httpx.AsyncClient(timeout=30.0) as c:
             post_resp = await c.post(
@@ -306,7 +306,7 @@ class Wan2GPClient:
                 headers={"Content-Type": "application/json"},
             )
             if not post_resp.is_success:
-                raise RuntimeError(f"Wan2GP POST /call/{fn} â†’ HTTP {post_resp.status_code}")
+                raise RuntimeError(f"Wan2GP POST /call/{fn} → HTTP {post_resp.status_code}")
             event_id = post_resp.json().get("event_id")
             if not event_id:
                 raise RuntimeError("Wan2GP did not return an event_id")
@@ -314,7 +314,7 @@ class Wan2GPClient:
         async with httpx.AsyncClient(timeout=1800.0) as stream_client:
             async with stream_client.stream("GET", f"{base}/gradio_api/call/{fn}/{event_id}") as resp:
                 if not resp.is_success:
-                    raise RuntimeError(f"Wan2GP stream â†’ HTTP {resp.status_code}")
+                    raise RuntimeError(f"Wan2GP stream → HTTP {resp.status_code}")
                 buf = ""
                 async for chunk in resp.aiter_text():
                     buf += chunk

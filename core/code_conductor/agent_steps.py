@@ -68,15 +68,15 @@ async def run_steps(
 
     Args:
         steps_fn: async generator function (the agent's handleSteps)
-        llm_call: async callable(messages: list) â†’ str
-        tool_registry: dict of tool_name â†’ async callable(input: dict) â†’ dict
+        llm_call: async callable(messages: list) → str
+        tool_registry: dict of tool_name → async callable(input: dict) → dict
         ctx: context passed to steps_fn
         max_steps: safety limit
 
     Generator yields:
-        {"tool": name, "input": {...}}  â†’ tool executed, result sent back via .asend()
-        "STEP"                          â†’ one LLM call, response sent back
-        "STEP_ALL"                      â†’ LLM loop until no more tool calls in response
+        {"tool": name, "input": {...}}  → tool executed, result sent back via .asend()
+        "STEP"                          → one LLM call, response sent back
+        "STEP_ALL"                      → LLM loop until no more tool calls in response
 
     Returns:
         List of StepResult objects
@@ -113,7 +113,7 @@ async def run_steps(
                         else:
                             tool_result = fn(**tool_input)
                         result.tool_result = tool_result
-                        logger.debug("[VECTOR][steps] tool {} â†’ {}", tool_name, str(tool_result)[:80])
+                        logger.debug("[VECTOR][steps] tool {} → {}", tool_name, str(tool_result)[:80])
                     except Exception as e:
                         result.error = str(e)
                         tool_result = {"error": str(e)}

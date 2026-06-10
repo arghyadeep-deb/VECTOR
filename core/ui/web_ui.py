@@ -520,7 +520,7 @@ _DASHBOARD_HTML = """\
       const todayCard=el("div",{class:"card"});
       todayCard.appendChild(el("div",{class:"card-title"},["Today"]));
       todayCard.appendChild(el("div",{style:"color:var(--dim);font-size:12px"},
-        [d.today||"No session yet. python -m core.ui.chat â†’ /karpathy"]));
+        [d.today||"No session yet. python -m core.ui.chat → /karpathy"]));
       c.appendChild(streakCard);
       c.appendChild(todayCard);
     }catch(e){c.textContent="Error: "+e.message;}
@@ -635,7 +635,7 @@ _DASHBOARD_HTML = """\
         row.appendChild(elapsed);row.appendChild(dist);
         if(t.status==="running"){
           const cancelBtn=document.createElement("button");
-          cancelBtn.textContent="âœ•";
+          cancelBtn.textContent="✕";
           cancelBtn.style.cssText="background:none;border:1px solid var(--red);color:var(--red);"+
             "cursor:pointer;font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0";
           cancelBtn.addEventListener("click",async()=>{

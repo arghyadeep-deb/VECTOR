@@ -447,8 +447,8 @@ def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> N
 
 def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) -> str:
     """When the local Ollama daemon is unavailable, try alternative engines
-    in order of preference: LiteLLM (OpenAI-compatible) â†’ Apple Foundation
-    Models (macOS Sonoma+) â†’ Gemma C++ binary.
+    in order of preference: LiteLLM (OpenAI-compatible) → Apple Foundation
+    Models (macOS Sonoma+) → Gemma C++ binary.
 
     Returns empty string if no fallback succeeds.
     """

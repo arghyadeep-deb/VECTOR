@@ -261,7 +261,7 @@ class TokenCountingCallback(BaseCallbackHandler):
 
         # Input-only overflow: prompt at >= 80% of context limit. Matches the
         # chart-warning threshold and PR #3840's deliberate choice (PR #3792
-        # lowered from 95% â†’ 80%). The total-context branch below uses 95%
+        # lowered from 95% → 80%). The total-context branch below uses 95%
         # because it's a stricter condition (input+output combined).
         if prompt_eval_count >= self.context_limit * 0.80:
             self.context_truncated = True

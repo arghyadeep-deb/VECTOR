@@ -29,7 +29,7 @@ except ImportError:
     CONFIG = {}
     _HAS_CORE_CONFIG = False
 
-# â”€â”€ Setting key mapping: research_engine keys â†’ core.config paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Setting key mapping: research_engine keys → core.config paths ─────────────
 
 _KEY_MAP: dict[str, tuple[str, ...]] = {
     # LLM / API keys
@@ -85,7 +85,7 @@ def get_setting_from_snapshot(
     username: str | None = None,  # noqa: ARG001
     settings_snapshot: dict[str, Any] | None = None,
 ) -> Any:
-    """Get setting — tries snapshot â†’ core.config â†’ default.
+    """Get setting — tries snapshot → core.config → default.
 
     Preserves the exact signature used by 400+ call sites in research_engine.
     """

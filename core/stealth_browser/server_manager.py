@@ -59,7 +59,7 @@ class _CrashReporter:
     """
 
     MAX_PER_HOUR = 10
-    _seen_signatures: dict[str, float] = {}   # signature â†’ last_seen timestamp
+    _seen_signatures: dict[str, float] = {}   # signature → last_seen timestamp
     _hour_counts: collections.deque = collections.deque()  # timestamps in last hour
 
     @classmethod

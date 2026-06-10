@@ -1,7 +1,7 @@
 """
 VECTOR Generative Studio — Unified orchestrator for AI creative media generation.
 
-Priority chain: Wan2GP (free local GPU) â†’ LocalInference (sd.cpp offline) â†’ Muapi (cloud)
+Priority chain: Wan2GP (free local GPU) → LocalInference (sd.cpp offline) → Muapi (cloud)
 
 For image/video generation, always tries local/free options first before using
 Muapi.ai cloud credits. Pass prefer_local=False to skip directly to cloud.
@@ -89,7 +89,7 @@ class GenerativeStudio:
                 resp = await c.get(url)
                 resp.raise_for_status()
                 out_path.write_bytes(resp.content)
-            logger.debug("[VECTOR][studio] saved â†’ {}", out_path)
+            logger.debug("[VECTOR][studio] saved → {}", out_path)
             return str(out_path)
         except Exception as e:
             logger.warning("[VECTOR][studio] could not download result {}: {}", url[:80], e)
@@ -105,7 +105,7 @@ class GenerativeStudio:
         aspect_ratio: str = "1:1",
         **kwargs,
     ) -> dict:
-        """Text-to-image. Tries Wan2GP â†’ sd.cpp â†’ Muapi in order."""
+        """Text-to-image. Tries Wan2GP → sd.cpp → Muapi in order."""
         wan2gp_id = f"wan2gp:{model.replace('flux-dev', 'flux-dev')}"
 
         # 1. Wan2GP (free local GPU)
@@ -161,7 +161,7 @@ class GenerativeStudio:
         aspect_ratio: str = "16:9",
         **kwargs,
     ) -> dict:
-        """Text-to-video. Tries Wan2GP â†’ Muapi in order."""
+        """Text-to-video. Tries Wan2GP → Muapi in order."""
         wan2gp_id = f"wan2gp:{model}"
 
         # 1. Wan2GP (free local GPU)
@@ -191,7 +191,7 @@ class GenerativeStudio:
         prefer_local: bool = True,
         **kwargs,
     ) -> dict:
-        """Image-to-video animation. Tries Wan2GP wan22-i2v â†’ Muapi."""
+        """Image-to-video animation. Tries Wan2GP wan22-i2v → Muapi."""
         if prefer_local:
             ok = await self._probe_wan2gp_if_needed()
             if ok:
@@ -219,14 +219,14 @@ class GenerativeStudio:
         model: str = "infinite-talk",
         is_video: bool = False,
     ) -> dict:
-        """Lip sync — portrait image or video + narration audio â†’ talking head video."""
+        """Lip sync — portrait image or video + narration audio → talking head video."""
         portrait_url = await self._resolve_url(portrait, prefer_local=False)
         audio_url    = await self._resolve_url(audio, prefer_local=False)
         if not self._has_muapi():
             raise RuntimeError("Lip sync requires MUAPI_API_KEY")
         result = await self._muapi.process_lipsync(model, portrait_url, audio_url, is_video=is_video)
         result["backend"] = "muapi"
-        logger.info("[VECTOR][studio] lipsync complete â†’ {}", (result.get("url") or "")[:80])
+        logger.info("[VECTOR][studio] lipsync complete → {}", (result.get("url") or "")[:80])
         return result
 
     async def background_remove(self, image: str) -> dict:

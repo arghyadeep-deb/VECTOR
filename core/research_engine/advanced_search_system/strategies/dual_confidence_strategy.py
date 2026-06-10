@@ -256,7 +256,7 @@ UNCERTAINTY: [score]
                     )
 
                     symbol = (
-                        "âœ“" if score >= 0.8 else "â—‹" if score >= 0.5 else "âœ—"
+                        "✓" if score >= 0.8 else "○" if score >= 0.5 else "✗"
                     )
                     logger.info(
                         f"{symbol} {candidate.name} | {constraint.value}: {int(score * 100)}% "

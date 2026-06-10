@@ -331,7 +331,7 @@ class ContentFetcher:
         across all HTML URLs.
 
         Returns:
-            Dict mapping URL â†’ extracted text (or None if failed).
+            Dict mapping URL → extracted text (or None if failed).
         """
         return {url: self.fetch_text(url) for url in urls}
 

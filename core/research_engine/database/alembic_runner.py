@@ -285,7 +285,7 @@ def _disable_fk_for_migration(conn: Connection) -> None:
     DML; PRAGMA itself isn't DML, so issuing the PRAGMA before any DML
     is the only window where it actually takes effect.
 
-    With multi-migration upgrades (revision 0001 â†’ 0009), the first
+    With multi-migration upgrades (revision 0001 → 0009), the first
     migration to issue DML auto-begins the driver transaction and
     freezes FK in the connect-time ON state for the rest of the upgrade.
     That defeats migration 0007's defensive PRAGMA OFF and makes its

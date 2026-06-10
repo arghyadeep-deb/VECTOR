@@ -65,7 +65,7 @@ class WakeWordDetector:
             logger.error(f"[VECTOR][wake] is_wake_word error: {e}")
             return False
 
-    # Maps detected phrase â†’ conversation mode
+    # Maps detected phrase → conversation mode
     _PHRASE_MODES = {
         "vector think": "deep_think",
         "vector private": "private",
@@ -129,7 +129,7 @@ class WakeWordDetector:
                     if text:
                         for phrase, mode in self._PHRASE_MODES.items():
                             if phrase in text:
-                                logger.info(f"[VECTOR][wake] KWS triggered: '{text}' â†’ mode={mode}")
+                                logger.info(f"[VECTOR][wake] KWS triggered: '{text}' → mode={mode}")
                                 return mode
                 except Exception:
                     logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
@@ -179,7 +179,7 @@ class WakeWordDetector:
                 logger.warning(f"[VECTOR][wake] Sample {i+1} failed: {e}")
 
         if len(recorded) < 3:
-            return {"status": "error", "error": f"Only {len(recorded)} samples recorded (need â‰¥3)"}
+            return {"status": "error", "error": f"Only {len(recorded)} samples recorded (need ≥3)"}
 
         # Run openWakeWord training script
         try:
@@ -214,4 +214,4 @@ if __name__ == "__main__":
     result = detector.is_wake_word(silent_frame)
     model_ok = detector._model is not None or detector._use_whisper_kws
     method = "whisper_kws" if detector._use_whisper_kws else f"openwakeword({detector._active_model_name})"
-    print(f"âœ… wake_word OK (method={method})" if model_ok else "âŒ FAILED — no detection method available")
+    print(f"✅ wake_word OK (method={method})" if model_ok else "âŒ FAILED — no detection method available")

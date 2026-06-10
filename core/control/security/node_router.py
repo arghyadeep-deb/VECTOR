@@ -158,4 +158,4 @@ if __name__ == "__main__":
     else:
         logger.info(f"[VECTOR][node_router] DNS servers = {dns}")
 
-    print("âœ… node_router.py OK" if ok else "âŒ FAILED")
+    print("✅ node_router.py OK" if ok else "âŒ FAILED")
