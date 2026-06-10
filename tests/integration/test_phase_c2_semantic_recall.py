@@ -31,6 +31,16 @@ def tearDownModule():
     except Exception:
         pass
     mod._db_connection = None
+    # Failures against the throwaway DBs may have latched the global episodic
+    # circuit breaker OPEN — close it so later test files aren't rejected.
+    try:
+        from core.resilience.circuit_breaker import CircuitState
+        cb = mod.get_registry().get("episodic_memory")
+        if cb is not None:
+            cb.state = CircuitState.CLOSED
+            cb.failure_count = 0
+    except Exception:
+        pass
 
 
 # ── episodic_embeddings table ─────────────────────────────────────────────────
