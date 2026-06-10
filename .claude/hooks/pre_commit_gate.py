@@ -47,4 +47,17 @@ if blocked:
     print("Unstage them with: git reset HEAD <file>")
     sys.exit(2)
 
+# Syntax gate: block commits that stage unparseable py/js/json/yaml files.
+_gate = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                     "scripts", "precommit_syntax_gate.py")
+if os.path.exists(_gate):
+    try:
+        r = subprocess.run([sys.executable, _gate], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            print("[VECTOR GATE] BLOCKED: syntax gate failed:")
+            print((r.stdout or "") + (r.stderr or ""))
+            sys.exit(2)
+    except Exception:
+        pass  # gate unavailable must never block legitimate commits
+
 sys.exit(0)
