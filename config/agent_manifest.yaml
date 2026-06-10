@@ -297,6 +297,44 @@ districts:
       description: End-to-end side-hustle pipeline - mine, cluster, validate, draft, report
       capabilities: [venture, orchestration, side_hustle]
 
+  design:
+    - name: ui_designer
+      class: districts.design.ui_designer.UIDesigner
+      model: vector-reasoning
+      description: UI component specs, design tokens, dashboard layout generation
+      capabilities: [ui_design, design_tokens, components, accessibility]
+
+    - name: ux_researcher
+      class: districts.design.ux_researcher.UXResearcher
+      model: vector-reasoning
+      description: UX research - journey maps, personas, usability heuristics
+      capabilities: [ux_research, personas, journey_maps]
+
+    - name: image_prompt_engineer
+      class: districts.design.image_prompt_engineer.ImagePromptEngineer
+      model: vector-focus
+      description: Optimized AI image generation prompts (ComfyUI, SD)
+      capabilities: [image_prompts, comfyui, stable_diffusion]
+
+  data_analytics:
+    - name: analytics_reporter
+      class: districts.data_analytics.analytics_reporter.AnalyticsReporter
+      model: vector-reasoning
+      description: Weekly analytics briefs from episodic memory - metrics, anomalies
+      capabilities: [analytics, reporting, anomaly_detection]
+
+    - name: data_engineer
+      class: districts.data_analytics.data_engineer.DataEngineer
+      model: vector-focus
+      description: Data pipeline tasks - extraction, transformation, validation
+      capabilities: [data_pipelines, etl, validation]
+
+    - name: performance_benchmarker
+      class: districts.data_analytics.performance_benchmarker.PerformanceBenchmarker
+      model: vector-focus
+      description: Benchmark routing, models and system performance
+      capabilities: [benchmarking, performance, metrics]
+
   learning:
     - name: course_tracker
       class: districts.learning.course_tracker.CourseTracker

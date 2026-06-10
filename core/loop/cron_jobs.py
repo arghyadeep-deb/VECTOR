@@ -210,6 +210,80 @@ async def job_trigger_workflow(*, _ctx: dict | None = None) -> dict:
         return {"status": "failed", "reason": str(e)}
 
 
+async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
+    """Nightly 04:00 — self-repair check: full syntax sweep + smoke test.
+
+    1. compileall over core/ + districts/ (catches mass-edit breakage the
+       moment it lands instead of weeks later).
+    2. `python run_vector.py smoke` in a subprocess (spine still boots?).
+    On failure: HIGH-priority nudge (spoken when owner present) naming the
+    first broken file + the last commit hash, and an episodic record. No
+    auto-revert — the owner decides; reverting autonomously risks losing work.
+    """
+    import subprocess
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    repo = _Path(__file__).resolve().parent.parent.parent
+    problems: list[str] = []
+
+    try:
+        r = subprocess.run(
+            [_sys.executable, "-m", "compileall", "-q", "core", "districts", "scripts"],
+            capture_output=True, text=True, timeout=600, cwd=repo,
+        )
+        if r.returncode != 0:
+            first = next((ln for ln in (r.stderr + r.stdout).splitlines()
+                          if "Error compiling" in ln or "Sorry" in ln), "syntax error")
+            problems.append(f"compileall failed: {first[:160]}")
+    except Exception as e:
+        problems.append(f"compileall crashed: {e}")
+
+    try:
+        r = subprocess.run(
+            [_sys.executable, "run_vector.py", "smoke"],
+            capture_output=True, text=True, timeout=300, cwd=repo,
+        )
+        if r.returncode != 0:
+            problems.append(f"smoke test failed (rc={r.returncode}): "
+                            f"{(r.stderr or r.stdout)[-160:]}")
+    except Exception as e:
+        problems.append(f"smoke test crashed: {e}")
+
+    last_commit = ""
+    try:
+        last_commit = subprocess.run(
+            ["git", "log", "-1", "--format=%h %s"], capture_output=True,
+            text=True, timeout=10, cwd=repo).stdout.strip()[:90]
+    except Exception:
+        pass
+
+    if problems:
+        try:
+            from core.loop.nudge_engine import nudge_engine
+            nudge_engine.push(
+                f"Self-check FAILED: {problems[0]} — last commit: {last_commit}. "
+                f"Consider `git revert` or fixing before the loop misbehaves.",
+                source="nightly_selfcheck", need="repair", priority=0.95,
+            )
+        except Exception as _n_err:
+            logger.warning(f"[VECTOR][selfcheck] nudge failed: {_n_err}")
+        try:
+            from core.memory.episodic import EpisodicMemory
+            EpisodicMemory().store(
+                event_type="selfcheck_failure",
+                content="; ".join(problems) + f" | last_commit={last_commit}",
+                tags=["selfcheck", "repair"], source="nightly_selfcheck",
+            )
+        except Exception:
+            pass
+        logger.error("[VECTOR][selfcheck] FAILED: {}", problems)
+        return {"status": "failed", "problems": problems, "last_commit": last_commit}
+
+    logger.info("[VECTOR][selfcheck] clean — syntax + smoke OK")
+    return {"status": "ok", "last_commit": last_commit}
+
+
 async def job_venture_pipeline(*, _ctx: dict | None = None) -> dict:
     """Weekly (Mon 07:00) — side-hustle discovery pipeline.
 
@@ -277,6 +351,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("weekly-dspy-optimize",  "weekly", "0 2 * * 0", job_weekly_dspy_optimize),
         ("weekly-growth-report",  "weekly", "0 23 * * 0", job_weekly_growth_report),
         ("weekly-venture-pipeline","weekly", "0 7 * * 1", job_venture_pipeline),
+        ("nightly-selfcheck",     "daily",  "0 4 * * *", job_nightly_selfcheck),
         # SubconsciousLoop — every 30 min (uses interval, registered separately below)
     ]
 
@@ -439,6 +514,7 @@ __all__ = [
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_venture_pipeline",
+    "job_nightly_selfcheck",
     "job_trigger_workflow",
     "job_benchmark_suite",
     "job_recipe_sync",

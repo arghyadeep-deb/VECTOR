@@ -7,7 +7,7 @@ name = "vector"
 version = "1.0.0"
 description = "V.E.C.T.O.R. — Virtual Entity for Cognitive Tasks & Operational Reasoning"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [
     {name = "Arghyadeep Deb"},

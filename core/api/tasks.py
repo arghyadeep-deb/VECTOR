@@ -37,17 +37,27 @@ async def submit_task(
         if not hmac.compare_digest(token, _INTERNAL_TOKEN):
             raise HTTPException(403, "Invalid token")
     from core.loop.autonomous_loop import AutonomousLoop
-    loop = AutonomousLoop()
-    gateway = loop._get_gateway()
+    # BUG FIX: previously constructed a FRESH AutonomousLoop() and set
+    # _pending_voice on it — the running loop never saw the intent. Use the
+    # running-loop singleton; fall back to a throwaway instance only for the
+    # gateway evaluation side-effect when the loop isn't running.
+    loop = AutonomousLoop.get_instance()
+    gateway = (loop or AutonomousLoop())._get_gateway()
     await gateway.evaluate_external(task.action_type, task.params, task.source)
-    loop._pending_voice = {
-        "intent": task.action_type,
-        "params": task.params,
-        "source": task.source,
-        "confidence": 0.95 if task.priority == "critical" else 0.8,
-        "actionable": True,
-    }
-    return {"status": "accepted", "source": task.source}
+    if loop is not None:
+        loop._pending_voice = {
+            "intent": task.action_type,
+            "params": task.params,
+            "source": task.source,
+            "confidence": 0.95 if task.priority == "critical" else 0.8,
+            "actionable": True,
+        }
+        # event-driven: process NOW instead of waiting for the 10s think poll
+        import asyncio as _aio
+        _aio.create_task(loop.wake_think())
+        return {"status": "accepted", "source": task.source}
+    return {"status": "accepted_no_loop", "source": task.source,
+            "note": "autonomous loop not running — gateway evaluated only"}
 
 
 @router.get("/health")

@@ -98,13 +98,23 @@ async def ingest_external_task(
     )
     result = await gw.execute(action)
 
-    # Inject into the autonomous loop's pending voice queue so it gets
-    # processed in the next think tick (same path as voice commands).
+    # Inject into the autonomous loop's pending voice intent so it gets
+    # processed immediately (event-driven wake — no 10s poll wait).
+    # BUG FIX: _pending_voice is a dict|None, not a list — .append() always
+    # raised and was swallowed by the except below.
     try:
+        import asyncio as _aio
         from core.loop.autonomous_loop import AutonomousLoop
         loop = AutonomousLoop.get_instance()
-        if loop is not None and hasattr(loop, "_pending_voice"):
-            loop._pending_voice.append(req.text)
+        if loop is not None:
+            loop._pending_voice = {
+                "intent": "respond",
+                "params": {"query": req.text},
+                "source": req.source,
+                "confidence": 0.8,
+                "actionable": True,
+            }
+            _aio.create_task(loop.wake_think())
     except Exception: logger.warning("[VECTOR][tasks] loop not running, task executed via gateway") # loop not running — task still executed via gateway above
 
     return {

@@ -98,6 +98,9 @@ class AutonomousLoop:
             from core.event_bus.wiring import get_downstream_tasks
             registry = get_registry()
             et = event.event_type.value if event.event_type else ""
+            # Event-driven think wake: voice input never waits for the 10s poll
+            if et == "voice_input":
+                asyncio.create_task(self.wake_think())
             targets = [
                 agent for agent in registry.get_all_agents()
                 if et in agent.subscribed_events
@@ -1587,12 +1590,38 @@ class AutonomousLoop:
 
     # Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬ Main entry Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬Ã¢—â‚¬
 
+    # ── running-loop singleton ────────────────────────────────────────────────
+    # API routers (core/api/tasks.py, routers/tasks.py) need the RUNNING loop
+    # to inject voice intents. Constructing AutonomousLoop() gives a fresh,
+    # disconnected instance — get_instance() returns the one inside
+    # run_forever(), or None when the loop isn't running.
+    _instance = None
+
+    @classmethod
+    def get_instance(cls):
+        return cls._instance
+
+    async def wake_think(self) -> None:
+        """Trigger an immediate think tick (event-driven — kills the 10s poll
+        latency for injected voice intents). Busy-guarded so an event burst
+        can't stack concurrent ticks on top of the scheduled one."""
+        if getattr(self, "_think_busy", False):
+            return
+        self._think_busy = True
+        try:
+            await self._think_tick()
+        except Exception as e:
+            _capture_loop_error(e, "wake_think")
+        finally:
+            self._think_busy = False
+
     async def run_forever(self) -> None:
         """
         RULE 2 Ã¢â‚¬— Never returns in production.
         return_exceptions=True ensures one crashed coroutine doesn't kill others.
         """
         self._running = True
+        AutonomousLoop._instance = self
         self._start_time = datetime.datetime.now(datetime.timezone.utc)
         logger.info(
             f"[VECTOR][autonomous_loop] run_forever() at {self._start_time.isoformat()}"
