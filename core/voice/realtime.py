@@ -161,6 +161,7 @@ class RealtimeConversation:
         self._cancel_speak = asyncio.Event()
         self._nudge_unsub = None
         self._closed = False
+        self._speaker_owner = True   # last utterance verified as owner?
 
     # ── session ──────────────────────────────────────────────────────────────
 
@@ -308,6 +309,25 @@ class RealtimeConversation:
             except Exception:
                 pass
 
+            # Speaker verification — only the enrolled owner can command actions.
+            # Fails open when not enrolled (see speaker_verify.py); every
+            # decision is surfaced to the HUD as a "speaker" event.
+            self._speaker_owner = True
+            try:
+                from core.voice.speaker_verify import get_verifier
+                _v = get_verifier()
+                if _v.active:
+                    self._speaker_owner, _sim = await asyncio.to_thread(
+                        _v.verify, audio, self._sr)
+                    await self._safe_send({"type": "speaker",
+                                           "owner": self._speaker_owner,
+                                           "similarity": round(_sim, 3)})
+                    if not self._speaker_owner:
+                        logger.warning(
+                            "[VECTOR][realtime] unverified speaker (sim={:.3f})", _sim)
+            except Exception as _sv_err:
+                logger.debug(f"[VECTOR][realtime] speaker verify skipped: {_sv_err}")
+
             await self._respond(text)
         except Exception as e:
             logger.error(f"[VECTOR][realtime] finalize failed: {e}")
@@ -340,6 +360,15 @@ class RealtimeConversation:
 
         # 2. Phase 4 — action handoff to governor (RULE 3: gateway untouched)
         task_type = classify_intent(text)
+        if task_type and not self._speaker_owner:
+            refusal = ("Voice not recognized — action commands are owner-only. "
+                       "We can still chat.")
+            await self._safe_send({"type": "response", "text": refusal})
+            await self._speak_text(refusal)
+            self._store_turn(text, refusal, ["security", "speaker_rejected"])
+            self._back_to_listening()
+            await self._state("LISTENING")
+            return
         if task_type:
             ack = "On it."
             await self._safe_send({"type": "action_ack", "task_type": task_type, "text": ack})

@@ -262,3 +262,8 @@ sqlcipher3-binary==0.5.4
 # Download voice: wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx
 # Place in models/piper/en_US-ryan-high.onnx + en_US-ryan-high.onnx.json
 # piper-tts>=1.2.0
+
+# Speaker verification (core/voice/speaker_verify.py) — owner voice identity.
+# Optional but strongly recommended; without it a WEAK numpy fallback is used.
+# Install: pip install resemblyzer   then re-run: python scripts/enroll_owner_voice.py
+# resemblyzer>=0.1.4
