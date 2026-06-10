@@ -276,6 +276,80 @@ class RealtimeConversation:
         self._utterance_started = time.monotonic()
         self._last_partial = time.monotonic()
 
+    # ── Phase 6: idle timeout + wake-word resume ──────────────────────────────
+
+    async def _go_idle(self) -> None:
+        logger.info("[VECTOR][realtime] no speech for {:.0f}s — IDLE (say 'Vector' to resume)",
+                    self._conversation_timeout)
+        self._utterance = []
+        self._wake_buffer = []
+        self._wake_buffer_ms = 0.0
+        await self._cancel_speaking()
+        self._conv.transition("IDLE")
+        await self._state("IDLE")
+
+    def _get_wake(self):
+        """Lazy WakeWordDetector; None when unavailable (STT fallback handles wake)."""
+        if self._wake_detector is None and not self._wake_failed:
+            try:
+                from core.voice.wake_word import WakeWordDetector
+                self._wake_detector = WakeWordDetector()
+            except Exception as e:
+                logger.warning(f"[VECTOR][realtime] wake detector unavailable: {e}")
+                self._wake_failed = True
+        return self._wake_detector
+
+    async def _idle_frame(self, frame: np.ndarray, is_speech: bool) -> None:
+        """While IDLE, scan incoming frames for the wake word."""
+        det = self._get_wake()
+        if det is not None and det._model is not None and not det._use_whisper_kws:
+            int16 = (frame * 32767.0).astype(np.int16)
+            if det.is_wake_word(int16):
+                await self._wake_up()
+            return
+
+        # Fallback (no openwakeword): buffer one speech burst, STT it once,
+        # look for the wake phrase. Reuses the session's lazy STT.
+        if is_speech:
+            self._wake_buffer.append(frame)
+            self._wake_buffer_ms += len(frame) / self._sr * 1000.0
+            if self._wake_buffer_ms >= 2500:
+                await self._check_wake_buffer()
+        elif self._wake_buffer and self._vad.state == "SILENCE":
+            await self._check_wake_buffer()
+
+    async def _check_wake_buffer(self) -> None:
+        if self._wake_busy:
+            self._wake_buffer = []
+            self._wake_buffer_ms = 0.0
+            return
+        audio = np.concatenate(self._wake_buffer) if self._wake_buffer else np.zeros(0)
+        self._wake_buffer = []
+        self._wake_buffer_ms = 0.0
+        if audio.size < self._sr * 0.3:
+            return
+        stt = self._get_stt()
+        if stt is None:
+            return
+        self._wake_busy = True
+        try:
+            text = (await asyncio.to_thread(stt.transcribe, audio, self._sr)).lower().strip()
+            if "vector" in text or "vektor" in text:
+                await self._wake_up()
+        except Exception as e:
+            logger.debug(f"[VECTOR][realtime] wake KWS decode failed: {e}")
+        finally:
+            self._wake_busy = False
+
+    async def _wake_up(self) -> None:
+        logger.info("[VECTOR][realtime] wake word detected — resuming")
+        self._last_activity = time.monotonic()
+        self._wake_buffer = []
+        self._wake_buffer_ms = 0.0
+        self._conv.transition("LISTENING")
+        await self._safe_send({"type": "wake"})
+        await self._state("LISTENING")
+
     # ── STT (Phase 2) ─────────────────────────────────────────────────────────
 
     def _get_stt(self):
