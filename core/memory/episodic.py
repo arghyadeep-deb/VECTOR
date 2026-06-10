@@ -244,10 +244,35 @@ def _is_connection_closed(conn) -> bool:
     try:
         conn.execute("SELECT 1")
         return False
-    except sqlite3.ProgrammingError as e:
-        return "closed" in str(e).lower()
-    except Exception:
+    except Exception as e:
+        # sqlcipher3's ProgrammingError is NOT a subclass of sqlite3's — match
+        # by name, or a closed singleton is reported healthy forever and every
+        # memory op fails until process restart.
+        if type(e).__name__ == "ProgrammingError":
+            return "closed" in str(e).lower()
         return False
+
+
+def close_db_connection() -> None:
+    """Intentional shutdown of the singleton: close, clear, and reset the
+    episodic circuit breaker so a later get_db_connection() starts clean
+    (an intentional close is not a failure)."""
+    global _db_connection
+    with _db_lock:
+        if _db_connection is not None:
+            try:
+                _db_connection.close()
+            except Exception:
+                pass
+            _db_connection = None
+    try:
+        from core.resilience.circuit_breaker import CircuitState
+        cb = get_registry().get("episodic_memory")
+        if cb is not None:
+            cb.state = CircuitState.CLOSED
+            cb.failure_count = 0
+    except Exception:
+        pass
 
 
 def get_db_connection():
