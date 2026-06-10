@@ -116,7 +116,7 @@ class AvatarState:
         self.updated_at = datetime.now(timezone.utc).isoformat()
         try:
             with _avatar_db_lock:
-                conn = self._get_conn()
+                conn, private = self._get_conn()
                 conn.execute("""
                     INSERT OR REPLACE INTO avatar_state
                     (id, valence, arousal, dominance, presence_score, emotional_arc, updated_at)
@@ -130,7 +130,8 @@ class AvatarState:
                     self.updated_at,
                 ))
                 conn.commit()
-                # shared singleton connection — do not close
+                if private:
+                    conn.close()
             logger.debug("[VECTOR][avatar_state] saved (mood={})", self.mood_label)
         except Exception as e:
             logger.warning("[VECTOR][avatar_state] save failed: {}", e)
