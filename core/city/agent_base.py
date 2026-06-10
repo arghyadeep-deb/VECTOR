@@ -311,10 +311,22 @@ if __name__ == '__main__':
     a = AgentBase(str(uuid.uuid4()), 'TestAgent', 'coding')
     assert a.health_points == 500
     assert a.model == CONFIG['models']['focus']
-    a.award_points(350, 'test award')
-    assert a.health_points == 850
+    # hp_validator clamps any single delta to ±MAX_DELTA (200), so a
+    # 350-point award lands as +200.
+    result = a.award_points(350, 'test award')
+    assert result['requested_delta'] == 350
+    assert result['validated_delta'] <= 200
+    assert a.health_points == 700
+    assert a.is_elite is False
+    a.award_points(200, 'test award 2')
+    assert a.health_points == 900
     assert a.is_elite is True
-    a.deduct_points(900, 'test death')
+    # EMA smoothing damps opposite-sign deltas, so death takes several
+    # max-size deductions rather than one oversized one.
+    for _ in range(50):
+        if not a.is_alive:
+            break
+        a.deduct_points(200, 'test death')
     assert a.health_points == 0
     assert 'died_at' in a.ghost_memory
-    print('??? agent_base.py OK')
+    print('OK agent_base.py')
