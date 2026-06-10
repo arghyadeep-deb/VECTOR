@@ -1,6 +1,15 @@
 # Phase Status — VECTOR Implementation Tracker
-> Last updated: 2026-05-29 — Production hardening sprint complete (8 security/reliability fixes); NSSM service installer added
+> Last updated: 2026-06-11 — see `HANDOFF_TODO.md` DONE sections + `plans/` for current work; this file is the historical tracker
 > Status key: ✅ Done · ⚠️ Code done, needs deploy/install · ❌ Not built
+
+## Corrections — Session 2026-06-11 ✅
+
+| Item | Truth |
+|------|-------|
+| Gaps 4/6/7/8 "Year 2, not built" (below) | **STALE — all four exist**: `core/memory/counterfactual.py` (Gap 4), `core/memory/causal_graph.py` (Gap 6, SQLite-backed since 2026-05-30), `core/brain/person_model.py` (Gap 7), `core/city/meta_cognition.py` (Gap 8) |
+| "Next.js Dashboard ❌ not built" | Superseded by `frontend/` HUD (6.3k LOC, served at `/hud/`, vendored three.js/MediaPipe); dashboard `.tsx` tests skip when `dashboard/src` absent |
+| Loop mode agent bootstrap | `run_loop()` now calls `bootstrap_agents()` (was: empty registry, every dispatch → no_agents); smoke reports `agents_registered` and fails on 0 |
+| SQLCipher access discipline | Main DB is encrypted; 5 modules were opening it with plain sqlite3 (memory_persona, avatar_state, emergency log, DBCorruptionPlaybook, `_is_connection_closed` driver mismatch) — all fixed; rule: go through `core.memory.episodic.get_db_connection()` / `close_db_connection()` |
 
 ## Production Hardening — Session 2026-05-29 ✅ COMPLETE
 
