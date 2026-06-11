@@ -7,7 +7,7 @@ VECTOR. Created 2026-06-11. Status legend: ⬜ todo · 🟨 in progress · ✅ d
 |------|-----|------|--------|
 | [01](./task-01-rotate-keys.md) Rotate all API keys | OWNER | new keys in .env, old ones revoked | ⬜ |
 | [02](./task-02-github-history-push.md) GitHub scrubbed-history push | OWNER → me | `git log --all -- .env` empty ON GITHUB | ⬜ |
-| [03](./task-03-voice-vision-deps.md) Install voice/vision deps | me | `import whisper, kokoro_onnx, openwakeword, mediapipe, face_recognition` | ⬜ |
+| [03](./task-03-voice-vision-deps.md) Install voice/vision deps | me | `import whisper, kokoro_onnx, openwakeword, mediapipe, face_recognition` | ✅ 2026-06-11 — Kokoro speaks (fp16 model; fp32 file is corrupt/truncated, optional re-download); whisper small cached; wake = whisper_kws until task 05; dlib via dlib-bin; torch CPU→cu128 upgrade in progress |
 | [04](./task-04-enroll-voiceprint.md) Enroll owner voiceprint | OWNER | speaker_verify gates a YELLOW voice command | ⬜ |
 | [05](./task-05-train-wake-word.md) Train "Hey Vector" wake word | OWNER | custom .onnx loads, openwakeword path active | ⬜ |
 | [06](./task-06-first-conversation.md) First HUD duplex conversation + tuning | OWNER + me | full talk-listen-interrupt loop at /hud/ | ⬜ |
