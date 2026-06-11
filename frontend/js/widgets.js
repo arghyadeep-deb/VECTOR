@@ -512,7 +512,7 @@
       try{
         const j = await apiGet('/voice/profiles');
         const profs = (j.profiles||[]).map(p=>p.name);
-        if(profs.length){ sel.innerHTML = profs.map(n=>`<option value="${n}">${n}</option>`).join(''); }
+        if(profs.length){ sel.innerHTML = profs.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join(''); }
       }catch(e){ /* keep default */ }
     }
     refresh.addEventListener('click', e=>{ e.stopPropagation(); loadProfiles(); });
