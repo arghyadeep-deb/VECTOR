@@ -8,6 +8,23 @@ report. Status legend: ⬜ todo · 🟨 partial · ✅ resolved · 🔍 needs-ve
 > issues were already fixed in the 2026-06-11 production-hardening session —
 > flagged below and to be re-verified against current code.
 
+## Production-readiness verdict (audit): NOT production-grade as-is
+
+The 7 headline reasons, each mapped to tracked issues:
+
+| # | Reason | Issues | Status |
+|---|--------|--------|--------|
+| 1 | 25 CRITICAL (path traversal, auth bypass, eval-on-untrusted, hardcoded secrets) | 01-08, 12 | 01/02 ✅, 06/07 🟨, rest ⬜ |
+| 2 | 25+ broken imports (crash by sys.path state) | 09, 25, 27d | ⬜ |
+| 3 | 544 swallowed exceptions | 23 | ⬜ |
+| 4 | Unbounded memory leaks (OOM in 24/7) | 18, 17 | 18 ✅, 17 🟨 |
+| 5 | SQLite concurrency corruption under load | 17 | 🟨 (episodic done; 11+ todo) |
+| 6 | 35 divergent duplicate files | 21, 22, 27 | ⬜ |
+| 7 | 8 stub files (semantic, planner, reasoning core) | 26 | ⬜ |
+
+This remediation plan closes all 7. The single biggest score levers are the
+Security cluster and SQLite concurrency (see [SCORECARD.md](./SCORECARD.md)).
+
 ## Issue summary (from audit)
 
 | Severity | core/ | vectorcode/src (11 subdirs) | vectorcode/src (tools+cli+channels) | districts+tests |
