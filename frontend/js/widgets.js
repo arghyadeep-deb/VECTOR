@@ -933,9 +933,9 @@
             const p = pct(g.progress);
             const pri = (g.priority||0) >= 8 ? 'crit' : (g.priority||0) >= 5 ? 'high' : 'med';
             return `<div class="gp-goal">
-              <div class="gp-gtitle"><span class="badge2 ${pri}">${g.priority||0}</span>${g.title||g.id}</div>
+              <div class="gp-gtitle"><span class="badge2 ${pri}">${escapeHtml(g.priority||0)}</span>${escapeHtml(g.title||g.id)}</div>
               <div class="gp-bar"><div class="gp-fill" style="width:${p}%"></div></div>
-              <div class="gp-meta">${p}% · ${(g.tags||[]).slice(0,2).join(' · ')}</div>
+              <div class="gp-meta">${p}% · ${escapeHtml((g.tags||[]).slice(0,2).join(' · '))}</div>
             </div>`;
           }).join('');
         });
