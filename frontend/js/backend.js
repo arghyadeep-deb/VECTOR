@@ -140,7 +140,7 @@
     if (!body) return;
     body.innerHTML = ['LONG', 'MID', 'SHORT'].map(h => {
       const items = (D.GOALS[h] || []).map(g =>
-        `<div class="row-kv"><span class="v">${g.title}</span><span class="k">${Math.round(g.progress * 100)}%</span></div>
+        `<div class="row-kv"><span class="v">${esc(g.title)}</span><span class="k">${Math.round(g.progress * 100)}%</span></div>
          <div class="meter ${g.progress < 0.4 ? 'dn' : g.progress < 0.7 ? 'warn' : ''}"><i style="width:${g.progress * 100}%"></i></div>`
       ).join('');
       return `<div style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:6px 0 3px">${h} HORIZON</div>${items}`;
