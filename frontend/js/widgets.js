@@ -656,11 +656,11 @@
         const card = el('div','apv-card '+(isRed?'apv-red':'apv-yellow'));
         card.innerHTML =
           `<div class="apv-head">
-             <span class="apv-type">${item.action_type||item.id}</span>
-             <span class="badge2 ${isRed?'crit':'high'}">${(item.level||'?').toUpperCase()}</span>
-             <span class="apv-ts">${ts}</span>
+             <span class="apv-type">${escapeHtml(item.action_type||item.id)}</span>
+             <span class="badge2 ${isRed?'crit':'high'}">${escapeHtml((item.level||'?').toUpperCase())}</span>
+             <span class="apv-ts">${escapeHtml(ts)}</span>
            </div>
-           <div class="apv-desc">${item.proposed_by || ''}${item.params ? ' · '+JSON.stringify(item.params).slice(0,80) : ''}</div>
+           <div class="apv-desc">${escapeHtml(item.proposed_by || '')}${item.params ? ' · '+escapeHtml(JSON.stringify(item.params).slice(0,80)) : ''}</div>
            <div class="apv-btns">
              <button class="apv-ok">APPROVE</button>
              <button class="apv-no">REJECT</button>
