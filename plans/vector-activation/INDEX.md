@@ -34,6 +34,14 @@ VECTOR. Created 2026-06-11. Status legend: ⬜ todo · 🟨 in progress · ✅ d
 12 → 14            (phone node talks to cloud brain)
 ```
 
+## Done outside the numbered tasks
+
+- **Frontend hardening 2026-06-11** (audit follow-up): XSS defense-in-depth
+  (esc/escapeHtml on all innerHTML data paths + safeUrl for external links),
+  duplex `wake`/IDLE WS events wired, Google Fonts vendored + Leaflet/CartoDB
+  CDNs dropped (served HUD = zero external hosts). Frontend security ~78→~93,
+  the only "leak" closed. Verified live (HUD/fonts 200, no CDN in served HTML).
+
 ## Out of scope (tracked elsewhere)
 
 OpenMythos/LoRA training, dedup (verdict: keep separate — HANDOFF item 7),
