@@ -138,7 +138,7 @@
       roads+=`<line x1="${P[i].x*100}" y1="${P[i].y*100}" x2="${P[j].x*100}" y2="${P[j].y*100}" stroke="rgba(0,207,255,.16)" stroke-width=".3"/>`; }
     roads+='</svg>'; mapEl.innerHTML=roads;
     P.forEach(p=>{ const pin=el('div','pin '+p.kind); pin.style.left=(p.x*100)+'%'; pin.style.top=(p.y*100)+'%';
-      pin.innerHTML=`<div class="pulse"></div><div class="d"></div><div class="nm">${p.name}</div>`; mapEl.appendChild(pin); });
+      pin.innerHTML=`<div class="pulse"></div><div class="d"></div><div class="nm">${escapeHtml(p.name)}</div>`; mapEl.appendChild(pin); });
   }
 
   F.telemetry = function(){
