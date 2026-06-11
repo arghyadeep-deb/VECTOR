@@ -1675,6 +1675,9 @@
   // ---- helpers ------------------------------------------------------------
   function fmt(s){ s=Math.floor(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // Only allow http(s)/relative links — blocks javascript:/data:/vbscript: hrefs
+  // from external search results (research answer engine).
+  function safeUrl(u){ const s=String(u||'').trim(); return /^(https?:\/\/|\/)/i.test(s) ? s : '#'; }
   const PANEL_MATCHERS = [
     ['features', /\b(features?|backend features?|feature map|feature launcher|backend map)\b/],
     ['corepanel', /\b(core systems?|core panel|core folder|core modules?|vector core)\b/],
