@@ -68,6 +68,11 @@ LOC: ~14.45M incl. node_modules; ~891,738 excluding node_modules.
 |---|-------|----------------|--------|
 | [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | ⬜ todo — core ones (semantic.search, reasoning retrieve) HIGH |
 
+### Duplicate code
+| # | Issue | Source (audit) | Status |
+|---|-------|----------------|--------|
+| [27](./issue-27-duplicate-code.md) | Duplicate code (6 pairs) | system/vc_system (→21), tools/vc_tools (→22), storage, telemetry shims, **SecurityBlockError isinstance break**, *_manage CRUD | ⬜ todo — 27e SecurityBlockError is a correctness bug (HIGH) |
+
 ## More issues
 Additional issues (MEDIUM/LOW and other batches) will be appended here and as
 new `issue-NN-*.md` files as they are shared.
