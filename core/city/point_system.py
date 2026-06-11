@@ -30,7 +30,7 @@ class PointSystem:
     }
 
     def __init__(self):
-        self._logs: list[dict] = []
+        self._logs: deque[dict] = deque(maxlen=_MAX_POINT_LOGS)
         logger.info("[VECTOR][point_system] PointSystem initialized")
 
     def apply(self, agent_name: str, action: str, amount: int | None = None) -> dict:
