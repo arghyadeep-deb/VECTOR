@@ -20,6 +20,10 @@ report. Status legend: ⬜ todo · 🟨 partial · ✅ resolved · 🔍 needs-ve
 
 LOC: ~14.45M incl. node_modules; ~891,738 excluding node_modules.
 
+**Baseline scores** (see [SCORECARD.md](./SCORECARD.md)): Code Quality 38/100,
+JARVIS Closeness 42/100. Weighted levers: Security (25/100) and Production
+Readiness (20/100) are the lowest — prioritize those issue groups.
+
 ## Top 25 (Critical + High) — tracker
 
 ### Security
