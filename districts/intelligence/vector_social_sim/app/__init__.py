@@ -20,6 +20,15 @@ def create_app(config_class=Config):
     """Flask应用工厂函数"""
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Fail closed on unsafe production security config (missing SECRET_KEY,
+    # wildcard/empty CORS, or DEBUG enabled).
+    security_errors = config_class.validate_security()
+    if security_errors:
+        raise RuntimeError(
+            "VECTOR Social Sim refused to start — unsafe production config: "
+            + "; ".join(security_errors)
+        )
     
     # 设置JSON编码：确保中文直接显示（而不是 \uXXXX 格式）
     # Flask >= 2.3 使用 app.json.ensure_ascii，旧版本使用 JSON_AS_ASCII 配置
