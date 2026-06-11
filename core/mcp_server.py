@@ -1078,41 +1078,54 @@ def _add_expansion_tools(mcp) -> None:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def memory_clear() -> str:
-            """Clear all entries from episodic memory."""
+        def memory_clear(confirm: str = "") -> str:
+            """Delete ALL entries from episodic memory. Destructive and
+            irreversible — requires confirm="CONFIRM_CLEAR_MEMORY"."""
+            if confirm != _MEMORY_CLEAR_CONFIRM:
+                return _safe_json({
+                    "error": "confirmation required",
+                    "message": f'memory_clear deletes all episodic memory; call again with confirm="{_MEMORY_CLEAR_CONFIRM}"',
+                    "cleared": False,
+                })
             mem = _get_epi()
             try:
-                cur = mem.get_temp_cursor() if hasattr(mem, "get_temp_cursor") else None
-                if cur:
+                from core.memory.episodic import get_temp_cursor
+                with get_temp_cursor() as cur:
                     cur.execute("DELETE FROM episodic_memory")
-                    return _safe_json({"ok": True, "message": "Episodic memory cleared"})
-                return _safe_json({"error": "No database cursor available"})
+                return _safe_json({"ok": True, "cleared": True, "message": "Episodic memory cleared"})
             except Exception as e:
-                return _safe_json({"error": str(e)})
+                return _safe_json({"error": str(e), "cleared": False})
 
         @mcp.tool
         def memory_export(path: str = "") -> str:
-            """Export memory index to JSON file."""
-            mem = _get_epi()
+            """Export episodic memory to JSON. Path is confined to the approved
+            memory_exports directory under the runtime data root."""
+            out_path, err = _resolve_memory_path(path, default_name="memory_export.json")
+            if err:
+                return _safe_json({"error": err})
             try:
-                cur = mem.get_temp_cursor() if hasattr(mem, "get_temp_cursor") else None
-                if cur:
+                from core.memory.episodic import get_temp_cursor
+                with get_temp_cursor() as cur:
                     cur.execute("SELECT * FROM episodic_memory ORDER BY timestamp DESC")
                     rows = cur.fetchall()
-                    out = path or str(ROOT / "memory_export.json")
-                    with open(out, "w") as f:
-                        _json.dump(rows, f, default=str)
-                    return _safe_json({"ok": True, "path": out, "count": len(rows)})
-                return _safe_json({"error": "No database cursor available"})
+                with open(out_path, "w", encoding="utf-8") as f:
+                    _json.dump(rows, f, default=str)
+                return _safe_json({"ok": True, "path": str(out_path), "count": len(rows)})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
         def memory_import(path: str) -> str:
-            """Import memory entries from a JSON file."""
+            """Import memory entries from a JSON file inside the approved
+            memory_exports directory under the runtime data root."""
+            in_path, err = _resolve_memory_path(path, default_name="memory_export.json")
+            if err:
+                return _safe_json({"error": err})
+            if not in_path.is_file():
+                return _safe_json({"error": f"file not found in approved directory: {in_path}"})
             mem = _get_epi()
             try:
-                with open(path) as f:
+                with open(in_path, encoding="utf-8") as f:
                     data = _json.load(f)
                 count = 0
                 for entry in data:
