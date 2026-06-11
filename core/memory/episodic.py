@@ -394,18 +394,23 @@ def _create_tables(conn):
 
 @contextmanager
 def get_temp_cursor():
-    """Context manager for temporary cursor with automatic cleanup."""
+    """Context manager for temporary cursor with automatic cleanup.
+
+    Holds _write_lock for the whole operation so concurrent threads serialize
+    on the shared single SQLite connection instead of racing it.
+    """
     conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        yield cursor
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Database operation failed: {e}")
-        raise
-    finally:
-        cursor.close()
+    with _write_lock:
+        cursor = conn.cursor()
+        try:
+            yield cursor
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Database operation failed: {e}")
+            raise
+        finally:
+            cursor.close()
 
 
 class EpisodicMemory:
