@@ -89,6 +89,29 @@ class Config:
     REPORT_AGENT_TEMPERATURE = float(os.environ.get('REPORT_AGENT_TEMPERATURE', '0.5'))
     
     @classmethod
+    def cors_resource_origins(cls):
+        """Origins for flask_cors. Explicit list in production; '*' only in dev."""
+        if cls.CORS_ORIGINS:
+            return cls.CORS_ORIGINS
+        return "*" if not cls.IS_PRODUCTION else []
+
+    @classmethod
+    def validate_security(cls):
+        """Security-critical config checks. Returns a list of errors (empty = ok).
+
+        In production a missing SECRET_KEY or wildcard/empty CORS is rejected.
+        """
+        errors = []
+        if cls.IS_PRODUCTION:
+            if not cls.SECRET_KEY:
+                errors.append("SECRET_KEY 未配置（生产环境必须设置）")
+            if not cls.CORS_ORIGINS:
+                errors.append("CORS_ORIGINS 未配置（生产环境不允许通配 *）")
+            if cls.DEBUG:
+                errors.append("FLASK_DEBUG 不能在生产环境启用")
+        return errors
+
+    @classmethod
     def validate(cls):
         """验证必要配置"""
         errors = []
