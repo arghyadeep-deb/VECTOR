@@ -36,16 +36,48 @@ except ImportError:
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 _CFG_PATH = Path.home() / ".vector" / "phone_config.env"
-_cfg: dict[str, str] = {}
 
-if _CFG_PATH.exists():
-    for line in _CFG_PATH.read_text().splitlines():
-        if "=" in line and not line.startswith("#"):
-            k, _, v = line.partition("=")
-            _cfg[k.strip()] = v.strip()
+
+def _parse_env(text: str) -> dict[str, str]:
+    """Parse a .env file robustly: skips blank/comment lines (even indented),
+    strips whitespace, removes surrounding matching quotes, and drops inline
+    ``# comment`` on unquoted values. Prefers python-dotenv when available."""
+    try:
+        from dotenv import dotenv_values  # type: ignore
+        import io
+        return {k: (v or "") for k, v in dotenv_values(stream=io.StringIO(text)).items()}
+    except Exception:
+        pass
+    cfg: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip()
+        if len(v) >= 2 and v[0] in "\"'" and v[-1] == v[0]:
+            v = v[1:-1]                       # quoted value — keep verbatim
+        elif " #" in v:
+            v = v.split(" #", 1)[0].strip()   # strip inline comment
+        if k:
+            cfg[k] = v
+    return cfg
+
+
+def _load_cfg() -> dict[str, str]:
+    if _CFG_PATH.exists():
+        try:
+            return _parse_env(_CFG_PATH.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+_cfg: dict[str, str] = _load_cfg()
 
 BRAIN_URL     = _cfg.get("VECTOR_BRAIN_URL", "https://vector-brain.fly.dev")
-API_KEY       = _cfg.get("VECTOR_API_KEY", "")
+API_KEY       = _cfg.get("VECTOR_API_KEY", "").strip()
 NODE_ID       = _cfg.get("VECTOR_NODE_ID", "phone-ambient")
 HB_INTERVAL   = int(_cfg.get("HEARTBEAT_INTERVAL_SEC", "60"))
 LOCAL_PORT    = int(_cfg.get("LOCAL_PORT", "7700"))
