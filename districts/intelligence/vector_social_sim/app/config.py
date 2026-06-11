@@ -4,7 +4,15 @@
 """
 
 import os
+import secrets
 from dotenv import load_dotenv
+
+
+def _is_production() -> bool:
+    return (
+        os.environ.get("FLASK_ENV", "").strip().lower() in {"production", "prod"}
+        or os.environ.get("VECTOR_ENV", "").strip().lower() in {"production", "prod"}
+    )
 
 # VECTOR env-var aliases: map VECTOR's standard API keys into the names
 # this service expects, without changing any other file.
