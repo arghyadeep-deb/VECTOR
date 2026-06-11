@@ -166,11 +166,11 @@
     if (!body) return;
     body.innerHTML = D.COUNCIL.slice(0, 5).map(c =>
       `<div class="csess">
-        <div class="q">${c.question}</div>
+        <div class="q">${esc(c.question)}</div>
         <div class="meta">
-          <span class="badge2 ${c.recommendation}">${(c.recommendation || 'defer').toUpperCase()}</span>
-          <span class="badge2 ${c.stakes === 'critical' ? 'crit' : c.stakes || 'high'}">${(c.stakes || 'high').toUpperCase()}</span>
-          <span class="k" style="margin-left:auto">${Math.round((c.confidence || 0) * 100)}% · ${c.when || '—'}</span>
+          <span class="badge2 ${esc(c.recommendation)}">${esc((c.recommendation || 'defer').toUpperCase())}</span>
+          <span class="badge2 ${esc(c.stakes === 'critical' ? 'crit' : c.stakes || 'high')}">${esc((c.stakes || 'high').toUpperCase())}</span>
+          <span class="k" style="margin-left:auto">${Math.round((c.confidence || 0) * 100)}% · ${esc(c.when || '—')}</span>
         </div>
       </div>`
     ).join('');
