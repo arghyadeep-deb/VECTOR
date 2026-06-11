@@ -22,6 +22,7 @@ __all__ = [
 
 
 import time
+from collections import deque
 from dataclasses import dataclass, field
 
 from loguru import logger
