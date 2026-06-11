@@ -48,8 +48,8 @@ def create_app(config_class=Config):
         logger.info("VECTOR Social Sim Backend 启动中...")
         logger.info("=" * 50)
     
-    # 启用CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # 启用CORS — 显式来源（生产环境不使用通配 *）
+    CORS(app, resources={r"/api/*": {"origins": config_class.cors_resource_origins()}})
     
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner
