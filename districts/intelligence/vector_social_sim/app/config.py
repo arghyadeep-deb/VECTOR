@@ -35,10 +35,19 @@ else:
 
 class Config:
     """Flask配置类"""
-    
-    # Flask配置
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'vector_social_sim-secret-key')
-    DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+
+    IS_PRODUCTION = _is_production()
+
+    # Flask security:
+    #  - No hardcoded production secret. In production SECRET_KEY MUST come from
+    #    the environment (validate_security() flags it if missing). In dev we use
+    #    a per-process random key so sessions still work without a known constant.
+    #  - DEBUG defaults to false; only an explicit FLASK_DEBUG=true enables it.
+    SECRET_KEY = os.environ.get('SECRET_KEY') or ('' if IS_PRODUCTION else secrets.token_hex(32))
+    DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+
+    # CORS origins: explicit comma-separated list. Wildcard is dev-only.
+    CORS_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', '').split(',') if o.strip()]
     
     # JSON配置 - 禁用ASCII转义，让中文直接显示（而不是 \uXXXX 格式）
     JSON_AS_ASCII = False
