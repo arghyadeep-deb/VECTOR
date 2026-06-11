@@ -2,8 +2,13 @@
 V.E.C.T.O.R. PointSystem.
 HP point system for agent health and evolution tracking.
 """
+from collections import deque
 from loguru import logger
 from core.config import CONFIG
+
+# Cap the in-memory HP event log so a long-running process cannot grow it
+# without bound. Summaries/leaderboards operate on the recent window.
+_MAX_POINT_LOGS = 5000
 
 
 class PointSystem:
