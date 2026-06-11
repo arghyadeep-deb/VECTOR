@@ -17,6 +17,7 @@ from __future__ import annotations
 __all__ = [
     "KERNEL_ID",
     "KERNEL_SECRET",
+    "ensure_production_secret",
     "main",
     "run_stdio",
 ]
@@ -34,8 +35,42 @@ import time
 
 from loguru import logger
 
-KERNEL_SECRET = os.environ.get("MCP_KERNEL_SECRET", str(uuid.uuid4()))
+_MIN_SECRET_LEN = 32
+# A configured secret keeps signed requests valid across restarts/processes.
+# Without one we fall back to an ephemeral per-process secret — fine for local
+# dev, but it must NOT be used in production (signatures would break between
+# the kernel and any other process). ensure_production_secret() fails closed.
+_CONFIGURED_SECRET = os.environ.get("MCP_KERNEL_SECRET", "").strip()
+KERNEL_SECRET = _CONFIGURED_SECRET or str(uuid.uuid4())
+KERNEL_SECRET_EPHEMERAL = not _CONFIGURED_SECRET
 KERNEL_ID = f"vector-mcp-{os.getpid()}"
+
+
+def _is_production() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+
+
+def ensure_production_secret() -> None:
+    """Fail closed in production when MCP_KERNEL_SECRET is missing or too weak.
+
+    No-op in development (the ephemeral fallback is acceptable for local use).
+    Raises RuntimeError so the stdio kernel refuses to start unsafely.
+    """
+    if not _is_production():
+        return
+    if KERNEL_SECRET_EPHEMERAL:
+        raise RuntimeError(
+            "MCP_KERNEL_SECRET is required in production: signed MCP requests use "
+            "an ephemeral per-process secret that breaks across restarts. Set "
+            "MCP_KERNEL_SECRET to at least "
+            f"{_MIN_SECRET_LEN} random characters."
+        )
+    if len(KERNEL_SECRET) < _MIN_SECRET_LEN:
+        raise RuntimeError(
+            f"MCP_KERNEL_SECRET is too weak for production (need >= {_MIN_SECRET_LEN} "
+            "characters). Generate one with: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+        )
 
 # Tool registry cache (1 min TTL)
 _tool_cache: dict | None = None
