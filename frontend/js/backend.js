@@ -295,8 +295,8 @@
     const chg = nifty.change != null ? nifty.change : '';
     const pos = pct == null || pct >= 0;
     statEl.innerHTML =
-      `<div><b>${nifty.symbol}</b> <span>${nifty.price != null ? nifty.price : (nifty.close != null ? nifty.close : '—')}</span></div>
-       <div style="color:var(--${pos ? 'ok' : 'danger'})"><b>${pos ? '▲' : '▼'} ${pct != null ? Math.abs(pct).toFixed(2) : '—'}%</b> <span>${chg}</span></div>`;
+      `<div><b>${esc(nifty.symbol)}</b> <span>${esc(nifty.price != null ? nifty.price : (nifty.close != null ? nifty.close : '—'))}</span></div>
+       <div style="color:var(--${pos ? 'ok' : 'danger'})"><b>${pos ? '▲' : '▼'} ${pct != null ? Math.abs(pct).toFixed(2) : '—'}%</b> <span>${esc(chg)}</span></div>`;
   }
 
   // ── Poll helpers ──────────────────────────────────────────────────────────
