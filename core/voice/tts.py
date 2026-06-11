@@ -107,27 +107,32 @@ class VoiceTTS:
         try:
             from kokoro_onnx import Kokoro
             voices_file = self._model_dir / "voices-v1.0.bin"
-            # Prefer GPU fp16 model if onnxruntime-gpu is present, fall back to CPU model
+            if not voices_file.exists():
+                logger.warning(f"[VECTOR][tts] Kokoro voices file not found at {self._model_dir} — using pyttsx3 fallback")
+                return
+            # Prefer GPU fp16 model when CUDA is available; try candidates in
+            # order and keep the first that actually initializes (a corrupt /
+            # truncated .onnx must not kill Kokoro when the other file works).
             gpu_model = self._model_dir / "kokoro-v1.0.fp16-gpu.onnx"
             cpu_model = self._model_dir / "kokoro-v1.0.onnx"
-            if gpu_model.exists() and voices_file.exists():
+            candidates = [cpu_model, gpu_model]
+            try:
+                import onnxruntime as ort
+                if "CUDAExecutionProvider" in ort.get_available_providers():
+                    candidates = [gpu_model, cpu_model]
+            except Exception:
+                pass
+            for model_file in candidates:
+                if not model_file.exists():
+                    continue
                 try:
-                    import onnxruntime as ort
-                    if "CUDAExecutionProvider" in ort.get_available_providers():
-                        model_file = gpu_model
-                        logger.info("[VECTOR][tts] Using GPU fp16 Kokoro model")
-                    else:
-                        model_file = cpu_model
-                except Exception:
-                    model_file = cpu_model
-            else:
-                model_file = cpu_model
-            if not model_file.exists() or not voices_file.exists():
-                logger.warning(f"[VECTOR][tts] Kokoro model files not found at {self._model_dir} — using pyttsx3 fallback")
-                return
-            self._kokoro = Kokoro(str(model_file), str(voices_file))
-            self._kokoro_ok = True
-            logger.info(f"[VECTOR][tts] Kokoro TTS ready ({model_file.name})")
+                    self._kokoro = Kokoro(str(model_file), str(voices_file))
+                    self._kokoro_ok = True
+                    logger.info(f"[VECTOR][tts] Kokoro TTS ready ({model_file.name})")
+                    return
+                except Exception as e:
+                    logger.warning(f"[VECTOR][tts] Kokoro model {model_file.name} failed ({str(e)[:120]}) — trying next")
+            logger.warning(f"[VECTOR][tts] No loadable Kokoro model in {self._model_dir} — using pyttsx3 fallback")
         except Exception as e:
             logger.warning(f"[VECTOR][tts] Kokoro init failed: {e}")
 
