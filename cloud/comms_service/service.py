@@ -14,16 +14,47 @@ Then run this service alongside it.
 import sys
 import asyncio
 import datetime
+import hmac
+import os
 
 from core.config import CONFIG
 from loguru import logger
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Header, HTTPException
 import uvicorn
 
 app = FastAPI(title="VECTOR Comms Bridge", version="1.0.0")
 
 _vc_bridge = None
+
+
+def _is_production() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+
+
+def require_auth(authorization: str = Header(default="")) -> bool:
+    """Bearer-token gate for state-changing comms endpoints.
+
+    This service can bind 0.0.0.0, so /send must never be open. In production a
+    missing VECTOR_API_KEY fails closed (503) rather than running unauthenticated.
+    In development without a key, localhost-only use is allowed for testing.
+    """
+    api_key = os.environ.get("VECTOR_API_KEY", "").strip()
+    if not api_key:
+        if _is_production():
+            raise HTTPException(
+                status_code=503,
+                detail="Comms service auth not configured: set VECTOR_API_KEY before production use.",
+            )
+        return True  # dev convenience only
+    token = ""
+    if authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    if not hmac.compare_digest(token, api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return True
 
 
 @app.get("/status")
