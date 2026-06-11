@@ -79,7 +79,12 @@
       case 'state':
         if (d.value === 'USER_SPEAKING') V.listen();
         else if (d.value === 'PROCESSING') V.process();
+        else if (d.value === 'IDLE') { V.idle(); V.caption(''); }  // session timed out → say "Vector" to resume
         // VECTOR_SPEAKING is driven by say()/captions below
+        break;
+      case 'wake':
+        V.wake();                        // woke from IDLE on wake word
+        V.listen();
         break;
       case 'partial_transcript':
         V.caption('▸ ' + d.text);
