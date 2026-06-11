@@ -158,8 +158,12 @@ def _migrate_plaintext_db_to_sqlcipher(path: str):
         os.replace(active_backup, path)
         raise
 
-# In-memory buffer for writes when circuit breaker is open
-_memory_buffer: list[dict] = []
+# In-memory buffer for writes when circuit breaker is open.
+# Bounded so a long circuit-open window cannot grow memory without limit
+# (oldest cached writes are dropped first).
+from collections import deque as _deque
+_MEMORY_BUFFER_MAX = 10000
+_memory_buffer: "_deque[dict]" = _deque(maxlen=_MEMORY_BUFFER_MAX)
 _buffer_lock = threading.Lock()
 
 def _replay_buffer():
