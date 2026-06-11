@@ -142,8 +142,17 @@ def _classify_local(text: str) -> str:
         return ""
 
 
+def _can_send_upstream() -> bool:
+    """Upstream brain calls require a configured API key. Without it we must not
+    send unauthenticated requests (they would be rejected and leak node data)."""
+    return bool(API_KEY)
+
+
 def _classify_remote(text: str) -> str:
     """Delegate classification to brain server if local LLM not available."""
+    if not _can_send_upstream():
+        _log("classify skipped: VECTOR_API_KEY not set — staying local")
+        return "info"
     try:
         import urllib.request
         payload = json.dumps({"text": text}).encode()
