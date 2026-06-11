@@ -396,6 +396,13 @@ def create_app() -> FastAPI:
             except Exception:
                 return JSONResponse({"error": "Forbidden"}, status_code=403)
             if file_path.exists() and file_path.is_file():
+                # woff2/woff aren't in every platform's mimetypes registry —
+                # set explicitly so vendored fonts load with the right type.
+                _ext = file_path.suffix.lower()
+                _font_mt = {".woff2": "font/woff2", ".woff": "font/woff",
+                            ".ttf": "font/ttf", ".otf": "font/otf"}.get(_ext)
+                if _font_mt:
+                    return FileResponse(str(file_path), media_type=_font_mt)
                 return FileResponse(str(file_path))
             # Default to the selected HUD entrypoint for client-side routing.
             hud_html = _select_hud_html(_hud_dir)
