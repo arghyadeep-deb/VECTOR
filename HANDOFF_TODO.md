@@ -1,9 +1,17 @@
 # VECTOR — Remaining Work (handoff for Claude Code)
 
-State as of 2026-06-11: items 0 (local scrub), 1-2, 4 (doctor+smoke), 5, 7, 8,
-9 (instagram/tiktok/twitter), and 10 (gate wiring, mojibake, voice_stream.js)
-DONE — see "DONE 2026-06-11" at the bottom. Remaining: owner-manual items
-below + GitHub force-push decision (item 0b).
+> **⛳ SUPERSEDED for active work: all remaining tasks now live in
+> [`plans/vector-activation/INDEX.md`](./plans/vector-activation/INDEX.md)**
+> (Grove-format task files: Depends on / Objective / Tests / Acceptance;
+> executing-agent rules in [`plans/README.md`](./plans/README.md)).
+> This file remains as the historical record of what was done and why.
+
+State as of 2026-06-11 (final): full test suite GREEN — 3622 passed,
+31 skipped, 0 failed. Items 0 (local scrub), 1-2, 4 (doctor+smoke), 5
+(suite triaged to green), 7, 8, 9 (instagram/tiktok/twitter), and 10
+DONE — see "DONE 2026-06-11" at the bottom. Remaining: the OWNER items in
+plans/vector-activation (key rotation, GitHub push decision, voice
+enrollment, wake word, service install, deploys).
 
 Context Claude Code should know:
 - Python 3.12 required (`pyproject.toml`), repo stores LF, working tree CRLF.
