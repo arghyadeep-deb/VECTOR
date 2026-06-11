@@ -22,6 +22,8 @@ task files when needed.
   deployment, and security-closeout work (2026-06-11).
 - [`vector-production-hardening/`](./vector-production-hardening/INDEX.md) — task-wise
   hardening plan for production/JARVIS-readiness issues (2026-06-11).
+- [`vector-audit-remediation/`](./vector-audit-remediation/INDEX.md) — full-codebase
+  audit issues, one `issue-NN-*.md` per finding (2026-06-12, in progress).
 
 ## Creating a new plan
 
