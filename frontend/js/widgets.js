@@ -763,7 +763,7 @@
         const posEl = wrap.querySelector('.fin-positions');
         if(posEl && j.positions && j.positions.length){
           posEl.innerHTML = j.positions.map(p=>
-            `<div class="fin-pos"><span>${p.symbol}</span><span>${p.qty}</span><span style="color:${(p.pnl||0)>=0?'var(--ok)':'var(--danger)'}">${(p.pnl||0)>=0?'▲':'▼'}${Math.abs(p.pnl||0).toFixed(2)}</span></div>`
+            `<div class="fin-pos"><span>${escapeHtml(p.symbol)}</span><span>${escapeHtml(p.qty)}</span><span style="color:${(p.pnl||0)>=0?'var(--ok)':'var(--danger)'}">${(p.pnl||0)>=0?'▲':'▼'}${Math.abs(p.pnl||0).toFixed(2)}</span></div>`
           ).join('');
         }
         const altEl = wrap.querySelector('.fin-alerts');
