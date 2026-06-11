@@ -182,6 +182,11 @@ def _log(msg: str) -> None:
 def _heartbeat_loop() -> None:
     global _last_hb_ok, _hb_count
     while True:
+        if not _can_send_upstream():
+            _last_hb_ok = False
+            _log("heartbeat skipped: VECTOR_API_KEY not set — configure ~/.vector/phone_config.env")
+            time.sleep(HB_INTERVAL)
+            continue
         try:
             battery = _termux_battery()
             payload = json.dumps({
