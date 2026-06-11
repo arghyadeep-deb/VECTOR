@@ -516,6 +516,48 @@ def _safe_json(obj) -> str:
         return _j.dumps({"error": str(e)})
 
 
+# ── MCP memory-tool safety (task 02) ─────────────────────────────────────────
+# Import/export are confined to an approved directory under the runtime data
+# root so an MCP caller cannot read/write arbitrary files via traversal or
+# absolute paths. memory_clear requires an explicit destructive confirmation.
+
+_MEMORY_EXPORT_DIRNAME = "memory_exports"
+_MEMORY_CLEAR_CONFIRM = "CONFIRM_CLEAR_MEMORY"
+
+
+def _memory_export_dir():
+    """The single approved directory for MCP memory import/export."""
+    from core.runtime_paths import data_path
+    d = data_path(_MEMORY_EXPORT_DIRNAME)
+    d.mkdir(parents=True, exist_ok=True)
+    return d.resolve()
+
+
+def _resolve_memory_path(path: str, *, default_name: str):
+    """Resolve a user-supplied memory import/export path inside the approved
+    directory. Returns (resolved_path, None) on success or (None, error_str).
+
+    Rules: blank → default file in the approved dir; a bare filename → inside
+    the approved dir; anything that escapes the approved dir (absolute path
+    elsewhere, ``..`` traversal, symlink-out) → rejected.
+    """
+    base = _memory_export_dir()
+    raw = (path or "").strip()
+    candidate = (base / default_name) if not raw else Path(raw)
+    if not candidate.is_absolute():
+        candidate = base / candidate
+    try:
+        resolved = candidate.resolve()
+    except Exception as exc:
+        return None, f"invalid path: {exc}"
+    if resolved != base and base not in resolved.parents:
+        return None, (
+            f"path outside approved memory directory ({base}); "
+            "use a filename or a path inside that directory"
+        )
+    return resolved, None
+
+
 def _add_collections_tools(mcp) -> None:
     """Expose the VECTOR collections engine (PocketBase absorption) to MCP clients so
     VECTOR's own agents can store/query structured data. Reads + a gated create."""
