@@ -1674,7 +1674,7 @@
 
   // ---- helpers ------------------------------------------------------------
   function fmt(s){ s=Math.floor(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-  function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   const PANEL_MATCHERS = [
     ['features', /\b(features?|backend features?|feature map|feature launcher|backend map)\b/],
     ['corepanel', /\b(core systems?|core panel|core folder|core modules?|vector core)\b/],
