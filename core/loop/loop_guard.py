@@ -84,14 +84,11 @@ class LoopGuardState:
         args_hash = str(sorted(args.items())) if args else "()"
         call_key = (tool_name, args_hash)
 
-        self._recent_calls.append(call_key)
-        # Keep only last N calls
-        if len(self._recent_calls) > PHANTOM_THRESHOLD + 2:
-            self._recent_calls.pop(0)
+        self._recent_calls.append(call_key)  # deque(maxlen) auto-drops oldest
 
         # Check if last N calls are identical
         if len(self._recent_calls) >= PHANTOM_THRESHOLD:
-            last_n = self._recent_calls[-PHANTOM_THRESHOLD:]
+            last_n = list(self._recent_calls)[-PHANTOM_THRESHOLD:]
             if all(c == call_key for c in last_n):
                 v = LoopViolation(
                     kind="phantom",
