@@ -993,25 +993,24 @@ def _add_expansion_tools(mcp) -> None:
         _sem = None
         _rm = None
 
+        # These classes bind the shared singleton connection internally via
+        # get_db_connection(); they take no positional connection argument.
         def _get_epi():
             nonlocal _epi
             if _epi is None:
-                conn = get_db_connection()
-                _epi = EpisodicMemory(conn)
+                _epi = EpisodicMemory()
             return _epi
 
         def _get_sem():
             nonlocal _sem
             if _sem is None:
-                conn = get_db_connection()
-                _sem = SemanticMemory(conn)
+                _sem = SemanticMemory()
             return _sem
 
         def _get_rm():
             nonlocal _rm
             if _rm is None:
-                conn = get_db_connection()
-                _rm = ReasoningMemory(conn)
+                _rm = ReasoningMemory()
             return _rm
 
         @mcp.tool
