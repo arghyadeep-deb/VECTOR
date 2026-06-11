@@ -252,13 +252,14 @@
       approvals.map(a => {
         const isRed = a.level === 'RED';
         const expiresAt = Date.now() + (Number(a.expires) || 0) * 1000;
+        const pp = typeof a.params === 'string' ? a.params : JSON.stringify(a.params || {});
         return `<div class="appr ${isRed ? 'red' : ''}" style="margin-bottom:4px">
-          <div class="at">${a.action_type} <span class="badge2 ${isRed ? 'crit' : 'high'}">${a.level}</span></div>
-          <div class="ap">${a.params} · by ${a.proposed_by}</div>
+          <div class="at">${esc(a.action_type)} <span class="badge2 ${isRed ? 'crit' : 'high'}">${esc(a.level)}</span></div>
+          <div class="ap">${esc(pp)} · by ${esc(a.proposed_by)}</div>
           <div class="acts">
-            <button class="ok2 live-appr-ok" data-action-id="${a.id || a.action_id || a.action_type}" data-atype="${a.action_type}">APPROVE</button>
-            <button class="no2 live-appr-no" data-action-id="${a.id || a.action_id || a.action_type}">DENY</button>
-            <span class="exp" data-expires-at="${expiresAt}">${a.expires}s</span>
+            <button class="ok2 live-appr-ok" data-action-id="${esc(a.id || a.action_id || a.action_type)}" data-atype="${esc(a.action_type)}">APPROVE</button>
+            <button class="no2 live-appr-no" data-action-id="${esc(a.id || a.action_id || a.action_type)}">DENY</button>
+            <span class="exp" data-expires-at="${expiresAt}">${esc(a.expires)}s</span>
           </div></div>`;
       }).join('');
     tickApprovalCountdowns();
