@@ -1129,9 +1129,24 @@ def _add_expansion_tools(mcp) -> None:
                     data = _json.load(f)
                 count = 0
                 for entry in data:
-                    if hasattr(mem, "store"):
-                        mem.store(entry)
-                        count += 1
+                    if not isinstance(entry, dict):
+                        continue
+                    content = entry.get("content")
+                    if content is None:
+                        continue
+                    tags = entry.get("tags")
+                    if isinstance(tags, str):
+                        try:
+                            tags = _json.loads(tags)
+                        except Exception:
+                            tags = [tags] if tags else None
+                    mem.store(
+                        event_type=entry.get("event_type", "imported"),
+                        content=content,
+                        tags=tags,
+                        source=entry.get("source", "memory_import"),
+                    )
+                    count += 1
                 return _safe_json({"ok": True, "imported": count})
             except Exception as e:
                 return _safe_json({"error": str(e)})
