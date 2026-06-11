@@ -102,27 +102,30 @@ def _seed(ep, n=3):
         mem.store(event_type="unit", content=f"event {i}", tags=["t"], source="test")
 
 
-def test_memory_clear_requires_confirmation(isolated_memory):
+def _count(ep) -> int:
+    with ep.get_temp_cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM episodic_memory")
+        return cur.fetchone()[0]
+
+
+def test_memory_clear_without_confirmation_keeps_rows(isolated_memory):
     ep = isolated_memory
     _seed(ep, 3)
     server = _build_server()
-
-    async def run():
-        no = await server.call_tool("memory_clear", {})
-        yes = await server.call_tool("memory_clear", {"confirm": _MEMORY_CLEAR_CONFIRM})
-        return _text(no), _text(yes)
-
-    no_text, yes_text = asyncio.run(run())
-    # Without confirmation: not cleared, rows survive
+    no_text = _text(asyncio.run(server.call_tool("memory_clear", {})))
     assert "confirmation required" in no_text
-    with ep.get_temp_cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM episodic_memory")
-        assert cur.fetchone()[0] == 3
-    # With confirmation: cleared
-    assert '"cleared": true' in yes_text.lower() or "cleared" in yes_text.lower()
-    with ep.get_temp_cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM episodic_memory")
-        assert cur.fetchone()[0] == 0
+    assert _count(ep) == 3  # nothing deleted
+
+
+def test_memory_clear_with_confirmation_deletes(isolated_memory):
+    ep = isolated_memory
+    _seed(ep, 3)
+    server = _build_server()
+    assert _count(ep) == 3
+    yes_text = _text(asyncio.run(
+        server.call_tool("memory_clear", {"confirm": _MEMORY_CLEAR_CONFIRM})))
+    assert "cleared" in yes_text.lower()
+    assert _count(ep) == 0
 
 
 def test_memory_export_rejects_outside_path(isolated_memory):
