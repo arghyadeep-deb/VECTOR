@@ -152,10 +152,10 @@
     const body = qs('memory', '.w-body');
     if (!body) return;
     body.innerHTML = D.MEMORY.slice(0, 20).map(m =>
-      `<div class="mevt imp-${m.importance}">
-        <span class="ew">${m.when}</span>
-        <div class="et">${m.event_type}</div>
-        <div class="ec">${m.content}</div>
+      `<div class="mevt imp-${esc(m.importance)}">
+        <span class="ew">${esc(m.when)}</span>
+        <div class="et">${esc(m.event_type)}</div>
+        <div class="ec">${esc(m.content)}</div>
       </div>`
     ).join('');
   }
