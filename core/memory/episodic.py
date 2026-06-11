@@ -242,6 +242,11 @@ def _with_cb(op, *args, **kwargs):
 # Singleton database connection with thread-safe access
 _db_connection = None
 _db_lock = threading.Lock()
+# Serializes operations on the shared single SQLite connection. A reentrant
+# lock so nested cursor use within one thread does not deadlock. Prevents
+# concurrent threads racing the shared connection ("database is locked",
+# cross-thread cursor corruption).
+_write_lock = threading.RLock()
 
 
 def _is_connection_closed(conn) -> bool:
