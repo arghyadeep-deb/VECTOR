@@ -898,8 +898,8 @@
         const items = j.results || [];
         results.innerHTML = items.length ? items.map(i=>
           `<div class="ae-item">
-             <a href="${i.url||'#'}" class="ae-title" target="_blank">${i.title||'Result'}</a>
-             <div class="ae-snippet">${i.snippet||i.content||''}</div>
+             <a href="${escapeHtml(safeUrl(i.url))}" class="ae-title" target="_blank" rel="noopener noreferrer">${escapeHtml(i.title||'Result')}</a>
+             <div class="ae-snippet">${escapeHtml(i.snippet||i.content||'')}</div>
            </div>`).join('') : '<div class="ae-empty">No results</div>';
       } catch(e) { results.innerHTML = '<div class="ae-empty">Search unavailable</div>'; }
     });
