@@ -127,9 +127,9 @@
       const cls = a.health_points <= 0 ? 'ghost' : '';
       const bar = a.health_points <= 0 ? 'low' : a.health_points < 400 ? 'low' : a.health_points < 700 ? 'mid' : '';
       return `<div class="agent ${cls}">
-        <div class="an">${a.name}</div><div class="ad">${a.district.toUpperCase()}</div>
+        <div class="an">${esc(a.name)}</div><div class="ad">${esc(String(a.district || '').toUpperCase())}</div>
         <div class="hpbar ${bar}"><i style="width:${pct}%"></i></div>
-        <div class="hp"><span>HP ${a.health_points}</span><span>G${a.generation} · ${a.tier}</span></div>
+        <div class="hp"><span>HP ${esc(a.health_points)}</span><span>G${esc(a.generation)} · ${esc(a.tier)}</span></div>
       </div>`;
     }).join('');
   }
