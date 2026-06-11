@@ -69,11 +69,12 @@ async def status():
 
 
 @app.post("/send")
-async def send_message(payload: dict):
+async def send_message(payload: dict, _auth: bool = Depends(require_auth)):
     """
     Route a message through VectorCode channel adapters.
     payload: {"platform": "whatsapp"|"telegram"|"discord"|"slack", "to": "...", "message": "..."}
     RULE 3: all outgoing messages are YELLOW actions — notify immediately.
+    Requires Authorization: Bearer <VECTOR_API_KEY>.
     """
     platform = payload.get("platform", "unknown")
     message = payload.get("message", "")
