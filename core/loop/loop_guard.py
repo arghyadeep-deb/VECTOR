@@ -51,7 +51,11 @@ class LoopGuardState:
     task_id: str
     iteration: int = 0
     max_iterations: int = MAX_ITERATIONS
-    _recent_calls: list[tuple[str, str]] = field(default_factory=list)  # (tool, args_hash)
+    # Bounded ring buffer of recent (tool, args_hash) — cannot grow without
+    # bound across a long task; phantom detection only needs the last few.
+    _recent_calls: "deque[tuple[str, str]]" = field(
+        default_factory=lambda: deque(maxlen=PHANTOM_THRESHOLD + 2)
+    )
     _violations: list[LoopViolation] = field(default_factory=list)
     _started_at: float = field(default_factory=time.time)
 
