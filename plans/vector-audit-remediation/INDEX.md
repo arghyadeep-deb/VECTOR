@@ -63,6 +63,11 @@ LOC: ~14.45M incl. node_modules; ~891,738 excluding node_modules.
 | [24](./issue-24-mcp-monolith.md) | mcp_server.py 3,920-line monolith | mcp_server.py | ⬜ todo |
 | [25](./issue-25-syspath-hacks.md) | sys.path.insert hacks | 3+ instances | ⬜ todo |
 
+### Completeness / Stubs
+| # | Issue | Source (audit) | Status |
+|---|-------|----------------|--------|
+| [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | ⬜ todo — core ones (semantic.search, reasoning retrieve) HIGH |
+
 ## More issues
 Additional issues (MEDIUM/LOW and other batches) will be appended here and as
 new `issue-NN-*.md` files as they are shared.
