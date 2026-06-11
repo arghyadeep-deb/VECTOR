@@ -236,7 +236,7 @@
         const items = j.headlines || j.results || [];
         const newsEl = wrap.querySelector('.mkt-news');
         if(newsEl && items.length)
-          newsEl.innerHTML = items.map(h=>`<div class="mkt-headline">· ${h.title||h.text||h}</div>`).join('');
+          newsEl.innerHTML = items.map(h=>`<div class="mkt-headline">· ${escapeHtml(h.title||h.text||h)}</div>`).join('');
       }catch(e){ /* offline */ }
     }
 
