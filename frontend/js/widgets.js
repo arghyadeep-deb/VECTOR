@@ -768,7 +768,7 @@
         }
         const altEl = wrap.querySelector('.fin-alerts');
         if(altEl && j.alerts && j.alerts.length){
-          altEl.innerHTML = j.alerts.map(a=>`<div class="fin-alert-row">${a}</div>`).join('');
+          altEl.innerHTML = j.alerts.map(a=>`<div class="fin-alert-row">${escapeHtml(a)}</div>`).join('');
         }
       }catch(e){ /* backend offline */ }
     }
