@@ -92,7 +92,7 @@
     wrap.innerHTML =
       `<div class="top">
          <div class="art" style="background:${t.art}">IDLE</div>
-         <div class="meta"><div class="t">${t.title}</div><div class="a">${t.artist}</div>
+         <div class="meta"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)}</div>
            <span class="badge">SPOTIFY</span></div></div>
        <div class="bar"><i style="width:${(t.pos/t.dur*100)}%"></i></div>
        <div class="time"><span>${fmt(t.pos)}</span><span>${fmt(t.dur)}</span></div>
