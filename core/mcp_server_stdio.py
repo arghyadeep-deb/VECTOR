@@ -236,6 +236,7 @@ def main():
     # Disable loguru output to stdout to avoid mixing with JSON-RPC
     logger.remove()
     logger.add(sys.stderr, level="WARNING")
+    ensure_production_secret()  # fail closed in production without a stable secret
     asyncio.run(run_stdio())
 
 
