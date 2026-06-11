@@ -80,8 +80,11 @@ def isolated_memory(monkeypatch):
 
 def _build_server():
     pytest.importorskip("fastmcp")
-    from core.mcp_server import create_mcp_server
-    return create_mcp_server()
+    from fastmcp import FastMCP
+    from core.mcp_server import _add_expansion_tools
+    mcp = FastMCP("test-memory-safety")
+    _add_expansion_tools(mcp)  # registers memory_clear/export/import
+    return mcp
 
 
 def _text(res) -> str:
