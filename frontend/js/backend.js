@@ -14,6 +14,16 @@
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  // HTML-escape any value before it enters innerHTML. Covers text AND
+  // attribute context (escapes quotes too). Backend data is owner-trusted but
+  // VECTOR ingests external content (emails, Reddit/HN, scrapes) that can flow
+  // into these fields — defense-in-depth against stored XSS in our own HUD.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   function relTime(iso) {
     if (!iso) return '—';
     try {
