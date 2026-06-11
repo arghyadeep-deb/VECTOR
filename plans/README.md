@@ -20,6 +20,8 @@ task files when needed.
 
 - [`vector-activation/`](./vector-activation/INDEX.md) — remaining activation,
   deployment, and security-closeout work (2026-06-11).
+- [`vector-production-hardening/`](./vector-production-hardening/INDEX.md) — task-wise
+  hardening plan for production/JARVIS-readiness issues (2026-06-11).
 
 ## Creating a new plan
 
