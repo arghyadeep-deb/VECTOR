@@ -1106,7 +1106,8 @@ def _add_expansion_tools(mcp) -> None:
                 from core.memory.episodic import get_temp_cursor
                 with get_temp_cursor() as cur:
                     cur.execute("SELECT * FROM episodic_memory ORDER BY timestamp DESC")
-                    rows = cur.fetchall()
+                    cols = [d[0] for d in cur.description]
+                    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
                 with open(out_path, "w", encoding="utf-8") as f:
                     _json.dump(rows, f, default=str)
                 return _safe_json({"ok": True, "path": str(out_path), "count": len(rows)})
