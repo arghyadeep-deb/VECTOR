@@ -193,6 +193,7 @@ class TaskQueue:
             tags=tags or [],
         )
         self._tasks[task_id] = task
+        self._persist(task)
 
         try:
             loop = asyncio.get_event_loop()
