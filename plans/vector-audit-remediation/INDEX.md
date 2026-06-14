@@ -96,7 +96,7 @@ Readiness (20/100) are the lowest — prioritize those issue groups.
 ### Completeness / Stubs
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | 🟨 partial |
+| [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | ✅ resolved |
 
 ### Duplicate code
 | # | Issue | Source (audit) | Status |
