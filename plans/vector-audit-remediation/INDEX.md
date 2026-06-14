@@ -79,7 +79,7 @@ Readiness (20/100) are the lowest — prioritize those issue groups.
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
 | [16](./issue-16-sense-cache-thread-unsafe.md) | Thread-unsafe _SENSE_CACHE dict | context_engine.py:9 | ✅ resolved |
-| [17](./issue-17-sqlite-no-locking.md) | 12+ SQLite conns check_same_thread=False, no locking | many | 🟨 partial |
+| [17](./issue-17-sqlite-no-locking.md) | 12+ SQLite conns check_same_thread=False, no locking | many | ✅ resolved (17/17 real stores: RLock+WAL+busy_timeout) |
 | [18](./issue-18-unbounded-lists.md) | Unbounded in-memory lists | point_system._logs, loop_guard._recent_calls | ✅ resolved (hardening Task 07) — re-verify |
 | [19](./issue-19-spawned-agents-not-threadsafe.md) | _SPAWNED_AGENTS dict not thread-safe | agent_tools.py:32 | ✅ resolved |
 | [20](./issue-20-sync-httpx-in-async.md) | Sync httpx.Client in async stream() | _openai_compat.py:119, ollama.py:181 | ✅ resolved |
