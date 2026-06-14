@@ -42,20 +42,13 @@ def _is_optional_dep_error(exc: BaseException) -> str | None:
     return None
 
 
-# Absorbed standalone subprojects vendored under a district: they carry their own
-# internal package root (own `config`, CLI entry scripts that sys.exit, vendored
-# libs). VECTOR reaches them through a depth-1 adapter agent, which IS smoked.
-_VENDORED_SUBDIRS = {
-    "vector_finagent", "vector_backtest", "vector_hedgebot", "shadowbroker_server",
-    "vector_social_sim", "vectorintel", "vector_mlops", "ads",
-}
-
-
 def _iter_district_modules(district_dir: Path):
     """Yield the district's first-class agent modules — direct .py children only.
 
     These are the modules VECTOR's registry/governor actually imports. Deeper
-    trees belong to vendored subprojects reached via a depth-1 adapter."""
+    trees belong to vendored standalone subprojects (vector_finagent,
+    vector_backtest, shadowbroker_server, ads/scripts, …) which carry their own
+    package root + CLI entry scripts and are reached via a depth-1 adapter."""
     for py in sorted(district_dir.glob("*.py")):
         if py.name.startswith("test_") or py.name == "conftest.py":
             continue
