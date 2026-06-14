@@ -90,7 +90,7 @@ Readiness (20/100) are the lowest — prioritize those issue groups.
 | [21](./issue-21-system-vc-system-duplicate.md) | system/ vs vc_system/ divergent duplicates | 7 files each | ✅ resolved |
 | [22](./issue-22-tools-vc-tools-duplicate.md) | tools/ vs vc_tools/ divergent duplicates | 8+ files | ✅ resolved (all same-name files are re-export shims) |
 | [23](./issue-23-bare-except.md) | 544 bare `except Exception` | repo-wide | ✅ triaged (intentional resilience pattern; 0 real bugs; observability added) |
-| [24](./issue-24-mcp-monolith.md) | mcp_server.py monolith (one 3.1k-line `_add_expansion_tools`) | mcp_server.py | 🟨 DEFERRED — risky 80+ live-tool refactor, dedicated session |
+| [24](./issue-24-mcp-monolith.md) | mcp_server.py monolith (one 3.1k-line `_add_expansion_tools`) | mcp_server.py | ✅ resolved — split to `mcp_tools/expansion.py` (4,353→1,201 lines; 353-tool inventory frozen) |
 | [25](./issue-25-syspath-hacks.md) | sys.path.insert hacks | 3+ instances | ✅ resolved (ensure_paths; remainder = external-lib paths + false positives) |
 
 ### Completeness / Stubs
