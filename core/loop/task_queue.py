@@ -222,6 +222,7 @@ class TaskQueue:
             task = self._tasks.get(task_id)
             if task:
                 task.status = TaskStatus.CANCELLED
+                self._persist(task)
             logger.info(f"[VECTOR][task_queue] cancelled id={task_id}")
             return True
         return False
