@@ -306,6 +306,7 @@ class TaskQueue:
         task.status     = TaskStatus.RUNNING
         task.started_at = time.time()
         self._running.add(task_id)
+        self._persist(task)
         try:
             loop   = asyncio.get_event_loop()
             result = await loop.run_in_executor(self._thread_pool, fn)
@@ -323,6 +324,7 @@ class TaskQueue:
         finally:
             task.finished_at = time.time()
             self._running.discard(task_id)
+            self._persist(task)
 
     # â”€â”€ Notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
