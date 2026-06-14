@@ -101,7 +101,7 @@ Readiness (20/100) are the lowest — prioritize those issue groups.
 ### Duplicate code
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [27](./issue-27-duplicate-code.md) | Duplicate code (6 pairs) | system/vc_system (→21), tools/vc_tools (→22), storage, telemetry shims, **SecurityBlockError isinstance break**, *_manage CRUD | 🟨 partial |
+| [27](./issue-27-duplicate-code.md) | Duplicate code (6 pairs) | system/vc_system (→21), tools/vc_tools (→22), storage, telemetry shims, **SecurityBlockError isinstance break**, *_manage CRUD | ✅ resolved (27f → shared MarkdownStoreTool base) |
 
 ## More issues
 Additional issues (MEDIUM/LOW and other batches) will be appended here and as
