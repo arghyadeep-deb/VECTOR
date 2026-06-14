@@ -2,7 +2,20 @@
 
 - **Severity:** MEDIUM-HIGH · **Category:** Architecture / Maintainability
 - **Source (audit):** `mcp_server.py` — 80+ copy-pasted error handlers
-- **Status:** 🟨 DEFERRED — dedicated session (rationale + safe plan below)
+- **Status:** ✅ RESOLVED (2026-06-14)
+
+## Resolution
+`_add_expansion_tools` (3,145 lines, ~300 tools) lifted verbatim into
+`core/mcp_tools/expansion.py:add_expansion_tools(mcp)`. `core/mcp_server.py`
+now imports and calls it; the shared `_reg` stub-registrar moved to
+`core/mcp_tools/error_handling.py:register_stub_tool`. **mcp_server.py: 4,353 →
+1,201 lines.** Safety net proved no behavioral change:
+- registered tool inventory identical (353 tools, name-set SHA `3824d04807007a5b`)
+  — frozen in `test_mcp_tool_inventory_unchanged_after_split`.
+- end-to-end `call_tool` on moved tools (`agent_list`, `config_version`) works.
+- `tests/ -k mcp` 45 passed; smoke 38/38; audit suite 60 passed; compileall clean.
+
+## (historical) Why it was deferred first / safe plan followed
 
 ## Why deferred (2026-06-14)
 The file is 4,353 lines, but it is NOT 80+ scattered handlers anymore. The
