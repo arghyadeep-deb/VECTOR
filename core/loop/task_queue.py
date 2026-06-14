@@ -45,11 +45,12 @@ class Priority(int, Enum):
 
 
 class TaskStatus(str, Enum):
-    QUEUED    = "queued"
-    RUNNING   = "running"
-    DONE      = "done"
-    FAILED    = "failed"
-    CANCELLED = "cancelled"
+    QUEUED      = "queued"
+    RUNNING     = "running"
+    DONE        = "done"
+    FAILED      = "failed"
+    CANCELLED   = "cancelled"
+    INTERRUPTED = "interrupted"   # was in-flight when the process restarted
 
 
 @dataclass
