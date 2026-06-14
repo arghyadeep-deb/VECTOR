@@ -20,6 +20,10 @@ class ConsolidationBot(AgentBase):
 
     CONSOLIDATION_DAYS = 30
     REFLECTION_HOURS = 24
+    # Forgetting horizon: raw episodes older than this are pruned AFTER they have
+    # been summarized into semantic_memory + mem0. 3x the consolidation window so
+    # nothing is forgotten before it has been consolidated.
+    RETENTION_DAYS = 90
 
     def __init__(self, generation: int = 1, ghost: dict | None = None):
         super().__init__(
