@@ -5,15 +5,13 @@ Builds thought leadership for Arghyadeep's VECTOR project, AI/ML content,
 and personal brand as a KIIT CSE student targeting AI/ML/Backend roles.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -34,7 +32,6 @@ _OWNER = {
     ],
     "tone": "authentic, technical but accessible, builder mindset",
 }
-
 
 class SocialMediaStrategist(AgentBase, SkillMixin):
     """
@@ -208,7 +205,6 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
             logger.error("[VECTOR][social] {}", e)
             self.deduct_points(30, "social_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

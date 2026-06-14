@@ -1,10 +1,5 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
-from pathlib import Path
 
 import asyncio
 import datetime
@@ -15,10 +10,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 from core.config import CONFIG
-
 
 @dataclass
 class BlocklistEntry:
@@ -27,9 +24,7 @@ class BlocklistEntry:
     added_at: str = ""
     source: str = "file"
 
-
 _SUSPICIOUS_PORTS: set[int] = set(CONFIG.get("security", {}).get("suspicious_ports", [4444, 6666, 1337, 31337, 9001, 9050]))
-
 
 def _parse_netstat(output: str) -> list[dict[str, Any]]:
     connections: list[dict[str, Any]] = []
@@ -51,7 +46,6 @@ def _parse_netstat(output: str) -> list[dict[str, Any]]:
             "state": state,
         })
     return connections
-
 
 class NetworkMonitor:
     def __init__(self, interval_sec: int | None = None):
@@ -228,7 +222,6 @@ class NetworkMonitor:
 
     async def run(self, task: dict | None = None) -> dict:
         return self.generate_report()
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

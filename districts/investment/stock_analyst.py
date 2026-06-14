@@ -1,18 +1,16 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import time
 import uuid
 import json
 from typing import Optional
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class _TTLCache:
     """Simple time-to-live cache to deduplicate repeated API calls."""
@@ -29,7 +27,6 @@ class _TTLCache:
 
     def set(self, key: str, val) -> None:
         self._cache[key] = {"val": val, "ts": time.time()}
-
 
 class StockAnalyst(AgentBase):
     """
@@ -794,13 +791,11 @@ Be specific and balanced.
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         symbol = p.get("symbol", "RELIANCE")
         result = self.get_quote(symbol)
         return {"status": "ok", **result}
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

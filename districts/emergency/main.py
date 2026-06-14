@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import asyncio
 import time
 from typing import Any
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
@@ -22,17 +19,14 @@ from .runbook import RunbookExecutor
 from .escalation import EscalationManager
 from .log import EmergencyLog, EmergencyLogEntry
 
-
 def set_instance(instance: EmergencyResponseSystem | None) -> None:
     global _system_instance
     _system_instance = instance
-
 
 async def _emit(domain: str, signal_name: str, value: Any, source: str = "external", context: dict[str, Any] | None = None) -> EmergencyEvent | None:
     if _system_instance is not None:
         return await _system_instance.emit_signal(domain, signal_name, value, source, context)
     return None
-
 
 class EmergencyResponseSystem(AgentBase):
     def __init__(self, test_mode: bool = False):

@@ -1,18 +1,16 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.loop.permission_gateway import PermissionGateway, Action
-
 
 class GitBot(AgentBase):
     """Automates git operations: commit, push, branch, PR creation."""
@@ -263,7 +261,6 @@ class GitBot(AgentBase):
             self.deduct_points(20, "pr_create_failed")
             return {"error": str(e)}
 
-
     async def generate_commit_message_vc(self, diff_summary: str) -> str:
         """
         Generate a semantic commit message via VectorCode.
@@ -368,7 +365,6 @@ class GitBot(AgentBase):
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-
     async def run_forever(self) -> None:
         """RULE 2 — never stops. GitBot is event-driven; this keeps the agent alive."""
         logger.info("[VECTOR][git_bot] run_forever started — event-driven mode")
@@ -382,7 +378,6 @@ class GitBot(AgentBase):
                 logger.error(f"[VECTOR][git_bot] tick error: {e}")
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][git_bot] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

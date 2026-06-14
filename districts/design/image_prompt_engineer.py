@@ -6,14 +6,12 @@ optimized for VECTOR's content district. Translates visual concepts into
 precise language with style, lighting, composition, and technical parameters.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -40,7 +38,6 @@ _NEGATIVE_PROMPT = (
     "blurry, low quality, distorted, deformed, extra limbs, bad anatomy, "
     "watermark, text, signature, low resolution, jpeg artifacts"
 )
-
 
 class ImagePromptEngineer(AgentBase):
     """
@@ -199,7 +196,6 @@ class ImagePromptEngineer(AgentBase):
             logger.error("[VECTOR][image_prompt] {}", e)
             self.deduct_points(30, "prompt_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

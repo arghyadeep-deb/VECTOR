@@ -5,14 +5,13 @@ Generates CSS/design systems, component library specs, dark-mode tokens,
 and pixel-perfect UI specifications for VECTOR's monitoring dashboard and outputs.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import json
 import re
 from typing import Any
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -22,7 +21,6 @@ from core.inference.vectorcode_llm import chat
 
 # Design corpus — lazy-loaded on first call
 _corpus_search = None
-
 
 def _get_corpus_search():
     """Lazy import to avoid circular imports and missing-file errors at startup."""
@@ -61,7 +59,6 @@ _VECTOR_DESIGN_TOKENS = {
     "radius": {"sm": "0.25rem", "md": "0.5rem", "lg": "0.75rem", "full": "9999px"},
     "shadow": {"card": "0 4px 6px -1px rgba(0,0,0,0.4)", "glow": "0 0 20px rgba(99,102,241,0.3)"},
 }
-
 
 class UIDesigner(AgentBase):
     """
@@ -281,7 +278,6 @@ class UIDesigner(AgentBase):
             logger.error("[VECTOR][ui_designer] {}", e)
             self.deduct_points(30, "ui_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

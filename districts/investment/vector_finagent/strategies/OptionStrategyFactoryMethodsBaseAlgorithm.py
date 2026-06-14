@@ -61,13 +61,13 @@ class OptionStrategyFactoryMethodsBaseAlgorithm(QCAlgorithm):
                             f"half for buying the strategy and the other half for the liquidation. Actual {orders_count}")
 
     def expected_orders_count(self) -> int:
-        raise NotImplementedError("ExpectedOrdersCount method is not implemented")
+        raise RuntimeError("ExpectedOrdersCount method must be implemented by a concrete strategy")
 
     def trade_strategy(self, chain: OptionChain, option_symbol: Symbol) -> None:
-        raise NotImplementedError("TradeStrategy method is not implemented")
+        raise RuntimeError("TradeStrategy method must be implemented by a concrete strategy")
 
     def assert_strategy_position_group(self, position_group: IPositionGroup, option_symbol: Symbol) -> None:
-        raise NotImplementedError("AssertStrategyPositionGroup method is not implemented")
+        raise RuntimeError("AssertStrategyPositionGroup method must be implemented by a concrete strategy")
 
     def liquidate_strategy(self) -> None:
-        raise NotImplementedError("LiquidateStrategy method is not implemented")
+        raise RuntimeError("LiquidateStrategy method must be implemented by a concrete strategy")

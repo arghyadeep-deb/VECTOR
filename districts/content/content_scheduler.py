@@ -1,18 +1,17 @@
 """
 Content Scheduler — orchestrates post_job → publishers → analytics feedback loop.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import asyncio
 from datetime import datetime, timezone
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class ContentScheduler(AgentBase):
     """Schedules content posts, tracks publish status, retrieves analytics."""
@@ -140,7 +139,6 @@ class ContentScheduler(AgentBase):
     def get_summary(self) -> dict:
         """Return per-status job counts."""
         return self._get_tracker().summary()
-
 
 if __name__ == "__main__":
     s = ContentScheduler()

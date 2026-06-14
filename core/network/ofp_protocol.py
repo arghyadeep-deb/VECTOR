@@ -214,11 +214,13 @@ class OFPNode:
         elif _secret_env:
             self._secret = _secret_env.encode()
         else:
+            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}:
+                raise RuntimeError("VECTOR_OFP_SECRET is required in production")
             logger.warning(
-                "[VECTOR][ofp] Using DEFAULT shared secret — "
-                "set VECTOR_OFP_SECRET env var for production"
+                "[VECTOR][ofp] Using generated local-only secret — "
+                "set VECTOR_OFP_SECRET env var for multi-node operation"
             )
-            self._secret = b"vector-default-secret"
+            self._secret = secrets.token_bytes(32)
         self.capabilities = capabilities or []
         self._peers: dict[str, PeerInfo] = {}
         self._seen_nonces: set[str] = set()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
 
@@ -38,6 +39,7 @@ class _OpenAICompatibleEngine(InferenceEngine):
         env_key = f"{self.engine_id.upper()}_HOST"
         self._host = (host or os.environ.get(env_key) or self._default_host).rstrip("/")
         self._client = httpx.Client(base_url=self._host, timeout=timeout)
+        self._async_client = httpx.AsyncClient(base_url=self._host, timeout=timeout)
 
     # -- InferenceEngine interface ------------------------------------------
 
@@ -138,9 +140,9 @@ class _OpenAICompatibleEngine(InferenceEngine):
             payload["tool_choice"] = "auto"
         try:
             url = f"{self._api_prefix}/chat/completions"
-            with self._client.stream("POST", url, json=payload) as resp:
+            async with self._async_client.stream("POST", url, json=payload) as resp:
                 resp.raise_for_status()
-                for line in resp.iter_lines():
+                async for line in resp.aiter_lines():
                     if not line.startswith("data:"):
                         continue
                     data_str = line[len("data:") :].strip()
@@ -182,9 +184,9 @@ class _OpenAICompatibleEngine(InferenceEngine):
             payload["tool_choice"] = "auto"
         try:
             url = f"{self._api_prefix}/chat/completions"
-            with self._client.stream("POST", url, json=payload) as resp:
+            async with self._async_client.stream("POST", url, json=payload) as resp:
                 resp.raise_for_status()
-                for line in resp.iter_lines():
+                async for line in resp.aiter_lines():
                     if not line.startswith("data:"):
                         continue
                     data_str = line[len("data:") :].strip()
@@ -247,5 +249,11 @@ class _OpenAICompatibleEngine(InferenceEngine):
 
     def close(self) -> None:
         self._client.close()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self._async_client.aclose())
+        else:
+            loop.create_task(self._async_client.aclose())
 
 __all__ = ["_OpenAICompatibleEngine"]

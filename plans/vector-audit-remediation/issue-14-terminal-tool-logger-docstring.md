@@ -2,13 +2,13 @@
 
 - **Severity:** HIGH · **Category:** Stability
 - **Source (audit):** `terminal_tool.py` — logger referenced in docstring/scope, NameError at runtime for any `logger.xxx()` call
-- **Status:** ⬜ TODO
+- **Status:** ✅ RESOLVED (2026-06-12)
 
 ## Issue (as reported)
 `logger` is not actually imported/bound (only appears in a docstring), so any
 `logger.xxx()` call raises NameError at runtime.
 
-## Analysis (to complete during analysis pass)
-- Affected files: `vectorcode/src/.../terminal_tool.py` (same file as Issue 06 SUDO_PASSWORD)
-- Fix approach: _pending_ (add `from loguru import logger`)
-- Tests / Acceptance: _pending_
+## Resolution
+- `vectorcode/src/tools/terminal_tool.py` no longer has stray import text inside the module docstring.
+- The real module logger is bound with `logging.getLogger(__name__)`.
+- Covered by import/smoke verification.

@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
 from core.city.agent_base import AgentBase
 from districts.predictive_analytics.time_series_forecaster import ForecastResult
 from districts.predictive_analytics.anomaly_predictor import MetricAnomaly, AnomalyType
-
 
 class RecommendationType(Enum):
     TIME_MANAGEMENT = "time_management"
@@ -26,7 +22,6 @@ class RecommendationType(Enum):
     SECURITY_WARNING = "security_warning"
     SYSTEM_MAINTENANCE = "system_maintenance"
     LIFESTYLE_SUGGESTION = "lifestyle_suggestion"
-
 
 @dataclass
 class Recommendation:
@@ -41,7 +36,6 @@ class Recommendation:
     actionable: bool = True
     expires_at: Optional[str] = None
     source: str = "predictive_analytics"
-
 
 class StrategyRecommender(AgentBase):
     def __init__(self) -> None:
@@ -484,7 +478,6 @@ class StrategyRecommender(AgentBase):
 
     def fallback_chain(self) -> list[str]:
         return ["heuristic_rules", "llm_strategy"]
-
 
 if __name__ == "__main__":
     sr = StrategyRecommender()

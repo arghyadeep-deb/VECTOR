@@ -20,18 +20,15 @@ import asyncio
 import json
 import logging
 import os
-import sys
 import uuid
 from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-# Ensure the vectorcode repo root is on sys.path so that imports like
-# `from model_tools import ...` and `from environments.X import ...` work
-# regardless of where the script is invoked from.
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 _repo_root = Path(__file__).resolve().parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
 
 from dotenv import load_dotenv
 from pydantic import Field

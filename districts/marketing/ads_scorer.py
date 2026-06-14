@@ -11,14 +11,14 @@ Usage:
 """
 
 import sys
-from pathlib import Path
 
 # Ensure codebase root is first in sys.path so CONFIG resolves to the real dict,
 # not vectorcode/src/core/config.py (VectorConfig).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
-
 
 class AdsScorer:
     """Weighted ads performance scorer — converts raw metrics to 0-100 score."""
@@ -79,7 +79,6 @@ class AdsScorer:
         """Convenience method — returns both score and grade in one call."""
         s = self.score(metrics)
         return {"score": s, "grade": self.grade(s)}
-
 
 if __name__ == "__main__":
     s = AdsScorer()

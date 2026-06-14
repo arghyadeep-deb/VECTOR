@@ -1,13 +1,12 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 import datetime
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
@@ -29,7 +28,6 @@ _HP_DROP_SIGNAL_THRESHOLD = 100
 
 # Minimum HP below which a district is flagged as dying
 _DISTRICT_DYING_HP = 100
-
 
 class ChiefOfStaff(AgentBase):
     """
@@ -826,7 +824,6 @@ class ChiefOfStaff(AgentBase):
                 await asyncio.sleep(60)
 
         logger.warning("[VECTOR][chief_of_staff] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

@@ -1,7 +1,8 @@
 """Server-side GTM agent — sGTM health, CAPI, server container monitoring."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.city.agent_base import AgentBase
 from core.config import CONFIG

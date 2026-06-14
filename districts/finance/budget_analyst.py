@@ -1,13 +1,12 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 import datetime
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
@@ -29,7 +28,6 @@ _DEFAULT_BUDGETS: dict[str, float] = {
     "entertainment": 500,
     "other": 1000,
 }
-
 
 class BudgetAnalyst(AgentBase):
     """
@@ -221,7 +219,6 @@ class BudgetAnalyst(AgentBase):
                     break
                 await asyncio.sleep(60)
         logger.warning("[VECTOR][budget_analyst] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

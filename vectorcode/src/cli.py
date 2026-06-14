@@ -957,14 +957,8 @@ def cmd_tools(args):
     """List registered tools."""
     action = getattr(args, "action", "list") or "list"
     if action == "list":
-        import sys
-        from pathlib import Path
-        # Ensure both module paths are available
-        _py = str(Path(__file__).parent.parent.parent)
-        _vc = str(Path(__file__).parent)
-        for p in [_py, _vc]:
-            if p not in sys.path:
-                sys.path.insert(0, p)
+        from vectorcode.src.bootstrap import ensure_paths
+        ensure_paths()
 
         # Import tools to trigger self-registration (use discovery from registry)
         from tools.registry import registry, discover_builtin_tools

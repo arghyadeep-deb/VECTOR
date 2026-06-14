@@ -47,7 +47,7 @@ class DataProcessor:
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform data"""
-        raise NotImplementedError()
+        raise RuntimeError("DataProcessor.transform must be implemented by a concrete processor")
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Fit and transform data"""

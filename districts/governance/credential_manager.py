@@ -6,14 +6,12 @@ Manages API keys for Gemini, Anthropic, OpenRouter, Bedrock.
 Reports which providers are live, which are exhausted, handles key rotation.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import os
 import datetime
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -28,7 +26,6 @@ _ENV_KEYS = {
     "openrouter":  "OPENROUTER_API_KEY",
     "bedrock":     "AWS_ACCESS_KEY_ID",
 }
-
 
 class CredentialManager(AgentBase):
     """
@@ -151,7 +148,6 @@ class CredentialManager(AgentBase):
             logger.error("[VECTOR][cred_mgr] {}", e)
             self.deduct_points(20, "credential_scan_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

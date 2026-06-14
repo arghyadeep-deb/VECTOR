@@ -1,14 +1,11 @@
-"""Re-export from the real vc_tools implementation."""
-try:
-    from vectorcode.src.vc_tools.scan_chunks import ScanChunksTool
-except Exception:
-    class ScanChunksTool:  # type: ignore[no-redef]
-        def run(self, text: str) -> list:
-            return []
+"""Compatibility shim — canonical implementation lives in vectorcode.src.vc_tools.scan_chunks."""
+from vectorcode.src.vc_tools.scan_chunks import ScanChunksTool  # noqa: F401
 
 __all__ = ["ScanChunksTool", "scan_chunks"]
 
 
 def scan_chunks(text: str) -> list:
-    """Legacy convenience wrapper."""
-    return []
+    """Legacy convenience wrapper — delegates to ScanChunksTool."""
+    tool = ScanChunksTool()
+    result = tool.execute(question=text)
+    return [] if not result.success else [result]

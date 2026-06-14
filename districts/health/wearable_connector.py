@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import asyncio
 import datetime
 import random
 from abc import ABC, abstractmethod
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 from core.config import CONFIG
-
 
 class BaseConnector(ABC):
     source_name: str = "base"
@@ -27,7 +23,6 @@ class BaseConnector(ABC):
     @abstractmethod
     async def fetch_metrics(self) -> dict[str, Any] | None:
         ...
-
 
 class AppleHealthConnector(BaseConnector):
     source_name = "apple_health"
@@ -64,7 +59,6 @@ class AppleHealthConnector(BaseConnector):
             logger.warning(f"[VECTOR][wearable] apple_health fetch error: {exc}")
         return None
 
-
 class GoogleFitConnector(BaseConnector):
     source_name = "google_fit"
 
@@ -100,7 +94,6 @@ class GoogleFitConnector(BaseConnector):
             logger.warning(f"[VECTOR][wearable] google_fit error: {exc}")
         return None
 
-
 class OuraConnector(BaseConnector):
     source_name = "oura"
 
@@ -129,7 +122,6 @@ class OuraConnector(BaseConnector):
         except Exception as exc:
             logger.warning(f"[VECTOR][wearable] oura error: {exc}")
         return None
-
 
 class GarminConnector(BaseConnector):
     source_name = "garmin"
@@ -161,7 +153,6 @@ class GarminConnector(BaseConnector):
             logger.warning(f"[VECTOR][wearable] garmin error: {exc}")
         return None
 
-
 class WhoopConnector(BaseConnector):
     source_name = "whoop"
 
@@ -190,7 +181,6 @@ class WhoopConnector(BaseConnector):
         except Exception as exc:
             logger.warning(f"[VECTOR][wearable] whoop error: {exc}")
         return None
-
 
 class PhoneSensorConnector(BaseConnector):
     source_name = "phone_sensor"
@@ -222,7 +212,6 @@ class PhoneSensorConnector(BaseConnector):
 
     async def poll_sensors(self) -> dict[str, Any]:
         return await self.fetch_metrics() or {}
-
 
 class WearableConnector:
     def __init__(self) -> None:

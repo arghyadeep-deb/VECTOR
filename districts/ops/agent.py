@@ -7,15 +7,12 @@ into a unified dispatch interface for the SwarmOrchestrator.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 from pathlib import Path
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.city.agent_base import AgentBase
@@ -37,7 +34,6 @@ TASK_ROLE_MAP: dict[str, set[str]] = {
     "monitor_system": {"sre", "monitor", "observability"},
     "default": {"devops"},
 }
-
 
 class OpsSwarm(AgentBase):
     """Orchestrator for ops district — wraps 4 Python agents into a unified dispatch."""
@@ -130,7 +126,6 @@ class OpsSwarm(AgentBase):
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", task.get("task_type", "default"))
         return await self.dispatch(task_type, task)
-
 
 if __name__ == "__main__":
     async def _smoke():

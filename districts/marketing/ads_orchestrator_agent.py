@@ -16,7 +16,9 @@ from pathlib import Path
 
 # Ensure codebase root is first in sys.path so CONFIG resolves to the real dict,
 # not vectorcode/src/core/config.py (VectorConfig).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -28,7 +30,6 @@ from districts.marketing._skill_loader import load_skill, SkillMixin
 _ADS_SCRIPTS = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "scripts"
 _ADS_REFERENCES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "references"
 _ADS_TEMPLATES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "templates"
-
 
 class AdsOrchestratorAgent(AgentBase, SkillMixin):
     """
@@ -350,7 +351,6 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
             logger.error(f"[VECTOR][ads] {task_type} failed: {e}")
             self.deduct_points(30, f"ads_{task_type}_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     async def _test():

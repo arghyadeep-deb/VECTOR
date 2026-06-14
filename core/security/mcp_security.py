@@ -21,6 +21,7 @@ __all__ = [
 
 
 import sqlite3
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -64,38 +65,43 @@ class MCPSecurityMiddleware:
         self._district_counts: dict[str, list[float]] = defaultdict(list)
         self._global_counts: list[float] = []
         self._conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
         self._init_db()
         self._build_risk_map()
 
     def _get_conn(self) -> sqlite3.Connection:
-        if self._conn is not None:
+        with self._lock:
+            if self._conn is not None:
+                return self._conn
+            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             return self._conn
-        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        return self._conn
 
     def _init_db(self) -> None:
         try:
             conn = self._get_conn()
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS mcp_audit_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tool_name TEXT NOT NULL,
-                    source_district TEXT NOT NULL,
-                    params TEXT DEFAULT '{}',
-                    timestamp REAL NOT NULL,
-                    allowed INTEGER NOT NULL DEFAULT 1,
-                    risk_level TEXT NOT NULL DEFAULT 'low'
-                )
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_audit_district
-                ON mcp_audit_log(source_district)
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_audit_timestamp
-                ON mcp_audit_log(timestamp)
-            """)
-            conn.commit()
+            with self._lock:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS mcp_audit_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tool_name TEXT NOT NULL,
+                        source_district TEXT NOT NULL,
+                        params TEXT DEFAULT '{}',
+                        timestamp REAL NOT NULL,
+                        allowed INTEGER NOT NULL DEFAULT 1,
+                        risk_level TEXT NOT NULL DEFAULT 'low'
+                    )
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_district
+                    ON mcp_audit_log(source_district)
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_timestamp
+                    ON mcp_audit_log(timestamp)
+                """)
+                conn.commit()
         except Exception as e:
             logger.warning("[VECTOR][mcp] audit db init failed: {}", e)
 
@@ -169,31 +175,32 @@ class MCPSecurityMiddleware:
         return "medium"
 
     def check_rate_limit(self, source_district: str, tool_name: str) -> bool:
-        now = time.time()
-        cutoff = now - RATE_WINDOW
+        with self._lock:
+            now = time.time()
+            cutoff = now - RATE_WINDOW
 
-        self._district_counts[source_district] = [
-            t for t in self._district_counts[source_district] if t > cutoff
-        ]
-        self._global_counts = [t for t in self._global_counts if t > cutoff]
+            self._district_counts[source_district] = [
+                t for t in self._district_counts[source_district] if t > cutoff
+            ]
+            self._global_counts = [t for t in self._global_counts if t > cutoff]
 
-        if len(self._district_counts[source_district]) >= RATE_LIMIT_DISTRICT:
-            logger.warning(
-                "[VECTOR][mcp] rate limit district {} ({} calls/{})",
-                source_district, RATE_LIMIT_DISTRICT, RATE_WINDOW,
-            )
-            return False
+            if len(self._district_counts[source_district]) >= RATE_LIMIT_DISTRICT:
+                logger.warning(
+                    "[VECTOR][mcp] rate limit district {} ({} calls/{})",
+                    source_district, RATE_LIMIT_DISTRICT, RATE_WINDOW,
+                )
+                return False
 
-        if len(self._global_counts) >= RATE_LIMIT_GLOBAL:
-            logger.warning(
-                "[VECTOR][mcp] global rate limit ({} calls/{})",
-                RATE_LIMIT_GLOBAL, RATE_WINDOW,
-            )
-            return False
+            if len(self._global_counts) >= RATE_LIMIT_GLOBAL:
+                logger.warning(
+                    "[VECTOR][mcp] global rate limit ({} calls/{})",
+                    RATE_LIMIT_GLOBAL, RATE_WINDOW,
+                )
+                return False
 
-        self._district_counts[source_district].append(now)
-        self._global_counts.append(now)
-        return True
+            self._district_counts[source_district].append(now)
+            self._global_counts.append(now)
+            return True
 
     def detect_anomalous_call(
         self,
@@ -206,11 +213,12 @@ class MCPSecurityMiddleware:
         if risk == "critical":
             try:
                 conn = self._get_conn()
-                row = conn.execute(
-                    "SELECT COUNT(*) as cnt FROM mcp_audit_log "
-                    "WHERE source_district = ? AND tool_name = ? AND timestamp > ?",
-                    (source_district, tool_name, time.time() - 3600),
-                ).fetchone()
+                with self._lock:
+                    row = conn.execute(
+                        "SELECT COUNT(*) as cnt FROM mcp_audit_log "
+                        "WHERE source_district = ? AND tool_name = ? AND timestamp > ?",
+                        (source_district, tool_name, time.time() - 3600),
+                    ).fetchone()
                 if row and row[0] == 0:
                     logger.warning(
                         "[VECTOR][mcp] anomalous: {} ({}) first critical call from {}",
@@ -225,11 +233,12 @@ class MCPSecurityMiddleware:
 
         try:
             conn = self._get_conn()
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM mcp_audit_log "
-                "WHERE source_district = ? AND timestamp > ?",
-                (source_district, time.time() - 86400),
-            ).fetchone()
+            with self._lock:
+                row = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM mcp_audit_log "
+                    "WHERE source_district = ? AND timestamp > ?",
+                    (source_district, time.time() - 86400),
+                ).fetchone()
             total_calls = row[0] if row else 0
             if total_calls < 5 and risk in ("medium", "critical"):
                 logger.warning(
@@ -245,31 +254,33 @@ class MCPSecurityMiddleware:
     def audit_call(self, record: ToolCallRecord) -> None:
         try:
             conn = self._get_conn()
-            conn.execute(
-                "INSERT INTO mcp_audit_log "
-                "(tool_name, source_district, params, timestamp, allowed, risk_level) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    record.tool_name,
-                    record.source_district,
-                    str(record.params),
-                    record.timestamp,
-                    1 if record.allowed else 0,
-                    record.risk_level,
-                ),
-            )
-            conn.commit()
+            with self._lock:
+                conn.execute(
+                    "INSERT INTO mcp_audit_log "
+                    "(tool_name, source_district, params, timestamp, allowed, risk_level) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        record.tool_name,
+                        record.source_district,
+                        str(record.params),
+                        record.timestamp,
+                        1 if record.allowed else 0,
+                        record.risk_level,
+                    ),
+                )
+                conn.commit()
         except Exception as e:
             logger.warning("[VECTOR][mcp] audit call failed: {}", e)
 
     def get_recent_calls(self, limit: int = 50) -> list[dict[str, Any]]:
         try:
             conn = self._get_conn()
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT * FROM mcp_audit_log ORDER BY timestamp DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
+            with self._lock:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT * FROM mcp_audit_log ORDER BY timestamp DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning("[VECTOR][mcp] get_recent_calls failed: {}", e)
@@ -279,17 +290,18 @@ class MCPSecurityMiddleware:
         anomalies: list[dict[str, Any]] = []
         try:
             conn = self._get_conn()
-            conn.row_factory = sqlite3.Row
+            with self._lock:
+                conn.row_factory = sqlite3.Row
 
-            rows = conn.execute("""
-                SELECT source_district, tool_name, risk_level, COUNT(*) as cnt
-                FROM mcp_audit_log
-                WHERE timestamp > ?
-                GROUP BY source_district, tool_name
-                HAVING cnt > 20
-                ORDER BY cnt DESC
-                LIMIT 10
-            """, (time.time() - 3600,)).fetchall()
+                rows = conn.execute("""
+                    SELECT source_district, tool_name, risk_level, COUNT(*) as cnt
+                    FROM mcp_audit_log
+                    WHERE timestamp > ?
+                    GROUP BY source_district, tool_name
+                    HAVING cnt > 20
+                    ORDER BY cnt DESC
+                    LIMIT 10
+                """, (time.time() - 3600,)).fetchall()
             for r in rows:
                 anomalies.append({
                     "type": "high_volume",
@@ -299,16 +311,17 @@ class MCPSecurityMiddleware:
                     "count": r["cnt"],
                 })
 
-            rows2 = conn.execute("""
-                SELECT source_district, risk_level, COUNT(*) as cnt
-                FROM mcp_audit_log
-                WHERE timestamp > ?
-                AND risk_level = 'critical'
-                AND allowed = 1
-                GROUP BY source_district
-                ORDER BY cnt DESC
-                LIMIT 10
-            """, (time.time() - 3600,)).fetchall()
+            with self._lock:
+                rows2 = conn.execute("""
+                    SELECT source_district, risk_level, COUNT(*) as cnt
+                    FROM mcp_audit_log
+                    WHERE timestamp > ?
+                    AND risk_level = 'critical'
+                    AND allowed = 1
+                    GROUP BY source_district
+                    ORDER BY cnt DESC
+                    LIMIT 10
+                """, (time.time() - 3600,)).fetchall()
             for r in rows2:
                 anomalies.append({
                     "type": "critical_call_cluster",

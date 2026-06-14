@@ -5,22 +5,19 @@ Helps Arghyadeep understand how real users interact with VECTOR's outputs and
 any products built via the agency district. Data-driven design insights.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 class UXResearcher(AgentBase):
     """
@@ -210,7 +207,6 @@ class UXResearcher(AgentBase):
             logger.error("[VECTOR][ux_researcher] {}", e)
             self.deduct_points(30, "ux_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

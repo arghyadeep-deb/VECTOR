@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import datetime
 import asyncio
 import time
 from collections import defaultdict
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 from core.config import CONFIG
 from districts.health.metrics_store import MetricsStore
-
 
 class HealthEmergencyDetector:
     def __init__(self, store: MetricsStore | None = None) -> None:

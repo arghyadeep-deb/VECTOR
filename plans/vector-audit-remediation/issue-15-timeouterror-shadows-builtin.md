@@ -2,13 +2,16 @@
 
 - **Severity:** HIGH · **Category:** Stability
 - **Source (audit):** `core/errors.py:56` — silent logic bomb in asyncio
-- **Status:** ⬜ TODO
+- **Status:** ✅ RESOLVED
 
 ## Issue (as reported)
 A custom `TimeoutError` shadows the builtin, so `except asyncio.TimeoutError` /
 `except TimeoutError` elsewhere may not catch real timeouts → silent logic bomb.
 
-## Analysis (to complete during analysis pass)
-- Affected files: `core/errors.py` (+ grep importers that may rely on the name)
-- Fix approach: _pending_ (rename custom exception, e.g. `VectorTimeoutError`; fix importers)
-- Tests / Acceptance: _pending_ (asyncio.timeout still caught where expected)
+## Resolution
+- Renamed the custom VECTOR exception to `VectorTimeoutError`.
+- Removed `TimeoutError` from `core.errors.__all__` so importing from `core.errors` no longer shadows the builtin by default.
+- Grep found no local importers of `core.errors.TimeoutError`.
+
+## Verification
+- `python -m pytest -q tests/backend/test_audit_followups.py`

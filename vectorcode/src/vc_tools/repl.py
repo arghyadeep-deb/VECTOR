@@ -13,6 +13,7 @@ within the same session.
 from __future__ import annotations
 
 import io
+import os
 import threading
 import time
 import uuid
@@ -54,6 +55,10 @@ _REMOVED_BUILTINS = {
     "quit",
     "input",
 }
+
+
+def _untrusted_code_enabled() -> bool:
+    return os.environ.get("VECTOR_ENABLE_UNTRUSTED_CODE", "").strip() == "1"
 
 # Layer 3: Safe import allowlist
 _SAFE_IMPORT_MODULES = frozenset(
@@ -199,6 +204,16 @@ class ReplTool(BaseTool):
 
         import logging
         logging.getLogger(__name__).warning("[VECTOR][repl] code execution: %.200s", code)
+
+        if not _untrusted_code_enabled():
+            return ToolResult(
+                tool_name="repl",
+                content=(
+                    "REPL execution is disabled by default. Set "
+                    "VECTOR_ENABLE_UNTRUSTED_CODE=1 only in an isolated lab environment."
+                ),
+                success=False,
+            )
 
         if not code or not code.strip():
             return ToolResult(

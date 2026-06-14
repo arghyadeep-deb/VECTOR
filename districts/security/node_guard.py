@@ -1,13 +1,12 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 
 import asyncio
 import datetime
 import uuid
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
@@ -30,7 +29,6 @@ _SUSPICIOUS_DIRS: tuple[str, ...] = (
     "/tmp/",
     "/var/tmp/",
 )
-
 
 class NodeGuard(AgentBase):
     """Monitors network connections and detects anomalies.
@@ -291,7 +289,6 @@ class NodeGuard(AgentBase):
     async def run(self, task: dict) -> dict:
         result = await self.monitor_tick()
         return {"status": "ok", **result}
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

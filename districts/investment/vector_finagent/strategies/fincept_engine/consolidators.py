@@ -52,7 +52,7 @@ class ConsolidatorBase:
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def update(self, data):
-        raise NotImplementedError
+        raise RuntimeError("ConsolidatorBase.update must be implemented by a concrete consolidator")
 
     def scan(self, time: datetime):
         pass

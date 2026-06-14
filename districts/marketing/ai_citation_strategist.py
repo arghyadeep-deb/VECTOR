@@ -6,15 +6,13 @@ questions about autonomous AI, personal AI agents, Python AI systems.
 Also covers Agentic Search Optimization (AEO/GEO) and WebMCP readiness.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -42,7 +40,6 @@ _CITATION_SIGNALS = [
     "high-quality backlinks from known domains",
     "entity disambiguation (not confused with other 'VECTOR')",
 ]
-
 
 class AICitationStrategist(AgentBase, SkillMixin):
     """
@@ -270,7 +267,6 @@ class AICitationStrategist(AgentBase, SkillMixin):
             logger.error("[VECTOR][ai_citation] {}", e)
             self.deduct_points(30, "citation_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

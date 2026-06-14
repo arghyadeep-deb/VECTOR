@@ -73,7 +73,7 @@ class BM25Memory(MemoryBackend):
         if not query.strip():
             return []
         try:
-            from vector._rust_bridge import retrieval_results_from_json
+            from vectorcode.src._rust_bridge import retrieval_results_from_json
             results = retrieval_results_from_json(
                 self._rust_impl.retrieve(query, top_k),
             )

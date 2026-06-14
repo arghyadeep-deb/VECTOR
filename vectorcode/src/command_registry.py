@@ -5,13 +5,16 @@ Every brain/.claude/commands/*.md becomes a VectorCode command callable via:
   - MCP tool: run_command(name, params)
   - Direct Python: CommandRegistry().execute("research", {"topic": "AI"})
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import asyncio
 from typing import Any
 from loguru import logger
+
+from vectorcode.src.bootstrap import ensure_paths
+
+ensure_paths()
+
 from core.config import CONFIG
 
 

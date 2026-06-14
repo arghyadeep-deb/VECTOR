@@ -20,6 +20,7 @@ __all__ = [
 
 
 import sqlite3
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -62,30 +63,35 @@ class HPValidator:
         self._ema_state: dict[str, float] = {}
         self._history: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self._conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
-        if self._conn is not None:
+        with self._lock:
+            if self._conn is not None:
+                return self._conn
+            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             return self._conn
-        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        return self._conn
 
     def _init_db(self) -> None:
         try:
             conn = self._get_conn()
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS hp_delta_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    agent_id TEXT NOT NULL,
-                    delta REAL NOT NULL,
-                    validated_delta REAL NOT NULL,
-                    source_district TEXT NOT NULL,
-                    context TEXT DEFAULT '',
-                    timestamp REAL NOT NULL,
-                    issues TEXT DEFAULT ''
-                )
-            """)
-            conn.commit()
+            with self._lock:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hp_delta_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        agent_id TEXT NOT NULL,
+                        delta REAL NOT NULL,
+                        validated_delta REAL NOT NULL,
+                        source_district TEXT NOT NULL,
+                        context TEXT DEFAULT '',
+                        timestamp REAL NOT NULL,
+                        issues TEXT DEFAULT ''
+                    )
+                """)
+                conn.commit()
         except Exception as e:
             logger.warning("[VECTOR][hp] db init failed: {}", e)
 
@@ -154,21 +160,23 @@ class HPValidator:
         return False, delta
 
     def _smooth(self, delta: float, agent_id: str) -> float:
-        prev = self._ema_state.get(agent_id, delta)
-        smoothed = EMA_ALPHA * delta + (1 - EMA_ALPHA) * prev
-        self._ema_state[agent_id] = smoothed
+        with self._lock:
+            prev = self._ema_state.get(agent_id, delta)
+            smoothed = EMA_ALPHA * delta + (1 - EMA_ALPHA) * prev
+            self._ema_state[agent_id] = smoothed
         return round(smoothed, 2)
 
     def _cross_validate(self, delta: float, source_district: str) -> bool:
         try:
             conn = self._get_conn()
             cutoff = time.time() - 60
-            rows = conn.execute(
-                "SELECT source_district, validated_delta FROM hp_delta_log "
-                "WHERE timestamp > ? AND source_district != ? "
-                "ORDER BY timestamp DESC LIMIT 20",
-                (cutoff, source_district),
-            ).fetchall()
+            with self._lock:
+                rows = conn.execute(
+                    "SELECT source_district, validated_delta FROM hp_delta_log "
+                    "WHERE timestamp > ? AND source_district != ? "
+                    "ORDER BY timestamp DESC LIMIT 20",
+                    (cutoff, source_district),
+                ).fetchall()
 
             if not rows:
                 return False
@@ -185,21 +193,22 @@ class HPValidator:
             return False
 
     def _detect_adversarial_pattern(self, agent_id: str, delta: float) -> bool:
-        history = self._history[agent_id]
-        history.append({"delta": delta, "ts": time.time()})
+        with self._lock:
+            history = self._history[agent_id]
+            history.append({"delta": delta, "ts": time.time()})
 
-        while len(history) > SEESAW_WINDOW:
-            history.pop(0)
+            while len(history) > SEESAW_WINDOW:
+                history.pop(0)
 
-        if len(history) < 4:
-            return False
+            if len(history) < 4:
+                return False
 
-        sign_changes = 0
-        for i in range(1, len(history)):
-            if history[i]["delta"] * history[i - 1]["delta"] < 0:
-                sign_changes += 1
+            sign_changes = 0
+            for i in range(1, len(history)):
+                if history[i]["delta"] * history[i - 1]["delta"] < 0:
+                    sign_changes += 1
 
-        return sign_changes >= 3
+            return sign_changes >= 3
 
     def _store_delta(
         self,
@@ -212,26 +221,28 @@ class HPValidator:
     ) -> None:
         try:
             conn = self._get_conn()
-            conn.execute(
-                "INSERT INTO hp_delta_log "
-                "(agent_id, delta, validated_delta, source_district, context, timestamp, issues) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (agent_id, delta, validated_delta, source_district, context, time.time(), issues),
-            )
-            conn.commit()
+            with self._lock:
+                conn.execute(
+                    "INSERT INTO hp_delta_log "
+                    "(agent_id, delta, validated_delta, source_district, context, timestamp, issues) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (agent_id, delta, validated_delta, source_district, context, time.time(), issues),
+                )
+                conn.commit()
         except Exception as e:
             logger.warning("[VECTOR][hp] store failed: {}", e)
 
     def get_agent_history(self, agent_id: str, days: int = 7) -> list[dict[str, Any]]:
         try:
             conn = self._get_conn()
-            conn.row_factory = sqlite3.Row
             cutoff = time.time() - days * 86400
-            rows = conn.execute(
-                "SELECT * FROM hp_delta_log WHERE agent_id = ? AND timestamp > ? "
-                "ORDER BY timestamp DESC LIMIT 100",
-                (agent_id, cutoff),
-            ).fetchall()
+            with self._lock:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT * FROM hp_delta_log WHERE agent_id = ? AND timestamp > ? "
+                    "ORDER BY timestamp DESC LIMIT 100",
+                    (agent_id, cutoff),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning("[VECTOR][hp] get_agent_history failed: {}", e)

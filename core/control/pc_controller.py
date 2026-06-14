@@ -2,7 +2,8 @@ import sys
 import shutil
 import subprocess
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import numpy as np
 from loguru import logger

@@ -1,19 +1,20 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+_MAX_UPLOAD_HISTORY = 1000
+_MAX_SCHEDULED_UPLOADS = 1000
 
 class Uploader(AgentBase):
     """
@@ -32,6 +33,16 @@ class Uploader(AgentBase):
         self._scheduled_uploads: list[dict] = []
         self._api_credentials = CONFIG.get("api_keys", {})
         logger.info("[VECTOR][uploader] Uploader initialized")
+
+    def _remember_upload(self, upload_record: dict) -> None:
+        self._upload_history.append(upload_record)
+        if len(self._upload_history) > _MAX_UPLOAD_HISTORY:
+            del self._upload_history[:-_MAX_UPLOAD_HISTORY]
+
+    def _remember_schedule(self, schedule: dict) -> None:
+        self._scheduled_uploads.append(schedule)
+        if len(self._scheduled_uploads) > _MAX_SCHEDULED_UPLOADS:
+            del self._scheduled_uploads[:-_MAX_SCHEDULED_UPLOADS]
 
     async def upload_to_youtube(self, video_path: str, title: str,
                                description: str, tags: list[str],
@@ -103,7 +114,7 @@ class Uploader(AgentBase):
                 "scheduled_time": scheduled_time,
                 "timestamp": self._get_timestamp()
             }
-            self._upload_history.append(upload_record)
+            self._remember_upload(upload_record)
 
             self.award_points(30, "youtube_uploaded")
             logger.info(f"[VECTOR][uploader] YouTube upload complete: {video_id}")
@@ -176,7 +187,7 @@ class Uploader(AgentBase):
                     "status": "published",
                     "timestamp": self._get_timestamp()
                 }
-                self._upload_history.append(upload_record)
+                self._remember_upload(upload_record)
 
                 self.award_points(25, "instagram_uploaded")
                 return {"status": "success", "platform": "instagram", **upload_record}
@@ -259,7 +270,7 @@ class Uploader(AgentBase):
                 "status": "published",
                 "timestamp": self._get_timestamp(),
             }
-            self._upload_history.append(upload_record)
+            self._remember_upload(upload_record)
             self.award_points(25, "tiktok_uploaded")
             return {"status": "success", "platform": "tiktok", **upload_record}
 
@@ -338,7 +349,7 @@ class Uploader(AgentBase):
                 "status": "published",
                 "timestamp": self._get_timestamp(),
             }
-            self._upload_history.append(upload_record)
+            self._remember_upload(upload_record)
             self.award_points(25, "twitter_uploaded")
             return {"status": "success", "platform": "twitter", **upload_record}
 
@@ -360,7 +371,7 @@ class Uploader(AgentBase):
             "simulated": True,
             "timestamp": self._get_timestamp()
         }
-        self._upload_history.append(upload_record)
+        self._remember_upload(upload_record)
 
         return {"status": "success", "platform": platform, **upload_record}
 
@@ -387,7 +398,7 @@ class Uploader(AgentBase):
             "created_at": self._get_timestamp()
         }
 
-        self._scheduled_uploads.append(schedule)
+        self._remember_schedule(schedule)
 
         self.award_points(10, "upload_scheduled")
         logger.info(f"[VECTOR][uploader] Scheduled {platform} upload for {scheduled_datetime}")
@@ -484,7 +495,6 @@ class Uploader(AgentBase):
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
         return datetime.now(timezone.utc).isoformat()
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

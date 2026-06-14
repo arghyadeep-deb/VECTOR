@@ -130,7 +130,7 @@ class InjectionScanner:
             for pat, name, level, desc in _INJECTION_PATTERNS
         ]
         try:
-            from vector._rust_bridge import get_rust_module
+            from vectorcode.src._rust_bridge import get_rust_module
         except ImportError:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
@@ -140,7 +140,7 @@ class InjectionScanner:
     def scan(self, text: str) -> InjectionScanResult:
         """Scan text for injection patterns — always via Rust backend."""
         try:
-            from vector._rust_bridge import injection_result_from_json
+            from vectorcode.src._rust_bridge import injection_result_from_json
         except ImportError:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

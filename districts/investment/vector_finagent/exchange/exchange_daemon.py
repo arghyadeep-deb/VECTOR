@@ -33,8 +33,10 @@ import sys
 import signal
 import time
 import traceback
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 # Ensure this directory is on path for exchange_client imports

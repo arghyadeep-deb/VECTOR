@@ -10,20 +10,18 @@ Skill prompts: competitor-profiling, competitors
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import asyncio
 import json
 import re
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from districts.marketing._skill_loader import load_skill, SkillMixin
-
 
 class CompetitorIntelAgent(AgentBase, SkillMixin):
     """
@@ -162,7 +160,6 @@ class CompetitorIntelAgent(AgentBase, SkillMixin):
                            "Skills: competitor-profiling + competitors. "
                            "CLI tools: exa, g2, trustpilot, clearbit, similarweb, ahrefs (via marketing_cli MCP).",
             }
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

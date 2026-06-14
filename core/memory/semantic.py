@@ -62,6 +62,15 @@ class SemanticMemory:
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _decode_row(row) -> dict:
+        value = row[1] or ""
+        try:
+            payload = json.loads(value) if value.startswith("{") else {"definition": value}
+        except (TypeError, json.JSONDecodeError):
+            payload = {"definition": value}
+        return {"concept": row[0], **payload, "category": row[2], "confidence": row[3]}
+
     def get_concept(self, concept: str) -> dict | None:
         """Retrieve a concept by name."""
         try:
@@ -72,8 +81,7 @@ class SemanticMemory:
             ).fetchone()
             if not row:
                 return None
-            payload = json.loads(row[1]) if row[1].startswith("{") else {"definition": row[1]}
-            return {"concept": row[0], **payload, "category": row[2], "confidence": row[3]}
+            return self._decode_row(row)
         except Exception as e:
             logger.error(f"[VECTOR][semantic] get_concept failed: {e}")
             return None
@@ -102,11 +110,45 @@ class SemanticMemory:
             ).fetchall()
             results = []
             for row in rows:
-                payload = json.loads(row[1]) if row[1].startswith("{") else {"definition": row[1]}
-                results.append({"concept": row[0], **payload, "category": row[2], "confidence": row[3]})
+                results.append(self._decode_row(row))
             return results
         except Exception as e:
             logger.error(f"[VECTOR][semantic] search_concepts failed: {e}")
+            return []
+
+    def search(self, query: str, limit: int = 10, category: str | None = None) -> list[dict]:
+        """Search semantic memory with the API used by MCP and agent code.
+
+        This is intentionally keyword-based until a vector index is configured;
+        it still searches real persisted concept rows instead of returning an
+        empty placeholder result.
+        """
+        query = (query or "").strip()
+        if limit <= 0:
+            return []
+        try:
+            conn = self._get_conn()
+            params: list[object] = []
+            where = []
+            if query:
+                like = f"%{query}%"
+                where.append("(key LIKE ? OR value LIKE ?)")
+                params.extend([like, like])
+            if category:
+                where.append("category = ?")
+                params.append(category)
+            where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+            params.append(limit)
+            rows = conn.execute(
+                f"""SELECT key, value, category, confidence FROM semantic_memory
+                    {where_sql}
+                    ORDER BY confidence DESC, updated_at DESC
+                    LIMIT ?""",
+                tuple(params),
+            ).fetchall()
+            return [self._decode_row(row) for row in rows]
+        except Exception as e:
+            logger.error(f"[VECTOR][semantic] search failed: {e}")
             return []
 
     def link_concepts(self, concept_a: str, concept_b: str, relation: str) -> dict:

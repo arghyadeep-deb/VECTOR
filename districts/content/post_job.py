@@ -25,15 +25,11 @@ Usage:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 __all__ = ["PostJob", "PostJobTracker", "JobStatus"]
 
 import json
 import sqlite3
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -41,12 +37,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 
 _DB_PATH = Path(CONFIG.get("data_dir", str(Path.home() / ".vector"))) / "post_jobs.db"
 _MAX_RETRIES = 3
-
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -55,7 +53,6 @@ class JobStatus(str, Enum):
     RETRYING = "retrying"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 @dataclass
 class PostJob:
@@ -100,48 +97,50 @@ class PostJob:
     def is_terminal(self) -> bool:
         return self.status in (JobStatus.PUBLISHED, JobStatus.FAILED, JobStatus.CANCELLED)
 
-
 class PostJobTracker:
     """
     SQLite-backed tracker for content posting jobs.
-    Thread-safe (check_same_thread=False, WAL mode).
+    Thread-safe (check_same_thread=False, WAL mode, RLock).
     """
 
     def __init__(self, db_path: Path | str | None = None) -> None:
         self._db_path = Path(db_path) if db_path else _DB_PATH
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.RLock()
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
 
     def _init_db(self) -> None:
         with self._connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS post_jobs (
-                    job_id       TEXT PRIMARY KEY,
-                    platform     TEXT NOT NULL,
-                    title        TEXT NOT NULL,
-                    status       TEXT NOT NULL DEFAULT 'pending',
-                    payload      TEXT NOT NULL DEFAULT '{}',
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    max_retries  INTEGER NOT NULL DEFAULT 3,
-                    created_at   TEXT NOT NULL,
-                    updated_at   TEXT NOT NULL,
-                    scheduled_for TEXT NOT NULL DEFAULT '',
-                    published_at  TEXT NOT NULL DEFAULT '',
-                    url           TEXT NOT NULL DEFAULT '',
-                    error_log     TEXT NOT NULL DEFAULT '[]',
-                    metrics       TEXT NOT NULL DEFAULT '{}'
-                )
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_post_jobs_status
-                ON post_jobs (status, platform)
-            """)
+            with self._lock:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS post_jobs (
+                        job_id       TEXT PRIMARY KEY,
+                        platform     TEXT NOT NULL,
+                        title        TEXT NOT NULL,
+                        status       TEXT NOT NULL DEFAULT 'pending',
+                        payload      TEXT NOT NULL DEFAULT '{}',
+                        attempt_count INTEGER NOT NULL DEFAULT 0,
+                        max_retries  INTEGER NOT NULL DEFAULT 3,
+                        created_at   TEXT NOT NULL,
+                        updated_at   TEXT NOT NULL,
+                        scheduled_for TEXT NOT NULL DEFAULT '',
+                        published_at  TEXT NOT NULL DEFAULT '',
+                        url           TEXT NOT NULL DEFAULT '',
+                        error_log     TEXT NOT NULL DEFAULT '[]',
+                        metrics       TEXT NOT NULL DEFAULT '{}'
+                    )
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_post_jobs_status
+                    ON post_jobs (status, platform)
+                """)
 
     # ── Create ─────────────────────────────────────────────────────────────────
 
@@ -157,7 +156,7 @@ class PostJobTracker:
         """Create a new post job. Returns the job_id."""
         job_id = str(uuid.uuid4())
         now = datetime.now(tz=timezone.utc).isoformat()
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             conn.execute("""
                 INSERT INTO post_jobs
                     (job_id, platform, title, status, payload, attempt_count,
@@ -221,7 +220,7 @@ class PostJobTracker:
         if job is None:
             return
         merged = {**job.metrics, **metrics}
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             conn.execute(
                 "UPDATE post_jobs SET metrics=?, updated_at=? WHERE job_id=?",
                 (json.dumps(merged), datetime.now(tz=timezone.utc).isoformat(), job_id),
@@ -230,7 +229,7 @@ class PostJobTracker:
     # ── Queries ────────────────────────────────────────────────────────────────
 
     def get(self, job_id: str) -> PostJob | None:
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             row = conn.execute(
                 "SELECT * FROM post_jobs WHERE job_id=?", (job_id,)
             ).fetchone()
@@ -238,7 +237,7 @@ class PostJobTracker:
 
     def list_pending(self) -> list[PostJob]:
         """Return all jobs that are pending or retrying (ready to publish)."""
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM post_jobs WHERE status IN (?, ?) ORDER BY created_at",
                 (JobStatus.PENDING, JobStatus.RETRYING),
@@ -246,7 +245,7 @@ class PostJobTracker:
         return [self._row_to_job(r) for r in rows]
 
     def list_by_status(self, status: str) -> list[PostJob]:
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM post_jobs WHERE status=? ORDER BY updated_at DESC",
                 (status,),
@@ -254,7 +253,7 @@ class PostJobTracker:
         return [self._row_to_job(r) for r in rows]
 
     def list_by_platform(self, platform: str) -> list[PostJob]:
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM post_jobs WHERE platform=? ORDER BY created_at DESC",
                 (platform,),
@@ -263,7 +262,7 @@ class PostJobTracker:
 
     def summary(self) -> dict[str, Any]:
         """Return counts per status."""
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             rows = conn.execute(
                 "SELECT status, COUNT(*) as cnt FROM post_jobs GROUP BY status"
             ).fetchall()
@@ -300,7 +299,7 @@ class PostJobTracker:
             parts.append("metrics=?")
             vals.append(json.dumps(metrics))
         vals.append(job_id)
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             conn.execute(
                 f"UPDATE post_jobs SET {', '.join(parts)} WHERE job_id=?", vals
             )
@@ -312,7 +311,7 @@ class PostJobTracker:
         if not job:
             return
         log = job.error_log + [f"{datetime.now(tz=timezone.utc).isoformat()}: {error}"]
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             conn.execute(
                 "UPDATE post_jobs SET error_log=?, updated_at=? WHERE job_id=?",
                 (json.dumps(log[-20:]), datetime.now(tz=timezone.utc).isoformat(), job_id),
@@ -337,10 +336,11 @@ class PostJobTracker:
             metrics=json.loads(row["metrics"]),
         )
 
-
 if __name__ == "__main__":
     import tempfile
-    with tempfile.TemporaryDirectory() as d:
+    import shutil
+    d = tempfile.mkdtemp()
+    try:
         tracker = PostJobTracker(db_path=Path(d) / "test_jobs.db")
 
         jid = tracker.create("youtube", "My Test Video", {"video_path": "/tmp/v.mp4"})
@@ -370,4 +370,6 @@ if __name__ == "__main__":
         assert s.get("published") == 1
         assert s.get("failed") == 1
 
-    print("OK post_job.py — state machine, retry exhaustion, error log verified")
+        print("OK post_job.py — state machine, retry exhaustion, error log verified")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)

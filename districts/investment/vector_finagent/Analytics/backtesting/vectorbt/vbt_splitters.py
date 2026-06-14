@@ -22,7 +22,7 @@ class BaseSplitter:
     """Abstract base splitter."""
 
     def split(self, index: pd.Index) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
-        raise NotImplementedError
+        raise RuntimeError("BaseSplitter.split must be implemented by a concrete splitter")
 
     def get_n_splits(self, index: pd.Index) -> int:
         return len(list(self.split(index)))

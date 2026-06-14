@@ -20,6 +20,7 @@ from loguru import logger
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -64,7 +65,9 @@ class AttachmentStore:
         secure_mkdir(self._base_dir)
 
         db_path = self._base_dir / "attachments.db"
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._conn.execute("PRAGMA busy_timeout=5000;")
         self._conn.row_factory = sqlite3.Row
         self._setup()
 
@@ -73,9 +76,10 @@ class AttachmentStore:
     # ------------------------------------------------------------------
 
     def _setup(self) -> None:
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute(f"{_CREATE_TABLE}")
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("PRAGMA journal_mode=WAL;")
+            self._conn.execute(f"{_CREATE_TABLE}")
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Public API
@@ -107,40 +111,41 @@ class AttachmentStore:
             os.chmod(blob_path, 0o600)
 
         # Upsert metadata row
-        existing = self._conn.execute(
-            "SELECT source_doc_ids FROM attachments WHERE sha256 = ?", (sha,)
-        ).fetchone()
+        with self._lock:
+            existing = self._conn.execute(
+                "SELECT source_doc_ids FROM attachments WHERE sha256 = ?", (sha,)
+            ).fetchone()
 
-        if existing is None:
-            source_ids: List[str] = []
-            if source_doc_id:
-                source_ids.append(source_doc_id)
-            self._conn.execute(
-                """
-                INSERT INTO attachments
-                    (sha256, filename, mime_type, size_bytes,
-                     source_doc_ids, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    sha,
-                    filename,
-                    mime_type,
-                    len(content),
-                    json.dumps(source_ids),
-                    time.time(),
-                ),
-            )
-        else:
-            source_ids = json.loads(existing["source_doc_ids"])
-            if source_doc_id and source_doc_id not in source_ids:
-                source_ids.append(source_doc_id)
-            self._conn.execute(
-                "UPDATE attachments SET source_doc_ids = ? WHERE sha256 = ?",
-                (json.dumps(source_ids), sha),
-            )
+            if existing is None:
+                source_ids: List[str] = []
+                if source_doc_id:
+                    source_ids.append(source_doc_id)
+                self._conn.execute(
+                    """
+                    INSERT INTO attachments
+                        (sha256, filename, mime_type, size_bytes,
+                         source_doc_ids, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        sha,
+                        filename,
+                        mime_type,
+                        len(content),
+                        json.dumps(source_ids),
+                        time.time(),
+                    ),
+                )
+            else:
+                source_ids = json.loads(existing["source_doc_ids"])
+                if source_doc_id and source_doc_id not in source_ids:
+                    source_ids.append(source_doc_id)
+                self._conn.execute(
+                    "UPDATE attachments SET source_doc_ids = ? WHERE sha256 = ?",
+                    (json.dumps(source_ids), sha),
+                )
 
-        self._conn.commit()
+            self._conn.commit()
         return sha
 
     def get_metadata(self, sha: str) -> Optional[Dict]:
@@ -149,9 +154,10 @@ class AttachmentStore:
         Returned keys: ``sha256``, ``filename``, ``mime_type``,
         ``size_bytes``, ``source_doc_ids`` (list), ``created_at``.
         """
-        row = self._conn.execute(
-            "SELECT * FROM attachments WHERE sha256 = ?", (sha,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM attachments WHERE sha256 = ?", (sha,)
+            ).fetchone()
         if row is None:
             return None
         return {
@@ -177,7 +183,8 @@ class AttachmentStore:
     def close(self) -> None:
         """Close the underlying SQLite connection."""
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
         except Exception as _sve:
             logger.debug("[VECTOR][connectors.attachment_store] suppressed Exception: %s", _sve)
 

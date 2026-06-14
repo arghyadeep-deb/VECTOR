@@ -7,10 +7,6 @@ RULE 11: no Claude API at runtime.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import asyncio
 import datetime
 import shutil
@@ -18,6 +14,8 @@ import subprocess
 import uuid
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -38,7 +36,6 @@ _DB_PATH = Path(str(CONFIG.get("db_path", _BASE_DIR / "vector_memory.db")))
 
 # Log-size threshold for cleanup
 _LOG_SIZE_LIMIT_BYTES: int = 50 * 1024 * 1024  # 50 MB
-
 
 class DevOpsAutomator(AgentBase):
     """
@@ -325,7 +322,6 @@ class DevOpsAutomator(AgentBase):
             logger.error(f"[VECTOR][devops_automator] run failed: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ── Smoke test ─────────────────────────────────────────────────────────────────
 

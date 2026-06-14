@@ -17,15 +17,13 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, List, Optional
 
 from vectorcode.src.vc_core.types import ToolCall
+from vectorcode.src.vc_security.guardrails import SecurityBlockError
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.events import EventBus
     from vectorcode.src.vc_security._abc import BaseScanner
 
 logger = logging.getLogger(__name__)
-
-class SecurityBlockError(Exception):
-    """Raised when mode='block' and secrets/PII are detected."""
 
 class BoundaryGuard:
     """Scans outbound content for secrets and PII at device boundaries.

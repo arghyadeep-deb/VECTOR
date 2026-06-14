@@ -1,7 +1,6 @@
 """Market hours utilities — check if a market is open right now."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from datetime import datetime, time
 from zoneinfo import ZoneInfo

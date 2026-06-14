@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -59,59 +60,67 @@ class SchedulerStore:
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
+        self._lock = threading.RLock()
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute(_CREATE_TASKS_TABLE)
-        self._conn.execute(_CREATE_LOGS_TABLE)
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(_CREATE_TASKS_TABLE)
+            self._conn.execute(_CREATE_LOGS_TABLE)
+            self._conn.commit()
 
     # -- Task CRUD -----------------------------------------------------------
 
     def save_task(self, task: Dict[str, Any]) -> None:
         """Insert or replace a scheduled task record."""
-        self._conn.execute(
-            _INSERT_TASK,
-            (
-                task["id"],
-                task["prompt"],
-                task["schedule_type"],
-                task["schedule_value"],
-                task.get("context_mode", "isolated"),
-                task.get("status", "active"),
-                task.get("next_run"),
-                task.get("last_run"),
-                task.get("agent", "simple"),
-                task.get("tools", ""),
-                json.dumps(task.get("metadata", {})),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                _INSERT_TASK,
+                (
+                    task["id"],
+                    task["prompt"],
+                    task["schedule_type"],
+                    task["schedule_value"],
+                    task.get("context_mode", "isolated"),
+                    task.get("status", "active"),
+                    task.get("next_run"),
+                    task.get("last_run"),
+                    task.get("agent", "simple"),
+                    task.get("tools", ""),
+                    json.dumps(task.get("metadata", {})),
+                ),
+            )
+            self._conn.commit()
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a single task by ID, or ``None`` if not found."""
-        row = self._conn.execute(
-            "SELECT * FROM scheduled_tasks WHERE id = ?", (task_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM scheduled_tasks WHERE id = ?", (task_id,)
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_dict(row)
 
     def list_tasks(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return all tasks, optionally filtered by *status*."""
-        if status is not None:
-            rows = self._conn.execute(
-                "SELECT * FROM scheduled_tasks WHERE status = ?", (status,)
-            ).fetchall()
-        else:
-            rows = self._conn.execute("SELECT * FROM scheduled_tasks").fetchall()
+        with self._lock:
+            if status is not None:
+                rows = self._conn.execute(
+                    "SELECT * FROM scheduled_tasks WHERE status = ?", (status,)
+                ).fetchall()
+            else:
+                rows = self._conn.execute("SELECT * FROM scheduled_tasks").fetchall()
         return [self._row_to_dict(r) for r in rows]
 
     def get_due_tasks(self, now_iso: str) -> List[Dict[str, Any]]:
         """Return active tasks whose ``next_run`` is at or before *now_iso*."""
-        rows = self._conn.execute(
-            "SELECT * FROM scheduled_tasks WHERE status = 'active' "
-            "AND next_run IS NOT NULL AND next_run <= ?",
-            (now_iso,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM scheduled_tasks WHERE status = 'active' "
+                "AND next_run IS NOT NULL AND next_run <= ?",
+                (now_iso,),
+            ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
     def update_task(self, task: Dict[str, Any]) -> None:
@@ -120,8 +129,9 @@ class SchedulerStore:
 
     def delete_task(self, task_id: str) -> None:
         """Delete a task by ID."""
-        self._conn.execute("DELETE FROM scheduled_tasks WHERE id = ?", (task_id,))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM scheduled_tasks WHERE id = ?", (task_id,))
+            self._conn.commit()
 
     # -- Run logs ------------------------------------------------------------
 
@@ -135,25 +145,28 @@ class SchedulerStore:
         error: str = "",
     ) -> None:
         """Record a single execution of a task."""
-        self._conn.execute(
-            _INSERT_LOG,
-            (task_id, started_at, finished_at, int(success), result, error),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                _INSERT_LOG,
+                (task_id, started_at, finished_at, int(success), result, error),
+            )
+            self._conn.commit()
 
     def get_run_logs(self, task_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Return the most recent run logs for *task_id*."""
-        rows = self._conn.execute(
-            "SELECT * FROM task_run_logs WHERE task_id = ? ORDER BY id DESC LIMIT ?",
-            (task_id, limit),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM task_run_logs WHERE task_id = ? ORDER BY id DESC LIMIT ?",
+                (task_id, limit),
+            ).fetchall()
         return [dict(r) for r in rows]
 
     # -- Lifecycle -----------------------------------------------------------
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # -- Helpers -------------------------------------------------------------
 

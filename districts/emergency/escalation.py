@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 from core.config import CONFIG
 from .classifier import ScoredEmergency
-
 
 _ESCALATION_TIERS = {
     "CRITICAL": [
@@ -38,12 +34,10 @@ _ESCALATION_TIERS = {
 _ACCELERATION_FACTOR = 0.5
 _ACCELERATION_WINDOW = 3600
 
-
 @dataclass
 class EscalationState:
     tier_started_at: dict[str, float] = field(default_factory=dict)
     escalation_log: list[dict[str, Any]] = field(default_factory=list)
-
 
 class EscalationManager:
     def __init__(self, test_mode: bool = False):

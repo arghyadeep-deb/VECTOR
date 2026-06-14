@@ -14,6 +14,7 @@ from loguru import logger
 
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -97,9 +98,11 @@ class AgentManager:
 
     def __init__(self, db_path: str) -> None:
         self._db_path = str(db_path)
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.execute(_CREATE_AGENTS)
         self._conn.execute(_CREATE_TASKS)
@@ -130,7 +133,8 @@ class AgentManager:
         self._conn.commit()
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # ── Agent CRUD ────────────────────────────────────────────────
 
@@ -143,28 +147,31 @@ class AgentManager:
         agent_id = uuid.uuid4().hex[:12]
         now = time.time()
         config_json = json.dumps(config or {})
-        self._conn.execute(
-            "INSERT INTO managed_agents"
-            " (id, name, agent_type, config_json,"
-            " status, summary_memory, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, 'idle', '', ?, ?)",
-            (agent_id, name, agent_type, config_json, now, now),
-        )
-        self._conn.commit()
-        return self.get_agent(agent_id)  # type: ignore[return-value]
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO managed_agents"
+                " (id, name, agent_type, config_json,"
+                " status, summary_memory, created_at, updated_at)"
+                " VALUES (?, ?, ?, ?, 'idle', '', ?, ?)",
+                (agent_id, name, agent_type, config_json, now, now),
+            )
+            self._conn.commit()
+            return self.get_agent(agent_id)  # type: ignore[return-value]
 
     def list_agents(self, include_archived: bool = False) -> List[Dict[str, Any]]:
         query = "SELECT * FROM managed_agents"
         if not include_archived:
             query += " WHERE status != 'archived'"
         query += " ORDER BY updated_at DESC"
-        rows = self._conn.execute(query).fetchall()
+        with self._lock:
+            rows = self._conn.execute(query).fetchall()
         return [self._row_to_agent(r) for r in rows]
 
     def get_agent(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn.execute(
-            "SELECT * FROM managed_agents WHERE id = ?", (agent_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM managed_agents WHERE id = ?", (agent_id,)
+            ).fetchone()
         return self._row_to_agent(row) if row else None
 
     def update_agent(self, agent_id: str, **kwargs: Any) -> Dict[str, Any]:
@@ -208,11 +215,12 @@ class AgentManager:
         sets.append("updated_at = ?")
         vals.append(time.time())
         vals.append(agent_id)
-        self._conn.execute(
-            f"UPDATE managed_agents SET {', '.join(sets)} WHERE id = ?", vals
-        )
-        self._conn.commit()
-        return self.get_agent(agent_id)  # type: ignore[return-value]
+        with self._lock:
+            self._conn.execute(
+                f"UPDATE managed_agents SET {', '.join(sets)} WHERE id = ?", vals
+            )
+            self._conn.commit()
+            return self.get_agent(agent_id)  # type: ignore[return-value]
 
     def delete_agent(self, agent_id: str) -> None:
         self._set_status(agent_id, "archived")
@@ -224,28 +232,31 @@ class AgentManager:
         self._set_status(agent_id, "idle")
 
     def _set_status(self, agent_id: str, status: str) -> None:
-        self._conn.execute(
-            "UPDATE managed_agents SET status = ?, updated_at = ? WHERE id = ?",
-            (status, time.time(), agent_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE managed_agents SET status = ?, updated_at = ? WHERE id = ?",
+                (status, time.time(), agent_id),
+            )
+            self._conn.commit()
 
     # ── Tick concurrency guard ────────────────────────────────────
 
     def start_tick(self, agent_id: str) -> None:
         """Mark agent as running. Raises ValueError if already running."""
-        agent = self.get_agent(agent_id)
-        if agent and agent["status"] == "running":
-            raise ValueError(f"Agent {agent_id} is already executing a tick")
-        self._set_status(agent_id, "running")
+        with self._lock:
+            agent = self.get_agent(agent_id)
+            if agent and agent["status"] == "running":
+                raise ValueError(f"Agent {agent_id} is already executing a tick")
+            self._set_status(agent_id, "running")
 
     def end_tick(self, agent_id: str) -> None:
-        self._conn.execute(
-            "UPDATE managed_agents SET status = 'idle', "
-            "current_activity = '', updated_at = ? WHERE id = ?",
-            (time.time(), agent_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE managed_agents SET status = 'idle', "
+                "current_activity = '', updated_at = ? WHERE id = ?",
+                (time.time(), agent_id),
+            )
+            self._conn.commit()
 
     # ── Checkpoints ───────────────────────────────────────────────
 
@@ -260,27 +271,28 @@ class AgentManager:
     ) -> dict:
         cp_id = uuid4().hex[:16]
         now = time.time()
-        self._conn.execute(
-            "INSERT INTO agent_checkpoints"
-            " (id, agent_id, tick_id, conversation_state, tool_state, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                cp_id,
-                agent_id,
-                tick_id,
-                json.dumps(conversation_state),
-                json.dumps(tool_state),
-                now,
-            ),
-        )
-        # Prune old checkpoints beyond retention limit
-        self._conn.execute(
-            "DELETE FROM agent_checkpoints WHERE agent_id = ? AND id NOT IN "
-            "(SELECT id FROM agent_checkpoints WHERE agent_id = ?"
-            " ORDER BY created_at DESC LIMIT ?)",
-            (agent_id, agent_id, self._CHECKPOINT_RETENTION),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO agent_checkpoints"
+                " (id, agent_id, tick_id, conversation_state, tool_state, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    cp_id,
+                    agent_id,
+                    tick_id,
+                    json.dumps(conversation_state),
+                    json.dumps(tool_state),
+                    now,
+                ),
+            )
+            # Prune old checkpoints beyond retention limit
+            self._conn.execute(
+                "DELETE FROM agent_checkpoints WHERE agent_id = ? AND id NOT IN "
+                "(SELECT id FROM agent_checkpoints WHERE agent_id = ?"
+                " ORDER BY created_at DESC LIMIT ?)",
+                (agent_id, agent_id, self._CHECKPOINT_RETENTION),
+            )
+            self._conn.commit()
         return {
             "id": cp_id,
             "agent_id": agent_id,
@@ -289,19 +301,21 @@ class AgentManager:
         }
 
     def list_checkpoints(self, agent_id: str) -> list:
-        rows = self._conn.execute(
-            "SELECT * FROM agent_checkpoints"
-            " WHERE agent_id = ? ORDER BY created_at DESC",
-            (agent_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM agent_checkpoints"
+                " WHERE agent_id = ? ORDER BY created_at DESC",
+                (agent_id,),
+            ).fetchall()
         return [self._row_to_checkpoint(r) for r in rows]
 
     def get_latest_checkpoint(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn.execute(
-            "SELECT * FROM agent_checkpoints"
-            " WHERE agent_id = ? ORDER BY created_at DESC LIMIT 1",
-            (agent_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM agent_checkpoints"
+                " WHERE agent_id = ? ORDER BY created_at DESC LIMIT 1",
+                (agent_id,),
+            ).fetchone()
         return self._row_to_checkpoint(row) if row else None
 
     def recover_agent(self, agent_id: str) -> Optional[Dict[str, Any]]:
@@ -325,11 +339,12 @@ class AgentManager:
 
     def update_summary_memory(self, agent_id: str, summary: str) -> None:
         truncated = summary[:_SUMMARY_MAX]
-        self._conn.execute(
-            "UPDATE managed_agents SET summary_memory = ?, updated_at = ? WHERE id = ?",
-            (truncated, time.time(), agent_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE managed_agents SET summary_memory = ?, updated_at = ? WHERE id = ?",
+                (truncated, time.time(), agent_id),
+            )
+            self._conn.commit()
 
     # ── Task CRUD ─────────────────────────────────────────────────
 
@@ -338,13 +353,14 @@ class AgentManager:
     ) -> Dict[str, Any]:
         task_id = uuid.uuid4().hex[:12]
         now = time.time()
-        self._conn.execute(
-            "INSERT INTO agent_tasks (id, agent_id, description, status, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (task_id, agent_id, description, status, now),
-        )
-        self._conn.commit()
-        return self._get_task(task_id)  # type: ignore[return-value]
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO agent_tasks (id, agent_id, description, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (task_id, agent_id, description, status, now),
+            )
+            self._conn.commit()
+            return self._get_task(task_id)  # type: ignore[return-value]
 
     def list_tasks(
         self, agent_id: str, status: Optional[str] = None
@@ -355,7 +371,8 @@ class AgentManager:
             query += " AND status = ?"
             params.append(status)
         query += " ORDER BY created_at DESC"
-        rows = self._conn.execute(query, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(query, params).fetchall()
         return [self._row_to_task(r) for r in rows]
 
     def update_task(self, task_id: str, **kwargs: Any) -> Dict[str, Any]:
@@ -374,20 +391,23 @@ class AgentManager:
         if not sets:
             return self._get_task(task_id)  # type: ignore[return-value]
         vals.append(task_id)
-        self._conn.execute(
-            f"UPDATE agent_tasks SET {', '.join(sets)} WHERE id = ?", vals
-        )
-        self._conn.commit()
-        return self._get_task(task_id)  # type: ignore[return-value]
+        with self._lock:
+            self._conn.execute(
+                f"UPDATE agent_tasks SET {', '.join(sets)} WHERE id = ?", vals
+            )
+            self._conn.commit()
+            return self._get_task(task_id)  # type: ignore[return-value]
 
     def delete_task(self, task_id: str) -> None:
-        self._conn.execute("DELETE FROM agent_tasks WHERE id = ?", (task_id,))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM agent_tasks WHERE id = ?", (task_id,))
+            self._conn.commit()
 
     def _get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn.execute(
-            "SELECT * FROM agent_tasks WHERE id = ?", (task_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM agent_tasks WHERE id = ?", (task_id,)
+            ).fetchone()
         return self._row_to_task(row) if row else None
 
     # ── Channel bindings ──────────────────────────────────────────
@@ -402,39 +422,44 @@ class AgentManager:
         binding_id = uuid.uuid4().hex[:12]
         session_id = uuid.uuid4().hex[:16]
         config_json = json.dumps(config or {})
-        self._conn.execute(
-            "INSERT INTO channel_bindings "
-            "(id, agent_id, channel_type, config_json, session_id, routing_mode) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (binding_id, agent_id, channel_type, config_json, session_id, routing_mode),
-        )
-        self._conn.commit()
-        return self._get_binding(binding_id)  # type: ignore[return-value]
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO channel_bindings "
+                "(id, agent_id, channel_type, config_json, session_id, routing_mode) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (binding_id, agent_id, channel_type, config_json, session_id, routing_mode),
+            )
+            self._conn.commit()
+            return self._get_binding(binding_id)  # type: ignore[return-value]
 
     def list_channel_bindings(self, agent_id: str) -> List[Dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM channel_bindings WHERE agent_id = ?", (agent_id,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM channel_bindings WHERE agent_id = ?", (agent_id,)
+            ).fetchall()
         return [self._row_to_binding(r) for r in rows]
 
     def unbind_channel(self, binding_id: str) -> None:
-        self._conn.execute("DELETE FROM channel_bindings WHERE id = ?", (binding_id,))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM channel_bindings WHERE id = ?", (binding_id,))
+            self._conn.commit()
 
     def _get_binding(self, binding_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn.execute(
-            "SELECT * FROM channel_bindings WHERE id = ?", (binding_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM channel_bindings WHERE id = ?", (binding_id,)
+            ).fetchone()
         return self._row_to_binding(row) if row else None
 
     def find_binding_for_channel(
         self, channel_type: str, channel_id: str
     ) -> Optional[Dict[str, Any]]:
         """Find a dedicated binding for a specific channel."""
-        rows = self._conn.execute(
-            "SELECT * FROM channel_bindings WHERE channel_type = ?",
-            (channel_type,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM channel_bindings WHERE channel_type = ?",
+                (channel_type,),
+            ).fetchall()
         for row in rows:
             binding = self._row_to_binding(row)
             config = binding.get("config", {})
@@ -516,8 +541,9 @@ class AgentManager:
             " (id, agent_id, direction, content, mode, status, created_at)"
             " VALUES (?, ?, 'user_to_agent', ?, ?, 'pending', ?)"
         )
-        self._conn.execute(_sql, (msg_id, agent_id, content, mode, now))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(_sql, (msg_id, agent_id, content, mode, now))
+            self._conn.commit()
         return {
             "id": msg_id,
             "agent_id": agent_id,
@@ -544,14 +570,15 @@ class AgentManager:
         msg_id = uuid4().hex[:16]
         now = time.time()
         tool_calls_json = json.dumps(tool_calls) if tool_calls else None
-        self._conn.execute(
-            "INSERT INTO agent_messages"
-            " (id, agent_id, direction, content, mode, status, created_at,"
-            " tool_calls)"
-            " VALUES (?, ?, 'agent_to_user', ?, 'immediate', 'delivered', ?, ?)",
-            (msg_id, agent_id, content, now, tool_calls_json),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO agent_messages"
+                " (id, agent_id, direction, content, mode, status, created_at,"
+                " tool_calls)"
+                " VALUES (?, ?, 'agent_to_user', ?, 'immediate', 'delivered', ?, ?)",
+                (msg_id, agent_id, content, now, tool_calls_json),
+            )
+            self._conn.commit()
         return {
             "id": msg_id,
             "agent_id": agent_id,
@@ -564,28 +591,31 @@ class AgentManager:
         }
 
     def list_messages(self, agent_id: str, limit: int = 50) -> list[dict]:
-        rows = self._conn.execute(
-            "SELECT * FROM agent_messages"
-            " WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
-            (agent_id, limit),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM agent_messages"
+                " WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
+                (agent_id, limit),
+            ).fetchall()
         return [self._row_to_message(r) for r in rows]
 
     def get_pending_messages(self, agent_id: str) -> list[dict]:
-        rows = self._conn.execute(
-            "SELECT * FROM agent_messages"
-            " WHERE agent_id = ? AND direction = 'user_to_agent'"
-            " AND status = 'pending' ORDER BY created_at ASC",
-            (agent_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM agent_messages"
+                " WHERE agent_id = ? AND direction = 'user_to_agent'"
+                " AND status = 'pending' ORDER BY created_at ASC",
+                (agent_id,),
+            ).fetchall()
         return [self._row_to_message(r) for r in rows]
 
     def mark_message_delivered(self, message_id: str) -> None:
-        self._conn.execute(
-            "UPDATE agent_messages SET status = 'delivered' WHERE id = ?",
-            (message_id,),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE agent_messages SET status = 'delivered' WHERE id = ?",
+                (message_id,),
+            )
+            self._conn.commit()
 
     def add_agent_response(self, agent_id: str, content: str) -> dict:
         msg_id = uuid4().hex[:16]
@@ -595,8 +625,9 @@ class AgentManager:
             " (id, agent_id, direction, content, mode, status, created_at)"
             " VALUES (?, ?, 'agent_to_user', ?, 'immediate', 'responded', ?)"
         )
-        self._conn.execute(_sql, (msg_id, agent_id, content, now))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(_sql, (msg_id, agent_id, content, now))
+            self._conn.commit()
         return {
             "id": msg_id,
             "agent_id": agent_id,
@@ -641,13 +672,14 @@ class AgentManager:
     ) -> dict:
         log_id = uuid4().hex[:16]
         now = time.time()
-        self._conn.execute(
-            "INSERT INTO agent_learning_log"
-            " (id, agent_id, event_type, description, data, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (log_id, agent_id, event_type, description, json.dumps(data or {}), now),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO agent_learning_log"
+                " (id, agent_id, event_type, description, data, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (log_id, agent_id, event_type, description, json.dumps(data or {}), now),
+            )
+            self._conn.commit()
         return {
             "id": log_id,
             "agent_id": agent_id,
@@ -658,11 +690,12 @@ class AgentManager:
         }
 
     def list_learning_log(self, agent_id: str, limit: int = 50) -> list[dict]:
-        rows = self._conn.execute(
-            "SELECT * FROM agent_learning_log"
-            " WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
-            (agent_id, limit),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM agent_learning_log"
+                " WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
+                (agent_id, limit),
+            ).fetchall()
         return [
             {
                 "id": r["id"],

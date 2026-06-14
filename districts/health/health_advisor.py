@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import datetime
 import asyncio
 from typing import Any
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class HealthAdvisor(AgentBase):
     def __init__(self) -> None:

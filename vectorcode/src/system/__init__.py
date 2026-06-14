@@ -1,23 +1,23 @@
-"""Top-level system composition: VectorSystem, SystemBuilder, and helpers."""
+"""Compatibility shim for the canonical ``vectorcode.src.vc_system`` package."""
 
-from vectorcode.src.system.builder import SystemBuilder
-from vectorcode.src.system.bundles import (
+from vectorcode.src.vc_system import (
     AgentRuntime,
     Observability,
+    OrchestratorDeps,
+    QueryOrchestrator,
     Scheduling,
     SecurityContext,
+    SystemBuilder,
+    VectorSystem,
 )
-from vectorcode.src.system.core import VectorSystem
-from vectorcode.src.system.orchestrator import QueryOrchestrator
-from vectorcode.src.system.protocols import OrchestratorDeps
 
 __all__ = [
     "AgentRuntime",
-    "VectorSystem",
     "Observability",
     "OrchestratorDeps",
     "QueryOrchestrator",
     "Scheduling",
     "SecurityContext",
     "SystemBuilder",
+    "VectorSystem",
 ]

@@ -316,9 +316,9 @@ class BacktestingProviderBase(ABC):
             Dictionary representation of OptimizationResult
 
         Raises:
-            NotImplementedError if optimization not supported
+            RuntimeError if optimization is not supported by this provider
         """
-        raise NotImplementedError(f"Optimization not supported by {self.name}")
+        raise RuntimeError(f"Optimization not supported by {self.name}")
 
     def disconnect(self) -> None:
         """Clean up resources (no-op for subprocess-based providers)"""

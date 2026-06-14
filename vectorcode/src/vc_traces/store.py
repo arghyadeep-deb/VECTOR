@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -94,65 +95,70 @@ class TraceStore:
         # AgenticRunner dispatches agent work to a ThreadPoolExecutor
         # (for Playwright compat), so trace writes may originate from
         # a different thread than the one that opened the connection.
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(_CREATE_TRACES)
-        self._conn.execute(_CREATE_STEPS)
-        self._conn.execute(_CREATE_FTS)
-        self._conn.execute(_FTS_SYNC_INSERT)
-        # Migrate: add messages column if missing (pre-existing databases)
-        try:
-            self._conn.execute(
-                "ALTER TABLE traces ADD COLUMN messages TEXT NOT NULL DEFAULT '[]'"
-            )
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-        self._conn.commit()
+        self._conn.execute("PRAGMA busy_timeout=5000")
+        with self._lock:
+            self._conn.execute(_CREATE_TRACES)
+            self._conn.execute(_CREATE_STEPS)
+            self._conn.execute(_CREATE_FTS)
+            self._conn.execute(_FTS_SYNC_INSERT)
+            # Migrate: add messages column if missing (pre-existing databases)
+            try:
+                self._conn.execute(
+                    "ALTER TABLE traces ADD COLUMN messages TEXT NOT NULL DEFAULT '[]'"
+                )
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            self._conn.commit()
 
     def save(self, trace: Trace) -> None:
         """Persist a complete trace with all its steps."""
-        self._conn.execute(
-            _INSERT_TRACE,
-            (
-                trace.trace_id,
-                trace.query,
-                trace.agent,
-                trace.model,
-                trace.engine,
-                trace.result,
-                trace.outcome,
-                trace.feedback,
-                trace.started_at,
-                trace.ended_at,
-                trace.total_tokens,
-                trace.total_latency_seconds,
-                json.dumps(trace.metadata),
-                json.dumps(trace.messages),
-            ),
-        )
-        for idx, step in enumerate(trace.steps):
+        with self._lock:
             self._conn.execute(
-                _INSERT_STEP,
+                _INSERT_TRACE,
                 (
                     trace.trace_id,
-                    idx,
-                    step.step_type.value
-                    if isinstance(step.step_type, StepType)
-                    else step.step_type,
-                    step.timestamp,
-                    step.duration_seconds,
-                    json.dumps(step.input),
-                    json.dumps(step.output),
-                    json.dumps(step.metadata),
+                    trace.query,
+                    trace.agent,
+                    trace.model,
+                    trace.engine,
+                    trace.result,
+                    trace.outcome,
+                    trace.feedback,
+                    trace.started_at,
+                    trace.ended_at,
+                    trace.total_tokens,
+                    trace.total_latency_seconds,
+                    json.dumps(trace.metadata),
+                    json.dumps(trace.messages),
                 ),
             )
-        self._conn.commit()
+            for idx, step in enumerate(trace.steps):
+                self._conn.execute(
+                    _INSERT_STEP,
+                    (
+                        trace.trace_id,
+                        idx,
+                        step.step_type.value
+                        if isinstance(step.step_type, StepType)
+                        else step.step_type,
+                        step.timestamp,
+                        step.duration_seconds,
+                        json.dumps(step.input),
+                        json.dumps(step.output),
+                        json.dumps(step.metadata),
+                    ),
+                )
+            self._conn.commit()
 
     def get(self, trace_id: str) -> Optional[Trace]:
         """Retrieve a trace by id, or ``None`` if not found."""
-        row = self._conn.execute(
-            "SELECT * FROM traces WHERE trace_id = ?", (trace_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM traces WHERE trace_id = ?", (trace_id,)
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_trace(row)
@@ -188,12 +194,14 @@ class TraceStore:
         where = " AND ".join(clauses) if clauses else "1=1"
         sql = f"SELECT * FROM traces WHERE {where} ORDER BY started_at DESC LIMIT ?"
         params.append(limit)
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         return [self._row_to_trace(r) for r in rows]
 
     def count(self) -> int:
         """Return the total number of stored traces."""
-        row = self._conn.execute("SELECT COUNT(*) FROM traces").fetchone()
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) FROM traces").fetchone()
         return row[0] if row else 0
 
     def search(
@@ -216,7 +224,8 @@ class TraceStore:
             params.append(agent)
         sql += " ORDER BY rank LIMIT ?"
         params.append(limit)
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         return [
             {
                 "trace_id": r[0], "query": r[1], "result": r[2],
@@ -239,26 +248,29 @@ class TraceStore:
 
         Returns True if the trace was found and updated, False otherwise.
         """
-        cursor = self._conn.execute(
-            "UPDATE traces SET feedback = ? WHERE trace_id = ?",
-            (score, trace_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE traces SET feedback = ? WHERE trace_id = ?",
+                (score, trace_id),
+            )
+            self._conn.commit()
         return cursor.rowcount > 0
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # -- internal helpers ------------------------------------------------------
 
     def _row_to_trace(self, row: tuple) -> Trace:
         """Convert a traces table row + its steps into a Trace object."""
         trace_id = row[1]
-        step_rows = self._conn.execute(
-            "SELECT * FROM trace_steps WHERE trace_id = ? ORDER BY step_index",
-            (trace_id,),
-        ).fetchall()
+        with self._lock:
+            step_rows = self._conn.execute(
+                "SELECT * FROM trace_steps WHERE trace_id = ? ORDER BY step_index",
+                (trace_id,),
+            ).fetchall()
         steps = [
             TraceStep(
                 step_type=StepType(sr[3]),
@@ -292,6 +304,7 @@ class TraceStore:
         )
 
     def _fetchall(self, sql: str = "SELECT * FROM traces") -> list:
-        return self._conn.execute(sql).fetchall()
+        with self._lock:
+            return self._conn.execute(sql).fetchall()
 
 __all__ = ["TraceStore"]

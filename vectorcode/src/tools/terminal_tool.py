@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-from loguru import logger
-Terminal Tool Module
+"""Terminal Tool Module
 
 A terminal tool that executes commands in local, Docker, Modal, SSH, Singularity, and Daytona environments.
 Supports local execution, containerized backends, and Modal cloud sandboxes, including managed gateway mode.

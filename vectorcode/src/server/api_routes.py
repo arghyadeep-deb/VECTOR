@@ -74,9 +74,9 @@ async def list_agents(request: Request):
 
     running = []
     try:
-        from vectorcode.src.vc_tools.agent_tools import _SPAWNED_AGENTS
+        from vectorcode.src.vc_tools.agent_tools import get_spawned_agents_snapshot
 
-        running = [{"id": k, **v} for k, v in _SPAWNED_AGENTS.items()]
+        running = [{"id": k, **v} for k, v in get_spawned_agents_snapshot().items()]
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

@@ -13,6 +13,7 @@ Absorbed:
 import sqlite3
 import json
 import time
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -25,6 +26,8 @@ def _conn(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -38,6 +41,7 @@ class SwarmDatabase:
     def __init__(self, swarm_id: str = "default"):
         self.swarm_id = swarm_id
         self._db_path = _DB_ROOT / f"{swarm_id}.db"
+        self._lock = threading.RLock()
         self._conn    = _conn(self._db_path)
         self._init_schema()
         logger.info(f"[VECTOR][swarm_db] opened: {self._db_path}")
@@ -45,8 +49,9 @@ class SwarmDatabase:
     # ── Schema ─────────────────────────────────────────────────────────────────
 
     def _init_schema(self) -> None:
-        cur = self._conn.cursor()
-        cur.executescript("""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.executescript("""
             CREATE TABLE IF NOT EXISTS agents (
                 agent_id     TEXT PRIMARY KEY,
                 agent_name   TEXT,
@@ -98,16 +103,17 @@ class SwarmDatabase:
             CREATE INDEX IF NOT EXISTS idx_tasks_agent    ON tasks(agent_id);
             CREATE INDEX IF NOT EXISTS idx_tasks_outcome  ON tasks(outcome);
             CREATE INDEX IF NOT EXISTS idx_metrics_ts     ON metrics(ts);
-        """)
-        self._conn.commit()
+            """)
+            self._conn.commit()
 
     # ── Agent state ────────────────────────────────────────────────────────────
 
     def save_agent_state(self, agent_id: str, data: dict) -> None:
         """Upsert agent record. reference: DatabaseManager.saveAgentState()."""
         now = time.time()
-        cur = self._conn.cursor()
-        cur.execute("""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("""
             INSERT INTO agents (agent_id, agent_name, agent_type, hp, status,
                                 current_task, tasks_completed, tasks_failed,
                                 spawned_at, last_seen, metadata)
@@ -131,15 +137,16 @@ class SwarmDatabase:
             "failed":    data.get("tasks_failed", 0),
             "now":       now,
             "meta":      json.dumps(data.get("metadata", {})),
-        })
-        self._conn.commit()
+            })
+            self._conn.commit()
 
     def load_agent_state(self, agent_id: str) -> Optional[dict]:
         """Load agent record. reference: DatabaseManager.loadAgentState()."""
-        cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT * FROM agents WHERE agent_id = ?", (agent_id,)
-        ).fetchone()
+        with self._lock:
+            cur = self._conn.cursor()
+            row = cur.execute(
+                "SELECT * FROM agents WHERE agent_id = ?", (agent_id,)
+            ).fetchone()
         if not row:
             return None
         d = dict(row)
@@ -147,15 +154,16 @@ class SwarmDatabase:
         return d
 
     def list_agents(self, status: Optional[str] = None) -> list[dict]:
-        cur = self._conn.cursor()
-        if status:
-            rows = cur.execute(
-                "SELECT * FROM agents WHERE status = ? ORDER BY last_seen DESC", (status,)
-            ).fetchall()
-        else:
-            rows = cur.execute(
-                "SELECT * FROM agents ORDER BY last_seen DESC"
-            ).fetchall()
+        with self._lock:
+            cur = self._conn.cursor()
+            if status:
+                rows = cur.execute(
+                    "SELECT * FROM agents WHERE status = ? ORDER BY last_seen DESC", (status,)
+                ).fetchall()
+            else:
+                rows = cur.execute(
+                    "SELECT * FROM agents ORDER BY last_seen DESC"
+                ).fetchall()
         return [dict(r) for r in rows]
 
     # ── Task records ───────────────────────────────────────────────────────────
@@ -175,8 +183,9 @@ class SwarmDatabase:
     ) -> None:
         """Record or update a task. reference: DatabaseManager.recordTask()."""
         now = time.time()
-        cur = self._conn.cursor()
-        cur.execute("""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("""
             INSERT INTO tasks (id, task_text, agent_id, domain, outcome, reward,
                                latency_ms, started_at, completed_at, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -191,28 +200,31 @@ class SwarmDatabase:
             latency_ms, started_at or now,
             now if outcome != "pending" else None,
             json.dumps(metadata or {}),
-        ))
-        self._conn.commit()
+            ))
+            self._conn.commit()
 
     def get_task(self, task_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT * FROM tasks WHERE id = ?", (task_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
         return dict(row) if row else None
 
     def get_agent_tasks(self, agent_id: str, limit: int = 20) -> list[dict]:
-        rows = self._conn.execute(
-            "SELECT * FROM tasks WHERE agent_id = ? ORDER BY started_at DESC LIMIT ?",
-            (agent_id, limit)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM tasks WHERE agent_id = ? ORDER BY started_at DESC LIMIT ?",
+                (agent_id, limit)
+            ).fetchall()
         return [dict(r) for r in rows]
 
     # ── Decision records ───────────────────────────────────────────────────────
 
     def record_decision(self, decision_id: str, data: dict) -> None:
         """Persist a QueenDecision. reference: DatabaseManager.recordDecision()."""
-        cur = self._conn.cursor()
-        cur.execute("""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("""
             INSERT OR REPLACE INTO decisions
                 (id, task_text, subtasks, assigned_to, strategy, created_at, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -224,13 +236,14 @@ class SwarmDatabase:
             data.get("strategy", "hierarchical"),
             data.get("created_at", time.time()),
             json.dumps(data.get("metadata", {})),
-        ))
-        self._conn.commit()
+            ))
+            self._conn.commit()
 
     def get_decision(self, decision_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT * FROM decisions WHERE id = ?", (decision_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM decisions WHERE id = ?", (decision_id,)
+            ).fetchone()
         if not row:
             return None
         d = dict(row)
@@ -241,26 +254,28 @@ class SwarmDatabase:
     # ── Metrics ────────────────────────────────────────────────────────────────
 
     def record_metric(self, active: int, idle: int, busy: int, topology: str, extra: Optional[dict] = None) -> None:
-        self._conn.execute("""
-            INSERT INTO metrics (ts, swarm_id, active, idle, busy, topology, extra)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (time.time(), self.swarm_id, active, idle, busy, topology, json.dumps(extra or {})))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("""
+                INSERT INTO metrics (ts, swarm_id, active, idle, busy, topology, extra)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (time.time(), self.swarm_id, active, idle, busy, topology, json.dumps(extra or {})))
+            self._conn.commit()
 
     # ── History ────────────────────────────────────────────────────────────────
 
     def get_swarm_history(self, limit: int = 50) -> dict:
         """Full swarm timeline — agents, tasks, decisions. reference: getSwarmHistory()."""
-        agents    = self.list_agents()
-        tasks     = [dict(r) for r in self._conn.execute(
-            "SELECT * FROM tasks ORDER BY started_at DESC LIMIT ?", (limit,)
-        ).fetchall()]
-        decisions = [dict(r) for r in self._conn.execute(
-            "SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?", (limit,)
-        ).fetchall()]
-        metrics   = [dict(r) for r in self._conn.execute(
-            "SELECT ts, active, idle, busy, topology FROM metrics ORDER BY ts DESC LIMIT 20"
-        ).fetchall()]
+        with self._lock:
+            agents = self.list_agents()
+            tasks = [dict(r) for r in self._conn.execute(
+                "SELECT * FROM tasks ORDER BY started_at DESC LIMIT ?", (limit,)
+            ).fetchall()]
+            decisions = [dict(r) for r in self._conn.execute(
+                "SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()]
+            metrics = [dict(r) for r in self._conn.execute(
+                "SELECT ts, active, idle, busy, topology FROM metrics ORDER BY ts DESC LIMIT 20"
+            ).fetchall()]
         return {
             "swarm_id":  self.swarm_id,
             "agents":    agents,
@@ -273,17 +288,19 @@ class SwarmDatabase:
 
     def purge_old_records(self, older_than_days: int = 30) -> int:
         cutoff = time.time() - older_than_days * 86400
-        cur = self._conn.cursor()
-        cur.execute("DELETE FROM tasks   WHERE completed_at IS NOT NULL AND completed_at < ?", (cutoff,))
-        cur.execute("DELETE FROM metrics WHERE ts < ?", (cutoff,))
-        cur.execute("DELETE FROM decisions WHERE created_at < ?", (cutoff,))
-        deleted = cur.rowcount
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("DELETE FROM tasks   WHERE completed_at IS NOT NULL AND completed_at < ?", (cutoff,))
+            cur.execute("DELETE FROM metrics WHERE ts < ?", (cutoff,))
+            cur.execute("DELETE FROM decisions WHERE created_at < ?", (cutoff,))
+            deleted = cur.rowcount
+            self._conn.commit()
         logger.info(f"[VECTOR][swarm_db] purged {deleted} old records (>{older_than_days}d)")
         return deleted
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
 
 if __name__ == "__main__":

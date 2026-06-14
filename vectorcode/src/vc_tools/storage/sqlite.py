@@ -10,6 +10,9 @@ from loguru import logger
 
 import json
 import sqlite3
+import threading
+import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -41,33 +44,40 @@ class SQLiteMemory(MemoryBackend):
             db_path = str(DEFAULT_CONFIG_DIR / "memory.db")
 
         self._db_path = str(db_path)
+        self._lock = threading.RLock()
+        self._rust_impl = None
 
         try:
-            from vector._rust_bridge import get_rust_module
-        except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            from vectorcode.src._rust_bridge import get_rust_module
 
-        _rust = get_rust_module()
-        self._rust_impl = _rust.SQLiteMemory(self._db_path)
-        self._conn = None  # type: ignore[assignment]
+            _rust = get_rust_module()
+            self._rust_impl = _rust.SQLiteMemory(self._db_path)
+            self._conn = None  # type: ignore[assignment]
+        except (ImportError, AttributeError, RuntimeError, OSError) as exc:
+            logger.debug("[VECTOR] Rust SQLite backend unavailable; using Python SQLite: %s", exc)
+            Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
+            self._create_tables()
 
     def _create_tables(self) -> None:
-        self._conn.executescript("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id       TEXT PRIMARY KEY,
-                content  TEXT NOT NULL,
-                source   TEXT NOT NULL DEFAULT '',
-                metadata TEXT NOT NULL DEFAULT '{}',
-                created_at REAL NOT NULL
-            );
+        with self._lock:
+            self._conn.executescript("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    id       TEXT PRIMARY KEY,
+                    content  TEXT NOT NULL,
+                    source   TEXT NOT NULL DEFAULT '',
+                    metadata TEXT NOT NULL DEFAULT '{}',
+                    created_at REAL NOT NULL
+                );
 
-            CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts
-            USING fts5(
-                content,
-                source,
-                tokenize='porter unicode61'
-            );
-        """)
+                CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts
+                USING fts5(
+                    content,
+                    source,
+                    tokenize='porter unicode61'
+                );
+            """)
 
     def store(
         self,
@@ -77,8 +87,24 @@ class SQLiteMemory(MemoryBackend):
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Persist *content* and return a unique document id."""
-        meta_json = json.dumps(metadata) if metadata else None
-        doc_id = self._rust_impl.store(content, source, meta_json)
+        meta_json = json.dumps(metadata or {})
+        if self._rust_impl is not None:
+            doc_id = self._rust_impl.store(content, source, meta_json)
+        else:
+            doc_id = uuid.uuid4().hex
+            with self._lock:
+                self._conn.execute(
+                    """
+                    INSERT INTO documents (id, content, source, metadata, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (doc_id, content, source, meta_json, time.time()),
+                )
+                self._conn.execute(
+                    "INSERT INTO documents_fts(rowid, content, source) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+                    (doc_id, content, source),
+                )
+                self._conn.commit()
         bus = get_event_bus()
         bus.publish(
             EventType.MEMORY_STORE,
@@ -101,14 +127,34 @@ class SQLiteMemory(MemoryBackend):
         if not query.strip():
             return []
 
-        try:
-            from vector._rust_bridge import retrieval_results_from_json
-        except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        if self._rust_impl is not None:
+            from vectorcode.src._rust_bridge import retrieval_results_from_json
 
-        results = retrieval_results_from_json(
-            self._rust_impl.retrieve(query, top_k),
-        )
+            results = retrieval_results_from_json(
+                self._rust_impl.retrieve(query, top_k),
+            )
+        else:
+            with self._lock:
+                rows = self._conn.execute(
+                    """
+                    SELECT d.content, d.source, d.metadata, bm25(documents_fts) AS rank
+                    FROM documents_fts
+                    JOIN documents d ON d.rowid = documents_fts.rowid
+                    WHERE documents_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?
+                    """,
+                    (query, int(top_k)),
+                ).fetchall()
+            results = [
+                RetrievalResult(
+                    content=row["content"],
+                    score=float(-row["rank"]),
+                    source=row["source"],
+                    metadata=json.loads(row["metadata"] or "{}"),
+                )
+                for row in rows
+            ]
         bus = get_event_bus()
         bus.publish(
             EventType.MEMORY_RETRIEVE,
@@ -122,18 +168,41 @@ class SQLiteMemory(MemoryBackend):
 
     def delete(self, doc_id: str) -> bool:
         """Delete a document by id — always via Rust backend."""
-        return self._rust_impl.delete(doc_id)
+        if self._rust_impl is not None:
+            return self._rust_impl.delete(doc_id)
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT rowid FROM documents WHERE id = ?",
+                (doc_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            self._conn.execute("DELETE FROM documents_fts WHERE rowid = ?", (row["rowid"],))
+            self._conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+            self._conn.commit()
+            return True
 
     def clear(self) -> None:
         """Remove all stored documents — always via Rust backend."""
-        self._rust_impl.clear()
+        if self._rust_impl is not None:
+            self._rust_impl.clear()
+            return
+        with self._lock:
+            self._conn.execute("DELETE FROM documents_fts")
+            self._conn.execute("DELETE FROM documents")
+            self._conn.commit()
 
     def count(self) -> int:
         """Return the number of stored documents — always via Rust backend."""
-        return self._rust_impl.count()
+        if self._rust_impl is not None:
+            return self._rust_impl.count()
+        with self._lock:
+            return int(self._conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0])
 
     def close(self) -> None:
         """Close the database connection."""
-        pass
+        if self._conn is not None:
+            with self._lock:
+                self._conn.close()
 
 __all__ = ["SQLiteMemory"]

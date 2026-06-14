@@ -2,13 +2,13 @@
 
 - **Severity:** HIGH · **Category:** Stability
 - **Source (audit):** `apple_fm_shim.py:26` — crashes on non-macOS
-- **Status:** ⬜ TODO
+- **Status:** ✅ RESOLVED (2026-06-12)
 
 ## Issue (as reported)
 Module raises ImportError at top level on non-macOS platforms; any importer
 crashes instead of degrading.
 
-## Analysis (to complete during analysis pass)
-- Affected files: `vectorcode/src/.../apple_fm_shim.py`
-- Fix approach: _pending_ (guard platform check; expose a disabled-capability flag instead of raising)
-- Tests / Acceptance: _pending_ (import succeeds on Windows/Linux)
+## Resolution
+- `vectorcode/src/vc_engine/apple_fm_shim.py` no longer raises `ImportError` at import time on non-macOS.
+- The module imports successfully and reports unavailable via `/health` or 503 on completion calls.
+- Regression: `tests/backend/test_audit_followups.py`.

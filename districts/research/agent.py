@@ -6,15 +6,12 @@ Loads 1 .md prompt agent and wraps 8 Python AgentBase subclasses.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 from pathlib import Path
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.city.agent_base import AgentBase
@@ -46,7 +43,6 @@ PYTHON_AGENTS: list[tuple[str, str, str]] = [
     ("web_scout", "WebScout", "web-scout"),
     ("opencli_adapter", "OpenCLIAdapter", "cli-adapter"),
 ]
-
 
 class ResearchSwarm(AgentBase):
     """Orchestrator for research district."""
@@ -161,7 +157,6 @@ class ResearchSwarm(AgentBase):
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", task.get("task_type", "default"))
         return await self.dispatch(task_type, task)
-
 
 if __name__ == "__main__":
     async def _smoke():

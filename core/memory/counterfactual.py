@@ -6,6 +6,7 @@ from pathlib import Path
 
 import json
 import sqlite3
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -38,13 +39,17 @@ class CounterfactualMemory:
             base.mkdir(parents=True, exist_ok=True)
             db_path = str(base / "counterfactual.db")
         self._db_path = db_path
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
         logger.info("[VECTOR][counterfactual] CounterfactualMemory initialized")
 
     def _create_tables(self):
-        self._conn.executescript("""
+        with self._lock:
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS scenarios (
                 id TEXT PRIMARY KEY,
                 original_action TEXT NOT NULL,
@@ -80,7 +85,7 @@ class CounterfactualMemory:
             CREATE INDEX IF NOT EXISTS idx_rejections_decision ON rejections(decision_id);
             CREATE INDEX IF NOT EXISTS idx_outcomes_decision ON outcomes(decision_id);
         """)
-        self._conn.commit()
+            self._conn.commit()
 
     # ── Scenario API (original) ─────────────────────────────────────────────
 
@@ -105,14 +110,15 @@ class CounterfactualMemory:
             "useful": None,
         }
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO scenarios (id, original_action, chosen_reason, alternative,
                    alternative_outcome, context, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (sid, original_action, chosen_reason, alternative,
                  alternative_outcome, json.dumps(context or {}), now),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] Failed to persist scenario: {e}")
         logger.info(f"[VECTOR][counterfactual] Scenario recorded: {original_action} vs {alternative}")
@@ -120,11 +126,12 @@ class CounterfactualMemory:
 
     def mark_useful(self, scenario_id: str, useful: bool, reason: str = "") -> bool:
         try:
-            cur = self._conn.execute(
-                "UPDATE scenarios SET useful=?, feedback_reason=? WHERE id=?",
-                (1 if useful else 0, reason, scenario_id),
-            )
-            self._conn.commit()
+            with self._lock:
+                cur = self._conn.execute(
+                    "UPDATE scenarios SET useful=?, feedback_reason=? WHERE id=?",
+                    (1 if useful else 0, reason, scenario_id),
+                )
+                self._conn.commit()
             result = cur.rowcount > 0
             if result:
                 logger.info(f"[VECTOR][counterfactual] Scenario {scenario_id} marked useful={useful}")
@@ -135,9 +142,10 @@ class CounterfactualMemory:
 
     def get_similar(self, action: str, limit: int = 5) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                "SELECT * FROM scenarios ORDER BY created_at DESC"
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT * FROM scenarios ORDER BY created_at DESC"
+                ).fetchall()
             scored = []
             for row in rows:
                 sim = _jaccard(action, row["original_action"])
@@ -151,9 +159,10 @@ class CounterfactualMemory:
 
     def get_insights(self) -> list[str]:
         try:
-            rows = self._conn.execute(
-                "SELECT * FROM scenarios WHERE useful=1"
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT * FROM scenarios WHERE useful=1"
+                ).fetchall()
             return [
                 f"When considering '{r['original_action']}', alternative '{r['alternative']}' "
                 f"was better ({r['feedback_reason'] or ''})"
@@ -175,12 +184,13 @@ class CounterfactualMemory:
         rid = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO rejections (id, decision_id, proposal, reason, context, created_at)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (rid, decision_id, proposal, reason, json.dumps(context or {}), now),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] record_rejection failed: {e}")
         logger.info(f"[VECTOR][counterfactual] Rejection recorded: {decision_id} — {reason[:60]}")
@@ -188,9 +198,10 @@ class CounterfactualMemory:
 
     def get_similar_rejections(self, proposal: str, limit: int = 5) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                "SELECT * FROM rejections ORDER BY created_at DESC"
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT * FROM rejections ORDER BY created_at DESC"
+                ).fetchall()
             scored = []
             for row in rows:
                 sim = _jaccard(proposal, row["proposal"])
@@ -239,12 +250,13 @@ class CounterfactualMemory:
             "created_at": now,
         }
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO outcomes (id, decision_id, expected_outcome, actual_outcome, delta, lesson, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (oid, decision_id, expected_outcome, actual_outcome, delta, lesson, now),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] learn_from_outcome failed: {e}")
         logger.info(f"[VECTOR][counterfactual] Outcome learned: {decision_id} ({delta})")
@@ -252,10 +264,11 @@ class CounterfactualMemory:
 
     def get_outcome(self, decision_id: str) -> Optional[dict]:
         try:
-            row = self._conn.execute(
-                "SELECT * FROM outcomes WHERE decision_id=? ORDER BY created_at DESC LIMIT 1",
-                (decision_id,),
-            ).fetchone()
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT * FROM outcomes WHERE decision_id=? ORDER BY created_at DESC LIMIT 1",
+                    (decision_id,),
+                ).fetchone()
             return dict(row) if row else None
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] get_outcome failed: {e}")
@@ -263,17 +276,18 @@ class CounterfactualMemory:
 
     def get_rejection_patterns(self) -> dict:
         try:
-            total = self._conn.execute("SELECT COUNT(*) FROM rejections").fetchone()[0]
-            rows = self._conn.execute(
-                "SELECT reason FROM rejections"
-            ).fetchall()
+            with self._lock:
+                total = self._conn.execute("SELECT COUNT(*) FROM rejections").fetchone()[0]
+                rows = self._conn.execute(
+                    "SELECT reason FROM rejections"
+                ).fetchall()
+                outcomes_total = self._conn.execute("SELECT COUNT(*) FROM outcomes").fetchone()[0]
+                scenarios_total = self._conn.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0]
             reason_counts: dict[str, int] = {}
             for row in rows:
                 key = row[0][:40] if row[0] else "unknown"
                 reason_counts[key] = reason_counts.get(key, 0) + 1
             top_reasons = sorted(reason_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-            outcomes_total = self._conn.execute("SELECT COUNT(*) FROM outcomes").fetchone()[0]
-            scenarios_total = self._conn.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0]
             return {
                 "total_rejections": total,
                 "total_outcomes_learned": outcomes_total,
@@ -286,9 +300,10 @@ class CounterfactualMemory:
 
     def get_all_scenarios(self, limit: int = 50) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                "SELECT * FROM scenarios ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT * FROM scenarios ORDER BY created_at DESC LIMIT ?", (limit,)
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] get_all_scenarios failed: {e}")
@@ -296,7 +311,8 @@ class CounterfactualMemory:
 
     def close(self):
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
         except Exception:
             pass
 

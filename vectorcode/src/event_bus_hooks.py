@@ -6,12 +6,12 @@ Replaces:
 - ~/.claude/hooks/session_start_hook.py  → fires on VECTOR startup/session init
 - ~/.claude/hooks/suggest_compact_hook.py → fires on every agent action
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 from loguru import logger
+
+from vectorcode.src.bootstrap import ensure_paths
+
+ensure_paths()
 
 
 async def on_session_start(event: dict) -> None:

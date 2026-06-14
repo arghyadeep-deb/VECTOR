@@ -1,10 +1,10 @@
 """Investment alert monitor — MA cross, RSI threshold, volume spike detection."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from dataclasses import dataclass
-from loguru import logger
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
+from loguru import logger
 
 @dataclass
 class Alert:
@@ -13,7 +13,6 @@ class Alert:
     severity: str    # 'LOW' | 'MED' | 'HIGH'
     message: str
     value: float | None = None
-
 
 class AlertMonitor:
     """Detects trading alerts from price/volume data."""
@@ -67,7 +66,6 @@ class AlertMonitor:
                                     f"Volume {ratio:.1f}x above average", volumes[-1]))
 
         return alerts
-
 
 if __name__ == "__main__":
     m = AlertMonitor()

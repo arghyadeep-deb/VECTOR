@@ -14,6 +14,7 @@ calls    : directed edge caller_symbol → callee_name (intra-file for now)
 
 import ast
 import sqlite3
+import threading
 from pathlib import Path
 
 from core.config import CONFIG  # noqa: F401 — keeps CONFIG available for future use
@@ -117,7 +118,9 @@ class CodeGraph:
     def __init__(self, repo_root: str, db_path: str):
         self.repo_root = Path(repo_root)
         self.db_path = db_path
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.row_factory = sqlite3.Row
         self._init_schema()
         logger.info(f"[VECTOR][code_graph] Opened index at {db_path} (root={repo_root})")
@@ -125,8 +128,9 @@ class CodeGraph:
     # ── internal ──────────────────────────────────────────────────────────────
 
     def _init_schema(self) -> None:
-        self._conn.executescript(_DDL)
-        self._conn.commit()
+        with self._lock:
+            self._conn.executescript(_DDL)
+            self._conn.commit()
 
     def _parse_file(self, abs_path: Path) -> tuple[list[dict], dict[str, list[str]]]:
         """Return (symbols, calls_dict) for a Python source file."""
@@ -147,30 +151,32 @@ class CodeGraph:
 
     def _upsert_symbols(self, rel_path: str, symbols: list[dict]) -> None:
         """Upsert symbols; remove stale rows for the file first."""
-        cur = self._conn.cursor()
-        # Delete stale symbols for this file so incremental updates are clean
-        cur.execute("DELETE FROM symbols WHERE file = ?", (rel_path,))
-        # Delete stale call edges too
-        cur.execute("DELETE FROM calls WHERE caller_file = ?", (rel_path,))
-        for s in symbols:
-            cur.execute(
-                """
-                INSERT OR REPLACE INTO symbols (file, name, kind, lineno, end_lineno)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (rel_path, s["name"], s["kind"], s["lineno"], s["end_lineno"]),
-            )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.cursor()
+            # Delete stale symbols for this file so incremental updates are clean
+            cur.execute("DELETE FROM symbols WHERE file = ?", (rel_path,))
+            # Delete stale call edges too
+            cur.execute("DELETE FROM calls WHERE caller_file = ?", (rel_path,))
+            for s in symbols:
+                cur.execute(
+                    """
+                    INSERT OR REPLACE INTO symbols (file, name, kind, lineno, end_lineno)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (rel_path, s["name"], s["kind"], s["lineno"], s["end_lineno"]),
+                )
+            self._conn.commit()
 
     def _upsert_calls(self, rel_path: str, calls: dict[str, list[str]]) -> None:
-        cur = self._conn.cursor()
-        for caller, callees in calls.items():
-            for callee in callees:
-                cur.execute(
-                    "INSERT INTO calls (caller_file, caller_name, callee_name) VALUES (?, ?, ?)",
-                    (rel_path, caller, callee),
-                )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.cursor()
+            for caller, callees in calls.items():
+                for callee in callees:
+                    cur.execute(
+                        "INSERT INTO calls (caller_file, caller_name, callee_name) VALUES (?, ?, ?)",
+                        (rel_path, caller, callee),
+                    )
+            self._conn.commit()
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -203,26 +209,32 @@ class CodeGraph:
 
     def list_symbols(self, rel_path: str) -> list[str]:
         """Return symbol names (any kind) defined in a specific file."""
-        cur = self._conn.execute(
-            "SELECT name FROM symbols WHERE file = ? ORDER BY lineno", (rel_path,)
-        )
-        return [row["name"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT name FROM symbols WHERE file = ? ORDER BY lineno", (rel_path,)
+            )
+            rows = cur.fetchall()
+        return [row["name"] for row in rows]
 
     def list_all_symbols(self) -> list[str]:
         """Return all symbol names across the entire indexed repo."""
-        cur = self._conn.execute("SELECT DISTINCT name FROM symbols ORDER BY name")
-        return [row["name"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self._conn.execute("SELECT DISTINCT name FROM symbols ORDER BY name")
+            rows = cur.fetchall()
+        return [row["name"] for row in rows]
 
     def blast_radius(self, symbol_name: str) -> list[str]:
         """
         Return a list of caller symbols that directly call `symbol_name`.
         These are the symbols 'at risk' if `symbol_name` changes.
         """
-        cur = self._conn.execute(
-            "SELECT DISTINCT caller_name FROM calls WHERE callee_name = ?",
-            (symbol_name,),
-        )
-        return [row["caller_name"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT DISTINCT caller_name FROM calls WHERE callee_name = ?",
+                (symbol_name,),
+            )
+            rows = cur.fetchall()
+        return [row["caller_name"] for row in rows]
 
     def dependents(self, rel_path: str) -> list[str]:
         """
@@ -234,19 +246,22 @@ class CodeGraph:
         if not defined:
             return []
         placeholders = ", ".join("?" * len(defined))
-        cur = self._conn.execute(
-            f"""
-            SELECT DISTINCT caller_file
-            FROM calls
-            WHERE callee_name IN ({placeholders})
-              AND caller_file != ?
-            """,
-            (*defined, rel_path),
-        )
-        return [row["caller_file"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self._conn.execute(
+                f"""
+                SELECT DISTINCT caller_file
+                FROM calls
+                WHERE callee_name IN ({placeholders})
+                  AND caller_file != ?
+                """,
+                (*defined, rel_path),
+            )
+            rows = cur.fetchall()
+        return [row["caller_file"] for row in rows]
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
 
 # ── smoke test ────────────────────────────────────────────────────────────────

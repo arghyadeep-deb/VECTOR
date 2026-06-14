@@ -1,9 +1,9 @@
 """mootdx A-share market data fetcher (Chinese stocks via mootdx protocol)."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from loguru import logger
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
+from loguru import logger
 
 class MootdxFetcher:
     """Fetch A-share (SSE/SZSE) market data using mootdx protocol."""
@@ -44,7 +44,6 @@ class MootdxFetcher:
         except Exception as e:
             logger.warning("[VECTOR][mootdx] get_history error: {}", e)
         return []
-
 
 if __name__ == "__main__":
     f = MootdxFetcher()

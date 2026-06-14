@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
-
 import asyncio
 import json
 import os
@@ -14,9 +8,12 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Callable
 
 import httpx
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
-
 
 @dataclass
 class HAConfig:
@@ -50,7 +47,6 @@ class HAConfig:
     def ws_url(self) -> str:
         protocol = "wss" if self.use_ssl else "ws"
         return f"{protocol}://{self.host}:{self.port}/api/websocket"
-
 
 class HARestClient:
     def __init__(self, config: HAConfig):
@@ -116,7 +112,6 @@ class HARestClient:
         if self._client:
             await self._client.aclose()
             self._client = None
-
 
 class HAWebSocketClient:
     _BACKOFF_STEPS = [5, 10, 30, 60]
@@ -259,7 +254,6 @@ class HAWebSocketClient:
             if not future.done():
                 future.cancel()
         self._pending.clear()
-
 
 class HAConnector:
     def __init__(self, config: HAConfig):

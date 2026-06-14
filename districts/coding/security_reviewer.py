@@ -9,7 +9,8 @@ import asyncio
 import re
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.city.agent_base import AgentBase
@@ -129,7 +130,6 @@ _REGEX_CHECKS: list[tuple[str, str, str]] = [
     (r'getattr\s*\([^,]+,\s*(?:request|params|user|input|data)', "HIGH",
      "getattr() with user-supplied attribute name — attribute injection risk"),
 ]
-
 
 class SecurityReviewer(AgentBase):
     """
@@ -380,7 +380,6 @@ class SecurityReviewer(AgentBase):
                 logger.error("[VECTOR][security_reviewer] tick error: {}", e)
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][security_reviewer] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

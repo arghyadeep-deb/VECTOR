@@ -21,18 +21,17 @@ Usage:
 from __future__ import annotations
 
 import json
-import sys
 import time
 import uuid
+from typing import Any
 
 try:
     import nexaai  # type: ignore[import-untyped]
-except ImportError:
-    print(
-        "nexa_shim: pip install nexaai",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+except ImportError as exc:
+    nexaai = None  # type: ignore[assignment]
+    _NEXA_IMPORT_ERROR = exc
+else:
+    _NEXA_IMPORT_ERROR = None
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -42,10 +41,12 @@ app = FastAPI(title="Nexa SDK Shim")
 
 MODEL_ID = "nexa"
 
-_llm: nexaai.LLM | None = None
+_llm: Any | None = None
 
-def _get_llm() -> nexaai.LLM:
+def _get_llm() -> Any:
     global _llm
+    if nexaai is None:
+        raise RuntimeError("nexa_shim unavailable: install nexaai")
     if _llm is None:
         _llm = nexaai.LLM()
     return _llm
@@ -89,7 +90,7 @@ def list_models() -> JSONResponse:
         }
     )
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", response_model=None)
 async def chat_completions(
     req: ChatRequest,
 ) -> JSONResponse | StreamingResponse:

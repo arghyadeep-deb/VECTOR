@@ -5,22 +5,19 @@ Specializes in: VECTOR dashboard (Next.js), API status pages,
 React components, performance audits, accessibility checks.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import subprocess
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 class FrontendDeveloper(AgentBase):
     """Builds and audits VECTOR's frontend interfaces."""
@@ -162,7 +159,6 @@ class FrontendDeveloper(AgentBase):
             logger.error("[VECTOR][frontend_dev] {}", e)
             self.deduct_points(30, "frontend_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

@@ -21,27 +21,24 @@ Usage:
 from __future__ import annotations
 
 import platform
-import sys
+
+_APPLE_FM_UNAVAILABLE_REASON = ""
 
 if platform.system() != "Darwin":
-    raise ImportError(
-        "apple_fm_shim is only available on macOS 15+ with Apple Silicon"
-    )
-
-try:
-    import apple_fm  # type: ignore[import-untyped]
-except ImportError:
-    print(
-        "apple_fm_shim: pip install python-apple-fm-sdk",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+    apple_fm = None  # type: ignore[assignment]
+    _APPLE_FM_UNAVAILABLE_REASON = "apple_fm_shim is only available on macOS 15+ with Apple Silicon"
+else:
+    try:
+        import apple_fm  # type: ignore[import-untyped]
+    except ImportError as exc:
+        apple_fm = None  # type: ignore[assignment]
+        _APPLE_FM_UNAVAILABLE_REASON = f"apple_fm_shim unavailable: {exc}"
 
 import json
 import time
 import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -71,6 +68,11 @@ def _build_prompt(messages: list[ChatMessage]) -> str:
 
 @app.get("/health")
 def health() -> JSONResponse:
+    if apple_fm is None:
+        return JSONResponse(
+            {"status": "unavailable", "reason": _APPLE_FM_UNAVAILABLE_REASON},
+            status_code=503,
+        )
     is_available = apple_fm.SystemLanguageModel.is_available()
     status = "ok" if is_available else "unavailable"
     code = 200 if is_available else 503
@@ -87,10 +89,12 @@ def list_models() -> JSONResponse:
         }
     )
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", response_model=None)
 async def chat_completions(
     req: ChatRequest,
 ) -> JSONResponse | StreamingResponse:
+    if apple_fm is None:
+        raise HTTPException(status_code=503, detail=_APPLE_FM_UNAVAILABLE_REASON)
     prompt = _build_prompt(req.messages)
     session = apple_fm.LanguageModelSession()
 

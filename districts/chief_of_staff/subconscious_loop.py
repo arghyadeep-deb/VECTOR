@@ -3,16 +3,16 @@ Subconscious Loop — cron-driven LLM situation assessment.
 Every 30min: compare VECTOR world state vs last situation report -> act/escalate/noop.
 Based on openhuman pattern.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import asyncio
 from datetime import datetime
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class SubconsciousLoop(AgentBase):
     """Cron-driven background reflection -- compares state, decides escalation."""
@@ -73,7 +73,6 @@ Respond with just: noop | act:<action> | escalate:<reason>"""
             result = await self.run_once()
             logger.info("[VECTOR][subconscious] {}", result)
             await asyncio.sleep(self.INTERVAL_MINUTES * 60)
-
 
 if __name__ == "__main__":
     s = SubconsciousLoop()

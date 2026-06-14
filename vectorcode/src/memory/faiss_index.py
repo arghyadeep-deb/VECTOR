@@ -11,6 +11,7 @@ import sys
 import json
 import math
 import sqlite3
+import threading
 import datetime
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,7 @@ class FAISSIndex:
         self._dim = dim
         self._faiss_path = f"{self._path}.faiss"
         self._meta_path = f"{self._path}.meta.db"
+        self._lock = threading.RLock()
 
         # id → int position mapping (needed for FAISS lookup by id)
         self._id_to_pos: dict[str, int] = {}
@@ -103,6 +105,7 @@ class FAISSIndex:
     def _init_meta_db(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._meta_path, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS vectors (
                 id       TEXT PRIMARY KEY,
@@ -115,28 +118,32 @@ class FAISSIndex:
 
     def _meta_insert(self, doc_id: str, metadata: dict) -> None:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        self._meta_conn.execute(
-            "INSERT OR REPLACE INTO vectors (id, metadata, added_at) VALUES (?, ?, ?)",
-            (doc_id, json.dumps(metadata), now),
-        )
-        self._meta_conn.commit()
+        with self._lock:
+            self._meta_conn.execute(
+                "INSERT OR REPLACE INTO vectors (id, metadata, added_at) VALUES (?, ?, ?)",
+                (doc_id, json.dumps(metadata), now),
+            )
+            self._meta_conn.commit()
 
     def _meta_get(self, doc_id: str) -> dict:
-        cur = self._meta_conn.cursor()
-        cur.execute("SELECT metadata FROM vectors WHERE id = ?", (doc_id,))
-        row = cur.fetchone()
+        with self._lock:
+            cur = self._meta_conn.cursor()
+            cur.execute("SELECT metadata FROM vectors WHERE id = ?", (doc_id,))
+            row = cur.fetchone()
         if row:
             return json.loads(row[0])
         return {}
 
     def _meta_delete(self, doc_id: str) -> None:
-        self._meta_conn.execute("DELETE FROM vectors WHERE id = ?", (doc_id,))
-        self._meta_conn.commit()
+        with self._lock:
+            self._meta_conn.execute("DELETE FROM vectors WHERE id = ?", (doc_id,))
+            self._meta_conn.commit()
 
     def _meta_all_ids(self) -> list[str]:
-        cur = self._meta_conn.cursor()
-        cur.execute("SELECT id FROM vectors ORDER BY added_at")
-        return [row[0] for row in cur.fetchall()]
+        with self._lock:
+            cur = self._meta_conn.cursor()
+            cur.execute("SELECT id FROM vectors ORDER BY added_at")
+            return [row[0] for row in cur.fetchall()]
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -303,7 +310,8 @@ if __name__ == "__main__":
     import tempfile
     sys.stdout.reconfigure(encoding="utf-8")
 
-    with tempfile.TemporaryDirectory() as tmp:
+    tmp = tempfile.mkdtemp()
+    try:
         idx = FAISSIndex(index_path=f"{tmp}/smoke", dim=4)
 
         idx.add("a", [1.0, 0.0, 0.0, 0.0], {"label": "A"})
@@ -324,6 +332,12 @@ if __name__ == "__main__":
         idx.delete("b")
         assert idx.size() == 2
 
-    print("✅ faiss_index.py OK")
+        idx._meta_conn.close()
+        idx2._meta_conn.close()
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    print("faiss_index.py OK")
 
 

@@ -2,9 +2,9 @@
 Hyperframes sidecar process manager.
 Manages the @hyperframes/producer HTTP server as a subprocess.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import asyncio
 import subprocess

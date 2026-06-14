@@ -2,14 +2,13 @@
 
 - **Severity:** CRITICAL · **Category:** Security
 - **Source (audit):** `tools/skills_guard.py`, `vc_tools/templates/loader.py:92` — sandbox bypass
-- **Status:** ⬜ TODO
+- **Status:** ✅ RESOLVED (2026-06-12)
 
 ## Issue (as reported)
 eval()/exec() run on untrusted code paths; the guard/sandbox can be bypassed.
 
-## Analysis (to complete during analysis pass)
-- Root cause: _pending_
-- Affected files: `vectorcode/src/tools/skills_guard.py`, `vectorcode/src/vc_tools/templates/loader.py` (+ verify which dir is live — see Issue 22)
-- Fix approach: _pending_ (remove eval/exec on untrusted input; AST-validate or replace with a safe interpreter; align with existing `core/security` patterns)
-- Tests: _pending_
-- Acceptance: _pending_
+## Resolution
+- `vectorcode/src/vc_tools/templates/loader.py` no longer uses Python `eval()`.
+- Template expressions now run through a small AST allowlist evaluator.
+- `skills_guard.py` contains detection strings for unsafe code, not a live eval/exec sink.
+- Regression: `tests/backend/test_audit_followups.py`.

@@ -1,9 +1,5 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import tempfile
 import wave
@@ -11,10 +7,12 @@ import asyncio
 from pathlib import Path
 from typing import Optional
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class TranscriptionBot(AgentBase):
     """
@@ -270,12 +268,10 @@ Transcript:
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         result = await self.transcribe_live(p.get("duration_sec", 5.0))
         return {"status": "ok", **result}
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

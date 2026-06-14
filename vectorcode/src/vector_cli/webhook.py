@@ -92,12 +92,12 @@ def _setup_hint() -> str:
          extra:
            host: "0.0.0.0"
            port: 8644
-           secret: "your-global-hmac-secret"
+           secret: "<generate-with: python -c \"import secrets; print(secrets.token_urlsafe(32))\">"
 
   3. Or set environment variables in {_dhh}/.env:
      WEBHOOK_ENABLED=true
      WEBHOOK_PORT=8644
-     WEBHOOK_SECRET=your-global-secret
+     WEBHOOK_SECRET=<generate-with: python -c "import secrets; print(secrets.token_urlsafe(32))">
 
   Then start the gateway: vector gateway run
 """

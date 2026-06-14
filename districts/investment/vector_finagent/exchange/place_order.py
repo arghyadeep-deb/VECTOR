@@ -29,8 +29,10 @@ Output JSON:
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from exchange_client import (
     make_exchange, output_success, output_error,

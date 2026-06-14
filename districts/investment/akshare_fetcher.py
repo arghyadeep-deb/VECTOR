@@ -1,9 +1,9 @@
 """AkShare fetcher — A-share chip distribution and capital/money flow data."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from loguru import logger
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
+from loguru import logger
 
 class AkShareFetcher:
     """Fetch A-share market data: chip distribution, capital flow, market breadth."""
@@ -31,7 +31,6 @@ class AkShareFetcher:
             return {"symbol": symbol, "data": [], "error": "akshare not installed"}
         except Exception as e:
             return {"symbol": symbol, "data": [], "error": str(e)}
-
 
 if __name__ == "__main__":
     f = AkShareFetcher()

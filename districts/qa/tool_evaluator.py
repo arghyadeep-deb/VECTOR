@@ -1,20 +1,17 @@
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import uuid
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 class ToolEvaluator(AgentBase):
     """
@@ -321,7 +318,6 @@ class ToolEvaluator(AgentBase):
             logger.error("[VECTOR][tool_evaluator] {}", e)
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

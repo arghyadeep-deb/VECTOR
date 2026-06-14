@@ -20,11 +20,6 @@ Usage (governor):
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 import datetime
 import os
@@ -37,17 +32,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.loop.context_engine import ContextEngine
 from loguru import logger
 
-
 # ── Job tracking (SQLite) ─────────────────────────────────────────────────────
 
 _DB_PATH = Path.home() / ".vector" / "content_jobs.db"
-
 
 def _init_db() -> None:
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +66,6 @@ def _init_db() -> None:
             )
         """)
 
-
 def _upsert_job(job: dict) -> None:
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(_DB_PATH) as con:
@@ -82,7 +77,6 @@ def _upsert_job(job: dict) -> None:
                     :youtube_url,:instagram_url,:video_path,:error,:upload_after)
         """, job)
 
-
 def get_job_queue(limit: int = 20) -> list[dict]:
     _init_db()
     with sqlite3.connect(_DB_PATH) as con:
@@ -91,7 +85,6 @@ def get_job_queue(limit: int = 20) -> list[dict]:
             "SELECT * FROM content_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
     return [dict(r) for r in rows]
-
 
 def get_job_history(limit: int = 10) -> list[dict]:
     _init_db()
@@ -103,7 +96,6 @@ def get_job_history(limit: int = 10) -> list[dict]:
         ).fetchall()
     return [dict(r) for r in rows]
 
-
 def cancel_job(job_id: str) -> bool:
     _init_db()
     with sqlite3.connect(_DB_PATH) as con:
@@ -112,7 +104,6 @@ def cancel_job(job_id: str) -> bool:
             (datetime.datetime.now(datetime.timezone.utc).isoformat(), job_id)
         )
     return True
-
 
 # ── Pipeline Agent ────────────────────────────────────────────────────────────
 
@@ -597,7 +588,6 @@ class VideoPipelineAgent(AgentBase):
             await asyncio.sleep(60)
         logger.warning("[VECTOR][video_pipeline] died — HP=0")
 
-
 # ── Nightly cron job function (called by autonomous_loop) ─────────────────────
 
 async def job_generate_daily_video() -> None:
@@ -608,7 +598,6 @@ async def job_generate_daily_video() -> None:
     result = await agent.create_and_upload(topic=None, platform="both", niche=niche)
     logger.info("[VECTOR][cron] daily video done: status={} url={}",
                 result.get("status"), result.get("youtube_url"))
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

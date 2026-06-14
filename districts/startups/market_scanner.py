@@ -11,6 +11,8 @@ from loguru import logger
 from core.config import CONFIG
 from districts.startups._base import StartupAgentBase
 
+_MAX_SCAN_HISTORY = 500
+
 
 class MarketScanner(StartupAgentBase):
     def __init__(self):
@@ -45,6 +47,8 @@ Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_play
             "scanned_at": self._now_iso(),
         }
         self.scan_history.append(result)
+        if len(self.scan_history) > _MAX_SCAN_HISTORY:
+            del self.scan_history[:-_MAX_SCAN_HISTORY]
         self._store_result(
             "market_scanned",
             f"Scanned {niche} market: {len(scan_data.get('segments', []))} segments found",

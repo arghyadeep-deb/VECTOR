@@ -5,20 +5,18 @@ Writes Sigma rules, maps to ATT&CK techniques, assesses detection coverage,
 analyzes logs for threat indicators. Detection-as-code for personal computing.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import re
 import datetime
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 # ---------------------------------------------------------------------------
 # MITRE ATT&CK technique catalog (personal computing relevance)
@@ -122,7 +120,6 @@ _LOG_SOURCE_COVERAGE: dict[str, list[str]] = {
 
 # All unique tactics across known techniques
 _ALL_TACTICS = list({v["tactic"] for v in _ATTACK_TECHNIQUES.values()})
-
 
 class ThreatDetectionEngineer(AgentBase):
     """SIEM rule development, MITRE ATT&CK coverage mapping, detection-as-code."""
@@ -585,7 +582,6 @@ class ThreatDetectionEngineer(AgentBase):
             logger.error(f"[VECTOR][threat_detection] run error: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

@@ -20,7 +20,7 @@ class CompressionStrategy:
 
     def compress(self, data: Any, max_tokens: int = 1000) -> str:
         """Compress data to fit within token limit."""
-        raise NotImplementedError
+        raise RuntimeError("CompressionStrategy.compress must be implemented by a concrete strategy")
 
 
 class TruncateStrategy(CompressionStrategy):

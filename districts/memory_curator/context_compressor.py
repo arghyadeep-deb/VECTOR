@@ -7,13 +7,11 @@ Summarizes long conversation histories using vectorcode's structured template:
 Prevents context overflow when district agents run long multi-turn tasks.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -51,7 +49,6 @@ Write a structured summary using EXACTLY this format:
 [Critical facts, file paths, decisions made — anything future agent needs]
 
 Be concise. Every line must be factual, not speculative."""
-
 
 class ContextCompressor(AgentBase):
     """
@@ -217,7 +214,6 @@ class ContextCompressor(AgentBase):
             logger.error("[VECTOR][ctx_compress] {}", e)
             self.deduct_points(20, "compression_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

@@ -95,7 +95,7 @@ def _safe_eval_node(node: ast.AST) -> Any:
 def safe_eval(expression: str) -> float:
     """Evaluate a math expression safely — Rust backend with Python fallback."""
     try:
-        from vector._rust_bridge import get_rust_module
+        from vectorcode.src._rust_bridge import get_rust_module
 
         _rust = get_rust_module()
         return float(_rust.CalculatorTool().execute(expression))

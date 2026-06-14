@@ -1,17 +1,15 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import ast
 import uuid
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class ArchitectBot(AgentBase):
     """Analyzes codebase structure and answers architecture questions."""
@@ -198,7 +196,6 @@ class ArchitectBot(AgentBase):
             self.deduct_points(10, "explain_failed")
             return f"Error explaining module: {e}"
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         root = p.get("root", ".")
@@ -232,7 +229,6 @@ class ArchitectBot(AgentBase):
                 logger.error(f"[VECTOR][architect_bot] tick error: {e}")
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][architect_bot] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

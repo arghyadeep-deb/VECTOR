@@ -8,6 +8,7 @@
 from __future__ import annotations
 from loguru import logger
 
+import asyncio
 import json
 import logging
 import os
@@ -48,6 +49,7 @@ class OllamaEngine(InferenceEngine):
             host = env_host or self._DEFAULT_HOST
         self._host = host.rstrip("/")
         self._client = httpx.Client(base_url=self._host, timeout=timeout)
+        self._async_client = httpx.AsyncClient(base_url=self._host, timeout=timeout)
         # Last stream usage — captured from Ollama's final chunk
         self._last_stream_usage: Dict[str, int] = {}
 
@@ -198,9 +200,9 @@ class OllamaEngine(InferenceEngine):
             },
         }
         try:
-            with self._client.stream("POST", "/api/chat", json=payload) as resp:
+            async with self._async_client.stream("POST", "/api/chat", json=payload) as resp:
                 resp.raise_for_status()
-                for line in resp.iter_lines():
+                async for line in resp.aiter_lines():
                     if not line.strip():
                         continue
                     try:
@@ -291,7 +293,7 @@ class OllamaEngine(InferenceEngine):
     ) -> AsyncIterator[StreamChunk]:
         """Execute the streaming request and yield parsed StreamChunks."""
         try:
-            with self._client.stream("POST", "/api/chat", json=payload) as resp:
+            async with self._async_client.stream("POST", "/api/chat", json=payload) as resp:
                 if resp.status_code == 400 and retry_without_tools:
                     # Model doesn't support tools — retry without them.
                     payload.pop("tools", None)
@@ -303,7 +305,7 @@ class OllamaEngine(InferenceEngine):
                 resp.raise_for_status()
 
                 finish_reason: str | None = None
-                for line in resp.iter_lines():
+                async for line in resp.aiter_lines():
                     if not line.strip():
                         continue
                     try:
@@ -400,5 +402,11 @@ class OllamaEngine(InferenceEngine):
 
     def close(self) -> None:
         self._client.close()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self._async_client.aclose())
+        else:
+            loop.create_task(self._async_client.aclose())
 
 __all__ = ["OllamaEngine"]

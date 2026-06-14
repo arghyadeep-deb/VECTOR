@@ -157,7 +157,7 @@ class FileWriteTool(BaseTool):
 
         if mode == "write":
             try:
-                from vector._rust_bridge import get_rust_module
+                from vectorcode.src._rust_bridge import get_rust_module
 
                 _rust = get_rust_module()
                 _rust.FileWriteTool().execute(str(path), content)

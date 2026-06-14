@@ -112,7 +112,7 @@ class FileReadTool(BaseTool):
                 success=False,
             )
         try:
-            from vector._rust_bridge import get_rust_module
+            from vectorcode.src._rust_bridge import get_rust_module
 
             _rust = get_rust_module()
             text = _rust.FileReadTool().execute(str(path))

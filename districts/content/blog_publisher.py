@@ -19,15 +19,13 @@ Usage:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 __all__ = ["BlogPublisher", "PublishResult"]
 
 from dataclasses import dataclass
 from typing import Any
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -41,7 +39,6 @@ except ImportError:
 _DEVTO_API = "https://dev.to/api"
 _HASHNODE_API = "https://gql.hashnode.com"
 _MEDIUM_API = "https://api.medium.com/v1"
-
 
 @dataclass
 class PublishResult:
@@ -59,7 +56,6 @@ class PublishResult:
             "post_id": self.post_id,
             "error": self.error,
         }
-
 
 class BlogPublisher:
     """
@@ -339,7 +335,6 @@ class BlogPublisher:
         logger.info("[VECTOR][blog] publish_all — {}/{} platforms succeeded",
                     len(published), len(results))
         return results
-
 
 if __name__ == "__main__":
     pub = BlogPublisher()

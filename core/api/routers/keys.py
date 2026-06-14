@@ -2,9 +2,9 @@
 VECTOR API Key Management — localhost-only key lifecycle endpoints.
 Allows rotating/revoking the VECTOR_API_KEY without restarting the server.
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import os
 import secrets

@@ -11,17 +11,15 @@ ANALYSIS ONLY for financial decisions — never executes real trades autonomousl
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 import importlib
 import json
 import sys
 import uuid
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
@@ -63,7 +61,6 @@ _BACKTEST_ENGINE_MAP = {
     "fasttrade":   "districts.investment.vector_finagent.Analytics.backtesting.fasttrade",
     "vector_finagent":     "districts.investment.vector_finagent.Analytics.backtesting.vector_finagent",
 }
-
 
 class FinAgentAgent(AgentBase):
     """
@@ -561,7 +558,6 @@ class FinAgentAgent(AgentBase):
         while self.is_alive:
             await asyncio.sleep(60)
         logger.warning("[VECTOR][finagent_agent] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

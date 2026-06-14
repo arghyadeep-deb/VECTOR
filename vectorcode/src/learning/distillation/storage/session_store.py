@@ -23,6 +23,7 @@ from loguru import logger
 import json
 import logging
 import sqlite3
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
@@ -122,28 +123,33 @@ class SessionStore:
 
     def __init__(self, db_path: Union[str, Path]) -> None:
         self._db_path = str(db_path)
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA foreign_keys=ON")
-        self._conn.execute(_CREATE_SESSIONS)
-        self._conn.execute(_CREATE_OUTCOMES)
-        for index in _CREATE_INDEXES:
-            self._conn.execute(index)
-        self._conn.commit()
+        self._conn.execute("PRAGMA busy_timeout=5000")
+        with self._lock:
+            self._conn.execute("PRAGMA foreign_keys=ON")
+            self._conn.execute(_CREATE_SESSIONS)
+            self._conn.execute(_CREATE_OUTCOMES)
+            for index in _CREATE_INDEXES:
+                self._conn.execute(index)
+            self._conn.commit()
         self._migrate()
 
     def _migrate(self) -> None:
         """Apply additive schema migrations, swallowing already-applied ones."""
-        for stmt in _MIGRATE:
-            try:
-                self._conn.execute(stmt)
-            except sqlite3.OperationalError as _sve:
-                logger.debug("[VECTOR][learning.distillation.storage.session_store] suppressed sqlite3.OperationalError: %s", _sve)
-        self._conn.commit()
+        with self._lock:
+            for stmt in _MIGRATE:
+                try:
+                    self._conn.execute(stmt)
+                except sqlite3.OperationalError as _sve:
+                    logger.debug("[VECTOR][learning.distillation.storage.session_store] suppressed sqlite3.OperationalError: %s", _sve)
+            self._conn.commit()
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # ------------------------------------------------------------------
     # Sessions
@@ -151,43 +157,45 @@ class SessionStore:
 
     def save_session(self, session: LearningSession) -> None:
         """Insert or update a LearningSession (idempotent on session.id)."""
-        self._conn.execute(
-            _INSERT_SESSION,
-            (
-                session.id,
-                session.parent_session_id,
-                session.trigger.value,
-                json.dumps(session.trigger_metadata),
-                session.status.value,
-                session.autonomy_mode.value,
-                session.started_at.isoformat(),
-                _dt_to_iso(session.ended_at),
-                str(session.diagnosis_path),
-                str(session.plan_path),
-                session.benchmark_before.model_dump_json(),
+        with self._lock:
+            self._conn.execute(
+                _INSERT_SESSION,
                 (
-                    session.benchmark_after.model_dump_json()
-                    if session.benchmark_after is not None
-                    else None
+                    session.id,
+                    session.parent_session_id,
+                    session.trigger.value,
+                    json.dumps(session.trigger_metadata),
+                    session.status.value,
+                    session.autonomy_mode.value,
+                    session.started_at.isoformat(),
+                    _dt_to_iso(session.ended_at),
+                    str(session.diagnosis_path),
+                    str(session.plan_path),
+                    session.benchmark_before.model_dump_json(),
+                    (
+                        session.benchmark_after.model_dump_json()
+                        if session.benchmark_after is not None
+                        else None
+                    ),
+                    session.git_checkpoint_pre,
+                    session.git_checkpoint_post,
+                    session.teacher_cost_usd,
+                    session.error,
                 ),
-                session.git_checkpoint_pre,
-                session.git_checkpoint_post,
-                session.teacher_cost_usd,
-                session.error,
-            ),
-        )
-        self._conn.commit()
+            )
+            self._conn.commit()
 
     def get_session(self, session_id: str) -> Optional[LearningSession]:
         """Return the LearningSession with the given id, or None if missing."""
-        row = self._conn.execute(
-            "SELECT id, parent_session_id, trigger, trigger_metadata, status, "
-            "autonomy_mode, started_at, ended_at, diagnosis_path, plan_path, "
-            "benchmark_before, benchmark_after, git_checkpoint_pre, "
-            "git_checkpoint_post, teacher_cost_usd, error "
-            "FROM learning_sessions WHERE id = ?",
-            (session_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT id, parent_session_id, trigger, trigger_metadata, status, "
+                "autonomy_mode, started_at, ended_at, diagnosis_path, plan_path, "
+                "benchmark_before, benchmark_after, git_checkpoint_pre, "
+                "git_checkpoint_post, teacher_cost_usd, error "
+                "FROM learning_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_session(row, with_outcomes=True)
@@ -213,7 +221,8 @@ class SessionStore:
         if limit is not None:
             sql += " LIMIT ?"
             params.append(limit)
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         return [self._row_to_session(r, with_outcomes=True) for r in rows]
 
     def _row_to_session(self, row: tuple, with_outcomes: bool) -> LearningSession:
@@ -267,32 +276,34 @@ class SessionStore:
         model). They are kept as columns to make ``WHERE op = ?`` queries
         possible without joining against the on-disk plan.json.
         """
-        self._conn.execute(
-            _INSERT_OUTCOME,
-            (
-                session_id,
-                outcome.edit_id,
-                pillar,
-                op,
-                target,
-                risk_tier,
-                outcome.status,
-                outcome.benchmark_delta,
-                json.dumps(outcome.cluster_deltas),
-                rationale,
-                outcome.error,
-                _dt_to_iso(outcome.applied_at),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                _INSERT_OUTCOME,
+                (
+                    session_id,
+                    outcome.edit_id,
+                    pillar,
+                    op,
+                    target,
+                    risk_tier,
+                    outcome.status,
+                    outcome.benchmark_delta,
+                    json.dumps(outcome.cluster_deltas),
+                    rationale,
+                    outcome.error,
+                    _dt_to_iso(outcome.applied_at),
+                ),
+            )
+            self._conn.commit()
 
     def list_outcomes(self, session_id: str) -> list[EditOutcome]:
         """Return all EditOutcomes for a session, ordered by insertion id."""
-        rows = self._conn.execute(
-            "SELECT edit_id, status, benchmark_delta, cluster_deltas, error, "
-            "applied_at FROM edit_outcomes WHERE session_id = ? ORDER BY id",
-            (session_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT edit_id, status, benchmark_delta, cluster_deltas, error, "
+                "applied_at FROM edit_outcomes WHERE session_id = ? ORDER BY id",
+                (session_id,),
+            ).fetchall()
         return [
             EditOutcome(
                 edit_id=row[0],

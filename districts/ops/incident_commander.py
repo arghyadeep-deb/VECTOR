@@ -6,15 +6,13 @@ RULE 11: no Claude API at runtime.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import asyncio
 import datetime
 import json
 import uuid
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -31,7 +29,6 @@ _P2_ERROR_COUNT = 3      # >= 3 errors → P2
 _P1_HP_LOSS = 150        # >= 150 HP lost in one event → P1
 _P2_HP_LOSS = 75         # >= 75 HP → P2
 _SCAN_LIMIT = 50         # how many recent events to inspect
-
 
 class IncidentCommander(AgentBase):
     """
@@ -471,7 +468,6 @@ class IncidentCommander(AgentBase):
             logger.error(f"[VECTOR][incident_commander] run failed: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ── Smoke test ─────────────────────────────────────────────────────────────────
 

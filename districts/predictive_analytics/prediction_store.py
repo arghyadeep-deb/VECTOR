@@ -2,6 +2,7 @@ from pathlib import Path
 
 import sqlite3
 import json
+import threading
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import uuid4
@@ -23,14 +24,18 @@ class PredictionStore:
             base.mkdir(parents=True, exist_ok=True)
             db_path = str(base / "prediction_store.db")
         self._db_path = db_path
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
         logger.info(f"[VECTOR][predictive_analytics] PredictionStore ready at {db_path}")
 
     def _create_tables(self):
-        cur = self._conn.cursor()
-        cur.executescript("""
+        with self._lock:
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            cur = self._conn.cursor()
+            cur.executescript("""
             CREATE TABLE IF NOT EXISTS forecasts (
                 id TEXT PRIMARY KEY,
                 metric_name TEXT NOT NULL,
@@ -109,12 +114,13 @@ class PredictionStore:
             CREATE INDEX IF NOT EXISTS idx_accuracy_metric ON prediction_accuracy(metric_name);
             CREATE INDEX IF NOT EXISTS idx_accuracy_forecast ON prediction_accuracy(forecast_id);
         """)
-        self._conn.commit()
+            self._conn.commit()
 
     def store_forecast(self, forecast: ForecastResult) -> str:
         rec_id = str(uuid4())
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO forecasts (id, metric_name, model_used, accuracy_score, timestamps, forecast_values, confidence_lower, confidence_upper)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -128,7 +134,7 @@ class PredictionStore:
                     json.dumps(forecast.confidence_upper),
                 ),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store forecast: {e}")
         return rec_id
@@ -136,7 +142,8 @@ class PredictionStore:
     def store_anomaly(self, anomaly: MetricAnomaly) -> str:
         rec_id = str(uuid4())
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO anomalies (id, metric_name, anomaly_type, severity, detected_at, expected_value, actual_value, confidence, cause, resolved)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -152,7 +159,7 @@ class PredictionStore:
                     1 if anomaly.resolved else 0,
                 ),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store anomaly: {e}")
         return rec_id
@@ -160,7 +167,8 @@ class PredictionStore:
     def store_recommendation(self, rec: Recommendation) -> str:
         rec_id = str(uuid4())
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO recommendations (id, metric, rec_type, title, description, priority, confidence, actions, evidence, actionable, expires_at, source)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -178,7 +186,7 @@ class PredictionStore:
                     rec.source,
                 ),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store recommendation: {e}")
         return rec_id
@@ -193,7 +201,8 @@ class PredictionStore:
             if hasattr(simulation, "risk_factors"):
                 risk_factors_str = json.dumps(simulation.risk_factors)
             ci_lower, ci_upper = getattr(simulation, "confidence_interval", (0.0, 0.0))
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO simulations (id, scenario_name, iterations, mean_outcome, ci_lower, ci_upper, converged, outcomes, risk_factors)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -208,7 +217,7 @@ class PredictionStore:
                     risk_factors_str,
                 ),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store simulation: {e}")
         return rec_id
@@ -216,7 +225,8 @@ class PredictionStore:
     def store_accuracy(self, accuracy: dict) -> str:
         rec_id = str(uuid4())
         try:
-            self._conn.execute(
+            with self._lock:
+                self._conn.execute(
                 """INSERT INTO prediction_accuracy (id, forecast_id, metric_name, model_used, rmse, mae, mape, actual_value, predicted_value)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -231,16 +241,17 @@ class PredictionStore:
                     accuracy.get("predicted_value", 0),
                 ),
             )
-            self._conn.commit()
+                self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store accuracy: {e}")
         return rec_id
 
     def check_accuracy(self, forecast_id: str, actual_value: float) -> dict:
         try:
-            row = self._conn.execute(
-                """SELECT * FROM forecasts WHERE id = ?""", (forecast_id,)
-            ).fetchone()
+            with self._lock:
+                row = self._conn.execute(
+                    """SELECT * FROM forecasts WHERE id = ?""", (forecast_id,)
+                ).fetchone()
             if not row:
                 logger.warning(f"[VECTOR][predictive_analytics] Forecast {forecast_id} not found")
                 return {}
@@ -277,15 +288,16 @@ class PredictionStore:
 
     def get_model_leaderboard(self, metric_name: str) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                """SELECT model_used, AVG(rmse) as avg_rmse, AVG(mae) as avg_mae, AVG(mape) as avg_mape,
-                          COUNT(*) as num_evals
-                   FROM prediction_accuracy
-                   WHERE metric_name = ? AND rmse IS NOT NULL
-                   GROUP BY model_used
-                   ORDER BY avg_rmse ASC""",
-                (metric_name,),
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT model_used, AVG(rmse) as avg_rmse, AVG(mae) as avg_mae, AVG(mape) as avg_mape,
+                              COUNT(*) as num_evals
+                       FROM prediction_accuracy
+                       WHERE metric_name = ? AND rmse IS NOT NULL
+                       GROUP BY model_used
+                       ORDER BY avg_rmse ASC""",
+                    (metric_name,),
+                ).fetchall()
             result = [dict(r) for r in rows]
             for entry in result:
                 for k in ("avg_rmse", "avg_mae", "avg_mape"):
@@ -299,13 +311,14 @@ class PredictionStore:
     def get_accuracy_trend(self, metric_name: str, days: int = 30) -> list[dict]:
         try:
             cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-            rows = self._conn.execute(
-                """SELECT id, metric_name, model_used, accuracy_score, created_at
-                   FROM forecasts
-                   WHERE metric_name = ? AND created_at >= ?
-                   ORDER BY created_at ASC""",
-                (metric_name, cutoff),
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT id, metric_name, model_used, accuracy_score, created_at
+                       FROM forecasts
+                       WHERE metric_name = ? AND created_at >= ?
+                       ORDER BY created_at ASC""",
+                    (metric_name, cutoff),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to get accuracy trend: {e}")
@@ -313,10 +326,11 @@ class PredictionStore:
 
     def get_recent_anomalies(self, limit: int = 20) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                """SELECT * FROM anomalies ORDER BY detected_at DESC LIMIT ?""",
-                (limit,),
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT * FROM anomalies ORDER BY detected_at DESC LIMIT ?""",
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to get recent anomalies: {e}")
@@ -324,10 +338,11 @@ class PredictionStore:
 
     def get_pending_recommendations(self) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                """SELECT * FROM recommendations WHERE is_applied = 0 ORDER BY
-                   priority ASC, created_at DESC""",
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT * FROM recommendations WHERE is_applied = 0 ORDER BY
+                       priority ASC, created_at DESC""",
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to get pending recommendations: {e}")
@@ -335,10 +350,11 @@ class PredictionStore:
 
     def get_recent_forecasts(self, limit: int = 10) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                """SELECT * FROM forecasts ORDER BY created_at DESC LIMIT ?""",
-                (limit,),
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT * FROM forecasts ORDER BY created_at DESC LIMIT ?""",
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to get recent forecasts: {e}")
@@ -346,11 +362,12 @@ class PredictionStore:
 
     def get_recent_simulations(self, limit: int = 10) -> list[dict]:
         try:
-            rows = self._conn.execute(
-                """SELECT id, scenario_name, iterations, mean_outcome, ci_lower, ci_upper, converged, created_at
-                   FROM simulations ORDER BY created_at DESC LIMIT ?""",
-                (limit,),
-            ).fetchall()
+            with self._lock:
+                rows = self._conn.execute(
+                    """SELECT id, scenario_name, iterations, mean_outcome, ci_lower, ci_upper, converged, created_at
+                       FROM simulations ORDER BY created_at DESC LIMIT ?""",
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to get recent simulations: {e}")
@@ -358,11 +375,12 @@ class PredictionStore:
 
     def mark_recommendation_applied(self, rec_id: str) -> bool:
         try:
-            cur = self._conn.execute(
-                """UPDATE recommendations SET is_applied = 1 WHERE id = ?""",
-                (rec_id,),
-            )
-            self._conn.commit()
+            with self._lock:
+                cur = self._conn.execute(
+                    """UPDATE recommendations SET is_applied = 1 WHERE id = ?""",
+                    (rec_id,),
+                )
+                self._conn.commit()
             return cur.rowcount > 0
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to mark recommendation: {e}")
@@ -372,16 +390,17 @@ class PredictionStore:
         try:
             cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
             total = 0
-            for table in ("forecasts", "anomalies", "recommendations", "simulations"):
+            with self._lock:
+                for table in ("forecasts", "anomalies", "recommendations", "simulations"):
+                    cur = self._conn.execute(
+                        f"""DELETE FROM {table} WHERE created_at < ?""", (cutoff,)
+                    )
+                    total += cur.rowcount
                 cur = self._conn.execute(
-                    f"""DELETE FROM {table} WHERE created_at < ?""", (cutoff,)
+                    """DELETE FROM prediction_accuracy WHERE computed_at < ?""", (cutoff,)
                 )
                 total += cur.rowcount
-            cur = self._conn.execute(
-                """DELETE FROM prediction_accuracy WHERE computed_at < ?""", (cutoff,)
-            )
-            total += cur.rowcount
-            self._conn.commit()
+                self._conn.commit()
             if total > 0:
                 logger.info(f"[VECTOR][predictive_analytics] Pruned {total} records older than {days} days")
             return total
@@ -391,7 +410,8 @@ class PredictionStore:
 
     def close(self):
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
             logger.info("[VECTOR][predictive_analytics] PredictionStore closed")
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Error closing store: {e}")

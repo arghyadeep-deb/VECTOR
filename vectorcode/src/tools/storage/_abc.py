@@ -1,16 +1,5 @@
-"""Tool storage stub types."""
-from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, List, Optional
+"""Compatibility shim for canonical storage backend types."""
 
-@dataclass
-class RetrievalResult:
-    content: str = ""
-    score: float = 0.0
-    metadata: Optional[Any] = None
+from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 
-class MemoryBackend:
-    """Abstract memory backend."""
-    def store(self, key: str, value: str) -> str: raise NotImplementedError
-    def retrieve(self, query: str, k: int = 5) -> List[RetrievalResult]: raise NotImplementedError
-    def delete(self, key: str) -> bool: raise NotImplementedError
+__all__ = ["MemoryBackend", "RetrievalResult"]

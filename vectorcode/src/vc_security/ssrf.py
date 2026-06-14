@@ -75,7 +75,7 @@ def is_private_ip(ip_str: str) -> bool:
 def check_ssrf(url: str) -> Optional[str]:
     """Check a URL for SSRF vulnerabilities — always via Rust backend."""
     try:
-        from vector._rust_bridge import get_rust_module
+        from vectorcode.src._rust_bridge import get_rust_module
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

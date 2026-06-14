@@ -340,8 +340,7 @@ class YahooFinanceProvider(MarketDataProvider):
             logger.info("Connected to Yahoo Finance")
             return True
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.derivatives.market_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.derivatives.market_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.derivatives.market_data] caught Exception: %s", e)
             logger.error(f"Failed to connect to Yahoo Finance: {e}")
             return False
 
@@ -381,7 +380,7 @@ class YahooFinanceProvider(MarketDataProvider):
             raise ConnectionError("Not connected to Yahoo Finance")
 
         if currency.upper() != "USD":
-            raise NotImplementedError(
+            raise RuntimeError(
                 f"YahooFinanceProvider risk-free rates are implemented for USD only, not {currency}"
             )
         try:

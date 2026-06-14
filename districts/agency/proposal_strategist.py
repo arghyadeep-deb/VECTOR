@@ -5,15 +5,13 @@ Creates compelling project proposals for Arghyadeep's agency and freelance work.
 Transforms requirements into persuasive win narratives with clear value delivery.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -25,7 +23,6 @@ _PROPOSAL_SECTIONS = [
     "executive_summary", "problem_statement", "proposed_solution",
     "technical_approach", "timeline", "pricing", "team", "next_steps",
 ]
-
 
 class ProposalStrategist(AgentBase):
     """
@@ -214,7 +211,6 @@ class ProposalStrategist(AgentBase):
             logger.error("[VECTOR][proposal] {}", e)
             self.deduct_points(30, "proposal_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

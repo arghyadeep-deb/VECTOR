@@ -23,6 +23,7 @@ from __future__ import annotations
 from loguru import logger
 
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -71,11 +72,14 @@ class SyncEngine:
         if str(db_path) != ":memory:":
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute(_CREATE_STATE_TABLE)
-        self._conn.commit()
+        self._conn.execute("PRAGMA busy_timeout=5000;")
+        with self._lock:
+            self._conn.execute(_CREATE_STATE_TABLE)
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Public API
@@ -152,7 +156,8 @@ class SyncEngine:
             "SELECT items_synced, cursor, last_sync, error"
             " FROM sync_state WHERE connector_id = ?"
         )
-        row = self._conn.execute(sql, (connector_id,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(sql, (connector_id,)).fetchone()
 
         if row is None:
             return None
@@ -178,19 +183,20 @@ class SyncEngine:
     ) -> None:
         """UPSERT a checkpoint row into the state database."""
         now = datetime.now(tz=timezone.utc).isoformat()
-        self._conn.execute(
-            """
-            INSERT INTO sync_state
-                (connector_id, items_synced, cursor, last_sync, error)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(connector_id) DO UPDATE SET
-                items_synced = excluded.items_synced,
-                cursor       = excluded.cursor,
-                last_sync    = excluded.last_sync,
-                error        = excluded.error
-            """,
-            (connector_id, items_synced, cursor, now, error),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO sync_state
+                    (connector_id, items_synced, cursor, last_sync, error)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(connector_id) DO UPDATE SET
+                    items_synced = excluded.items_synced,
+                    cursor       = excluded.cursor,
+                    last_sync    = excluded.last_sync,
+                    error        = excluded.error
+                """,
+                (connector_id, items_synced, cursor, now, error),
+            )
+            self._conn.commit()
 
 __all__ = ["SyncEngine"]

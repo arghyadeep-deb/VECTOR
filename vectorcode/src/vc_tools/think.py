@@ -45,7 +45,7 @@ class ThinkTool(BaseTool):
     def execute(self, **params: Any) -> ToolResult:
         thought = params.get("thought", "")
         try:
-            from vector._rust_bridge import get_rust_module
+            from vectorcode.src._rust_bridge import get_rust_module
 
             _rust = get_rust_module()
             content = _rust.ThinkTool().execute(thought)

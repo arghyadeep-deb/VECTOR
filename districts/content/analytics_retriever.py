@@ -19,11 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 __all__ = ["AnalyticsRetriever", "PostMetrics", "PostRef"]
 
 import uuid
@@ -31,6 +26,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -41,13 +39,11 @@ try:
 except ImportError:
     _HTTPX_AVAILABLE = False
 
-
 @dataclass
 class PostRef:
     platform: str   # "youtube" | "instagram" | "tiktok" | "linkedin"
     post_id: str
     extra: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class PostMetrics:
@@ -80,7 +76,6 @@ class PostMetrics:
             "engagement_rate": self.engagement_rate,
             "error": self.error,
         }
-
 
 class AnalyticsRetriever:
     """
@@ -255,7 +250,6 @@ class AnalyticsRetriever:
             ),
             "fetched_at": datetime.now(tz=timezone.utc).isoformat(),
         }
-
 
 if __name__ == "__main__":
     r = AnalyticsRetriever()

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 import uuid
 from typing import Any, Dict
@@ -30,6 +31,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _SPAWNED_AGENTS: Dict[str, Dict[str, Any]] = {}
+_SPAWNED_AGENTS_LOCK = threading.RLock()
+
+
+def get_spawned_agents_snapshot() -> Dict[str, Dict[str, Any]]:
+    """Return a copy of spawned-agent metadata for readers outside this module."""
+    with _SPAWNED_AGENTS_LOCK:
+        return {agent_id: dict(info) for agent_id, info in _SPAWNED_AGENTS.items()}
 
 # ---------------------------------------------------------------------------
 # AgentSpawnTool
@@ -106,7 +114,8 @@ class AgentSpawnTool(BaseTool):
         if query:
             entry["initial_query"] = query
 
-        _SPAWNED_AGENTS[agent_id] = entry
+        with _SPAWNED_AGENTS_LOCK:
+            _SPAWNED_AGENTS[agent_id] = entry
 
         result_data: Dict[str, Any] = {
             "agent_id": agent_id,
@@ -166,7 +175,9 @@ class AgentSendTool(BaseTool):
                 success=False,
             )
 
-        if agent_id not in _SPAWNED_AGENTS:
+        with _SPAWNED_AGENTS_LOCK:
+            agent_exists = agent_id in _SPAWNED_AGENTS
+        if not agent_exists:
             return ToolResult(
                 tool_name="agent_send",
                 content=f"Agent '{agent_id}' not found.",
@@ -233,7 +244,8 @@ class AgentListTool(BaseTool):
         )
 
     def execute(self, **params: Any) -> ToolResult:
-        if not _SPAWNED_AGENTS:
+        agents_snapshot = get_spawned_agents_snapshot()
+        if not agents_snapshot:
             return ToolResult(
                 tool_name="agent_list",
                 content="No agents spawned.",
@@ -241,7 +253,7 @@ class AgentListTool(BaseTool):
             )
 
         agents = []
-        for agent_id, info in _SPAWNED_AGENTS.items():
+        for agent_id, info in agents_snapshot.items():
             agents.append(
                 {
                     "agent_id": agent_id,
@@ -297,14 +309,17 @@ class AgentKillTool(BaseTool):
                 success=False,
             )
 
-        if agent_id not in _SPAWNED_AGENTS:
+        with _SPAWNED_AGENTS_LOCK:
+            agent_exists = agent_id in _SPAWNED_AGENTS
+        if not agent_exists:
             return ToolResult(
                 tool_name="agent_kill",
                 content=f"Agent '{agent_id}' not found.",
                 success=False,
             )
 
-        _SPAWNED_AGENTS[agent_id]["status"] = "stopped"
+        with _SPAWNED_AGENTS_LOCK:
+            _SPAWNED_AGENTS[agent_id]["status"] = "stopped"
 
         return ToolResult(
             tool_name="agent_kill",
@@ -317,4 +332,10 @@ class AgentKillTool(BaseTool):
             success=True,
         )
 
-__all__ = ["AgentKillTool", "AgentListTool", "AgentSendTool", "AgentSpawnTool"]
+__all__ = [
+    "AgentKillTool",
+    "AgentListTool",
+    "AgentSendTool",
+    "AgentSpawnTool",
+    "get_spawned_agents_snapshot",
+]

@@ -10,10 +10,6 @@ RULE 11: no external cloud API used for generation.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import asyncio
 import json
 import mimetypes
@@ -22,12 +18,14 @@ import uuid
 from pathlib import Path
 from typing import Optional, Literal
 
-
 import httpx
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 # ── Default simple txt2img workflow ──────────────────────────────────────────
 # Minimal ComfyUI API workflow — works with any checkpoint model loaded in ComfyUI.
@@ -85,7 +83,6 @@ def _build_txt2img_workflow(
             "inputs": {"filename_prefix": "VECTOR", "images": ["8", 0]},
         },
     }
-
 
 class ComfyUIAdapter(AgentBase):
     """
@@ -509,7 +506,6 @@ class ComfyUIAdapter(AgentBase):
                 return {"status": "error", "error": str(e), "video_path": None, "elapsed": elapsed}
             return {"status": "error", "error": str(e), "images": [], "elapsed": elapsed}
 
-
     # ── Video generation ──────────────────────────────────────────────────────
 
     def _build_video_workflow(
@@ -702,7 +698,6 @@ class ComfyUIAdapter(AgentBase):
             height=p.get("height", 512),
             steps=p.get("steps", 20),
         )
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

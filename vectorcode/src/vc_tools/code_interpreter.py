@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import os
 from typing import Any
 
 from vectorcode.src.vc_core.registry import ToolRegistry
@@ -30,6 +31,10 @@ _BLOCKED_PATTERNS = [
     "compile(",
     "open(",
 ]
+
+
+def _untrusted_code_enabled() -> bool:
+    return os.environ.get("VECTOR_ENABLE_UNTRUSTED_CODE", "").strip() == "1"
 
 @ToolRegistry.register("code_interpreter")
 class CodeInterpreterTool(BaseTool):
@@ -64,6 +69,15 @@ class CodeInterpreterTool(BaseTool):
 
     def execute(self, **params: Any) -> ToolResult:
         code = params.get("code", "")
+        if not _untrusted_code_enabled():
+            return ToolResult(
+                tool_name="code_interpreter",
+                content=(
+                    "Code execution is disabled by default. Set "
+                    "VECTOR_ENABLE_UNTRUSTED_CODE=1 only in an isolated lab environment."
+                ),
+                success=False,
+            )
         if not code:
             return ToolResult(
                 tool_name="code_interpreter",

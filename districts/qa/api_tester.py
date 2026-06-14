@@ -5,21 +5,18 @@ Tests all REST endpoints, checks response schemas, measures latency,
 detects breaking changes, generates API health reports.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import time
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
-
 
 class APITester(AgentBase):
     """Tests VECTOR's FastAPI endpoints for correctness and performance."""
@@ -198,7 +195,6 @@ class APITester(AgentBase):
             logger.error("[VECTOR][api_tester] {}", e)
             self.deduct_points(30, "api_test_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

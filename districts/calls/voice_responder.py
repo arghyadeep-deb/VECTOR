@@ -1,18 +1,18 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 from pathlib import Path
 from typing import Optional
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+_MAX_RESPONSE_HISTORY = 1000
 
 class VoiceResponder(AgentBase):
     """
@@ -113,6 +113,8 @@ V.E.C.T.O.R. Response:"""
                 "timestamp": self._get_timestamp()
             }
             self._response_history.append(response_entry)
+            if len(self._response_history) > _MAX_RESPONSE_HISTORY:
+                del self._response_history[:-_MAX_RESPONSE_HISTORY]
 
             self.award_points(5, "voice_response_generated")
             logger.info(f"[VECTOR][voice_responder] Generated response: {response_text[:50]}...")
@@ -250,14 +252,12 @@ V.E.C.T.O.R. Response:"""
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         if p.get("text"):
             result = self.generate_response(p["text"], p.get("context"))
             return {"status": "ok", **result}
         return {"status": "ok", "agent": self.name}
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

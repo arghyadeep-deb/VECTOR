@@ -1,16 +1,14 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 from typing import Optional
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class SentimentBot(AgentBase):
     """
@@ -350,12 +348,10 @@ Be specific and actionable.
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         result = self.generate_sentiment_report(p.get("symbol", "RELIANCE"))
         return {"status": "ok", **result}
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

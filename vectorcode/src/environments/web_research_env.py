@@ -44,17 +44,13 @@ import logging
 import os
 import random
 import re
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from pydantic import Field
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
-# Ensure vectorcode root is on path
-_repo_root = Path(__file__).resolve().parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+from pydantic import Field
 
 # ---------------------------------------------------------------------------
 # Optional HuggingFace datasets import

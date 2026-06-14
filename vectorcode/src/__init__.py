@@ -2,6 +2,10 @@ __version__ = "1.0.0"
 
 from loguru import logger
 
+from .bootstrap import ensure_paths
+
+ensure_paths()
+
 try:
     from .claims import ClaimService, WorkStealingService, LoadBalancer, mcp_claim_task, mcp_release_task, mcp_steal_task
 except ImportError:

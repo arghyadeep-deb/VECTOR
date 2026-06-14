@@ -20,6 +20,7 @@ from loguru import logger
 
 import logging
 import sqlite3
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
@@ -65,10 +66,13 @@ class EmbeddingStore:
         self._tensor_dir.mkdir(parents=True, exist_ok=True)
 
         db_path = self._store_dir / "index.db"
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.executescript(_CREATE_INDEX_TABLE)
-        self._conn.commit()
+        self._conn.execute("PRAGMA busy_timeout=5000;")
+        with self._lock:
+            self._conn.executescript(_CREATE_INDEX_TABLE)
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Public API
@@ -95,11 +99,12 @@ class EmbeddingStore:
 
         _torch.save(embedding, str(tensor_path))
 
-        self._conn.execute(
-            "INSERT OR REPLACE INTO embedding_index (chunk_id, filename) VALUES (?, ?)",
-            (chunk_id, filename),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO embedding_index (chunk_id, filename) VALUES (?, ?)",
+                (chunk_id, filename),
+            )
+            self._conn.commit()
 
     def get(self, chunk_id: str) -> Optional["torch.Tensor"]:
         """Load a chunk's embedding from disk.
@@ -112,10 +117,11 @@ class EmbeddingStore:
         except ImportError:
             return None
 
-        row = self._conn.execute(
-            "SELECT filename FROM embedding_index WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT filename FROM embedding_index WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
 
         if row is None:
             return None
@@ -123,10 +129,11 @@ class EmbeddingStore:
         tensor_path = self._tensor_dir / row[0]
         if not tensor_path.exists():
             # Stale index entry --- clean it up
-            self._conn.execute(
-                "DELETE FROM embedding_index WHERE chunk_id = ?", (chunk_id,)
-            )
-            self._conn.commit()
+            with self._lock:
+                self._conn.execute(
+                    "DELETE FROM embedding_index WHERE chunk_id = ?", (chunk_id,)
+                )
+                self._conn.commit()
             return None
 
         try:
@@ -139,15 +146,17 @@ class EmbeddingStore:
 
     def has(self, chunk_id: str) -> bool:
         """Check if embeddings exist for a chunk."""
-        row = self._conn.execute(
-            "SELECT 1 FROM embedding_index WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM embedding_index WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
         return row is not None
 
     def count(self) -> int:
         """Return the number of stored embeddings."""
-        row = self._conn.execute("SELECT COUNT(*) FROM embedding_index").fetchone()
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) FROM embedding_index").fetchone()
         return row[0] if row else 0
 
     def delete(self, chunk_id: str) -> bool:
@@ -155,10 +164,11 @@ class EmbeddingStore:
 
         Returns ``True`` if the embedding existed and was removed.
         """
-        row = self._conn.execute(
-            "SELECT filename FROM embedding_index WHERE chunk_id = ?",
-            (chunk_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT filename FROM embedding_index WHERE chunk_id = ?",
+                (chunk_id,),
+            ).fetchone()
 
         if row is None:
             return False
@@ -167,16 +177,18 @@ class EmbeddingStore:
         if tensor_path.exists():
             tensor_path.unlink()
 
-        self._conn.execute(
-            "DELETE FROM embedding_index WHERE chunk_id = ?", (chunk_id,)
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM embedding_index WHERE chunk_id = ?", (chunk_id,)
+            )
+            self._conn.commit()
         return True
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
         except Exception as _sve:
             logger.debug("[VECTOR][connectors.embedding_store] suppressed Exception: %s", _sve)
 

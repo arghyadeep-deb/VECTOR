@@ -6,6 +6,9 @@ import asyncio
 import datetime
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase

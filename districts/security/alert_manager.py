@@ -1,10 +1,6 @@
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
-from pathlib import Path
 
 import asyncio
 import datetime
@@ -15,11 +11,14 @@ from collections import defaultdict
 from typing import Any
 
 import httpx
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from core.config import CONFIG
-
 
 class Alert(BaseModel):
     id: str
@@ -32,9 +31,7 @@ class Alert(BaseModel):
     resolved_at: datetime.datetime | None = None
     evidence: dict[str, Any] = Field(default_factory=dict)
 
-
 _STATUSES = {"NEW", "ACKNOWLEDGED", "INVESTIGATING", "RESOLVED", "CLOSED"}
-
 
 class AlertManager:
     def __init__(self, db_path: str | None = None):
@@ -243,7 +240,6 @@ class AlertManager:
 
     async def run(self, task: dict | None = None) -> dict:
         return self.get_stats()
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

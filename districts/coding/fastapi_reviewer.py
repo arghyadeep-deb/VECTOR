@@ -8,7 +8,8 @@ import sys
 import asyncio
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.city.agent_base import AgentBase
@@ -40,7 +41,6 @@ _FASTAPI_REQUIRED = [
     ("from fastapi import", "Missing FastAPI import"),
     ("from pydantic import BaseModel", "No Pydantic BaseModel import — request/response bodies must be validated"),
 ]
-
 
 class FastAPIReviewer(AgentBase):
     """
@@ -261,7 +261,6 @@ class FastAPIReviewer(AgentBase):
                 logger.error("[VECTOR][fastapi_reviewer] tick error: {}", e)
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][fastapi_reviewer] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

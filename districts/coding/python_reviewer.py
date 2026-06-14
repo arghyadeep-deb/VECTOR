@@ -8,7 +8,8 @@ import sys
 import asyncio
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.city.agent_base import AgentBase
@@ -38,7 +39,6 @@ _PY_REQUIRED = [
     ("from loguru import logger", "Missing loguru import — use logger not print()"),
     ("from core.config import CONFIG", "Missing CONFIG import — all configurable values must use CONFIG dict"),
 ]
-
 
 class PythonReviewer(AgentBase):
     """
@@ -222,7 +222,6 @@ class PythonReviewer(AgentBase):
                 logger.error("[VECTOR][python_reviewer] tick error: {}", e)
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][python_reviewer] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

@@ -17,6 +17,10 @@ import os
 logger = logging.getLogger(__name__)
 
 
+class HostBridgeUnavailableError(RuntimeError):
+    """Raised when host IPC trading commands are requested outside the host runtime."""
+
+
 @dataclass
 class Portfolio:
     """Paper trading portfolio"""
@@ -414,7 +418,7 @@ class PaperTradingBridge:
 
         # In real implementation, the host calls Python with the result
         # For standalone Python testing, raise to indicate C++ host bridge needed
-        raise NotImplementedError(
+        raise HostBridgeUnavailableError(
             f"C++ command {command} requires host runtime. "
             "Use use_host_bridge=False for local simulation."
         )

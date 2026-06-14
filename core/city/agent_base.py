@@ -1,7 +1,6 @@
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 from core.config import CONFIG
 from loguru import logger
 import asyncio, datetime, uuid
@@ -43,7 +42,7 @@ class AgentBase:
         self.created_at = datetime.datetime.utcnow().isoformat()
         self.last_active = self.created_at
         self.subscribed_events: set[str] = set()
-        self._inbox = deque()
+        self._inbox = deque(maxlen=500)
         self._facts: dict[str, object] = {}
         self._district_llm = None
         # Per-agent voice style — empty string means "use global personality"

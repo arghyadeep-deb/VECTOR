@@ -14,16 +14,13 @@ Wraps the VectorCode Intelligence MCP server (vectorcode/code_intel/) which prov
 - vc_visualize  : Interactive dependency graph (Cytoscape.js, offline)
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 import subprocess
 import json
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -33,7 +30,6 @@ from core.inference.vectorcode_llm import chat
 
 _CODEBASE_ROOT = Path(__file__).parent.parent.parent.parent
 _DIST = _CODEBASE_ROOT / "vectorcode" / "code_intel" / "dist" / "index.js"
-
 
 def _mcp_call(tool_name: str, args: dict, timeout: int = 60) -> dict:
     """
@@ -82,7 +78,6 @@ def _mcp_call(tool_name: str, args: dict, timeout: int = 60) -> dict:
         return {"error": f"MCP call timed out after {timeout}s"}
     except Exception as e:
         return {"error": str(e)}
-
 
 class CodeIntelAgent(AgentBase):
     """
@@ -307,7 +302,6 @@ class CodeIntelAgent(AgentBase):
             logger.error(f"[VECTOR][code_intel] {task_type} failed: {e}")
             self.deduct_points(30, f"code_intel_{task_type}_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     async def _test():

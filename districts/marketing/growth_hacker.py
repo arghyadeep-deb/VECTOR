@@ -5,15 +5,13 @@ Helps Arghyadeep grow VECTOR's presence, personal brand, and any startup/agency
 projects using AARRR/ICE/North Star frameworks.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -23,7 +21,6 @@ from core.inference.vectorcode_llm import chat
 from districts.marketing._skill_loader import load_skill, SkillMixin
 
 _GROWTH_FRAMEWORKS = ["AARRR", "ICE_SCORING", "NORTH_STAR", "PIRATE_METRICS", "VIRAL_LOOPS"]
-
 
 class GrowthHacker(AgentBase, SkillMixin):
     """
@@ -235,7 +232,6 @@ class GrowthHacker(AgentBase, SkillMixin):
             logger.error("[VECTOR][growth] {}", e)
             self.deduct_points(30, "growth_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

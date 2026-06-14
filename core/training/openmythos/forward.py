@@ -16,6 +16,8 @@ from loguru import logger
 import hmac
 import hashlib
 import json
+import os
+import secrets
 import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -39,7 +41,14 @@ class WebhookForwarder:
 
     def __init__(self):
         self.config = CONFIG.get("openmythos", {})
-        self.webhook_secret = self.config.get("webhook_secret", "vector_default_secret")
+        self.webhook_secret = (
+            os.environ.get("OPENMYTHOS_WEBHOOK_SECRET", "").strip()
+            or str(self.config.get("webhook_secret", "")).strip()
+        )
+        if not self.webhook_secret:
+            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}:
+                raise RuntimeError("OPENMYTHOS_WEBHOOK_SECRET is required in production")
+            self.webhook_secret = secrets.token_urlsafe(32)
         self.host = self.config.get("forward_host", "0.0.0.0")
         self.port = self.config.get("forward_port", 8001)
         self.app: Optional[Any] = None

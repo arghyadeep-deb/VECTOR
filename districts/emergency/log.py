@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field, asdict
 from typing import Any
@@ -34,6 +35,7 @@ class EmergencyLog:
     def __init__(self, db_path: str | None = None):
         from core.config import CONFIG
         self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
+        self._lock = threading.RLock()
         self._conn = self._open_conn(self._db_path)
         self._conn.row_factory = self._row_class(self._conn)
         self._enable_wal()
@@ -64,12 +66,15 @@ class EmergencyLog:
 
     def _enable_wal(self) -> None:
         try:
-            self._conn.execute("PRAGMA journal_mode=WAL")
+            with self._lock:
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA busy_timeout=5000")
         except Exception as e:
             logger.warning("[EmergencyLog] WAL mode not available: {}", e)
 
     def _ensure_table(self) -> None:
-        self._conn.execute("""
+        with self._lock:
+            self._conn.execute("""
             CREATE TABLE IF NOT EXISTS emergency_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_id TEXT UNIQUE NOT NULL,
@@ -93,24 +98,25 @@ class EmergencyLog:
                 created_at TEXT DEFAULT (datetime('now'))
             )
         """)
-        self._conn.commit()
+            self._conn.commit()
 
     def append(self, entry: EmergencyLogEntry) -> bool:
         conn = self._conn
         try:
-            prev_hash = conn.execute(
-                "SELECT entry_hash FROM emergency_log ORDER BY id DESC LIMIT 1"
-            ).fetchone()
-            prev_hash = prev_hash[0] if prev_hash else ""
+            with self._lock:
+                prev_hash = conn.execute(
+                    "SELECT entry_hash FROM emergency_log ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                prev_hash = prev_hash[0] if prev_hash else ""
 
-            data_str = (
-                entry.event_id + entry.severity + entry.domain + str(entry.detected_at)
-                + json.dumps(entry.actions_taken, sort_keys=True) + prev_hash
-            )
-            entry_hash = hashlib.sha256(data_str.encode()).hexdigest()
+                data_str = (
+                    entry.event_id + entry.severity + entry.domain + str(entry.detected_at)
+                    + json.dumps(entry.actions_taken, sort_keys=True) + prev_hash
+                )
+                entry_hash = hashlib.sha256(data_str.encode()).hexdigest()
 
-            conn.execute(
-                """INSERT INTO emergency_log
+                conn.execute(
+                    """INSERT INTO emergency_log
                    (event_id, severity, domain, signal_name, detected_at, classified_at,
                     severity_score, actions_taken, escalation_path, acknowledged,
                     acknowledged_at, resolved, resolved_at, duration_seconds, outcome,
@@ -126,8 +132,8 @@ class EmergencyLog:
                     int(entry.false_alarm),
                     prev_hash, entry_hash,
                 ),
-            )
-            self._conn.commit()
+                )
+                self._conn.commit()
             return True
         except Exception as e:
             # sqlcipher3's IntegrityError is not a subclass of sqlite3's
@@ -137,22 +143,25 @@ class EmergencyLog:
             return False
 
     def get_recent(self, limit: int = 50) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM emergency_log ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM emergency_log ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
         return [dict(row) for row in rows]
 
     def get_by_domain(self, domain: str, limit: int = 50) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM emergency_log WHERE domain = ? ORDER BY id DESC LIMIT ?", (domain, limit)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM emergency_log WHERE domain = ? ORDER BY id DESC LIMIT ?", (domain, limit)
+            ).fetchall()
         return [dict(row) for row in rows]
 
     def verify_chain(self) -> bool:
-        rows = self._conn.execute(
-            "SELECT entry_hash, prev_hash, event_id, severity, domain, detected_at, actions_taken "
-            "FROM emergency_log ORDER BY id ASC"
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT entry_hash, prev_hash, event_id, severity, domain, detected_at, actions_taken "
+                "FROM emergency_log ORDER BY id ASC"
+            ).fetchall()
         expected_prev = ""
         for row in rows:
             entry_hash, prev_hash, event_id, severity, domain, detected_at, actions_taken = row
@@ -169,33 +178,28 @@ class EmergencyLog:
 
     def summary(self, days: int = 7) -> dict[str, Any]:
         cutoff = time.time() - days * 86400
-        total = self._conn.execute(
-            "SELECT COUNT(*) FROM emergency_log WHERE detected_at >= ?", (cutoff,)
-        ).fetchone()[0]
-
-        by_severity = dict(self._conn.execute(
-            "SELECT severity, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY severity", (cutoff,)
-        ).fetchall())
-
-        by_domain = dict(self._conn.execute(
-            "SELECT domain, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY domain", (cutoff,)
-        ).fetchall())
-
-        outcomes = dict(self._conn.execute(
-            "SELECT outcome, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY outcome", (cutoff,)
-        ).fetchall())
-
-        avg_response = self._conn.execute(
-            "SELECT AVG(duration_seconds) FROM emergency_log WHERE detected_at >= ? AND resolved = 1 AND duration_seconds IS NOT NULL", (cutoff,)
-        ).fetchone()[0]
-
-        avg_resolution = self._conn.execute(
-            "SELECT AVG(duration_seconds) FROM emergency_log WHERE detected_at >= ? AND resolved = 1 AND duration_seconds IS NOT NULL", (cutoff,)
-        ).fetchone()[0]
-
-        false_alarms = self._conn.execute(
-            "SELECT COUNT(*) FROM emergency_log WHERE detected_at >= ? AND false_alarm = 1", (cutoff,)
-        ).fetchone()[0]
+        with self._lock:
+            total = self._conn.execute(
+                "SELECT COUNT(*) FROM emergency_log WHERE detected_at >= ?", (cutoff,)
+            ).fetchone()[0]
+            by_severity = dict(self._conn.execute(
+                "SELECT severity, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY severity", (cutoff,)
+            ).fetchall())
+            by_domain = dict(self._conn.execute(
+                "SELECT domain, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY domain", (cutoff,)
+            ).fetchall())
+            outcomes = dict(self._conn.execute(
+                "SELECT outcome, COUNT(*) FROM emergency_log WHERE detected_at >= ? GROUP BY outcome", (cutoff,)
+            ).fetchall())
+            avg_response = self._conn.execute(
+                "SELECT AVG(duration_seconds) FROM emergency_log WHERE detected_at >= ? AND resolved = 1 AND duration_seconds IS NOT NULL", (cutoff,)
+            ).fetchone()[0]
+            avg_resolution = self._conn.execute(
+                "SELECT AVG(duration_seconds) FROM emergency_log WHERE detected_at >= ? AND resolved = 1 AND duration_seconds IS NOT NULL", (cutoff,)
+            ).fetchone()[0]
+            false_alarms = self._conn.execute(
+                "SELECT COUNT(*) FROM emergency_log WHERE detected_at >= ? AND false_alarm = 1", (cutoff,)
+            ).fetchone()[0]
 
         return {
             "total_emergencies": total,

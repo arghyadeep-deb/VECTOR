@@ -18,17 +18,17 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 
 import asyncio
 import uuid
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from loguru import logger
-
 
 class HedgeBotAgent(AgentBase):
     """
@@ -264,7 +264,6 @@ class HedgeBotAgent(AgentBase):
         while self.is_alive:
             await asyncio.sleep(60)
         logger.warning("[VECTOR][hedgebot_agent] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

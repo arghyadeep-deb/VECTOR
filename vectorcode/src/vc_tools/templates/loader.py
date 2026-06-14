@@ -7,8 +7,11 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
+import re
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +20,94 @@ from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 logger = logging.getLogger(__name__)
+
+_SHELL_VALUE_REJECT = re.compile(r"[;&|`$<>\r\n]")
+_SHELL_INTERPRETERS = {"sh", "bash", "zsh", "fish", "cmd", "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe"}
+
+
+class _SafeExpressionEvaluator(ast.NodeVisitor):
+    """Tiny expression evaluator for template expressions.
+
+    It intentionally supports only literals, params, containers, simple
+    arithmetic/string concatenation, and calls to a fixed allowlist.
+    """
+
+    _functions = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "len": len,
+        "sorted": sorted,
+        "list": list,
+        "dict": dict,
+    }
+
+    def __init__(self, params: Dict[str, Any]) -> None:
+        self._params = params
+
+    def visit_Expression(self, node: ast.Expression) -> Any:
+        return self.visit(node.body)
+
+    def visit_Constant(self, node: ast.Constant) -> Any:
+        return node.value
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        if node.id in self._params:
+            return self._params[node.id]
+        raise ValueError(f"unknown name: {node.id}")
+
+    def visit_List(self, node: ast.List) -> list[Any]:
+        return [self.visit(item) for item in node.elts]
+
+    def visit_Tuple(self, node: ast.Tuple) -> tuple[Any, ...]:
+        return tuple(self.visit(item) for item in node.elts)
+
+    def visit_Dict(self, node: ast.Dict) -> dict[Any, Any]:
+        return {self.visit(k): self.visit(v) for k, v in zip(node.keys, node.values) if k is not None}
+
+    def visit_BinOp(self, node: ast.BinOp) -> Any:
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.Mod):
+            return left % right
+        raise ValueError("operator is not allowed")
+
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> Any:
+        operand = self.visit(node.operand)
+        if isinstance(node.op, ast.USub):
+            return -operand
+        if isinstance(node.op, ast.UAdd):
+            return +operand
+        raise ValueError("unary operator is not allowed")
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        value = self.visit(node.value)
+        key = self.visit(node.slice)
+        return value[key]
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        if not isinstance(node.func, ast.Name) or node.func.id not in self._functions:
+            raise ValueError("function call is not allowed")
+        fn = self._functions[node.func.id]
+        args = [self.visit(arg) for arg in node.args]
+        kwargs = {kw.arg: self.visit(kw.value) for kw in node.keywords if kw.arg}
+        return fn(*args, **kwargs)
+
+    def generic_visit(self, node: ast.AST) -> Any:
+        raise ValueError(f"expression node is not allowed: {type(node).__name__}")
+
+
+def _safe_eval_template_expression(expr: str, params: Dict[str, Any]) -> Any:
+    tree = ast.parse(expr, mode="eval")
+    return _SafeExpressionEvaluator(params).visit(tree)
 
 try:
     import tomllib
@@ -78,22 +169,7 @@ class ToolTemplate(BaseTool):
                 content="No expression defined.",
                 success=False,
             )
-        # Safe evaluation with params available
-        safe_builtins = {
-            "str": str,
-            "int": int,
-            "float": float,
-            "len": len,
-            "sorted": sorted,
-            "list": list,
-            "dict": dict,
-            "json": json,
-        }
-        result = eval(  # noqa: S307
-            expr,
-            {"__builtins__": safe_builtins},
-            params,
-        )
+        result = _safe_eval_template_expression(expr, params)
         return ToolResult(
             tool_name=self._name,
             content=str(result),
@@ -109,14 +185,23 @@ class ToolTemplate(BaseTool):
                 content="No command defined.",
                 success=False,
             )
-        # Substitute params into command — sanitize values before substitution
-        import shlex as _shlex
         for key, val in params.items():
-            # Strip any shell metacharacters from substituted values
-            safe_val = str(val).replace(";", "").replace("&", "").replace("|", "").replace("`", "")
-            cmd = cmd.replace(f"{{{key}}}", safe_val)
+            safe_val = str(val)
+            if _SHELL_VALUE_REJECT.search(safe_val):
+                return ToolResult(
+                    tool_name=self._name,
+                    content=f"Rejected unsafe shell parameter: {key}",
+                    success=False,
+                )
+            cmd = cmd.replace(f"{{{key}}}", shlex.quote(safe_val))
         # Split into args list to avoid shell injection
-        args = _shlex.split(cmd)
+        args = shlex.split(cmd)
+        if args and Path(args[0]).name.lower() in _SHELL_INTERPRETERS:
+            return ToolResult(
+                tool_name=self._name,
+                content="Shell interpreters are not allowed in template commands.",
+                success=False,
+            )
         result = subprocess.run(
             args,
             shell=False,

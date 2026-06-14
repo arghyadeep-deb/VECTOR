@@ -31,6 +31,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import re
 import subprocess
 import time
@@ -58,11 +59,27 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8644
 _INSECURE_NO_AUTH = "INSECURE_NO_AUTH"
 _DYNAMIC_ROUTES_FILENAME = "webhook_subscriptions.json"
+_PLACEHOLDER_SECRETS = {
+    "your-global-hmac-secret",
+    "your-global-secret",
+    "your-webhook-secret",
+    "generate-a-strong-secret-here",
+    "change-me",
+    "changeme",
+}
 
 
 def check_webhook_requirements() -> bool:
     """Check if webhook adapter dependencies are available."""
     return AIOHTTP_AVAILABLE
+
+
+def _is_production() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+
+
+def _is_placeholder_secret(secret: str) -> bool:
+    return secret.strip().lower() in _PLACEHOLDER_SECRETS
 
 
 class WebhookAdapter(BasePlatformAdapter):
@@ -124,6 +141,15 @@ class WebhookAdapter(BasePlatformAdapter):
                     f"[webhook] Route '{name}' has no HMAC secret. "
                     f"Set 'secret' on the route or globally. "
                     f"For testing without auth, set secret to '{_INSECURE_NO_AUTH}'."
+                )
+            if _is_placeholder_secret(str(secret)):
+                raise ValueError(
+                    f"[webhook] Route '{name}' uses a placeholder HMAC secret. "
+                    "Generate a unique high-entropy secret before enabling this route."
+                )
+            if _is_production() and secret == _INSECURE_NO_AUTH:
+                raise ValueError(
+                    f"[webhook] Route '{name}' disables HMAC auth in production."
                 )
 
             # deliver_only routes bypass the agent — the POST body becomes a
@@ -322,6 +348,16 @@ class WebhookAdapter(BasePlatformAdapter):
 
         # Validate HMAC signature FIRST (skip for INSECURE_NO_AUTH testing mode)
         secret = route_config.get("secret", self._global_secret)
+        if not secret or _is_placeholder_secret(str(secret)):
+            return web.json_response(
+                {"error": "Webhook route is not securely configured"},
+                status=503,
+            )
+        if _is_production() and secret == _INSECURE_NO_AUTH:
+            return web.json_response(
+                {"error": "Webhook route disables auth in production"},
+                status=503,
+            )
         if secret and secret != _INSECURE_NO_AUTH:
             if not self._validate_signature(request, raw_body, secret):
                 logger.warning(

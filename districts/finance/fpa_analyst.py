@@ -5,22 +5,19 @@ Financial Planning & Analysis for Arghyadeep's projects and agency work.
 Bridges numbers to business narrative — month-end close, forecast vs actuals.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import json
 import re
 import datetime
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 class FPAAnalyst(AgentBase):
     """
@@ -196,7 +193,6 @@ class FPAAnalyst(AgentBase):
             logger.error("[VECTOR][fpa] {}", e)
             self.deduct_points(30, "fpa_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

@@ -136,7 +136,7 @@ class ShellExecTool(BaseTool):
                 env[key] = val
 
         try:
-            from vector._rust_bridge import get_rust_module
+            from vectorcode.src._rust_bridge import get_rust_module
 
             _rust = get_rust_module()
             output = _rust.ShellExecTool().execute(command, working_dir)

@@ -1,14 +1,13 @@
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
-from pathlib import Path
 
 import asyncio
 import datetime
 import uuid
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 
@@ -34,7 +33,6 @@ _SUSPICIOUS_DIRS: tuple[str, ...] = (
     "/tmp/",
     "/var/tmp/",
 )
-
 
 class ThreatScout(AgentBase):
     """Monitors processes, network, and files for threats.
@@ -271,7 +269,6 @@ class ThreatScout(AgentBase):
         if p.get("file"):
             return await self.scan_file(p["file"])
         return await self.run_threat_assessment()
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

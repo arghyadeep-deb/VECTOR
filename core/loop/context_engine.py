@@ -1,7 +1,8 @@
 import sys
 import datetime
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import threading
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -10,6 +11,13 @@ _SENSE_CACHE: dict = {
     "screen_summary": "",
     "presence": "unknown",
 }
+_SENSE_CACHE_LOCK = threading.RLock()
+
+
+def get_sense_cache_snapshot() -> dict:
+    """Return a stable copy of the shared sensing context."""
+    with _SENSE_CACHE_LOCK:
+        return dict(_SENSE_CACHE)
 
 
 def update_sense_cache(screen_summary="", presence="unknown", **extra) -> None:
@@ -23,7 +31,8 @@ def update_sense_cache(screen_summary="", presence="unknown", **extra) -> None:
         data["screen_summary"] = str(data.get("screen_summary") or "")[:300]
     if not data.get("presence"):
         data["presence"] = "unknown"
-    _SENSE_CACHE.update(data)
+    with _SENSE_CACHE_LOCK:
+        _SENSE_CACHE.update(data)
 
 
 class ContextEngine:
@@ -91,14 +100,15 @@ class ContextEngine:
             logger.warning(f"[VECTOR][context_engine] mem stats failed: {e}")
 
         # --- Presence / face detection from sense cache ---
-        face_data: dict = _SENSE_CACHE.get("face", {})
+        sense_cache = get_sense_cache_snapshot()
+        face_data: dict = sense_cache.get("face", {})
         if face_data.get("detected"):
             presence = "present"
         elif "detected" in face_data:
             # detected key exists but is False — camera ran, no face found
             presence = "absent"
         else:
-            presence = _SENSE_CACHE.get("presence", "unknown")
+            presence = sense_cache.get("presence", "unknown")
 
         owner_identity: str = face_data.get("identity", "")
         fatigue_score: float = float(face_data.get("fatigue", 0.0))
@@ -121,7 +131,7 @@ class ContextEngine:
             "presence": presence,
             "owner_identity": owner_identity,
             "fatigue_score": fatigue_score,
-            "screen_summary": _SENSE_CACHE.get("screen_summary", ""),
+            "screen_summary": sense_cache.get("screen_summary", ""),
         }
 
     def _person_context_line(self, person_id: str, topic: str = "current task") -> str:

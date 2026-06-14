@@ -1,7 +1,8 @@
-import sys
 import time
 import datetime
+import hmac
 import os
+import sys
 from typing import Optional
 
 try:
@@ -25,15 +26,31 @@ _heartbeat_data: dict = {}
 _API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
 _PUBLIC_PATHS = {"/status", "/health", "/docs", "/openapi.json", "/redoc"}
 
+
+def _is_production() -> bool:
+    env = str(os.environ.get("VECTOR_ENV") or CONFIG.get("env", "production")).strip().lower()
+    return env in {"prod", "production"}
+
+
+def _allowed_origins() -> list[str]:
+    origins = list(CONFIG.get("allowed_origins", []))
+    if _is_production() and "*" in origins:
+        logger.warning(
+            "[VECTOR][brain_server] refusing wildcard CORS in production; "
+            "set VECTOR_ALLOWED_ORIGINS explicitly"
+        )
+        return []
+    return origins
+
 app = FastAPI(
     title="VECTOR Brain Server",
     description="VECTOR autonomous AI — cloud API gateway",
-    version=CONFIG["version"],
+    version=CONFIG.get("version", "0.0.0"),
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CONFIG["allowed_origins"],
+    allow_origins=_allowed_origins(),
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -46,10 +63,15 @@ async def _auth_middleware(request: Request, call_next):
     if request.url.path in _PUBLIC_PATHS:
         return await call_next(request)
     if not _API_KEY:
-        # No key configured — allow (dev mode / local)
+        if _is_production():
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Brain server auth not configured: set VECTOR_API_KEY."},
+            )
         return await call_next(request)
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer ") or auth[7:] != _API_KEY:
+    token = auth[7:].strip() if auth.startswith("Bearer ") else ""
+    if not token or not hmac.compare_digest(token, _API_KEY):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     return await call_next(request)
 
@@ -65,9 +87,9 @@ async def status():
     """Day 6 gate — returns 200 when VECTOR brain server is online."""
     return {
         "status": "online",
-        "system": CONFIG["system_name"],
-        "version": CONFIG["version"],
-        "environment": CONFIG["env"],
+        "system": CONFIG.get("system_name", "VECTOR"),
+        "version": CONFIG.get("version", "0.0.0"),
+        "environment": CONFIG.get("env", os.environ.get("VECTOR_ENV", "development")),
         "uptime_sec": _uptime(),
         "last_heartbeat": _last_heartbeat,
     }

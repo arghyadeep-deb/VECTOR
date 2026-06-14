@@ -17,14 +17,12 @@ Search engines (free, no API key required by default):
     web      → DuckDuckGo + SearXNG (if running locally)
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 from pathlib import Path
 from datetime import datetime
 from typing import Any
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -46,7 +44,6 @@ _BRAIN_RESEARCH_DIR = Path(
         r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\Research"
     )
 )
-
 
 def _make_settings(mode: str = "quick", search_tool: str = "auto",
                    max_results: int = 10, iterations: int = 2,
@@ -75,7 +72,6 @@ def _make_settings(mode: str = "quick", search_tool: str = "auto",
 
     return create_settings_snapshot(overrides=overrides)
 
-
 def _save_to_brain(content: str, title: str, subfolder: str = "") -> Path | None:
     """Save research output to VECTOR Brain/Research/ for Obsidian."""
     try:
@@ -90,7 +86,6 @@ def _save_to_brain(content: str, title: str, subfolder: str = "") -> Path | None
     except Exception as e:
         logger.warning("[VECTOR][research_api] Could not save to Brain: {}", e)
         return None
-
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -124,7 +119,6 @@ def quick_research(query: str, save_to_brain: bool = True) -> dict:
         logger.error("[VECTOR][research_api] quick_research failed: {}", e)
         return {"summary": f"Research failed: {e}", "findings": [], "sources": []}
 
-
 def generate_report(query: str, searches_per_section: int = 2,
                     save_to_brain: bool = True) -> dict:
     """
@@ -154,7 +148,6 @@ def generate_report(query: str, searches_per_section: int = 2,
         logger.error("[VECTOR][research_api] generate_report failed: {}", e)
         return {"content": f"Report generation failed: {e}", "metadata": {}}
 
-
 def research_papers(query: str, max_results: int = 10) -> dict:
     """
     Academic paper research using ArXiv + PubMed + Semantic Scholar.
@@ -179,7 +172,6 @@ def research_papers(query: str, max_results: int = 10) -> dict:
         logger.error("[VECTOR][research_api] research_papers failed: {}", e)
         return {"summary": f"Paper research failed: {e}", "findings": [], "sources": []}
 
-
 def research_news(query: str, max_results: int = 10) -> dict:
     """
     News research using DuckDuckGo + Wikinews. Fast, no API key needed.
@@ -202,7 +194,6 @@ def research_news(query: str, max_results: int = 10) -> dict:
         logger.error("[VECTOR][research_api] research_news failed: {}", e)
         return {"summary": f"News research failed: {e}", "findings": [], "sources": []}
 
-
 def analyze_documents(query: str, collection_name: str,
                       max_results: int = 10) -> dict:
     """
@@ -222,7 +213,6 @@ def analyze_documents(query: str, collection_name: str,
     except Exception as e:
         logger.error("[VECTOR][research_api] analyze_documents failed: {}", e)
         return {"summary": f"Document analysis failed: {e}", "documents": []}
-
 
 if __name__ == "__main__":
     # Smoke test — quick research with no API key

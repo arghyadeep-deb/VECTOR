@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import uuid
 import time
 
@@ -34,7 +35,15 @@ _DEFAULT_PEERS = {
     "phone_node": os.environ.get("VECTOR_PHONE_URL", "http://192.168.1.100:8765"),
 }
 
-_FEDERATION_SECRET = os.environ.get("VECTOR_FEDERATION_SECRET", "change-me-in-dotenv")
+def _is_production() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+
+
+_FEDERATION_SECRET = os.environ.get("VECTOR_FEDERATION_SECRET", "").strip()
+if not _FEDERATION_SECRET:
+    if _is_production():
+        raise RuntimeError("VECTOR_FEDERATION_SECRET is required in production")
+    _FEDERATION_SECRET = secrets.token_urlsafe(32)
 _REPLAY_WINDOW_SECS = 30  # reject requests older than 30s
 
 

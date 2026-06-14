@@ -1,7 +1,7 @@
 """AnalysisResult schema — structured daily stock analysis output."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -28,7 +28,6 @@ class AnalysisResult:
         if self.price_target:
             msg += f"🎯 Target: ₹{self.price_target:.2f}"
         return msg
-
 
 if __name__ == "__main__":
     r = AnalysisResult(symbol="RELIANCE", decision="BUY", score=82.5, risk_level="MED",

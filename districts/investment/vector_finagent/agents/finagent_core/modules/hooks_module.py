@@ -40,7 +40,7 @@ class Hook:
 
     def execute(self, data: Any, context: Dict[str, Any] = None) -> HookResult:
         """Execute the hook."""
-        raise NotImplementedError
+        raise RuntimeError("Hook.execute must be implemented by a concrete hook")
 
     def __call__(self, data: Any, context: Dict[str, Any] = None) -> HookResult:
         """Call the hook."""

@@ -1,18 +1,16 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import uuid
 import asyncio
 import datetime
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
-
 
 class DeadlineManager(AgentBase):
     """
@@ -253,7 +251,6 @@ class DeadlineManager(AgentBase):
         logger.info(f"[VECTOR][deadline] Schedule context built — window={energy_window}")
         return result
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         events = self.get_upcoming_events(p.get("hours", 24))
@@ -276,7 +273,6 @@ class DeadlineManager(AgentBase):
                     break
                 await asyncio.sleep(1)
         logger.warning("[VECTOR][deadline_manager] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

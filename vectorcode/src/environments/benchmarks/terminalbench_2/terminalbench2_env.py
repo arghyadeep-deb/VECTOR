@@ -38,8 +38,6 @@ import io
 import json
 import logging
 import os
-import shutil
-import sys
 import tarfile
 import tempfile
 import time
@@ -48,10 +46,8 @@ from collections import defaultdict
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Ensure repo root is on sys.path for imports
-_repo_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from pydantic import Field
 

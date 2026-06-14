@@ -16,6 +16,8 @@ try:
 except ImportError:
     pass
 
+_repo_root = str(Path(__file__).resolve().parent.parent)
 _vc_src = str(Path(__file__).resolve().parent / "src")
-if _vc_src not in sys.path:
-    sys.path.insert(0, _vc_src)
+for _path in (_repo_root, _vc_src):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)

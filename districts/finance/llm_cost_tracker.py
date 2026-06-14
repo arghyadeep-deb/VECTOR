@@ -6,13 +6,11 @@ Tracks per-district token consumption, costs by provider, budget alerts.
 Plugs into vectorcode_llm's session usage accumulator.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -31,7 +29,6 @@ _PRICING = {
     "claude-sonnet-4-6":  {"input": 3.0,    "output": 15.0},
     "claude-opus-4-7":    {"input": 15.0,   "output": 75.0},
 }
-
 
 class LLMCostTracker(AgentBase):
     """
@@ -189,7 +186,6 @@ class LLMCostTracker(AgentBase):
             logger.error("[VECTOR][cost_tracker] {}", e)
             self.deduct_points(20, "cost_tracking_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

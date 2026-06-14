@@ -6,6 +6,7 @@ BFS path-finding. Influence scoring.
 """
 import json
 import sqlite3
+import threading
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,7 @@ class CausalGraph:
         # callers without a path continue to use the shared episodic SQLite DB.
         self._json_path = str(json_path) if json_path else None
         self._local_conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
         self._nodes: dict[str, dict] = {}
         self._edges: list[dict] = []
         self._adj: dict[str, list[str]] = defaultdict(list)
@@ -42,22 +44,25 @@ class CausalGraph:
 
     def _conn(self):
         if self._json_path:
-            if self._local_conn is None:
-                namespace = quote(str(Path(self._json_path).resolve()), safe="")
-                self._local_conn = sqlite3.connect(
-                    f"file:vector_causal_graph_{namespace}?mode=memory&cache=shared",
-                    uri=True,
-                    check_same_thread=False,
-                )
+            with self._lock:
+                if self._local_conn is None:
+                    namespace = quote(str(Path(self._json_path).resolve()), safe="")
+                    self._local_conn = sqlite3.connect(
+                        f"file:vector_causal_graph_{namespace}?mode=memory&cache=shared",
+                        uri=True,
+                        check_same_thread=False,
+                    )
+                    self._local_conn.execute("PRAGMA busy_timeout=5000")
             return self._local_conn
         from core.memory.episodic import get_db_connection
         return get_db_connection()
 
     def _init_db(self):
         try:
-            conn = self._conn()
-            with conn:
-                conn.execute("""
+            with self._lock:
+                conn = self._conn()
+                with conn:
+                    conn.execute("""
                     CREATE TABLE IF NOT EXISTS causal_nodes (
                         id       TEXT PRIMARY KEY,
                         type     TEXT NOT NULL,
@@ -67,7 +72,7 @@ class CausalGraph:
                         weight   REAL DEFAULT 0.0
                     )
                 """)
-                conn.execute("""
+                    conn.execute("""
                     CREATE TABLE IF NOT EXISTS causal_edges (
                         from_id    TEXT NOT NULL,
                         to_id      TEXT NOT NULL,
@@ -82,23 +87,24 @@ class CausalGraph:
 
     def _load(self):
         try:
-            conn = self._conn()
-            cursor = conn.execute("SELECT id, type, label, metadata, created_at, weight FROM causal_nodes")
-            for row in cursor.fetchall():
-                node_id, ntype, label, metadata_json, created_at, weight = row
-                self._nodes[node_id] = {
-                    "id": node_id, "type": ntype, "label": label,
-                    "metadata": json.loads(metadata_json or "{}"),
-                    "created_at": created_at, "weight": weight,
-                }
-            cursor = conn.execute("SELECT from_id, to_id, strength, label, created_at FROM causal_edges")
-            for row in cursor.fetchall():
-                from_id, to_id, strength, label, created_at = row
-                self._edges.append({
-                    "from": from_id, "to": to_id,
-                    "strength": strength, "label": label, "created_at": created_at,
-                })
-            self._rebuild_adj()
+            with self._lock:
+                conn = self._conn()
+                cursor = conn.execute("SELECT id, type, label, metadata, created_at, weight FROM causal_nodes")
+                for row in cursor.fetchall():
+                    node_id, ntype, label, metadata_json, created_at, weight = row
+                    self._nodes[node_id] = {
+                        "id": node_id, "type": ntype, "label": label,
+                        "metadata": json.loads(metadata_json or "{}"),
+                        "created_at": created_at, "weight": weight,
+                    }
+                cursor = conn.execute("SELECT from_id, to_id, strength, label, created_at FROM causal_edges")
+                for row in cursor.fetchall():
+                    from_id, to_id, strength, label, created_at = row
+                    self._edges.append({
+                        "from": from_id, "to": to_id,
+                        "strength": strength, "label": label, "created_at": created_at,
+                    })
+                self._rebuild_adj()
             logger.info("[VECTOR][causal_graph] Loaded {} nodes, {} edges",
                         len(self._nodes), len(self._edges))
         except Exception as e:
@@ -130,9 +136,10 @@ class CausalGraph:
 
     def _upsert_node_db(self, node: dict):
         try:
-            conn = self._conn()
-            with conn:
-                conn.execute(
+            with self._lock:
+                conn = self._conn()
+                with conn:
+                    conn.execute(
                     "INSERT OR REPLACE INTO causal_nodes (id, type, label, metadata, created_at, weight) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
                     (node["id"], node["type"], node["label"],
@@ -144,18 +151,20 @@ class CausalGraph:
 
     def _delete_node_db(self, node_id: str):
         try:
-            conn = self._conn()
-            with conn:
-                conn.execute("DELETE FROM causal_nodes WHERE id = ?", (node_id,))
-                conn.execute("DELETE FROM causal_edges WHERE from_id = ? OR to_id = ?", (node_id, node_id))
+            with self._lock:
+                conn = self._conn()
+                with conn:
+                    conn.execute("DELETE FROM causal_nodes WHERE id = ?", (node_id,))
+                    conn.execute("DELETE FROM causal_edges WHERE from_id = ? OR to_id = ?", (node_id, node_id))
         except Exception as e:
             logger.warning("[VECTOR][causal_graph] Node DB delete failed: {}", e)
 
     def _insert_edge_db(self, edge: dict):
         try:
-            conn = self._conn()
-            with conn:
-                conn.execute(
+            with self._lock:
+                conn = self._conn()
+                with conn:
+                    conn.execute(
                     "INSERT OR REPLACE INTO causal_edges (from_id, to_id, strength, label, created_at) "
                     "VALUES (?, ?, ?, ?, ?)",
                     (edge["from"], edge["to"], edge["strength"],
@@ -166,9 +175,10 @@ class CausalGraph:
 
     def _update_edge_strength_db(self, from_id: str, to_id: str, strength: float):
         try:
-            conn = self._conn()
-            with conn:
-                conn.execute(
+            with self._lock:
+                conn = self._conn()
+                with conn:
+                    conn.execute(
                     "UPDATE causal_edges SET strength = ? WHERE from_id = ? AND to_id = ?",
                     (strength, from_id, to_id),
                 )
@@ -192,18 +202,20 @@ class CausalGraph:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "weight": 0.0,
         }
-        self._nodes[node_id] = node
-        self._upsert_node_db(node)
+        with self._lock:
+            self._nodes[node_id] = node
+            self._upsert_node_db(node)
         logger.info("[VECTOR][causal_graph] Node added: {} ({})", node_id, node_type)
         return node
 
     def remove_node(self, node_id: str) -> bool:
-        if node_id not in self._nodes:
-            return False
-        del self._nodes[node_id]
-        self._edges = [e for e in self._edges if e["from"] != node_id and e["to"] != node_id]
-        self._rebuild_adj()
-        self._delete_node_db(node_id)
+        with self._lock:
+            if node_id not in self._nodes:
+                return False
+            del self._nodes[node_id]
+            self._edges = [e for e in self._edges if e["from"] != node_id and e["to"] != node_id]
+            self._rebuild_adj()
+            self._delete_node_db(node_id)
         logger.info("[VECTOR][causal_graph] Node removed: {}", node_id)
         return True
 
@@ -225,10 +237,11 @@ class CausalGraph:
             "strength": strength, "label": label,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        self._edges.append(edge)
-        self._adj[from_id].append(to_id)
-        self._radj[to_id].append(from_id)
-        self._insert_edge_db(edge)
+        with self._lock:
+            self._edges.append(edge)
+            self._adj[from_id].append(to_id)
+            self._radj[to_id].append(from_id)
+            self._insert_edge_db(edge)
         logger.info("[VECTOR][causal_graph] Edge: {} → {} (strength={:.2f})", from_id, to_id, strength)
         return edge
 
@@ -237,14 +250,15 @@ class CausalGraph:
 
     def update_edge_strength(self, from_id: str, to_id: str, new_strength: float) -> bool:
         updated = False
-        for edge in self._edges:
-            if edge["from"] == from_id and edge["to"] == to_id:
-                edge["strength"] = max(0.0, min(1.0, new_strength))
-                updated = True
-                logger.info("[VECTOR][causal_graph] Edge strength: {}→{}={:.2f}",
-                            from_id, to_id, new_strength)
-        if updated:
-            self._update_edge_strength_db(from_id, to_id, max(0.0, min(1.0, new_strength)))
+        with self._lock:
+            for edge in self._edges:
+                if edge["from"] == from_id and edge["to"] == to_id:
+                    edge["strength"] = max(0.0, min(1.0, new_strength))
+                    updated = True
+                    logger.info("[VECTOR][causal_graph] Edge strength: {}→{}={:.2f}",
+                                from_id, to_id, new_strength)
+            if updated:
+                self._update_edge_strength_db(from_id, to_id, max(0.0, min(1.0, new_strength)))
         return updated
 
     # ── Traversal ───────────────────────────────────────────────────────────

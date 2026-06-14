@@ -145,14 +145,11 @@ def start_slack_daemon(
         [
             sys.executable,
             "-m",
-            "vector.channels.slack_daemon",
-            "--bot-token",
-            bot_token,
-            "--app-token",
-            app_token,
+            "vectorcode.src.comms.slack_daemon",
             "--model",
             model,
         ],
+        env={**os.environ, "SLACK_BOT_TOKEN": bot_token, "SLACK_APP_TOKEN": app_token},
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
@@ -195,13 +192,19 @@ if __name__ == "__main__":
     )
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bot-token", required=True)
-    parser.add_argument("--app-token", required=True)
     parser.add_argument("--model", default="qwen3.5:9b")
     args = parser.parse_args()
 
+    bot_token = os.environ.get("SLACK_BOT_TOKEN", "")
+    app_token = os.environ.get("SLACK_APP_TOKEN", "")
+    if not bot_token or not app_token:
+        raise SystemExit(
+            "Slack tokens must be supplied via SLACK_BOT_TOKEN and SLACK_APP_TOKEN environment variables. "
+            "CLI args are no longer accepted to avoid token exposure in process listings."
+        )
+
     run_slack_daemon(
-        bot_token=args.bot_token,
-        app_token=args.app_token,
+        bot_token=bot_token,
+        app_token=app_token,
         model=args.model,
     )

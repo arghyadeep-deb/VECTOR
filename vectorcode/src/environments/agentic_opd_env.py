@@ -67,18 +67,14 @@ import logging
 import os
 import random
 import re
-import sys
 import time
 import uuid
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from pydantic import Field
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
-# Ensure vectorcode root is on path
-_repo_root = Path(__file__).resolve().parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+from pydantic import Field
 
 from atroposlib.envs.base import ScoredDataGroup, ScoredDataItem
 from atroposlib.envs.server_handling.server_manager import APIServerConfig

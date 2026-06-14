@@ -132,7 +132,7 @@ class IndicatorBase:
         return self.is_ready
 
     def _compute(self, value: float) -> float:
-        raise NotImplementedError
+        raise RuntimeError("IndicatorBase._compute must be implemented by a concrete indicator")
 
     def reset(self):
         self._samples = 0

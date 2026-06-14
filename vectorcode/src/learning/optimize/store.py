@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -95,21 +96,25 @@ class OptimizationStore:
 
     def __init__(self, db_path: Union[str, Path]) -> None:
         self._db_path = str(db_path)
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(_CREATE_RUNS)
-        self._conn.execute(_CREATE_TRIALS)
-        self._conn.commit()
+        self._conn.execute("PRAGMA busy_timeout=5000")
+        with self._lock:
+            self._conn.execute(_CREATE_RUNS)
+            self._conn.execute(_CREATE_TRIALS)
+            self._conn.commit()
         self._migrate()
 
     def _migrate(self) -> None:
         """Add new columns to existing databases gracefully."""
-        for stmt in _MIGRATE_TRIALS + _MIGRATE_RUNS:
-            try:
-                self._conn.execute(stmt)
-            except sqlite3.OperationalError:
-                pass  # Column already exists — safe to ignore
-        self._conn.commit()
+        with self._lock:
+            for stmt in _MIGRATE_TRIALS + _MIGRATE_RUNS:
+                try:
+                    self._conn.execute(stmt)
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Runs
@@ -121,45 +126,48 @@ class OptimizationStore:
         search_space_json = self._search_space_to_json(run.search_space)
         best_trial_id = run.best_trial.trial_id if run.best_trial else None
         pareto_ids = json.dumps([t.trial_id for t in run.pareto_frontier])
-        self._conn.execute(
-            _INSERT_RUN,
-            (
-                run.run_id,
-                search_space_json,
-                run.status,
-                run.optimizer_model,
-                run.benchmark,
-                best_trial_id,
-                run.best_recipe_path,
-                now,
-                now,
-            ),
-        )
-        benchmarks_json = json.dumps(run.benchmarks)
-        # Update pareto_frontier_ids and benchmarks separately
-        self._conn.execute(
-            "UPDATE optimization_runs SET pareto_frontier_ids = ?, "
-            "benchmarks = ? WHERE run_id = ?",
-            (pareto_ids, benchmarks_json, run.run_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                _INSERT_RUN,
+                (
+                    run.run_id,
+                    search_space_json,
+                    run.status,
+                    run.optimizer_model,
+                    run.benchmark,
+                    best_trial_id,
+                    run.best_recipe_path,
+                    now,
+                    now,
+                ),
+            )
+            benchmarks_json = json.dumps(run.benchmarks)
+            # Update pareto_frontier_ids and benchmarks separately
+            self._conn.execute(
+                "UPDATE optimization_runs SET pareto_frontier_ids = ?, "
+                "benchmarks = ? WHERE run_id = ?",
+                (pareto_ids, benchmarks_json, run.run_id),
+            )
+            self._conn.commit()
 
     def get_run(self, run_id: str) -> Optional[OptimizationRun]:
         """Retrieve an optimization run by id, or ``None``."""
-        row = self._conn.execute(
-            "SELECT * FROM optimization_runs WHERE run_id = ?",
-            (run_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM optimization_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_run(row)
 
     def list_runs(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Return summary dicts of recent optimization runs."""
-        rows = self._conn.execute(
-            "SELECT * FROM optimization_runs ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM optimization_runs ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         result: List[Dict[str, Any]] = []
         for row in rows:
             result.append(
@@ -227,24 +235,6 @@ class OptimizationStore:
             else "{}"
         )
 
-        self._conn.execute(
-            _INSERT_TRIAL,
-            (
-                trial.trial_id,
-                run_id,
-                json.dumps(trial.config.params),
-                trial.config.reasoning,
-                trial.accuracy,
-                trial.mean_latency_seconds,
-                trial.total_cost_usd,
-                trial.total_energy_joules,
-                trial.total_tokens,
-                trial.samples_evaluated,
-                trial.analysis,
-                json.dumps(trial.failure_modes),
-                now,
-            ),
-        )
         # Serialize per_benchmark
         pb_json = json.dumps(
             [
@@ -264,20 +254,40 @@ class OptimizationStore:
         )
 
         # Update new columns separately
-        self._conn.execute(
-            "UPDATE trial_results SET sample_scores = ?, "
-            "structured_feedback = ?, per_benchmark = ? "
-            "WHERE trial_id = ? AND run_id = ?",
-            (scores_json, fb_json, pb_json, trial.trial_id, run_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                _INSERT_TRIAL,
+                (
+                    trial.trial_id,
+                    run_id,
+                    json.dumps(trial.config.params),
+                    trial.config.reasoning,
+                    trial.accuracy,
+                    trial.mean_latency_seconds,
+                    trial.total_cost_usd,
+                    trial.total_energy_joules,
+                    trial.total_tokens,
+                    trial.samples_evaluated,
+                    trial.analysis,
+                    json.dumps(trial.failure_modes),
+                    now,
+                ),
+            )
+            self._conn.execute(
+                "UPDATE trial_results SET sample_scores = ?, "
+                "structured_feedback = ?, per_benchmark = ? "
+                "WHERE trial_id = ? AND run_id = ?",
+                (scores_json, fb_json, pb_json, trial.trial_id, run_id),
+            )
+            self._conn.commit()
 
     def get_trials(self, run_id: str) -> List[TrialResult]:
         """Retrieve all trial results for a given run."""
-        rows = self._conn.execute(
-            "SELECT * FROM trial_results WHERE run_id = ? ORDER BY id",
-            (run_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM trial_results WHERE run_id = ? ORDER BY id",
+                (run_id,),
+            ).fetchall()
         return [self._row_to_trial(r) for r in rows]
 
     # ------------------------------------------------------------------
@@ -286,7 +296,8 @@ class OptimizationStore:
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # ------------------------------------------------------------------
     # Internal helpers

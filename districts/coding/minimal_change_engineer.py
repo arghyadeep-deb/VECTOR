@@ -5,22 +5,20 @@ Reads files, identifies the smallest change that satisfies the requirement,
 flags scope creep, refuses to expand beyond task scope.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import re
 import ast
 import datetime
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 # Keywords that indicate a change has grown beyond the original task scope
 _SCOPE_EXPANSION_SIGNALS = [
@@ -37,17 +35,14 @@ _SCOPE_RISK_THRESHOLDS = {
     "critical": (200, float("inf")),
 }
 
-
 def _count_lines(source: str) -> int:
     return len([ln for ln in source.splitlines() if ln.strip()])
-
 
 def _classify_scope_risk(n_lines: int) -> str:
     for label, (lo, hi) in _SCOPE_RISK_THRESHOLDS.items():
         if lo <= n_lines < hi:
             return label
     return "critical"
-
 
 class MinimalChangeEngineer(AgentBase):
     """Enforces minimum-viable diffs — smallest change that satisfies the task."""
@@ -394,7 +389,6 @@ class MinimalChangeEngineer(AgentBase):
             logger.error(f"[VECTOR][minimal_change_engineer] run error: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

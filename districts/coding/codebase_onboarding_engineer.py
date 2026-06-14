@@ -5,22 +5,20 @@ Reads source code, traces execution paths, maps architecture, produces
 onboarding documents. Only states facts grounded in code.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import ast
 import datetime
 import re
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 # Extensions considered as "source" files (not docs/assets)
 _SOURCE_EXTS = {".py", ".ts", ".js", ".go", ".rs", ".java", ".c", ".cpp", ".h"}
@@ -35,7 +33,6 @@ _ENTRY_POINTS = [
 # Max files to trace in an import chain before stopping (avoid infinite loops)
 _MAX_TRACE_DEPTH = 20
 
-
 def _find_readme(repo_path: Path) -> str:
     """Return first 500 chars of README if it exists, else empty string."""
     for name in ("README.md", "README.rst", "README.txt", "README"):
@@ -47,13 +44,11 @@ def _find_readme(repo_path: Path) -> str:
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return ""
 
-
 def _count_py_files(repo_path: Path) -> int:
     try:
         return sum(1 for _ in repo_path.rglob("*.py") if ".venv" not in str(_) and "__pycache__" not in str(_))
     except Exception:
         return 0
-
 
 class CodebaseOnboardingEngineer(AgentBase):
     """Maps unfamiliar repos — architecture scan, import tracing, onboarding docs."""
@@ -359,7 +354,6 @@ class CodebaseOnboardingEngineer(AgentBase):
             logger.error(f"[VECTOR][onboarding] run error: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

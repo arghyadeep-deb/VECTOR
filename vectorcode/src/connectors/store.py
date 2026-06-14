@@ -17,6 +17,7 @@ from loguru import logger
 
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -131,7 +132,9 @@ class KnowledgeStore(MemoryBackend):
 
             secure_create(Path(self._db_path))
 
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._conn.execute("PRAGMA busy_timeout=5000;")
         self._conn.row_factory = sqlite3.Row
         self._setup()
 
@@ -147,12 +150,13 @@ class KnowledgeStore(MemoryBackend):
 
     def _setup(self) -> None:
         """Create tables, FTS virtual table, triggers and indexes."""
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute("PRAGMA foreign_keys=ON;")
-        self._conn.executescript(
-            _CREATE_MAIN_TABLE + _CREATE_FTS_TABLE + _CREATE_TRIGGERS + _CREATE_INDEXES
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("PRAGMA journal_mode=WAL;")
+            self._conn.execute("PRAGMA foreign_keys=ON;")
+            self._conn.executescript(
+                _CREATE_MAIN_TABLE + _CREATE_FTS_TABLE + _CREATE_TRIGGERS + _CREATE_INDEXES
+            )
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # MemoryBackend interface
@@ -202,32 +206,33 @@ class KnowledgeStore(MemoryBackend):
 
         meta_json = json.dumps(combined_meta)
 
-        self._conn.execute(
-            """
-            INSERT INTO knowledge_chunks
-                (id, doc_id, content, source, doc_type, title, author,
-                 participants, timestamp, thread_id, url, metadata,
-                 chunk_index, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                chunk_id,
-                doc_id,
-                content,
-                source,
-                doc_type,
-                title,
-                author,
-                participants_json,
-                ts_str,
-                thread_id or "",
-                url or "",
-                meta_json,
-                chunk_index,
-                time.time(),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO knowledge_chunks
+                    (id, doc_id, content, source, doc_type, title, author,
+                     participants, timestamp, thread_id, url, metadata,
+                     chunk_index, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    chunk_id,
+                    doc_id,
+                    content,
+                    source,
+                    doc_type,
+                    title,
+                    author,
+                    participants_json,
+                    ts_str,
+                    thread_id or "",
+                    url or "",
+                    meta_json,
+                    chunk_index,
+                    time.time(),
+                ),
+            )
+            self._conn.commit()
 
         get_event_bus().publish(
             EventType.MEMORY_STORE,
@@ -312,7 +317,8 @@ class KnowledgeStore(MemoryBackend):
         """
 
         try:
-            rows = self._conn.execute(sql, [query] + params + [top_k]).fetchall()
+            with self._lock:
+                rows = self._conn.execute(sql, [query] + params + [top_k]).fetchall()
         except sqlite3.OperationalError:
             # Malformed FTS query — return empty rather than crash
             return []
@@ -352,18 +358,20 @@ class KnowledgeStore(MemoryBackend):
 
     def delete(self, doc_id: str) -> bool:
         """Delete all chunks with the given *doc_id*. Returns True if any existed."""
-        cur = self._conn.execute(
-            "DELETE FROM knowledge_chunks WHERE doc_id = ?", (doc_id,)
-        )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.execute(
+                "DELETE FROM knowledge_chunks WHERE doc_id = ?", (doc_id,)
+            )
+            self._conn.commit()
         return cur.rowcount > 0
 
     def clear(self) -> None:
         """Remove all stored chunks."""
-        self._conn.executescript(
-            "DELETE FROM knowledge_chunks; DELETE FROM knowledge_fts;"
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.executescript(
+                "DELETE FROM knowledge_chunks; DELETE FROM knowledge_fts;"
+            )
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Extra helpers
@@ -371,13 +379,15 @@ class KnowledgeStore(MemoryBackend):
 
     def count(self) -> int:
         """Return the total number of stored chunks."""
-        row = self._conn.execute("SELECT COUNT(*) FROM knowledge_chunks").fetchone()
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) FROM knowledge_chunks").fetchone()
         return row[0] if row else 0
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
         except Exception as _sve:
             logger.debug("[VECTOR][connectors.store] suppressed Exception: %s", _sve)
 

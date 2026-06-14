@@ -13,7 +13,10 @@ CONFIG: dict = {
     "env": os.environ.get("VECTOR_ENV", "production"),
     "allowed_origins": [
         o.strip()
-        for o in os.environ.get("VECTOR_ALLOWED_ORIGINS", "*").split(",")
+        for o in os.environ.get(
+            "VECTOR_ALLOWED_ORIGINS",
+            "http://localhost:8000,http://127.0.0.1:8000",
+        ).split(",")
         if o.strip()
     ],
 }

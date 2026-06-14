@@ -5,15 +5,13 @@ Helps Arghyadeep's agency find clients for AI/ML/Backend projects.
 Combines outbound-strategist + sales-coach + pipeline-analyst from agency-agents.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -28,7 +26,6 @@ _ICP = {
     "pain_points": ["need AI features fast", "no in-house ML team", "want local LLM integration"],
     "offer": "Python AI/ML development, FastAPI backends, LangChain/LangGraph agents, autonomous AI systems",
 }
-
 
 class SalesStrategist(AgentBase):
     """
@@ -176,7 +173,6 @@ class SalesStrategist(AgentBase):
             logger.error("[VECTOR][sales] {}", e)
             self.deduct_points(30, "sales_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

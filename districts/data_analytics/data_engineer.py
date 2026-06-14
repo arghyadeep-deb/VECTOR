@@ -1,23 +1,20 @@
-
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 class DataEngineer(AgentBase):
     """
@@ -55,6 +52,7 @@ class DataEngineer(AgentBase):
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("coder", "vector-coder")
+        self._db_lock = threading.RLock()
         logger.info(f"[VECTOR][data_engineer] initialized gen={generation} db={self.VECTOR_DB_PATH}")
 
     def _get_memory(self) -> EpisodicMemory:
@@ -70,6 +68,7 @@ class DataEngineer(AgentBase):
         try:
             conn = sqlite3.connect(str(self.VECTOR_DB_PATH), check_same_thread=False)
             conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
             conn.row_factory = sqlite3.Row
             return conn
         except Exception as e:
@@ -112,84 +111,85 @@ class DataEngineer(AgentBase):
             }
 
         issues: list[str] = []
-        try:
-            # Check WAL mode
-            row = conn.execute("PRAGMA journal_mode").fetchone()
-            wal_mode = row and row[0].lower() == "wal"
+        with self._db_lock:
+            try:
+                # Check WAL mode
+                row = conn.execute("PRAGMA journal_mode").fetchone()
+                wal_mode = row and row[0].lower() == "wal"
 
-            all_tables = self.BRONZE_TABLES + self.SILVER_TABLES
-            existing_tables = {
-                row[0] for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
-            }
+                all_tables = self.BRONZE_TABLES + self.SILVER_TABLES
+                existing_tables = {
+                    row[0] for row in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
 
-            for table in all_tables:
-                if table not in existing_tables:
-                    table_stats[table] = {
-                        "rows": 0,
-                        "nulls_pct": 0.0,
-                        "last_updated": None,
-                        "exists": False,
-                    }
-                    health_score -= 10
-                    issues.append(f"Table '{table}' does not exist")
-                    continue
+                for table in all_tables:
+                    if table not in existing_tables:
+                        table_stats[table] = {
+                            "rows": 0,
+                            "nulls_pct": 0.0,
+                            "last_updated": None,
+                            "exists": False,
+                        }
+                        health_score -= 10
+                        issues.append(f"Table '{table}' does not exist")
+                        continue
 
-                try:
-                    count_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
-                    row_count = count_row[0] if count_row else 0
+                    try:
+                        count_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
+                        row_count = count_row[0] if count_row else 0
 
-                    # Detect NULL-heavy columns (>50% nulls = warning)
-                    cols = [c[1] for c in conn.execute(f"PRAGMA table_info({table})").fetchall()]  # noqa: S608
-                    nulls_pct = 0.0
-                    if row_count > 0 and cols:
-                        null_fractions = []
-                        for col in cols:
+                        # Detect NULL-heavy columns (>50% nulls = warning)
+                        cols = [c[1] for c in conn.execute(f"PRAGMA table_info({table})").fetchall()]  # noqa: S608
+                        nulls_pct = 0.0
+                        if row_count > 0 and cols:
+                            null_fractions = []
+                            for col in cols:
+                                try:
+                                    null_count_row = conn.execute(
+                                        f"SELECT COUNT(*) FROM {table} WHERE {col} IS NULL"  # noqa: S608
+                                    ).fetchone()
+                                    null_count = null_count_row[0] if null_count_row else 0
+                                    null_fractions.append(null_count / row_count)
+                                except Exception:
+                                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                            if null_fractions:
+                                nulls_pct = round(sum(null_fractions) / len(null_fractions) * 100, 1)
+                            if nulls_pct > 50:
+                                health_score -= 5
+                                issues.append(f"Table '{table}' has {nulls_pct}% NULL values (high)")
+
+                        # Last updated
+                        last_updated = None
+                        ts_cols = [c for c in cols if "timestamp" in c.lower() or "updated" in c.lower()]
+                        if ts_cols and row_count > 0:
                             try:
-                                null_count_row = conn.execute(
-                                    f"SELECT COUNT(*) FROM {table} WHERE {col} IS NULL"  # noqa: S608
+                                lu_row = conn.execute(
+                                    f"SELECT MAX({ts_cols[0]}) FROM {table}"  # noqa: S608
                                 ).fetchone()
-                                null_count = null_count_row[0] if null_count_row else 0
-                                null_fractions.append(null_count / row_count)
+                                last_updated = lu_row[0] if lu_row else None
                             except Exception:
                                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
-                        if null_fractions:
-                            nulls_pct = round(sum(null_fractions) / len(null_fractions) * 100, 1)
-                        if nulls_pct > 50:
+
+                        table_stats[table] = {
+                            "rows": row_count,
+                            "nulls_pct": nulls_pct,
+                            "last_updated": last_updated,
+                            "exists": True,
+                            "columns": len(cols),
+                        }
+
+                        if row_count == 0 and table in self.BRONZE_TABLES:
                             health_score -= 5
-                            issues.append(f"Table '{table}' has {nulls_pct}% NULL values (high)")
+                            issues.append(f"Bronze table '{table}' is empty")
 
-                    # Last updated — look for timestamp/updated_at/last_updated column
-                    last_updated = None
-                    ts_cols = [c for c in cols if "timestamp" in c.lower() or "updated" in c.lower()]
-                    if ts_cols and row_count > 0:
-                        try:
-                            lu_row = conn.execute(
-                                f"SELECT MAX({ts_cols[0]}) FROM {table}"  # noqa: S608
-                            ).fetchone()
-                            last_updated = lu_row[0] if lu_row else None
-                        except Exception:
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-
-                    table_stats[table] = {
-                        "rows": row_count,
-                        "nulls_pct": nulls_pct,
-                        "last_updated": last_updated,
-                        "exists": True,
-                        "columns": len(cols),
-                    }
-
-                    if row_count == 0 and table in self.BRONZE_TABLES:
+                    except Exception as e:
+                        table_stats[table] = {"rows": -1, "nulls_pct": 0.0, "last_updated": None, "error": str(e)}
                         health_score -= 5
-                        issues.append(f"Bronze table '{table}' is empty")
 
-                except Exception as e:
-                    table_stats[table] = {"rows": -1, "nulls_pct": 0.0, "last_updated": None, "error": str(e)}
-                    health_score -= 5
-
-        finally:
-            conn.close()
+            finally:
+                conn.close()
 
         health_score = max(0, min(100, health_score))
         logger.info(f"[VECTOR][data_engineer] pipeline health: score={health_score} tables={len(table_stats)}")
@@ -225,68 +225,69 @@ class DataEngineer(AgentBase):
         if conn is None:
             return {"error": "DB unavailable", "processed": 0, "errors": [], "duration_ms": 0}
 
-        try:
-            cols = [c[1] for c in conn.execute(f"PRAGMA table_info({table})").fetchall()]  # noqa: S608
-            text_cols = [
-                c for c in cols
-                if c.lower() not in ("id", "reward", "sample_count", "confidence",
-                                     "is_training_data", "avg_reward")
-            ]
+        with self._db_lock:
+            try:
+                cols = [c[1] for c in conn.execute(f"PRAGMA table_info({table})").fetchall()]  # noqa: S608
+                text_cols = [
+                    c for c in cols
+                    if c.lower() not in ("id", "reward", "sample_count", "confidence",
+                                         "is_training_data", "avg_reward")
+                ]
 
-            rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT 10000").fetchall()  # noqa: S608
-            conn.close()
-            conn = None
+                rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT 10000").fetchall()  # noqa: S608
+                conn.close()
+                conn = None
 
-            result_rows: list[dict] = []
-            seen_contents: set[str] = set()
+            except Exception as e:
+                errors.append(str(e))
+                logger.error(f"[VECTOR][data_engineer] bronze_to_silver error: {e}")
+                if conn:
+                    conn.close()
+                conn = None
+                rows = []
+                cols = []
+                text_cols = []
 
-            for row in rows:
-                row_dict = dict(zip(["rowid"] + cols, row))
-                skip = False
+        result_rows: list[dict] = []
+        seen_contents: set[str] = set()
 
-                for col in text_cols:
-                    val = row_dict.get(col)
-                    if val is None or not isinstance(val, str):
-                        continue
+        for row in rows:
+            row_dict = dict(zip(["rowid"] + cols, row))
+            skip = False
 
-                    if "strip_whitespace" in transformations:
-                        val = val.strip()
+            for col in text_cols:
+                val = row_dict.get(col)
+                if val is None or not isinstance(val, str):
+                    continue
 
-                    if "normalize_timestamps" in transformations:
-                        # Normalize ISO timestamps: remove microseconds and ensure UTC 'Z'
-                        import re as _re
-                        ts_match = _re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})", val)
-                        if ts_match:
-                            val = ts_match.group(1) + "Z"
+                if "strip_whitespace" in transformations:
+                    val = val.strip()
 
-                    row_dict[col] = val
+                if "normalize_timestamps" in transformations:
+                    import re as _re
+                    ts_match = _re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})", val)
+                    if ts_match:
+                        val = ts_match.group(1) + "Z"
 
-                if "deduplicate" in transformations:
-                    # Deduplicate on 'content' column if present
-                    content_key = row_dict.get("content", str(row_dict))
-                    if content_key in seen_contents:
-                        skip = True
-                    else:
-                        seen_contents.add(content_key)
+                row_dict[col] = val
 
-                if not skip:
-                    result_rows.append(row_dict)
-                    processed += 1
+            if "deduplicate" in transformations:
+                content_key = row_dict.get("content", str(row_dict))
+                if content_key in seen_contents:
+                    skip = True
+                else:
+                    seen_contents.add(content_key)
 
-            # Log summary rather than actually writing (Silver tables share the same DB)
-            # In production: write to a Silver schema or separate Silver DB
+            if not skip:
+                result_rows.append(row_dict)
+                processed += 1
+
+        if not errors:
             logger.info(
                 f"[VECTOR][data_engineer] bronze→silver '{table}': "
                 f"input={len(rows)} output={processed} "
                 f"transformations={transformations}"
             )
-
-        except Exception as e:
-            errors.append(str(e))
-            logger.error(f"[VECTOR][data_engineer] bronze_to_silver error: {e}")
-        finally:
-            if conn:
-                conn.close()
 
         duration_ms = round(time.time() * 1000 - start_ms, 1)
         return {
@@ -304,7 +305,6 @@ class DataEngineer(AgentBase):
         """
         conn = self._open_db()
         if conn is None:
-            # Fallback: return known schema from memory schema spec
             return {
                 "table": table,
                 "error": "DB unavailable — returning known schema",
@@ -312,29 +312,29 @@ class DataEngineer(AgentBase):
                 "example_queries": [],
             }
 
-        try:
-            pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
-            if not pragma_rows:
-                conn.close()
-                return {"table": table, "error": f"Table '{table}' not found in DB", "columns": []}
+        with self._db_lock:
+            try:
+                pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
+                if not pragma_rows:
+                    conn.close()
+                    return {"table": table, "error": f"Table '{table}' not found in DB", "columns": []}
 
-            columns: list[dict] = []
-            for row in pragma_rows:
-                # (cid, name, type, notnull, dflt_value, pk)
-                columns.append({
-                    "name": row[1],
-                    "type": row[2] or "TEXT",
-                    "nullable": row[3] == 0,
-                    "default": row[4],
-                    "primary_key": row[5] == 1,
-                })
+                columns: list[dict] = []
+                for row in pragma_rows:
+                    columns.append({
+                        "name": row[1],
+                        "type": row[2] or "TEXT",
+                        "nullable": row[3] == 0,
+                        "default": row[4],
+                        "primary_key": row[5] == 1,
+                    })
 
-            conn.close()
-        except Exception as e:
-            logger.error(f"[VECTOR][data_engineer] generate_contract error: {e}")
-            if conn:
                 conn.close()
-            return {"table": table, "error": str(e), "columns": []}
+            except Exception as e:
+                logger.error(f"[VECTOR][data_engineer] generate_contract error: {e}")
+                if conn:
+                    conn.close()
+                return {"table": table, "error": str(e), "columns": []}
 
         example_queries = [
             f"SELECT * FROM {table} LIMIT 10;",
@@ -371,64 +371,64 @@ class DataEngineer(AgentBase):
         if conn is None:
             return {"table": table, "error": "DB unavailable", "profile": {}}
 
-        try:
-            total_rows_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
-            total_rows = total_rows_row[0] if total_rows_row else 0
+        with self._db_lock:
+            try:
+                total_rows_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
+                total_rows = total_rows_row[0] if total_rows_row else 0
 
-            pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
-            cols = [(row[1], row[2] or "TEXT") for row in pragma_rows]  # (name, type)
+                pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
+                cols = [(row[1], row[2] or "TEXT") for row in pragma_rows]
 
-            if total_rows == 0:
+                if total_rows == 0:
+                    conn.close()
+                    return {
+                        "table": table,
+                        "total_rows": 0,
+                        "sampled_rows": 0,
+                        "profile": {},
+                        "note": "Table is empty",
+                    }
+
+                rows = conn.execute(f"SELECT * FROM {table} LIMIT {limit}").fetchall()  # noqa: S608
                 conn.close()
-                return {
-                    "table": table,
-                    "total_rows": 0,
-                    "sampled_rows": 0,
-                    "profile": {},
-                    "note": "Table is empty",
-                }
+                sampled = len(rows)
 
-            rows = conn.execute(f"SELECT * FROM {table} LIMIT {limit}").fetchall()  # noqa: S608
-            conn.close()
-            sampled = len(rows)
+                profile: dict[str, dict] = {}
+                for i, (col_name, col_type) in enumerate(cols):
+                    col_values = [row[i] for row in rows]
+                    non_null = [v for v in col_values if v is not None]
+                    null_count = sampled - len(non_null)
+                    null_pct = round(null_count / sampled * 100, 1) if sampled > 0 else 0.0
+                    unique_count = len(set(str(v) for v in non_null))
+                    unique_pct = round(unique_count / sampled * 100, 1) if sampled > 0 else 0.0
 
-            profile: dict[str, dict] = {}
-            for i, (col_name, col_type) in enumerate(cols):
-                col_values = [row[i] for row in rows]
-                non_null = [v for v in col_values if v is not None]
-                null_count = sampled - len(non_null)
-                null_pct = round(null_count / sampled * 100, 1) if sampled > 0 else 0.0
-                unique_count = len(set(str(v) for v in non_null))
-                unique_pct = round(unique_count / sampled * 100, 1) if sampled > 0 else 0.0
+                    col_profile: dict = {
+                        "null_pct": null_pct,
+                        "unique_pct": unique_pct,
+                        "unique_count": unique_count,
+                    }
 
-                col_profile: dict = {
-                    "null_pct": null_pct,
-                    "unique_pct": unique_pct,
-                    "unique_count": unique_count,
-                }
+                    is_numeric = any(t in col_type.upper() for t in ("INT", "REAL", "FLOAT", "DOUBLE", "NUM"))
+                    if is_numeric and non_null:
+                        try:
+                            numeric_vals = [float(v) for v in non_null]
+                            col_profile["min"] = min(numeric_vals)
+                            col_profile["max"] = max(numeric_vals)
+                            col_profile["avg"] = round(sum(numeric_vals) / len(numeric_vals), 4)
+                        except (ValueError, TypeError):
+                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    elif non_null:
+                        from collections import Counter
+                        top_vals = Counter(str(v) for v in non_null).most_common(5)
+                        col_profile["top_values"] = [{"value": v, "count": c} for v, c in top_vals]
 
-                is_numeric = any(t in col_type.upper() for t in ("INT", "REAL", "FLOAT", "DOUBLE", "NUM"))
-                if is_numeric and non_null:
-                    try:
-                        numeric_vals = [float(v) for v in non_null]
-                        col_profile["min"] = min(numeric_vals)
-                        col_profile["max"] = max(numeric_vals)
-                        col_profile["avg"] = round(sum(numeric_vals) / len(numeric_vals), 4)
-                    except (ValueError, TypeError):
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
-                elif non_null:
-                    # Top-5 values for text columns
-                    from collections import Counter
-                    top_vals = Counter(str(v) for v in non_null).most_common(5)
-                    col_profile["top_values"] = [{"value": v, "count": c} for v, c in top_vals]
+                    profile[col_name] = col_profile
 
-                profile[col_name] = col_profile
-
-        except Exception as e:
-            logger.error(f"[VECTOR][data_engineer] profile error: {e}")
-            if conn:
-                conn.close()
-            return {"table": table, "error": str(e), "profile": {}}
+            except Exception as e:
+                logger.error(f"[VECTOR][data_engineer] profile error: {e}")
+                if conn:
+                    conn.close()
+                return {"table": table, "error": str(e), "profile": {}}
 
         logger.info(f"[VECTOR][data_engineer] profiled '{table}': {total_rows} rows, {len(cols)} cols")
         return {
@@ -492,7 +492,6 @@ class DataEngineer(AgentBase):
             logger.error("[VECTOR][data_engineer] {}", e)
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

@@ -44,8 +44,10 @@ import json
 import sys
 import traceback
 import uuid
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 

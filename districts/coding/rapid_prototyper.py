@@ -5,19 +5,17 @@ Selects fastest viable tech, generates boilerplate, focuses on validating
 the core assumption in minimum time.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
-
 
 # Stack selection heuristics: keyword → recommended stack
 # Each entry: keyword_signals → {stack, why, estimated_time_hours, tools}
@@ -113,7 +111,6 @@ _DEFAULT_STACK = {
     "tools": ["fastapi", "uvicorn", "sqlite3", "pydantic"],
 }
 
-
 def _match_stack(requirements: str) -> dict:
     """Match requirements text against stack rules, return best match."""
     req_lower = requirements.lower()
@@ -125,7 +122,6 @@ def _match_stack(requirements: str) -> dict:
             best_score = score
             best = stack_info
     return dict(best) if best and best_score > 0 else dict(_DEFAULT_STACK)
-
 
 class RapidPrototyper(AgentBase):
     """Ultra-fast POC development — validates core assumption in minimum time."""
@@ -455,7 +451,6 @@ class RapidPrototyper(AgentBase):
             logger.error(f"[VECTOR][rapid_prototyper] run error: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ---------------------------------------------------------------------------
 # Smoke test

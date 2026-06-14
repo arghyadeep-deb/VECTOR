@@ -9,20 +9,20 @@ SAFETY RULES (all must pass before any real order):
 5. Daily loss cap — total loss limit resets midnight
 6. Max trades/day — hard limit on order count
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import asyncio
 import sqlite3
 from datetime import datetime, timezone, date
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
-
 EXECUTION_DB = Path(__file__).parent.parent.parent / "data" / "execution_ledger.db"
-
 
 def _init_ledger():
     EXECUTION_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -35,7 +35,6 @@ def _init_ledger():
     )""")
     conn.commit()
     conn.close()
-
 
 class ExecutionEngine(AgentBase):
     """
@@ -198,7 +197,10 @@ class ExecutionEngine(AgentBase):
         kite_api_key = os.getenv("ZERODHA_API_KEY")
         if kite_api_key:
             return await self._execute_zerodha(symbol, side, quantity, order_type, price)
-        raise NotImplementedError("No broker configured. Set ZERODHA_API_KEY to enable live trading.")
+        raise RuntimeError(
+            "Live trading is disabled: no broker configured. "
+            "Set ZERODHA_API_KEY and ZERODHA_ACCESS_TOKEN to enable Zerodha execution."
+        )
 
     async def _execute_zerodha(self, symbol: str, side: str, quantity: float,
                                 order_type: str, price: float) -> dict:
@@ -253,7 +255,6 @@ class ExecutionEngine(AgentBase):
         if task == "order_history":
             return {"status": "ok", "orders": self.get_order_history(p.get("limit", 50))}
         return self.get_today_summary()
-
 
 if __name__ == "__main__":
     e = ExecutionEngine()

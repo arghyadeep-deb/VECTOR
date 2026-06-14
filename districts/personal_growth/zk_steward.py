@@ -6,15 +6,13 @@ inserts backlinks, and builds a living Master of Concepts index.
 Based on Niklas Luhmann's Zettelkasten method adapted for AI-assisted knowledge.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import re
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -22,7 +20,6 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.inference.vectorcode_llm import chat
-
 
 class ZKSteward(AgentBase):
     """
@@ -301,7 +298,6 @@ class ZKSteward(AgentBase):
             logger.error("[VECTOR][zk_steward] run failed: {}", e)
             self.deduct_points(30, "zk_scan_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

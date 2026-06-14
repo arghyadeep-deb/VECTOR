@@ -5,11 +5,10 @@ District: karpathy_lab | Focus: Training run tracking and reporting
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
-import sys
-from pathlib import Path
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
@@ -17,7 +16,6 @@ from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
 import uuid, asyncio, json, datetime, sqlite3
 from typing import Optional
-
 
 class ProgressTracker(AgentBase):
     def __init__(self):
@@ -243,12 +241,10 @@ class ProgressTracker(AgentBase):
         logger.info(f"[VECTOR][karpathy_lab] Report generated for '{run_name}'")
         return report
 
-
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         result = self.generate_report(p.get("run_name", "default"))
         return {"status": "ok", **result}
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

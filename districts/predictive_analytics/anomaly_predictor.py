@@ -1,17 +1,14 @@
 
-
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 import numpy as np
 
-from loguru import logger
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
+from loguru import logger
 
 class AnomalyType(Enum):
     VALUE_OUT_OF_RANGE = "value_out_of_range"
@@ -19,7 +16,6 @@ class AnomalyType(Enum):
     RATE_ACCELERATION = "rate_acceleration"
     COMPOUND_ANOMALY = "compound_anomaly"
     MISSING_EXPECTED = "missing_expected"
-
 
 @dataclass
 class MetricAnomaly:
@@ -33,13 +29,11 @@ class MetricAnomaly:
     cause: str = ""
     resolved: bool = False
 
-
 ANOMALY_CONFIG = {
     "confidence_ci_threshold": 95,
     "trend_points": 5,
     "rate_acceleration_factor": 2.0,
 }
-
 
 class AnomalyPredictor:
     def __init__(self, zscore_threshold: float = 2.5, ma_window: int = 7):
@@ -308,7 +302,6 @@ class AnomalyPredictor:
             logger.info(f"[VECTOR][predictive_analytics] Pushover alert sent for {anomaly.metric_name}")
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Pushover alert failed: {e}")
-
 
 if __name__ == "__main__":
     ap = AnomalyPredictor()

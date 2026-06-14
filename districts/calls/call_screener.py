@@ -8,6 +8,8 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+_MAX_CALL_HISTORY = 1000
+
 
 class CallScreener(AgentBase):
     """
@@ -151,6 +153,8 @@ class CallScreener(AgentBase):
             "timestamp": result["timestamp"]
         }
         self._call_history.append(call_record)
+        if len(self._call_history) > _MAX_CALL_HISTORY:
+            del self._call_history[:-_MAX_CALL_HISTORY]
 
         logger.info(f"[VECTOR][call_screener] Screened {caller_id}: {result['decision']}")
         return result

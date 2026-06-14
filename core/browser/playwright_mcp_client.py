@@ -2,9 +2,8 @@
 Playwright MCP Client — async bridge to the playwright-mcp sidecar.
 Run sidecar: npx @playwright/mcp@latest --headless --port 8931
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import asyncio
 import json

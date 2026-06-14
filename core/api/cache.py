@@ -2,9 +2,8 @@
 VECTOR API Cache — module-level TTL caches for expensive endpoint responses.
 Reduces DB hits for dashboard polling.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import time
 from typing import Any

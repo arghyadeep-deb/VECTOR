@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -90,7 +91,10 @@ class TelemetryAggregator:
 
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.row_factory = sqlite3.Row
 
     @staticmethod
@@ -114,7 +118,8 @@ class TelemetryAggregator:
     def _safe_col(self, col_name: str) -> bool:
         """Check if a column exists in the telemetry table."""
         try:
-            self._conn.execute(f"SELECT {col_name} FROM telemetry LIMIT 0")
+            with self._lock:
+                self._conn.execute(f"SELECT {col_name} FROM telemetry LIMIT 0")
             return True
         except sqlite3.OperationalError as exc:
             logger.debug("Telemetry aggregator table check failed: %s", exc)
@@ -175,7 +180,8 @@ class TelemetryAggregator:
             f" FROM telemetry{where}"
             " GROUP BY model_id ORDER BY call_count DESC"
         )
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         result = []
         for r in rows:
             ms = ModelStats(
@@ -260,7 +266,8 @@ class TelemetryAggregator:
             f" FROM telemetry{where}"
             " GROUP BY engine ORDER BY call_count DESC"
         )
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         result = []
         for r in rows:
             es = EngineStats(
@@ -375,7 +382,8 @@ class TelemetryAggregator:
             f" FROM telemetry{where}"
             " GROUP BY batch_id ORDER BY total_requests DESC"
         )
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         results: List[Dict[str, Any]] = []
         for r in rows:
             total_tokens = r["total_tokens"] or 0
@@ -401,21 +409,25 @@ class TelemetryAggregator:
     ) -> List[Dict[str, Any]]:
         where, params = self._time_filter(since, until)
         sql = f"SELECT * FROM telemetry{where} ORDER BY timestamp"
-        rows = self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
     def record_count(self) -> int:
-        row = self._conn.execute("SELECT COUNT(*) FROM telemetry").fetchone()
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) FROM telemetry").fetchone()
         return row[0] if row else 0
 
     def clear(self) -> int:
-        count = self.record_count()
-        self._conn.execute("DELETE FROM telemetry")
-        self._conn.commit()
-        return count
+        with self._lock:
+            count = self.record_count()
+            self._conn.execute("DELETE FROM telemetry")
+            self._conn.commit()
+            return count
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
 __all__ = [
     "AggregatedStats",

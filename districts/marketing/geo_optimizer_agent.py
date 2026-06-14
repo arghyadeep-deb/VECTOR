@@ -2,15 +2,15 @@
 GEO Optimizer — measures AI search engine citation score (0-100).
 Tracks how often your brand/content is cited by ChatGPT, Claude, Perplexity, Gemini, AI Overviews.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import asyncio
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 from core.city.agent_base import AgentBase
 from core.config import CONFIG
-
 
 class GEOOptimizerAgent(AgentBase):
     """GEO score agent — AI search citation auditor (0-100)."""
@@ -90,7 +90,6 @@ class GEOOptimizerAgent(AgentBase):
         brand = p.get("brand", CONFIG.get("owner_name", "VECTOR"))
         queries = p.get("queries", ["best AI assistant", "top AI tools 2026"])
         return await self.geo_score(brand, queries)
-
 
 if __name__ == "__main__":
     a = GEOOptimizerAgent()

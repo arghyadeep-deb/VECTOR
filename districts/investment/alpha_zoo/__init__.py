@@ -2,15 +2,15 @@
 Alpha Zoo — 452 quantitative factor definitions from Vibe-Trading.
 Use AlphaZooLoader to discover and load factors.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 ALPHA_ZOO_DIR = Path(__file__).parent
-
 
 class AlphaZooLoader:
     """Loads and catalogs all alpha factors from the zoo."""
@@ -32,7 +32,6 @@ class AlphaZooLoader:
             spec.loader.exec_module(mod)
             return mod
         raise FileNotFoundError(f"Factor not found: {name}")
-
 
 if __name__ == "__main__":
     loader = AlphaZooLoader()

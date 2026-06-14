@@ -1,8 +1,9 @@
 """Trading calendar — holiday-aware market skip logic for NSE/BSE."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from datetime import date, timedelta
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from loguru import logger
 
 # NSE/BSE holidays 2026 (approximate — update annually)
@@ -17,7 +18,6 @@ NSE_HOLIDAYS_2026 = {
     date(2026, 12, 25), # Christmas
 }
 
-
 def is_trading_day(d: date = None, market: str = "NSE") -> bool:
     """Check if given date is a trading day (not weekend, not holiday)."""
     if d is None:
@@ -28,7 +28,6 @@ def is_trading_day(d: date = None, market: str = "NSE") -> bool:
         return False
     return True
 
-
 def next_trading_day(from_date: date = None, market: str = "NSE") -> date:
     """Return the next trading day from given date."""
     d = (from_date or date.today()) + timedelta(days=1)
@@ -36,11 +35,9 @@ def next_trading_day(from_date: date = None, market: str = "NSE") -> date:
         d += timedelta(days=1)
     return d
 
-
 def should_skip_today(market: str = "NSE") -> bool:
     """Return True if today's analysis should be skipped (not a trading day)."""
     return not is_trading_day(market=market)
-
 
 if __name__ == "__main__":
     print("✅ trading_calendar OK")

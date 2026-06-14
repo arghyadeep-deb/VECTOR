@@ -2,9 +2,8 @@
 Semantic cache for VECTOR — deduplicates repeated LLM queries using embedding similarity.
 Reduces Ollama load during observe→think→act loop.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import hashlib
 import json

@@ -6,15 +6,13 @@ clear inputs/outputs, failure modes, and success criteria.
 No map = no execution for complex tasks.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -22,7 +20,6 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.inference.vectorcode_llm import chat
-
 
 _DISTRICT_OWNERS = {
     "code": "coding", "git": "coding", "commit": "coding", "review": "coding",
@@ -43,7 +40,6 @@ _DISTRICT_OWNERS = {
     "news": "news_trends", "trend": "news_trends",
     "startup": "startups", "invest": "investment",
 }
-
 
 class WorkflowArchitect(AgentBase):
     """
@@ -298,7 +294,6 @@ class WorkflowArchitect(AgentBase):
             logger.error("[VECTOR][workflow_architect] run failed: {}", e)
             self.deduct_points(30, "workflow_mapping_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

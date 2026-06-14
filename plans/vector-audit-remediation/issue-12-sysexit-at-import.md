@@ -2,13 +2,13 @@
 
 - **Severity:** CRITICAL · **Category:** Stability
 - **Source (audit):** `nexa_shim.py:31` — kills entire VECTOR process
-- **Status:** ⬜ TODO
+- **Status:** ✅ RESOLVED (2026-06-12)
 
 ## Issue (as reported)
 A module calls `sys.exit(1)` at import time — importing it (e.g. via a registry
 scan) kills the whole VECTOR process.
 
-## Analysis (to complete during analysis pass)
-- Affected files: `vectorcode/src/.../nexa_shim.py`
-- Fix approach: _pending_ (never exit at import; raise a guarded ImportError or no-op + warn)
-- Tests / Acceptance: _pending_ (import the module without process death)
+## Resolution
+- `vectorcode/src/vc_engine/nexa_shim.py` no longer calls `sys.exit(1)` when `nexaai` is missing.
+- The module imports successfully and reports unavailable at request/health time.
+- Regression: `tests/backend/test_audit_followups.py`.

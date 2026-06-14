@@ -5,15 +5,13 @@ and writes Obsidian SLO reports. RULE 11: no Claude API at runtime.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import asyncio
 import datetime
 import time
 import uuid
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -29,7 +27,6 @@ _FLY_STATUS_URL: str = CONFIG.get("fly_status_url", "https://vector-brain.fly.de
 _OLLAMA_HOST: str = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
 # SLO target
 _SLO_TARGET: float = 0.995  # 99.5%
-
 
 class SREMonitor(AgentBase):
     """
@@ -398,7 +395,6 @@ class SREMonitor(AgentBase):
             logger.error(f"[VECTOR][sre_monitor] run failed: {e}")
             self.deduct_points(30, "task_failed")
             return {"status": "error", "error": str(e)}
-
 
 # ── Smoke test ─────────────────────────────────────────────────────────────────
 

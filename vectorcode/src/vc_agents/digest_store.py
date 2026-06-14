@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -30,66 +31,71 @@ class DigestStore:
         if not db_path:
             db_path = str(Path.home() / ".vector" / "digest.db")
         self._db_path = db_path
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS digests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                text TEXT NOT NULL,
-                audio_path TEXT NOT NULL,
-                sections TEXT NOT NULL,
-                sources_used TEXT NOT NULL,
-                generated_at TEXT NOT NULL,
-                model_used TEXT NOT NULL,
-                voice_used TEXT NOT NULL,
-                quality_score REAL NOT NULL DEFAULT 0.0,
-                evaluator_feedback TEXT NOT NULL DEFAULT ''
+        self._conn.execute("PRAGMA busy_timeout=5000")
+        with self._lock:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS digests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text TEXT NOT NULL,
+                    audio_path TEXT NOT NULL,
+                    sections TEXT NOT NULL,
+                    sources_used TEXT NOT NULL,
+                    generated_at TEXT NOT NULL,
+                    model_used TEXT NOT NULL,
+                    voice_used TEXT NOT NULL,
+                    quality_score REAL NOT NULL DEFAULT 0.0,
+                    evaluator_feedback TEXT NOT NULL DEFAULT ''
+                )
+                """
             )
-            """
-        )
-        self._migrate()
-        self._conn.commit()
+            self._migrate()
+            self._conn.commit()
 
     def _migrate(self) -> None:
         """Add columns introduced after the initial schema."""
-        existing = {
-            row[1]
-            for row in self._conn.execute("PRAGMA table_info(digests)").fetchall()
-        }
-        if "quality_score" not in existing:
-            self._conn.execute(
-                "ALTER TABLE digests ADD COLUMN quality_score REAL NOT NULL DEFAULT 0.0"
-            )
-        if "evaluator_feedback" not in existing:
-            self._conn.execute(
-                "ALTER TABLE digests"
-                " ADD COLUMN evaluator_feedback TEXT NOT NULL DEFAULT ''"
-            )
+        with self._lock:
+            existing = {
+                row[1]
+                for row in self._conn.execute("PRAGMA table_info(digests)").fetchall()
+            }
+            if "quality_score" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE digests ADD COLUMN quality_score REAL NOT NULL DEFAULT 0.0"
+                )
+            if "evaluator_feedback" not in existing:
+                self._conn.execute(
+                    "ALTER TABLE digests"
+                    " ADD COLUMN evaluator_feedback TEXT NOT NULL DEFAULT ''"
+                )
 
     def save(self, artifact: DigestArtifact) -> None:
         """Save a digest artifact."""
-        self._conn.execute(
-            """
-            INSERT INTO digests
-                (text, audio_path, sections, sources_used,
-                 generated_at, model_used, voice_used,
-                 quality_score, evaluator_feedback)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                artifact.text,
-                str(artifact.audio_path),
-                json.dumps(artifact.sections),
-                json.dumps(artifact.sources_used),
-                artifact.generated_at.isoformat(),
-                artifact.model_used,
-                artifact.voice_used,
-                artifact.quality_score,
-                artifact.evaluator_feedback,
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO digests
+                    (text, audio_path, sections, sources_used,
+                     generated_at, model_used, voice_used,
+                     quality_score, evaluator_feedback)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    artifact.text,
+                    str(artifact.audio_path),
+                    json.dumps(artifact.sections),
+                    json.dumps(artifact.sources_used),
+                    artifact.generated_at.isoformat(),
+                    artifact.model_used,
+                    artifact.voice_used,
+                    artifact.quality_score,
+                    artifact.evaluator_feedback,
+                ),
+            )
+            self._conn.commit()
 
     def _row_to_artifact(self, row: tuple) -> DigestArtifact:
         return DigestArtifact(
@@ -106,12 +112,13 @@ class DigestStore:
 
     def get_latest(self) -> Optional[DigestArtifact]:
         """Return the most recent digest, or None."""
-        row = self._conn.execute(
-            "SELECT text, audio_path, sections, sources_used,"
-            " generated_at, model_used, voice_used,"
-            " quality_score, evaluator_feedback"
-            " FROM digests ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT text, audio_path, sections, sources_used,"
+                " generated_at, model_used, voice_used,"
+                " quality_score, evaluator_feedback"
+                " FROM digests ORDER BY id DESC LIMIT 1"
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_artifact(row)
@@ -125,27 +132,30 @@ class DigestStore:
         except ImportError:
             today = datetime.now().strftime("%Y-%m-%d")
 
-        row = self._conn.execute(
-            "SELECT text, audio_path, sections, sources_used,"
-            " generated_at, model_used, voice_used,"
-            " quality_score, evaluator_feedback"
-            " FROM digests WHERE generated_at LIKE ? ORDER BY id DESC LIMIT 1",
-            (f"{today}%",),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT text, audio_path, sections, sources_used,"
+                " generated_at, model_used, voice_used,"
+                " quality_score, evaluator_feedback"
+                " FROM digests WHERE generated_at LIKE ? ORDER BY id DESC LIMIT 1",
+                (f"{today}%",),
+            ).fetchone()
         if row is None:
             return None
         return self._row_to_artifact(row)
 
     def history(self, limit: int = 10) -> List[DigestArtifact]:
         """Return the N most recent digests."""
-        rows = self._conn.execute(
-            "SELECT text, audio_path, sections, sources_used,"
-            " generated_at, model_used, voice_used,"
-            " quality_score, evaluator_feedback"
-            " FROM digests ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT text, audio_path, sections, sources_used,"
+                " generated_at, model_used, voice_used,"
+                " quality_score, evaluator_feedback"
+                " FROM digests ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [self._row_to_artifact(r) for r in rows]
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()

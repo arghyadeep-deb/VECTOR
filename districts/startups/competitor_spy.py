@@ -11,6 +11,8 @@ from loguru import logger
 from core.config import CONFIG
 from districts.startups._base import StartupAgentBase
 
+_MAX_COMPETITOR_MOVES = 500
+
 
 class CompetitorSpy(StartupAgentBase):
     def __init__(self):
@@ -54,6 +56,8 @@ Return JSON: {{recent_moves: [{{date: string, move_type: string, description: st
             self.movement_history[competitor_name] = []
         for move in move_data.get("recent_moves", []):
             self.movement_history[competitor_name].append({"move": move, "tracked_at": self._now_iso()})
+        if len(self.movement_history[competitor_name]) > _MAX_COMPETITOR_MOVES:
+            del self.movement_history[competitor_name][:-_MAX_COMPETITOR_MOVES]
 
         result = {
             "competitor_name": competitor_name,

@@ -121,11 +121,11 @@ class Data:
     @classmethod
     def download(cls, symbols, start=None, end=None, **kwargs):
         """Override in subclass."""
-        raise NotImplementedError("Use a specific data class (YFData, BinanceData, etc.)")
+        raise RuntimeError("Use a specific data class (YFData, BinanceData, etc.)")
 
     def update(self, **kwargs):
         """Override in subclass."""
-        raise NotImplementedError("Use a specific data class (YFData, BinanceData, etc.)")
+        raise RuntimeError("Use a specific data class (YFData, BinanceData, etc.)")
 
 
 class YFData(Data):

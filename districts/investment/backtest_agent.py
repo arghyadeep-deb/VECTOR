@@ -12,27 +12,23 @@ for the ReAct agent and swarms. Backtest data loaders work without API keys.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 import sys
 import uuid
 from pathlib import Path
-
 
 # Ensure districts/investment/vector_backtest/ is on sys.path so src.* and backtest.* resolve
 _VIBE_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_backtest"
 if str(_VIBE_DIR) not in sys.path:
     sys.path.insert(0, str(_VIBE_DIR))
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from loguru import logger
-
 
 class BacktestAgent(AgentBase):
     """
@@ -363,7 +359,6 @@ class BacktestAgent(AgentBase):
         while self.is_alive:
             await asyncio.sleep(60)
         logger.warning("[VECTOR][vt_agent] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

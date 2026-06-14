@@ -2,9 +2,8 @@
 OpenCLI bridge — wraps @jackwener/opencli TypeScript npm tool via subprocess.
 Converts any website to a CLI interface usable by VECTOR's research district.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 import asyncio
 import json

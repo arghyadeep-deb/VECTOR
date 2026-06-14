@@ -34,7 +34,7 @@ class MetaCognition:
         "confirmation": "High-confidence thoughts cluster around the same conclusions",
     }
 
-    _db_lock = threading.Lock()
+    _db_lock = threading.RLock()
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -159,17 +159,18 @@ class MetaCognition:
     def get_self_report(self) -> dict:
         """Generate a self-awareness report (backward-compatible)."""
         try:
-            total = self._conn.execute("SELECT COUNT(*) FROM thoughts").fetchone()[0]
-            avg_conf_row = self._conn.execute(
-                "SELECT AVG(confidence) FROM thoughts"
-            ).fetchone()[0]
+            with self.__class__._db_lock:
+                total = self._conn.execute("SELECT COUNT(*) FROM thoughts").fetchone()[0]
+                avg_conf_row = self._conn.execute(
+                    "SELECT AVG(confidence) FROM thoughts"
+                ).fetchone()[0]
+                blind_spots = self._conn.execute(
+                    "SELECT COUNT(*) FROM blind_spots"
+                ).fetchone()[0]
+                resolved = self._conn.execute(
+                    "SELECT COUNT(*) FROM blind_spots WHERE resolved=1"
+                ).fetchone()[0]
             avg_confidence = round(float(avg_conf_row), 3) if avg_conf_row else 0.0
-            blind_spots = self._conn.execute(
-                "SELECT COUNT(*) FROM blind_spots"
-            ).fetchone()[0]
-            resolved = self._conn.execute(
-                "SELECT COUNT(*) FROM blind_spots WHERE resolved=1"
-            ).fetchone()[0]
             return {
                 "total_thoughts": total,
                 "avg_confidence": avg_confidence,
@@ -218,14 +219,16 @@ class MetaCognition:
         """
         try:
             if domain:
-                rows = self._conn.execute(
-                    "SELECT predicted_confidence, actual_success FROM calibration_errors WHERE domain=?",
-                    (domain,),
-                ).fetchall()
+                with self.__class__._db_lock:
+                    rows = self._conn.execute(
+                        "SELECT predicted_confidence, actual_success FROM calibration_errors WHERE domain=?",
+                        (domain,),
+                    ).fetchall()
             else:
-                rows = self._conn.execute(
-                    "SELECT predicted_confidence, actual_success FROM calibration_errors"
-                ).fetchall()
+                with self.__class__._db_lock:
+                    rows = self._conn.execute(
+                        "SELECT predicted_confidence, actual_success FROM calibration_errors"
+                    ).fetchall()
             if not rows:
                 return {"total_samples": 0, "avg_predicted": 0.0, "avg_actual": 0.0,
                         "calibration_error": 0.0, "overconfidence_rate": 0.0,
@@ -345,11 +348,12 @@ class MetaCognition:
         """
         try:
             cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
-            rows = self._conn.execute(
-                """SELECT domain, confidence, accurate FROM thoughts
-                   WHERE created_at >= ? AND accurate IS NOT NULL""",
-                (cutoff,),
-            ).fetchall()
+            with self.__class__._db_lock:
+                rows = self._conn.execute(
+                    """SELECT domain, confidence, accurate FROM thoughts
+                       WHERE created_at >= ? AND accurate IS NOT NULL""",
+                    (cutoff,),
+                ).fetchall()
 
             if len(rows) < 5:
                 return {
@@ -427,23 +431,25 @@ class MetaCognition:
             bias_analysis = self.detect_systematic_bias(window_days=30)
 
             # Domain breakdown for thoughts
-            domain_rows = self._conn.execute(
-                """SELECT domain, COUNT(*) as cnt, AVG(confidence) as avg_conf
-                   FROM thoughts
-                   WHERE created_at >= ?
-                   GROUP BY domain""",
-                ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),),
-            ).fetchall()
+            with self.__class__._db_lock:
+                domain_rows = self._conn.execute(
+                    """SELECT domain, COUNT(*) as cnt, AVG(confidence) as avg_conf
+                       FROM thoughts
+                       WHERE created_at >= ?
+                       GROUP BY domain""",
+                    ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),),
+                ).fetchall()
             domain_breakdown = {
                 r["domain"]: {"count": r["cnt"], "avg_confidence": round(float(r["avg_conf"]), 3)}
                 for r in domain_rows
             }
 
             # Blind spot resolution in last 30d
-            bs_created = self._conn.execute(
-                "SELECT COUNT(*) FROM blind_spots WHERE created_at >= ?",
-                ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),),
-            ).fetchone()[0]
+            with self.__class__._db_lock:
+                bs_created = self._conn.execute(
+                    "SELECT COUNT(*) FROM blind_spots WHERE created_at >= ?",
+                    ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),),
+                ).fetchone()[0]
 
             recommendations = []
             if calibration.get("overconfidence_rate", 0) > 0.3:
@@ -482,12 +488,14 @@ class MetaCognition:
         """Return all blind spots, optionally filtered by resolved status."""
         try:
             if resolved is None:
-                rows = self._conn.execute("SELECT * FROM blind_spots ORDER BY created_at DESC").fetchall()
+                with self.__class__._db_lock:
+                    rows = self._conn.execute("SELECT * FROM blind_spots ORDER BY created_at DESC").fetchall()
             else:
-                rows = self._conn.execute(
-                    "SELECT * FROM blind_spots WHERE resolved=? ORDER BY created_at DESC",
-                    (1 if resolved else 0,),
-                ).fetchall()
+                with self.__class__._db_lock:
+                    rows = self._conn.execute(
+                        "SELECT * FROM blind_spots WHERE resolved=? ORDER BY created_at DESC",
+                        (1 if resolved else 0,),
+                    ).fetchall()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.warning(f"[VECTOR][meta_cognition] get_all_blind_spots failed: {e}")
@@ -495,7 +503,8 @@ class MetaCognition:
 
     def close(self):
         try:
-            self._conn.close()
+            with self.__class__._db_lock:
+                self._conn.close()
         except Exception:
             pass
 

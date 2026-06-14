@@ -8,15 +8,15 @@ Executes trades based on AI agent recommendations with safety controls.
 
 import asyncio
 import json
-import sys
-from pathlib import Path
 from typing import Dict, Any, Optional, List, Callable
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 import time
-from loguru import logger
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent.parent))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
+
+from loguru import logger
 
 
 @dataclass

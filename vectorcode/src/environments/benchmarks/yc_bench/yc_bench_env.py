@@ -46,17 +46,14 @@ import math
 import os
 import sqlite3
 import subprocess
-import sys
 import threading
 import time
 import uuid
 from collections import defaultdict
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-_repo_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from pydantic import Field
 

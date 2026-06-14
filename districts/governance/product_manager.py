@@ -5,15 +5,13 @@ Manages VECTOR's own product development process and any client products
 built via the agency district. PRDs, stakeholder alignment, outcome tracking.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 import re
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -22,7 +20,6 @@ from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
 
 _RICE_FIELDS = ["reach", "impact", "confidence", "effort"]
-
 
 class ProductManager(AgentBase):
     """
@@ -192,7 +189,6 @@ class ProductManager(AgentBase):
             logger.error("[VECTOR][pm] {}", e)
             self.deduct_points(30, "pm_task_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

@@ -22,9 +22,9 @@ __all__ = [
     "ModelNotLoadedError",
     "RateLimitError",
     "ServiceUnavailableError",
-    "TimeoutError",
     "ValidationError",
     "VectorError",
+    "VectorTimeoutError",
 ]
 
 
@@ -53,7 +53,7 @@ class ServiceUnavailableError(VectorError):
         super().__init__(f"{service} unavailable: {detail}", service=service)
 
 
-class TimeoutError(VectorError):
+class VectorTimeoutError(VectorError):
     """An operation exceeded its time budget."""
     retryable = True
 

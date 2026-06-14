@@ -1,13 +1,12 @@
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import sys
 import ast
 import uuid
 import asyncio
 from pathlib import Path
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -88,7 +87,6 @@ REQUIRED_PATTERNS = [
     ("from core.config import CONFIG", "info", "Missing CONFIG import — configurable values must use CONFIG"),
     ("sys.path.insert", "info", "Missing sys.path.insert at top — required for module resolution"),
 ]
-
 
 class CodeReviewer(AgentBase):
     """Reviews Python code against VECTOR rules + static analysis."""
@@ -303,7 +301,6 @@ class CodeReviewer(AgentBase):
             self.deduct_points(10, "llm_review_failed")
             return {"error": str(e)}
 
-
     async def review_with_vectorcode(self, file_path: str) -> dict:
         """
         LLM-backed deep review via VectorCode. Augments static analysis with
@@ -351,7 +348,6 @@ class CodeReviewer(AgentBase):
                 logger.error(f"[VECTOR][code_reviewer] tick error: {e}")
                 self.deduct_points(5, "tick_error")
         logger.warning("[VECTOR][code_reviewer] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

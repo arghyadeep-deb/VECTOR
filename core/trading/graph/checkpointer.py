@@ -18,6 +18,7 @@ __all__ = [
 
 import hashlib
 import sqlite3
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
@@ -25,6 +26,8 @@ from typing import Generator
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from core.trading.dataflows.utils import safe_ticker_component
+
+_lock = threading.RLock()
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:
@@ -46,6 +49,8 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
     """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
     db = _db_path(data_dir, ticker)
     conn = sqlite3.connect(str(db), check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     try:
         saver = SqliteSaver(conn)
         saver.setup()
@@ -90,12 +95,13 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
     if not db.exists():
         return
     tid = thread_id(ticker, date)
-    conn = sqlite3.connect(str(db))
-    try:
-        for table in ("writes", "checkpoints"):
-            conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))
-        conn.commit()
-    except sqlite3.OperationalError:
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-    finally:
-        conn.close()
+    with _lock:
+        conn = sqlite3.connect(str(db))
+        try:
+            for table in ("writes", "checkpoints"):
+                conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))
+            conn.commit()
+        except sqlite3.OperationalError:
+            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        finally:
+            conn.close()

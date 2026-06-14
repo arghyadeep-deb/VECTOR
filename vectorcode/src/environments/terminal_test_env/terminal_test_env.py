@@ -30,15 +30,11 @@ Usage:
 
 import logging
 import os
-import sys
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Ensure repo root is on sys.path for imports
-_repo_root = Path(__file__).resolve().parent.parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from atroposlib.envs.base import ScoredDataGroup
 from atroposlib.envs.server_handling.server_manager import APIServerConfig

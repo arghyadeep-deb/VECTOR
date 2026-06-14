@@ -5,15 +5,13 @@ Tracks hypotheses, runs controlled experiments, measures outcomes,
 and generates evidence-based recommendations for improving VECTOR.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 import asyncio
 import datetime
 import json
 from pathlib import Path
 
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
@@ -21,7 +19,6 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.inference.vectorcode_llm import chat
-
 
 class ExperimentTracker(AgentBase):
     """
@@ -280,7 +277,6 @@ class ExperimentTracker(AgentBase):
             logger.error("[VECTOR][experiment_tracker] {}", e)
             self.deduct_points(30, "experiment_tracker_failed")
             return {"status": "error", "error": str(e)}
-
 
 if __name__ == "__main__":
     import sys as _sys

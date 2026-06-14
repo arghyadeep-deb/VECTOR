@@ -17,15 +17,13 @@ Usage:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-
 import asyncio
 import os
 import sys
 import uuid
+
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
@@ -36,7 +34,6 @@ from core.code_conductor.code_map import CodeMap
 from core.code_conductor.str_replace import str_replace as _str_replace, read_files, write_file
 from core.code_conductor.git_eval import GitEvalRunner
 from loguru import logger
-
 
 class CodeConductorAgent(AgentBase):
     """
@@ -173,7 +170,6 @@ class CodeConductorAgent(AgentBase):
         while self.is_alive:
             await asyncio.sleep(60)
         logger.warning("[VECTOR][code_conductor] died — HP=0")
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

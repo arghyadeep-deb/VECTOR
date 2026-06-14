@@ -160,7 +160,7 @@ class Term:
 
     def compute(self, today, assets, out, *inputs):
         """Override in subclasses to define computation."""
-        raise NotImplementedError
+        raise RuntimeError("Term.compute must be implemented by a concrete pipeline term")
 
 
 class Factor(Term):
