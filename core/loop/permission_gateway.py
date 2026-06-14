@@ -174,8 +174,10 @@ class PermissionGateway:
             context = ""
             try:
                 context = ContextEngine().session_hydration_prompt()
-            except Exception:
-                pass
+            except Exception as e:
+                # Council can still deliberate without hydration context;
+                # log so a persistently empty context is diagnosable.
+                logger.debug(f"[VECTOR][gateway] hydration unavailable: {e}")
             cb = CouncilBrain()
             deliberation = await cb.deliberate_action(
                 action_type=action.action_type,
