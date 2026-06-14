@@ -4,12 +4,8 @@
 Canonical source: vectorcode/src/persona/person_model.py
 Falls back to a minimal dataclass stub if vectorcode is unavailable.
 """
-import sys
-from pathlib import Path
-
-_VC_SRC = Path(__file__).resolve().parent.parent.parent / "vectorcode" / "src"
-if _VC_SRC.exists() and str(_VC_SRC) not in sys.path:
-    sys.path.insert(0, str(_VC_SRC))
+from vectorcode.src.bootstrap import ensure_paths
+ensure_paths()
 
 try:
     from persona.person_model import PersonModel  # type: ignore[import]
