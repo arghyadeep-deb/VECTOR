@@ -127,7 +127,46 @@ class TaskQueue:
         # Terminal notification callback — set by chat.py when it starts
         self._terminal_notify: Callable[[str], None] | None = None
         self._shutdown_flag = False
+
+        # Durable ledger for cross-restart continuation (roadmap #7).
+        self._ledger = None
+        self._interrupted: list[dict] = []
+        try:
+            from core.loop.task_ledger import TaskLedger
+            from core.runtime_paths import data_path
+            self._ledger = TaskLedger(data_path("tasks.db"))
+            self._interrupted = self._ledger.recover_interrupted()
+        except Exception as e:
+            logger.warning(f"[VECTOR][task_queue] ledger unavailable (in-memory only): {e}")
+
         logger.info(f"[VECTOR][task_queue] ready max_concurrent={max_workers}")
+
+    def _persist(self, task: "Task") -> None:
+        """Best-effort write-through of a task's current state to the ledger."""
+        if self._ledger is None:
+            return
+        try:
+            self._ledger.upsert({
+                "id":           task.id,
+                "name":         task.name,
+                "priority":     task.priority.name,
+                "district":     task.district,
+                "tags":         json.dumps(task.tags),
+                "status":       task.status.value,
+                "progress":     task.progress,
+                "error":        task.error,
+                "submitted_at": task.submitted_at,
+                "started_at":   task.started_at,
+                "finished_at":  task.finished_at,
+            })
+        except Exception as e:
+            logger.debug(f"[VECTOR][task_queue] persist skipped for {task.id}: {e}")
+
+    def list_interrupted(self) -> list[dict]:
+        """Tasks that were in-flight when a previous process exited — re-submittable."""
+        if self._ledger is not None:
+            return self._ledger.list_interrupted()
+        return list(self._interrupted)
 
     # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
