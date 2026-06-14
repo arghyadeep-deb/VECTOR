@@ -12,6 +12,7 @@ from core.breaker_registry import get_registry
 from loguru import logger
 import asyncio, uuid, json, os, sqlite3, datetime, threading, shutil
 from contextlib import contextmanager
+from pathlib import Path
 
 # Try SQLCipher for AES-256 encryption; fall back to plain sqlite3
 # Supports sqlcipher3 (preferred on Python 3.13+) and pysqlcipher3.
@@ -249,6 +250,14 @@ _db_lock = threading.Lock()
 _write_lock = threading.RLock()
 
 
+def _memory_db_path() -> str:
+    """Resolve the memory DB path with a safe fallback for partial configs."""
+    configured = os.environ.get("VECTOR_DB_PATH") or CONFIG.get("db_path", "vector_memory.db")
+    path = Path(configured)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 def _is_connection_closed(conn) -> bool:
     try:
         conn.execute("SELECT 1")
@@ -293,7 +302,7 @@ def get_db_connection():
             _db_connection = None
         if _db_connection is None:
             if _USE_SQLCIPHER:
-                db_path = str(CONFIG['db_path'])
+                db_path = _memory_db_path()
                 try:
                     _db_connection = _open_sqlcipher_connection(db_path)
                 except Exception as exc:
@@ -309,7 +318,7 @@ def get_db_connection():
                     else:
                         raise
             else:
-                _db_connection = sqlite3.connect(CONFIG['db_path'], check_same_thread=False)
+                _db_connection = sqlite3.connect(_memory_db_path(), check_same_thread=False)
             _db_connection.execute("PRAGMA journal_mode=WAL")
             _db_connection.execute("PRAGMA busy_timeout=5000")
             _db_connection.execute("PRAGMA synchronous=NORMAL")
@@ -780,8 +789,10 @@ class EpisodicMemory:
                     raw_ranks = [abs(r[1]) for r in fts_rows]
                     max_rank = max(raw_ranks) or 1.0
                     fts_map = {r[0]: abs(r[1]) / max_rank for r in fts_rows}
-            except Exception:
-                pass
+            except Exception as e:
+                # FTS is a best-effort recall booster; semantic scores still
+                # carry the search. Log so silent FTS rot is visible.
+                logger.debug(f"[VECTOR][episodic] FTS hybrid lookup skipped: {e}")
 
             # Hybrid score
             scored = [
