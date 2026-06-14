@@ -282,6 +282,7 @@ class TaskQueue:
         task.status     = TaskStatus.RUNNING
         task.started_at = time.time()
         self._running.add(task_id)
+        self._persist(task)
         try:
             result      = await coro
             task.result = result
@@ -298,6 +299,7 @@ class TaskQueue:
         finally:
             task.finished_at = time.time()
             self._running.discard(task_id)
+            self._persist(task)
 
     async def _run_in_thread(self, task_id: str, fn: Callable) -> None:
         task = self._tasks[task_id]
