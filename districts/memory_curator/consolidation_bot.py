@@ -159,6 +159,17 @@ class ConsolidationBot(AgentBase):
         )
         self.award_points(30, f"consolidated {len(episodes)} old episodes")
         logger.info(f"[VECTOR][consolidation_bot] consolidated {len(episodes)} episodes → {key}")
+
+        # Forgetting (roadmap #7): now that old episodes are summarized into
+        # semantic_memory + mem0, prune the redundant raw rows past the retention
+        # horizon so the episodic DB stays bounded in 24/7 operation.
+        try:
+            forgotten = self._memory.prune_old_episodes(self.RETENTION_DAYS)
+            if forgotten:
+                self.award_points(10, f"forgot {forgotten} stale raw episodes")
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] forgetting pass skipped: {e}")
+
         return len(episodes)
 
     async def write_daily_reflection(self) -> bool:
