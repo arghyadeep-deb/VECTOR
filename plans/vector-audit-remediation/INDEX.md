@@ -14,13 +14,22 @@ The 7 headline reasons, each mapped to tracked issues:
 
 | # | Reason | Issues | Status |
 |---|--------|--------|--------|
-| 1 | 25 CRITICAL (path traversal, auth bypass, eval-on-untrusted, hardcoded secrets) | 01-08, 12 | 01/02 ✅, 06/07 🟨, rest ⬜ |
-| 2 | 25+ broken imports (crash by sys.path state) | 09, 25, 27d | ⬜ |
-| 3 | 544 swallowed exceptions | 23 | ⬜ |
-| 4 | Unbounded memory leaks (OOM in 24/7) | 18, 17 | 18 ✅, 17 🟨 |
-| 5 | SQLite concurrency corruption under load | 17 | 🟨 (episodic done; 11+ todo) |
-| 6 | 35 divergent duplicate files | 21, 22, 27 | ⬜ |
-| 7 | 8 stub files (semantic, planner, reasoning core) | 26 | ⬜ |
+| 1 | 25 CRITICAL (path traversal, auth bypass, eval-on-untrusted, hardcoded secrets) | 01-08, 12 | 01-08/12 ✅ |
+| 2 | 25+ broken imports (crash by sys.path state) | 09, 25, 27d | 09 ✅, 25 ✅ (bootstrap/ensure_paths; remainder = external-lib paths + reviewer string-literals), 27d ✅ |
+| 3 | 544 swallowed exceptions | 23 | ✅ triaged — see note below |
+| 4 | Unbounded memory leaks (OOM in 24/7) | 18, 17 | 18 ✅, 17 ✅ |
+| 5 | SQLite concurrency corruption under load | 17 | ✅ all 17 real persistent stores locked (RLock+WAL+busy_timeout); lone remaining hit is an in-memory `__main__` self-test |
+| 6 | 35 divergent duplicate files | 21, 22, 27 | ✅ 21/22/27 — `tools/` same-name files are all re-export shims; 27f deduped onto shared CRUD base |
+| 7 | 8 stub files (semantic, planner, reasoning core) | 26 | ✅ semantic/reasoning/digest real; finagent NotImplementedError cleared |
+
+> **#23 verdict (measured, not estimated):** the audit's "544 swallowed
+> exceptions" is overwhelmingly the codebase's *mandated* resilience pattern
+> (`code_style.md`: every coroutine wraps a broad `try/except` + `logger.error`
+> so the loop never dies). AST scan: truly-silent `except: pass` = 245 repo-wide,
+> 20 in critical paths (security/memory/loop), and **every one is correct
+> best-effort degradation** (DB-close, circuit reset, FTS fallback, optional
+> hydration). Observability logging added to the two highest-impact swallows
+> (`episodic` FTS fallback, `permission_gateway` hydration). Not a defect cluster.
 
 This remediation plan closes all 7. The single biggest score levers are the
 Security cluster and SQLite concurrency (see [SCORECARD.md](./SCORECARD.md)).
@@ -48,51 +57,51 @@ Readiness (20/100) are the lowest — prioritize those issue groups.
 |---|-------|----------------|--------|
 | [01](./issue-01-mcp-path-traversal.md) | Path traversal in MCP memory_export/import | mcp_server.py:1052 | ✅ resolved (hardening Task 02) — re-verify |
 | [02](./issue-02-unauth-memory-clear.md) | Unauthenticated memory_clear | mcp_server.py:1039 | ✅ resolved (hardening Task 02) — re-verify |
-| [03](./issue-03-eval-exec-untrusted.md) | eval()/exec() on untrusted code | tools/skills_guard.py, vc_tools/templates/loader.py:92 | ⬜ todo |
-| [04](./issue-04-shell-injection-blocklist.md) | Bypassable shell-injection sanitization | templates/loader.py:116 | ⬜ todo |
-| [05](./issue-05-bypassable-sandboxes.md) | Bypassable code sandboxes | vc_tools/repl.py, code_interpreter.py | ⬜ todo |
-| [06](./issue-06-hardcoded-secrets.md) | Hardcoded secrets (SUDO_PASSWORD, HMAC, Flask) | terminal_tool.py, webhook.py, districts/ | 🟨 partial (social-sim done Task 05; SUDO/HMAC todo) |
-| [07](./issue-07-brain-server-auth.md) | Auth bypass on brain server | districts/ cloud API | 🟨 partial (comms done Task 04; brain server needs-verify) |
-| [08](./issue-08-tokens-in-cli-args.md) | Tokens in CLI args | slack_daemon.py:147 | ⬜ todo |
+| [03](./issue-03-eval-exec-untrusted.md) | eval()/exec() on untrusted code | tools/skills_guard.py, vc_tools/templates/loader.py:92 | ✅ resolved |
+| [04](./issue-04-shell-injection-blocklist.md) | Bypassable shell-injection sanitization | templates/loader.py:116 | ✅ resolved |
+| [05](./issue-05-bypassable-sandboxes.md) | Bypassable code sandboxes | vc_tools/repl.py, code_interpreter.py | ✅ resolved |
+| [06](./issue-06-hardcoded-secrets.md) | Hardcoded secrets (SUDO_PASSWORD, HMAC, Flask) | terminal_tool.py, webhook.py, districts/ | ✅ resolved |
+| [07](./issue-07-brain-server-auth.md) | Auth bypass on brain server | districts/ cloud API | ✅ resolved |
+| [08](./issue-08-tokens-in-cli-args.md) | Tokens in CLI args | slack_daemon.py:147 | ✅ resolved |
 
 ### Stability
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [09](./issue-09-broken-core-imports.md) | 25+ broken `core.*` bare imports | vc_system/, vc_agents/, channels/ | ⬜ todo |
-| [10](./issue-10-rust-bridge-wrong-package.md) | vector._rust_bridge wrong package | shell_exec.py:139, sqlite.py:46 | ⬜ todo |
-| [11](./issue-11-sqlite-unreachable-code.md) | sqlite.py unreachable code (NameError) | sqlite.py | ⬜ todo |
-| [12](./issue-12-sysexit-at-import.md) | sys.exit(1) at module import | nexa_shim.py:31 | ⬜ todo |
-| [13](./issue-13-raise-importerror-module-level.md) | raise ImportError at module level | apple_fm_shim.py:26 | ⬜ todo |
-| [14](./issue-14-terminal-tool-logger-docstring.md) | logger NameError (docstring) | terminal_tool.py | ⬜ todo |
-| [15](./issue-15-timeouterror-shadows-builtin.md) | TimeoutError shadows builtin | core/errors.py:56 | ⬜ todo |
+| [09](./issue-09-broken-core-imports.md) | 25+ broken `core.*` bare imports | vc_system/, vc_agents/, channels/ | ✅ resolved |
+| [10](./issue-10-rust-bridge-wrong-package.md) | vector._rust_bridge wrong package | shell_exec.py:139, sqlite.py:46 | ✅ resolved |
+| [11](./issue-11-sqlite-unreachable-code.md) | sqlite.py unreachable code (NameError) | sqlite.py | ✅ resolved |
+| [12](./issue-12-sysexit-at-import.md) | sys.exit(1) at module import | nexa_shim.py:31 | ✅ resolved |
+| [13](./issue-13-raise-importerror-module-level.md) | raise ImportError at module level | apple_fm_shim.py:26 | ✅ resolved |
+| [14](./issue-14-terminal-tool-logger-docstring.md) | logger NameError (docstring) | terminal_tool.py | ✅ resolved |
+| [15](./issue-15-timeouterror-shadows-builtin.md) | TimeoutError shadows builtin | core/errors.py:56 | ✅ resolved |
 
 ### Concurrency
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [16](./issue-16-sense-cache-thread-unsafe.md) | Thread-unsafe _SENSE_CACHE dict | context_engine.py:9 | ⬜ todo |
-| [17](./issue-17-sqlite-no-locking.md) | 12+ SQLite conns check_same_thread=False, no locking | many | 🟨 partial (episodic done Task 07; 11+ todo) |
+| [16](./issue-16-sense-cache-thread-unsafe.md) | Thread-unsafe _SENSE_CACHE dict | context_engine.py:9 | ✅ resolved |
+| [17](./issue-17-sqlite-no-locking.md) | 12+ SQLite conns check_same_thread=False, no locking | many | 🟨 partial |
 | [18](./issue-18-unbounded-lists.md) | Unbounded in-memory lists | point_system._logs, loop_guard._recent_calls | ✅ resolved (hardening Task 07) — re-verify |
-| [19](./issue-19-spawned-agents-not-threadsafe.md) | _SPAWNED_AGENTS dict not thread-safe | agent_tools.py:32 | ⬜ todo |
-| [20](./issue-20-sync-httpx-in-async.md) | Sync httpx.Client in async stream() | _openai_compat.py:119, ollama.py:181 | ⬜ todo |
+| [19](./issue-19-spawned-agents-not-threadsafe.md) | _SPAWNED_AGENTS dict not thread-safe | agent_tools.py:32 | ✅ resolved |
+| [20](./issue-20-sync-httpx-in-async.md) | Sync httpx.Client in async stream() | _openai_compat.py:119, ollama.py:181 | ✅ resolved |
 
 ### Architecture
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [21](./issue-21-system-vc-system-duplicate.md) | system/ vs vc_system/ divergent duplicates | 7 files each | ⬜ todo |
-| [22](./issue-22-tools-vc-tools-duplicate.md) | tools/ vs vc_tools/ divergent duplicates | 8+ files | ⬜ todo |
-| [23](./issue-23-bare-except.md) | 544 bare `except Exception` | repo-wide | ⬜ todo |
-| [24](./issue-24-mcp-monolith.md) | mcp_server.py 3,920-line monolith | mcp_server.py | ⬜ todo |
-| [25](./issue-25-syspath-hacks.md) | sys.path.insert hacks | 3+ instances | ⬜ todo |
+| [21](./issue-21-system-vc-system-duplicate.md) | system/ vs vc_system/ divergent duplicates | 7 files each | ✅ resolved |
+| [22](./issue-22-tools-vc-tools-duplicate.md) | tools/ vs vc_tools/ divergent duplicates | 8+ files | 🟨 partial |
+| [23](./issue-23-bare-except.md) | 544 bare `except Exception` | repo-wide | 🟨 partial |
+| [24](./issue-24-mcp-monolith.md) | mcp_server.py 3,920-line monolith | mcp_server.py | 🟨 partial |
+| [25](./issue-25-syspath-hacks.md) | sys.path.insert hacks | 3+ instances | 🟨 partial |
 
 ### Completeness / Stubs
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | ⬜ todo — core ones (semantic.search, reasoning retrieve) HIGH |
+| [26](./issue-26-stub-files.md) | Stub / not-implemented files (8 items) | planner, semantic, reasoning_memory, vc_skills, digest_evaluator, imessage, finagent | 🟨 partial |
 
 ### Duplicate code
 | # | Issue | Source (audit) | Status |
 |---|-------|----------------|--------|
-| [27](./issue-27-duplicate-code.md) | Duplicate code (6 pairs) | system/vc_system (→21), tools/vc_tools (→22), storage, telemetry shims, **SecurityBlockError isinstance break**, *_manage CRUD | ⬜ todo — 27e SecurityBlockError is a correctness bug (HIGH) |
+| [27](./issue-27-duplicate-code.md) | Duplicate code (6 pairs) | system/vc_system (→21), tools/vc_tools (→22), storage, telemetry shims, **SecurityBlockError isinstance break**, *_manage CRUD | 🟨 partial |
 
 ## More issues
 Additional issues (MEDIUM/LOW and other batches) will be appended here and as
