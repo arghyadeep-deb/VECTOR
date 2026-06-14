@@ -479,6 +479,68 @@ class EpisodicMemory:
             logger.error(f"[VECTOR][episodic] store() failed — event lost: {e}")
             raise RuntimeError(f"Episodic store failed: {e}") from e
 
+    # Event types that must never be force-forgotten by decay (raw provenance
+    # that summaries can't fully reconstruct). Ghost memory lives in
+    # agent_history, not here, so it is unaffected regardless.
+    _PROTECTED_EVENT_TYPES = frozenset({"council", "consolidation", "ghost", "death"})
+
+    def prune_old_episodes(
+        self,
+        retention_days: int = 90,
+        protect_event_types: "set[str] | None" = None,
+    ) -> int:
+        """Forget raw episodes older than ``retention_days``.
+
+        Decay/forgetting (roadmap #7): once ConsolidationBot has summarized old
+        episodes into semantic_memory + mem0, the raw rows are redundant and
+        otherwise grow the DB unbounded in 24/7 operation. Deletes from all
+        three backing stores (episodic_memory, the FTS index, embeddings) in one
+        transaction. Protected event types are kept. Returns rows deleted.
+        """
+        if retention_days <= 0:
+            return 0
+        protected = set(self._PROTECTED_EVENT_TYPES)
+        if protect_event_types:
+            protected |= set(protect_event_types)
+        cutoff = (
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(days=retention_days)
+        ).isoformat()  # ISO-8601 sorts lexicographically → safe string compare
+
+        def _do_prune() -> int:
+            with get_temp_cursor() as cursor:
+                if protected:
+                    placeholders = ",".join("?" for _ in protected)
+                    sel = (
+                        "SELECT id FROM episodic_memory "
+                        f"WHERE timestamp < ? AND event_type NOT IN ({placeholders})"
+                    )
+                    cursor.execute(sel, (cutoff, *protected))
+                else:
+                    cursor.execute(
+                        "SELECT id FROM episodic_memory WHERE timestamp < ?", (cutoff,)
+                    )
+                ids = [r[0] for r in cursor.fetchall()]
+                if not ids:
+                    return 0
+                qs = ",".join("?" for _ in ids)
+                cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", ids)
+                cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", ids)
+                cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", ids)
+                return len(ids)
+
+        try:
+            deleted = _with_cb(_do_prune)
+            if deleted:
+                logger.info(
+                    f"[VECTOR][episodic] forgot {deleted} episodes older than "
+                    f"{retention_days}d (protected: {sorted(protected)})"
+                )
+            return deleted
+        except Exception as e:
+            logger.error(f"[VECTOR][episodic] prune_old_episodes failed: {e}")
+            return 0
+
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
         try:
             def _do_recall():
