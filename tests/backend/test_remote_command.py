@@ -75,7 +75,8 @@ def test_remote_handler_routes_through_gateway(monkeypatch):
             captured["proposed_by"] = action.proposed_by
             return {"ok": True}
 
-    monkeypatch.setattr(al, "PermissionGateway", _FakeGateway, raising=False)
+    import core.loop.permission_gateway as pg
+    monkeypatch.setattr(pg, "PermissionGateway", _FakeGateway, raising=False)
     # ensure injection scan passes benign text through
     monkeypatch.setattr(al, "_scan_incoming", lambda *a, **k: True, raising=False)
 
