@@ -71,6 +71,15 @@
       case 'process': case 'think': V.process(); return ok('processing');
       case 'fortress': V.fortress(); return ok('FORTRESS — palm to unlock','warn');
       case 'say': case 'speak': if(!arg) return err('usage: say <text>'); V.say(arg); return;
+      case 'do': case 'ask': case 'tell': case 'vector':
+        if(!arg) return err('usage: do <instruction> — sends a command to VECTOR');
+        ok('→ '+esc(arg));
+        // Routes to /command: local HUD hits the laptop directly; HUD opened
+        // through the cloud hits the brain queue → laptop executes (gateway-gated).
+        Promise.resolve(V.command(arg))
+          .then(r=>print('« '+esc(JSON.stringify(r)).slice(0,400),'ok'))
+          .catch(e=>err('command failed: '+esc(String(e))));
+        return;
       case 'map': V.showMap(arg?{label:arg.toUpperCase()}:undefined); return ok('tactical map');
       case 'connect': if(!parts[1]) return err('usage: connect <base-url> [api-key]');
         if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('connecting', parts[1]);
