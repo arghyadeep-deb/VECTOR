@@ -1440,6 +1440,27 @@ class AutonomousLoop:
                 logger.critical(f"[VECTOR][cmd] prompt injection in remote '{cmd_type}.{k}' — BLOCKED")
                 params[k] = ""
         logger.info(f"[VECTOR][cmd] remote command {cmd.get('id','')} type={cmd_type}")
+
+        # Free-text command → run through the FULL local /command pipeline
+        # (context → decision → gateway → policy/memory). Reuses the API so we
+        # never duplicate the intelligence stack. The gateway gates it there.
+        text = params.get("text")
+        if cmd_type in ("command", "chat") and isinstance(text, str) and text:
+            try:
+                import httpx
+                port = CONFIG.get("api", {}).get("port", 8000)
+                api_key = CONFIG.get("api_keys", {}).get("vector_api_key") or CONFIG.get("vector_api_key", "")
+                headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+                async with httpx.AsyncClient(timeout=30.0) as c:
+                    await c.post(f"http://127.0.0.1:{port}/command",
+                                 json={"text": text, "source": "remote_device"},
+                                 headers=headers)
+                return
+            except Exception as e:
+                logger.error(f"[VECTOR][cmd] local /command forward failed: {e}")
+                return
+
+        # Structured command → permission gateway (GREEN/YELLOW/RED gating).
         try:
             from core.loop.permission_gateway import PermissionGateway, Action
             gw = PermissionGateway()
