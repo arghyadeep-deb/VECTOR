@@ -1686,6 +1686,12 @@ class AutonomousLoop:
             bus = await self._get_event_bus()
             self._fanout_sub = bus.subscribe(None, self._fanout_handler)
             logger.info("[VECTOR][autonomous_loop] event fan-out subscriber registered")
+            # DB guardian: auto-quarantine the cloud mesh on a security threat.
+            try:
+                from core.memory.db_guardian import install_db_guardian
+                await install_db_guardian(bus)
+            except Exception as _ge:
+                logger.warning(f"[VECTOR][autonomous_loop] db_guardian install failed: {_ge}")
         except Exception as e:
             self._fanout_sub = None
             logger.warning(f"[VECTOR][autonomous_loop] event fan-out init failed: {e}")
