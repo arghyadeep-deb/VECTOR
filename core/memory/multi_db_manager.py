@@ -239,9 +239,10 @@ class MultiDBManager:
         forgetting; bulk is a local cache the forgetting pass may prune after sync.
         Cloud is the durable source of truth for both.
         """
-        # Add transaction ID for deduplication across local + cloud
+        # Transaction id for dedup/audit — returned to caller, NOT stored as a
+        # column (the tables have no _txn_id column; injecting it broke every
+        # write_all local+cloud write).
         txn_id = record.get('id') or str(uuid.uuid4())
-        record_with_txn = {**record, '_txn_id': txn_id}
 
         if tier is None:
             try:
@@ -251,10 +252,10 @@ class MultiDBManager:
                 tier = "bulk"
 
         # Local write is synchronous
-        local_ok = self.write_local(table, record_with_txn)
+        local_ok = self.write_local(table, record)
 
         # Cloud writes are async
-        cloud = await self.write_cloud(table, record_with_txn)
+        cloud = await self.write_cloud(table, record)
 
         return {"local": local_ok, **cloud, "txn_id": txn_id, "tier": tier}
 
