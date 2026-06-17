@@ -80,6 +80,45 @@ def _uptime() -> float:
     return round(time.time() - _START_TIME, 1)
 
 
+# ── Cloud data source ──────────────────────────────────────────────────────────
+# On the Fly VM there is no local SQLite file — the data lives in the cloud mesh.
+# These helpers read Supabase (the cloud source of truth) so remote endpoints
+# return real data. On the co-located laptop, endpoints fall back to local core.
+
+def _supabase_creds():
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY", "")
+    return (url, key) if url and key else (None, None)
+
+
+async def _supabase_episodic(event_type: Optional[str] = None, limit: int = 10):
+    """Read episodic_memory from Supabase. Returns list, or None if unconfigured/failed."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return None
+    try:
+        import httpx
+        params = {
+            "select": "id,event_type,content,tags,timestamp,source",
+            "order": "timestamp.desc",
+            "limit": str(limit),
+        }
+        if event_type:
+            params["event_type"] = f"eq.{event_type}"
+        async with httpx.AsyncClient(timeout=10.0) as c:
+            r = await c.get(
+                f"{url}/rest/v1/episodic_memory",
+                headers={"apikey": key, "Authorization": f"Bearer {key}"},
+                params=params,
+            )
+            if r.status_code == 200:
+                return r.json()
+            logger.warning(f"[VECTOR][brain_server] Supabase {r.status_code}")
+    except Exception as e:
+        logger.warning(f"[VECTOR][brain_server] Supabase read failed: {e}")
+    return None
+
+
 # ── Core endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/status")
