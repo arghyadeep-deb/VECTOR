@@ -168,11 +168,14 @@ async def list_agents():
 
 @app.get("/memory/recent")
 async def recent_memory(limit: int = Query(10, ge=1, le=50)):
-    """Recent episodic events."""
+    """Recent episodic events — cloud (Supabase) first, local fallback."""
+    rows = await _supabase_episodic(limit=limit)
+    if rows is not None:
+        return {"events": rows, "count": len(rows), "source": "supabase"}
     try:
         from core.memory.episodic import EpisodicMemory
         events = EpisodicMemory().recall("", limit=limit)
-        return {"events": events, "count": len(events)}
+        return {"events": events, "count": len(events), "source": "local"}
     except Exception as e:
         return {"events": [], "count": 0, "error": str(e)}
 
