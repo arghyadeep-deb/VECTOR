@@ -246,12 +246,58 @@ async def security_recent(limit: int = Query(10, ge=1, le=50)):
 
 @app.post("/heartbeat")
 async def receive_heartbeat(data: dict):
-    """Receive a heartbeat push from the local VECTOR instance (Legion Pro 5)."""
+    """Receive a heartbeat push from local VECTOR and return any queued commands.
+
+    The laptop polls this every command_poll_sec (~3s); we drain the pending
+    command queue into the response so commands reach the laptop within seconds.
+    Delivered commands move to history (deliver-once)."""
     global _last_heartbeat, _heartbeat_data
     _last_heartbeat = datetime.datetime.now().isoformat()
     _heartbeat_data = data
-    logger.info(f"[VECTOR][brain_server] heartbeat: {list(data.keys())}")
-    return {"ok": True, "received_at": _last_heartbeat}
+
+    commands = []
+    while _command_queue:
+        cmd = _command_queue.popleft()
+        cmd["delivered_at"] = _last_heartbeat
+        commands.append(cmd)
+        _command_history.append(cmd)
+    if commands:
+        logger.info(f"[VECTOR][brain_server] delivered {len(commands)} command(s) to laptop")
+    return {"ok": True, "received_at": _last_heartbeat, "commands": commands}
+
+
+@app.post("/command")
+async def submit_command(data: dict):
+    """Queue a command for VECTOR from any device (authed).
+
+    Body: {"type": "<action_type>", "params": {...}}. The command is delivered to
+    the laptop on its next heartbeat and executed through the permission gateway
+    (destructive/RED actions require approval there — this endpoint never bypasses it)."""
+    cmd_type = (data.get("type") or "").strip()
+    if not cmd_type:
+        raise HTTPException(status_code=400, detail="command 'type' is required")
+    cmd = {
+        "id": _uuid.uuid4().hex[:12],
+        "type": cmd_type,
+        "params": data.get("params") or {},
+        "created_at": datetime.datetime.now().isoformat(),
+        "status": "queued",
+    }
+    _command_queue.append(cmd)
+    logger.info(f"[VECTOR][brain_server] queued command {cmd['id']} type={cmd_type}")
+    return {"ok": True, "command_id": cmd["id"], "queued": len(_command_queue)}
+
+
+@app.get("/command/{command_id}")
+async def command_status(command_id: str):
+    """Check whether a queued command has been delivered to the laptop."""
+    for cmd in _command_history:
+        if cmd.get("id") == command_id:
+            return {"found": True, "status": "delivered", **cmd}
+    for cmd in _command_queue:
+        if cmd.get("id") == command_id:
+            return {"found": True, "status": "queued", **cmd}
+    return {"found": False, "command_id": command_id}
 
 
 @app.get("/heartbeat")
