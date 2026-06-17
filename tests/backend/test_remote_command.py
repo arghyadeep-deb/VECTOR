@@ -99,7 +99,8 @@ def test_remote_handler_scrubs_injection(monkeypatch):
             captured["params"] = action.params
             return {"ok": True}
 
-    monkeypatch.setattr(al, "PermissionGateway", _FakeGateway, raising=False)
+    import core.loop.permission_gateway as pg
+    monkeypatch.setattr(pg, "PermissionGateway", _FakeGateway, raising=False)
     # simulate the injection scanner flagging the text (returns False = blocked)
     monkeypatch.setattr(al, "_scan_incoming", lambda *a, **k: False, raising=False)
 
