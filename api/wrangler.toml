@@ -14,7 +14,7 @@ id = "8bbfd17e17294ffbacdfede37c324ad9"
 [[d1_databases]]
 binding = "DB"
 database_name = "vector-brain"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "a5ab2556-3f98-4878-9727-7060f2196d44"
 
 # Supabase (cloud source of truth for memory reads). Set as secrets:
 #   wrangler secret put SUPABASE_URL
