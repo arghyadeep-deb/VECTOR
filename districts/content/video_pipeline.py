@@ -26,6 +26,7 @@ import os
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -44,65 +45,94 @@ from loguru import logger
 # ── Job tracking (SQLite) ─────────────────────────────────────────────────────
 
 _DB_PATH = Path.home() / ".vector" / "content_jobs.db"
+_DB_LOCK = threading.RLock()
+
+def _get_job_conn() -> sqlite3.Connection:
+    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
 
 def _init_db() -> None:
-    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(_DB_PATH) as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS content_jobs (
-                id TEXT PRIMARY KEY,
-                topic TEXT,
-                niche TEXT,
-                platform TEXT,
-                status TEXT,        -- pending|scripting|narrating|rendering|captioning|uploading|done|cancelled|error
-                stage_pct INTEGER DEFAULT 0,
-                created_at TEXT,
-                updated_at TEXT,
-                youtube_url TEXT,
-                instagram_url TEXT,
-                video_path TEXT,
-                error TEXT,
-                upload_after TEXT   -- ISO timestamp: auto-upload after this time
-            )
-        """)
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS content_jobs (
+                    id TEXT PRIMARY KEY,
+                    topic TEXT,
+                    niche TEXT,
+                    platform TEXT,
+                    status TEXT,
+                    stage_pct INTEGER DEFAULT 0,
+                    created_at TEXT,
+                    updated_at TEXT,
+                    youtube_url TEXT,
+                    instagram_url TEXT,
+                    video_path TEXT,
+                    error TEXT,
+                    upload_after TEXT
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
 
 def _upsert_job(job: dict) -> None:
-    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(_DB_PATH) as con:
-        con.execute("""
-            INSERT OR REPLACE INTO content_jobs
-            (id, topic, niche, platform, status, stage_pct, created_at, updated_at,
-             youtube_url, instagram_url, video_path, error, upload_after)
-            VALUES (:id,:topic,:niche,:platform,:status,:stage_pct,:created_at,:updated_at,
-                    :youtube_url,:instagram_url,:video_path,:error,:upload_after)
-        """, job)
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            conn.execute("""
+                INSERT OR REPLACE INTO content_jobs
+                (id, topic, niche, platform, status, stage_pct, created_at, updated_at,
+                 youtube_url, instagram_url, video_path, error, upload_after)
+                VALUES (:id,:topic,:niche,:platform,:status,:stage_pct,:created_at,:updated_at,
+                        :youtube_url,:instagram_url,:video_path,:error,:upload_after)
+            """, job)
+            conn.commit()
+        finally:
+            conn.close()
 
 def get_job_queue(limit: int = 20) -> list[dict]:
     _init_db()
-    with sqlite3.connect(_DB_PATH) as con:
-        con.row_factory = sqlite3.Row
-        rows = con.execute(
-            "SELECT * FROM content_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
-        ).fetchall()
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM content_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 def get_job_history(limit: int = 10) -> list[dict]:
     _init_db()
-    with sqlite3.connect(_DB_PATH) as con:
-        con.row_factory = sqlite3.Row
-        rows = con.execute(
-            "SELECT * FROM content_jobs WHERE status IN ('done','error','cancelled') "
-            "ORDER BY updated_at DESC LIMIT ?", (limit,)
-        ).fetchall()
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM content_jobs WHERE status IN ('done','error','cancelled') "
+                "ORDER BY updated_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        finally:
+            conn.close()
     return [dict(r) for r in rows]
 
 def cancel_job(job_id: str) -> bool:
     _init_db()
-    with sqlite3.connect(_DB_PATH) as con:
-        con.execute(
-            "UPDATE content_jobs SET status='cancelled', updated_at=? WHERE id=? AND status='uploading'",
-            (datetime.datetime.now(datetime.timezone.utc).isoformat(), job_id)
-        )
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            conn.execute(
+                "UPDATE content_jobs SET status='cancelled', updated_at=? WHERE id=? AND status='uploading'",
+                (datetime.datetime.now(datetime.timezone.utc).isoformat(), job_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
     return True
 
 # ── Pipeline Agent ────────────────────────────────────────────────────────────
@@ -565,9 +595,13 @@ class VideoPipelineAgent(AgentBase):
         _upsert_job(job)
 
     def _get_job(self, job_id: str) -> Optional[dict]:
-        with sqlite3.connect(_DB_PATH) as con:
-            con.row_factory = sqlite3.Row
-            row = con.execute("SELECT * FROM content_jobs WHERE id=?", (job_id,)).fetchone()
+        with _DB_LOCK:
+            conn = _get_job_conn()
+            try:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute("SELECT * FROM content_jobs WHERE id=?", (job_id,)).fetchone()
+            finally:
+                conn.close()
         return dict(row) if row else None
 
     # ── AgentBase interface ───────────────────────────────────────────────────
