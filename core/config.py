@@ -46,7 +46,8 @@ class ModelRouterConfig(BaseModel):
 
 class LoopConfig(BaseModel):
     observe_interval_sec: float = Field(0.5, ge=0.1, le=60.0)
-    db_sync_hours: int = Field(48, ge=1, le=720)
+    db_sync_hours: int = Field(24, ge=1, le=720)            # multi-DB mesh reconcile cadence
+    command_poll_sec: float = Field(3.0, ge=0.5, le=60.0)   # remote command relay poll (Phase 4)
     reflect_hour: int = Field(2, ge=0, le=23)
     reflect_minute: int = Field(0, ge=0, le=59)
 
