@@ -107,6 +107,7 @@
      ['map [place]','tactical map'],
      ['wake / lock / listen / fortress','drive the voice state'],
      ['say &lt;text&gt;','VECTOR speaks'],
+     ['do &lt;instruction&gt;','send a command to VECTOR (works from any device)'],
      ['connect &lt;url&gt; [key]','attach the backend'],
      ['clear','wipe the log']
     ].forEach(([c,d])=>print('<span class="ct-cmd">'+c+'</span><span class="ct-desc">'+d+'</span>','help'));
