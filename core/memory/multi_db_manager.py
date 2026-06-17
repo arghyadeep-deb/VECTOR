@@ -52,7 +52,55 @@ class MultiDBManager:
             "turso": None,
             "d1": None,
         }
+        # Quarantine kill-switch: names of cloud backends temporarily severed
+        # from VECTOR (manual or auto-on-threat). Writes/pulls skip them. Local
+        # SQLite cannot be quarantined — it is the always-on fallback.
+        self._quarantined: set[str] = set()
+        self._quarantine_reasons: dict[str, str] = {}
         logger.info("[VECTOR][multi_db] initialized")
+
+    # ─── Quarantine kill-switch ─────────────────────────────────────────────────
+
+    _QUARANTINABLE = frozenset({"supabase", "turso", "d1"})
+
+    def quarantine(self, backend: str, reason: str = "manual") -> bool:
+        """Sever a cloud backend from VECTOR. Writes/pulls skip it until reenable().
+
+        'local' cannot be quarantined (it is the always-available store).
+        Returns True if the backend was quarantined.
+        """
+        backend = backend.lower().strip()
+        if backend not in self._QUARANTINABLE:
+            logger.error(f"[VECTOR][multi_db] cannot quarantine '{backend}' "
+                         f"(must be one of {sorted(self._QUARANTINABLE)})")
+            return False
+        self._quarantined.add(backend)
+        self._quarantine_reasons[backend] = reason
+        logger.warning(f"[VECTOR][multi_db] QUARANTINED {backend} — reason: {reason}")
+        return True
+
+    def reenable(self, backend: str) -> bool:
+        """Reconnect a previously quarantined backend."""
+        backend = backend.lower().strip()
+        existed = backend in self._quarantined
+        self._quarantined.discard(backend)
+        self._quarantine_reasons.pop(backend, None)
+        if existed:
+            logger.info(f"[VECTOR][multi_db] reenabled {backend}")
+        return existed
+
+    def is_quarantined(self, backend: str) -> bool:
+        return backend.lower().strip() in self._quarantined
+
+    def backend_status(self) -> dict:
+        """Per-backend enabled/quarantined view for db_status / HUD."""
+        return {
+            b: {
+                "quarantined": b in self._quarantined,
+                "reason": self._quarantine_reasons.get(b, ""),
+            }
+            for b in sorted(self._QUARANTINABLE)
+        }
 
     def _get_local(self):
         """Get local SQLite connection."""
