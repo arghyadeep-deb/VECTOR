@@ -216,13 +216,13 @@ class MultiDBManager:
         """Write to cloud DBs. Falls back to queue on failure."""
         results = {"supabase": False, "turso": False, "d1": False}
 
-        # Try Supabase first
-        if await self._write_supabase(table, record):
+        # Try Supabase first (unless quarantined)
+        if "supabase" not in self._quarantined and await self._write_supabase(table, record):
             results["supabase"] = True
             return results
 
-        # Fall back to Turso
-        if await self._write_turso(table, record):
+        # Fall back to Turso (unless quarantined)
+        if "turso" not in self._quarantined and await self._write_turso(table, record):
             results["turso"] = True
             return results
 
