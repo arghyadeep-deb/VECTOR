@@ -34,7 +34,7 @@ export default {
 
     // Public endpoints — no auth required
     if (url.pathname === "/status" || url.pathname === "/health") {
-      return router.proxy(request, env, url.pathname);
+      return router.handle(request, env, url);
     }
 
     // Auth check
