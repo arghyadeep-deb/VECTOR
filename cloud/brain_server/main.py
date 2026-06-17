@@ -193,22 +193,28 @@ async def get_goals():
 
 @app.get("/council/history")
 async def council_history(limit: int = Query(5, ge=1, le=20)):
-    """Recent council sessions from episodic memory."""
+    """Recent council sessions — cloud (Supabase) first, local fallback."""
+    rows = await _supabase_episodic(event_type="council_session", limit=limit)
+    if rows is not None:
+        return {"sessions": rows, "count": len(rows), "source": "supabase"}
     try:
         from core.memory.episodic import EpisodicMemory
         sessions = EpisodicMemory().recall("council", limit=limit, event_type="council_session")
-        return {"sessions": sessions, "count": len(sessions)}
+        return {"sessions": sessions, "count": len(sessions), "source": "local"}
     except Exception as e:
         return {"sessions": [], "count": 0, "error": str(e)}
 
 
 @app.get("/security/recent")
 async def security_recent(limit: int = Query(10, ge=1, le=50)):
-    """Recent security events."""
+    """Recent security events — cloud (Supabase) first, local fallback."""
+    rows = await _supabase_episodic(event_type="security_scan", limit=limit)
+    if rows is not None:
+        return {"events": rows, "count": len(rows), "source": "supabase"}
     try:
         from core.memory.episodic import EpisodicMemory
         events = EpisodicMemory().recall("threat", limit=limit, event_type="security_scan")
-        return {"events": events, "count": len(events)}
+        return {"events": events, "count": len(events), "source": "local"}
     except Exception as e:
         return {"events": [], "count": 0, "error": str(e)}
 
