@@ -110,3 +110,46 @@ def test_remote_handler_scrubs_injection(monkeypatch):
     ))
     # flagged text is scrubbed to empty before reaching the gateway
     assert captured["params"]["query"] == ""
+
+
+# ── Phase 5: free-text command from the HUD ─────────────────────────────────────
+
+def test_command_accepts_free_text(monkeypatch):
+    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
+    monkeypatch.setenv("VECTOR_ENV", "development")
+    client = TestClient(_load_brain("brain_cmd_text").app)
+    sub = client.post("/command", json={"text": "open goals panel"})
+    assert sub.status_code == 200
+    cmds = client.post("/heartbeat", json={}).json()["commands"]
+    assert cmds[0]["type"] == "command"
+    assert cmds[0]["params"]["text"] == "open goals panel"
+
+
+def test_remote_text_command_forwards_to_local_pipeline(monkeypatch):
+    from core.loop import autonomous_loop as al
+    import httpx
+
+    posted = {}
+
+    class _FakeClient:
+        def __init__(self, *a, **k):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        async def post(self, url, json=None, headers=None):
+            posted["url"] = url
+            posted["json"] = json
+            return object()
+
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeClient)
+    monkeypatch.setattr(al, "_scan_incoming", lambda *a, **k: True, raising=False)
+
+    loop = al.AutonomousLoop.__new__(al.AutonomousLoop)
+    asyncio.run(loop._handle_remote_command(
+        {"id": "c3", "type": "command", "params": {"text": "research AI news"}}
+    ))
+    assert posted["url"].endswith("/command")
+    assert posted["json"]["text"] == "research AI news"
+    assert posted["json"]["source"] == "remote_device"
