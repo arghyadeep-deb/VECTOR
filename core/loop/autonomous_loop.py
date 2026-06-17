@@ -1348,7 +1348,7 @@ class AutonomousLoop:
     # ─── Sync ─────────────────────────────────────────────────────────────────
 
     async def sync_loop(self):
-        """Cloud DB sync every 48h. Never crashes."""
+        """Multi-DB mesh reconciliation every db_sync_hours (default 24h). Never crashes."""
         sync_hours = CONFIG["loop"]["db_sync_hours"]
         logger.info(f"[VECTOR][sync] started — {sync_hours}h cloud sync interval")
         while self._running:
