@@ -418,46 +418,37 @@ class MultiDBManager:
             logger.warning(f"[VECTOR][multi_db] Supabase pull failed: {e}")
 
     async def _pull_turso(self) -> None:
-        """Pull episodic_memory rows from Turso and merge (last-write-wins on timestamp)."""
+        """Pull all 6 memory tables from Turso and merge (last-write-wins)."""
         url = self._get_config("turso_url")
         token = self._get_config("turso_token")
         if not url or not token or not httpx:
             return
+        if "turso" in self._quarantined:
+            logger.info("[VECTOR][multi_db] Turso quarantined — pull skipped")
+            return
+        total = 0
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(
-                    f"{url}/v1/pipeline",
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json={"statements": [
-                        "SELECT id,event_type,content,tags,context_snapshot,timestamp,source "
-                        "FROM episodic_memory ORDER BY timestamp DESC LIMIT 500"
-                    ]},
-                )
-                if resp.status_code != 200:
-                    return
-                data = resp.json()
-            results = data.get("results", [{}])[0]
-            cols = [c["name"] for c in results.get("columns", [])]
-            rows = results.get("rows", [])
-            conn = self._get_local().conn
-            merged = 0
-            for row_vals in rows:
-                row = dict(zip(cols, row_vals))
-                existing = conn.execute(
-                    "SELECT timestamp FROM episodic_memory WHERE id=?", (row.get("id"),)
-                ).fetchone()
-                if existing is None or row.get("timestamp", "") > existing[0]:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO episodic_memory "
-                        "(id,event_type,content,tags,context_snapshot,timestamp,source) "
-                        "VALUES (?,?,?,?,?,?,?)",
-                        (row.get("id"), row.get("event_type"), row.get("content"),
-                         row.get("tags"), row.get("context_snapshot"),
-                         row.get("timestamp"), row.get("source")),
-                    )
-                    merged += 1
-            conn.commit()
-            logger.info(f"[VECTOR][multi_db] Turso pull: {merged}/{len(rows)} rows merged")
+                for table, spec in self._TABLE_SPEC.items():
+                    try:
+                        resp = await client.post(
+                            f"{url}/v1/pipeline",
+                            headers={"Authorization": f"Bearer {token}",
+                                     "Content-Type": "application/json"},
+                            json={"statements": [
+                                f"SELECT {', '.join(spec['cols'])} FROM {table} "
+                                f"ORDER BY {spec['ts']} DESC LIMIT 500"
+                            ]},
+                        )
+                        if resp.status_code != 200:
+                            continue
+                        results = resp.json().get("results", [{}])[0]
+                        cols = [c["name"] for c in results.get("columns", [])]
+                        rows = [dict(zip(cols, vals)) for vals in results.get("rows", [])]
+                        total += self._merge_rows(table, rows)
+                    except Exception as e:
+                        logger.debug(f"[VECTOR][multi_db] Turso pull {table}: {e}")
+            logger.info(f"[VECTOR][multi_db] Turso pull: {total} rows merged across 6 tables")
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Turso pull failed: {e}")
 
