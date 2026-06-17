@@ -1239,6 +1239,7 @@ def test_mcp_tool_inventory_unchanged_after_split() -> None:
 
     srv = m._make_server()
     names = sorted(t.name for t in asyncio.run(srv.list_tools()))
-    assert len(names) == 353, f"tool count changed: {len(names)}"
+    # 353 after the monolith split + 3 db_control tools (Phase 2 quarantine).
+    assert len(names) == 356, f"tool count changed: {len(names)}"
     sha = hashlib.sha256("\n".join(names).encode()).hexdigest()[:16]
-    assert sha == "3824d04807007a5b", f"tool name set changed: {sha}"
+    assert sha == "3292f2386e9b9b7c", f"tool name set changed: {sha}"
