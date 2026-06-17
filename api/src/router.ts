@@ -45,7 +45,7 @@ export class Router {
   async handle(request: Request, env: Env, url: URL): Promise<Response> {
     const path = url.pathname;
 
-    if (!ALLOWED_PATHS.has(path)) {
+    if (!isAllowedPath(path)) {
       return new Response(JSON.stringify({ error: "not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
