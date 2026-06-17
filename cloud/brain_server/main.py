@@ -156,14 +156,21 @@ async def health():
 
 @app.get("/agents")
 async def list_agents():
-    """List all registered agents with HP."""
+    """List agents. Local (co-located) gives the live roster; remote (Fly) returns
+    heartbeat-derived counts since the live roster isn't synced to the cloud."""
     try:
         from core.city.agent_registry import AgentRegistry
         agents = AgentRegistry().list_all()
-        return {"agents": agents, "count": len(agents)}
-    except Exception as e:
-        logger.warning(f"[VECTOR][brain_server] agents failed: {e}")
-        return {"agents": [], "count": 0, "error": str(e)}
+        return {"agents": agents, "count": len(agents), "source": "local"}
+    except Exception:
+        hb = _heartbeat_data or {}
+        return {
+            "agents": [],
+            "count": hb.get("agents_alive", hb.get("total_agents", 0)),
+            "source": "heartbeat",
+            "heartbeat": hb,
+            "note": "live agent roster is laptop-local; showing last heartbeat",
+        }
 
 
 @app.get("/memory/recent")
