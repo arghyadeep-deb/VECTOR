@@ -524,6 +524,7 @@ class AutonomousLoop:
                     from core.avatar.proactive_care import get_proactive_care
                     get_proactive_care().record_break()
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
 
         # Avatar on_observe: pull health/fatigue signals + absorb voice sentiment
@@ -1367,8 +1368,19 @@ class AutonomousLoop:
                     await asyncio.sleep(1.0)
 
     async def _sync_tick(self) -> None:
-        """Push heartbeat to brain server (Fly.io) and log sync."""
-        logger.info("[VECTOR][sync] DB sync tick — pushing heartbeat to brain server")
+        """24h tick: reconcile the multi-DB mesh, then push heartbeat to brain server."""
+        logger.info("[VECTOR][sync] DB sync tick")
+
+        # ── multi-DB mesh reconciliation (local SQLite ↔ Supabase ↔ Turso ↔ D1) ──
+        # This is the 24h "databases merge each other" pass. Quarantined backends
+        # (Phase 2) are skipped inside sync_all. Never crashes the loop.
+        try:
+            from core.memory.multi_db_manager import get_manager
+            merge = await get_manager().sync_all()
+            logger.info(f"[VECTOR][sync] multi-DB merge: {merge}")
+        except Exception as e:
+            logger.warning(f"[VECTOR][sync] multi-DB merge skipped: {e}")
+
         try:
             import httpx
             brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
@@ -1555,6 +1567,7 @@ class AutonomousLoop:
                     try:
                         await asyncio.get_event_loop().run_in_executor(None, proc.wait)
                     except Exception:
+                        logger.warning("[VECTOR] silent swallow")
                         pass
                     logger.info("[VECTOR][vectorcode] MCP server exited — restarting in 5s")
                     await asyncio.sleep(5)
