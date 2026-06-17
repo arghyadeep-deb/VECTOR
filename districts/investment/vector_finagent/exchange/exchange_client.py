@@ -58,7 +58,7 @@ def get_default_type(exchange_id: str) -> str:
     return "swap" if exchange_id in ("hyperliquid",) else "spot"
 
 
-def make_exchange(exchange_id: str, credentials: dict = None,
+def make_exchange(exchange_id: str, credentials: dict | None = None,
                   sandbox: bool = False, timeout_ms: int = 10000) -> ccxt.Exchange:
     """Create and configure a ccxt exchange instance.
 

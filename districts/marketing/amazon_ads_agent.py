@@ -12,7 +12,7 @@ class AmazonAdsAgent(AgentBase):
     def __init__(self):
         super().__init__("amazon_ads_001", "AmazonAdsAgent", "marketing")
 
-    async def audit(self, account_data: dict = None) -> dict:
+    async def audit(self, account_data: dict | None = None) -> dict:
         """Audit Amazon Ads account — ACOS, TACOS, spend efficiency."""
         try:
             from core.inference.provider_client import get_client
@@ -36,7 +36,7 @@ Data: {str(account_data or {})[:1000]}"""
             logger.error("[VECTOR][amazon_ads] audit error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         return await self.audit(params or {})
 
 if __name__ == "__main__":

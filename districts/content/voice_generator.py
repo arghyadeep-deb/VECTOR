@@ -18,7 +18,7 @@ class VoiceGenerator(AgentBase):
     from audio samples.
     """
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VoiceGenerator", "content")
         if ghost:
             self.inherit_ghost(ghost)

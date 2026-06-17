@@ -12,7 +12,7 @@ class SGTMAgent(AgentBase):
     def __init__(self):
         super().__init__("sgtm_001", "SGTMAgent", "marketing")
 
-    async def health_check(self, container_url: str = "", data: dict = None) -> dict:
+    async def health_check(self, container_url: str = "", data: dict | None = None) -> dict:
         """Check sGTM container health — hit rate, tag firing, CAPI coverage."""
         try:
             from core.inference.provider_client import get_client
@@ -37,7 +37,7 @@ Data: {str(data or {})[:500]}"""
             logger.error("[VECTOR][sgtm] health_check error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         p = params or {}
         return await self.health_check(p.get("container_url", ""), p)
 

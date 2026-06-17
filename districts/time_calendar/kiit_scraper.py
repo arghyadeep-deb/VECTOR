@@ -21,7 +21,7 @@ class KIITScraper(AgentBase):
 
     KIIT_ERP_URL = "https://erp.kiit.ac.in"
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "KIITScraper", "time_calendar")
         if ghost:
             self.inherit_ghost(ghost)

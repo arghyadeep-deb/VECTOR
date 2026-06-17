@@ -22,7 +22,7 @@ class CallScreener(AgentBase):
         "telemarketing", "scam_likely", "robocall"
     ]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CallScreener", "calls")
         if ghost:
             self.inherit_ghost(ghost)

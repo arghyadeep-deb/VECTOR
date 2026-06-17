@@ -20,7 +20,7 @@ class VideoMerger(AgentBase):
         "slide_left", "slide_right", "zoom_in", "blur"
     ]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VideoMerger", "content")
         if ghost:
             self.inherit_ghost(ghost)

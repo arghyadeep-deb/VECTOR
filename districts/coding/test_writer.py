@@ -18,7 +18,7 @@ class TestWriter(AgentBase):
     Uses LLM to generate contextually appropriate test cases.
     """
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "TestWriter", "coding")
         if ghost:
             self.inherit_ghost(ghost)

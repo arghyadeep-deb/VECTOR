@@ -195,7 +195,7 @@ class PythonReviewer(AgentBase):
                 issues.append({"text": text, "severity": severity})
         return issues
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         p = params or {}
         code = p.get("code", "")
         filename = p.get("filename", p.get("file", ""))

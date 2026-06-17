@@ -1059,7 +1059,7 @@ def _take_snapshot_internal(
 
 @router.post("/api/ai/timemachine/snapshot", dependencies=[Depends(require_openclaw_or_local)])
 @limiter.limit("30/minute")
-async def take_snapshot(request: Request, body: dict = None):
+async def take_snapshot(request: Request, body: dict | None = None):
     """Take a snapshot of current telemetry.
     Optional body: {"layers": [...], "profile": "...", "compress": true}"""
     body = body or {}

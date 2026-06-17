@@ -28,7 +28,7 @@ class VoiceResponder(AgentBase):
         "serious": {"speed": 0.9, "pitch": -1}
     }
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VoiceResponder", "calls")
         if ghost:
             self.inherit_ghost(ghost)
@@ -59,7 +59,7 @@ class VoiceResponder(AgentBase):
             logger.warning("[VECTOR][voice_responder] Kokoro TTS not available")
             return False
 
-    def generate_response(self, text: str, context: dict = None) -> dict:
+    def generate_response(self, text: str, context: dict | None = None) -> dict:
         """
         Generate text response using Ollama.
         Context can include conversation history, user preferences, etc.
@@ -192,7 +192,7 @@ V.E.C.T.O.R. Response:"""
             logger.error(f"[VECTOR][voice_responder] TTS failed: {e}")
             return {"status": "error", "message": str(e)}
 
-    async def respond_to_audio(self, audio_path: str, context: dict = None) -> dict:
+    async def respond_to_audio(self, audio_path: str, context: dict | None = None) -> dict:
         """
         Full pipeline: transcribe audio, generate response, convert to speech.
         Returns transcription, response text, and audio file path.

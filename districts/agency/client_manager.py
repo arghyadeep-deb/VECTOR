@@ -23,7 +23,7 @@ class ClientManager(AgentBase):
         "churn_risk", "win_back"
     ]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ClientManager", "agency")
         if ghost:
             self.inherit_ghost(ghost)
@@ -160,7 +160,7 @@ class ClientManager(AgentBase):
             return True
         return False
 
-    def track_engagement(self, client: str, event_type: str, details: dict = None) -> dict:
+    def track_engagement(self, client: str, event_type: str, details: dict | None = None) -> dict:
         """
         Track engagement event with a client.
         Updates engagement score and last contact timestamp.

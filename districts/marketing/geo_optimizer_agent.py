@@ -85,7 +85,7 @@ class GEOOptimizerAgent(AgentBase):
             "top_queries": [r["query"] for r in cited[:3]],
         }
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         p = params or {}
         brand = p.get("brand", CONFIG.get("owner_name", "VECTOR"))
         queries = p.get("queries", ["best AI assistant", "top AI tools 2026"])

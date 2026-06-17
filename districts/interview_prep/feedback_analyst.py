@@ -22,7 +22,7 @@ class FeedbackAnalyst(AgentBase):
         "follow_up_questions", "examples", "star_format"
     ]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "FeedbackAnalyst", "interview_prep")
         if ghost:
             self.inherit_ghost(ghost)

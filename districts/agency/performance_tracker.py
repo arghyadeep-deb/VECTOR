@@ -17,7 +17,7 @@ class PerformanceTracker(AgentBase):
     Used for monitoring performance across various dimensions.
     """
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "PerformanceTracker", "agency")
         if ghost:
             self.inherit_ghost(ghost)
@@ -60,7 +60,7 @@ class PerformanceTracker(AgentBase):
             logger.error(f"[VECTOR][performance_tracker] Failed to save data: {e}")
             return False
 
-    def track_metric(self, name: str, value: float, tags: dict = None) -> dict:
+    def track_metric(self, name: str, value: float, tags: dict | None = None) -> dict:
         """
         Log a metric value with timestamp.
         Automatically checks for anomalies if threshold is set.

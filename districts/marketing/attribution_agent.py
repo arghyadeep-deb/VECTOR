@@ -12,7 +12,7 @@ class AttributionAgent(AgentBase):
     def __init__(self):
         super().__init__("attribution_001", "AttributionAgent", "marketing")
 
-    async def audit_consent_mode(self, ga4_data: dict = None) -> dict:
+    async def audit_consent_mode(self, ga4_data: dict | None = None) -> dict:
         """Audit Consent Mode V2 setup — modeled conversions, consent signals."""
         try:
             from core.inference.provider_client import get_client
@@ -36,7 +36,7 @@ Data: {str(ga4_data or {})[:800]}"""
             logger.error("[VECTOR][attribution] audit error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         return await self.audit_consent_mode(params or {})
 
 if __name__ == "__main__":

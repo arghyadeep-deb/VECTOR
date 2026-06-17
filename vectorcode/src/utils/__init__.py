@@ -1,16 +1,13 @@
 """VectorCode utilities package.
-from loguru import logger
 
 Re-exports the top-level utils.py contents so `from utils import X` works
 whether callers expect the package or the legacy single-file module.
 """
-import sys
 from pathlib import Path as _Path
 
-# Ensure parent dir is on sys.path so we can find utils.py
-_parent = str(_Path(__file__).parent.parent)
-if _parent not in sys.path:
-    sys.path.insert(0, _parent)
+from loguru import logger
+
+import vectorcode.src.bootstrap  # noqa: F401  # side-effect path setup
 
 # Import and re-export EVERYTHING from utils.py (top-level VectorCode module)
 try:

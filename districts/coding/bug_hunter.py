@@ -58,7 +58,7 @@ class BugHunter(AgentBase):
         (r"re\.compile\s*\(\s*\w+\s*\)\s*(?:\n\s*\w+\s*=\s*re\.compile)?", "Regex recompilation - cache compiled patterns"),
     ]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "BugHunter", "coding")
         if ghost:
             self.inherit_ghost(ghost)

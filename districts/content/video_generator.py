@@ -12,7 +12,7 @@ class VideoGenerator(AgentBase):
     title/thumbnail ideas for video content.
     """
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VideoGenerator", "content")
         if ghost:
             self.inherit_ghost(ghost)

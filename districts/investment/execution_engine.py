@@ -242,7 +242,7 @@ class ExecutionEngine(AgentBase):
             "kill_switch": self._get_inv_cfg().get("kill_switch", False),
         }
 
-    async def run(self, params: dict = None) -> dict:
+    async def run(self, params: dict | None = None) -> dict:
         p = params or {}
         task = p.get("type", "summary")
         if task == "place_order":

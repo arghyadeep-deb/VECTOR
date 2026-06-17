@@ -299,7 +299,7 @@ def run_broker(broker: str, api_key: str, access_token: str, user_id: str,
         emit_status(broker, False, "disconnected")
 
 
-def _patch_db_modules(symbol_token_map: dict = None):
+def _patch_db_modules(symbol_token_map: dict | None = None):
     """
     Stub out openalgo's database modules so adapters that call
     get_auth_token() / get_feed_token() don't crash when no DB exists.

@@ -31,7 +31,7 @@ from utils import fetch_ohlcv, json_response, output_json, parse_args
 # Vision Score (V): 0 - 3
 # ---------------------------------------------------------------------------
 
-def compute_vision_score(win_rate: float, config: dict = None) -> dict:
+def compute_vision_score(win_rate: float, config: dict | None = None) -> dict:
     """
     Convert pattern match win rate to a 0-3 vision score.
     win_rate: percentage 0-100
@@ -64,7 +64,7 @@ def compute_vision_score(win_rate: float, config: dict = None) -> dict:
 # Fundamental Score (F): 0 - 4
 # ---------------------------------------------------------------------------
 
-def compute_fundamental_score(symbol: str, config: dict = None) -> dict:
+def compute_fundamental_score(symbol: str, config: dict | None = None) -> dict:
     """
     Score fundamentals using yfinance Ticker.info.
     P/E: 0-2, ROE: 0-2.
@@ -144,7 +144,7 @@ def compute_fundamental_score(symbol: str, config: dict = None) -> dict:
 # Technical Score (Q): 0 - 3
 # ---------------------------------------------------------------------------
 
-def compute_technical_score(symbol: str, date_str: str = None, config: dict = None) -> dict:
+def compute_technical_score(symbol: str, date_str: str = None, config: dict | None = None) -> dict:
     """
     Score technicals: MA signal (0-1), RSI (0-1), MACD histogram (0-1).
 
@@ -257,7 +257,7 @@ def compute_technical_score(symbol: str, date_str: str = None, config: dict = No
 # Combined Scorecard
 # ---------------------------------------------------------------------------
 
-def compute_scorecard(symbol: str, win_rate: float, date_str: str = None, config: dict = None) -> dict:
+def compute_scorecard(symbol: str, win_rate: float, date_str: str = None, config: dict | None = None) -> dict:
     """Compute the full V+F+Q scorecard.
 
     Config keys: buy_threshold (7), wait_threshold (5), plus all sub-function keys.

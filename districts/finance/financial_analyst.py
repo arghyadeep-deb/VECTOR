@@ -84,7 +84,7 @@ class FinancialAnalyst(AgentBase):
         }
 
     def run_scenario_analysis(self, base_revenue: float, base_costs: float,
-                              scenarios: dict = None) -> dict:
+                              scenarios: dict | None = None) -> dict:
         """Bull/base/bear scenario P&L analysis."""
         if scenarios is None:
             scenarios = {

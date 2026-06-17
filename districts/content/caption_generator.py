@@ -43,7 +43,7 @@ class CaptionGenerator(AgentBase):
 
     OUTPUT_FORMATS = ["srt", "vtt", "ass", "txt", "json"]
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CaptionGenerator", "content")
         if ghost:
             self.inherit_ghost(ghost)

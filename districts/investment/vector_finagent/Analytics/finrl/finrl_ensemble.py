@@ -88,12 +88,12 @@ def train_ensemble(
     tech_indicator_list: list = None,
     rebalance_window: int = 63,
     validation_window: int = 63,
-    a2c_params: dict = None,
-    ppo_params: dict = None,
-    ddpg_params: dict = None,
-    sac_params: dict = None,
-    td3_params: dict = None,
-    timesteps_dict: dict = None,
+    a2c_params: dict | None = None,
+    ppo_params: dict | None = None,
+    ddpg_params: dict | None = None,
+    sac_params: dict | None = None,
+    td3_params: dict | None = None,
+    timesteps_dict: dict | None = None,
     print_verbosity: int = 10,
 ) -> dict:
     """
@@ -283,7 +283,7 @@ def turbulence_ensemble(
 def weighted_average_actions(
     models: dict,
     obs: np.ndarray,
-    weights: dict = None,
+    weights: dict | None = None,
     deterministic: bool = True,
 ) -> np.ndarray:
     """Compute weighted average of actions from multiple models."""

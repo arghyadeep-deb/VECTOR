@@ -107,7 +107,7 @@ class ProposalStrategist(AgentBase):
         }
 
     async def write_executive_summary(self, problem: str, solution: str,
-                                       roi_data: dict = None) -> str:
+                                       roi_data: dict | None = None) -> str:
         """LLM-generated executive summary — the most-read section."""
         roi_str = f"ROI: {roi_data['12_month_roi_pct']}% in 12 months" if roi_data else ""
         prompt = (

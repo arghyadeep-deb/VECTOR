@@ -14,7 +14,7 @@ from core.city.agent_base import AgentBase
 class ArchitectBot(AgentBase):
     """Analyzes codebase structure and answers architecture questions."""
 
-    def __init__(self, ghost: dict = None):
+    def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ArchitectBot", "coding")
         if ghost:
             self.inherit_ghost(ghost)
