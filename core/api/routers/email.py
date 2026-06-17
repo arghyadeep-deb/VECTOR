@@ -20,7 +20,7 @@ router = APIRouter(prefix="/email", tags=["email"])
 async def email_recent():
     try:
         from core.email.schema import EMAIL_DB_PATH
-        with sqlite3.connect(str(EMAIL_DB_PATH)) as conn:
+        with sqlite3.connect(str(EMAIL_DB_PATH), check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             total = conn.execute("SELECT COUNT(*) as c FROM emails").fetchone()["c"]
             unread = conn.execute("SELECT COUNT(*) as c FROM emails WHERE read=0").fetchone()["c"]

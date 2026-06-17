@@ -261,6 +261,7 @@ class VoiceProfileStore:
             try:
                 self._storage.delete(profile.reference_key)
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         if self._collection_ready and self._engine is not None:
             try:
@@ -295,6 +296,7 @@ class VoiceProfileStore:
                 try:
                     self.update(p.name, is_default=False)
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
         return self.update(name, is_default=True)
 

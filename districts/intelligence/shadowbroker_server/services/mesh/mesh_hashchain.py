@@ -2039,6 +2039,7 @@ class Infonet:
 
                     metrics_inc("ingest_prev_hash_mismatch")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "prev_hash does not match head"})
                 continue
@@ -2048,6 +2049,7 @@ class Infonet:
 
                     metrics_inc("ingest_network_mismatch")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "network_id mismatch"})
                 continue
@@ -2060,6 +2062,7 @@ class Infonet:
 
                     metrics_inc("ingest_replay_seen")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 duplicates += 1
                 continue
@@ -2095,6 +2098,7 @@ class Infonet:
 
                         metrics_inc("ingest_timestamp_stale")
                     except Exception:
+                        logger.exception("[VECTOR] silent swallow")
                         pass
                     rejected.append({"index": idx, "reason": "Event timestamp outside freshness window"})
                     continue
@@ -2119,6 +2123,7 @@ class Infonet:
 
                     metrics_inc("ingest_payload_too_large")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "Payload too large"})
                 continue
@@ -2130,6 +2135,7 @@ class Infonet:
 
                     metrics_inc("ingest_proto_mismatch")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "Unsupported protocol_version"})
                 continue
@@ -2143,6 +2149,7 @@ class Infonet:
 
                     metrics_inc("ingest_signature_missing")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "Missing signature fields"})
                 continue
@@ -2177,6 +2184,7 @@ class Infonet:
 
                     metrics_inc("ingest_key_revoked")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "public key is revoked"})
                 continue
@@ -2187,6 +2195,7 @@ class Infonet:
 
                     metrics_inc("ingest_replay_sequence")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append(
                     {
@@ -2208,6 +2217,7 @@ class Infonet:
 
                     metrics_inc("ingest_node_mismatch")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "node_id mismatch"})
                 continue
@@ -2233,6 +2243,7 @@ class Infonet:
 
                     metrics_inc("ingest_signature_invalid")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "Invalid signature"})
                 continue
@@ -2249,6 +2260,7 @@ class Infonet:
 
                     metrics_inc("ingest_event_id_mismatch")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 rejected.append({"index": idx, "reason": "event_id mismatch"})
                 continue
@@ -2572,6 +2584,7 @@ class Infonet:
 
             metrics_inc("fork_applied")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return True, "applied"
 

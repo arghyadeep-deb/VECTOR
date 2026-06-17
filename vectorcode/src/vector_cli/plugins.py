@@ -345,6 +345,7 @@ class PluginContext:
                 )
                 return
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # If commands module isn't available, skip the check
 
         self._manager._plugin_commands[clean] = {

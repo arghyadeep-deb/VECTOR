@@ -34,7 +34,7 @@ async def retry_items(limit: int = Query(20, ge=1, le=100)):
         from core.queue.retry_queue import RetryQueue
         import sqlite3, json
         rq = RetryQueue.get()
-        with sqlite3.connect(rq._db, timeout=5) as conn:
+        with sqlite3.connect(rq._db, timeout=5, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT id, action_type, attempt, next_retry_at, error FROM retry_queue "
@@ -53,7 +53,7 @@ async def dlq_items(limit: int = Query(20, ge=1, le=100)):
         from core.queue.retry_queue import RetryQueue
         import sqlite3
         rq = RetryQueue.get()
-        with sqlite3.connect(rq._db, timeout=5) as conn:
+        with sqlite3.connect(rq._db, timeout=5, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT id, action_type, attempts, last_error, failed_at FROM dead_letter "
@@ -73,7 +73,7 @@ async def replay_item(item_id: int):
         from core.loop.permission_gateway import PermissionGateway, Action
         import sqlite3, json, time
         rq = RetryQueue.get()
-        with sqlite3.connect(rq._db, timeout=5) as conn:
+        with sqlite3.connect(rq._db, timeout=5, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM retry_queue WHERE id = ?", (item_id,)

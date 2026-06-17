@@ -108,7 +108,7 @@ class EmbedderFactory:
 
         try:
             import sqlite3
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             # Try to get embedding-specific config (if exists)

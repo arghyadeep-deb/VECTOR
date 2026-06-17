@@ -62,7 +62,7 @@ class MemoryPersona:
     @contextmanager
     def _conn(self):
         if self._private_db_path is not None:
-            conn = sqlite3.connect(self._private_db_path)
+            conn = sqlite3.connect(self._private_db_path, check_same_thread=False)
             try:
                 yield conn
             finally:

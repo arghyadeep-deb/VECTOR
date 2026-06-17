@@ -961,6 +961,7 @@ def _denormalize_config_from_web(config: Dict[str, Any]) -> Dict[str, Any]:
                         "context_length": ctx_override,
                     }
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # can't read disk config — just use the string form
     return config
 

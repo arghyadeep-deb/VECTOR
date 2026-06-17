@@ -137,6 +137,7 @@ class WeeklyTrainingScheduler:
                 if job and job.next_run_time:
                     return job.next_run_time.isoformat()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         return None
 

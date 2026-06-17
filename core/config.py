@@ -405,6 +405,7 @@ class VectorSettings(BaseSettings):
     VECTOR_DEBUG: bool = False
     VECTOR_VAULT_PATH: str = "C:/Users/Arghyadeep/V.E.C.T.O.R Brain"
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
+    VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
     ANTHROPIC_KEY: SecretStr = SecretStr("")
@@ -588,6 +589,26 @@ def _normalize_base_url(value: str, default: str = "http://127.0.0.1:11434") -> 
     return value.rstrip("/")
 
 
+def _normalize_supabase_url(value: str) -> str:
+    value = (value or "").strip().rstrip("/")
+    if not value:
+        return ""
+    if "://" in value:
+        return value
+    if "." not in value and "/" not in value:
+        return f"https://{value}.supabase.co"
+    return f"https://{value}"
+
+
+def _normalize_turso_http_url(value: str) -> str:
+    value = (value or "").strip().rstrip("/")
+    if not value:
+        return ""
+    if value.startswith("libsql://"):
+        return "https://" + value[len("libsql://"):]
+    return value
+
+
 CONFIG: dict = {
     "owner_name": "Arghyadeep",
     "system_name": "VECTOR",
@@ -645,6 +666,7 @@ CONFIG: dict = {
     "llm_pricing": {},          # override per-model pricing for budget tracking
     "vault_path": Path(_s.VECTOR_VAULT_PATH),
     "db_path": _BASE_DIR / "vector_memory.db",
+    "db_key": _secret(_s.VECTOR_DB_KEY.get_secret_value()),
     "ollama_host": _normalize_base_url(_s.OLLAMA_HOST),
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "oauth": {
@@ -663,7 +685,7 @@ CONFIG: dict = {
         "github_username":        _s.GITHUB_USERNAME,
         "pushover_token":         _secret(_s.PUSHOVER_TOKEN.get_secret_value()),
         "pushover_user":          _s.PUSHOVER_USER,
-        "supabase_url":           _s.SUPABASE_URL,
+        "supabase_url":           _normalize_supabase_url(_s.SUPABASE_URL),
         "supabase_key":           _secret(_s.SUPABASE_KEY.get_secret_value()),
         "virustotal_key":         _secret(_s.VIRUSTOTAL_KEY.get_secret_value()),
         "newsapi_key":            _secret(_s.NEWSAPI_KEY.get_secret_value()),
@@ -730,7 +752,7 @@ CONFIG: dict = {
         "timeout_sec": _s.comms.timeout_sec,
         "repo_path": _s.comms.repo_path,
     },
-    "turso_url": _s.TURSO_URL or _s.turso.url,
+    "turso_url": _normalize_turso_http_url(_s.TURSO_URL or _s.turso.url),
     "turso_token": _s.TURSO_TOKEN.get_secret_value() or _s.turso.token,
     "karpathy": {
         "runs_dir": _s.karpathy.runs_dir,
@@ -1051,6 +1073,7 @@ _ENV_ALIASES: dict[str, str] = {
     "VECTOR_WRITE_SAFE_ROOT": "write_safe_root",
     "VECTOR_ALLOW_PRIVATE_URLS": "allow_private_urls",
     "VECTOR_ALLOW_COMMIT_DRIFT": "allow_commit_drift",
+    "VECTOR_DB_KEY":          "db_key",
     # Duplicate api_keys entries with top-level keys for broad coverage
     "GITHUB_TOKEN":           "api_keys.github_token",
     "ELEVENLABS_KEY":         "api_keys.elevenlabs_key",

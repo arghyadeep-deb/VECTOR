@@ -206,6 +206,7 @@ async def voice_duplex(websocket: WebSocket):
         try:
             await websocket.close()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
 

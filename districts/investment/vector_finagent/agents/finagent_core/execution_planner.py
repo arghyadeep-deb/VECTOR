@@ -418,26 +418,10 @@ class ExecutionPlanner:
         # Simple condition evaluation using context
         condition = self._interpolate(condition, plan.context)
 
-        _safe_builtins = {
-            "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
-            "complex": complex, "dict": dict, "enumerate": enumerate,
-            "filter": filter, "float": float, "frozenset": frozenset,
-            "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
-            "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
-            "iter": iter, "len": len, "list": list, "map": map, "max": max,
-            "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
-            "pow": pow, "print": print, "range": range, "repr": repr,
-            "reversed": reversed, "round": round, "set": set, "slice": slice,
-            "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
-            "type": type, "zip": zip,
-        }
-
         try:
-            logger.warning(
-                "[VECTOR][security] eval condition execution in %s: %.100s",
-                __name__, condition,
-            )
-            result = eval(condition, {"__builtins__": _safe_builtins}, plan.context)
+            from core.security.safe_eval import safe_eval_expression
+
+            result = safe_eval_expression(condition, plan.context)
         except Exception:
             result = False
 

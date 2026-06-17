@@ -825,6 +825,7 @@ def _read_codex_access_token() -> Optional[str]:
                 logger.debug("Codex access token expired (exp=%s), skipping", exp)
                 return None
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-JWT token or decode error — use as-is
 
         return access_token.strip()

@@ -568,6 +568,7 @@ def op_compare_strategies(data):
                     if val is not None:
                         metrics[attr] = float(val)
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
 
             results[strategy] = {
@@ -755,6 +756,7 @@ def op_validate_model(data):
                     if val is not None:
                         fold_data[attr] = float(val)
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
             fold_metrics.append(fold_data)
 

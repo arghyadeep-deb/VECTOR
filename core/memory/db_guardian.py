@@ -28,6 +28,7 @@ def _alert_owner(msg: str) -> None:
         from core.cloud.notify import notify_owner  # optional
         notify_owner(msg)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
 

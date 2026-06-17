@@ -1067,6 +1067,7 @@ def _force_rebuild_binding(gate_id: str) -> None:
     try:
         _ensure_reader_identity(gate_key, rotate=True)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # non-fatal — _sync_binding will create one if missing
     logger.info(
         "Forced MLS binding rebuild for %s",

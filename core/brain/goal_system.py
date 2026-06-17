@@ -140,6 +140,7 @@ class GoalSystem:
                         pruned += 1
                         continue
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
             # Stale: no update in horizon-appropriate days with zero progress
             last = goal.get("last_updated") or goal.get("created_at")
@@ -158,6 +159,7 @@ class GoalSystem:
                         )
                         pruned += 1
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
         if pruned:
             self._persist()

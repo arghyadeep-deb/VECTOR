@@ -1,30 +1,28 @@
-# plans/ — VECTOR work plans (Grove-format pilot)
+# plans/ - VECTOR Work Plans
 
-Each plan is a folder of small task files executed strictly by dependency.
-Context, requirements, and design are NOT duplicated here — they live in
-`brain/VECTOR/` (Architecture.md, Decisions/, Districts/) and are linked from
-task files when needed.
+Plans are small task folders executed by dependency order. Context,
+requirements, and design should live in source docs rather than being
+duplicated across many stale task files.
 
-## Rules for the executing agent
+## Rules For Executing Agents
 
-1. Load ONE task file at a time. Do not preload the whole plan.
-2. A task may start only when everything in its `Depends on:` line is green.
-3. Before starting, re-read any `Design:` links in the task file.
-4. A task is done only when every Acceptance checkbox passes — run the checks,
-   don't assert them.
-5. Owner-marked tasks (`Who: OWNER`) are never executed autonomously; surface
-   the copy-paste command and wait.
-6. After finishing a task, tick its row in the plan's `INDEX.md`.
+1. Load one task file at a time.
+2. Start a task only when every dependency is already complete.
+3. Re-read any design links before changing code.
+4. A task is done only when every acceptance check passes.
+5. Owner-marked tasks are surfaced to the owner, not executed autonomously.
+6. After finishing a task, update the plan index.
 
-## Active plans
+## Active Plans
 
-- [`vector-activation/`](./vector-activation/INDEX.md) — remaining activation,
-  deployment, and security-closeout work (2026-06-11).
-- [`vector-production-hardening/`](./vector-production-hardening/INDEX.md) — task-wise
-  hardening plan for production/JARVIS-readiness issues (2026-06-11).
-- [`vector-audit-remediation/`](./vector-audit-remediation/INDEX.md) — full-codebase
-  audit issues, one `issue-NN-*.md` per finding (2026-06-12, in progress).
+- [`vector-activation/`](./vector-activation/INDEX.md): remaining activation,
+  deployment, and owner-triggered work.
 
-## Creating a new plan
+Superseded production-hardening and audit-remediation plan folders were
+consolidated into [`docs/REPO_STATUS.md`](../docs/REPO_STATUS.md). Use
+`python run_vector.py production-check` for the live readiness gate.
 
-Copy `TEMPLATE.md` per task. Keep tasks ≤1 day of work; split anything bigger.
+## Creating A New Plan
+
+Copy `TEMPLATE.md` per task. Keep tasks at one day or less; split anything
+bigger.

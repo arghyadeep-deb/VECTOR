@@ -102,7 +102,7 @@ class ModelFactory:
             return None
 
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             # Get active LLM config

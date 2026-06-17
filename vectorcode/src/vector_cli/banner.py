@@ -159,6 +159,7 @@ def check_for_updates() -> Optional[int]:
             cwd=str(repo_dir),
         )
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Offline or timeout — use stale refs, that's fine
 
     # Count commits behind
@@ -543,6 +544,7 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
         if _profile_name and _profile_name != "default":
             right_lines.append(f"[bold {accent}]Profile:[/] [{text}]{_profile_name}[/]")
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Never break the banner over a profiles.py bug
 
     right_lines.append(f"[dim {dim}]{' · '.join(summary_parts)}[/]")
@@ -558,6 +560,7 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
                 f"[dim yellow] — run [bold]{recommended_update_command()}[/bold] to update[/]"
             )
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Never break the banner over an update check
 
     right_content = "\n".join(right_lines)

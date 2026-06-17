@@ -455,6 +455,7 @@ def create_app() -> FastAPI:
                 lines.append(f"# TYPE {metric_name} gauge")
                 lines.append(f"{metric_name} {val}")
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         try:
@@ -468,6 +469,7 @@ def create_app() -> FastAPI:
             lines.append("# TYPE vector_agents_total gauge")
             lines.append(f"vector_agents_total {len(agents)}")
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         return "\n".join(lines) + "\n"

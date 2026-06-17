@@ -417,6 +417,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
                             else:
                                 print(f"[{self.name}] Bridge found but not connected (status: {bridge_status}), restarting")
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Bridge not running, start a new one
             
             # Kill any orphaned bridge from a previous gateway run
@@ -881,6 +882,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
                 timeout=aiohttp.ClientTimeout(total=5)
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Ignore typing indicator failures
     
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:

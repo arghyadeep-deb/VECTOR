@@ -134,4 +134,5 @@ class TaskLedger:
             with self._lock:
                 self._conn.close()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass

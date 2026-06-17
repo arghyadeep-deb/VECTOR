@@ -255,6 +255,7 @@ class TCMBWrapper:
                                     row[code] = buy
                         rows.append(row)
                     except Exception:
+                        logger.exception("[VECTOR] silent swallow")
                         pass   # holiday / no data for this day
                 d += timedelta(days=1)
 

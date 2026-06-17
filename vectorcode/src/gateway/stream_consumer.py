@@ -727,6 +727,7 @@ class GatewayStreamConsumer:
             )
             self._last_sent_text = prefix
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # best-effort — don't let this block the fallback path
 
     async def _send_commentary(self, text: str) -> bool:

@@ -12,6 +12,11 @@ import httpx
 
 from agent.tools.types import ToolResult
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 BASE_URL = "https://datasets-server.huggingface.co"
 
 # Truncation limit for long sample values in the output
@@ -92,6 +97,7 @@ async def inspect_dataset(
             try:
                 parquet_section = _format_parquet_files(results[2].json())
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Silently skip if no parquet
 
         # Phase 2: Parallel calls for content (depend on config/split)

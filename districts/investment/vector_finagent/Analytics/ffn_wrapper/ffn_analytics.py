@@ -302,6 +302,7 @@ class FFNAnalyticsEngine:
                 with np.errstate(divide='ignore', invalid='ignore'):
                     results['rolling_sharpe'] = (rolling_mean - self.config.risk_free_rate) / rolling_std
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
         self.rolling_metrics = results

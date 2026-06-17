@@ -229,6 +229,7 @@ if _config_path.exists():
             if _redact is not None:
                 os.environ["VECTOR_REDACT_SECRETS"] = str(_redact).lower()
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Non-fatal; gateway can still run with .env values
 
 # Apply IPv4 preference if configured (before any HTTP clients are created).
@@ -737,6 +738,7 @@ class GatewayRunner:
             from tools.tirith_security import ensure_installed
             ensure_installed(log_failures=False)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-fatal — fail-open at scan time if unavailable
         
         # Initialize session database for session_search tool support
@@ -1716,6 +1718,7 @@ class GatewayRunner:
             try:
                 running_agent.interrupt(event.text)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # don't let interrupt failure block the ack
 
         # Debounce: only send an acknowledgment once every 30 seconds per session
@@ -7452,6 +7455,7 @@ class GatewayRunner:
                     user_id=source.user_id,
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Session might already exist, ignore errors
 
         title_arg = event.get_command_args().strip()
@@ -7618,6 +7622,7 @@ class GatewayRunner:
                     reasoning_content=msg.get("reasoning_content"),
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Best-effort copy
 
         # Set title
@@ -7889,6 +7894,7 @@ class GatewayRunner:
                     session_entry.session_id, reload_msg
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Best-effort; don't fail the reload over a transcript write
 
             return "\n".join(lines)

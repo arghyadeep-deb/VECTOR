@@ -1,0 +1,25 @@
+name: Code Health
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  runtime-gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Run runtime gate
+        env:
+          VECTOR_DB_KEY: ${{ secrets.VECTOR_DB_KEY }}
+          MCP_KERNEL_SECRET: ${{ secrets.MCP_KERNEL_SECRET }}
+          VECTOR_API_KEY: ${{ secrets.VECTOR_API_KEY }}
+          VECTOR_JWT_SECRET: ${{ secrets.VECTOR_JWT_SECRET }}
+        run: python tools/ci_gate.py

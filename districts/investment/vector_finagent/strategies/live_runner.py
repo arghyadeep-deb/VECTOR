@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS strategy_metrics (
 
 def get_db(db_path: str) -> sqlite3.Connection:
     """Open SQLite connection and ensure schema exists."""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     return conn
@@ -153,6 +153,10 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
         # Load strategy module
         with open(full_path, "r") as f:
             source = f.read()
+
+        from core.security.dynamic_execution import require_dynamic_strategy_execution
+
+        require_dynamic_strategy_execution("live strategy module execution")
 
         _safe_builtins = {
             "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
@@ -451,7 +455,7 @@ def _fetch_price(symbol: str, asset_type: str, app_db_path: str = ""):
     # 1. Try reading from WebSocket price cache in main app DB (normalized lookup)
     if app_db_path and os.path.exists(app_db_path):
         try:
-            cache_conn = sqlite3.connect(app_db_path, timeout=2)
+            cache_conn = sqlite3.connect(app_db_path, timeout=2, check_same_thread=False)
             cache_conn.row_factory = sqlite3.Row
             # Normalize symbol for lookup: strip slashes/dashes/underscores, uppercase
             normalized = symbol.replace("/", "").replace("-", "").replace("_", "").upper()
@@ -480,7 +484,7 @@ def _fetch_price(symbol: str, asset_type: str, app_db_path: str = ""):
     # 2. Fallback: try without normalization (exact match)
     if app_db_path and os.path.exists(app_db_path):
         try:
-            cache_conn = sqlite3.connect(app_db_path, timeout=2)
+            cache_conn = sqlite3.connect(app_db_path, timeout=2, check_same_thread=False)
             cache_conn.row_factory = sqlite3.Row
             row = cache_conn.execute(
                 """SELECT price, bid, ask, volume, high, low, open, change_percent, updated_at

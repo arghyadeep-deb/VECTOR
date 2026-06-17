@@ -61,6 +61,7 @@ def _rate_limit_fincept() -> None:
                 with open(_RATE_TS_FILE, "r") as f:
                     last_ts = float(f.read().strip())
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass
 
             # Wait until 1.2 s have elapsed since last call
@@ -77,6 +78,7 @@ def _rate_limit_fincept() -> None:
             try:
                 os.remove(_RATE_LOCK_FILE)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass
 
 FINCEPT_DEFAULT_URL = "https://api.vector.ai/research/llm"
@@ -140,6 +142,7 @@ def _function_to_anthropic_tool(fn: Any) -> Dict[str, Any]:
             if required:
                 input_schema["required"] = required
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     return {

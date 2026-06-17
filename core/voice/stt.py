@@ -64,6 +64,7 @@ class WhisperSTT:
                         )
                         return "medium"
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         return name
 
@@ -183,6 +184,7 @@ class FasterWhisperSTT:
                         )
                         return "medium"
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         return name
 

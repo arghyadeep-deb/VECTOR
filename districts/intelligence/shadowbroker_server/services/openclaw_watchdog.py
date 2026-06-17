@@ -485,6 +485,7 @@ def _push_ws_alert(alert: dict) -> None:
                 "alert": alert,
             }))
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # WS broadcast is best-effort, channel.push_task is the fallback
 
 

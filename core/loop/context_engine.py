@@ -240,6 +240,7 @@ class ContextEngine:
             if cmd_names:
                 lines.append(f"Brain commands: {', '.join('/' + c for c in cmd_names)}")
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         lines.append("[END SESSION CONTEXT]")

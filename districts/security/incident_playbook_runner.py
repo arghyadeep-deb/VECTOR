@@ -7,6 +7,7 @@ import json
 import sqlite3
 import subprocess
 import uuid
+import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -42,6 +43,7 @@ class IncidentPlaybookRunner:
         self._playbooks_dir = Path(playbooks_dir) if playbooks_dir else data_path("security", "playbooks")
         self._packaged_playbooks_dir = Path(__file__).parent / "data" / "playbooks"
         self._db_path = db_path or str(data_path("security", "incidents.db"))
+        self._lock = threading.RLock()
         self._playbooks: dict[str, Any] = {}
         self._event_queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=1000)
         self._running = False
@@ -52,7 +54,7 @@ class IncidentPlaybookRunner:
     def _init_db(self) -> None:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         try:
-            conn = sqlite3.connect(self._db_path, timeout=5)
+            conn = sqlite3.connect(self._db_path, timeout=5, check_same_thread=False)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS incidents (
                     id TEXT PRIMARY KEY,
@@ -71,7 +73,10 @@ class IncidentPlaybookRunner:
             logger.error("[VECTOR][incident_playbook] DB init: {}", e)
 
     def _get_conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self._db_path, timeout=5)
+        conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
 
     def _load_playbooks(self) -> None:
         self._playbooks = {}

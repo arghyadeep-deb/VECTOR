@@ -567,6 +567,7 @@ def handle_function_call(
                 from tools.file_tools import notify_other_tool_call
                 notify_other_tool_call(task_id or "default")
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # file_tools may not be loaded yet
 
         # Measure tool dispatch latency so post_tool_call and

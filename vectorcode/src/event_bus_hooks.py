@@ -34,6 +34,7 @@ async def on_session_start(event: dict) -> None:
                 for r in recent[:3]:
                     context_lines.append(f"  - {str(r)[:120]}")
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         # Active goals
@@ -47,6 +48,7 @@ async def on_session_start(event: dict) -> None:
                         f"  [{g.get('horizon', '?')}] {g.get('description', '?')[:100]}"
                     )
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         # Available commands
@@ -57,6 +59,7 @@ async def on_session_start(event: dict) -> None:
             if cmds:
                 context_lines.append(f"Available commands: {', '.join(cmds)}")
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
         logger.info("[VECTOR][hooks] Session start:\n{}", "\n".join(context_lines))
@@ -86,6 +89,7 @@ async def on_pre_tool_use(event: dict) -> None:
                     _tool_call_count,
                 )
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
 

@@ -920,7 +920,7 @@ def connect(
     path.parent.mkdir(parents=True, exist_ok=True)
     resolved = str(path.resolve())
     needs_init = resolved not in _INITIALIZED_PATHS
-    conn = sqlite3.connect(str(path), isolation_level=None, timeout=30)
+    conn = sqlite3.connect(str(path), isolation_level=None, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # WAL doesn't work on network filesystems (NFS/SMB/FUSE).  Shared helper
     # falls back to DELETE with one WARNING so kanban stays usable there.

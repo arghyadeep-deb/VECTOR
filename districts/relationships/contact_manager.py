@@ -10,7 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime, sqlite3
+import uuid, asyncio, json, datetime, sqlite3, threading
 from typing import Optional
 
 
@@ -24,6 +24,7 @@ class ContactManager(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
+        self._lock = threading.RLock()
         from core.runtime_paths import data_path
 
         self.db_path = data_path("contacts.db")
@@ -31,26 +32,36 @@ class ContactManager(AgentBase):
         self._init_db()
         logger.info("[VECTOR][relationships] ContactManager ready")
 
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        conn.row_factory = sqlite3.Row
+        return conn
+
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""CREATE TABLE IF NOT EXISTS contacts (
-            name TEXT PRIMARY KEY,
-            phone TEXT,
-            email TEXT,
-            notes TEXT,
-            added_at TEXT,
-            last_contacted TEXT,
-            contact_count INTEGER DEFAULT 0
-        )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS interactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            contact_name TEXT,
-            interaction_type TEXT,
-            content TEXT,
-            timestamp TEXT
-        )""")
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute("""CREATE TABLE IF NOT EXISTS contacts (
+                    name TEXT PRIMARY KEY,
+                    phone TEXT,
+                    email TEXT,
+                    notes TEXT,
+                    added_at TEXT,
+                    last_contacted TEXT,
+                    contact_count INTEGER DEFAULT 0
+                )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS interactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    contact_name TEXT,
+                    interaction_type TEXT,
+                    content TEXT,
+                    timestamp TEXT
+                )""")
+                conn.commit()
+            finally:
+                conn.close()
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         from core.inference.vectorcode_llm import chat as ollama_chat
@@ -69,14 +80,17 @@ class ContactManager(AgentBase):
         logger.info(f"[VECTOR][relationships] Adding contact: {name}")
         self.add_lesson({"action": "add_contact", "name": name})
 
-        conn = sqlite3.connect(self.db_path)
         added_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        conn.execute(
-            "INSERT OR REPLACE INTO contacts (name, phone, email, notes, added_at) VALUES (?, ?, ?, ?, ?)",
-            (name, phone, email, notes, added_at)
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT OR REPLACE INTO contacts (name, phone, email, notes, added_at) VALUES (?, ?, ?, ?, ?)",
+                    (name, phone, email, notes, added_at)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
         result = {"name": name, "phone": phone, "email": email, "notes": notes, "added_at": added_at}
 
@@ -93,25 +107,24 @@ class ContactManager(AgentBase):
 
     def get_contact(self, name: str) -> dict:
         logger.info(f"[VECTOR][relationships] Getting contact: {name}")
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute(
-            "SELECT name, phone, email, notes, added_at, last_contacted, contact_count FROM contacts WHERE name = ?",
-            (name,)
-        )
-        row = cursor.fetchone()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT name, phone, email, notes, added_at, last_contacted, contact_count FROM contacts WHERE name = ?",
+                    (name,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return {"error": f"Contact '{name}' not found"}
 
-        if not row:
-            return {"error": f"Contact '{name}' not found"}
-
-        cursor2 = conn.execute(
-            "SELECT interaction_type, content, timestamp FROM interactions WHERE contact_name = ? ORDER BY timestamp DESC LIMIT 10"
-        ) if row else None
-
-        interactions = []
-        if cursor2:
-            for r in cursor2:
-                interactions.append({"type": r[0], "content": r[1], "timestamp": r[2]})
+                cursor2 = conn.execute(
+                    "SELECT interaction_type, content, timestamp FROM interactions WHERE contact_name = ? ORDER BY timestamp DESC LIMIT 10",
+                    (name,)
+                )
+                interactions = [{"type": r[0], "content": r[1], "timestamp": r[2]} for r in cursor2.fetchall()]
+            finally:
+                conn.close()
 
         return {
             "name": row[0],
@@ -126,20 +139,19 @@ class ContactManager(AgentBase):
 
     def list_contacts(self) -> dict:
         logger.info("[VECTOR][relationships] Listing all contacts")
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute(
-            "SELECT name, phone, email, last_contacted, contact_count FROM contacts ORDER BY last_contacted DESC"
-        )
-        contacts = []
-        for row in cursor:
-            contacts.append({
-                "name": row[0],
-                "phone": row[1],
-                "email": row[2],
-                "last_contacted": row[3],
-                "contact_count": row[4],
-            })
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT name, phone, email, last_contacted, contact_count FROM contacts ORDER BY last_contacted DESC"
+                )
+                contacts = [
+                    {"name": row[0], "phone": row[1], "email": row[2],
+                     "last_contacted": row[3], "contact_count": row[4]}
+                    for row in cursor
+                ]
+            finally:
+                conn.close()
 
         return {"total_contacts": len(contacts), "contacts": contacts}
 
@@ -147,20 +159,21 @@ class ContactManager(AgentBase):
         logger.info(f"[VECTOR][relationships] Tracking interaction with: {name}")
         self.add_lesson({"action": "track_interaction", "contact": name, "type": interaction_type})
 
-        conn = sqlite3.connect(self.db_path)
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-        conn.execute(
-            "INSERT INTO interactions (contact_name, interaction_type, content, timestamp) VALUES (?, ?, ?, ?)",
-            (name, interaction_type, interaction, timestamp)
-        )
-
-        conn.execute(
-            "UPDATE contacts SET last_contacted = ?, contact_count = contact_count + 1 WHERE name = ?",
-            (timestamp, name)
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT INTO interactions (contact_name, interaction_type, content, timestamp) VALUES (?, ?, ?, ?)",
+                    (name, interaction_type, interaction, timestamp)
+                )
+                conn.execute(
+                    "UPDATE contacts SET last_contacted = ?, contact_count = contact_count + 1 WHERE name = ?",
+                    (timestamp, name)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
         result = {"contact_name": name, "interaction": interaction, "type": interaction_type, "timestamp": timestamp}
 

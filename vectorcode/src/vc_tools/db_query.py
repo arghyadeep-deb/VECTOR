@@ -222,7 +222,7 @@ class DatabaseQueryTool(BaseTool):
             use_uri = False
 
         try:
-            conn = sqlite3.connect(conn_str, uri=use_uri)
+            conn = sqlite3.connect(conn_str, uri=use_uri, check_same_thread=False)
         except sqlite3.OperationalError as exc:
             return ToolResult(
                 tool_name="db_query",

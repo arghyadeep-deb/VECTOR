@@ -434,6 +434,7 @@ class PermissionGateway:
                         source="permission_gateway",
                     )
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
                 result["status"] = "ok"
             elif action.action_type == "check_weather":

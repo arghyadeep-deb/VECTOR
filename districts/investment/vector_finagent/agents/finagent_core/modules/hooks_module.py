@@ -253,7 +253,7 @@ class AuditLoggingHook(Hook):
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.log_to_db)
+            conn = sqlite3.connect(self.log_to_db, check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute("""

@@ -141,6 +141,7 @@ class TimeSeriesForecaster:
                 if len(vals) >= 3:
                     return vals[-days:]
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return []
 

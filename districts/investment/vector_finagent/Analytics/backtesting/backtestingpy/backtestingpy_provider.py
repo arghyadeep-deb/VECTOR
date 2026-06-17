@@ -953,6 +953,13 @@ class BacktestingPyProvider(BacktestingProviderBase):
 
         # Custom user-supplied strategy code (sandboxed).
         if code:
+            from core.security.dynamic_execution import require_dynamic_strategy_execution
+
+            try:
+                require_dynamic_strategy_execution("Backtesting.py custom strategy code")
+            except Exception as e:
+                self._error(str(e))
+                return _strat.STRATEGY_BUILDERS['sma_crossover'](params, opt_params)
             validation_error = self._validate_strategy_code(code)
             if validation_error:
                 self._error(f'Strategy code validation failed: {validation_error}')

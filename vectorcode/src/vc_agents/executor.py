@@ -56,6 +56,7 @@ class AgentExecutor:
         try:
             self._manager.update_agent(agent_id, current_activity=activity)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-critical
 
     def _inject_tool_deps(self, tool: Any) -> None:
@@ -279,6 +280,7 @@ class AgentExecutor:
                 if selected:
                     model = selected
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Fall back to configured model
 
         # Resolve tools from config via ToolRegistry
@@ -409,6 +411,7 @@ class AgentExecutor:
                             f"{retrieved}\n\n{input_text}"
                         )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Don't break agent tick if memory retrieval fails
 
         agent_ctx.memory_results = memory_results

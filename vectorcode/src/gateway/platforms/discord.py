@@ -2160,6 +2160,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 getattr(interaction, "guild_id", None),
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # logging must never block command dispatch
 
         await interaction.response.defer(ephemeral=True)

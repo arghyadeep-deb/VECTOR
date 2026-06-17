@@ -107,6 +107,7 @@ def _make_lightweight_system(
                 get_event_bus(),
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # telemetry is optional
         return _LightweightSystem(plain_engine, model, cfg)
     except Exception as _sve:

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -25,11 +26,14 @@ class ClaimRepository:
     def __init__(self, db_path: Path | str = DEFAULT_DB_PATH) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.RLock()
         self._init_db()
         logger.info(f"[VECTOR][claims] ClaimRepository ready at {self.db_path}")
 
     def _get_conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -68,46 +72,70 @@ class ClaimRepository:
 
     def save(self, claim: IssueClaim) -> None:
         row = self._claim_to_row(claim)
-        with self._get_conn() as conn:
-            conn.execute("""
-                INSERT OR REPLACE INTO claims
-                (id, issue_id, claimant_id, claimant_name, claimant_type,
-                 status, claimed_at, last_activity_at, progress, blob)
-                VALUES
-                (:id, :issue_id, :claimant_id, :claimant_name, :claimant_type,
-                 :status, :claimed_at, :last_activity_at, :progress, :blob)
-                """, row)
-            conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute("""
+                    INSERT OR REPLACE INTO claims
+                    (id, issue_id, claimant_id, claimant_name, claimant_type,
+                     status, claimed_at, last_activity_at, progress, blob)
+                    VALUES
+                    (:id, :issue_id, :claimant_id, :claimant_name, :claimant_type,
+                     :status, :claimed_at, :last_activity_at, :progress, :blob)
+                    """, row)
+                conn.commit()
+            finally:
+                conn.close()
 
     def append_event(self, claim_id: str, issue_id: str, event_type: str, payload: dict) -> None:
-        with self._get_conn() as conn:
-            conn.execute(
-                "INSERT INTO events (id, claim_id, issue_id, event_type, payload, occurred_at) VALUES (?,?,?,?,?,?)",
-                (f"evt-{uuid.uuid4().hex}", claim_id, issue_id, event_type, json.dumps(payload), time.time()),
-            )
-            conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT INTO events (id, claim_id, issue_id, event_type, payload, occurred_at) VALUES (?,?,?,?,?,?)",
+                    (f"evt-{uuid.uuid4().hex}", claim_id, issue_id, event_type, json.dumps(payload), time.time()),
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
     def find_by_id(self, claim_id: str) -> Optional[IssueClaim]:
-        with self._get_conn() as conn:
-            row = conn.execute("SELECT * FROM claims WHERE id = ?", (claim_id,)).fetchone()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute("SELECT * FROM claims WHERE id = ?", (claim_id,)).fetchone()
+            finally:
+                conn.close()
         return self._row_to_claim(row) if row else None
 
     def find_by_issue_id(self, issue_id: str) -> Optional[IssueClaim]:
-        with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM claims WHERE issue_id = ? AND status NOT IN ('completed','released','expired') ORDER BY claimed_at DESC LIMIT 1",
-                (issue_id,),
-            ).fetchone()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute(
+                    "SELECT * FROM claims WHERE issue_id = ? AND status NOT IN ('completed','released','expired') ORDER BY claimed_at DESC LIMIT 1",
+                    (issue_id,),
+                ).fetchone()
+            finally:
+                conn.close()
         return self._row_to_claim(row) if row else None
 
     def find_by_agent_id(self, agent_id: str) -> list[IssueClaim]:
-        with self._get_conn() as conn:
-            rows = conn.execute("SELECT * FROM claims WHERE claimant_id = ?", (agent_id,)).fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute("SELECT * FROM claims WHERE claimant_id = ?", (agent_id,)).fetchall()
+            finally:
+                conn.close()
         return [self._row_to_claim(r) for r in rows]
 
     def find_stealable(self, agent_type: Optional[AgentType] = None) -> list[IssueClaim]:
-        with self._get_conn() as conn:
-            rows = conn.execute("SELECT * FROM claims WHERE status = 'stealable'").fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute("SELECT * FROM claims WHERE status = 'stealable'").fetchall()
+            finally:
+                conn.close()
         claims = [self._row_to_claim(r) for r in rows]
         if agent_type is None:
             return claims
@@ -121,34 +149,54 @@ class ClaimRepository:
     def find_all_active(self) -> list[IssueClaim]:
         statuses = tuple(s.value for s in _ACTIVE_STATUSES)
         placeholder = ",".join("?" * len(statuses))
-        with self._get_conn() as conn:
-            rows = conn.execute(f"SELECT * FROM claims WHERE status IN ({placeholder})", statuses).fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute(f"SELECT * FROM claims WHERE status IN ({placeholder})", statuses).fetchall()
+            finally:
+                conn.close()
         return [self._row_to_claim(r) for r in rows]
 
     def find_all(self) -> list[IssueClaim]:
-        with self._get_conn() as conn:
-            rows = conn.execute("SELECT * FROM claims").fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute("SELECT * FROM claims").fetchall()
+            finally:
+                conn.close()
         return [self._row_to_claim(r) for r in rows]
 
     def find_stale(self, since_timestamp: float) -> list[IssueClaim]:
-        with self._get_conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM claims WHERE last_activity_at < ? AND status NOT IN ('completed','released','expired','stealable')",
-                (since_timestamp,),
-            ).fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM claims WHERE last_activity_at < ? AND status NOT IN ('completed','released','expired','stealable')",
+                    (since_timestamp,),
+                ).fetchall()
+            finally:
+                conn.close()
         return [self._row_to_claim(r) for r in rows]
 
     def count_by_agent(self, agent_id: str) -> int:
-        with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM claims WHERE claimant_id = ? AND status NOT IN ('completed','released','expired')",
-                (agent_id,),
-            ).fetchone()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM claims WHERE claimant_id = ? AND status NOT IN ('completed','released','expired')",
+                    (agent_id,),
+                ).fetchone()
+            finally:
+                conn.close()
         return row["cnt"] if row else 0
 
     def get_events(self, claim_id: str) -> list[dict]:
-        with self._get_conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM events WHERE claim_id = ? ORDER BY occurred_at", (claim_id,)
-            ).fetchall()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM events WHERE claim_id = ? ORDER BY occurred_at", (claim_id,)
+                ).fetchall()
+            finally:
+                conn.close()
         return [{"id": r["id"], "event_type": r["event_type"], "payload": json.loads(r["payload"]), "occurred_at": r["occurred_at"]} for r in rows]

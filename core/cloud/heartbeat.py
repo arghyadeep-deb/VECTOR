@@ -50,12 +50,14 @@ class CloudBrainHeartbeat:
             payload["alive_agents"] = alive
             payload["total_agents"] = len(agents)
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         try:
             from core.memory.episodic import EpisodicMemory
             stats = EpisodicMemory().get_stats()
             payload["memory_events"] = stats.get("total_events", 0)
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         return payload
 

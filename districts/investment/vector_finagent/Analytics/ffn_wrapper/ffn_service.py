@@ -385,6 +385,7 @@ def risk_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             ulcer_index = safe_float(engine.to_ulcer_index(prices))
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
         ulcer_perf = None
@@ -752,6 +753,7 @@ def full_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             dd_details = engine.calculate_drawdown_analysis(single_prices)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
         # Rolling metrics - only if we have enough data points
@@ -763,6 +765,7 @@ def full_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
                 window = min(252, data_points - 1)
                 rolling = engine.calculate_rolling_metrics(window=window)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass
 
         # Monthly returns with error handling

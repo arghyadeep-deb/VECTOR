@@ -146,7 +146,7 @@ class AppleHealthConnector(BaseConnector):
         self, *, since: Optional[datetime] = None
     ) -> Iterator[Document]:
         """Read health data from the local HealthKit SQLite database."""
-        conn = sqlite3.connect(str(self._healthkit_db_path))
+        conn = sqlite3.connect(str(self._healthkit_db_path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
         try:
             # Query quantity_samples joined with samples for step count,

@@ -232,6 +232,7 @@ def _pool_key(env_var: str, fallback: str = "") -> str:
         if k:
             return k
     except Exception:
+        logger.warning("[VECTOR] silent swallow")
         pass
     return fallback
 

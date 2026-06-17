@@ -1,3 +1,8 @@
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ============================================================================
 # VECTOR Financial Terminal - Strategy Engine Indicators
 # Pure Python technical indicators (no C#/LEAN dependency)
@@ -762,6 +767,7 @@ class OptionGreekIndicator(IndicatorBase):
             elif greek == "theta":
                 return theta(flag, S, K, t, r, b, self.implied_volatility.value)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return 0.25
 

@@ -979,6 +979,7 @@ def _save_snapshots_to_disk():
                 legacy_file.unlink()
                 logger.info("Time Machine: migrated to gzip, removed legacy snapshots.json")
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # not critical
     except Exception as e:
         logger.warning("Time Machine: failed to save snapshots: %s", e)

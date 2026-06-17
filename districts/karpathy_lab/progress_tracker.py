@@ -14,7 +14,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime, sqlite3
+import uuid, asyncio, json, datetime, sqlite3, threading
 from typing import Optional
 
 class ProgressTracker(AgentBase):
@@ -27,6 +27,7 @@ class ProgressTracker(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
+        self._lock = threading.RLock()
         from core.runtime_paths import data_path
 
         self.runs_dir = Path(CONFIG.get("karpathy", {}).get("runs_dir") or data_path("training_runs"))
@@ -36,24 +37,33 @@ class ProgressTracker(AgentBase):
         self._init_db()
         logger.info("[VECTOR][karpathy_lab] ProgressTracker ready")
 
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""CREATE TABLE IF NOT EXISTS training_runs (
-            run_name TEXT PRIMARY KEY,
-            config TEXT,
-            start_time TEXT,
-            end_time TEXT,
-            status TEXT DEFAULT 'running'
-        )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS step_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            run_name TEXT,
-            step INTEGER,
-            metrics TEXT,
-            timestamp TEXT
-        )""")
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute("""CREATE TABLE IF NOT EXISTS training_runs (
+                    run_name TEXT PRIMARY KEY,
+                    config TEXT,
+                    start_time TEXT,
+                    end_time TEXT,
+                    status TEXT DEFAULT 'running'
+                )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS step_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_name TEXT,
+                    step INTEGER,
+                    metrics TEXT,
+                    timestamp TEXT
+                )""")
+                conn.commit()
+            finally:
+                conn.close()
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         from core.inference.vectorcode_llm import chat as ollama_chat
@@ -72,16 +82,18 @@ class ProgressTracker(AgentBase):
         logger.info(f"[VECTOR][karpathy_lab] Starting training run: {run_name}")
         self.add_lesson({"action": "start_run", "run_name": run_name})
 
-        conn = sqlite3.connect(self.db_path)
         start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
         config_json = json.dumps(config)
-
-        conn.execute(
-            "INSERT OR REPLACE INTO training_runs (run_name, config, start_time, status) VALUES (?, ?, ?, ?)",
-            (run_name, config_json, start_time, "running")
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT OR REPLACE INTO training_runs (run_name, config, start_time, status) VALUES (?, ?, ?, ?)",
+                    (run_name, config_json, start_time, "running")
+                )
+                conn.commit()
+            finally:
+                conn.close()
         self._current_run = run_name
 
         result = {
@@ -107,13 +119,16 @@ class ProgressTracker(AgentBase):
         metrics_json = json.dumps(metrics)
         active_run = run_name or self._current_run
 
-        conn = sqlite3.connect(self.db_path)
-        conn.execute(
-            "INSERT INTO step_logs (run_name, step, metrics, timestamp) VALUES (?, ?, ?, ?)",
-            (active_run, step, metrics_json, timestamp)
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT INTO step_logs (run_name, step, metrics, timestamp) VALUES (?, ?, ?, ?)",
+                    (active_run, step, metrics_json, timestamp)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
         log_entry = {"step": step, "metrics": metrics, "timestamp": timestamp}
 
@@ -129,27 +144,27 @@ class ProgressTracker(AgentBase):
 
     def get_progress(self, run_name: str) -> dict:
         logger.info(f"[VECTOR][karpathy_lab] Getting progress for run: {run_name}")
-        conn = sqlite3.connect(self.db_path)
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT start_time, end_time, status, config FROM training_runs WHERE run_name = ?",
+                    (run_name,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return {"error": f"Run '{run_name}' not found"}
 
-        cursor = conn.execute(
-            "SELECT start_time, end_time, status, config FROM training_runs WHERE run_name = ?",
-            (run_name,)
-        )
-        row = cursor.fetchone()
+                start_time, end_time, status, config_json = row
+                config = json.loads(config_json)
 
-        if not row:
-            conn.close()
-            return {"error": f"Run '{run_name}' not found"}
-
-        start_time, end_time, status, config_json = row
-        config = json.loads(config_json)
-
-        cursor2 = conn.execute(
-            "SELECT step, metrics, timestamp FROM step_logs WHERE run_name = ? ORDER BY step DESC LIMIT 1",
-            (run_name,)
-        )
-        last_step_row = cursor2.fetchone()
-        conn.close()
+                cursor2 = conn.execute(
+                    "SELECT step, metrics, timestamp FROM step_logs WHERE run_name = ? ORDER BY step DESC LIMIT 1",
+                    (run_name,)
+                )
+                last_step_row = cursor2.fetchone()
+            finally:
+                conn.close()
 
         current_step = last_step_row[0] if last_step_row else 0
         max_steps = config.get("training", {}).get("max_steps", 0)
@@ -186,12 +201,15 @@ class ProgressTracker(AgentBase):
         if "error" in progress:
             return progress
 
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute(
-            "SELECT step, metrics, timestamp FROM step_logs ORDER BY step ASC"
-        )
-        rows = cursor.fetchall()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT step, metrics, timestamp FROM step_logs ORDER BY step ASC"
+                )
+                rows = cursor.fetchall()
+            finally:
+                conn.close()
 
         steps_data = []
         losses = []

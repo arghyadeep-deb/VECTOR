@@ -643,6 +643,7 @@ async def mesh_send(request: Request):
 
             reputation_ledger.register_node(node_id, public_key, public_key_algo)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-critical — don't block sends if reputation module fails
 
     # ─── Per-identity throttle ────────────────────────────────────
@@ -744,6 +745,7 @@ async def mesh_send(request: Request):
                     }
                 )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-critical
 
     return {

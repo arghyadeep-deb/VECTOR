@@ -107,6 +107,7 @@ def _inject_skill_config(loaded_skill: dict[str, Any], parts: list[str]) -> None
         lines.append("]")
         parts.extend(lines)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Non-critical — skill still loads without config injection
 
 

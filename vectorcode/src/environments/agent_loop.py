@@ -287,6 +287,7 @@ class VectorAgentLoop:
                             len(parsed_calls),
                         )
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # Fall through to no tool calls
 
             if assistant_msg.tool_calls:

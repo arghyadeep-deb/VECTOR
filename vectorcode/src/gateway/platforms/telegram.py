@@ -1171,6 +1171,7 @@ class TelegramAdapter(BasePlatformAdapter):
                         text=truncated,
                     )
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # best-effort truncation
                 return SendResult(success=True, message_id=message_id)
             # Flood control / RetryAfter — short waits are retried inline,
@@ -1683,6 +1684,7 @@ class TelegramAdapter(BasePlatformAdapter):
                         reply_markup=None,
                     )
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # non-fatal if edit fails
 
                 # Resolve the approval — unblocks the agent thread
@@ -1715,6 +1717,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 reply_markup=None,
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # non-fatal if edit fails
         # Write the response file
         try:

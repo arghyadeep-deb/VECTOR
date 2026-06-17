@@ -85,10 +85,11 @@ DEFAULT_FOLDERS = [
 def get_connection(db_path: Path = EMAIL_DB_PATH) -> sqlite3.Connection:
     """Open (or create) the email database."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.row_factory = sqlite3.Row
     return conn
 
 

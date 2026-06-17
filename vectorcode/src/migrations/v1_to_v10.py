@@ -53,7 +53,7 @@ def migrate_v1_to_v10(conn: sqlite3.Connection) -> None:
 
 def migrate_up(db_path: Path) -> None:
     """Migrate the database at db_path to the latest schema version."""
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     try:
         cursor = conn.cursor()
         row = cursor.execute("SELECT version FROM schema_version LIMIT 1").fetchone()

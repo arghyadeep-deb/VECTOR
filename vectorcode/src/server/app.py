@@ -232,6 +232,7 @@ def create_app(
             if _bus is not None:
                 _trace_store.subscribe_to_bus(_bus)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # traces are optional; don't block server startup
 
     app.include_router(router)

@@ -229,6 +229,7 @@ def run_daemon():
         try:
             _write_frame(sys.stdout.buffer, msg)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return
 

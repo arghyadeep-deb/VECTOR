@@ -1,3 +1,4 @@
+
 # VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
@@ -12,9 +13,12 @@ the LLM (narrative synthesis), and text_to_speech (audio generation).
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.digest_store import DigestArtifact, DigestStore
@@ -194,6 +198,7 @@ class MorningDigestAgent(ToolUsingAgent):
                 result = self._generate(messages)
                 narrative = self._strip_think_tags(result.get("content", ""))
         except Exception:  # noqa: BLE001
+            logger.exception("[VECTOR] silent swallow")
             pass  # Evaluator failure shouldn't block digest delivery
 
         # Step 3: Generate audio via TTS

@@ -183,6 +183,7 @@ class DaytonaEnvironment(BaseEnvironment):
         try:
             self._sandbox.process.exec(f"rm -f {shlex.quote(remote_tar)}")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # best-effort cleanup
 
     def _daytona_delete(self, remote_paths: list[str]) -> None:

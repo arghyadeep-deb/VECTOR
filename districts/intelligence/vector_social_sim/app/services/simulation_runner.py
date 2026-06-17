@@ -1672,7 +1672,7 @@ class SimulationRunner:
         results = []
         
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             cursor = conn.cursor()
             
             if agent_id is not None:

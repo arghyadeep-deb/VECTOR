@@ -1117,6 +1117,7 @@ class VECTORTrainer:
                         torch.cuda.get_device_properties(0).total_memory / 1024 ** 3, 1
                     )
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         return info
 

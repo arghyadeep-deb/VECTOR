@@ -818,6 +818,7 @@ class SessionStore:
             try:
                 return self._db.session_count() > 1
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # fall through to heuristic
         # Fallback: check if sessions.json was loaded with existing data.
         # This covers the rare case where the DB is unavailable.

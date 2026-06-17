@@ -832,6 +832,7 @@ class VectorBTProvider(BacktestingProviderBase):
                 try:
                     result_data['stats']['Deflated Sharpe'] = float(acc.deflated_sharpe_ratio(n_trials=n_trials))
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
                 try:
                     result_data['stats']['Up Capture'] = float(acc.up_capture())
@@ -1797,6 +1798,10 @@ class VectorBTProvider(BacktestingProviderBase):
         if not source:
             raise ValueError('Custom strategy requires code')
 
+        from core.security.dynamic_execution import require_dynamic_strategy_execution
+
+        require_dynamic_strategy_execution("VectorBT custom strategy code")
+
         _safe_builtins = {
             "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
             "complex": complex, "dict": dict, "enumerate": enumerate,
@@ -1993,6 +1998,7 @@ class VectorBTProvider(BacktestingProviderBase):
                         )
                         result_dict['random_benchmark'] = rand_stats
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
 
         except Exception as adv_err:

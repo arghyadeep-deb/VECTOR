@@ -282,6 +282,7 @@ def camofox_navigate(url: str, task_id: Optional[str] = None) -> str:
             result["snapshot"] = snapshot_text
             result["element_count"] = snap_data.get("refsCount", 0)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Navigation succeeded; snapshot is a bonus
 
         return json.dumps(result)

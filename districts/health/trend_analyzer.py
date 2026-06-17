@@ -238,6 +238,7 @@ class TrendAnalyzer:
                     if abs(corr) > 0.5:
                         correlations.append({"metrics": [a, b], "correlation": corr})
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass
 
         return {

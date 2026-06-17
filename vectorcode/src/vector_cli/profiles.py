@@ -459,6 +459,7 @@ def create_profile(
             from vector_cli.default_soul import DEFAULT_SOUL_MD
             soul_path.write_text(DEFAULT_SOUL_MD, encoding="utf-8")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # best-effort — don't fail profile creation over this
 
     return profile_dir

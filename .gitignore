@@ -116,6 +116,7 @@ data/archived_prompts/
 test_tmp/
 *.tmp
 *.bak
+*.bak.*
 data/feedback/
 data/missions/
 data/rejected_runs/
@@ -138,4 +139,13 @@ districts/intelligence/shadowbroker_server/data/*_cache.json
 districts/intelligence/shadowbroker_server/data/*_cache_meta.json
 districts/intelligence/shadowbroker_server/data/*_history.json
 districts/intelligence/shadowbroker_server/data/*_sightings.json
+districts/intelligence/shadowbroker_server/carrier_cache.json
+districts/intelligence/shadowbroker_server/data/dm_alias/*.json
+districts/intelligence/shadowbroker_server/data/gate_persona/*.json
+districts/intelligence/shadowbroker_server/data/gate_session/*.json
+districts/intelligence/shadowbroker_server/data/peer_store.json
+districts/intelligence/shadowbroker_server/data/root/*.json
+districts/intelligence/shadowbroker_server/data/transport/*.json
+districts/intelligence/shadowbroker_server/data/wormhole_status.json
+districts/intelligence/vector_social_sim/logs/
 

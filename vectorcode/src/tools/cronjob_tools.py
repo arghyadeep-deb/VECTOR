@@ -132,6 +132,7 @@ def _resolve_model_override(model_obj: Optional[Dict[str, Any]]) -> tuple:
             if isinstance(model_cfg, dict):
                 provider_name = model_cfg.get("provider") or None
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Best-effort; provider stays None
     return (provider_name, model_name)
 

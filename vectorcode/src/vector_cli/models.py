@@ -2997,6 +2997,7 @@ def validate_requested_model(
                 ),
             }
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Fall through to generic warning
 
     # Static-catalog fallback: when the /models probe was unreachable,

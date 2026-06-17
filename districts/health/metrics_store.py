@@ -19,15 +19,16 @@ class MetricsStore:
         self._retention_days = retention_days
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         self._conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
         self._init_db()
         logger.info(f"[VECTOR][metrics_store] db={self._db_path} retention={retention_days}d")
 
     def _ensure_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self._db_path)
-            self._conn.row_factory = sqlite3.Row
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
             self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA foreign_keys=ON")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            self._conn.row_factory = sqlite3.Row
         return self._conn
 
     def _init_db(self) -> None:
@@ -359,4 +360,5 @@ class MetricsStore:
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()
-            self._conn = None
+            import threading
+        self._conn = None

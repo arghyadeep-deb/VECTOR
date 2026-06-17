@@ -73,7 +73,7 @@ def _db_execute_with_retry(conn, sql, params=(), retries=3, commit=True):
 
 def open_db_connection(db_path: str):
     """Open a shared DB connection with WAL mode for concurrent access."""
-    conn = sqlite3.connect(db_path, timeout=10)
+    conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
     return conn

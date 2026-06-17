@@ -77,7 +77,7 @@ def main():
 
     # Log candle_cache state for diagnostics
     try:
-        conn_check = sqlite3.connect(db_path)
+        conn_check = sqlite3.connect(db_path, check_same_thread=False)
         cur = conn_check.cursor()
         cur.execute('SELECT COUNT(*) FROM candle_cache WHERE timeframe = ?', (timeframe,))
         total_rows = cur.fetchone()[0]

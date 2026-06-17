@@ -54,6 +54,10 @@ class FinAgentStrategyRunner:
         with open(strategy_path, 'r', encoding='utf-8') as f:
             code = f.read()
 
+        from core.security.dynamic_execution import require_dynamic_strategy_execution
+
+        require_dynamic_strategy_execution("FinAgent strategy file execution")
+
         # Create namespace for execution
         _safe_builtins = {
             "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,

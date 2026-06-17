@@ -526,7 +526,7 @@ class ParallelIPCHandler:
             return result
         
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             cursor = conn.cursor()
             
             # 查询最新的Interview记录
@@ -677,7 +677,7 @@ def fetch_new_actions_from_db(
         return actions, new_last_rowid
     
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, check_same_thread=False)
         cursor = conn.cursor()
         
         # 使用 rowid 来追踪已处理的记录（rowid 是 SQLite 的内置自增字段）

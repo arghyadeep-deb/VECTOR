@@ -19,7 +19,7 @@ DB_PATH = os.path.join(DB_DIR, 'akshare_symbols.db')
 
 def create_database():
     """Create SQLite database with symbols table"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
 
     # Drop existing table if exists
@@ -88,7 +88,7 @@ def fetch_and_insert(exchange_name, fetch_function, column_mapping):
             records.append(record)
 
         # Insert into database
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
 
         for record in records:
@@ -200,7 +200,7 @@ def build_database():
     print(f"Database size: {os.path.getsize(DB_PATH) / 1024 / 1024:.2f} MB")
 
     # Print exchange breakdown
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT exchange, COUNT(*) FROM symbols GROUP BY exchange ORDER BY exchange')
     print("\nBreakdown by exchange:")

@@ -76,6 +76,7 @@ class SREMonitor(AgentBase):
             if not results.get("ollama_ok", True):
                 asyncio.create_task(_emit("system", "process_crash", True, "sre_monitor"))
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     # ── Core checks ────────────────────────────────────────────────────────────

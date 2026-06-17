@@ -52,8 +52,6 @@ def get_app_data_dir() -> Path:
     try:
         app_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.paths] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.paths] caught Exception: %s", _sve)
         logger.warning(f"Could not create app data directory: {e}")
 
     return app_dir
@@ -65,7 +63,7 @@ def get_rentech_data_dir() -> Path:
 
     Returns:
         Path to rentech agent data directory
-        (e.g., %APPDATA%\fincept-terminal\rentech\)
+        (e.g., %APPDATA%\\fincept-terminal\\rentech\\)
     """
     rentech_dir = get_app_data_dir() / "rentech"
 
@@ -83,7 +81,7 @@ def get_knowledge_base_path() -> Path:
 
     Returns:
         Path to knowledge base directory
-        (e.g., %APPDATA%\fincept-terminal\rentech\knowledge\)
+        (e.g., %APPDATA%\\fincept-terminal\\rentech\\knowledge\\)
     """
     kb_dir = get_rentech_data_dir() / "knowledge"
 
@@ -101,7 +99,7 @@ def get_memory_db_path() -> Path:
 
     Returns:
         Path to memory database file
-        (e.g., %APPDATA%\fincept-terminal\rentech\memory.db)
+        (e.g., %APPDATA%\\fincept-terminal\\rentech\\memory.db)
     """
     return get_rentech_data_dir() / "memory.db"
 
@@ -112,7 +110,7 @@ def get_logs_dir() -> Path:
 
     Returns:
         Path to logs directory
-        (e.g., %APPDATA%\fincept-terminal\rentech\logs\)
+        (e.g., %APPDATA%\\fincept-terminal\\rentech\\logs\\)
     """
     logs_dir = get_rentech_data_dir() / "logs"
 
@@ -130,7 +128,7 @@ def get_cache_dir() -> Path:
 
     Returns:
         Path to cache directory
-        (e.g., %APPDATA%\fincept-terminal\rentech\cache\)
+        (e.g., %APPDATA%\\fincept-terminal\\rentech\\cache\\)
     """
     cache_dir = get_rentech_data_dir() / "cache"
 

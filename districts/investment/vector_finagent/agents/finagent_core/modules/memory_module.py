@@ -350,7 +350,7 @@ class AgenticMemoryModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -417,7 +417,7 @@ class AgenticMemoryModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             now = datetime.utcnow().isoformat()
@@ -484,7 +484,7 @@ class AgenticMemoryModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             sql = "SELECT * FROM memories WHERE user_id = ? AND agent_id = ?"
@@ -536,7 +536,7 @@ class AgenticMemoryModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -555,7 +555,7 @@ class AgenticMemoryModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute(

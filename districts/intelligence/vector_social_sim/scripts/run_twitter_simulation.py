@@ -309,8 +309,7 @@ class IPCHandler:
             return result
         
         try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             
             # 查询最新的Interview记录
             cursor.execute("""

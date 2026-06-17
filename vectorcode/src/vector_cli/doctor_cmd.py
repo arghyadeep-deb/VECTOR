@@ -288,7 +288,7 @@ def check_db() -> list[CheckResult]:
     main_db = ROOT / "vector_memory.db"
     if main_db.exists():
         try:
-            con = sqlite3.connect(main_db, timeout=2.0)
+            con = sqlite3.connect(main_db, timeout=2.0, check_same_thread=False)
             con.execute("SELECT 1").fetchone()
             con.close()
             mb = main_db.stat().st_size / 1024 / 1024
@@ -303,7 +303,7 @@ def check_db() -> list[CheckResult]:
     tel_db = ROOT / "data" / "telemetry.db"
     if tel_db.exists():
         try:
-            con = sqlite3.connect(tel_db, timeout=2.0)
+            con = sqlite3.connect(tel_db, timeout=2.0, check_same_thread=False)
             n = con.execute("SELECT COUNT(*) FROM telemetry").fetchone()[0]
             con.close()
             out.append(CheckResult("data/telemetry.db", "ok", f"{n:,} records"))

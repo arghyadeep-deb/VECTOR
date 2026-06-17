@@ -259,6 +259,7 @@ def _process_log_queue():
                     "process_log_queue", type(exc).__name__
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # noqa: silent-exception — broken stderr must not kill the daemon
 
 
@@ -302,6 +303,7 @@ def _write_log_to_database(log_entry: dict) -> None:
                 level=log_entry.get("level"),
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # noqa: silent-exception — broken stderr must not bubble out of logging path
 
 
@@ -355,6 +357,7 @@ def database_sink(message: loguru.Message) -> None:
             if not user_password and hasattr(g, "user_password"):
                 user_password = g.user_password
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # noqa: silent-exception — must not fail logging on session lookup
 
     # Skip persistence for system logs that have no research context.
@@ -458,6 +461,7 @@ def flush_log_queue():
         except queue.Empty:
             break
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # noqa: silent-exception — DB errors during log flush must not propagate
 
     if flushed > 0:

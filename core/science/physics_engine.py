@@ -56,6 +56,7 @@ class PhysicsEngine:
             try:
                 self._pybullet.disconnect(self._physics_client)
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
             self._physics_client = None
 

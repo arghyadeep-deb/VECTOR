@@ -784,6 +784,7 @@ def _derive_skill_name(plan: Dict[str, Any]) -> str:
             try:
                 self._budget.record_llm_call(step_prompt, response)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass
 
         return {

@@ -873,6 +873,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 else:
                     logger.warning("uv not found. Run: pip install 'hindsight-client>=%s'", _MIN_CLIENT_VERSION)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # packaging not available or other issue — proceed anyway
 
         self._config = _load_config()

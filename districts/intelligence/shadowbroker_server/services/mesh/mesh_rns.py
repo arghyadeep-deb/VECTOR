@@ -397,6 +397,7 @@ class RNSBridge:
 
             metrics_inc("ibf_sync_failure")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     def _note_ibf_success(self) -> None:
@@ -1774,6 +1775,7 @@ class RNSBridge:
 
                             metrics_inc("fork_rejected")
                         except Exception:
+                            logger.exception("[VECTOR] silent swallow")
                             pass
                     else:
                         logger.info("Fork applied by quorum")

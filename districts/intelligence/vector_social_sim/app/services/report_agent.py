@@ -1754,6 +1754,7 @@ class ReportAgent:
                     completed_sections=completed_section_titles
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # 忽略保存失败的错误
             
             # 关闭控制台日志记录器

@@ -47,6 +47,7 @@ def _parse_env(text: str) -> dict[str, str]:
         import io
         return {k: (v or "") for k, v in dotenv_values(stream=io.StringIO(text)).items()}
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     cfg: dict[str, str] = {}
     for raw in text.splitlines():

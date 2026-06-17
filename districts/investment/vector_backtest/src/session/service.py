@@ -11,6 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Dedicated thread pool limited to four concurrent agents to avoid exhausting the default executor.
 _AGENT_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="agent")
 
@@ -374,6 +379,7 @@ class SessionService:
                 if rows:
                     return {k: float(v) for k, v in rows[0].items() if v}
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return None
 

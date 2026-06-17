@@ -25,6 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Silence the noisy ConstantInputWarning that scipy emits from spearmanr when
 # the IC slice has zero variance (very common in alpha bench loops).
 try:
@@ -39,6 +44,7 @@ except Exception:  # pragma: no cover — older scipy / unexpected layout
 
         warnings.filterwarnings("ignore", category=ConstantInputWarning)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
 try:

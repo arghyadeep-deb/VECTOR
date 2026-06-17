@@ -142,6 +142,7 @@ def _sanitize_env_file_if_needed(path: Path) -> None:
                     logger.warning("[VECTOR][vector_cli.env_loader] suppressed OSError: %s", _sve)
                 raise
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # best-effort — don't block gateway startup
 
 

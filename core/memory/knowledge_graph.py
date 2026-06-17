@@ -103,9 +103,10 @@ class KnowledgeGraph:
 
     @contextmanager
     def _conn(self):
-        conn = sqlite3.connect(str(self._path))
-        conn.row_factory = sqlite3.Row
+        conn = sqlite3.connect(str(self._path), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        conn.row_factory = sqlite3.Row
         try:
             yield conn
             conn.commit()

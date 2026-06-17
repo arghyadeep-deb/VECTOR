@@ -49,7 +49,7 @@ def load_candles_from_db(db_path: str, symbol: str, timeframe: str, limit: int =
     Tries exact symbol match first, then falls back to normalized matching
     to handle format differences (e.g., BTC/USD vs BTCUSD, NSE:RELIANCE vs RELIANCE).
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
 
     # Try exact match first
     query = """

@@ -314,6 +314,7 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
     except HTTPException:
         raise
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # Registry unavailable — fall through to A2AClient attempt
 
     # 1) Try absorbed A2A client

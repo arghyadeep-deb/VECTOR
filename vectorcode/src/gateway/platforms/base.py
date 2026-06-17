@@ -2605,6 +2605,7 @@ class BasePlatformAdapter(ABC):
                     metadata=_thread_metadata,
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Last resort — don't let error reporting crash the handler
         finally:
             # Fire any one-shot post-delivery callback registered for this

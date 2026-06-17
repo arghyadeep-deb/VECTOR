@@ -92,6 +92,7 @@ class FatigueMonitor(AgentBase):
             if text:
                 logger.info(f"[VECTOR][fatigue_monitor] suggestion: {text[:100]}")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     async def check_once(self) -> dict:

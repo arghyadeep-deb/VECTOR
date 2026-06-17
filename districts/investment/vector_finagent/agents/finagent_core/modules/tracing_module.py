@@ -312,7 +312,7 @@ class TracingModule:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             # Create tables if needed
@@ -479,7 +479,7 @@ class AuditLogger:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -540,7 +540,7 @@ class AuditLogger:
             try:
                 import sqlite3
 
-                conn = sqlite3.connect(self.db_path)
+                conn = sqlite3.connect(self.db_path, check_same_thread=False)
                 cursor = conn.cursor()
 
                 cursor.execute("""
@@ -579,7 +579,7 @@ class AuditLogger:
         try:
             import sqlite3
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             cursor = conn.cursor()
 
             query = "SELECT * FROM audit_log WHERE 1=1"

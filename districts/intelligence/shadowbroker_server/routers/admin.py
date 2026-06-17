@@ -288,6 +288,7 @@ async def api_tor_start(request: Request):
             _write_env_value("MESH_ARTI_ENABLED", "true")
             get_settings.cache_clear()
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-fatal — hidden service still works without mesh Arti
 
     return result

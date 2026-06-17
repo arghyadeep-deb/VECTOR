@@ -132,6 +132,7 @@ class ContentScheduler(AgentBase):
                 try:
                     tracker.mark_failed(job.job_id, str(e))
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # Best-effort; don't let mark_failed hide the real error.
                 self.deduct_points(5, "publish_failed")
         return {"published": len(results), "results": results}

@@ -182,13 +182,12 @@ class BackgroundWorkers:
                 return {"status": "ok", "low_reward_tasks": [], "avg_reward": None}
 
             db = db_files[0]
-            conn = sqlite3.connect(str(db))
+            conn = sqlite3.connect(str(db), check_same_thread=False)
             rows = conn.execute(
                 "SELECT task, reward FROM patterns ORDER BY reward ASC LIMIT 20"
             ).fetchall()
-            conn.close()
-
             avg_reward = conn.execute("SELECT AVG(reward) FROM patterns").fetchone()[0] if rows else None
+            conn.close()
             low_reward = [{"task": r[0][:80], "reward": r[1]} for r in rows if r[1] < 0.5]
             recs = [f"Task '{lr['task'][:50]}' has low reward ({lr['reward']:.2f}) — consider retraining" for lr in low_reward[:3]]
 
@@ -211,7 +210,7 @@ class BackgroundWorkers:
                 return {"status": "ok", "merged": 0}
 
             db = db_files[0]
-            conn = sqlite3.connect(str(db))
+            conn = sqlite3.connect(str(db), check_same_thread=False)
             rows = conn.execute("SELECT id, task FROM patterns").fetchall()
             conn.close()
 
@@ -226,7 +225,7 @@ class BackgroundWorkers:
                     seen_tasks[key] = pid
 
             if duplicates:
-                conn = sqlite3.connect(str(db))
+                conn = sqlite3.connect(str(db), check_same_thread=False)
                 for dup_id in duplicates:
                     conn.execute("DELETE FROM patterns WHERE id = ?", (dup_id,))
                 conn.commit()

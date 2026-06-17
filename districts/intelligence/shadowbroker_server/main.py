@@ -1190,6 +1190,7 @@ def _ensure_infonet_private_transport_ready(reason: str = "") -> bool:
         if bool(get_settings().MESH_ARTI_ENABLED) and _check_arti_ready():
             return True
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     if not _INFONET_PRIVATE_TRANSPORT_LOCK.acquire(blocking=False):
@@ -1447,6 +1448,7 @@ def _hydrate_gate_store_from_chain(events: list[dict]) -> int:
             gate_store.append(gate_id, copy.deepcopy(canonical))
             count += 1
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
     return count
 
@@ -2245,6 +2247,7 @@ def _build_cors_origins():
                 origins.append(f"http://{ip}:3000")
                 origins.append(f"http://{ip}:8000")
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     # Allow user override via CORS_ORIGINS env var (comma-separated)
     extra = os.environ.get("CORS_ORIGINS", "")
@@ -2327,6 +2330,7 @@ async def lifespan(app: FastAPI):
 
                         metrics_inc("infonet_validate_failed")
                     except Exception:
+                        logger.exception("[VECTOR] silent swallow")
                         pass
                 time.sleep(max(5, interval))
             except Exception:
@@ -2455,6 +2459,7 @@ async def lifespan(app: FastAPI):
         try:
             sigint_grid.stop()
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
     if not _MESH_ONLY:
         try:
@@ -2462,16 +2467,19 @@ async def lifespan(app: FastAPI):
 
             shutdown_wormhole_supervisor()
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
     try:
         privacy_prewarm_service.stop()
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     # Stop Tor hidden service subprocess
     try:
         from services.tor_hidden_service import tor_service
         tor_service.stop()
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
 
@@ -2550,6 +2558,7 @@ def _validate_gate_vote_context(voter_id: str, gate_id: str) -> tuple[bool, str]
         if not gate_store.get_messages(gate_key, limit=1):
             return False, f"Gate '{gate_key}' has no activity"
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     return True, gate_key
@@ -2754,6 +2763,7 @@ def _strip_gate_identity_privileged(event: dict) -> dict:
                 if binding:
                     public_key, public_key_algo = binding
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass
     return {
         "event_id": str(event.get("event_id", "") or ""),
@@ -3268,6 +3278,7 @@ async def enforce_high_privacy_mesh(request: Request, call_next):
                 except Exception:
                     logger.debug("high-privacy warmup kickoff failed", exc_info=True)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         state = _anonymous_mode_state()
         if state["enabled"] and (
@@ -4353,6 +4364,7 @@ async def mesh_send(request: Request):
 
             reputation_ledger.register_node(node_id, public_key, public_key_algo)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-critical — don't block sends if reputation module fails
 
     # â”€â”€â”€ Per-identity throttle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -4460,6 +4472,7 @@ async def mesh_send(request: Request):
                 else:
                     bridge.messages.appendleft(message_record)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-critical
 
     return {
@@ -4675,6 +4688,7 @@ async def mesh_vote(request: Request):
         if root_nid:
             stable_voter_id = root_nid
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     # Register node if not known
@@ -4699,6 +4713,7 @@ async def mesh_vote(request: Request):
                 protocol_version=protocol_version,
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     return {"ok": ok, "detail": reason, "weight": round(vote_weight, 2)}
@@ -4731,6 +4746,7 @@ async def mesh_report(request: Request):
 
         reputation_ledger.register_node(reporter_id, public_key, public_key_algo)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     try:
@@ -4888,6 +4904,7 @@ async def mesh_identity_rotate(request: Request):
             protocol_version=protocol_version,
         )
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     return {"ok": True, "detail": "Identity linked"}
@@ -5018,6 +5035,7 @@ async def gate_create(request: Request):
                 protocol_version=protocol_version,
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     return {"ok": ok, "detail": reason}
@@ -5435,6 +5453,7 @@ async def infonet_sync_post(
         try:
             limit = max(1, min(500, _safe_int(body["limit"], 0)))
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     matched_hash, start_index, events = infonet.get_events_after_locator(locator, limit=limit)
@@ -6283,6 +6302,7 @@ async def oracle_predict(request: Request):
 
         reputation_ledger.register_node(node_id, public_key, public_key_algo)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     # Get current market probability from live data
@@ -6351,6 +6371,7 @@ async def oracle_predict(request: Request):
                 protocol_version=protocol_version,
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     return {"ok": ok, "detail": detail, "probability": probability, "mode": mode}
@@ -6599,6 +6620,7 @@ async def oracle_stake(request: Request):
 
         reputation_ledger.register_node(staker_id, public_key, public_key_algo)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     ok, detail = oracle_ledger.place_stake(
@@ -6622,6 +6644,7 @@ async def oracle_stake(request: Request):
                 protocol_version=protocol_version,
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
     return {"ok": ok, "detail": detail}
@@ -6996,6 +7019,7 @@ async def _dm_send_from_signed_request(request: Request):
                     "trust_level": str(verified_first_contact.get("trust_level", "") or "unpinned"),
                 }
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
     if (
         str(tier or "").startswith("private_")
@@ -7145,6 +7169,7 @@ async def _dm_poll_secure_from_signed_request(request: Request):
                 exposure=exposure,
             )
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     await _maybe_apply_dm_poll_jitter()
     claims = payload.get("mailbox_claims", [])
@@ -7245,6 +7270,7 @@ async def _dm_count_secure_from_signed_request(request: Request):
                 exposure=exposure,
             )
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     await _maybe_apply_dm_poll_jitter()
     claims = payload.get("mailbox_claims", [])
@@ -7304,6 +7330,7 @@ async def dm_register_key(request: Request):
 
         reputation_ledger.register_node(agent_id, public_key, public_key_algo)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     accepted, detail, metadata = dm_relay.register_dh_key(
@@ -7731,6 +7758,7 @@ async def dm_block(request: Request):
         if not ok_seq:
             return {"ok": False, "detail": seq_reason}
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     if action == "unblock":
@@ -7766,6 +7794,7 @@ async def dm_key_witness(request: Request):
 
         reputation_ledger.register_node(witness_id, public_key, public_key_algo)
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     try:
         from services.mesh.mesh_hashchain import infonet
@@ -7779,6 +7808,7 @@ async def dm_key_witness(request: Request):
         if not ok_seq:
             return {"ok": False, "detail": seq_reason}
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     from services.mesh.mesh_dm_relay import dm_relay
 
@@ -9323,6 +9353,7 @@ def _preferred_remote_dm_alias(peer_id: str) -> str:
         if shared_alias:
             return shared_alias
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     return candidate
 
@@ -9448,6 +9479,7 @@ def compose_wormhole_dm(
                 "trust_level": str(verified_first_contact.get("trust_level", "") or _compose_trust_level or "unpinned"),
             }
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
     if str(bundle.get("mls_key_package", "") or "").strip():
         initiated = initiate_mls_dm_session(

@@ -10,7 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime, sqlite3
+import uuid, asyncio, json, datetime, sqlite3, threading
 from typing import Optional
 
 
@@ -24,6 +24,7 @@ class CourseTracker(AgentBase):
         )
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
+        self._lock = threading.RLock()
         from core.runtime_paths import data_path
 
         self.db_path = data_path("learning_courses.db")
@@ -31,26 +32,35 @@ class CourseTracker(AgentBase):
         self._init_db()
         logger.info("[VECTOR][learning] CourseTracker ready")
 
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""CREATE TABLE IF NOT EXISTS courses (
-            name TEXT PRIMARY KEY,
-            platform TEXT,
-            url TEXT,
-            added_at TEXT,
-            total_lessons INTEGER DEFAULT 0,
-            completed_lessons INTEGER DEFAULT 0
-        )""")
-        conn.execute("""CREATE TABLE IF NOT EXISTS lessons (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_name TEXT,
-            lesson_name TEXT,
-            completed_at TEXT,
-            notes TEXT,
-            UNIQUE(course_name, lesson_name)
-        )""")
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute("""CREATE TABLE IF NOT EXISTS courses (
+                    name TEXT PRIMARY KEY,
+                    platform TEXT,
+                    url TEXT,
+                    added_at TEXT,
+                    total_lessons INTEGER DEFAULT 0,
+                    completed_lessons INTEGER DEFAULT 0
+                )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS lessons (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    course_name TEXT,
+                    lesson_name TEXT,
+                    completed_at TEXT,
+                    notes TEXT,
+                    UNIQUE(course_name, lesson_name)
+                )""")
+                conn.commit()
+            finally:
+                conn.close()
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         from core.inference.vectorcode_llm import chat as ollama_chat
@@ -69,14 +79,17 @@ class CourseTracker(AgentBase):
         logger.info(f"[VECTOR][learning] Adding course: {name} from {platform}")
         self.add_lesson({"action": "add_course", "course": name, "platform": platform})
 
-        conn = sqlite3.connect(self.db_path)
         added_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        conn.execute(
-            "INSERT OR REPLACE INTO courses (name, platform, url, added_at) VALUES (?, ?, ?, ?)",
-            (name, platform, url, added_at)
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT OR REPLACE INTO courses (name, platform, url, added_at) VALUES (?, ?, ?, ?)",
+                    (name, platform, url, added_at)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
         result = {"course_name": name, "platform": platform, "url": url, "added_at": added_at}
         self.memory.store(
@@ -92,28 +105,26 @@ class CourseTracker(AgentBase):
 
     def get_progress(self, course_name: str) -> dict:
         logger.info(f"[VECTOR][learning] Getting progress for: {course_name}")
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute(
-            "SELECT platform, url, added_at, total_lessons, completed_lessons FROM courses WHERE name = ?",
-            (course_name,)
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            conn.close()
-            return {"error": f"Course '{course_name}' not found"}
-
-        platform, url, added_at, total, completed = row
-
-        cursor2 = conn.execute(
-            "SELECT lesson_name, completed_at FROM lessons WHERE course_name = ? ORDER BY completed_at DESC",
-            (course_name,)
-        )
-        lessons = [{"lesson": r[0], "completed_at": r[1]} for r in cursor2.fetchall()]
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT platform, url, added_at, total_lessons, completed_lessons FROM courses WHERE name = ?",
+                    (course_name,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return {"error": f"Course '{course_name}' not found"}
+                platform, url, added_at, total, completed = row
+                cursor2 = conn.execute(
+                    "SELECT lesson_name, completed_at FROM lessons WHERE course_name = ? ORDER BY completed_at DESC",
+                    (course_name,)
+                )
+                lessons = [{"lesson": r[0], "completed_at": r[1]} for r in cursor2.fetchall()]
+            finally:
+                conn.close()
 
         progress_pct = round((completed / total) * 100, 2) if total > 0 else 0.0
-
         return {
             "course_name": course_name,
             "platform": platform,
@@ -129,26 +140,25 @@ class CourseTracker(AgentBase):
         logger.info(f"[VECTOR][learning] Logging lesson: {course_name} - {lesson_name}")
         self.add_lesson({"action": "log_lesson", "course": course_name, "lesson": lesson_name})
 
-        conn = sqlite3.connect(self.db_path)
         completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-        conn.execute(
-            "INSERT OR IGNORE INTO lessons (course_name, lesson_name, completed_at, notes) VALUES (?, ?, ?, ?)",
-            (course_name, lesson_name, completed_at, notes or "")
-        )
-
-        cursor = conn.execute(
-            "SELECT COUNT(*) FROM lessons WHERE course_name = ?",
-            (course_name,)
-        )
-        completed = cursor.fetchone()[0]
-
-        conn.execute(
-            "UPDATE courses SET completed_lessons = ? WHERE name = ?",
-            (completed, course_name)
-        )
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO lessons (course_name, lesson_name, completed_at, notes) VALUES (?, ?, ?, ?)",
+                    (course_name, lesson_name, completed_at, notes or "")
+                )
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM lessons WHERE course_name = ?", (course_name,)
+                )
+                completed = cursor.fetchone()[0]
+                conn.execute(
+                    "UPDATE courses SET completed_lessons = ? WHERE name = ?",
+                    (completed, course_name)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
         result = {"course_name": course_name, "lesson_name": lesson_name, "completed_at": completed_at, "notes": notes}
         self.memory.store(
@@ -165,18 +175,20 @@ class CourseTracker(AgentBase):
         logger.info("[VECTOR][learning] Generating learning progress report")
         self.add_lesson({"action": "generate_report"})
 
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute("SELECT name, platform, total_lessons, completed_lessons, added_at FROM courses")
-        courses = []
-        for row in cursor.fetchall():
-            total = row[2]
-            completed = row[3]
-            pct = round((completed / total) * 100, 2) if total > 0 else 0.0
-            courses.append({"name": row[0], "platform": row[1], "total": total, "completed": completed, "percent": pct, "added_at": row[4]})
-
-        cursor2 = conn.execute("SELECT COUNT(*) FROM lessons")
-        total_lessons = cursor2.fetchone()[0]
-        conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute("SELECT name, platform, total_lessons, completed_lessons, added_at FROM courses")
+                courses = []
+                for row in cursor.fetchall():
+                    total = row[2]
+                    completed = row[3]
+                    pct = round((completed / total) * 100, 2) if total > 0 else 0.0
+                    courses.append({"name": row[0], "platform": row[1], "total": total, "completed": completed, "percent": pct, "added_at": row[4]})
+                cursor2 = conn.execute("SELECT COUNT(*) FROM lessons")
+                total_lessons = cursor2.fetchone()[0]
+            finally:
+                conn.close()
 
         overall_pct = 0.0
         if courses:

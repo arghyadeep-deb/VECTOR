@@ -96,7 +96,7 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
         return
     tid = thread_id(ticker, date)
     with _lock:
-        conn = sqlite3.connect(str(db))
+        conn = sqlite3.connect(str(db), check_same_thread=False)
         try:
             for table in ("writes", "checkpoints"):
                 conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))

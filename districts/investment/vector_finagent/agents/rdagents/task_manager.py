@@ -245,6 +245,7 @@ class TaskExecutor:
                             best_sharpe = task.get("best_sharpe")
                             updates["best_sharpe"] = sharpe if best_sharpe is None else max(best_sharpe, sharpe)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Metrics extraction is best-effort
 
         self._tm.update(self._task_id, updates)

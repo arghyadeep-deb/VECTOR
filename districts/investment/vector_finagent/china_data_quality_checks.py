@@ -33,7 +33,7 @@ class ChinaDataQualityChecks:
 
     @staticmethod
     def _connect() -> sqlite3.Connection:
-        conn = sqlite3.connect(UNIFIED_DB)
+        conn = sqlite3.connect(UNIFIED_DB, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         return conn
 

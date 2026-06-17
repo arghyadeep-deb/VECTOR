@@ -30,7 +30,7 @@ async def list_contacts():
         if not db_path.exists():
             return {"status": "ok", "contacts": [], "total_contacts": 0, "source": "contacts.db"}
 
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(db_path, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             has_contacts = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'contacts'"

@@ -95,7 +95,7 @@ def _safe_copy_db(src: Path, dst: Path) -> bool:
     """
     try:
         conn = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
-        backup_conn = sqlite3.connect(str(dst))
+        backup_conn = sqlite3.connect(str(dst), check_same_thread=False)
         conn.backup(backup_conn)
         backup_conn.close()
         conn.close()

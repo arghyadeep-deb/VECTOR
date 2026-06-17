@@ -348,6 +348,7 @@ async def vector_ws_state(websocket: WebSocket):
                     "ts": event.timestamp,
                 })
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
 
         subs = [bus.subscribe(et, _forward) for et in STATE_EVENTS]
@@ -371,6 +372,7 @@ async def vector_ws_state(websocket: WebSocket):
                 try:
                     bus.unsubscribe(sub)
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
         manager.disconnect(websocket)
 

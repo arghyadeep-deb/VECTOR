@@ -385,30 +385,12 @@ def build_mcp_server() -> Any:
             })
             df["returns"] = df["close"].pct_change()
 
-            # Evaluate factor expression with restricted builtins
-            _safe_builtins = {
-                "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr,
-                "complex": complex, "dict": dict, "enumerate": enumerate,
-                "filter": filter, "float": float, "frozenset": frozenset,
-                "getattr": getattr, "hasattr": hasattr, "hash": hash, "hex": hex,
-                "id": id, "int": int, "isinstance": isinstance, "issubclass": issubclass,
-                "iter": iter, "len": len, "list": list, "map": map, "max": max,
-                "min": min, "next": next, "object": object, "oct": oct, "ord": ord,
-                "pow": pow, "print": print, "range": range, "repr": repr,
-                "reversed": reversed, "round": round, "set": set, "slice": slice,
-                "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
-                "type": type, "zip": zip,
-            }
+            from core.security.safe_eval import safe_eval_expression
+
             try:
-                logger.warning(
-                    "[VECTOR][security] eval factor expression in %s: %.100s",
-                    __name__, factor_expr,
-                )
-                factor_vals = eval(  # noqa: S307
+                factor_vals = safe_eval_expression(
                     factor_expr,
-                    {"__builtins__": _safe_builtins},
-                    {**{col: df[col] for col in df.columns},
-                     "pd": pd, "np": np},
+                    {**{col: df[col] for col in df.columns}, "pd": pd, "np": np},
                 )
             except Exception as e:
                 return {"error": f"Factor expression error: {e}"}

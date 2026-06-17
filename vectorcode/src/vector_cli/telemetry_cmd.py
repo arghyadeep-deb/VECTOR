@@ -41,7 +41,7 @@ def _open(db_path: Path) -> sqlite3.Connection:
         print(f"[!] telemetry DB not found at {db_path}")
         print("    Make some chat() calls in VECTOR first, then re-run this command.")
         sys.exit(1)
-    return sqlite3.connect(db_path)
+    return sqlite3.connect(db_path, check_same_thread=False)
 
 
 def _human_joules(j: float) -> str:

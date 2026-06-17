@@ -85,6 +85,7 @@ for path in [
             BODY_FONT = "TimesNewRoman"
             break
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
 
 PAGE_WIDTH = 7.0 * inch  # letter minus margins

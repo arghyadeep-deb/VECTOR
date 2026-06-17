@@ -2,8 +2,13 @@ import sys
 
 __all__ = [
     "EpisodicMemory",
+    "MemoryDatabaseUnavailable",
+    "close_db_connection",
+    "diagnose_memory_db",
     "get_db_connection",
+    "get_db_write_lock",
     "get_temp_cursor",
+    "repair_unreadable_memory_db",
 ]
 
 from core.config import CONFIG
@@ -40,6 +45,33 @@ _MIGRATABLE_TABLES = (
     "agent_history",
     "episodic_embeddings",
 )
+_SQLITE_HEADER = b"SQLite format 3\x00"
+
+
+class MemoryDatabaseUnavailable(RuntimeError):
+    """Raised when the local memory DB cannot be opened safely."""
+
+
+def _looks_like_plain_sqlite(path: str) -> bool:
+    try:
+        with open(path, "rb") as handle:
+            return handle.read(len(_SQLITE_HEADER)) == _SQLITE_HEADER
+    except OSError:
+        return False
+
+
+def _unreadable_db_backup_path(path: str) -> str:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+    return f"{path}.unreadable.bak.{stamp}"
+
+
+def _unavailable_message(path: str) -> str:
+    return (
+        f"[VECTOR][memory] Local SQLCipher memory DB is unreadable: {path}. "
+        "The file appears encrypted or corrupted and cannot be opened with the current DB key. "
+        "If this DB has memories you need, restore the original VECTOR_DB_KEY/keyring entry. "
+        "To start fresh without deleting the old file, run: python run_vector.py memory-repair"
+    )
 
 def _get_db_key() -> str:
     """Derive encryption key from env var or OS keyring. Never hardcoded."""
@@ -51,7 +83,13 @@ def _get_db_key() -> str:
     if key:
         _DB_KEY = key
         return _DB_KEY
-    # Priority 2: OS keyring
+    # Priority 2: validated config loaded from .env. Pydantic Settings reads
+    # .env without mutating os.environ, so checking os.environ alone misses it.
+    key = str(CONFIG.get("db_key") or "")
+    if key:
+        _DB_KEY = key
+        return _DB_KEY
+    # Priority 3: OS keyring
     try:
         import keyring
         stored = keyring.get_password("vector", "db_key")
@@ -295,6 +333,88 @@ def close_db_connection() -> None:
         pass
 
 
+def get_db_write_lock() -> threading.RLock:
+    """Expose the shared DB write lock for modules that reuse the singleton."""
+    return _write_lock
+
+
+def diagnose_memory_db() -> dict:
+    """Return a safe diagnostic summary for the local memory database.
+
+    Does not expose the encryption key. Used by production checks and repair
+    commands so failures are actionable instead of surfacing as generic SQLite
+    errors.
+    """
+    db_path = _memory_db_path()
+    report = {
+        "path": db_path,
+        "exists": os.path.exists(db_path),
+        "sqlcipher": _USE_SQLCIPHER,
+        "plain_sqlite_header": False,
+        "can_open": False,
+        "status": "missing",
+        "detail": "",
+    }
+    if not report["exists"]:
+        report["detail"] = "Database file does not exist yet; startup will create it."
+        return report
+    report["plain_sqlite_header"] = _looks_like_plain_sqlite(db_path)
+    try:
+        conn = _open_sqlcipher_connection(db_path) if _USE_SQLCIPHER else sqlite3.connect(db_path)
+        try:
+            conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        finally:
+            conn.close()
+        report["can_open"] = True
+        report["status"] = "ok"
+        report["detail"] = "Database opens with the current configuration."
+    except Exception as exc:
+        if _USE_SQLCIPHER and not report["plain_sqlite_header"]:
+            report["status"] = "key_mismatch_or_corrupt"
+            report["detail"] = _unavailable_message(db_path)
+        elif report["plain_sqlite_header"]:
+            report["status"] = "plaintext_migration_needed"
+            report["detail"] = "Plain SQLite memory DB found; startup can migrate it to SQLCipher."
+        else:
+            report["status"] = "unreadable"
+            report["detail"] = f"Database could not be opened: {type(exc).__name__}"
+    return report
+
+
+def repair_unreadable_memory_db() -> dict:
+    """Quarantine an unreadable encrypted memory DB and create a fresh one."""
+    global _db_connection
+    db_path = _memory_db_path()
+    before = diagnose_memory_db()
+    if before.get("can_open"):
+        return {"status": "ok", "detail": "Memory DB already opens.", "path": db_path}
+    if not os.path.exists(db_path):
+        get_db_connection()
+        return {"status": "created", "detail": "Memory DB created.", "path": db_path}
+    if before.get("plain_sqlite_header"):
+        get_db_connection()
+        return {"status": "migrated", "detail": "Plain SQLite DB migrated to SQLCipher.", "path": db_path}
+
+    backup = _unreadable_db_backup_path(db_path)
+    close_db_connection()
+    with _db_lock:
+        _db_connection = None
+        os.replace(db_path, backup)
+    try:
+        get_db_connection()
+    except Exception:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        os.replace(backup, db_path)
+        raise
+    return {
+        "status": "recreated",
+        "path": db_path,
+        "backup": backup,
+        "detail": "Unreadable memory DB was moved aside and a fresh encrypted DB was created.",
+    }
+
+
 def get_db_connection():
     """Get or create singleton DB connection with thread-safe initialization."""
     global _db_connection
@@ -309,6 +429,8 @@ def get_db_connection():
                     _db_connection = _open_sqlcipher_connection(db_path)
                 except Exception as exc:
                     if os.path.exists(db_path):
+                        if not _looks_like_plain_sqlite(db_path):
+                            raise MemoryDatabaseUnavailable(_unavailable_message(db_path)) from exc
                         try:
                             plain_conn = sqlite3.connect(db_path)
                             plain_conn.execute("SELECT count(*) FROM sqlite_master")

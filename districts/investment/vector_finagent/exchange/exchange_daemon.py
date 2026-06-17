@@ -123,6 +123,7 @@ def _get_exchange(exchange_id, need_auth=False):
             exchange.markets = cached
             exchange.set_markets(cached)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Fall through — will load on demand if needed
 
     _exchange_pool[key] = exchange

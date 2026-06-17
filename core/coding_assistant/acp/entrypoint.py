@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "Arguments",
     "bootstrap_config_files",
@@ -110,6 +115,7 @@ def main() -> None:
     try:
         config = VectorCAConfig.load()
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # tracing disabled
 
     run_acp_server()

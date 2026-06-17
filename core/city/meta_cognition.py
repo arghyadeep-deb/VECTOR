@@ -506,6 +506,7 @@ class MetaCognition:
             with self.__class__._db_lock:
                 self._conn.close()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
 

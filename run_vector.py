@@ -89,6 +89,7 @@ async def _graceful_shutdown(loop_instance, timeout: float = 10.0) -> None:
     try:
         logger.complete()
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass
 
     logger.info("[VECTOR] shutdown complete")
@@ -464,7 +465,7 @@ def parse_args() -> argparse.Namespace:
         "mode",
         nargs="?",
         default="loop",
-        choices=("loop", "api", "smoke", "doctor"),
+        choices=("loop", "api", "smoke", "doctor", "production-check", "memory-repair"),
         help="Default is loop. Use smoke for a one-shot startup check.",
     )
     parser.add_argument("--host", default="127.0.0.1")
@@ -478,7 +479,7 @@ def main() -> int:
 
     # Start optional sidecar services (ComfyUI, etc.) — non-blocking.
     # Skipped in smoke mode to keep the startup check fast.
-    if args.mode not in ("smoke", "doctor"):
+    if args.mode not in ("smoke", "doctor", "production-check", "memory-repair"):
         _start_sidecars()
         _start_background_services()
 
@@ -501,6 +502,20 @@ def main() -> int:
         report = run_dependency_doctor(include_optional=True).to_dict()
         print(json.dumps(report, indent=2))
         return 0 if report.get("required_failed", 1) == 0 else 1
+
+    if args.mode == "production-check":
+        from core.runtime.production_check import run_production_check
+
+        report = run_production_check()
+        print(json.dumps(report, indent=2))
+        return 0 if report.get("status") != "fail" else 1
+
+    if args.mode == "memory-repair":
+        from core.memory.episodic import repair_unreadable_memory_db
+
+        report = repair_unreadable_memory_db()
+        print(json.dumps(report, indent=2))
+        return 0 if report.get("status") in {"ok", "created", "migrated", "recreated"} else 1
 
     # mode == "loop"
     try:

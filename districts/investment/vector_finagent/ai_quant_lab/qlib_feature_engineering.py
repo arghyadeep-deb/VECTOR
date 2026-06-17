@@ -389,13 +389,14 @@ class FeatureExpressionEngine:
             lambda match: f'__column("{match.group(1)}")',
             expression,
         )
-        allowed_globals = {"__builtins__": {}}
-        allowed_locals = {
+        from core.security.safe_eval import safe_eval_expression
+
+        allowed_names = {
             "__column": _column,
             **self.functions,
         }
         try:
-            result = eval(safe_expression, allowed_globals, allowed_locals)
+            result = safe_eval_expression(safe_expression, allowed_names)
         except Exception as exc:
             raise ValueError(f"Invalid feature expression {expression!r}: {exc}") from exc
 

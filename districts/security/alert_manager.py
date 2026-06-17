@@ -7,6 +7,7 @@ import datetime
 import json
 import sqlite3
 import uuid
+import threading
 from collections import defaultdict
 from typing import Any
 
@@ -38,6 +39,7 @@ class AlertManager:
         from core.runtime_paths import data_path
 
         self._db_path = db_path or str(data_path("security", "alerts.db"))
+        self._lock = threading.RLock()
         self._dedup_cache: dict[str, float] = {}
         self._dedup_ttl: float = 300.0
         self._pushover_token: str = CONFIG.get("api_keys", {}).get("pushover_token", "") or CONFIG.get("pushover_token", "")
@@ -48,7 +50,7 @@ class AlertManager:
     def _init_db(self) -> None:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         try:
-            conn = sqlite3.connect(self._db_path, timeout=5)
+            conn = sqlite3.connect(self._db_path, timeout=5, check_same_thread=False)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS alerts (
                     id TEXT PRIMARY KEY,
@@ -73,7 +75,10 @@ class AlertManager:
             logger.error("[VECTOR][alert_manager] DB init: {}", e)
 
     def _get_conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self._db_path, timeout=5)
+        conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
 
     def _dedup_key(self, rule_name: str, target: str) -> str:
         return f"{rule_name}:{target}"

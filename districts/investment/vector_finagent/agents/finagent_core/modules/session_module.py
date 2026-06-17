@@ -280,7 +280,7 @@ class SessionModule:
                 return None
 
             import sqlite3
-            conn = sqlite3.connect(str(db_path))
+            conn = sqlite3.connect(str(db_path), check_same_thread=False)
             cursor = conn.cursor()
 
             cursor.execute(
@@ -310,7 +310,7 @@ class SessionModule:
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
             import sqlite3
-            conn = sqlite3.connect(str(db_path))
+            conn = sqlite3.connect(str(db_path), check_same_thread=False)
             cursor = conn.cursor()
 
             # Create table if not exists
@@ -346,7 +346,7 @@ class SessionModule:
                 return
 
             import sqlite3
-            conn = sqlite3.connect(str(db_path))
+            conn = sqlite3.connect(str(db_path), check_same_thread=False)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
             conn.commit()

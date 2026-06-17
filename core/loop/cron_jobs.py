@@ -256,6 +256,7 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
             ["git", "log", "-1", "--format=%h %s"], capture_output=True,
             text=True, timeout=10, cwd=repo).stdout.strip()[:90]
     except Exception:
+        logger.warning("[VECTOR] silent swallow")
         pass
 
     if problems:
@@ -276,6 +277,7 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
                 tags=["selfcheck", "repair"], source="nightly_selfcheck",
             )
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         logger.error("[VECTOR][selfcheck] FAILED: {}", problems)
         return {"status": "failed", "problems": problems, "last_commit": last_commit}
@@ -448,9 +450,11 @@ def _try_register_interval(
                     api(fn, "interval", minutes=minutes, id=job_id)
                     return True
                 except Exception:
+                    logger.warning("[VECTOR] silent swallow")
                     pass
             except Exception:
                 # scheduler may use a different API; try next
+                logger.warning("[VECTOR] silent swallow")
                 pass
 
     # 2) Convenience method: schedule_interval(job_id, minutes, fn)

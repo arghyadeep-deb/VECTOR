@@ -97,6 +97,7 @@ def walk_forward_backtest(
                             })
 
             except Exception as e:
+                logger.exception("[VECTOR] silent swallow")
                 pass
 
             origin += step_size

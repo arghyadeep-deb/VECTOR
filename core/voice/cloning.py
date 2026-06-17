@@ -294,6 +294,7 @@ class VoiceCloner:
             try:
                 Path(path).unlink(missing_ok=True)
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
 
 

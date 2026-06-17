@@ -39,9 +39,10 @@ class EpistemicTracker:
 
     def _init_db(self) -> sqlite3.Connection:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(self._db_path))
+        conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS claims (
                 id            TEXT PRIMARY KEY,
@@ -229,12 +230,14 @@ class EpistemicTracker:
             )
             self._conn.commit()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
     def close(self) -> None:
         try:
             self._conn.close()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
 

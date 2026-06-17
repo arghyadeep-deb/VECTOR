@@ -26,7 +26,7 @@ EXECUTION_DB = Path(__file__).parent.parent.parent / "data" / "execution_ledger.
 
 def _init_ledger():
     EXECUTION_DB.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(EXECUTION_DB))
+    conn = sqlite3.connect(str(EXECUTION_DB), check_same_thread=False)
     conn.execute("""CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         symbol TEXT, side TEXT, quantity REAL, order_type TEXT,
@@ -90,7 +90,7 @@ class ExecutionEngine(AgentBase):
     def _log_order(self, order_id: str, symbol: str, side: str, quantity: float,
                    price: float, status: str, paper: bool, reason: str = ""):
         try:
-            conn = sqlite3.connect(str(EXECUTION_DB))
+            conn = sqlite3.connect(str(EXECUTION_DB), check_same_thread=False)
             conn.execute(
                 "INSERT OR REPLACE INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (order_id, symbol, side, quantity, "market", price, status,
@@ -104,7 +104,7 @@ class ExecutionEngine(AgentBase):
     def get_order_history(self, limit: int = 50) -> list[dict]:
         """Return the most recent orders from the audit ledger."""
         try:
-            conn = sqlite3.connect(str(EXECUTION_DB))
+            conn = sqlite3.connect(str(EXECUTION_DB), check_same_thread=False)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT * FROM orders ORDER BY timestamp DESC LIMIT ?", (limit,)

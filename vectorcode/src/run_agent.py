@@ -1018,6 +1018,7 @@ class AIAgent:
         try:
             self._get_transport()
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Non-fatal — transport may not exist for all modes yet
 
         try:
@@ -1632,6 +1633,7 @@ class AIAgent:
                     )
                     self._memory_store.load_from_disk()
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Memory is optional -- don't break agent init
         
 
@@ -4030,6 +4032,7 @@ class AIAgent:
                         )
                         return
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # corrupted existing file — allow the overwrite
 
             entry = {
@@ -4294,6 +4297,7 @@ class AIAgent:
             if state is not None:
                 self._rate_limit_state = state
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Never let header parsing break the agent loop
 
     def get_rate_limit_state(self):
@@ -7914,6 +7918,7 @@ class AIAgent:
                 from agent.anthropic_adapter import _get_anthropic_max_output
                 _ant_max = _get_anthropic_max_output(self.model)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # fail open — let the proxy pick its default
 
         # Qwen session metadata precomputed here (promptId is per-call random)
@@ -9155,6 +9160,7 @@ class AIAgent:
                             work_dir, f"before {function_name}"
                         )
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # never block tool execution
 
             # Checkpoint before destructive terminal commands
@@ -9167,6 +9173,7 @@ class AIAgent:
                             cwd, f"before terminal: {cmd[:60]}"
                         )
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # never block tool execution
 
             tool_start_time = time.time()
@@ -9812,6 +9819,7 @@ class AIAgent:
                     if session_row:
                         stored_prompt = session_row.get("system_prompt") or None
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # Fall through to build fresh
 
             if stored_prompt:
@@ -10350,6 +10358,7 @@ class AIAgent:
                     except ImportError:
                         logger.debug("[VECTOR] suppressed exception", exc_info=True)
                     except Exception:
+                        logger.exception("[VECTOR] silent swallow")
                         pass  # Never let rate guard break the agent loop
 
                 try:
@@ -10963,6 +10972,7 @@ class AIAgent:
                                     api_call_count=1,
                                 )
                             except Exception:
+                                logger.exception("[VECTOR] silent swallow")
                                 pass  # never block the agent loop
                         
                         if self.verbose_logging:
@@ -13042,6 +13052,7 @@ class AIAgent:
                     review_skills=_should_review_skills,
                 )
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # Background review is best-effort
 
         # Note: Memory provider on_session_end() + shutdown_all() are NOT

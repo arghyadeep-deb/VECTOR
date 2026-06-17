@@ -82,3 +82,54 @@ def test_key_mutations_require_current_key_when_configured(monkeypatch) -> None:
     assert exc.value.status_code == 401
 
     keys._require_current_key_if_configured(Request(["Bearer old-secret"]))
+
+
+def test_encrypted_memory_key_mismatch_is_actionable(monkeypatch, tmp_path) -> None:
+    from core.memory import episodic as ep
+
+    db_path = tmp_path / "vector_memory.db"
+    db_path.write_bytes(b"not-a-sqlite-header-and-not-openable")
+
+    monkeypatch.setitem(ep.CONFIG, "db_path", db_path)
+    monkeypatch.setattr(ep, "_USE_SQLCIPHER", True)
+    monkeypatch.setattr(ep, "_db_connection", None)
+
+    def fail_open(_path):
+        raise RuntimeError("bad key")
+
+    monkeypatch.setattr(ep, "_open_sqlcipher_connection", fail_open)
+
+    report = ep.diagnose_memory_db()
+
+    assert report["status"] == "key_mismatch_or_corrupt"
+    assert report["can_open"] is False
+    assert "VECTOR_DB_KEY" in report["detail"]
+
+    with pytest.raises(ep.MemoryDatabaseUnavailable) as exc:
+        ep.get_db_connection()
+    assert "memory-repair" in str(exc.value)
+
+
+def test_safe_expression_evaluator_blocks_dunder_escape() -> None:
+    from core.security.safe_eval import UnsafeExpressionError, safe_eval_expression
+
+    assert safe_eval_expression("price > 10 and volume >= 100", {"price": 12, "volume": 200}) is True
+
+    with pytest.raises(UnsafeExpressionError):
+        safe_eval_expression("().__class__.__bases__", {})
+
+
+def test_dynamic_strategy_execution_requires_explicit_opt_in(monkeypatch) -> None:
+    from core.security.dynamic_execution import (
+        DynamicExecutionDisabled,
+        dynamic_strategy_execution_enabled,
+        require_dynamic_strategy_execution,
+    )
+
+    monkeypatch.delenv("VECTOR_ALLOW_DYNAMIC_STRATEGIES", raising=False)
+    assert dynamic_strategy_execution_enabled() is False
+    with pytest.raises(DynamicExecutionDisabled):
+        require_dynamic_strategy_execution("test strategy")
+
+    monkeypatch.setenv("VECTOR_ALLOW_DYNAMIC_STRATEGIES", "1")
+    require_dynamic_strategy_execution("test strategy")

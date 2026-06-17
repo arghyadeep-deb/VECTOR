@@ -2671,6 +2671,7 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
         if fixes and not quiet:
             print(f"  ✓ Repaired .env file ({fixes} corrupted entries fixed)")
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # best-effort; don't block migration on sanitize failure
 
     # Check config version

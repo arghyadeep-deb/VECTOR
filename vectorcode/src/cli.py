@@ -867,7 +867,7 @@ def cmd_cron(args):
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _conn():
-        c = sqlite3.connect(str(db_path))
+        c = sqlite3.connect(str(db_path), check_same_thread=False)
         c.execute("""CREATE TABLE IF NOT EXISTS cron_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             schedule TEXT NOT NULL,

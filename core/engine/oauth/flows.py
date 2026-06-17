@@ -169,6 +169,7 @@ class OAuthFlowManager:
             try:
                 keyring.delete_password("VECTOR", f"oauth:{slug}")
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         path = _TOKEN_DIR / f"{slug}.json"
         if path.exists():

@@ -1269,6 +1269,7 @@ def get_model_context_length(
             if cp_ctx:
                 return cp_ctx
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # fall through to probing
 
     # Normalise provider-prefixed model names (e.g. "local:model-name" →
@@ -1373,6 +1374,7 @@ def get_model_context_length(
             if ctx:
                 return ctx
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Fall through to models.dev
 
     if effective_provider == "nous":

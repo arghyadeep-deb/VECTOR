@@ -238,6 +238,7 @@ class AgentBase:
             from core.memory.shared_facts import SharedFacts
             SharedFacts().set(key, value, source=self.name)
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
     def recall_fact(self, key: str, default=None):

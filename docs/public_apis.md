@@ -49,7 +49,7 @@ All require no authentication unless noted with `[key-optional]`.
 
 ---
 
-## Communications District (`districts/communications/hermes_adapter.py`)
+## Communications District (`vectorcode/src/channels/` and `vectorcode/src/comms/`)
 
 Routed through VectorCode (fully integrated).
 

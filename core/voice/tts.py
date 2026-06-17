@@ -122,6 +122,7 @@ class VoiceTTS:
                 if "CUDAExecutionProvider" in ort.get_available_providers():
                     candidates = [gpu_model, cpu_model]
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
             for model_file in candidates:
                 if not model_file.exists():
@@ -186,6 +187,7 @@ class VoiceTTS:
                 style = agent.get_voice_style()
                 logger.debug("[VECTOR][tts] voice_style for {}: {}", agent.name, style[:60])
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
         # Cloned-voice path — only when a profile with a reference sample is requested
         if profile_name and self._speak_clone(text, profile_name):
@@ -356,6 +358,7 @@ class VoiceTTS:
             import sounddevice as sd
             sd.stop()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
     def _speak_elevenlabs_stream(self, text: str) -> bool:
@@ -377,6 +380,7 @@ class VoiceTTS:
                     try:
                         sd.stop()
                     except Exception:
+                        logger.warning("[VECTOR] silent swallow")
                         pass
                     return True
                 if not chunk:
@@ -428,6 +432,7 @@ class StreamingTTS:
             import sounddevice as sd
             sd.stop()
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
 
     def generate_stream(self, text: str, callback=None):

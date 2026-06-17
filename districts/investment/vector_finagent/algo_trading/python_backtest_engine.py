@@ -63,6 +63,8 @@ except ImportError as e:
 
 def load_registry() -> Dict[str, Any]:
     """Load the strategy registry."""
+    from core.security.dynamic_execution import require_dynamic_strategy_execution
+
     registry_path = os.path.join(STRATEGIES_DIR, "_registry.py")
     debug(f"Loading registry from: {registry_path}")
 
@@ -85,6 +87,7 @@ def load_registry() -> Dict[str, Any]:
     }
     registry_globals = {"__builtins__": _safe_builtins}
     with open(registry_path, 'r', encoding='utf-8') as f:
+        require_dynamic_strategy_execution("Fincept strategy registry loading")
         logger.warning("[VECTOR][security] exec registry in %s", __name__)
         exec(f.read(), registry_globals)
 
@@ -113,6 +116,9 @@ def _is_strategy_class(obj, name: str) -> bool:
 def load_strategy_class(strategy_id: str, custom_code: Optional[str] = None):
     """Load a strategy class by ID or from custom code."""
     if custom_code:
+        from core.security.dynamic_execution import require_dynamic_strategy_execution
+
+        require_dynamic_strategy_execution("custom backtest strategy code")
         debug("Loading from custom code")
         # Execute custom code to get the strategy class
         _safe_builtins = {

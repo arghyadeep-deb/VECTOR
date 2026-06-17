@@ -126,6 +126,7 @@ class VllmPearlProvider(MiningProvider):
                         provider_id=self.provider_id,
                     )
         except Exception:  # noqa: BLE001 - vLLM fallback below.
+            logger.exception("[VECTOR] silent swallow")
             pass
 
         vllm_endpoint = sidecar.get("vllm_endpoint")

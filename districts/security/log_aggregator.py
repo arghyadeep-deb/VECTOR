@@ -6,6 +6,7 @@ import datetime
 import json
 import sqlite3
 import uuid
+import threading
 from collections import defaultdict
 from typing import Any
 
@@ -42,6 +43,7 @@ class LogAggregator:
         from core.runtime_paths import data_path
 
         self._db_path = db_path or str(data_path("security", "logs.db"))
+        self._lock = threading.RLock()
         self._queue: asyncio.Queue[LogEvent] = asyncio.Queue(maxsize=10000)
         self._forward_queue: asyncio.Queue[LogEvent] | None = None
         self._running = False
@@ -50,7 +52,7 @@ class LogAggregator:
     def _init_db(self) -> None:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         try:
-            conn = sqlite3.connect(self._db_path, timeout=5)
+            conn = sqlite3.connect(self._db_path, timeout=5, check_same_thread=False)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS logs (
                     id TEXT PRIMARY KEY,
@@ -73,7 +75,10 @@ class LogAggregator:
             logger.error("[VECTOR][log_aggregator] DB init failed: {}", e)
 
     def _get_conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self._db_path, timeout=5)
+        conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
 
     def make_sink(self) -> Any:
         def sink(message) -> None:

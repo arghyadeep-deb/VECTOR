@@ -189,6 +189,7 @@ class RealtimeConversation:
             try:
                 self._nudge_unsub()
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
             self._nudge_unsub = None
         self._conv.end_session()
@@ -403,6 +404,7 @@ class RealtimeConversation:
                     await self._state("LISTENING")
                     return
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
 
             # Speaker verification — only the enrolled owner can command actions.
@@ -666,6 +668,7 @@ class RealtimeConversation:
             if not allow_proactive("realtime_voice"):
                 return
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         text = str(nudge.get("text", "")).strip()
         if not text:
@@ -697,6 +700,7 @@ class RealtimeConversation:
                            "IDLE": "idle"}
                 await self._orb(orb_map.get(value, "idle"))
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
 
     async def _safe_send(self, payload: dict) -> None:

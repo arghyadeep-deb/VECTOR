@@ -33,6 +33,7 @@ __all__ = [
 import json
 import math
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -61,22 +62,33 @@ class Experiment:
     def record(self, subject_id: str, variant: str, metric: str, value: float,
                metadata: dict | None = None) -> None:
         """Record a metric observation for a variant."""
-        with sqlite3.connect(self._db, timeout=10) as conn:
+        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        try:
             conn.execute("""
                 INSERT INTO experiment_results
                     (experiment_id, subject_id, variant, metric, value, metadata, recorded_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (self.id, subject_id, variant, metric, value,
                   json.dumps(metadata or {}), time.time()))
+            conn.commit()
+        finally:
+            conn.close()
         logger.debug(f"[VECTOR][exp] {self.name}/{variant} {metric}={value:.4f}")
 
     def stats(self, metric: str = "reward") -> dict[str, dict]:
         """Return per-variant stats: mean, n, std, and Welch's t-test p-value vs first variant."""
-        with sqlite3.connect(self._db, timeout=10) as conn:
+        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        try:
             rows = conn.execute("""
                 SELECT variant, value FROM experiment_results
                 WHERE experiment_id = ? AND metric = ?
             """, (self.id, metric)).fetchall()
+        finally:
+            conn.close()
 
         buckets: dict[str, list[float]] = {v: [] for v in self.variants}
         for variant, value in rows:
@@ -141,6 +153,7 @@ class ExperimentRegistry:
 
     def __init__(self, db_path: Path = _DB_PATH):
         self._db = str(db_path)
+        self._lock = threading.RLock()
         self._init_db()
 
     @classmethod
@@ -150,7 +163,9 @@ class ExperimentRegistry:
         return cls._instance
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=10)
+        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
 

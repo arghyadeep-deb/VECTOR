@@ -204,6 +204,7 @@ class VenturePipeline(AgentBase):
                 source="venture_pipeline",
             )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass
         return {"status": "ok", "mined_posts": mined.get("count", 0),
                 "clusters": clustered.get("cluster_count", 0),

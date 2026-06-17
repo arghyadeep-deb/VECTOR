@@ -131,6 +131,7 @@ class ConversationManager:
                     if part.startswith("session="):
                         return part.split("=", 1)[1]
         except Exception:
+            logger.warning("[VECTOR] silent swallow")
             pass
         return None
 

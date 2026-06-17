@@ -58,6 +58,7 @@ def _atexit_commit_sessions():
     try:
         provider.on_session_end([])
     except Exception:
+        logger.exception("[VECTOR] silent swallow")
         pass  # best-effort at shutdown time
 
 

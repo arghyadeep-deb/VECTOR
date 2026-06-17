@@ -348,7 +348,7 @@ class _WriteQueue:
         """Return a cached connection for the current thread."""
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            conn = sqlite3.connect(str(self._db_path), timeout=30)
+            conn = sqlite3.connect(str(self._db_path), timeout=30, check_same_thread=False)
             conn.row_factory = sqlite3.Row
             self._local.conn = conn
         return conn

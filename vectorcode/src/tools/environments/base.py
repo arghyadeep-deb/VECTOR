@@ -620,6 +620,7 @@ class BaseEnvironment(ABC):
                 self._kill_process(proc)
                 drain_thread.join(timeout=2)
             except Exception:
+                logger.exception("[VECTOR] silent swallow")
                 pass  # cleanup is best-effort
             raise
 

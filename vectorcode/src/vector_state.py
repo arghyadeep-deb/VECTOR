@@ -334,7 +334,7 @@ class SessionDB:
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._write_count = 0
         try:
             self._conn = sqlite3.connect(
@@ -444,6 +444,7 @@ class SessionDB:
                         result[2], result[1],
                     )
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # Best effort — never fatal.
 
     def close(self):

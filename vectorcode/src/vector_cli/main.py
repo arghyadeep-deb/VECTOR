@@ -186,6 +186,7 @@ try:
             del _early_sec_cfg
         del _cfg_path
 except Exception:
+    logger.exception("[VECTOR] silent swallow")
     pass  # best-effort — redaction stays at default (enabled) on config errors
 
 # Initialize centralized file logging early — all `vector` subcommands
@@ -195,6 +196,7 @@ try:
 
     _setup_logging(mode="cli")
 except Exception:
+    logger.exception("[VECTOR] silent swallow")
     pass  # best-effort — don't crash the CLI if logging setup fails
 
 # Apply IPv4 preference early, before any HTTP clients are created.
@@ -208,6 +210,7 @@ try:
         _apply_ipv4(force=True)
     del _early_cfg, _net
 except Exception:
+    logger.exception("[VECTOR] silent swallow")
     pass  # best-effort — don't crash if config isn't available yet
 
 import logging
@@ -6635,6 +6638,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
 
             importlib.reload(_hc)
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # non-fatal — worst case a lazy import fails gracefully
 
         # Sync bundled skills (copies new, updates changed, respects user deletions)
@@ -6693,6 +6697,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     except Exception as pe:
                         print(f"  {p.name}: error ({pe})")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # profiles module not available or no profiles
 
         # Sync Honcho host blocks to all profiles
@@ -6703,6 +6708,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             if synced:
                 print(f"\n-> Honcho: synced {synced} profile(s)")
         except Exception:
+            logger.exception("[VECTOR] silent swallow")
             pass  # honcho plugin not installed or not configured
 
         # Check for config migrations
@@ -7370,6 +7376,7 @@ def cmd_profile(args):
                     if clone_honcho_for_profile(name):
                         print(f"Honcho config cloned (peer: {name})")
                 except Exception:
+                    logger.exception("[VECTOR] silent swallow")
                     pass  # Honcho plugin not installed or not configured
 
             # Seed bundled skills (skip if --clone-all already copied them)
