@@ -1403,9 +1403,13 @@ class AutonomousLoop:
                 slept += 1.0
 
     async def _command_poll_tick(self) -> None:
-        """POST a heartbeat and execute any commands the brain returns."""
+        """POST a heartbeat to the cloud brain (Cloudflare Worker) and execute any
+        commands it returns. No-ops cleanly until the Worker URL is configured."""
+        import os
         import httpx
-        brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
+        brain_url = (CONFIG.get("brain_server_url") or os.environ.get("VECTOR_BRAIN_URL") or "").rstrip("/")
+        if not brain_url:
+            return  # cloud relay not configured yet (set VECTOR_BRAIN_URL to the Worker URL)
         api_key = CONFIG.get("api_keys", {}).get("vector_api_key") or CONFIG.get("vector_api_key", "")
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         payload = {
