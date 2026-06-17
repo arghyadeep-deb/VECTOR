@@ -68,6 +68,76 @@ class MultiDBManager:
         "reasoning_chains", "skill_memory", "agent_history",
     })
 
+    # Per-table sync descriptor: primary-key column(s), the last-write-wins
+    # timestamp column, and the full column list to upsert. Drives the generic
+    # 6-table pull/merge below. (Column names are trusted constants, never user
+    # input — safe to interpolate.)
+    _TABLE_SPEC = {
+        "episodic_memory": {
+            "pk": ["id"], "ts": "timestamp",
+            "cols": ["id", "event_type", "content", "tags",
+                     "context_snapshot", "timestamp", "source"],
+        },
+        "semantic_memory": {
+            "pk": ["key"], "ts": "updated_at",
+            "cols": ["key", "value", "category", "confidence", "updated_at"],
+        },
+        "policy_memory": {
+            "pk": ["action_type", "situation_hash"], "ts": "last_updated",
+            "cols": ["action_type", "situation_hash", "avg_reward",
+                     "sample_count", "last_updated"],
+        },
+        "reasoning_chains": {
+            "pk": ["chain_id"], "ts": "timestamp",
+            "cols": ["chain_id", "situation", "goal_ids", "steps",
+                     "action_taken", "outcome", "reward",
+                     "is_training_data", "timestamp"],
+        },
+        "skill_memory": {
+            "pk": ["skill_name"], "ts": "last_practiced",
+            "cols": ["skill_name", "confidence", "last_practiced",
+                     "evidence", "related_skills"],
+        },
+        "agent_history": {
+            "pk": ["agent_id", "generation"], "ts": "died_at",
+            "cols": ["agent_id", "agent_name", "district", "generation",
+                     "final_hp", "ghost_memory", "died_at"],
+        },
+    }
+
+    def _merge_rows(self, table: str, rows: list[dict]) -> int:
+        """Last-write-wins upsert of cloud rows into local SQLite.
+
+        Keeps a local row when it is newer than the incoming one (compared on the
+        table's timestamp column), otherwise INSERT OR REPLACE. Handles composite
+        primary keys. Returns rows merged.
+        """
+        spec = self._TABLE_SPEC.get(table)
+        if not spec or not rows:
+            return 0
+        pk, ts, cols = spec["pk"], spec["ts"], spec["cols"]
+        where = " AND ".join(f"{c}=?" for c in pk)
+        placeholders = ", ".join("?" for _ in cols)
+        conn = self._get_local().conn
+        merged = 0
+        for row in rows:
+            try:
+                existing = conn.execute(
+                    f"SELECT {ts} FROM {table} WHERE {where}",  # noqa: S608 - trusted cols
+                    [row.get(c) for c in pk],
+                ).fetchone()
+                if existing is None or (row.get(ts) or "") > (existing[0] or ""):
+                    conn.execute(
+                        f"INSERT OR REPLACE INTO {table} ({', '.join(cols)}) "  # noqa: S608
+                        f"VALUES ({placeholders})",
+                        [row.get(c) for c in cols],
+                    )
+                    merged += 1
+            except Exception as e:
+                logger.debug(f"[VECTOR][multi_db] merge skip {table}: {e}")
+        conn.commit()
+        return merged
+
     def write_local(self, table: str, record: dict) -> bool:
         """Write to local SQLite. Always succeeds."""
         if table not in self._ALLOWED_TABLES:
@@ -442,7 +512,7 @@ class MultiDBManager:
         if not db_path.exists():
             raise FileNotFoundError(f"Local SQLite not found: {db_path}")
 
-        conn = sqlite3.connect(str(db_path), timeout=10)
+        conn = sqlite3.connect(str(db_path), timeout=10, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         try:
             tables = [r[0] for r in conn.execute(
@@ -486,7 +556,7 @@ class MultiDBManager:
             raise ValueError(f"Unsupported backup version: {dump.get('version')}")
 
         db_path = _Path(__file__).parent.parent.parent / "vector_memory.db"
-        conn = sqlite3.connect(str(db_path), timeout=10)
+        conn = sqlite3.connect(str(db_path), timeout=10, check_same_thread=False)
         try:
             tables_restored = 0
             rows_restored = 0
