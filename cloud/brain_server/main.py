@@ -189,13 +189,19 @@ async def recent_memory(limit: int = Query(10, ge=1, le=50)):
 
 @app.get("/goals")
 async def get_goals():
-    """Current VECTOR goals and immediate actions."""
+    """Current goals/immediate actions. Computed live on the laptop; remote returns
+    what was carried on the last heartbeat (if any)."""
     try:
         from core.brain.goal_system import GoalSystem
         actions = GoalSystem().generate_immediate_actions()
-        return {"immediate_actions": actions}
-    except Exception as e:
-        return {"immediate_actions": [], "error": str(e)}
+        return {"immediate_actions": actions, "source": "local"}
+    except Exception:
+        hb = _heartbeat_data or {}
+        return {
+            "immediate_actions": hb.get("immediate_actions", []),
+            "source": "heartbeat",
+            "note": "goals computed laptop-local; showing last heartbeat",
+        }
 
 
 @app.get("/council/history")
