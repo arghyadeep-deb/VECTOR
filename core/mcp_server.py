@@ -96,6 +96,7 @@ def _make_server():
     _add_knowledge_tools(mcp)
     _add_code_graph_tools(mcp)
     _add_brain_vault_tools(mcp)
+    _add_db_control_tools(mcp)
     return mcp
 
 
