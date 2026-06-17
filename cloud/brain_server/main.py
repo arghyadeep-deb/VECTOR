@@ -274,12 +274,20 @@ async def submit_command(data: dict):
     the laptop on its next heartbeat and executed through the permission gateway
     (destructive/RED actions require approval there — this endpoint never bypasses it)."""
     cmd_type = (data.get("type") or "").strip()
+    params = data.get("params") or {}
+    # Allow a free-text command from the HUD: {"text": "..."} → a "command" the
+    # laptop runs through its full /command pipeline (governor + gateway).
     if not cmd_type:
-        raise HTTPException(status_code=400, detail="command 'type' is required")
+        text = (data.get("text") or "").strip()
+        if text:
+            cmd_type = "command"
+            params = {"text": text, **params}
+    if not cmd_type:
+        raise HTTPException(status_code=400, detail="command 'type' or 'text' is required")
     cmd = {
         "id": _uuid.uuid4().hex[:12],
         "type": cmd_type,
-        "params": data.get("params") or {},
+        "params": params,
         "created_at": datetime.datetime.now().isoformat(),
         "status": "queued",
     }
