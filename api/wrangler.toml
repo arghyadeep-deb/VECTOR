@@ -3,12 +3,21 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-[vars]
-BRAIN_SERVER_URL = "https://vector-brain.fly.dev"
-
+# KV — heartbeat state (key hb:last) + rate-limit window
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
-# Secrets (set via: wrangler secret put VECTOR_API_KEY)
-# VECTOR_API_KEY = "..."
+# D1 — durable command queue (see schema.sql). Create with:
+#   wrangler d1 create vector-brain
+# then paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "vector-brain"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Supabase (cloud source of truth for memory reads). Set as secrets:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_KEY
+# Auth secret:
+#   wrangler secret put VECTOR_API_KEY
