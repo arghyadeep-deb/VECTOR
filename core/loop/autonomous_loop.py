@@ -1381,54 +1381,75 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[VECTOR][sync] multi-DB merge skipped: {e}")
 
+        # Heartbeat + remote-command draining now run on the fast command-poll
+        # loop (command_poll_loop, ~3s) for responsive remote control. The 24h
+        # tick is DB-merge only.
+
+    # ─── Remote command relay (fast + safe) ───────────────────────────────────
+
+    async def command_poll_loop(self) -> None:
+        """Fast heartbeat + remote-command poll. Keeps the cloud brain warm and
+        delivers commands from any device within a few seconds. Never crashes."""
+        interval = CONFIG["loop"].get("command_poll_sec", 3.0)
+        logger.info(f"[VECTOR][cmd] command_poll_loop started — {interval}s interval")
+        while self._running:
+            try:
+                await self._command_poll_tick()
+            except Exception as e:
+                logger.warning(f"[VECTOR][cmd] poll error: {e}")
+            slept = 0.0
+            while self._running and slept < interval:
+                await asyncio.sleep(min(1.0, interval - slept))
+                slept += 1.0
+
+    async def _command_poll_tick(self) -> None:
+        """POST a heartbeat and execute any commands the brain returns."""
+        import httpx
+        brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
+        api_key = CONFIG.get("api_keys", {}).get("vector_api_key") or CONFIG.get("vector_api_key", "")
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        payload = {
+            "uptime_sec": self.uptime_seconds,
+            "tick_count": self._tick_count,
+            "source": "command_poll",
+        }
         try:
-            import httpx
-            brain_url = CONFIG.get("brain_server_url", "https://vector-brain.fly.dev")
-            payload = {
-                "uptime_sec": self.uptime_seconds,
-                "tick_count": self._tick_count,
-                "agents_alive": 0,
-                "source": "autonomous_loop",
-            }
             async with httpx.AsyncClient(timeout=8.0) as c:
-                r = await c.post(f"{brain_url}/heartbeat", json=payload)
-                logger.info(f"[VECTOR][sync] heartbeat → brain server {r.status_code}")
-                # Gap 10: parse response body for commands[] from brain server
-                if r.status_code == 200:
-                    try:
-                        body = r.json()
-                        commands = body.get("commands") or []
-                        for cmd in commands:
-                            cmd_type = cmd.get("type", "")
-                            cmd_params = cmd.get("params", {})
-                            logger.info(f"[VECTOR][sync] remote command: {cmd_type} {cmd_params}")
-                            if cmd_type == "research":
-                                raw_query = cmd_params.get("query", "")
-                                # Scan for prompt injection from remote brain server (untrusted input)
-                                if raw_query and not _scan_incoming(raw_query, context="brain_server.research"):
-                                    logger.critical("[VECTOR][sync] Prompt injection detected in brain server research query — BLOCKED")
-                                    raw_query = ""
-                                self._pending_voice = {"intent": "research", "text": raw_query, "source": "brain_server"}
-                            elif cmd_type == "voice_broadcast":
-                                raw_text = cmd_params.get("text", "")
-                                # Scan for prompt injection from remote brain server (untrusted input)
-                                if raw_text and not _scan_incoming(raw_text, context="brain_server.voice_broadcast"):
-                                    logger.critical("[VECTOR][sync] Prompt injection detected in voice_broadcast — BLOCKED")
-                                    raw_text = ""
-                                self._pending_voice = {"intent": "voice_broadcast", "text": raw_text, "source": "brain_server"}
-                            elif cmd_type == "deploy":
-                                logger.warning(f"[VECTOR][sync] deploy command received — routing to permission gateway")
-                                from core.loop.permission_gateway import PermissionGateway, Action
-                                gw = PermissionGateway()
-                                await gw.execute(Action(
-                                    action_type="deploy_production",
-                                    params=cmd_params,
-                                    proposed_by="brain_server",
-                                ))
-                    except Exception as _parse_err:
-                        logger.debug(f"[VECTOR][sync] response parse failed: {_parse_err}")
+                r = await c.post(f"{brain_url}/heartbeat", json=payload, headers=headers)
+                if r.status_code != 200:
+                    return
+                for cmd in (r.json().get("commands") or []):
+                    await self._handle_remote_command(cmd)
         except Exception as e:
-            logger.warning(f"[VECTOR][sync] heartbeat failed: {e}")
+            logger.debug(f"[VECTOR][cmd] heartbeat/poll failed: {e}")
+
+    async def _handle_remote_command(self, cmd: dict) -> None:
+        """Run a remote command through the permission gateway (GREEN/YELLOW/RED).
+
+        Untrusted by origin: text params are prompt-injection scanned, and the
+        gateway gates destructive/RED actions (requiring approval) — a remote
+        device can never auto-run an unsafe action."""
+        cmd_type = (cmd.get("type") or "").strip()
+        params = cmd.get("params") or {}
+        if not cmd_type:
+            return
+        # Prompt-injection scan on free-text params (remote input is untrusted)
+        for k in ("query", "text", "prompt", "message"):
+            v = params.get(k)
+            if isinstance(v, str) and v and not _scan_incoming(v, context=f"remote_command.{cmd_type}"):
+                logger.critical(f"[VECTOR][cmd] prompt injection in remote '{cmd_type}.{k}' — BLOCKED")
+                params[k] = ""
+        logger.info(f"[VECTOR][cmd] remote command {cmd.get('id','')} type={cmd_type}")
+        try:
+            from core.loop.permission_gateway import PermissionGateway, Action
+            gw = PermissionGateway()
+            await gw.execute(Action(
+                action_type=cmd_type,
+                params=params,
+                proposed_by="remote_device",
+            ))
+        except Exception as e:
+            logger.error(f"[VECTOR][cmd] remote command '{cmd_type}' failed: {e}")
 
     # ─── Obsidian vault watcher ───────────────────────────────────────────────
 
