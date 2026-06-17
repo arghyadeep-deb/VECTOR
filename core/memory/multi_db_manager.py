@@ -231,11 +231,24 @@ class MultiDBManager:
         logger.warning(f"[VECTOR][multi_db] Cloud write failed — queued for retry")
         return results
 
-    async def write_all(self, table: str, record: dict) -> dict:
-        """Write to local + cloud simultaneously."""
+    async def write_all(self, table: str, record: dict, tier: str | None = None) -> dict:
+        """Write to local + cloud simultaneously.
+
+        ``tier`` ("critical"|"bulk") is auto-classified from the record when not
+        given (see core.memory.tiering). Critical data is protected from local
+        forgetting; bulk is a local cache the forgetting pass may prune after sync.
+        Cloud is the durable source of truth for both.
+        """
         # Add transaction ID for deduplication across local + cloud
         txn_id = record.get('id') or str(uuid.uuid4())
         record_with_txn = {**record, '_txn_id': txn_id}
+
+        if tier is None:
+            try:
+                from core.memory import tiering
+                tier = tiering.classify(table, record)
+            except Exception:
+                tier = "bulk"
 
         # Local write is synchronous
         local_ok = self.write_local(table, record_with_txn)
@@ -243,7 +256,7 @@ class MultiDBManager:
         # Cloud writes are async
         cloud = await self.write_cloud(table, record_with_txn)
 
-        return {"local": local_ok, **cloud, "txn_id": txn_id}
+        return {"local": local_ok, **cloud, "txn_id": txn_id, "tier": tier}
 
     # â”€â”€â”€ Sync Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
