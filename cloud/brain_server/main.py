@@ -22,6 +22,16 @@ _START_TIME = time.time()
 _last_heartbeat: Optional[str] = None
 _heartbeat_data: dict = {}
 
+# Remote command relay (Phase 4): commands submitted from any device are queued
+# here and drained by the laptop on its next fast heartbeat poll (~3s). The
+# laptop runs each through its permission gateway, so queueing here is not a
+# bypass — destructive actions still require approval downstream.
+import uuid as _uuid
+from collections import deque as _deque
+
+_command_queue: "_deque[dict]" = _deque(maxlen=200)
+_command_history: "_deque[dict]" = _deque(maxlen=200)
+
 # API key read from environment — never hardcoded
 _API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
 _PUBLIC_PATHS = {"/status", "/health", "/docs", "/openapi.json", "/redoc"}
