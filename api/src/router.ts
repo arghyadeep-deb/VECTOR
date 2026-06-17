@@ -9,7 +9,13 @@ const ALLOWED_PATHS = new Set([
   "/council/history",
   "/security/recent",
   "/heartbeat",
+  "/command",
 ]);
+
+// Paths with a dynamic suffix that are also allowed (e.g. /command/<id> status).
+function isAllowedPath(path: string): boolean {
+  return ALLOWED_PATHS.has(path) || path.startsWith("/command/");
+}
 
 export class Router {
   async proxy(request: Request, env: Env, path: string): Promise<Response> {
