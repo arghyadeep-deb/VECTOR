@@ -1,7 +1,7 @@
 /**
- * VECTOR Cloudflare Worker — API gateway
- * Proxies authenticated requests to brain server (Fly.io)
- * with rate limiting via KV.
+ * VECTOR Cloudflare Worker — the unified cloud brain (no Fly).
+ * Command queue (D1) + heartbeat (KV) + memory reads (Supabase), with Bearer
+ * auth and KV rate limiting. The laptop polls this Worker for remote commands.
  */
 import { Router } from "./router";
 import { verifyAuth } from "./auth";
@@ -9,8 +9,10 @@ import { checkRateLimit } from "./rate_limiter";
 
 export interface Env {
   VECTOR_API_KEY: string;
-  BRAIN_SERVER_URL: string;
   RATE_LIMIT_KV: KVNamespace;
+  DB: D1Database;
+  SUPABASE_URL: string;
+  SUPABASE_KEY: string;
 }
 
 const router = new Router();
