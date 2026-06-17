@@ -387,41 +387,33 @@ class MultiDBManager:
             return False
 
     async def _pull_supabase(self) -> None:
-        """Pull episodic_memory rows from Supabase and merge (last-write-wins on timestamp)."""
+        """Pull all 6 memory tables from Supabase and merge (last-write-wins)."""
         url = self._get_config("supabase_url")
         key = self._get_config("supabase_key")
         if not url or not key or not httpx:
             return
+        if "supabase" in self._quarantined:
+            logger.info("[VECTOR][multi_db] Supabase quarantined — pull skipped")
+            return
+        headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+        total = 0
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                headers = {"apikey": key, "Authorization": f"Bearer {key}"}
-                resp = await client.get(
-                    f"{url}/rest/v1/episodic_memory",
-                    headers=headers,
-                    params={"select": "id,event_type,content,tags,context_snapshot,timestamp,source",
-                            "order": "timestamp.desc", "limit": "500"},
-                )
-                if resp.status_code != 200:
-                    return
-                rows = resp.json()
-            conn = self._get_local().conn
-            merged = 0
-            for row in rows:
-                existing = conn.execute(
-                    "SELECT timestamp FROM episodic_memory WHERE id=?", (row["id"],)
-                ).fetchone()
-                if existing is None or row.get("timestamp", "") > existing[0]:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO episodic_memory "
-                        "(id,event_type,content,tags,context_snapshot,timestamp,source) "
-                        "VALUES (?,?,?,?,?,?,?)",
-                        (row["id"], row.get("event_type"), row.get("content"),
-                         row.get("tags"), row.get("context_snapshot"),
-                         row.get("timestamp"), row.get("source")),
-                    )
-                    merged += 1
-            conn.commit()
-            logger.info(f"[VECTOR][multi_db] Supabase pull: {merged}/{len(rows)} rows merged")
+                for table, spec in self._TABLE_SPEC.items():
+                    try:
+                        resp = await client.get(
+                            f"{url}/rest/v1/{table}",
+                            headers=headers,
+                            params={"select": ",".join(spec["cols"]),
+                                    "order": f"{spec['ts']}.desc", "limit": "500"},
+                        )
+                        if resp.status_code != 200:
+                            continue
+                        merged = self._merge_rows(table, resp.json())
+                        total += merged
+                    except Exception as e:
+                        logger.debug(f"[VECTOR][multi_db] Supabase pull {table}: {e}")
+            logger.info(f"[VECTOR][multi_db] Supabase pull: {total} rows merged across 6 tables")
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Supabase pull failed: {e}")
 
