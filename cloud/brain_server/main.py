@@ -293,10 +293,10 @@ async def command_status(command_id: str):
     """Check whether a queued command has been delivered to the laptop."""
     for cmd in _command_history:
         if cmd.get("id") == command_id:
-            return {"found": True, "status": "delivered", **cmd}
+            return {**cmd, "found": True, "status": "delivered"}
     for cmd in _command_queue:
         if cmd.get("id") == command_id:
-            return {"found": True, "status": "queued", **cmd}
+            return {**cmd, "found": True, "status": "queued"}
     return {"found": False, "command_id": command_id}
 
 
