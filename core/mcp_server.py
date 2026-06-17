@@ -36,11 +36,18 @@ from core.mcp_tools.coordination import (
     add_kanban_tools as _add_kanban_tools,
 )
 from core.mcp_tools.code_graph import add_code_graph_tools as _add_code_graph_tools
+from core.mcp_tools.db_control import add_db_control_tools as _add_db_control_tools
 from core.mcp_tools.expansion import add_expansion_tools as _add_expansion_tools
 from core.mcp_tools.knowledge import add_knowledge_tools as _add_knowledge_tools
 from core.mcp_tools.research import add_research_tools as _add_research_tools
 from core.mcp_tools.voice import add_voice_profile_tools as _add_voice_profile_tools
 from core.mcp_tools.security import mcp_secure_call as _mcp_secure_call
+from core.mcp_tools.memory_safety import (
+    resolve_memory_path as _resolve_memory_path,
+    memory_export_dir as _memory_export_dir,
+    MEMORY_CLEAR_CONFIRM as _MEMORY_CLEAR_CONFIRM,
+)
+from core.mcp_tools.error_handling import mcp_call_json as _mcp_call_json
 
 try:
     from fastmcp import FastMCP
