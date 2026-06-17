@@ -281,6 +281,7 @@ def close_db_connection() -> None:
             try:
                 _db_connection.close()
             except Exception:
+                logger.warning("[VECTOR] silent swallow")
                 pass
             _db_connection = None
     try:
@@ -290,6 +291,7 @@ def close_db_connection() -> None:
             cb.state = CircuitState.CLOSED
             cb.failure_count = 0
     except Exception:
+        logger.warning("[VECTOR] silent swallow")
         pass
 
 
@@ -499,7 +501,11 @@ class EpisodicMemory:
         """
         if retention_days <= 0:
             return 0
-        protected = set(self._PROTECTED_EVENT_TYPES)
+        try:
+            from core.memory import tiering as _tiering
+            protected = set(_tiering.protected_event_types())
+        except Exception:
+            protected = set(self._PROTECTED_EVENT_TYPES)
         if protect_event_types:
             protected |= set(protect_event_types)
         cutoff = (
