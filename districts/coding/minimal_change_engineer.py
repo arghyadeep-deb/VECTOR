@@ -365,7 +365,9 @@ class MinimalChangeEngineer(AgentBase):
                 # Optionally call Ollama for actual diff if model available
                 llm_diff = ""
                 if task.get("call_llm", False):
-                    messages = [{"role": "user", "content": prompt}]
+                    from core.prompt_library import get_library as _gl
+                    _sys = _gl().get_for_agent("minimal_change_engineer") or ""
+                    messages = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
                     llm_diff = chat(model=self._model, messages=messages, timeout=30.0)
                 self.award_points(30, "task_done")
                 return {
