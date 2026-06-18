@@ -261,14 +261,112 @@ class MultiDBManager:
 
     # â”€â”€â”€ Sync Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    async def sync_all(self) -> dict:
-        """
-        Full sync: push queued records, then pull latest from all DBs.
-        Last-write-wins per record based on updated_at.
-        """
-        results = {"queued": 0, "pushed": 0, "pulled": 0, "conflicts": 0}
+    async def _push_local_to_cloud(self, since_ts: str) -> int:
+        """Bulk-push local SQLite rows newer than since_ts to Supabase + Turso.
 
-        # 1. Process queued syncs
+        Reads each of the 6 allowed tables from the encrypted local DB, filters
+        rows whose timestamp column is greater than since_ts (ISO-8601 string
+        comparison works because all timestamps are UTC ISO format), then batch-
+        upserts them to any non-quarantined cloud backend.  Returns total rows sent.
+        """
+        if not httpx:
+            return 0
+
+        total = 0
+        conn = self._get_local().conn
+
+        supabase_url = self._get_config("supabase_url")
+        supabase_key = self._get_config("supabase_key")
+        turso_url = self._get_config("turso_url")
+        turso_token = self._get_config("turso_token")
+
+        supabase_ok = bool(supabase_url and supabase_key and "supabase" not in self._quarantined)
+        turso_ok = bool(turso_url and turso_token and "turso" not in self._quarantined)
+
+        if not supabase_ok and not turso_ok:
+            return 0
+
+        for table, spec in self._TABLE_SPEC.items():
+            ts_col = spec["ts"]
+            cols = spec["cols"]
+            try:
+                rows_raw = conn.execute(
+                    f"SELECT {', '.join(cols)} FROM {table} WHERE {ts_col} > ?",  # noqa: S608
+                    (since_ts,),
+                ).fetchall()
+            except Exception as e:
+                logger.debug(f"[VECTOR][multi_db] push read {table}: {e}")
+                continue
+
+            if not rows_raw:
+                continue
+
+            records = [dict(zip(cols, row)) for row in rows_raw]
+
+            # Supabase batch upsert — merge-duplicates resolves PK conflicts
+            if supabase_ok:
+                try:
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(
+                            f"{supabase_url}/rest/v1/{table}",
+                            headers={
+                                "apikey": supabase_key,
+                                "Authorization": f"Bearer {supabase_key}",
+                                "Content-Type": "application/json",
+                                "Prefer": "resolution=merge-duplicates",
+                            },
+                            json=records,
+                        )
+                        if resp.status_code in (200, 201):
+                            total += len(records)
+                            logger.debug(f"[VECTOR][multi_db] push Supabase {table}: {len(records)} rows")
+                except Exception as e:
+                    logger.debug(f"[VECTOR][multi_db] push Supabase {table} failed: {e}")
+
+            # Turso batch upsert — INSERT OR REPLACE per row
+            if turso_ok:
+                try:
+                    placeholders = ", ".join("?" for _ in cols)
+                    statements = [
+                        f"INSERT OR REPLACE INTO {table} ({', '.join(cols)}) VALUES ({placeholders})"  # noqa: S608
+                        for _ in records
+                    ]
+                    params = [list(r.get(c) for c in cols) for r in records]
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(
+                            f"{turso_url}/v1/pipeline",
+                            headers={
+                                "Authorization": f"Bearer {turso_token}",
+                                "Content-Type": "application/json",
+                            },
+                            json={"statements": statements, "params": params},
+                        )
+                        if resp.status_code in (200, 201):
+                            logger.debug(f"[VECTOR][multi_db] push Turso {table}: {len(records)} rows")
+                except Exception as e:
+                    logger.debug(f"[VECTOR][multi_db] push Turso {table} failed: {e}")
+
+        return total
+
+    async def sync_all(self) -> dict:
+        """Full 24h sync: push new local rows → drain retry queue → pull from cloud.
+
+        Order matters: push first so the pull's LWW merge sees our latest data,
+        not an older cloud snapshot that would overwrite fresh local writes.
+        """
+        results = {"queued": 0, "pushed": 0, "pushed_local": 0, "pulled": 0, "conflicts": 0}
+
+        # 0. Bulk-push local rows written since last sync (district agents write
+        #    directly to SQLite via episodic.py, bypassing write_all — this closes
+        #    that gap so every row eventually reaches cloud).
+        since = self._last_sync.get("local") or "1970-01-01T00:00:00+00:00"
+        try:
+            pushed_local = await self._push_local_to_cloud(since)
+            results["pushed_local"] = pushed_local
+        except Exception as e:
+            logger.warning(f"[VECTOR][multi_db] bulk push skipped: {e}")
+
+        # 1. Process queued syncs (previously-failed individual writes)
         queued = len(self._sync_queue)
         results["queued"] = queued
 
