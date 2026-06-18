@@ -266,7 +266,6 @@ class ResearchLabConfig(BaseModel):
     sandbox_backend: str = "subprocess"
     max_concurrent_experiments: int = 2
     schedule_interval_hours: int = 6
-    docker_image: str = "vector-experiment-runner:latest"
     sandbox_enabled: bool = False
 
 
@@ -403,7 +402,7 @@ class VectorSettings(BaseSettings):
     # Core — mapped from env var names
     VECTOR_ENV: str = "development"
     VECTOR_DEBUG: bool = False
-    VECTOR_VAULT_PATH: str = "C:/Users/Arghyadeep/V.E.C.T.O.R Brain"
+    VECTOR_VAULT_PATH: str = str(Path.home() / "V.E.C.T.O.R Brain")
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
