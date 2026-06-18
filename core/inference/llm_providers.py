@@ -523,16 +523,24 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         driver="openai_compat",
         default_model="gpt-4o",
         models=[
-            # OpenAI — flagship
-            "gpt-5", "gpt-5-mini", "gpt-5-chat",
-            "gpt-4o", "gpt-4o-mini", "GPT-4.1-nano",
-            # OpenAI — reasoning
+            # OpenAI — flagship + reasoning
+            "gpt-5", "gpt-5-mini", "gpt-5-chat", "gpt-5-nano",
+            "gpt-4o", "gpt-4o-mini", "GPT-4.1", "GPT-4.1-mini", "GPT-4.1-nano",
             "o4-mini", "o3", "o3-mini", "o1", "o1-mini", "o1-preview",
-            # OpenAI — fast/nano
-            "gpt-5-nano",
             # Microsoft Phi-4
-            "Phi-4", "Phi-4-reasoning", "Phi-4-mini-reasoning", "Phi-4-mini-instruct",
-            "Phi-4-multimodal-instruct",
+            "Phi-4", "Phi-4-reasoning", "Phi-4-mini-reasoning",
+            "Phi-4-mini-instruct", "Phi-4-multimodal-instruct",
+            # Meta Llama
+            "Meta-Llama-3.1-8B-Instruct", "Meta-Llama-3.1-405B-Instruct",
+            "Llama-3.3-70B-Instruct",
+            "Llama-3.2-90B-Vision-Instruct", "Llama-3.2-11B-Vision-Instruct",
+            "Llama-4-Scout-17B-16E-Instruct", "Llama-4-Maverick-17B-128E-Instruct-FP8",
+            # DeepSeek
+            "DeepSeek-R1", "DeepSeek-R1-0528", "DeepSeek-V3-0324",
+            # Mistral
+            "Mistral-Small-3.1", "Codestral-25.01", "Mistral-Medium-3", "Ministral-3B",
+            # Cohere
+            "Cohere-Command-A",
             # Embeddings
             "text-embedding-3-large", "text-embedding-3-small",
         ],
