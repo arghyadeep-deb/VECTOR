@@ -170,26 +170,25 @@ Transcript:
 Summary:"""
 
         try:
-            import httpx
+            import asyncio as _asyncio
+            import concurrent.futures as _cf
+            from core.inference.provider_client import ProviderClient as _PC
 
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
+            async def _call():
+                r = await _PC().chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    tier="summarization",
+                    temperature=0.4,
+                    max_tokens=600,
+                    caller_id="transcription_bot",
+                )
+                return r.content
 
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            summary = result.get("response", "").strip()
+            with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+                summary = pool.submit(_asyncio.run, _call()).result(timeout=60).strip()
 
             self.award_points(10, "transcript_summarized")
             logger.info(f"[VECTOR][transcription_bot] Summarized transcript ({style})")
-
             return {
                 "status": "success",
                 "original_length": len(text.split()),
@@ -197,7 +196,6 @@ Summary:"""
                 "summary": summary,
                 "style": style
             }
-
         except Exception as e:
             logger.error(f"[VECTOR][transcription_bot] Summarization failed: {e}")
             return {"status": "error", "message": str(e)}
