@@ -93,9 +93,12 @@ class ZKSteward(AgentBase):
             f"Note content:\n{content[:800]}"
         )
         try:
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("zk_steward") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
             response = chat(
                 model=self._model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=_msgs,
                 timeout=15.0,
             )
             concepts = [c.strip().lower() for c in response.strip().splitlines() if c.strip()]
