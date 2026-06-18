@@ -99,22 +99,7 @@ Be specific and actionable in your analysis.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            analysis_text = result.get("response", "").strip()
+            analysis_text = _llm(prompt, max_tokens=1000)
 
             analysis = self._parse_analysis(analysis_text, text)
 
