@@ -18,8 +18,9 @@ import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 from loguru import logger
+from core.config import CONFIG
 
-_DB_PATH = Path(__file__).parent.parent.parent / "vector_memory.db"
+_DB_PATH = Path(str(CONFIG.get("db_path", Path(__file__).parent.parent.parent / "vector_memory.db")))
 _BACKOFF = [1, 5, 30, 300, 1800]   # seconds per attempt (0-indexed)
 _MAX_ATTEMPTS = len(_BACKOFF)
 
