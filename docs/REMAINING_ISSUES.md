@@ -14,7 +14,10 @@
 | P1.4 circular imports | ✅ Fixed | loop_state.py intermediary; permission_gateway/health/app/autonomous_loop wired |
 | P1.5 mutable state races | ✅ Verified | _SENSE_CACHE_LOCK in place; candidates/entries are local vars |
 | P2.1 broad except (810+) | ⚠️ Partial | live_runner.py silent swallow now logs; stream_bridge re-raises; gateway is intentional |
-| P2.3 hardcoded 0.0 stubs | ✅ Fixed | portfolio_service tracks winning_trades+equity_history; decision_coordinator uses real stats |
+| P2.2 pass-only stubs (175) | ✅ Fixed | riskfoliolib VaR/CVaR/stress/risk_budgeting implemented; base_models validate_inputs→True; @abstractmethod pass stubs are correct |
+| P2.3 hardcoded 0.0 stubs | ✅ Fixed | portfolio_service tracks winning_trades+equity_history; decision_coordinator uses real stats; agno_trading_service restores positions; sec_data_adapter NWC change uses multi-period when available |
+| P2.4 empty __init__.py (79) | ✅ N/A | Only 11 actual empty files; all in Python 3.3+ namespace packages — no action needed |
+| pre-existing health tests (20 errors) | ✅ Fixed | missing `import threading` in districts/health/metrics_store.py |
 
 ---
 
