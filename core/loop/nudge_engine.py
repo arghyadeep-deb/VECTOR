@@ -170,16 +170,19 @@ class NudgeEngine:
             return "You seem to be in a good rhythm. Keep going."
 
         try:
-            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(
-                    f"{ollama_host}/api/generate",
-                    json={"model": "llama3.2:latest", "prompt": prompt, "stream": False},
-                )
-                if r.status_code == 200:
-                    return r.json().get("response", "").strip()
+            from core.inference.provider_client import ProviderClient
+            _client = ProviderClient()
+            result = await _client.chat(
+                messages=[{"role": "user", "content": prompt}],
+                tier="conversation",
+                max_tokens=80,
+                temperature=0.7,
+                caller_id="nudge_engine",
+            )
+            if result and result.content:
+                return result.content.strip()
         except Exception as e:
-            logger.warning(f"[VECTOR][nudge] LLM failed: {e}")
+            logger.warning("[VECTOR][nudge] LLM failed: {}", e)
 
         return self._fallback_nudge(rule["template"])
 
