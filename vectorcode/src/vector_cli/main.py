@@ -294,8 +294,10 @@ def _has_any_provider_configured() -> bool:
                 val = val.strip().strip("'\"")
                 if key.strip() in provider_env_vars and val:
                     return True
+        except NotImplementedError:
+            raise
         except Exception as _sve:
-            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
+            logger.warning("[VECTOR][vector_cli.main] .env read failed: %s", _sve)
 
     # Check provider-specific auth fallbacks (for example, Copilot via gh auth).
     try:
