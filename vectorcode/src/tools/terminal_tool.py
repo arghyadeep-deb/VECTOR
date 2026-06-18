@@ -708,12 +708,12 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
         return command, None
 
     has_configured_password = "SUDO_PASSWORD" in os.environ
-    sudo_password = os.environ.get("SUDO_PASSWORD", "") if has_configured_password else _cached_sudo_password
+    sudo_password = os.environ.get("SUDO_PASSWORD", "") if has_configured_password else getattr(_sudo_tls, "password", "")
 
     if not has_configured_password and not sudo_password and os.environ.get("VECTOR_INTERACTIVE"):
         sudo_password = _prompt_for_sudo_password(timeout_seconds=45)
         if sudo_password:
-            _cached_sudo_password = sudo_password
+            _sudo_tls.password = sudo_password
 
     if has_configured_password or sudo_password:
         # Trailing newline is required: sudo -S reads one line for the password.
