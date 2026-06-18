@@ -236,10 +236,12 @@ class WebScout(AgentBase):
         summary = ""
         try:
             from core.inference.vectorcode_llm import chat
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("web_scout") or hydration
             summary = chat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
-                    {"role": "system", "content": hydration},
+                    {"role": "system", "content": _sys},
                     {
                         "role": "user",
                         "content": (
