@@ -13,6 +13,7 @@ Pure Python ``sqlite3`` (no Rust extension required).
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import json
@@ -27,7 +28,6 @@ from typing import Any, Dict, List, Optional, Union
 from vectorcode.src.vc_core.events import EventType, get_event_bus
 from vectorcode.src.vc_core.registry import MemoryRegistry
 from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
-from core.memory.db_utils import apply_pragmas
 
 # ---------------------------------------------------------------------------
 # DDL
@@ -152,8 +152,6 @@ class KnowledgeStore(MemoryBackend):
     def _setup(self) -> None:
         """Create tables, FTS virtual table, triggers and indexes."""
         with self._lock:
-            self._conn.execute("PRAGMA journal_mode=WAL;")
-            self._conn.execute("PRAGMA foreign_keys=ON;")
             self._conn.executescript(
                 _CREATE_MAIN_TABLE + _CREATE_FTS_TABLE + _CREATE_TRIGGERS + _CREATE_INDEXES
             )
