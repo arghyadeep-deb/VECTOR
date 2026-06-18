@@ -167,7 +167,7 @@ class CodeReviewer(AgentBase):
 
             # --- 4. VECTOR rules heuristic checks ---
             # RULE 1: session_hydration_prompt before LLM calls
-            has_llm_call = "ollama" in source or "/api/generate" in source or "httpx" in source
+            has_llm_call = "ollama" in source or "/api/generate" in source or "httpx" in source or "ProviderClient" in source
             has_hydration = "session_hydration_prompt" in source
             if has_llm_call and not has_hydration:
                 issues.append({
