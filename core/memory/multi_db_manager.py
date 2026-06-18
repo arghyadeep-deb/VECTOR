@@ -699,7 +699,8 @@ class MultiDBManager:
         if dump.get("version") != 1:
             raise ValueError(f"Unsupported backup version: {dump.get('version')}")
 
-        db_path = _Path(__file__).parent.parent.parent / "vector_memory.db"
+        from core.config import CONFIG as _CONFIG
+        db_path = _Path(str(_CONFIG.get("db_path", _Path(__file__).parent.parent.parent / "vector_memory.db")))
         conn = sqlite3.connect(str(db_path), timeout=10, check_same_thread=False)
         try:
             tables_restored = 0
