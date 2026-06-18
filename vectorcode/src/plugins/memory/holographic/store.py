@@ -7,6 +7,7 @@ import re
 import sqlite3
 import threading
 from pathlib import Path
+from core.memory.db_utils import apply_pragmas
 
 try:
     from . import holographic as hrr
