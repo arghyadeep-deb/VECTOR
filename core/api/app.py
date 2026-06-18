@@ -437,9 +437,8 @@ def create_app() -> FastAPI:
             raise __import__("fastapi").HTTPException(status_code=403, detail="Metrics available from localhost only")
         lines = []
         try:
-            from core.loop import autonomous_loop as _al_mod
-            _loop_inst = getattr(_al_mod, "_loop", None)
-            ticks = getattr(_loop_inst, "_tick_count", 0) or 0
+            from core.loop.loop_state import get_runtime as _get_rt
+            ticks = _get_rt()["tick_count"]
             lines.append("# HELP vector_loop_ticks_total Autonomous loop tick count")
             lines.append("# TYPE vector_loop_ticks_total counter")
             lines.append(f"vector_loop_ticks_total {ticks}")
