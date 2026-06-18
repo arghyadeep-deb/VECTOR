@@ -240,9 +240,12 @@ class IncidentCommander(AgentBase):
             f"Provide a 2-3 sentence blameless root cause hypothesis. Be specific and actionable."
         )
         try:
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("incident_commander") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
             result = chat(
                 model=_FOCUS,
-                messages=[{"role": "user", "content": prompt}],
+                messages=_msgs,
                 timeout=30.0,
             )
             return result or "Root cause analysis unavailable (LLM timeout)."
