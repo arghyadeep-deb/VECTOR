@@ -440,42 +440,41 @@ def chat(
     messages: list[dict],
     timeout: float = 30.0,
     *,
-    provider: ProviderName = "auto",
+    provider: ProviderName = “auto”,
     allow_cloud: bool = True,
     district: str | None = None,
     sensitive: bool = False,
+    temperature: float = 0.7,
 ) -> str:
-    """Unified LLM call with multi-provider fallback.
+    “””Unified LLM call with multi-provider fallback.
 
     Same signature as ollama_safe.chat() — drop-in replacement.
 
     Args:
-        model:       Ollama model tag OR cloud model ID (e.g. "claude-sonnet-4-6")
+        model:       Ollama model tag OR cloud model ID (e.g. “claude-sonnet-4-6”)
         messages:    Standard chat messages list
         timeout:     Per-provider HTTP timeout
-        provider:    Force specific provider. "auto" = try local first, cloud as fallback
+        provider:    Force specific provider. “auto” = try local first, cloud as fallback
         allow_cloud: Set False to stay strictly local (same as ollama_safe.chat)
+        temperature: Sampling temperature passed to every provider (default 0.7)
 
     Returns:
         Response text, or empty string on total failure (never raises).
-    """
+    “””
     if not messages:
-        return ""
+        return “”
 
-    # â”€â”€ Forced provider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if provider == "gemini":
-        return _try_gemini(model, messages, timeout)
-    if provider == "anthropic":
-        return _try_anthropic(model, messages, timeout)
-    if provider == "openrouter":
-        return _try_openrouter(model, messages, timeout)
-    if provider == "ollama":
-        return _try_ollama(model, messages, timeout)
+    # Forced provider
+    if provider == “gemini”:
+        return _try_gemini(model, messages, timeout, temperature)
+    if provider == “anthropic”:
+        return _try_anthropic(model, messages, timeout, temperature)
+    if provider == “openrouter”:
+        return _try_openrouter(model, messages, timeout, temperature)
+    if provider == “ollama”:
+        return _try_ollama(model, messages, timeout, temperature)
 
-    # â”€â”€ Auto chain: sensitivity + complexity aware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # security/privacy/RED/secret-bearing -> local Ollama only (never leaves device);
-    # simple/medium -> cloud-first (gemini free first) for fast replies;
-    # heavy (COMPLEX/REASONING) non-sensitive -> cloud premium (anthropic) first.
+    # Auto chain: sensitivity + complexity aware
     local_only = False
     heavy = False
     try:
@@ -483,37 +482,37 @@ def chat(
         _prompt = _messages_to_text(messages)
         _plan = decide_route(_prompt, district=district, sensitive=sensitive)
         local_only = _plan.local_only
-        heavy = _plan.tier == "reasoning"
-        logger.debug("[VECTOR][vc_llm] route: local_only={} heavy={} ({})",
+        heavy = _plan.tier == “reasoning”
+        logger.debug(“[VECTOR][vc_llm] route: local_only={} heavy={} ({})”,
                      local_only, heavy, _plan.reason)
     except Exception as e:
-        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+        logger.debug(f”[VECTOR][vc_llm] route_policy unavailable: {e}”)
 
     # Sensitive or cloud-disabled -> strictly local
     if local_only or not allow_cloud:
-        result = _try_ollama(model, messages, timeout)
+        result = _try_ollama(model, messages, timeout, temperature)
         if not result and not local_only:
-            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
+            logger.warning(f”[VECTOR][vc_llm] local failed for {model}, cloud disabled”)
         return result
 
     if heavy:
-        order = ["anthropic", "openrouter", "gemini", "ollama"]   # premium first
+        order = [“anthropic”, “openrouter”, “gemini”, “ollama”]
     else:
-        order = ["gemini", "openrouter", "anthropic", "ollama"]   # free/fast first
+        order = [“gemini”, “openrouter”, “anthropic”, “ollama”]
 
     _try_map = {
-        "ollama": _try_ollama,
-        "gemini": _try_gemini,
-        "anthropic": _try_anthropic,
-        "openrouter": _try_openrouter,
+        “ollama”:     lambda m, msgs, t: _try_ollama(m, msgs, t, temperature),
+        “gemini”:     lambda m, msgs, t: _try_gemini(m, msgs, t, temperature),
+        “anthropic”:  lambda m, msgs, t: _try_anthropic(m, msgs, t, temperature),
+        “openrouter”: lambda m, msgs, t: _try_openrouter(m, msgs, t, temperature),
     }
     for slug in order:
         result = _try_map[slug](model, messages, timeout)
         if result:
             return result
 
-    logger.warning(f"[VECTOR][vc_llm] all providers failed for {model}")
-    return ""
+    logger.warning(f”[VECTOR][vc_llm] all providers failed for {model}”)
+    return “”
 
 
 def chat_stream(
