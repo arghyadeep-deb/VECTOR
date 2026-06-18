@@ -243,7 +243,7 @@ def _secure_dir(path):
     try:
         os.chmod(path, mode)
     except (OSError, NotImplementedError) as _sve:
-        logger.debug("[VECTOR][vector_cli.config] suppressed (OSError, NotImplementedError): %s", _sve)
+        logger.warning("[VECTOR][vector_cli.config] chmod failed (platform may not support mode bits): %s", _sve)
 
 
 def _is_container() -> bool:
