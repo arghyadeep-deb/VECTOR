@@ -1689,6 +1689,11 @@ class AutonomousLoop:
         logger.info(
             f"[VECTOR][autonomous_loop] run_forever() at {self._start_time.isoformat()}"
         )
+        try:
+            from core.loop import loop_state as _ls
+            _ls.update_runtime(tick_count=0, running=True, start_time=self._start_time.isoformat())
+        except Exception:
+            pass
 
         try:
             from core.loop.task_queue import TaskQueue
