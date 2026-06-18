@@ -163,10 +163,9 @@ def _parse_file(path: Path) -> PromptEntry | None:
 
 
 class PromptLibrary:
-    """Lazy-loading registry of archived system prompts."""
+    """Lazy-loading registry of VECTOR system prompts."""
 
-    def __init__(self, vault: Path = _VAULT) -> None:
-        self._vault  = vault
+    def __init__(self) -> None:
         self._by_slug: dict[str, PromptEntry] = {}
         self._loaded = False
 
@@ -174,13 +173,26 @@ class PromptLibrary:
         if self._loaded:
             return
         count = 0
-        for md in self._vault.rglob("*.md"):
-            entry = _parse_file(md)
-            if entry:
-                self._by_slug[entry.slug] = entry
-                count += 1
+        # Scan core/prompts/shared/ (cross-district and unmapped prompts)
+        if _SHARED.exists():
+            for md in _SHARED.rglob("*.md"):
+                entry = _parse_file(md)
+                if entry:
+                    self._by_slug[entry.slug] = entry
+                    count += 1
+        # Scan districts/*/prompts/ (district-owned prompts)
+        if _DISTRICTS_ROOT.exists():
+            for district_dir in _DISTRICTS_ROOT.iterdir():
+                if district_dir.is_dir():
+                    prompts_dir = district_dir / "prompts"
+                    if prompts_dir.is_dir():
+                        for md in prompts_dir.rglob("*.md"):
+                            entry = _parse_file(md)
+                            if entry:
+                                self._by_slug[entry.slug] = entry
+                                count += 1
         self._loaded = True
-        logger.debug("[VECTOR][prompt_library] loaded {} prompts from {}", count, self._vault)
+        logger.debug("[VECTOR][prompt_library] loaded {} prompts (shared + district folders)", count)
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
