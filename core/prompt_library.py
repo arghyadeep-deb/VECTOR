@@ -204,7 +204,7 @@ class PromptLibrary:
             # Try stripping common category prefixes for convenience
             for prefix in ("engineering-", "specialized-", "testing-", "support-",
                            "product-", "strategy-", "sales-", "academic-",
-                           "project-mgmt-", "project-management-"):
+                           "content-", "project-mgmt-", "project-management-"):
                 entry = self._by_slug.get(f"{prefix}{slug}")
                 if entry:
                     break
