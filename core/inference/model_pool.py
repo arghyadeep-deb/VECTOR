@@ -187,6 +187,20 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("openrouter", "qwen/qwen3-next-80b-a3b-instruct:free"),
         ("ollama",     "qwen3:30b-a3b"),
     ],
+
+    # ── Gemini Flash — 360M tokens/month FREE (Google AI Studio key) ──────────
+    "gemini-flash": [
+        ("gemini",     "gemini-2.5-flash"),                   # FREE 360M/month (newest)
+        ("gemini",     "gemini-2.0-flash"),                   # FREE 360M/month (stable)
+        ("openrouter", "google/gemini-2.0-flash-exp:free"),   # OpenRouter free fallback
+    ],
+
+    # ── Gemini Pro — 1M-context reasoning, vision ─────────────────────────────
+    "gemini-pro": [
+        ("gemini",     "gemini-1.5-pro"),                     # 1M context, free tier
+        ("gemini",     "gemini-2.0-flash"),                   # fast fallback
+        ("openrouter", "google/gemini-flash-1.5"),
+    ],
 }
 
 # ── Provider cooldown tracker ──────────────────────────────────────────────────
