@@ -45,6 +45,10 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
                          name="SocialMediaStrategist", district="marketing")
         self._memory: EpisodicMemory | None = None
         self._skill_prompt = load_skill("social", "content-strategy", "copywriting")
+        from core.prompt_library import get_library as _gl
+        _lib = _gl().get_for_agent("social_media_strategist") or ""
+        if _lib:
+            self._skill_prompt = (self._skill_prompt + "\n\n" + _lib).strip()
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][social] initialized")
 
