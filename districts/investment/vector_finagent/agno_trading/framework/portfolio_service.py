@@ -33,6 +33,8 @@ class InMemoryPortfolioService(BasePortfolioService):
         self.positions: Dict[str, PositionSnapshot] = {}
         self.total_realized_pnl = 0.0
         self.trades_count = 0
+        self.winning_trades = 0
+        self._equity_history: deque[float] = deque(maxlen=1000)
 
     async def apply_trade(self, tx: TxResult) -> None:
         """
