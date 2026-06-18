@@ -380,8 +380,12 @@ def _grade_automated(
     if not code:
         return {"score": 0.0, "breakdown": {}, "notes": "No automated checks defined"}
 
+    _ESCAPE = ("__subclasses__", "__bases__", "__mro__", "__builtins__", "__globals__", "__code__", "__reduce__", "importlib")
+    if any(p in code for p in _ESCAPE):
+        LOGGER.warning("[VECTOR][pinchbench] blocked escape pattern in grading code for %s", record.record_id)
+        return {"score": 0.0, "breakdown": {}, "notes": "Grading code blocked: contains prohibited pattern"}
     namespace: Dict[str, Any] = {
-        "__builtins__": {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "bytearray", "chr", "ord", "hex", "oct", "bin", "pow", "round", "divmod", "hash", "id", "repr", "ascii", "format", "callable", "delattr", "dir", "vars", "super", "object", "property", "staticmethod", "classmethod", "MemoryError", "RuntimeError", "RecursionError", "NotImplementedError", "OSError", "FileNotFoundError", "PermissionError", "ZeroDivisionError", "OverflowError", "IndexError", "KeyError", "StopIteration", "TypeError", "ValueError", "Warning", "UserWarning", "DeprecationWarning", "SyntaxError", "IndentationError", "TabError", "SystemExit", "KeyboardInterrupt", "GeneratorExit") if k in __builtins__},
+        "__builtins__": {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "bytearray", "chr", "ord", "hex", "oct", "bin", "pow", "round", "divmod", "hash", "id", "repr", "ascii", "format", "callable", "delattr", "dir", "vars", "super", "property", "staticmethod", "classmethod", "MemoryError", "RuntimeError", "RecursionError", "NotImplementedError", "OSError", "FileNotFoundError", "PermissionError", "ZeroDivisionError", "OverflowError", "Warning", "UserWarning", "DeprecationWarning", "SyntaxError", "IndentationError", "TabError") if k in __builtins__},
     }
     try:
         exec(code, namespace)  # noqa: S102
