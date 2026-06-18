@@ -18,6 +18,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
+from core.memory.db_utils import apply_pragmas
 
 
 try:
@@ -142,7 +143,7 @@ class SessionDB:
                     try:
                         result = fn(self._conn)
                         self._conn.commit()
-                    except BaseException:
+                    except BaseException as _sve:
                         try:
                             self._conn.rollback()
                         except Exception as _sve:
