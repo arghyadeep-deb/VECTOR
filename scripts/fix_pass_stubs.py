@@ -119,7 +119,7 @@ def _fix_file(path: Path, dry_run: bool = True) -> int:
     print(f"  {len(changes)} fixes in {rel}")
     if dry_run:
         for ln, old, new in changes:
-            print(f"    line {ln}: pass  →  {new.strip()!r}")
+            print(f"    line {ln}: pass  ->  {new.strip()!r}")
         return len(changes)
 
     # Apply in reverse order so line numbers stay valid
