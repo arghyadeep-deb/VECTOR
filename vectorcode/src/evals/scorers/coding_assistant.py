@@ -96,23 +96,36 @@ def _extract_test_functions(test_code: str) -> Dict[str, str]:
 
     return tests
 
+_CODING_SAFE_BUILTINS_KEYS = (
+    "print", "range", "len", "list", "dict", "float", "int", "str", "bool",
+    "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map",
+    "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr",
+    "getattr", "type", "True", "False", "None", "Exception", "ValueError",
+    "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration",
+    "iter", "next", "bytes", "pow", "round", "hash", "id", "repr", "format",
+    "callable", "super", "ZeroDivisionError", "OverflowError", "SyntaxError",
+)
+
 def _run_single_test(code: str, test_code: str) -> bool:
     """Run a single test function against the given code. Returns True if passes."""
-    # Make the code importable as 'solution'
-    import types
+    violation = _check_eval_code(code) or _check_eval_code(test_code)
+    if violation:
+        LOGGER.warning("[VECTOR][evals.coding_assistant] %s", violation)
+        return False
 
+    import types
+    safe_builtins = {k: __builtins__[k] for k in _CODING_SAFE_BUILTINS_KEYS if k in __builtins__}
     mod = types.ModuleType("solution")
-    mod.__dict__.setdefault("__builtins__", {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "pow", "round", "hash", "id", "repr", "format", "callable", "super", "object", "ZeroDivisionError", "OverflowError", "SyntaxError") if k in __builtins__})
+    mod.__dict__.setdefault("__builtins__", safe_builtins)
     try:
         exec(code, mod.__dict__)  # noqa: S102
     except Exception:
         return False
 
     import sys
-
     sys.modules["solution"] = mod
     try:
-        exec(test_code, {"__name__": "__main__", "__builtins__": {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "pow", "round", "hash", "id", "repr", "format", "callable", "super", "object", "ZeroDivisionError", "OverflowError", "SyntaxError") if k in __builtins__}})  # noqa: S102
+        exec(test_code, {"__name__": "__main__", "__builtins__": safe_builtins})  # noqa: S102
         return True
     except Exception:
         return False
