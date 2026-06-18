@@ -700,9 +700,8 @@ class PermissionGateway:
                     "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }
                 try:
-                    from core.api.routers.websocket import broadcast_event  # type: ignore
-                    await broadcast_event(payload)
-                    result["broadcast"] = True
+                    from core.loop.loop_state import ui_broadcast as _ui_bc
+                    result["broadcast"] = await _ui_bc(payload)
                 except Exception as _bc_err:
                     logger.debug(f"[VECTOR][gateway] ui_event broadcast skipped: {_bc_err}")
                     result["broadcast"] = False
