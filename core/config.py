@@ -410,7 +410,7 @@ class VectorSettings(BaseSettings):
     ANTHROPIC_KEY: SecretStr = SecretStr("")
     GEMINI_KEY: SecretStr = SecretStr("")
     GITHUB_TOKEN: SecretStr = SecretStr("")
-    GITHUB_USERNAME: str = "ArghyadeepDeb"
+    GITHUB_USERNAME: str = "arghyadeep-deb"
     PUSHOVER_TOKEN: SecretStr = SecretStr("")
     PUSHOVER_USER: str = ""
     SUPABASE_URL: str = ""
