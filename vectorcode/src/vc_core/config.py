@@ -1422,11 +1422,18 @@ def validate_config_key(dotted_key: str) -> type:
         # Resolve the type — unwrap Optional, etc.
         fld_type = fld.type
         if isinstance(fld_type, str):
-            # Evaluate forward references in the config module namespace
-            import vectorcode.src.vc_core.config as _cfg_mod
-
-            safe_builtins = {k: __builtins__[k] for k in ("bool", "int", "float", "str", "list", "dict", "tuple", "type", "isinstance", "issubclass", "getattr", "hasattr", "len", "range", "min", "max", "any", "all", "True", "False", "None") if k in __builtins__}
-            fld_type = eval(fld_type, {"__builtins__": safe_builtins, **vars(_cfg_mod)})  # noqa: S307
+            # Resolve forward-reference strings using get_type_hints() — no eval().
+            import typing
+            try:
+                import vectorcode.src.vc_core.config as _cfg_mod
+                hints = typing.get_type_hints(current_cls, localns=vars(_cfg_mod))
+                fld_type = hints.get(part, fld_type)
+            except Exception:
+                # Fallback: look up the name in the config module namespace only.
+                # This is safe because current_cls is always a VECTOR config dataclass,
+                # never user-supplied input.
+                import vectorcode.src.vc_core.config as _cfg_mod
+                fld_type = vars(_cfg_mod).get(fld_type, fld_type)
 
         if i == len(parts) - 1:
             # Leaf — return the primitive type
