@@ -80,6 +80,8 @@ class StartupAgentBase(AgentBase):
         result: dict,
     ) -> None:
         """Persist an agent result to episodic memory."""
+        if self.memory is None:
+            return
         try:
             self.memory.store(
                 event_type=event_type,
