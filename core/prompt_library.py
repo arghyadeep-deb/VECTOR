@@ -1,17 +1,19 @@
 """
-PromptLibrary — loads archived system prompts from data/archived_prompts/ and
-maps them to VECTOR district agents.
+PromptLibrary — live system prompt registry for VECTOR district agents.
+
+Scans two locations:
+  core/prompts/shared/          — cross-district and unmapped prompts
+  districts/<name>/prompts/     — prompts owned by a specific district
 
 Usage:
-    from core.prompt_library import PromptLibrary
+    from core.prompt_library import get_library
 
-    lib = PromptLibrary()
-    system_prompt = lib.get("code-reviewer")       # by slug
-    system_prompt = lib.get_for_agent("code_reviewer")  # by Python agent name
+    lib = get_library()
+    system_prompt = lib.get("engineering-code-reviewer")   # by slug
+    system_prompt = lib.get_for_agent("code_reviewer")     # by Python agent name
 
-Each archived prompt file has YAML frontmatter (name, description, vibe) followed
-by the full system prompt body.  The library strips the HTML comment header that
-was added at ingest time, then parses frontmatter + body.
+Each prompt file has YAML frontmatter (name, description, vibe) followed by the
+full system prompt body.
 """
 from __future__ import annotations
 
