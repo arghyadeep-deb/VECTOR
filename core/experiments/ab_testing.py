@@ -40,8 +40,9 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
+from core.config import CONFIG
 
-_DB_PATH = Path(__file__).parent.parent.parent / "vector_memory.db"
+_DB_PATH = Path(str(CONFIG.get("db_path", Path(__file__).parent.parent.parent / "vector_memory.db")))
 
 
 @dataclass
