@@ -277,7 +277,9 @@ class ProviderClient:
                     or "quota exceeded" in _err_low
                     or "too many requests" in _err_low
                 ):
-                    _mark_cooldown(_prov.slug, seconds=120)
+                    # Gemini free tier uses sliding windows that can block for ~10 min
+                    cooldown_secs = 600 if _prov.slug == "gemini" else 120
+                    _mark_cooldown(_prov.slug, seconds=cooldown_secs)
                 logger.warning(
                     "[VECTOR][provider_client] {} failed: {}. Trying next...",
                     _prov.slug, str(e)[:80],
