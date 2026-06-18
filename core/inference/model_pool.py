@@ -67,6 +67,29 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("ollama",     "llama3.3:70b"),                       # local last resort
     ],
 
+    # ── DeepSeek R1 — 671B distill, chain-of-thought reasoning ──────────────
+    "deepseek-r1": [
+        ("openrouter", "deepseek/deepseek-r1:free"),          # FREE on OpenRouter
+        ("deepseek",   "deepseek-reasoner"),                  # cheap paid fallback
+        ("groq",       "deepseek-r1-distill-llama-70b"),      # fast distilled variant
+        ("nvidia",     "deepseek/deepseek-r1"),
+        ("ollama",     "deepseek-r1:14b"),                    # local small variant
+    ],
+
+    # ── DeepSeek V3 — 685B, best general open model ───────────────────────────
+    "deepseek-v3": [
+        ("openrouter", "deepseek/deepseek-v3:free"),          # FREE on OpenRouter
+        ("deepseek",   "deepseek-chat"),                      # direct API fallback
+        ("nvidia",     "deepseek/deepseek-v3"),
+        ("cloudflare", "@cf/deepseek/deepseek-v3"),
+    ],
+
+    # ── Qwen3 235B MoE — huge but only 22B active ────────────────────────────
+    "qwen3-235b": [
+        ("openrouter", "qwen/qwen3-235b-a22b:free"),          # FREE on OpenRouter
+        ("nvidia",     "qwen/qwen3-235b-a22b"),
+    ],
+
     # ── Nemotron 3 Ultra — NVIDIA's 550B MoE, 1M context ─────────────────────
     "nemotron-3-ultra": [
         ("openrouter", "nvidia/nemotron-3-ultra-550b"),       # FREE on OpenRouter
@@ -82,6 +105,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     # ── Cohere North Mini Code — 30B MoE, 256K, coding ────────────────────────
     "north-mini-code": [
         ("openrouter", "cohere/north-mini-code"),             # FREE on OpenRouter
+        ("openrouter", "cohere/north-mini-code-1-0"),         # versioned alias
     ],
 
     # ── Nemotron Safety — 4B guardrail / content safety ───────────────────────
