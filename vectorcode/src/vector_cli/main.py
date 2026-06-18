@@ -353,8 +353,10 @@ def _has_any_provider_configured() -> bool:
                 is_claude_code_token_valid(creds) or creds.get("refreshToken")
             ):
                 return True
+        except NotImplementedError:
+            raise
         except Exception as _sve:
-            logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
+            logger.warning("[VECTOR][vector_cli.main] Claude Code credentials check failed: %s", _sve)
 
     return False
 
