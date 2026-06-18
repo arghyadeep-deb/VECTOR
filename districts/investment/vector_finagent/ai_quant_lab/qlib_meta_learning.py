@@ -85,31 +85,28 @@ class MetaLearningManager:
 
     def _load_state(self):
         """Load saved models and results from disk"""
-        cache_file = self.CACHE_DIR / 'meta_state.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'meta_state.joblib'
         if cache_file.exists():
             try:
-                with open(cache_file, 'rb') as f:
-                    data = pickle.load(f)
-                    self.trained_models = data.get('models', {})
-                    self.evaluation_results = data.get('results', {})
-                    self.best_model_id = data.get('best_model', None)
+                data = joblib.load(cache_file)
+                self.trained_models = data.get('models', {})
+                self.evaluation_results = data.get('results', {})
+                self.best_model_id = data.get('best_model', None)
             except Exception as e:
-                logger.debug("[VECTOR][ai_quant_lab.qlib_meta_learning] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][ai_quant_lab.qlib_meta_learning] caught Exception: %s", _sve)
-                print(f"Warning: Could not load cached state: {e}", file=sys.stderr)
+                logger.warning("[VECTOR][ai_quant_lab.qlib_meta_learning] cache load failed: %s", e)
 
     def _save_state(self):
         """Save models and results to disk"""
-        cache_file = self.CACHE_DIR / 'meta_state.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'meta_state.joblib'
         try:
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'models': self.trained_models,
-                    'results': self.evaluation_results,
-                    'best_model': self.best_model_id
-                }, f)
+            joblib.dump({'models': self.trained_models, 'results': self.evaluation_results,
+                         'best_model': self.best_model_id}, cache_file)
         except Exception as e:
-            print(f"Warning: Could not save state: {e}", file=sys.stderr)
+            logger.warning("[VECTOR][ai_quant_lab.qlib_meta_learning] cache save failed: %s", e)
 
     def get_available_models(self) -> Dict[str, Any]:
         """Get list of available model types"""
