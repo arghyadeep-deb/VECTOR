@@ -269,8 +269,11 @@ class CodebaseOnboardingEngineer(AgentBase):
                 "Write the onboarding document now."
             )
 
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("codebase_onboarding_engineer") or ""
+            _sys_final = (system_prompt + "\n\n" + _lib).strip() if _lib else system_prompt
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": _sys_final},
                 {"role": "user", "content": user_msg},
             ]
 
