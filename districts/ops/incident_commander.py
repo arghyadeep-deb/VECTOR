@@ -346,9 +346,12 @@ class IncidentCommander(AgentBase):
                 f"Keep it concise. No blame. Focus on systemic improvements."
             )
             try:
+                from core.prompt_library import get_library as _gl
+                _sys = _gl().get_for_agent("incident_commander") or ""
+                _pm_msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": pm_prompt}]
                 pm_body = chat(
                     model=_FOCUS,
-                    messages=[{"role": "user", "content": pm_prompt}],
+                    messages=_pm_msgs,
                     timeout=45.0,
                 )
                 if not pm_body:
