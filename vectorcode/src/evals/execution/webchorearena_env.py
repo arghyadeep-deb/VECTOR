@@ -398,6 +398,10 @@ class WebChoreArenaTaskEnv:
         if target_url.startswith("func"):
             func_expr = target_url.split("func:")[1]
             func_expr = func_expr.replace("__last_url__", self._page.url)
+            _ESCAPE = ("__subclasses__", "__bases__", "__mro__", "__globals__", "__code__", "__reduce__", "importlib")
+            if any(p in func_expr for p in _ESCAPE):
+                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in URL func: %.80s", func_expr)
+                return 0.0
             try:
                 target_url = eval(func_expr, {"__builtins__": {}})  # noqa: S307
             except Exception as exc:
