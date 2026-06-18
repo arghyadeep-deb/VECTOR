@@ -329,7 +329,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float, temper
         return ""
 
 
-def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> str:
+def _try_openrouter(model_hint: str, messages: list[dict], timeout: float, temperature: float = 0.7) -> str:
     """Tier 2 — OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
     if _is_rate_limited("openrouter"):
         return ""
@@ -347,7 +347,7 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float) -> st
             headers={"Authorization": f"Bearer {api_key}",
                      "HTTP-Referer": "https://github.com/arghyadeep-deb/VECTOR",
                      "X-Title": "VECTOR AI"},
-            json={"model": or_model, "messages": messages, "max_tokens": 4096},
+            json={"model": or_model, "messages": messages, "max_tokens": 4096, "temperature": temperature},
             timeout=timeout,
         ))
         if resp.status_code == 429:
