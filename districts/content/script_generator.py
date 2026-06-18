@@ -255,22 +255,7 @@ Return ONLY the CTA text, nothing else.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            cta_text = result.get("response", "").strip()
+            cta_text = _llm(prompt, max_tokens=300, temperature=0.7)
 
             self.award_points(5, "cta_generated")
             logger.info(f"[VECTOR][script_generator] Generated CTA for: {topic}")
