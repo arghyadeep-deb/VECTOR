@@ -125,8 +125,7 @@ class SessionDB:
             isolation_level=None,   # we manage transactions ourselves
         )
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA foreign_keys=ON")
+        apply_pragmas(self._conn, foreign_keys=True)
 
         self._init_schema()
 
