@@ -378,11 +378,6 @@ if BaseAgent is not None:
                 metadata=result.get("metadata", {}),
             )
 
-# Absorbed GPU Docker container launcher (optional — for sandboxed GPU agents)
-try:
-    from core.mining.docker import PearlDockerLauncher  # noqa: F401
-except Exception:
-    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
 if BaseAgent is not None:
     __all__ = ["ContainerRunner", "SandboxedAgent"]
