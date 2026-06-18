@@ -169,12 +169,10 @@ class InMemoryPortfolioService(BasePortfolioService):
                     # Short position
                     pos.unrealized_pnl = (pos.avg_entry_price - current_price) * abs(pos.quantity)
 
-        # Snapshot equity for performance stats (capped at 1000 points)
-        total_unrealized = sum(p.unrealized_pnl for p in self.positions.values())
+        # Snapshot equity for performance stats
         long_val = sum(p.quantity * p.current_price for p in self.positions.values() if p.quantity > 0)
         short_unr = sum(p.unrealized_pnl for p in self.positions.values() if p.quantity < 0)
-        equity = self.cash + long_val + short_unr
-        self._equity_history.append(equity)
+        self._equity_history.append(self.cash + long_val + short_unr)
 
     async def get_portfolio_view(self) -> PortfolioView:
         """
