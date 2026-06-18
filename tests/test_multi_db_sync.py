@@ -84,9 +84,11 @@ class TestPushLocalToCloud:
                 mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
                 return await mgr._push_local_to_cloud("2025-01-01T00:00:00+00:00")
 
-        total = asyncio.run(run())
-        # Only the "new_key" row (2099) should have been sent
-        sent_keys = [r[0]["key"] for r in captured if r]
+        asyncio.run(run())
+        # Supabase calls send a list of record dicts; Turso sends a {"statements":...} dict
+        # Filter to Supabase batch calls only (those whose body is a list)
+        supabase_records = [rec for body in captured if isinstance(body, list) for rec in body]
+        sent_keys = [r["key"] for r in supabase_records if "key" in r]
         assert "new_key" in sent_keys
         assert "old_key" not in sent_keys
 
