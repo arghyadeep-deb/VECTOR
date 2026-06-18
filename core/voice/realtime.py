@@ -516,18 +516,19 @@ class RealtimeConversation:
 
         # Use conversation tier: groq → cerebras → gemini → llm7 → ollama (offline fallback)
         # provider_client.chat() handles fallback automatically across all configured providers
-        from core.inference.provider_client import chat as _pc_chat
+        from core.inference.provider_client import ProviderClient
         full, buf, seq = "", "", 0
         speaking = False
         try:
-            response = await _pc_chat(
+            _client = ProviderClient()
+            result = await _client.chat(
                 messages=messages,
                 tier="conversation",
                 max_tokens=512,
                 temperature=0.7,
-                stream=False,
+                caller_id="realtime_voice",
             )
-            tokens = response if isinstance(response, str) else str(response)
+            tokens = result.content
         except Exception as e:
             logger.warning("[VECTOR][realtime] provider_client failed, using ollama direct: {}", e)
             # Hard fallback: direct Ollama call so voice never goes silent
