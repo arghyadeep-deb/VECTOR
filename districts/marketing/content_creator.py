@@ -42,6 +42,10 @@ class ContentCreator(AgentBase, SkillMixin):
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         self._skill_prompt = load_skill("copywriting", "content-strategy")
+        from core.prompt_library import get_library as _gl
+        _lib = _gl().get_for_agent("content_creator") or ""
+        if _lib:
+            self._skill_prompt = (self._skill_prompt + "\n\n" + _lib).strip()
         logger.info("[VECTOR][content_creator] initialized")
 
     def _get_memory(self):
