@@ -69,11 +69,14 @@ class ChiefOfStaff(AgentBase):
         """Blocking Ollama call — always via ollama_safe, RULE 11."""
         try:
             from core.inference.vectorcode_llm import chat
+            from core.prompt_library import get_library as _gl
+            _sys_override = _gl().get_for_agent("chief_of_staff")
+            effective_system = _sys_override or system
 
             result = chat(
                 model=_CHAIRMAN,
                 messages=[
-                    {"role": "system", "content": system},
+                    {"role": "system", "content": effective_system},
                     {"role": "user", "content": user},
                 ],
                 timeout=timeout,
