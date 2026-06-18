@@ -264,27 +264,12 @@ Note: Be clear these are rough estimates based on public data.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-
+            estimates = _llm(prompt, max_tokens=600, temperature=0.4)
             return {
                 "status": "success",
                 "company": company,
                 "role": role,
-                "estimates": result.get("response", "").strip(),
+                "estimates": estimates,
                 "note": "These are rough estimates - verify with current market data"
             }
 
