@@ -21,6 +21,17 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
+_EVAL_ESCAPE_PATTERNS = (
+    "__subclasses__", "__bases__", "__mro__", "__builtins__",
+    "__globals__", "__code__", "__reduce__", "__reduce_ex__", "importlib",
+)
+
+def _check_eval_code(code: str) -> Optional[str]:
+    for pat in _EVAL_ESCAPE_PATTERNS:
+        if pat in code:
+            return f"Blocked: eval code contains prohibited pattern '{pat}'"
+    return None
+
 def _extract_code(answer: str) -> str:
     """Extract Python code from model answer, handling markdown fences."""
     fence_match = re.search(
