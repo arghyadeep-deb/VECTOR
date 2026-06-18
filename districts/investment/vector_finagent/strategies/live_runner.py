@@ -409,7 +409,11 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
                 }
                 time.sleep(sleep_map.get(timeframe, 60))
 
-            except Exception:
+            except Exception as _tick_err:
+                logger.warning(
+                    "[VECTOR][live_runner] strategy tick error deploy_id=%s: %s",
+                    deploy_id, _tick_err, exc_info=True,
+                )
                 conn.execute(
                     "UPDATE deployed_strategies SET updated_at = ? WHERE deploy_id = ?",
                     (datetime.now(timezone.utc).isoformat(), deploy_id)
