@@ -44,6 +44,16 @@ _BLOCKED_PATTERNS = [
     "socket",
     "http.client",
     "urllib",
+    # Class-hierarchy traversal (sandbox escape via Python MRO)
+    "__subclasses__",
+    "__bases__",
+    "__mro__",
+    "__builtins__",
+    "__globals__",
+    "__code__",
+    "__reduce__",
+    "__reduce_ex__",
+    "importlib",
 ]
 
 class RLMRepl:
