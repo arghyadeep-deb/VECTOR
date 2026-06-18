@@ -90,37 +90,18 @@ Be specific and actionable.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            analysis = result.get("response", "").strip()
-
+            analysis = _llm(prompt, max_tokens=800)
             self._trends_cache[topic] = {
                 "analysis": analysis,
                 "timestamp": self._get_timestamp()
             }
-
             self.award_points(15, f"trends_analyzed_for_{topic}")
             logger.info(f"[VECTOR][content_strategist] Analyzed trends for: {topic}")
-
             return {
                 "topic": topic,
                 "analysis": analysis,
                 "timestamp": self._get_timestamp()
             }
-
         except Exception as e:
             logger.error(f"[VECTOR][content_strategist] Trend analysis failed: {e}")
             return {"topic": topic, "error": str(e)}
