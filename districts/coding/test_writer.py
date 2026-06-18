@@ -307,24 +307,20 @@ Return pytest code only, no explanations.
 """
 
     def _get_llm_test_suggestions(self, prompt: str) -> str:
-        """Get additional test suggestions from Ollama LLM."""
+        """Get additional test suggestions from LLM."""
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["coder"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            return result.get("response", "").strip()
+            import asyncio as _asyncio
+            import concurrent.futures as _cf
+            from core.inference.provider_client import ProviderClient as _PC
+            async def _call():
+                r = await _PC().chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    tier="coding", temperature=0.3, max_tokens=600,
+                    caller_id="test_writer",
+                )
+                return r.content
+            with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(_asyncio.run, _call()).result(timeout=90)
         except Exception as e:
             logger.warning(f"[VECTOR][test_writer] LLM suggestion failed: {e}")
             return ""
