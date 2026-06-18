@@ -128,8 +128,8 @@ class BaseAnalyticalModel(ABC):
 
     @abstractmethod
     def validate_inputs(self, **kwargs) -> bool:
-        """Validate input parameters for the model"""
-        pass
+        """Validate input parameters for the model. Override in subclasses for stricter checks."""
+        return True
 
     @abstractmethod
     def calculate(self, **kwargs) -> ValuationResult:
