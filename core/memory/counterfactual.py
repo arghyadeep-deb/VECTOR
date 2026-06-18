@@ -47,8 +47,8 @@ class CounterfactualMemory:
 
     def _create_tables(self):
         with self._lock:
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA busy_timeout=5000")
+            from core.memory.db_utils import apply_pragmas
+            apply_pragmas(self._conn)
             self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS scenarios (
                 id TEXT PRIMARY KEY,
