@@ -307,8 +307,10 @@ def _has_any_provider_configured() -> bool:
             status = get_auth_status(provider_id)
             if status.get("logged_in"):
                 return True
+    except NotImplementedError:
+        raise
     except Exception as _sve:
-        logger.debug("[VECTOR][vector_cli.main] suppressed Exception: %s", _sve)
+        logger.warning("[VECTOR][vector_cli.main] auth status check failed: %s", _sve)
 
     # Check for Nous Portal OAuth credentials
     auth_file = get_vector_home() / "auth.json"
