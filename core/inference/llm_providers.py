@@ -513,6 +513,8 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     ),
 
     # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
+    # Catalog: GPT-5, o3, o4-mini, GPT-4o, Phi-4 series — all free with GitHub account
+    # Rate limit: ~15 RPM, ~150 requests/day for most models (use for high-value tasks)
     LLMProvider(
         slug="github_models",
         name="GitHub Models",
@@ -520,13 +522,25 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         api_key_env="GITHUB_TOKEN",
         driver="openai_compat",
         default_model="gpt-4o",
-        models=["gpt-4o", "gpt-4.1", "gpt-4o-mini", "meta-llama-3.3-70b-instruct",
-                "mistral-large-2411"],
+        models=[
+            # OpenAI — flagship
+            "gpt-5", "gpt-5-mini", "gpt-5-chat",
+            "gpt-4o", "gpt-4o-mini", "GPT-4.1-nano",
+            # OpenAI — reasoning
+            "o4-mini", "o3", "o3-mini", "o1", "o1-mini", "o1-preview",
+            # OpenAI — fast/nano
+            "gpt-5-nano",
+            # Microsoft Phi-4
+            "Phi-4", "Phi-4-reasoning", "Phi-4-mini-reasoning", "Phi-4-mini-instruct",
+            "Phi-4-multimodal-instruct",
+            # Embeddings
+            "text-embedding-3-large", "text-embedding-3-small",
+        ],
         context_window=128_000,
         supports_vision=True,
         rate_limit_rpm=15,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Free with GitHub account. Get token: github.com/settings/tokens (no permissions needed).",
+        notes="Free with GitHub account. GPT-5+o3+Phi-4. ~150 req/day — use for high-value tasks.",
     ),
 
     # ── Z.ai (GLM models, free signup) ────────────────────────────────────────
