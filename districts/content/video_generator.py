@@ -290,23 +290,7 @@ Return recommended posting times with reasoning.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            schedule = result.get("response", "").strip()
-
+            schedule = _llm(prompt, max_tokens=500, temperature=0.5)
             return {
                 "status": "success",
                 "topic": topic,
