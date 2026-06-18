@@ -482,8 +482,8 @@ class AutonomousLoop:
                 try:
                     from core.loop import loop_state as _ls
                     _ls.update_runtime(tick_count=self._tick_count, running=self._running)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("[VECTOR][observe] loop_state update skipped: {}", e)
                 if guard:
                     guard.tick()
                     if guard.is_terminated:
@@ -1319,6 +1319,24 @@ class AutonomousLoop:
         except Exception as _sq_err:
             logger.debug("[VECTOR][reflect] SuggestionQueue drain suppressed: {}", _sq_err)
 
+        # Daily DB backup — runs every 2AM reflect cycle
+        try:
+            import subprocess
+            import sys as _sys
+            _backup_script = Path(__file__).parent.parent.parent / "scripts" / "backup_dbs.py"
+            if _backup_script.exists():
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    [_sys.executable, str(_backup_script), "--prune-days", "30"],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if result.returncode == 0:
+                    logger.info("[VECTOR][reflect] DB backup completed")
+                else:
+                    logger.warning("[VECTOR][reflect] DB backup exited {}: {}", result.returncode, result.stderr[:200])
+        except Exception as _bk_err:
+            logger.warning("[VECTOR][reflect] DB backup suppressed: {}", _bk_err)
+
         # jcode — check if session context is approaching compaction thresholds
         await self._check_session_compact()
 
@@ -1692,8 +1710,8 @@ class AutonomousLoop:
         try:
             from core.loop import loop_state as _ls
             _ls.update_runtime(tick_count=0, running=True, start_time=self._start_time.isoformat())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[VECTOR][autonomous_loop] loop_state init skipped: {}", e)
 
         try:
             from core.loop.task_queue import TaskQueue
