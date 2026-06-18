@@ -128,7 +128,7 @@ class MemoryStore:
 
     def _init_db(self) -> None:
         """Create tables, indexes, and triggers if they do not exist. Enable WAL mode."""
-        self._conn.execute("PRAGMA journal_mode=WAL")
+        apply_pragmas(self._conn)
         self._conn.executescript(_SCHEMA)
         # Migrate: add hrr_vector column if missing (safe for existing databases)
         columns = {row[1] for row in self._conn.execute("PRAGMA table_info(facts)").fetchall()}
