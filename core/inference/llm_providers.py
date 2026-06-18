@@ -497,6 +497,87 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         pricing_per_1m={"input":3.0,"output":3.0},
     ),
 
+    # ── OVH AI Endpoints (anonymous, no key) ──────────────────────────────────
+    LLMProvider(
+        slug="ovh",
+        name="OVH AI Endpoints",
+        base_url="https://oai.endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1",
+        api_key_env="OVH_AI_API_KEY",
+        driver="openai_compat",
+        default_model="Qwen/Qwen2.5-72B-Instruct",
+        models=["Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.3-70B-Instruct",
+                "openai/gpt-oss-120b"],
+        free=True,
+        context_window=32_768,
+        rate_limit_rpm=2,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Anonymous access, no key needed. 2 req/min per model per IP. Qwen3.5 397B available.",
+    ),
+
+    # ── Pollinations (anonymous, no key) ──────────────────────────────────────
+    LLMProvider(
+        slug="pollinations",
+        name="Pollinations AI",
+        base_url="https://text.pollinations.ai/openai",
+        api_key_env="POLLINATIONS_API_KEY",
+        driver="openai_compat",
+        default_model="openai-large",
+        models=["openai-large", "openai", "mistral", "llama", "gemini"],
+        free=True,
+        context_window=16_384,
+        rate_limit_rpm=5,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Anonymous access, no key needed. GPT-OSS 20B + others. No auth header needed.",
+    ),
+
+    # ── LLM7 (anonymous, no key) ──────────────────────────────────────────────
+    LLMProvider(
+        slug="llm7",
+        name="LLM7",
+        base_url="https://llm7.io/v1",
+        api_key_env="LLM7_API_KEY",
+        driver="openai_compat",
+        default_model="gpt-oss-120b",
+        models=["gpt-oss-120b", "llama-3.1-70b", "glm-4"],
+        free=True,
+        context_window=32_768,
+        rate_limit_rpm=5,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Anonymous access, no key needed. GPT-OSS, Llama 3.1, GLM.",
+    ),
+
+    # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
+    LLMProvider(
+        slug="github_models",
+        name="GitHub Models",
+        base_url="https://models.inference.ai.azure.com",
+        api_key_env="GITHUB_TOKEN",
+        driver="openai_compat",
+        default_model="gpt-4o",
+        models=["gpt-4o", "gpt-4.1", "gpt-4o-mini", "meta-llama-3.3-70b-instruct",
+                "mistral-large-2411"],
+        context_window=128_000,
+        supports_vision=True,
+        rate_limit_rpm=15,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Free with GitHub account. Get token: github.com/settings/tokens (no permissions needed).",
+    ),
+
+    # ── Z.ai (GLM models, free signup) ────────────────────────────────────────
+    LLMProvider(
+        slug="zai",
+        name="Z.ai (GLM)",
+        base_url="https://api.z.ai/v1",
+        api_key_env="Z_AI_API_KEY",
+        driver="openai_compat",
+        default_model="glm-4-flash",
+        models=["glm-4.5", "glm-4.7-flash", "glm-4-flash", "glm-4-air"],
+        context_window=128_000,
+        rate_limit_rpm=60,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Free signup at api.z.ai. GLM-4.5 and GLM-4.7 Flash. Singapore entity.",
+    ),
+
 ]}
 
 # ── Routing helpers ────────────────────────────────────────────────────────────
