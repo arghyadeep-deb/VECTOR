@@ -26,7 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from loguru import logger
 
-_VAULT = Path(__file__).parent.parent / "data" / "archived_prompts"
+_SHARED = Path(__file__).parent / "prompts" / "shared"
+_DISTRICTS_ROOT = Path(__file__).parent.parent / "districts"
 
 # ── Map: agent Python filename stem → prompt file stem (without category prefix)
 # Key  = how the agent file is named in districts/ (snake_case, no .py)
