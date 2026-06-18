@@ -3,6 +3,8 @@ import sys
 import time
 import uuid
 import json
+import asyncio as _asyncio
+import concurrent.futures as _cf
 from typing import Optional
 
 from vectorcode.src.bootstrap import ensure_paths
@@ -11,6 +13,19 @@ ensure_paths()
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+
+
+def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.6) -> str:
+    from core.inference.provider_client import ProviderClient as _PC
+    async def _call():
+        r = await _PC().chat(
+            messages=[{"role": "user", "content": prompt}],
+            tier="reasoning", temperature=temperature, max_tokens=max_tokens,
+            caller_id="stock_analyst",
+        )
+        return r.content
+    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_asyncio.run, _call()).result(timeout=90)
 
 class _TTLCache:
     """Simple time-to-live cache to deduplicate repeated API calls."""
