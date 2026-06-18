@@ -288,7 +288,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float, temperatu
         return ""
 
 
-def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str:
+def _try_anthropic(model_hint: str, messages: list[dict], timeout: float, temperature: float = 0.7) -> str:
     """Tier 2 — Anthropic Claude API (paid). Active when ANTHROPIC_API_KEY is set."""
     if _is_rate_limited("anthropic"):
         return ""
@@ -308,7 +308,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float) -> str
                 system = m.get("content", "")
             else:
                 user_msgs.append(m)
-        kwargs = dict(model=claude_model, max_tokens=4096,
+        kwargs = dict(model=claude_model, max_tokens=4096, temperature=temperature,
                       messages=user_msgs or [{"role": "user", "content": "Hello"}])
         if system:
             kwargs["system"] = system
