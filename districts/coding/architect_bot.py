@@ -168,8 +168,8 @@ class ArchitectBot(AgentBase):
             if len(source) > MAX_CHARS:
                 source = source[:MAX_CHARS] + "\n\n[... truncated ...]"
 
-            model = CONFIG["models"].get("coder", "vector-coder")
-            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            from core.prompt_library import get_library as _get_lib
+            _sys = _get_lib().get_for_agent("architect_bot") or "You are a senior software architect. Be concise and specific."
 
             prompt = (
                 f"{hydration}\n\n"
@@ -178,14 +178,15 @@ class ArchitectBot(AgentBase):
                 "Be specific about what it does and how it fits into VECTOR's architecture."
             )
 
-            import httpx
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{ollama_host}/api/generate",
-                    json={"model": model, "prompt": prompt, "stream": False},
-                )
-                resp.raise_for_status()
-                explanation = resp.json().get("response", "").strip()
+            from core.inference.provider_client import ProviderClient as _PC
+            _result = await _PC().chat(
+                messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
+                tier="coding",
+                temperature=0.4,
+                max_tokens=200,
+                caller_id="architect_bot",
+            )
+            explanation = _result.content.strip()
 
             self.award_points(10, f"explained_{fpath.name}")
             logger.info(f"[VECTOR][architect_bot] Explained {fpath.name}: {len(explanation)} chars")
