@@ -73,7 +73,7 @@ Based on the reality-check table below:
 | P1.4 circular imports | ✅ Fixed | ❌ **Still present** | **7 lazy imports** | NOT FIXED |
 | P1.5 mutable state races | ✅ Verified | ❓ Not rescanned | — | UNCERTAIN |
 | P2.1 broad except (10+) | ⚠️ Partial | ⚠️ Worse | **~4,500 sites** | Underestimated 5x |
-| P2.2 pass-only stubs | ✅ Fixed | ⚠️ Reduced | **283 functions** | PARTIALLY FIXED (-100) |
+| P2.2 pass-only stubs | ✅ Fixed | ✅ Reduced | **163 functions** | PARTIALLY FIXED (-214 in 2026-06-18, irreducible ABC/noop/fixture stubs remain) |
 | P2.3 hardcoded 0.0 TODOs | Fixed | Rescanned: 3 stale claims, 1 real analyst-estimates integration gap remains | 1 real TODO | PARTIALLY FIXED |
 | P2.4 empty __init__.py | ✅ N/A | ✅ Normal Python pattern | — | **NO ACTION** |
 | P3 dead ContextEngine stubs | ✅ Removed | ✅ Verified | 0 | **FIXED** |
