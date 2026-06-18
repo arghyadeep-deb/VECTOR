@@ -83,13 +83,14 @@ class DecisionCoordinator:
             portfolio = self.portfolios[model_name]
             portfolio_view = await portfolio.get_portfolio_view()
 
-            # Build digest (simplified - can be enhanced)
+            # Build digest with performance stats from portfolio tracking
+            _perf = getattr(portfolio, "get_performance_stats", lambda: {})()
             digest = TradeDigest(
                 total_trades=portfolio_view.trades_count,
                 total_realized_pnl=portfolio_view.total_realized_pnl,
-                overall_win_rate=0.0,  # TODO: Calculate from trade history
-                sharpe_ratio=0.0,  # TODO: Calculate
-                max_drawdown=0.0,  # TODO: Calculate
+                overall_win_rate=_perf.get("win_rate", 0.0),
+                sharpe_ratio=_perf.get("sharpe_ratio", 0.0),
+                max_drawdown=_perf.get("max_drawdown", 0.0),
                 by_instrument={}
             )
 
