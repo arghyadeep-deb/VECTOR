@@ -151,9 +151,9 @@ if __name__ == "__main__":
 
     if args.prune:
         n = prune_old_backups()
-        print(f"✅ Pruned {n} old backup(s)")
+        print(f"OK db_backup.py -- pruned {n} old backup(s)")
         sys.exit(0)
 
     result = run_backup(dry_run=args.dry_run)
     status = "DRY-RUN" if args.dry_run else ("DONE" if not result["failed"] else "PARTIAL")
-    print(f"✅ db_backup.py {status} — {len(result['backed'])} backed up, {len(result['failed'])} failed")
+    print(f"OK db_backup.py {status} -- {len(result['backed'])} backed up, {len(result['failed'])} failed")
