@@ -64,6 +64,9 @@ def _check_eval_code(code: str) -> Optional[str]:
 
 def _run_tests(code: str, test_cases: str) -> Tuple[int, int, str]:
     """Execute code + tests in a restricted namespace. Returns (passed, total, error)."""
+    violation = _check_eval_code(code) or _check_eval_code(test_cases)
+    if violation:
+        return 0, 0, violation
     namespace: Dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
 
     try:
