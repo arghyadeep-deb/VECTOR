@@ -112,38 +112,31 @@ class AdvancedModelsManager:
 
     def _load_state(self):
         """Load saved models and history from disk"""
-        cache_file = self.CACHE_DIR / 'models_state.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'models_state.joblib'
         if cache_file.exists():
             try:
-                with open(cache_file, 'rb') as f:
-                    data = pickle.load(f)
-                    self.models = data.get('models', {})
-                    self.training_history = data.get('history', {})
+                data = joblib.load(cache_file)
+                self.models = data.get('models', {})
+                self.training_history = data.get('history', {})
             except Exception as e:
-                logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_models] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][ai_quant_lab.qlib_advanced_models] caught Exception: %s", _sve)
-                print(f"Warning: Could not load cached models: {e}", file=sys.stderr)
+                logger.warning("[VECTOR][ai_quant_lab.qlib_advanced_models] cache load failed: %s", e)
 
     def _save_state(self):
         """Save models and history to disk"""
-        cache_file = self.CACHE_DIR / 'models_state.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'models_state.joblib'
         try:
-            # Don't save actual PyTorch models (too large), just metadata
-            models_metadata = {}
-            for model_id, model_info in self.models.items():
-                models_metadata[model_id] = {
-                    'type': model_info['type'],
-                    'config': model_info['config'],
-                    'created_at': model_info['created_at'],
-                    'trained': model_info.get('trained', False),
-                    'epochs_trained': model_info.get('epochs_trained', 0)
-                }
-
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'models': models_metadata,
-                    'history': self.training_history
-                }, f)
+            # Metadata only — PyTorch weights are too large for this cache
+            models_metadata = {
+                mid: {'type': info['type'], 'config': info['config'],
+                      'created_at': info['created_at'], 'trained': info.get('trained', False),
+                      'epochs_trained': info.get('epochs_trained', 0)}
+                for mid, info in self.models.items()
+            }
+            joblib.dump({'models': models_metadata, 'history': self.training_history}, cache_file)
         except Exception as e:
             print(f"Warning: Could not save models: {e}", file=sys.stderr)
 
