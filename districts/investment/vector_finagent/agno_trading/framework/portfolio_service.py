@@ -2,7 +2,9 @@
 In-memory portfolio service for tracking trading state.
 """
 
+import math
 import time
+from collections import deque
 from typing import Dict
 from .base_portfolio import BasePortfolioService
 from .types import TxResult, PortfolioView, PositionSnapshot, Side, TxStatus
