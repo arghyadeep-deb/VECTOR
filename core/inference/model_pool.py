@@ -39,8 +39,10 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     # ── GLM (ZhipuAI / ZAI) ────────────────────────────────────────────────────
     "glm-5.2": [
         ("cloudflare", "@cf/zai/glm-5.2"),                   # FREE Cloudflare-hosted
+        ("zai",        "glm-4.7-flash"),                     # Z.ai free signup
         ("nvidia",     "zai/glm-5.1"),                       # free NIM credits
         ("openrouter", "zai/glm-5.2"),
+        ("llm7",       "glm-4"),                             # anonymous fallback
     ],
 
     # ── DeepSeek V4 ────────────────────────────────────────────────────────────
