@@ -131,9 +131,12 @@ class SSRFGuard:
             return SSRFCheckResult(safe=False, url=url, reason="No hostname")
 
         # 2. Blocked hostname
+        # allow_private=True permits "localhost" so configured local services (Ollama) work.
+        # Other entries in _BLOCKED_HOSTNAMES (cloud metadata) are always blocked.
         if host.lower() in _BLOCKED_HOSTNAMES:
-            logger.warning("[VECTOR][ssrf] blocked hostname: {}", host)
-            return SSRFCheckResult(safe=False, url=url, reason=f"Blocked hostname: {host}")
+            if not (self._allow_private and host.lower() == "localhost"):
+                logger.warning("[VECTOR][ssrf] blocked hostname: {}", host)
+                return SSRFCheckResult(safe=False, url=url, reason=f"Blocked hostname: {host}")
 
         if _BLOCKED_HOSTNAME_PATTERNS.search(host):
             return SSRFCheckResult(safe=False, url=url, reason=f"Blocked hostname pattern: {host}")
