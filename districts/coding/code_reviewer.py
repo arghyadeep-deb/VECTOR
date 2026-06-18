@@ -252,8 +252,8 @@ class CodeReviewer(AgentBase):
             if len(source) > MAX_CHARS:
                 source = source[:MAX_CHARS] + "\n\n[... truncated ...]"
 
-            model = CONFIG["models"].get("dev", "vector-dev")
-            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            from core.prompt_library import get_library as _get_lib
+            _sys = _get_lib().get_for_agent("code_reviewer") or "You are a senior Python code reviewer. Be strict, concise, and return valid JSON only."
 
             prompt = (
                 f"{hydration}\n\n"
@@ -266,16 +266,17 @@ class CodeReviewer(AgentBase):
                 '"suggestions": ["<text>"]}'
             )
 
-            import httpx
             import json
             import re
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{ollama_host}/api/generate",
-                    json={"model": model, "prompt": prompt, "stream": False},
-                )
-                resp.raise_for_status()
-                raw = resp.json().get("response", "")
+            from core.inference.provider_client import ProviderClient as _PC
+            _result = await _PC().chat(
+                messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
+                tier="coding",
+                temperature=0.3,
+                max_tokens=1000,
+                caller_id="code_reviewer",
+            )
+            raw = _result.content
 
             json_match = re.search(r"\{.*\}", raw, re.DOTALL)
             if json_match:
