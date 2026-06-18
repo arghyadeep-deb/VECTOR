@@ -276,14 +276,23 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     LLMProvider(
         slug="cohere",
         name="Cohere",
-        base_url="https://api.cohere.ai/v1",
+        base_url="https://api.cohere.com/v2",
         api_key_env="COHERE_API_KEY",
         driver="openai_compat",
-        default_model="command-r-plus",
-        models=["command-r-plus","command-r","command-light"],
+        default_model="command-a-03-2025",
+        models=[
+            "command-a-03-2025",          # confirmed free, working 2026-06-18
+            "command-a-plus-05-2026",
+            "command-a-reasoning-08-2025",
+            "command-a-translate-08-2025", # multilingual specialist
+            "command-a-vision-07-2025",    # vision
+            "c4ai-aya-expanse-32b",
+            "c4ai-aya-vision-32b",
+        ],
         context_window=128_000,
-        pricing_per_1m={"input":3.0,"output":15.0},
-        notes="Good for RAG and enterprise use.",
+        supports_vision=True,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Free trial key. Confirmed working 2026-06-18. API v2 endpoint.",
     ),
 
     # ── Azure OpenAI ──────────────────────────────────────────────────────────
