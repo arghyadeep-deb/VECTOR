@@ -190,11 +190,10 @@ async def system_health():
 
     # 3. Autonomous loop tick count (advancing = loop is running)
     try:
-        from core.loop import autonomous_loop as _al_mod
-        _loop_instance = getattr(_al_mod, "_loop", None)
-        ticks = getattr(_loop_instance, "_tick_count", None)
-        if ticks is not None:
-            checks["loop"] = {"status": "ok", "tick_count": ticks, "running": getattr(_loop_instance, "_running", False)}
+        from core.loop.loop_state import get_runtime as _get_rt
+        rt = _get_rt()
+        if rt["running"] or rt["tick_count"] > 0:
+            checks["loop"] = {"status": "ok", "tick_count": rt["tick_count"], "running": rt["running"]}
         else:
             checks["loop"] = {"status": "not_started", "note": "loop not yet initialised"}
     except Exception as e:
