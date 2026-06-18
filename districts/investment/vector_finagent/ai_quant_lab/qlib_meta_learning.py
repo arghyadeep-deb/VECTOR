@@ -8,7 +8,11 @@ Supports multiple ML frameworks: scikit-learn, LightGBM, XGBoost, CatBoost
 import json
 import sys
 import os
-import pickle
+try:
+    import joblib
+    _JOBLIB_OK = True
+except ImportError:
+    _JOBLIB_OK = False
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union
@@ -32,8 +36,7 @@ try:
     from sklearn.ensemble import VotingClassifier, VotingRegressor, StackingClassifier, StackingRegressor
     SKLEARN_AVAILABLE = True
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     import lightgbm as lgb
     LIGHTGBM_AVAILABLE = True
