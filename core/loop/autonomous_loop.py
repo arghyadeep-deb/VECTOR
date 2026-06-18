@@ -674,7 +674,6 @@ class AutonomousLoop:
                     ),
                     confidence=0.7,
                     source="think_loop",
-                    situation=world_state,
                 )
             )
 
