@@ -263,23 +263,7 @@ Return ONLY a comma-separated list of tags, nothing else.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            tags_text = result.get("response", "").strip()
-
+            tags_text = _llm(prompt, max_tokens=200, temperature=0.5)
             tags = [t.strip() for t in tags_text.split(",") if t.strip()][:count]
 
             self.award_points(5, "tags_generated")
