@@ -238,15 +238,19 @@ try:
     _network_cfg = (_cfg if '_cfg' in dir() else {}).get("network", {})
     if isinstance(_network_cfg, dict) and _network_cfg.get("force_ipv4"):
         apply_ipv4_preference(force=True)
+except NotImplementedError:
+    raise
 except Exception as _sve:
-    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
+    logger.warning("[VECTOR][gateway.run] apply_ipv4_preference failed: %s", _sve)
 
 # Validate config structure early — log warnings so gateway operators see problems
 try:
     from vector_cli.config import print_config_warnings
     print_config_warnings()
+except NotImplementedError:
+    raise
 except Exception as _sve:
-    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
+    logger.warning("[VECTOR][gateway.run] print_config_warnings failed: %s", _sve)
 
 # Warn if user has deprecated MESSAGING_CWD / TERMINAL_CWD in .env
 try:
