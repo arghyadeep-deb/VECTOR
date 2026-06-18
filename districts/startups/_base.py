@@ -30,22 +30,32 @@ class StartupAgentBase(AgentBase):
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
 
-    def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
-        """Call the LLM with RULE 1 session hydration. Shared across all startup agents."""
+    def _call_ollama(self, prompt: str, model: Optional[str] = None, temperature: float = 0.7) -> str:
+        """Call the LLM with RULE 1 session hydration + PromptLibrary system prompt."""
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
+        from core.prompt_library import get_library as _gl
+
         try:
             hydration = ContextEngine().session_hydration_prompt()
         except Exception as _e:
             logger.debug("[VECTOR][startups] hydration failed: {}", _e)
             hydration = ""
+
+        agent_slug = re.sub(r"(?<!^)(?=[A-Z])", "_", self.name).lower()
+        lib_sys = _gl().get_for_agent(agent_slug) or ""
+        sys_content = lib_sys or hydration
+
+        messages = []
+        if sys_content:
+            messages.append({"role": "system", "content": sys_content})
+        messages.append({"role": "user", "content": prompt})
+
         return ollama_chat(
             model=model or self.model,
-            messages=[
-                {"role": "system", "content": hydration},
-                {"role": "user", "content": prompt},
-            ],
+            messages=messages,
             timeout=120,
+            temperature=temperature,
         )
 
     def _parse_json_response(self, text: str, fallback: dict) -> dict:
