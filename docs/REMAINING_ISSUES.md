@@ -146,16 +146,16 @@
 | `MCPClient`/`MCPTool` | 2 | `core/client.py`, `vc/client.py`, `vc/server.py` |
 | `KnowledgeGraph` entities | 3 | `core/knowledge_graph.py`, `vc/knowledge_graph.py`, `vc_tools/storage/knowledge_graph.py` |
 
-### P3.2 — Duplicate near-identical files (190+ filenames across areas)
-- `core/mining/_pearl_subprocess.py` ≈ `vectorcode/src/mining/_pearl_subprocess.py` (7.8KB vs 7.5KB, line-ending diff only)
-- `core/mining/_mps_miner_loop_main.py` ≈ `vectorcode/src/mining/_mps_miner_loop_main.py` (11.8KB vs 11.4KB)
+### P3.2 — Duplicate near-identical files (remaining after session 2026-06-14)
 - `core/memory/knowledge_graph.py` ≈ `vectorcode/src/vc_tools/storage/knowledge_graph.py` (same concept, different implementations)
 - `tools/` vs `vc_tools/` — many parallel tool files (`think.py`, `knowledge_search.py`, `knowledge_sql.py`, `scan_chunks.py`)
+- ~~`core/mining/_pearl_subprocess.py` ≈ `vectorcode/src/mining/_pearl_subprocess.py`~~ → vc copy deleted
+- ~~`core/mining/_mps_miner_loop_main.py` ≈ `vectorcode/src/mining/_mps_miner_loop_main.py`~~ → vc copy deleted
 
-### P3.3 — Proliferated implementations
-- **Ollama providers**: 6 implementations (`core/ollama.py`, `vc/ollama.py`, `vc/engine/ollama.py`, `vc/providers/ollama.py`, `vc/engine/ollama_v3.py`, `vc/transports/ollama.py`)
+### P3.3 — Proliferated implementations (remaining after session 2026-06-14)
+- **Ollama providers**: 4 implementations remain (`core/ollama.py`, `vc/ollama.py`, `vc/engine/ollama.py`, `vc/engine/ollama_v3.py`) — `vc/providers/ollama.py` and `vc/transports/ollama.py` deleted
 - **Rate limiters**: 4 implementations (`core/event_bus/`, `core/metering/`, `core/research_engine/security/`, `vectorcode/src/vc_security/`)
-- **Tool abstractions**: 4 competing base classes
+- **Tool abstractions**: 3 competing base classes (dead `core/research_engine/.../base_tool.py` deleted)
 
 ### P3.4 — Schema duplication (70+ files with CREATE TABLE)
 - Every store/session/manager independently defines the identical `PRAGMA journal_mode=WAL` + `PRAGMA synchronous=NORMAL` + `PRAGMA foreign_keys=ON` triplet
