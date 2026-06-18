@@ -290,8 +290,10 @@ class BugHunter(AgentBase):
             from core.inference.provider_client import ProviderClient as _PC
 
             async def _call():
+                from core.prompt_library import get_library as _gl
+                _sys = _gl().get_for_agent("bug_hunter") or "You are a security-focused bug hunter. Find vulnerabilities and bugs rigorously."
                 r = await _PC().chat(
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
                     tier="coding",
                     temperature=0.3,
                     max_tokens=1000,
