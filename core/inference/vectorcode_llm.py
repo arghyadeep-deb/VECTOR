@@ -500,15 +500,14 @@ def chat(
     if provider == "ollama":
         return _try_ollama(model, messages, timeout, temperature)
 
+    # ── Sensitivity check (local-only override) ─────────────────────────────
     local_only = False
-    heavy = False
     try:
         from core.inference.route_policy import decide_route
         _prompt = _messages_to_text(messages)
         _plan = decide_route(_prompt, district=district, sensitive=sensitive)
         local_only = _plan.local_only
-        heavy = _plan.tier == "reasoning"
-        logger.debug("[VECTOR][vc_llm] route: local_only={} heavy={} ({})", local_only, heavy, _plan.reason)
+        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
     except Exception as e:
         logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
 
@@ -518,19 +517,41 @@ def chat(
             logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
         return result
 
-    if heavy:
-        order = ["anthropic", "openrouter", "gemini", "ollama"]
-    else:
-        order = ["gemini", "openrouter", "anthropic", "ollama"]
+    # ── Primary: delegate to ProviderClient for full TIER_ROUTING ───────────
+    # This activates Groq (500+ tok/s free), LLM7 (5M tok/day — kimi/qwen3-235b),
+    # Cerebras (wafer-scale free), GitHub Models (DeepSeek-R1/o3/gpt-5 free),
+    # Gemini, OpenRouter, NVIDIA, and finally Ollama as last resort.
+    tier = _model_to_tier(model)
+    try:
+        import concurrent.futures as _cf
+        import asyncio as _asyncio
+        from core.inference.provider_client import ProviderClient as _PC
 
-    _try_map = {
-        "ollama": lambda m, msgs, t: _try_ollama(m, msgs, t, temperature),
-        "gemini": lambda m, msgs, t: _try_gemini(m, msgs, t, temperature),
-        "anthropic": lambda m, msgs, t: _try_anthropic(m, msgs, t, temperature),
-        "openrouter": lambda m, msgs, t: _try_openrouter(m, msgs, t, temperature),
-    }
-    for slug in order:
-        result = _try_map[slug](model, messages, timeout)
+        async def _async_call():
+            r = await _PC().chat(
+                messages=messages,
+                tier=tier,
+                temperature=temperature,
+                max_tokens=4096,
+                caller_id=f"vc_llm_{model[:20]}",
+            )
+            return r.content
+
+        with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
+            result = _pool.submit(_asyncio.run, _async_call()).result(timeout=timeout + 15)
+        if result:
+            logger.debug(f"[VECTOR][vc_llm] ProviderClient/{tier} responded ({len(result)} chars)")
+            return result
+    except Exception as _pc_err:
+        logger.warning(f"[VECTOR][vc_llm] ProviderClient failed ({tier}): {_pc_err} — trying legacy chain")
+
+    # ── Fallback: legacy direct-provider chain (Gemini → OpenRouter → Ollama) ─
+    for _slug, _fn in [
+        ("gemini",      _try_gemini),
+        ("openrouter",  _try_openrouter),
+        ("ollama",      _try_ollama),
+    ]:
+        result = _fn(model, messages, timeout, temperature)
         if result:
             return result
 
