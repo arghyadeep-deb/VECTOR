@@ -50,7 +50,10 @@ class ProjectPlanner(AgentBase):
         )
         try:
             from core.inference.vectorcode_llm import chat
-            text = chat(model=_REASONING, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("project_planner") or ""
+            _sys = (hydration + "\n\n" + _lib).strip() if _lib else hydration
+            text = chat(model=_REASONING, messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}], timeout=60.0)
             if not text:
                 raise ValueError("empty response")
             return text
