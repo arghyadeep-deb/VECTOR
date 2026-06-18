@@ -234,6 +234,31 @@ class InMemoryPortfolioService(BasePortfolioService):
             trades_count=self.trades_count
         )
 
+    def get_performance_stats(self) -> dict:
+        """Compute win_rate, sharpe_ratio, max_drawdown from in-memory history."""
+        win_rate = (self.winning_trades / self.trades_count * 100) if self.trades_count > 0 else 0.0
+
+        history = list(self._equity_history)
+        max_drawdown = 0.0
+        sharpe_ratio = 0.0
+        if len(history) >= 2:
+            # Max drawdown
+            peak = history[0]
+            for v in history:
+                peak = max(peak, v)
+                dd = (peak - v) / peak if peak > 0 else 0.0
+                max_drawdown = max(max_drawdown, dd)
+            # Annualised Sharpe (daily returns, 252 trading days)
+            returns = [(history[i] - history[i - 1]) / history[i - 1]
+                       for i in range(1, len(history)) if history[i - 1] > 0]
+            if len(returns) >= 2:
+                avg = sum(returns) / len(returns)
+                variance = sum((r - avg) ** 2 for r in returns) / len(returns)
+                std = math.sqrt(variance)
+                sharpe_ratio = (avg / std * math.sqrt(252)) if std > 0 else 0.0
+
+        return {"win_rate": win_rate, "sharpe_ratio": sharpe_ratio, "max_drawdown": max_drawdown}
+
     async def reset(self, initial_capital: float) -> None:
         """
         Reset portfolio to initial state.
