@@ -101,7 +101,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     # ── Llama 3.3 70B (FREE everywhere) ───────────────────────────────────────
     "llama-3.3-70b": [
         ("groq",       "llama-3.3-70b-versatile"),            # fastest free
-        ("cerebras",   "gpt-oss-120b"),                       # cerebras fast (120B substitute)
+        ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
         ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
         ("nvidia",     "meta/llama-3.3-70b-instruct"),
         ("ollama",     "llama3.3:70b"),
