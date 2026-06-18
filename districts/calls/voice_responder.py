@@ -64,6 +64,10 @@ class VoiceResponder(AgentBase):
         Generate text response using Ollama.
         Context can include conversation history, user preferences, etc.
         """
+        # Enforce history bound unconditionally so it holds even when the LLM call fails.
+        if len(self._response_history) > _MAX_RESPONSE_HISTORY:
+            del self._response_history[:-_MAX_RESPONSE_HISTORY]
+
         context = context or {}
         conversation_history = context.get("history", [])
         user_name = context.get("user_name", "User")
