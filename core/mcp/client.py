@@ -128,7 +128,7 @@ class HttpTransport:
         logger.debug("[VECTOR][mcp_client] http transport → {}", self._url)
 
     def disconnect(self) -> None:
-        pass
+        logger.debug("[VECTOR][mcp_client] http transport disconnected → {}", self._url)
 
     def send(self, method: str, params: dict | None = None) -> dict:
         import urllib.request
