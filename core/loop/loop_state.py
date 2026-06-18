@@ -10,9 +10,61 @@ Uses EpisodicMemory.remember() / recall_fact() — no new tables needed.
 """
 import json
 import datetime
-
+import threading
+from typing import Callable, Optional
 
 from loguru import logger
+
+# ---------------------------------------------------------------------------
+# Runtime state — tick counter, running flag, broadcast callback.
+# These break the circular import cycle (P1.4):
+#   core.loop.permission_gateway → core.api.routers.websocket (replaced by ui_broadcast)
+#   core.api.{health,app} → core.loop.autonomous_loop (replaced by get_runtime)
+# ---------------------------------------------------------------------------
+
+_rt_lock = threading.Lock()
+_rt_tick_count: int = 0
+_rt_running: bool = False
+_rt_start_time: str = ""
+_ui_broadcast_fn: Optional[Callable] = None
+
+
+def update_runtime(*, tick_count: int, running: bool, start_time: str = "") -> None:
+    """Called by AutonomousLoop on each tick and on start/stop."""
+    global _rt_tick_count, _rt_running, _rt_start_time
+    with _rt_lock:
+        _rt_tick_count = tick_count
+        _rt_running = running
+        if start_time:
+            _rt_start_time = start_time
+
+
+def get_runtime() -> dict:
+    """Return a snapshot of current loop runtime state."""
+    with _rt_lock:
+        return {
+            "tick_count": _rt_tick_count,
+            "running": _rt_running,
+            "start_time": _rt_start_time,
+        }
+
+
+def register_ui_broadcast(fn: Callable) -> None:
+    """Register the WebSocket broadcast function at app startup (avoids circular import)."""
+    global _ui_broadcast_fn
+    _ui_broadcast_fn = fn
+
+
+async def ui_broadcast(payload: dict) -> bool:
+    """Emit a UI event via the registered broadcast function. Returns success."""
+    fn = _ui_broadcast_fn
+    if fn is None:
+        return False
+    try:
+        await fn(payload)
+        return True
+    except Exception:
+        return False
 
 
 _PREFIX = "loop:"
