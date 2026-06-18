@@ -1244,6 +1244,16 @@ class AutonomousLoop:
             logger.warning("[VECTOR][reflect] MetaCognition reflect failed: {}", _mc_err)
 
         try:
+            from scripts.db_backup import run_backup
+            result = await asyncio.to_thread(run_backup)
+            logger.info(
+                "[VECTOR][reflect] db_backup: {} backed up, {} failed",
+                len(result["backed"]), len(result["failed"]),
+            )
+        except Exception as _bk_err:
+            logger.warning("[VECTOR][reflect] db_backup failed: {}", _bk_err)
+
+        try:
             # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
