@@ -175,22 +175,7 @@ Be creative, bold, and attention-grabbing.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            hooks_text = result.get("response", "").strip()
+            hooks_text = _llm(prompt, max_tokens=1000)
 
             hooks = self._parse_hooks(hooks_text, topic)
             self._hooks_cache.extend(hooks)
