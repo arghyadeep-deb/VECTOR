@@ -163,8 +163,10 @@ def create_connectors_router():
         auth_url: Optional[str] = None
         try:
             auth_url = instance.auth_url()
-        except (NotImplementedError, Exception) as _sve:
-            logger.debug("[VECTOR][server.connectors_router] suppressed (NotImplementedError, Exception): %s", _sve)
+        except NotImplementedError:
+            pass  # non-OAuth connectors legitimately have no auth_url
+        except Exception as _sve:
+            logger.warning("[VECTOR][server.connectors_router] auth_url() failed: %s", _sve)
 
         # Serialise MCP tool names only (ToolSpec objects are not JSON-safe).
         mcp_tools = []
