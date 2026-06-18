@@ -213,11 +213,11 @@ def _is_rate_limited(provider: str) -> bool:
 
 # â”€â”€ Provider implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def _try_ollama(model: str, messages: list[dict], timeout: float) -> str:
+def _try_ollama(model: str, messages: list[dict], timeout: float, temperature: float = 0.7) -> str:
     """Tier 0 — local Ollama (always free, always first). Delegates to ollama_safe."""
     from core.inference.ollama_safe import chat as _ollama_chat
     t0 = time.perf_counter()
-    result = _ollama_chat(model=model, messages=messages, timeout=timeout)
+    result = _ollama_chat(model=model, messages=messages, timeout=timeout, temperature=temperature)
     if result:
         _record_usage("ollama", model, messages, result,
                       (time.perf_counter() - t0) * 1000, True)
