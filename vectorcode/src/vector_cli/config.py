@@ -286,7 +286,7 @@ def _secure_file(path):
         if os.path.exists(str(path)):
             os.chmod(path, 0o600)
     except (OSError, NotImplementedError) as _sve:
-        logger.debug("[VECTOR][vector_cli.config] suppressed (OSError, NotImplementedError): %s", _sve)
+        logger.warning("[VECTOR][vector_cli.config] chmod 0o600 failed (platform may not support mode bits): %s", _sve)
 
 
 def _ensure_default_soul_md(home: Path) -> None:
