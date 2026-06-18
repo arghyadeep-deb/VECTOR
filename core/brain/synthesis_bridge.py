@@ -14,42 +14,43 @@ class SynthesisBridge:
     """
 
     def __init__(self):
-        self._ollama_host = CONFIG["ollama_host"]
-        self._synthesis_model = CONFIG["models"]["deep"]
         logger.info("[VECTOR][synthesis_bridge] SynthesisBridge initialized")
 
-    async def synthesize(self, district_outputs: list[dict], synthesis_type: str = "reflection") -> str:
+    async def synthesize(self, district_outputs: list[dict], synthesis_type: str = "reflection") -> str | None:
         """
         Synthesize outputs from multiple districts.
         synthesis_type: reflection, council, planning, report
+        Routes through provider_client (summarization tier: gemini → cohere → groq → llm7 → ollama).
         """
         try:
-            import ollama
-            client = ollama.Client(host=self._ollama_host)
-
             district_summaries = []
             for output in district_outputs:
-                source = output.get("source", "unknown")
+                source  = output.get("source", "unknown")
                 content = output.get("content", "")
                 if len(content) > 2000:
                     content = content[:2000] + "..."
                 district_summaries.append(f"[{source}]: {content}")
 
-            prompt = f"Synthesize the following district outputs into a coherent {synthesis_type}:\n\n"
-            prompt += "\n\n".join(district_summaries)
-
-            response = client.chat(
-                model=self._synthesis_model,
-                messages=[{"role": "user", "content": prompt}],
-                options={"temperature": 0.4, "num_predict": 1000}
+            prompt = (
+                f"Synthesize the following district outputs into a coherent {synthesis_type}:\n\n"
+                + "\n\n".join(district_summaries)
             )
 
-            synthesis = response["message"]["content"]
-            logger.info(f"[VECTOR][synthesis_bridge] Synthesis complete ({synthesis_type})")
+            from core.inference.provider_client import ProviderClient
+            client = ProviderClient()
+            result = await client.chat(
+                messages=[{"role": "user", "content": prompt}],
+                tier="summarization",
+                temperature=0.4,
+                max_tokens=1000,
+                caller_id="synthesis_bridge",
+            )
+            synthesis = result.content
+            logger.info("[VECTOR][synthesis_bridge] Synthesis complete ({})", synthesis_type)
             return synthesis
 
         except Exception as e:
-            logger.error(f"[VECTOR][synthesis_bridge] Synthesis failed: {e}")
+            logger.error("[VECTOR][synthesis_bridge] Synthesis failed: {}", e)
             return None
 
     def get_recent_patterns(self, days: int = 1) -> list[str]:
