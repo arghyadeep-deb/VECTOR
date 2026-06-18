@@ -259,10 +259,12 @@ class BehavioralNudgeEngine(AgentBase):
                 f"Be blunt and personal — no generic motivational fluff. "
                 f"Reference a specific goal if relevant. Never start with 'Certainly!'."
             )
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("behavioral_nudge_engine") or hydration
             response = chat(
                 model=_FOCUS,
                 messages=[
-                    {"role": "system", "content": hydration},
+                    {"role": "system", "content": _sys},
                     {"role": "user", "content": prompt},
                 ],
                 timeout=30.0,
