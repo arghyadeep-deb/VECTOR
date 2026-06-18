@@ -290,23 +290,7 @@ Original:
 Translation:"""
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["multilingual"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=90.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            translation = result.get("response", "").strip()
-
+            translation = _llm(prompt, tier="multilingual", max_tokens=1500, temperature=0.3)
             self.award_points(15, "captions_translated")
             return {
                 "status": "success",
@@ -314,7 +298,6 @@ Translation:"""
                 "target_language": target_language,
                 "translation": translation
             }
-
         except Exception as e:
             logger.error(f"[VECTOR][caption_generator] Translation failed: {e}")
             return {"error": str(e)}
