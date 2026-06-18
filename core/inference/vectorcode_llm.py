@@ -237,7 +237,7 @@ def _pool_key(env_var: str, fallback: str = "") -> str:
     return fallback
 
 
-def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
+def _try_gemini(model_hint: str, messages: list[dict], timeout: float, temperature: float = 0.7) -> str:
     """Tier 1 — Gemini free API. Uses google-generativeai SDK or httpx fallback.
 
     Free tier: 15 req/min, 1M tokens/day for Flash models.
@@ -259,7 +259,10 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float) -> str:
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{gemini_model}:generateContent?key={api_key}"
         )
-        body = {"contents": [{"parts": [{"text": prompt}]}]}
+        body = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": temperature},
+        }
         resp = _sync_cb_call("gemini", lambda: httpx.post(url, json=body, timeout=timeout))
         if resp.status_code == 429:
             _mark_rate_limited("gemini", 60.0)
