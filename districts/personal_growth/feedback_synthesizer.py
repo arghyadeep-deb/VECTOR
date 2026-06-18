@@ -127,7 +127,10 @@ class FeedbackSynthesizer(AgentBase):
         )
         try:
             import json as _json
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("feedback_synthesizer") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            response = chat(model=self._model, messages=_msgs, timeout=25.0)
             match = re.search(r'\{.*\}', response, re.DOTALL)
             if match:
                 return _json.loads(match.group())
