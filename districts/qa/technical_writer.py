@@ -105,7 +105,11 @@ class TechnicalWriter(AgentBase):
 
     def _llm(self, prompt: str, system: str = "") -> str:
         """Thin wrapper — always hydrates context first (RULE 1)."""
+        from core.prompt_library import get_library as _gl
+        _lib = _gl().get_for_agent("technical_writer") or ""
         hydration = system or self._context.session_hydration_prompt()
+        if _lib:
+            hydration = (hydration + "\n\n" + _lib).strip()
         try:
             from core.inference.vectorcode_llm import chat
             text = chat(
