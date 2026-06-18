@@ -584,14 +584,17 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
 
 # Map of task tier → preferred provider priority list
 TIER_ROUTING: dict[str, list[str]] = {
-    "agentic":       ["ollama", "groq", "deepseek", "openai", "huggingface"],
-    "coding":        ["ollama", "deepseek", "mistral", "openai", "huggingface"],
-    "reasoning":     ["ollama", "deepseek", "anthropic", "openai"],
-    "summarization": ["ollama", "groq", "cohere", "openai"],
-    "multilingual":  ["ollama", "moonshot", "zhipu", "gemini"],
-    "vision":        ["gemini", "openai", "anthropic"],
-    "fast":          ["ollama", "groq", "cerebras", "cloudflare", "huggingface"],
-    "council":       ["ollama", "anthropic", "openai"],
+    # Local first, then free cloud (groq/cerebras fastest), then anonymous fallbacks
+    "agentic":       ["ollama", "groq", "cerebras", "gemini", "openrouter",
+                      "ovh", "pollinations", "llm7"],
+    "coding":        ["ollama", "groq", "deepseek", "mistral", "openrouter",
+                      "github_models", "ovh"],
+    "reasoning":     ["ollama", "groq", "gemini", "openrouter", "ovh", "deepseek"],
+    "summarization": ["ollama", "groq", "cerebras", "gemini", "ovh", "llm7"],
+    "multilingual":  ["ollama", "zai", "zhipu", "gemini", "ovh"],
+    "vision":        ["gemini", "github_models", "openai", "anthropic"],
+    "fast":          ["ollama", "groq", "cerebras", "cloudflare", "pollinations", "llm7"],
+    "council":       ["ollama", "groq", "gemini", "openrouter", "anthropic"],
 }
 
 
