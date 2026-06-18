@@ -85,22 +85,7 @@ Format with clear section headers.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=90.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            script_content = result.get("response", "").strip()
+            script_content = _llm(prompt, max_tokens=2000)
 
             script = {
                 "id": str(uuid.uuid4()),
