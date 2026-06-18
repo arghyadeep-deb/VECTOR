@@ -68,7 +68,7 @@ class AttachmentStore:
         db_path = self._base_dir / "attachments.db"
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA busy_timeout=5000;")
+        apply_pragmas(self._conn)
         self._conn.row_factory = sqlite3.Row
         self._setup()
 
@@ -78,7 +78,6 @@ class AttachmentStore:
 
     def _setup(self) -> None:
         with self._lock:
-            self._conn.execute("PRAGMA journal_mode=WAL;")
             self._conn.execute(f"{_CREATE_TABLE}")
             self._conn.commit()
 
