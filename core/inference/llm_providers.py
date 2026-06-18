@@ -590,16 +590,17 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
 
 # Map of task tier → preferred provider priority list
 TIER_ROUTING: dict[str, list[str]] = {
-    # Ollama local first (free, private). Cloud: groq/cerebras fastest free.
-    # github_models = high-quality but rate-limited (~150/day) — reserved for reasoning/vision.
-    "agentic":       ["ollama", "groq", "cerebras", "gemini", "openrouter", "llm7"],
-    "coding":        ["ollama", "groq", "deepseek", "mistral", "github_models", "openrouter"],
-    "reasoning":     ["ollama", "github_models", "groq", "gemini", "openrouter", "deepseek"],
-    "summarization": ["ollama", "groq", "cerebras", "gemini", "llm7"],
-    "multilingual":  ["ollama", "zai", "zhipu", "gemini"],
-    "vision":        ["gemini", "github_models", "openai", "anthropic"],
-    "fast":          ["ollama", "groq", "cerebras", "cloudflare", "llm7"],
-    "council":       ["ollama", "github_models", "groq", "gemini", "openrouter", "anthropic"],
+    # Priority: ollama (free local) → groq/cerebras (free, fast) → llm7/openrouter (free cloud)
+    # github_models = rate-limited (50/day premium) — reserved for high-value tasks only
+    "agentic":       ["ollama", "groq", "cerebras", "llm7", "openrouter", "nvidia"],
+    "coding":        ["ollama", "groq", "llm7", "mistral", "cerebras", "github_models", "openrouter"],
+    "reasoning":     ["ollama", "groq", "github_models", "llm7", "nvidia", "openrouter"],
+    "summarization": ["ollama", "groq", "cerebras", "llm7", "cohere"],
+    "multilingual":  ["ollama", "cohere", "llm7", "zai"],
+    "vision":        ["github_models", "nvidia", "cohere", "openrouter"],
+    "fast":          ["ollama", "groq", "cerebras", "llm7"],
+    "council":       ["ollama", "groq", "github_models", "llm7", "nvidia", "openrouter"],
+    "translate":     ["cohere", "ollama", "llm7", "zai"],
 }
 
 
