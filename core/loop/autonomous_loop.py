@@ -1022,7 +1022,7 @@ class AutonomousLoop:
 
                 if winner.reasoning_chain:
                     self._get_memory().store_chain(
-                        situation=json.dumps(winner.situation) if winner.situation else winner.action_type,
+                        situation=winner.action_type,
                         goal_ids=winner.goal_ids,
                         steps=winner.reasoning_chain,
                         action=winner.action_type,
