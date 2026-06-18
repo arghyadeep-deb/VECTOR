@@ -150,6 +150,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[VECTOR][startup] DB registry check failed: {}", e)
 
+    # Register WebSocket broadcast with loop_state so permission_gateway can emit
+    # UI events without a circular import (P1.4).
+    try:
+        from core.api.routers.websocket import broadcast_event as _bcast
+        from core.loop.loop_state import register_ui_broadcast as _reg_bc
+        _reg_bc(_bcast)
+        logger.info("[VECTOR][api] UI broadcast registered in loop_state")
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] UI broadcast registration failed: {e}")
+
     logger.info("[VECTOR][api] V.E.C.T.O.R. API ready")
 
     yield  # ── APP RUNS HERE ──
