@@ -27,7 +27,11 @@ class StartupAgentBase(AgentBase):
             district="startups",
             generation=1,
         )
-        self.memory = EpisodicMemory()
+        try:
+            self.memory: EpisodicMemory | None = EpisodicMemory()
+        except Exception as _e:
+            logger.warning("[VECTOR][startups] episodic memory unavailable ({}): {}", name, _e)
+            self.memory = None
         self.obsidian = ObsidianSync()
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None, temperature: float = 0.7) -> str:
