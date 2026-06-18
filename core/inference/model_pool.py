@@ -270,8 +270,11 @@ if __name__ == "__main__":
     # Verify pool structure and cooldown logic
     assert is_logical_model("kimi-k2.7-code"), "kimi-k2.7-code must be in pool"
     assert is_logical_model("nemotron-3-ultra"), "nemotron-3-ultra must be in pool"
+    assert is_logical_model("gemini-flash"), "gemini-flash must be in pool"
     assert not is_logical_model("gpt-4o"), "raw model IDs are not logical names"
     assert len(MODEL_POOL) >= 10
+    # llama-3.3-70b must have no duplicate key (second definition overwrites first)
+    assert MODEL_POOL["llama-3.3-70b"][1][0] == "cloudflare", "llama-3.3-70b entry is clean"
 
     # Cooldown test
     mark_cooldown("nvidia", seconds=30)
