@@ -18,6 +18,16 @@
 | P2.3 hardcoded 0.0 stubs | ✅ Fixed | portfolio_service tracks winning_trades+equity_history; decision_coordinator uses real stats; agno_trading_service restores positions; sec_data_adapter NWC change uses multi-period when available |
 | P2.4 empty __init__.py (79) | ✅ N/A | Only 11 actual empty files; all in Python 3.3+ namespace packages — no action needed |
 | pre-existing health tests (20 errors) | ✅ Fixed | missing `import threading` in districts/health/metrics_store.py |
+| Docker deployment files | ✅ Removed | Dockerfile/docker-compose/fly.toml deleted; core/mining/docker.py removed; config cleaned |
+| P3.1 Dead ContextEngine stubs | ✅ Removed | vectorcode/src/context/engine.py + agent/context_engine.py deleted (0 imports) |
+| P3.1 Dead BaseTool copy | ✅ Removed | core/research_engine/advanced_search_system/tools/base_tool.py deleted (0 imports) |
+| P3.2 Dead mining duplicates | ✅ Removed | vectorcode/src/mining/_pearl_subprocess.py + _mps_miner_loop_main.py deleted (0 imports) |
+| P3.3 Unused Ollama providers | ✅ Removed | vectorcode/src/transports/ollama.py + providers/ollama.py deleted (0 imports) |
+| P3.4 PRAGMA scatter (63 files) | ✅ Fixed | core/memory/db_utils.py::apply_pragmas() created; all 32 core/+districts/ files updated |
+| P3.1 EventBus schism (core vs vc_core) | ⏸ Deferred | Two incompatible event taxonomies; 3,600+ import sites — migration requires its own session |
+| P3.5 Domain overlap (core/vectorcode/districts) | ⏸ Deferred | Architectural reorganisation; weeks of work |
+| P3.6 Shim files (171) | ⏸ Deferred | Intentional namespace exports; safe to leave; each removal requires updating all importers |
+| P3.4 PRAGMA in vectorcode/investment (30 files) | ⏸ Deferred | Low risk; apply_pragmas() is available when those files are touched |
 
 ---
 
