@@ -49,7 +49,18 @@ def _extract_code(answer: str) -> str:
     # Last resort: return the whole answer
     return answer.strip()
 
-_SAFE_BUILTINS = {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "bytearray", "chr", "ord", "hex", "oct", "bin", "pow", "round", "divmod", "hash", "id", "repr", "ascii", "format", "callable", "delattr", "dir", "vars", "super", "object", "property", "staticmethod", "classmethod", "ZeroDivisionError", "OverflowError", "Warning", "SyntaxError", "IndentationError", "TabError") if k in __builtins__}
+_SAFE_BUILTINS = {k: __builtins__[k] for k in ("print", "range", "len", "list", "dict", "float", "int", "str", "bool", "tuple", "set", "min", "max", "sum", "abs", "enumerate", "zip", "map", "filter", "any", "all", "sorted", "reversed", "isinstance", "hasattr", "getattr", "type", "True", "False", "None", "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError", "StopIteration", "iter", "next", "bytes", "bytearray", "chr", "ord", "hex", "oct", "bin", "pow", "round", "divmod", "hash", "id", "repr", "ascii", "format", "callable", "delattr", "dir", "vars", "super", "property", "staticmethod", "classmethod", "ZeroDivisionError", "OverflowError", "Warning", "SyntaxError", "IndentationError", "TabError") if k in __builtins__}
+
+_EVAL_ESCAPE_PATTERNS = (
+    "__subclasses__", "__bases__", "__mro__", "__builtins__",
+    "__globals__", "__code__", "__reduce__", "__reduce_ex__", "importlib",
+)
+
+def _check_eval_code(code: str) -> Optional[str]:
+    for pat in _EVAL_ESCAPE_PATTERNS:
+        if pat in code:
+            return f"Blocked: eval code contains prohibited pattern '{pat}'"
+    return None
 
 def _run_tests(code: str, test_cases: str) -> Tuple[int, int, str]:
     """Execute code + tests in a restricted namespace. Returns (passed, total, error)."""
