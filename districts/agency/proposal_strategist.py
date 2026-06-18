@@ -118,7 +118,10 @@ class ProposalStrategist(AgentBase):
             f"[Why us — 1 sentence]. Be specific, avoid buzzwords."
         )
         try:
-            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("proposal_strategist") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            return chat(model=self._model, messages=_msgs, timeout=20.0)
         except Exception as e:
             logger.warning("[VECTOR][proposal] exec summary LLM failed: {}", e)
             roi_sentence = f" Expected {roi_data['12_month_roi_pct']:.0f}% ROI in 12 months." if roi_data else ""
