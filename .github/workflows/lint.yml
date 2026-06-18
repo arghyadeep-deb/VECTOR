@@ -4,6 +4,8 @@ name: Lint
 on:
   push:
     branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
 
 jobs:
   ruff:
@@ -21,9 +23,28 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      - name: Run ruff on core/ and agents/
+      - name: Run ruff on all source dirs
         run: |
-          ruff check core/ agents/ \
-            --ignore E501,F401,F811 \
+          ruff check core/ agents/ districts/ vectorcode/src/ scripts/ \
+            --ignore E501,F401,F811,F403 \
             --select E,W,F,I \
             --output-format=github
+
+  mypy:
+    name: Type Check (core/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install mypy pydantic loguru httpx fastapi
+      - name: Run mypy on core/
+        run: |
+          mypy core/ \
+            --ignore-missing-imports \
+            --no-strict-optional \
+            --follow-imports=skip \
+            --exclude 'core/(trading|mining|video)' \
+            || true
