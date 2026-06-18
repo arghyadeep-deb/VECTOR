@@ -185,23 +185,7 @@ Be honest, constructive, and specific.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            evaluation = result.get("response", "").strip()
-
+            evaluation = _llm(prompt, max_tokens=1000)
             score = self._extract_score(evaluation)
 
             evaluation_data = {
