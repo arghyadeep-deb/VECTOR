@@ -75,8 +75,8 @@ def _secure_dir(path: Path):
     """Set directory to owner-only access (0700). No-op on Windows."""
     try:
         os.chmod(path, 0o700)
-    except (OSError, NotImplementedError):
-        pass  # Windows or other platforms where chmod is not supported
+    except (OSError, NotImplementedError) as _sve:
+        logger.debug("[VECTOR][cron.jobs] chmod 0o700 not supported on this platform: %s", _sve)
 
 
 def _secure_file(path: Path):
@@ -370,7 +370,7 @@ def save_jobs(jobs: List[Dict[str, Any]]):
             os.fsync(f.fileno())
         os.replace(tmp_path, JOBS_FILE)
         _secure_file(JOBS_FILE)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
@@ -866,7 +866,7 @@ def save_job_output(job_id: str, output: str):
             os.fsync(f.fileno())
         os.replace(tmp_path, output_file)
         _secure_file(output_file)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
