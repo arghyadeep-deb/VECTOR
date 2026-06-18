@@ -564,15 +564,16 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
 
 # Map of task tier → preferred provider priority list
 TIER_ROUTING: dict[str, list[str]] = {
-    # Local first, then free cloud (groq/cerebras fastest), then llm7 as final fallback
+    # Ollama local first (free, private). Cloud: groq/cerebras fastest free.
+    # github_models = high-quality but rate-limited (~150/day) — reserved for reasoning/vision.
     "agentic":       ["ollama", "groq", "cerebras", "gemini", "openrouter", "llm7"],
-    "coding":        ["ollama", "groq", "deepseek", "mistral", "openrouter", "github_models"],
-    "reasoning":     ["ollama", "groq", "gemini", "openrouter", "deepseek"],
+    "coding":        ["ollama", "groq", "deepseek", "mistral", "github_models", "openrouter"],
+    "reasoning":     ["ollama", "github_models", "groq", "gemini", "openrouter", "deepseek"],
     "summarization": ["ollama", "groq", "cerebras", "gemini", "llm7"],
     "multilingual":  ["ollama", "zai", "zhipu", "gemini"],
     "vision":        ["gemini", "github_models", "openai", "anthropic"],
     "fast":          ["ollama", "groq", "cerebras", "cloudflare", "llm7"],
-    "council":       ["ollama", "groq", "gemini", "openrouter", "anthropic"],
+    "council":       ["ollama", "github_models", "groq", "gemini", "openrouter", "anthropic"],
 }
 
 
