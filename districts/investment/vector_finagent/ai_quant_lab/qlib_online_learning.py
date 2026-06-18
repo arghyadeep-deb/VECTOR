@@ -70,29 +70,26 @@ class OnlineLearningManager:
 
     def _load_models(self):
         """Load all saved models from disk"""
-        cache_file = self.CACHE_DIR / 'models.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'models.joblib'
         if cache_file.exists():
             try:
-                with open(cache_file, 'rb') as f:
-                    data = pickle.load(f)
-                    self.online_models = data.get('models', {})
-                    self.drift_detectors = data.get('detectors', {})
+                data = joblib.load(cache_file)
+                self.online_models = data.get('models', {})
+                self.drift_detectors = data.get('detectors', {})
             except Exception as e:
-                logger.debug("[VECTOR][ai_quant_lab.qlib_online_learning] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][ai_quant_lab.qlib_online_learning] caught Exception: %s", _sve)
-                print(f"Warning: Could not load cached models: {e}", file=sys.stderr)
+                logger.warning("[VECTOR][ai_quant_lab.qlib_online_learning] cache load failed: %s", e)
 
     def _save_models(self):
         """Save all models to disk"""
-        cache_file = self.CACHE_DIR / 'models.pkl'
+        if not _JOBLIB_OK:
+            return
+        cache_file = self.CACHE_DIR / 'models.joblib'
         try:
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'models': self.online_models,
-                    'detectors': self.drift_detectors
-                }, f)
+            joblib.dump({'models': self.online_models, 'detectors': self.drift_detectors}, cache_file)
         except Exception as e:
-            print(f"Warning: Could not save models: {e}", file=sys.stderr)
+            logger.warning("[VECTOR][ai_quant_lab.qlib_online_learning] cache save failed: %s", e)
 
     def initialize(self,
                   provider_uri: str = "~/.qlib/qlib_data/cn_data",
