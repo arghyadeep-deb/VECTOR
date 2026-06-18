@@ -92,24 +92,38 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("github_models", "Phi-4-mini-reasoning"),           # smaller fallback
     ],
 
-    # ── DeepSeek R1 — 671B distill, chain-of-thought reasoning ──────────────
+    # ── DeepSeek R1 — chain-of-thought reasoning ─────────────────────────────
     "deepseek-r1": [
-        ("openrouter", "deepseek/deepseek-r1:free"),          # FREE on OpenRouter
-        ("deepseek",   "deepseek-reasoner"),                  # cheap paid fallback
-        ("groq",       "deepseek-r1-distill-llama-70b"),      # fast distilled variant
-        ("nvidia",     "deepseek/deepseek-r1"),
-        ("ollama",     "deepseek-r1:14b"),                    # local small variant
+        ("github_models", "DeepSeek-R1-0528"),                # FREE via GitHub token (newest)
+        ("github_models", "DeepSeek-R1"),                     # FREE via GitHub token
+        ("openrouter",    "deepseek/deepseek-r1:free"),        # FREE on OpenRouter
+        ("groq",          "deepseek-r1-distill-llama-70b"),   # fast distilled
+        ("nvidia",        "deepseek/deepseek-r1"),
+        ("ollama",        "deepseek-r1:14b"),                  # local small variant
     ],
 
-    # ── DeepSeek V3 — 685B, best general open model ───────────────────────────
+    # ── DeepSeek V3 — best general open model ─────────────────────────────────
     "deepseek-v3": [
-        ("openrouter", "deepseek/deepseek-v3:free"),          # FREE on OpenRouter
-        ("deepseek",   "deepseek-chat"),                      # direct API fallback
-        ("nvidia",     "deepseek/deepseek-v3"),
-        ("cloudflare", "@cf/deepseek/deepseek-v3"),
+        ("github_models", "DeepSeek-V3-0324"),                # FREE via GitHub token
+        ("openrouter",    "deepseek/deepseek-v3:free"),        # FREE on OpenRouter
+        ("nvidia",        "deepseek/deepseek-v3"),
+        ("cloudflare",    "@cf/deepseek/deepseek-v3"),
     ],
 
-    # ── Qwen3 235B MoE — huge but only 22B active ────────────────────────────
+    # ── Llama 3.1 405B — largest open Llama, FREE on GitHub ───────────────────
+    "llama-405b": [
+        ("github_models", "Meta-Llama-3.1-405B-Instruct"),   # FREE via GitHub token
+        ("openrouter",    "meta-llama/llama-3.1-405b-instruct"),
+    ],
+
+    # ── Llama 4 Maverick — MoE vision model ───────────────────────────────────
+    "llama-4-maverick": [
+        ("github_models", "Llama-4-Maverick-17B-128E-Instruct-FP8"),  # FREE
+        ("groq",          "llama-4-maverick-17b-128e-instruct"),
+        ("nvidia",        "meta/llama-4-maverick-17b-128e-instruct"),
+    ],
+
+    # ── Qwen3 235B MoE ────────────────────────────────────────────────────────
     "qwen3-235b": [
         ("openrouter", "qwen/qwen3-235b-a22b:free"),          # FREE on OpenRouter
         ("nvidia",     "qwen/qwen3-235b-a22b"),
