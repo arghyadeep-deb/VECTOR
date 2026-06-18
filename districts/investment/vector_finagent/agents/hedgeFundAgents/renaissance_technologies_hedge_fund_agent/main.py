@@ -70,6 +70,7 @@ from .utils import (
     fetch_stock_data_yfinance,
     fetch_market_benchmark,
     fetch_peer_prices,
+    fetch_analyst_estimates,
     validate_data,
     prepare_analysis_inputs,
 )
@@ -218,10 +219,18 @@ class RenaissanceTechnologiesSystem:
             if not peer_prices:
                 logger.warning("Peer data unavailable for %s; skipping pairs analysis", config.peer_ticker)
 
+        estimates = fetch_analyst_estimates(ticker)
+        intrinsic_estimates = None
+        if estimates and estimates.target_mean is not None:
+            intrinsic_estimates = [estimates.target_mean]
+            logger.info("Analyst consensus target for %s: $%.2f (high=%.2f, low=%.2f, %d analysts)",
+                        ticker, estimates.target_mean, estimates.target_high or 0,
+                        estimates.target_low or 0, estimates.number_of_analysts)
+
         stat_arb_analysis = run_stat_arb_analysis(
             ticker=ticker,
             prices=inputs["prices"],
-            intrinsic_estimates=None,  # TODO: Integrate analyst estimates API
+            intrinsic_estimates=intrinsic_estimates,
             peer_prices=peer_prices,
             metrics=inputs["metrics"]
         )

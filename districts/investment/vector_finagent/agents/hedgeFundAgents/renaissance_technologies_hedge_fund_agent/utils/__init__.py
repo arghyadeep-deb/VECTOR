@@ -2,9 +2,11 @@
 
 from .data_fetcher import (
     StockData,
+    AnalystEstimates,
     fetch_stock_data_yfinance,
     fetch_market_benchmark,
     fetch_peer_prices,
+    fetch_analyst_estimates,
     validate_data,
     prepare_analysis_inputs,
 )
@@ -27,9 +29,11 @@ from .embedder_factory import (
 
 __all__ = [
     "StockData",
+    "AnalystEstimates",
     "fetch_stock_data_yfinance",
     "fetch_market_benchmark",
     "fetch_peer_prices",
+    "fetch_analyst_estimates",
     "validate_data",
     "prepare_analysis_inputs",
     "ModelFactory",

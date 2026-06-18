@@ -138,16 +138,67 @@ def fetch_stock_data_yfinance(ticker: str, period: str = "1y") -> StockData:
         )
 
 
+@dataclass
+class AnalystEstimates:
+    ticker: str
+    target_mean: Optional[float]
+    target_high: Optional[float]
+    target_low: Optional[float]
+    recommendation: Optional[str]
+    earnings_estimate_curr_qtr: Optional[float]
+    earnings_estimate_next_qtr: Optional[float]
+    earnings_estimate_curr_yr: Optional[float]
+    earnings_estimate_next_yr: Optional[float]
+    revenue_estimate_curr_yr: Optional[float]
+    revenue_estimate_next_yr: Optional[float]
+    number_of_analysts: int
+    error: Optional[str] = None
+
+
+def fetch_analyst_estimates(ticker: str) -> AnalystEstimates:
+    try:
+        import yfinance as yf
+        stock = yf.Ticker(ticker)
+
+        targets = stock.analyst_price_targets
+        earnings_est = stock.earnings_estimate
+        revenue_est = stock.revenue_estimate
+
+        rec_map = {"strong_buy": "strong_buy", "buy": "buy", "hold": "hold", "sell": "sell", "strong_sell": "strong_sell"}
+        recommendation = None
+        if targets and "recommendation" in targets:
+            raw = targets.get("recommendation", "").lower().replace(" ", "_")
+            recommendation = rec_map.get(raw)
+
+        return AnalystEstimates(
+            ticker=ticker,
+            target_mean=targets.get("mean", None) if targets else None,
+            target_high=targets.get("high", None) if targets else None,
+            target_low=targets.get("low", None) if targets else None,
+            recommendation=recommendation,
+            earnings_estimate_curr_qtr=float(earnings_est.iloc[0]["avg"]) if earnings_est is not None and not earnings_est.empty else None,
+            earnings_estimate_next_qtr=float(earnings_est.iloc[1]["avg"]) if earnings_est is not None and len(earnings_est) > 1 else None,
+            earnings_estimate_curr_yr=float(earnings_est.iloc[2]["avg"]) if earnings_est is not None and len(earnings_est) > 2 else None,
+            earnings_estimate_next_yr=float(earnings_est.iloc[3]["avg"]) if earnings_est is not None and len(earnings_est) > 3 else None,
+            revenue_estimate_curr_yr=float(revenue_est.iloc[0]["avg"]) if revenue_est is not None and not revenue_est.empty else None,
+            revenue_estimate_next_yr=float(revenue_est.iloc[1]["avg"]) if revenue_est is not None and len(revenue_est) > 1 else None,
+            number_of_analysts=int(targets.get("numberOfAnalystOpinions", 0)) if targets else 0,
+        )
+    except ImportError:
+        return AnalystEstimates(ticker=ticker, target_mean=None, target_high=None, target_low=None, recommendation=None,
+                                earnings_estimate_curr_qtr=None, earnings_estimate_next_qtr=None,
+                                earnings_estimate_curr_yr=None, earnings_estimate_next_yr=None,
+                                revenue_estimate_curr_yr=None, revenue_estimate_next_yr=None,
+                                number_of_analysts=0, error="yfinance not installed")
+    except Exception as e:
+        return AnalystEstimates(ticker=ticker, target_mean=None, target_high=None, target_low=None, recommendation=None,
+                                earnings_estimate_curr_qtr=None, earnings_estimate_next_qtr=None,
+                                earnings_estimate_curr_yr=None, earnings_estimate_next_yr=None,
+                                revenue_estimate_curr_yr=None, revenue_estimate_next_yr=None,
+                                number_of_analysts=0, error=str(e))
+
+
 def fetch_market_benchmark(period: str = "1y") -> List[float]:
-    """
-    Fetch market benchmark (SPY) prices.
-
-    Args:
-        period: Data period
-
-    Returns:
-        List of prices (most recent first)
-    """
     try:
         data = fetch_stock_data_yfinance("SPY", period)
         return data.prices
