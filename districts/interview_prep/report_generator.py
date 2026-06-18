@@ -258,22 +258,7 @@ Make it specific to {company} and the {role} role.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=90.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            report_content = result.get("response", "").strip()
+            report_content = _llm(prompt, max_tokens=1500, temperature=0.5)
 
             report = {
                 "id": str(uuid.uuid4()),
