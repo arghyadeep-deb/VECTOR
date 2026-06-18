@@ -285,32 +285,32 @@ class BugHunter(AgentBase):
         prompt = self._build_analysis_prompt(source_code, source_path.name)
 
         try:
-            import httpx
+            import asyncio as _asyncio
+            import concurrent.futures as _cf
+            from core.inference.provider_client import ProviderClient as _PC
 
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
+            async def _call():
+                r = await _PC().chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    tier="coding",
+                    temperature=0.3,
+                    max_tokens=1000,
+                    caller_id="bug_hunter",
+                )
+                return r.content
 
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=90.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            analysis = result.get("response", "").strip()
+            with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+                analysis = pool.submit(_asyncio.run, _call()).result(timeout=90)
 
             self._bug_reports.append({
                 "file": str(source_path),
                 "timestamp": self._get_timestamp(),
                 "llm_analysis": analysis,
-                "model_used": model
+                "model_used": "provider_client/coding",
             })
 
             self.award_points(15, "llm_analysis_completed")
-            return {"analysis": analysis, "model": model}
+            return {"analysis": analysis, "model": "provider_client/coding"}
 
         except Exception as e:
             logger.error(f"[VECTOR][bug_hunter] LLM analysis failed: {e}")
