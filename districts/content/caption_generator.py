@@ -90,23 +90,7 @@ Timestamps in format: 00:00:00 --> 00:00:03
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            caption_text = result.get("response", "").strip()
-
+            caption_text = _llm(prompt, tier="fast", max_tokens=1000)
             captions = self._parse_caption_blocks(caption_text, style)
 
             caption_data = {
