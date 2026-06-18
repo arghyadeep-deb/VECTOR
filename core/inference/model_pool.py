@@ -69,6 +69,29 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("ollama",     "llama3.3:70b"),                       # local last resort
     ],
 
+    # ── GPT-5 (GitHub Models free) ────────────────────────────────────────────
+    "gpt-5": [
+        ("github_models", "gpt-5"),                          # FREE via GitHub token
+        ("openrouter",    "openai/gpt-5"),                   # paid fallback
+    ],
+
+    # ── o3 / o4-mini reasoning (GitHub Models free) ───────────────────────────
+    "o3": [
+        ("github_models", "o3"),                             # FREE via GitHub token
+        ("openrouter",    "openai/o3"),
+    ],
+    "o4-mini": [
+        ("github_models", "o4-mini"),                        # FREE via GitHub token
+        ("openrouter",    "openai/o4-mini"),
+        ("groq",          "llama-3.3-70b-versatile"),        # fast fallback if GH exhausted
+    ],
+
+    # ── Phi-4-reasoning (GitHub Models free, strong math/reasoning) ───────────
+    "phi-4-reasoning": [
+        ("github_models", "Phi-4-reasoning"),                # FREE via GitHub token
+        ("github_models", "Phi-4-mini-reasoning"),           # smaller fallback
+    ],
+
     # ── DeepSeek R1 — 671B distill, chain-of-thought reasoning ──────────────
     "deepseek-r1": [
         ("openrouter", "deepseek/deepseek-r1:free"),          # FREE on OpenRouter
