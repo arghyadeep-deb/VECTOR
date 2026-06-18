@@ -32,6 +32,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     ],
     "kimi-k2.6": [
         ("cloudflare", "@cf/moonshotai/kimi-k2.6"),
+        ("llm7",       "kimi-k2.6"),                         # FREE on LLM7 (confirmed)
         ("nvidia",     "moonshotai/kimi-k2.6"),
         ("openrouter", "moonshot/kimi-k2.6"),
     ],
@@ -39,10 +40,10 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     # ── GLM (ZhipuAI / ZAI) ────────────────────────────────────────────────────
     "glm-5.2": [
         ("cloudflare", "@cf/zai/glm-5.2"),                   # FREE Cloudflare-hosted
-        ("zai",        "glm-4.7-flash"),                     # Z.ai free signup
-        ("nvidia",     "zai/glm-5.1"),                       # free NIM credits
+        ("llm7",       "glm-5.2"),                           # FREE on LLM7 (confirmed)
+        ("zai",        "glm-4.5"),                           # Z.ai (may hit quota)
+        ("nvidia",     "zai/glm-5.1"),
         ("openrouter", "zai/glm-5.2"),
-        ("llm7",       "glm-4"),                             # anonymous fallback
     ],
 
     # ── DeepSeek V4 ────────────────────────────────────────────────────────────
