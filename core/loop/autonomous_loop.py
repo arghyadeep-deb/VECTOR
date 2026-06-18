@@ -479,6 +479,11 @@ class AutonomousLoop:
                 async with asyncio.timeout(15):
                     await self._observe_tick()
                 self._tick_count += 1
+                try:
+                    from core.loop import loop_state as _ls
+                    _ls.update_runtime(tick_count=self._tick_count, running=self._running)
+                except Exception:
+                    pass
                 if guard:
                     guard.tick()
                     if guard.is_terminated:
