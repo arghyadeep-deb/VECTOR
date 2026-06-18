@@ -560,19 +560,19 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         notes="Free with GitHub account. GPT-5+o3+Phi-4. ~150 req/day — use for high-value tasks.",
     ),
 
-    # ── Z.ai (GLM models, free signup) ────────────────────────────────────────
+    # ── Z.ai / ZhipuAI (GLM models) ──────────────────────────────────────────
     LLMProvider(
         slug="zai",
-        name="Z.ai (GLM)",
-        base_url="https://api.z.ai/v1",
-        api_key_env="Z_AI_API_KEY",
+        name="Z.ai (GLM/ZhipuAI)",
+        base_url="https://open.bigmodel.cn/api/paas/v4",
+        api_key_env="ZAI_API_KEY",
         driver="openai_compat",
-        default_model="glm-4-flash",
+        default_model="glm-4.5",
         models=["glm-4.5", "glm-4.7-flash", "glm-4-flash", "glm-4-air"],
         context_window=128_000,
         rate_limit_rpm=60,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Free signup at api.z.ai. GLM-4.5 and GLM-4.7 Flash. Singapore entity.",
+        notes="ZhipuAI/GLM API. Key env: ZAI_API_KEY. Free credits on signup; may hit 429 when exhausted.",
     ),
 
 ]}
