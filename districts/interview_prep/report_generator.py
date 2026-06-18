@@ -63,22 +63,7 @@ Format with proper markdown headers and bullet points.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            report_content = result.get("response", "").strip()
+            report_content = _llm(prompt, max_tokens=1500)
 
             report = {
                 "id": str(uuid.uuid4()),
@@ -122,22 +107,7 @@ Make recommendations specific and actionable.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            report_content = result.get("response", "").strip()
+            report_content = _llm(prompt, max_tokens=1500)
 
             report = {
                 "id": str(uuid.uuid4()),
