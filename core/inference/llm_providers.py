@@ -399,29 +399,29 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     LLMProvider(
         slug="cohere-rag",
         name="Cohere (RAG-optimized)",
-        base_url="https://api.cohere.ai/v1",
+        base_url="https://api.cohere.com/v2",
         api_key_env="COHERE_API_KEY",
         driver="openai_compat",
-        default_model="command-r",
-        models=["command-r","command-r-plus"],
+        default_model="command-a-03-2025",
+        models=["command-a-03-2025","command-a-translate-08-2025","command-a-vision-07-2025"],
         context_window=128_000,
-        pricing_per_1m={"input":0.5,"output":1.5},
-        notes="Optimized for retrieval-augmented generation.",
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Duplicate entry — primary Cohere block above is authoritative.",
     ),
 
-    # ── Cerebras ──────────────────────────────────────────────────────────────
+    # ── Cerebras (ultra-fast, free) ───────────────────────────────────────────
     LLMProvider(
         slug="cerebras",
         name="Cerebras",
         base_url="https://api.cerebras.ai/v1",
         api_key_env="CEREBRAS_API_KEY",
         driver="openai_compat",
-        default_model="llama3.1-70b",
-        models=["llama3.1-70b","llama3.1-8b"],
-        context_window=8_000,
-        rate_limit_rpm=30,
-        pricing_per_1m={"input":0.6,"output":0.6},
-        notes="Ultra-fast inference on custom Cerebras silicon.",
+        default_model="gpt-oss-120b",
+        models=["gpt-oss-120b", "zai-glm-4.7"],
+        context_window=128_000,
+        rate_limit_rpm=60,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Free. Confirmed 2026-06-18. gpt-oss-120b (120B) + zai-glm-4.7 (GLM). Ultra-fast Cerebras silicon.",
     ),
 
     # ── SambaNova ─────────────────────────────────────────────────────────────
