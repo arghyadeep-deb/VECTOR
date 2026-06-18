@@ -1254,6 +1254,25 @@ class AutonomousLoop:
             logger.warning("[VECTOR][reflect] db_backup failed: {}", _bk_err)
 
         try:
+            from core.city.evolution_engine import EvolutionEngine
+            from core.city.agent_registry import AgentRegistry
+            registry = AgentRegistry.instance()
+            engine   = EvolutionEngine(registry=registry)
+            agents   = registry.get_all_agents()
+            districts = {getattr(a, "district", None) for a in agents} - {None}
+            total_culled: list[str] = []
+            for district in districts:
+                culled = await engine.cull_bottom(district, keep_top=5)
+                total_culled.extend(culled)
+            if total_culled:
+                logger.info("[VECTOR][reflect] cull_bottom: {} agents culled across {} districts",
+                            len(total_culled), len(districts))
+            else:
+                logger.debug("[VECTOR][reflect] cull_bottom: no agents culled (all districts healthy)")
+        except Exception as _cull_err:
+            logger.warning("[VECTOR][reflect] cull_bottom failed: {}", _cull_err)
+
+        try:
             # Fallback: at minimum store a log entry
             self._get_memory().store(
                 event_type="reflect",
