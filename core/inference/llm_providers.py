@@ -628,6 +628,9 @@ def list_free() -> list[LLMProvider]:
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
+
     assert len(PROVIDERS) >= 27
     ollama = get_provider("ollama")
     assert ollama and ollama.free and ollama.pricing_per_1m["input"] == 0.0
