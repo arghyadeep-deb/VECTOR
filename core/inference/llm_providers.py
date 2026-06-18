@@ -497,40 +497,7 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         pricing_per_1m={"input":3.0,"output":3.0},
     ),
 
-    # ── OVH AI Endpoints (anonymous, no key) ──────────────────────────────────
-    LLMProvider(
-        slug="ovh",
-        name="OVH AI Endpoints",
-        base_url="https://oai.endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1",
-        api_key_env="OVH_AI_API_KEY",
-        driver="openai_compat",
-        default_model="Qwen/Qwen2.5-72B-Instruct",
-        models=["Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.3-70B-Instruct",
-                "openai/gpt-oss-120b"],
-        free=True,
-        context_window=32_768,
-        rate_limit_rpm=2,
-        pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Anonymous access, no key needed. 2 req/min per model per IP. Qwen3.5 397B available.",
-    ),
-
-    # ── Pollinations (anonymous, no key) ──────────────────────────────────────
-    LLMProvider(
-        slug="pollinations",
-        name="Pollinations AI",
-        base_url="https://text.pollinations.ai/openai",
-        api_key_env="POLLINATIONS_API_KEY",
-        driver="openai_compat",
-        default_model="openai-large",
-        models=["openai-large", "openai", "mistral", "llama", "gemini"],
-        free=True,
-        context_window=16_384,
-        rate_limit_rpm=5,
-        pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Anonymous access, no key needed. GPT-OSS 20B + others. No auth header needed.",
-    ),
-
-    # ── LLM7 (anonymous, no key) ──────────────────────────────────────────────
+    # ── LLM7 (free plan, 5M tokens/day, needs API key) ────────────────────────
     LLMProvider(
         slug="llm7",
         name="LLM7",
@@ -539,11 +506,10 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         driver="openai_compat",
         default_model="gpt-oss-120b",
         models=["gpt-oss-120b", "llama-3.1-70b", "glm-4"],
-        free=True,
         context_window=32_768,
-        rate_limit_rpm=5,
+        rate_limit_rpm=60,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Anonymous access, no key needed. GPT-OSS, Llama 3.1, GLM.",
+        notes="Free plan: 5M tokens/day (150M/month). Get key at llm7.io. Set LLM7_API_KEY in .env.",
     ),
 
     # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
