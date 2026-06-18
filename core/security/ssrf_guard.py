@@ -221,8 +221,10 @@ if __name__ == "__main__":
 
     # SSRF attacks
     assert not guard.check_url("http://169.254.169.254/latest/meta-data/").safe
-    assert not guard.check_url("http://localhost:8080/admin").safe
+    assert not guard.check_url("http://localhost:8080/admin").safe  # blocked without allow_private
     assert not guard.check_url("http://127.0.0.1:6379/").safe
+    # allow_private=True lets localhost through (for Ollama and other local services)
+    assert SSRFGuard(allow_private=True).check_url("http://localhost:11434/api/chat").safe
     assert not guard.check_url("http://10.0.0.1/internal").safe
     assert not guard.check_url("http://192.168.1.1/router").safe
     assert not guard.check_url("ftp://files.example.com/data").safe
