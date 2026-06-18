@@ -492,12 +492,8 @@ class RealtimeConversation:
             await self._safe_send({"type": "done"})
 
     async def _stream_chat(self, text: str) -> None:
-        import httpx
-
-        ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
-        model = CONFIG.get("models", {}).get("focus", "vector-focus")
         speed = 0.85
-        prompt = text
+        system_prompt = ""
         try:
             if CONFIG.get("personality", {}).get("enabled", True):
                 from core.personality import PersonalityEngine
@@ -509,43 +505,71 @@ class RealtimeConversation:
                 if tone:
                     speed = tone.speed
                 if sp:
-                    prompt = f"{sp}\n\nUser: {text}"
+                    system_prompt = sp
         except Exception as e:
             logger.debug(f"[VECTOR][realtime] personality skipped: {e}")
 
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": text})
+
+        # Use conversation tier: groq → cerebras → gemini → llm7 → ollama (offline fallback)
+        # provider_client.chat() handles fallback automatically across all configured providers
+        from core.inference.provider_client import chat as _pc_chat
         full, buf, seq = "", "", 0
         speaking = False
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            async with client.stream(
-                "POST", f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": True, "keep_alive": -1},
-            ) as r:
-                if r.status_code != 200:
-                    raise RuntimeError(f"ollama status {r.status_code}")
-                async for line in r.aiter_lines():
-                    if self._cancel_speak.is_set():
-                        return
-                    if not line.strip():
-                        continue
-                    try:
-                        payload = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    token = payload.get("response", "")
-                    if token:
-                        full += token
-                        buf += token
-                        await self._safe_send({"type": "response_partial", "text": full})
-                        sentence, buf = pop_sentence(buf)
-                        if sentence:
-                            if not speaking:
-                                speaking = True
-                                self._conv.transition("VECTOR_SPEAKING")
-                                await self._state("VECTOR_SPEAKING")
-                            await self._emit_sentence(sentence, speed, seq)
-                            seq += 1
-                    if payload.get("done"):
-                        break
+        try:
+            response = await _pc_chat(
+                messages=messages,
+                tier="conversation",
+                max_tokens=512,
+                temperature=0.7,
+                stream=False,
+            )
+            tokens = response if isinstance(response, str) else str(response)
+        except Exception as e:
+            logger.warning("[VECTOR][realtime] provider_client failed, using ollama direct: {}", e)
+            # Hard fallback: direct Ollama call so voice never goes silent
+            import httpx
+            ollama_host = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
+            model = CONFIG.get("models", {}).get("focus", "vector-focus")
+            prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
+            tokens = ""
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream(
+                    "POST", f"{ollama_host}/api/generate",
+                    json={"model": model, "prompt": prompt, "stream": True, "keep_alive": -1},
+                ) as r:
+                    async for line in r.aiter_lines():
+                        if self._cancel_speak.is_set():
+                            return
+                        if not line.strip():
+                            continue
+                        try:
+                            payload = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        tokens += payload.get("response", "")
+                        if payload.get("done"):
+                            break
+
+        # Stream tokens into sentence-chunked TTS
+        for token in tokens:
+            if self._cancel_speak.is_set():
+                return
+            full += token
+            buf += token
+            await self._safe_send({"type": "response_partial", "text": full})
+            sentence, buf = pop_sentence(buf)
+            if sentence:
+                if not speaking:
+                    speaking = True
+                    self._conv.transition("VECTOR_SPEAKING")
+                    await self._state("VECTOR_SPEAKING")
+                await self._emit_sentence(sentence, speed, seq)
+                seq += 1
+
         tail = buf.strip()
         if tail and not self._cancel_speak.is_set():
             if not speaking:
