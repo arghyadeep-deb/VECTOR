@@ -97,102 +97,105 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "deepseek-r1": [
         ("github_models", "DeepSeek-R1-0528"),                # FREE via GitHub token (newest)
         ("github_models", "DeepSeek-R1"),                     # FREE via GitHub token
-        ("openrouter",    "deepseek/deepseek-r1:free"),        # FREE on OpenRouter
         ("groq",          "deepseek-r1-distill-llama-70b"),   # fast distilled
-        ("nvidia",        "deepseek/deepseek-r1"),
-        ("ollama",        "deepseek-r1:14b"),                  # local small variant
+        ("nvidia",        "deepseek/deepseek-r1"),            # free NIM credits
+        ("ollama",        "deepseek-r1:14b"),                  # local
     ],
 
-    # ── DeepSeek V3 — best general open model ─────────────────────────────────
+    # ── DeepSeek V3 ───────────────────────────────────────────────────────────
     "deepseek-v3": [
         ("github_models", "DeepSeek-V3-0324"),                # FREE via GitHub token
-        ("openrouter",    "deepseek/deepseek-v3:free"),        # FREE on OpenRouter
         ("nvidia",        "deepseek/deepseek-v3"),
-        ("cloudflare",    "@cf/deepseek/deepseek-v3"),
     ],
 
-    # ── Llama 3.1 405B — largest open Llama, FREE on GitHub ───────────────────
+    # ── Llama 3.3 70B (FREE everywhere) ───────────────────────────────────────
+    "llama-3.3-70b": [
+        ("groq",       "llama-3.3-70b-versatile"),            # fastest free
+        ("cerebras",   "gpt-oss-120b"),                       # cerebras fast (120B substitute)
+        ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
+        ("nvidia",     "meta/llama-3.3-70b-instruct"),
+        ("ollama",     "llama3.3:70b"),
+    ],
+
+    # ── Llama 3.1 405B ────────────────────────────────────────────────────────
     "llama-405b": [
         ("github_models", "Meta-Llama-3.1-405B-Instruct"),   # FREE via GitHub token
-        ("openrouter",    "meta-llama/llama-3.1-405b-instruct"),
+        ("openrouter",    "nousresearch/hermes-3-llama-3.1-405b:free"),
+        ("nvidia",        "meta/llama-3.1-405b-instruct"),
     ],
 
-    # ── Llama 4 Maverick — MoE vision model ───────────────────────────────────
+    # ── Llama 4 Maverick ──────────────────────────────────────────────────────
     "llama-4-maverick": [
         ("github_models", "Llama-4-Maverick-17B-128E-Instruct-FP8"),  # FREE
         ("groq",          "llama-4-maverick-17b-128e-instruct"),
         ("nvidia",        "meta/llama-4-maverick-17b-128e-instruct"),
     ],
 
+    # ── GPT-OSS 120B — free on Cerebras + OpenRouter ──────────────────────────
+    "gpt-oss-120b": [
+        ("cerebras",   "gpt-oss-120b"),                       # FREE, confirmed 2026-06-18
+        ("openrouter", "openai/gpt-oss-120b:free"),           # FREE on OpenRouter
+        ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free"),  # alternative 120B free
+    ],
+
+    # ── Nemotron 3 Ultra — 550B MoE ───────────────────────────────────────────
+    "nemotron-3-ultra": [
+        ("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free"),  # FREE, confirmed 2026-06-18
+        ("nvidia",     "nvidia/nemotron-3-ultra-550b-a55b"),
+    ],
+
     # ── Qwen3 235B MoE ────────────────────────────────────────────────────────
     "qwen3-235b": [
-        ("openrouter", "qwen/qwen3-235b-a22b:free"),          # FREE on OpenRouter
+        ("llm7",       "qwen3-235b"),                         # FREE on LLM7 (240K ctx)
+        ("openrouter", "qwen/qwen3-next-80b-a3b-instruct:free"),  # smaller free fallback
         ("nvidia",     "qwen/qwen3-235b-a22b"),
     ],
 
-    # ── Nemotron 3 Ultra — NVIDIA's 550B MoE, 1M context ─────────────────────
-    "nemotron-3-ultra": [
-        ("openrouter", "nvidia/nemotron-3-ultra-550b"),       # FREE on OpenRouter
-        ("nvidia",     "nvidia/nemotron-3-ultra-550b"),       # free NIM credits
-        ("cloudflare", "@cf/nvidia/nemotron-3-ultra"),
+    # ── Qwen3 Coder ───────────────────────────────────────────────────────────
+    "qwen3-coder": [
+        ("openrouter", "qwen/qwen3-coder:free"),              # FREE on OpenRouter
+        ("llm7",       "qwen3-235b"),                         # fallback
     ],
 
-    # ── Nex-N2-Pro — Qwen3.5-based 397B MoE, agentic ─────────────────────────
+    # ── Nex-N2-Pro — 397B MoE, agentic ───────────────────────────────────────
     "nex-n2-pro": [
-        ("openrouter", "nex-agi/nex-n2-pro"),                 # FREE on OpenRouter
+        ("openrouter", "nex-agi/nex-n2-pro:free"),            # FREE on OpenRouter
     ],
 
-    # ── Cohere North Mini Code — 30B MoE, 256K, coding ────────────────────────
+    # ── Cohere North Mini Code ────────────────────────────────────────────────
     "north-mini-code": [
-        ("openrouter", "cohere/north-mini-code"),             # FREE on OpenRouter
-        ("openrouter", "cohere/north-mini-code-1-0"),         # versioned alias
+        ("openrouter", "cohere/north-mini-code:free"),        # FREE on OpenRouter
+        ("cohere",     "command-a-03-2025"),
     ],
 
-    # ── Nemotron Safety — 4B guardrail / content safety ───────────────────────
+    # ── Nemotron Safety — content safety classifier ───────────────────────────
     "nemotron-safety": [
-        ("openrouter", "nvidia/nemotron-3.5-content-safety"), # FREE on OpenRouter
+        ("openrouter", "nvidia/nemotron-3.5-content-safety:free"),  # FREE
         ("nvidia",     "nvidia/nemotron-3.5-content-safety"),
     ],
 
-    # ── Nemotron Rerank VL — multimodal reranking for visual RAG ──────────────
-    "nemotron-rerank-vl": [
-        ("openrouter", "nvidia/llama-nemotron-rerank-vl-1b-v2"),  # FREE on OpenRouter
-        ("nvidia",     "nvidia/llama-nemotron-rerank-vl-1b-v2"),
-    ],
-
-    # ── Qwen3 30B ──────────────────────────────────────────────────────────────
-    "qwen3-30b": [
-        ("cloudflare", "@cf/qwen/qwen3-30b-a3b-fp8"),         # FREE Cloudflare-hosted
-        ("nvidia",     "qwen/qwen3-30b-a3b"),
-        ("openrouter", "qwen/qwen3-30b-a3b"),
-        ("ollama",     "qwen3:30b-a3b"),
-    ],
-
-    # ── Gemma 4 ────────────────────────────────────────────────────────────────
+    # ── Gemma 4 27B ───────────────────────────────────────────────────────────
     "gemma-4-27b": [
-        ("cloudflare", "@cf/google/gemma-4-26b-a4b-it"),      # FREE Cloudflare-hosted
+        ("openrouter", "google/gemma-4-26b-a4b-it:free"),     # FREE on OpenRouter
         ("nvidia",     "google/gemma-4-27b"),
         ("ollama",     "gemma4:e2b"),
     ],
 
-    # ── MiniMax M3 ─────────────────────────────────────────────────────────────
-    "minimax-m3": [
-        ("cloudflare", "@cf/minimax/m3"),
-        ("nvidia",     "minimax/minimax-m3"),
+    # ── Mistral / Codestral ───────────────────────────────────────────────────
+    "mistral-small": [
+        ("llm7",     "mistral-small-3.2"),                    # FREE on LLM7
+        ("mistral",  "mistral-small-latest"),
+    ],
+    "codestral": [
+        ("llm7",     "codestral-latest"),                     # FREE on LLM7
+        ("mistral",  "codestral-latest"),
     ],
 
-    # ── GPT OSS 120B ───────────────────────────────────────────────────────────
-    "gpt-oss-120b": [
-        ("cloudflare", "@cf/openai/gpt-oss-120b"),
-        ("nvidia",     "openai/gpt-oss-120b"),
-        ("openrouter", "openai/gpt-oss-120b"),
-    ],
-
-    # ── Mistral Medium ─────────────────────────────────────────────────────────
-    "mistral-medium": [
-        ("nvidia",     "mistralai/mistral-medium-3"),
-        ("mistral",    "mistral-medium-latest"),
-        ("openrouter", "mistralai/mistral-medium"),
+    # ── Qwen3 30B ──────────────────────────────────────────────────────────────
+    "qwen3-30b": [
+        ("nvidia",     "qwen/qwen3-30b-a3b"),
+        ("openrouter", "qwen/qwen3-next-80b-a3b-instruct:free"),
+        ("ollama",     "qwen3:30b-a3b"),
     ],
 }
 
