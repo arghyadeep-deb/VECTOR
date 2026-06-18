@@ -457,8 +457,11 @@ class ThreatDetectionEngineer(AgentBase):
             gaps_str = "\n".join(f"- {g}" for g in coverage.get("gaps", []))
             uncovered_tactics_str = ", ".join(coverage.get("uncovered_tactics", []))
 
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("threat_detection_engineer") or ""
+            _tde_sys = (hydration + "\n\n" + _lib).strip() if _lib else hydration
             messages = [
-                {"role": "system", "content": hydration},
+                {"role": "system", "content": _tde_sys},
                 {
                     "role": "user",
                     "content": (
