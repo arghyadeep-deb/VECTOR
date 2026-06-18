@@ -656,6 +656,15 @@ TIER_ROUTING: dict[str, list[str]] = {
     # Translation (direct translate, no analysis)
     # zai/glm-5.2 leads for Asian pairs; cohere for European
     "translate":     ["zai", "cohere", "llm7", "gemini", "openrouter", "ollama"],
+
+    # Conversation (real-time voice replies — latency is everything)
+    # groq: 500+ tok/s + ~80ms India RTT = first sentence in ~340ms (fastest cloud)
+    # cerebras: wafer-scale, similar speed to groq
+    # gemini: ~500ms first sentence — decent fallback
+    # ollama (vector-focus): permanent VRAM, offline-only fallback — slower streaming
+    #   but zero network dependency when internet is down
+    # NOTE: STT (Whisper) and TTS (Kokoro) are always local regardless of this tier.
+    "conversation":  ["groq", "cerebras", "gemini", "llm7", "openrouter", "ollama"],
 }
 
 
