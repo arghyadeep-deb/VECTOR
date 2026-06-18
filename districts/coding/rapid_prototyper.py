@@ -337,8 +337,11 @@ class RapidPrototyper(AgentBase):
             except Exception:
                 hydration = "You are VECTOR, an autonomous personal AI assistant."
 
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("rapid_prototyper") or ""
+            _rp_sys = (hydration + "\n\n" + _lib).strip() if _lib else hydration
             messages = [
-                {"role": "system", "content": hydration},
+                {"role": "system", "content": _rp_sys},
                 {
                     "role": "user",
                     "content": (
