@@ -1,9 +1,24 @@
 import sys
 import uuid
+import asyncio as _asyncio
+import concurrent.futures as _cf
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+
+
+def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.7) -> str:
+    from core.inference.provider_client import ProviderClient as _PC
+    async def _call():
+        r = await _PC().chat(
+            messages=[{"role": "user", "content": prompt}],
+            tier="coding", temperature=temperature, max_tokens=max_tokens,
+            caller_id="video_generator",
+        )
+        return r.content
+    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_asyncio.run, _call()).result(timeout=90)
 
 
 class VideoGenerator(AgentBase):
