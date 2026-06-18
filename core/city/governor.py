@@ -808,9 +808,14 @@ class Governor:
                 f"Task: {task_type}\n"
                 "Reply with only the district name, nothing else."
             )
+            from core.prompt_library import get_library as _gl
+            _gov_lib = _gl().get_for_agent("governor") or ""
             messages = []
             if hydration:
-                messages.append({"role": "system", "content": hydration})
+                _gov_sys = (hydration + "\n\n" + _gov_lib).strip() if _gov_lib else hydration
+                messages.append({"role": "system", "content": _gov_sys})
+            elif _gov_lib:
+                messages.append({"role": "system", "content": _gov_lib})
             messages.append({"role": "user", "content": prompt})
             result = chat(
                 model=CONFIG["models"]["ambient"],
