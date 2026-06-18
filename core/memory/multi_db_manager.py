@@ -651,7 +651,8 @@ class MultiDBManager:
             ts = int(_time.time())
             backup_path = str(_Path(__file__).parent.parent.parent / f"vector_backup_{ts}.json")
 
-        db_path = _Path(__file__).parent.parent.parent / "vector_memory.db"
+        from core.config import CONFIG as _CONFIG
+        db_path = _Path(str(_CONFIG.get("db_path", _Path(__file__).parent.parent.parent / "vector_memory.db")))
         if not db_path.exists():
             raise FileNotFoundError(f"Local SQLite not found: {db_path}")
 
