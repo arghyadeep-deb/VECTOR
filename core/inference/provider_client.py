@@ -545,12 +545,18 @@ class ProviderClient:
                 gemini_role = "model" if role == "assistant" else "user"
                 contents.append({"role": gemini_role, "parts": [{"text": content}]})
 
+        # gemini-2.5-flash uses a thinking budget; without this, thinking tokens
+        # consume maxOutputTokens before any output is generated.
+        gen_config: dict = {
+            "temperature": temperature,
+            "maxOutputTokens": max(max_tokens, 512),  # floor to avoid 0-output on thinking models
+        }
+        if "2.5" in model:
+            gen_config["thinkingConfig"] = {"thinkingBudget": 0}
+
         payload: dict = {
             "contents": contents,
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": max_tokens,
-            },
+            "generationConfig": gen_config,
         }
         if system_instruction:
             payload["systemInstruction"] = system_instruction
