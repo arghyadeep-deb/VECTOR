@@ -17,10 +17,10 @@ Accurate audit of what genuinely still needs work.
 
 ## Q0 — Genuine Gaps
 
-### 1. DB Backup / Retention
-- 16+ SQLite databases, no backup rotation script
-- `scripts/db_backup.py` needed: daily backup, 7-day rolling window
-- **~2 hrs**
+### 1. DB Backup / Retention ✅ DONE (2026-06-18)
+- `scripts/db_backup.py` built: finds all .db files, sqlite3.Connection.backup() online API, 7-day rolling retention
+- Wired into `_reflect_tick()` (2AM) via `asyncio.to_thread(run_backup)`
+- Usage: `python scripts/db_backup.py [--dry-run | --list | --prune]`
 
 ### 2. Frontend Polish (7 items, parallelizable)
 - JS build pipeline (21 loose files, no bundler)
