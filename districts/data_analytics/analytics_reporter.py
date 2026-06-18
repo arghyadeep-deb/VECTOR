@@ -222,10 +222,13 @@ class AnalyticsReporter(AgentBase):
                 f"Anomalies: {json.dumps(anomalies, default=str)}\n\n"
                 f"Be blunt, specific, and actionable. No fluff."
             )
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("analytics_reporter") or ""
+            _ar_sys = (hydration + "\n\n" + _lib).strip() if _lib else hydration
             response = chat(
                 model=_CHAIRMAN,
                 messages=[
-                    {"role": "system", "content": hydration},
+                    {"role": "system", "content": _ar_sys},
                     {"role": "user", "content": prompt},
                 ],
                 timeout=60.0,
