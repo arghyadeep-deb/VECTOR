@@ -1,6 +1,8 @@
 import sys
 import uuid
 import json
+import asyncio as _asyncio
+import concurrent.futures as _cf
 from pathlib import Path
 from typing import Optional
 
@@ -8,6 +10,19 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+
+
+def _llm(prompt: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
+    from core.inference.provider_client import ProviderClient as _PC
+    async def _call():
+        r = await _PC().chat(
+            messages=[{"role": "user", "content": prompt}],
+            tier="reasoning", temperature=temperature, max_tokens=max_tokens,
+            caller_id="feedback_analyst",
+        )
+        return r.content
+    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_asyncio.run, _call()).result(timeout=90)
 
 
 class FeedbackAnalyst(AgentBase):
