@@ -149,6 +149,7 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         context_window=1_000_000,
         supports_vision=True,
         rate_limit_rpm=60,
+        free=True,
         pricing_per_1m={"input":0.0,"output":0.0},
         notes="Free tier: 360M tokens/month. Set GEMINI_API_KEY from aistudio.google.com. 2.5-flash: 1M context, vision, grounding.",
     ),
