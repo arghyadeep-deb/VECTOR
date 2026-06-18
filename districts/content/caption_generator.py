@@ -263,29 +263,13 @@ Use **double asterisks** to mark keywords.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-
+            captions_text = _llm(prompt, tier="fast", max_tokens=1000)
             return {
                 "status": "success",
-                "captions": result.get("response", "").strip(),
+                "captions": captions_text,
                 "keywords": keywords,
                 "style": "highlight"
             }
-
         except Exception as e:
             logger.error(f"[VECTOR][caption_generator] Highlight caption generation failed: {e}")
             return {"error": str(e)}
