@@ -30,7 +30,7 @@ class DatabaseOptimizer(AgentBase):
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._root = Path(__file__).parent.parent.parent.parent
-        self._db_path = self._root / "vector_memory.db"
+        self._db_path = Path(str(CONFIG.get("db_path", self._root / "vector_memory.db")))
         logger.info("[VECTOR][db_optimizer] initialized — db={}", self._db_path)
 
     def _get_memory(self):
