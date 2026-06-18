@@ -437,11 +437,16 @@ class WebChoreArenaTaskEnv:
         elif locator.startswith("func:"):
             func_expr = locator.split("func:")[1]
             func_expr = func_expr.replace("__page__", "self._page")
-            try:
-                selected_element = str(eval(func_expr, {"__builtins__": {}}))  # noqa: S307
-            except Exception as exc:
-                LOGGER.warning("Failed to eval locator func: %s", exc)
+            _ESCAPE = ("__subclasses__", "__bases__", "__mro__", "__globals__", "__code__", "__reduce__", "importlib")
+            if any(p in func_expr for p in _ESCAPE):
+                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in locator func: %.80s", func_expr)
                 selected_element = ""
+            else:
+                try:
+                    selected_element = str(eval(func_expr, {"__builtins__": {}}))  # noqa: S307
+                except Exception as exc:
+                    LOGGER.warning("Failed to eval locator func: %s", exc)
+                    selected_element = ""
         else:
             LOGGER.warning("Unknown locator type: %s", locator)
             return 0.0
