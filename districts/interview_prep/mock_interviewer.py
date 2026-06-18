@@ -122,22 +122,7 @@ Format clearly with headers.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            question_data = result.get("response", "").strip()
+            question_data = _llm(prompt, max_tokens=800)
 
             question = {
                 "id": str(uuid.uuid4()),
