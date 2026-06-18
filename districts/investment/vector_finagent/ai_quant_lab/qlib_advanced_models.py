@@ -8,7 +8,11 @@ Supports LSTM, GRU, Transformer, and hybrid models for financial time-series
 import json
 import sys
 import os
-import pickle
+try:
+    import joblib
+    _JOBLIB_OK = True
+except ImportError:
+    _JOBLIB_OK = False
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
