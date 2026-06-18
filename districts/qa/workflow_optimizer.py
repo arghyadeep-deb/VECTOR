@@ -42,7 +42,9 @@ class WorkflowOptimizer(AgentBase):
         return self._memory
 
     def _llm(self, prompt: str, timeout: float = 30.0) -> str:
-        messages = [{"role": "user", "content": prompt}]
+        from core.prompt_library import get_library as _gl
+        _sys = _gl().get_for_agent("workflow_optimizer") or ""
+        messages = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
         return chat(self._model, messages, timeout=timeout)
 
     # ── Core workflow methods ─────────────────────────────────────────────────
