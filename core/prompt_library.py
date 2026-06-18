@@ -96,6 +96,16 @@ AGENT_PROMPT_MAP: dict[str, str] = {
 
     # ── support / communications ─────────────────────────────────────────────
     "communications_adapter":       "support-support-responder",
+
+    # ── content district ─────────────────────────────────────────────────────
+    "script_generator":             "content-youtube-script-writer",
+    "caption_generator":            "content-instagram-caption-writer",
+    "video_generator":              "content-video-strategist",
+    "voice_generator":              "content-social-media-creator",
+
+    # ── marketing district ───────────────────────────────────────────────────
+    "content_creator":              "content-social-media-creator",
+    "social_media_strategist":      "content-social-media-creator",
 }
 
 
