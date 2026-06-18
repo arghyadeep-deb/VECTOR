@@ -210,16 +210,43 @@ class ProviderClient:
                 providers_to_try = [PROVIDERS["ollama"]]
 
         # â"€â"€ ReliableProvider retry loop â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+        # ── Build (provider, model_string) pairs ──────────────────────────────
+        # When `model` is a logical alias (e.g. "kimi-k2.7-code"), model_pool
+        # expands it to ordered (provider, actual_model_id) pairs across all
+        # configured backends. When a provider rate-limits (429), it is marked in
+        # cooldown and the next backend for that model is tried automatically.
+        _mark_cooldown = None
+        try:
+            from core.inference.model_pool import (
+                is_logical_model as _is_logical,
+                get_backends as _get_backends,
+                mark_cooldown as _mark_cooldown,
+            )
+            if model and _is_logical(model):
+                _pairs: list[tuple] = [
+                    (get_provider(slug), model_id)
+                    for slug, model_id in _get_backends(model)
+                    if get_provider(slug) is not None
+                ]
+                if not _pairs:
+                    # All backends cooled-down or unconfigured — fall through to standard list
+                    _pairs = [(prov, model) for prov in providers_to_try]
+            else:
+                _pairs = [(prov, model or prov.default_model) for prov in providers_to_try]
+        except ImportError:
+            _pairs = [(prov, model or prov.default_model) for prov in providers_to_try]
+
         last_error = ""
-        for prov in providers_to_try:
-            target_model = model or prov.default_model
+        for _prov, target_model in _pairs:
+            if _prov is None:
+                continue
             try:
                 logger.debug(
                     "[VECTOR][provider_client] {} -> {} ({})",
-                    tier, target_model, prov.slug,
+                    tier, target_model, _prov.slug,
                 )
                 result = await self._call_with_retry(
-                    prov, target_model, messages, temperature, max_tokens, tools
+                    _prov, target_model, messages, temperature, max_tokens, tools
                 )
                 # -- Consistency enforcement -----------------------------------
                 if _personality_layer is not None and result.content:
@@ -242,9 +269,17 @@ class ProviderClient:
                 return result
             except Exception as e:
                 last_error = str(e)
+                _err_low = last_error.lower()
+                if _mark_cooldown and (
+                    "429" in last_error
+                    or "rate limit" in _err_low
+                    or "quota exceeded" in _err_low
+                    or "too many requests" in _err_low
+                ):
+                    _mark_cooldown(_prov.slug, seconds=120)
                 logger.warning(
                     "[VECTOR][provider_client] {} failed: {}. Trying next...",
-                    prov.slug, str(e)[:80],
+                    _prov.slug, str(e)[:80],
                 )
                 continue
 
