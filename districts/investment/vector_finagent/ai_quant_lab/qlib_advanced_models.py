@@ -138,7 +138,7 @@ class AdvancedModelsManager:
             }
             joblib.dump({'models': models_metadata, 'history': self.training_history}, cache_file)
         except Exception as e:
-            print(f"Warning: Could not save models: {e}", file=sys.stderr)
+            logger.warning("[VECTOR][ai_quant_lab.qlib_advanced_models] cache save failed: %s", e)
 
     def get_available_models(self) -> Dict[str, Any]:
         """Get list of available model architectures"""
