@@ -125,7 +125,10 @@ class TestResultsAnalyzer(AgentBase):
             f"Keep response under 200 words."
         )
         try:
-            return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("test_results_analyzer") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            return chat(model=self._model, messages=_msgs, timeout=20.0)
         except Exception as e:
             return f"Insight generation failed: {e}"
 
