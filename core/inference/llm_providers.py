@@ -497,19 +497,28 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         pricing_per_1m={"input":3.0,"output":3.0},
     ),
 
-    # ── LLM7 (free plan, 5M tokens/day, needs API key) ────────────────────────
+    # ── LLM7 (free plan, confirmed working 2026-06-18) ────────────────────────
     LLMProvider(
         slug="llm7",
         name="LLM7",
-        base_url="https://llm7.io/v1",
+        base_url="https://api.llm7.io/v1",
         api_key_env="LLM7_API_KEY",
         driver="openai_compat",
-        default_model="gpt-oss-120b",
-        models=["gpt-oss-120b", "llama-3.1-70b", "glm-4"],
-        context_window=32_768,
+        default_model="mistral-small-3.2",
+        models=[
+            "mistral-small-3.2",    # confirmed free
+            "codestral-latest",     # confirmed free
+            "qwen3-235b",           # confirmed free (slow, 240K ctx)
+            "kimi-k2.6",            # confirmed free via LLM7
+            "glm-5.2",              # confirmed free via LLM7
+            "GLM-4.6V-Flash",       # confirmed free via LLM7 (vision)
+            "minimax-m2.7",         # likely free
+            "devstral-small-2:24b", # likely free
+        ],
+        context_window=240_000,
         rate_limit_rpm=60,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Free plan: 5M tokens/day (150M/month). Get key at llm7.io. Set LLM7_API_KEY in .env.",
+        notes="Free plan, verified 2026-06-18. Base URL: api.llm7.io/v1. Pro models (deepseek-v4) require upgrade.",
     ),
 
     # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
