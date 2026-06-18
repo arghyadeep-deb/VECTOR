@@ -259,7 +259,22 @@ def load_competition_from_db(competition_id: str) -> Optional[CompetitionRuntime
                 portfolio.cash = state["capital"]
                 portfolio.trades_count = state["trades_count"]
                 portfolio.total_realized_pnl = state["total_pnl"]
-                # TODO: Restore positions from state["positions"]
+                # Restore open positions from persisted JSON
+                try:
+                    from framework.types import PositionSnapshot, Side
+                    raw_positions = state.get("positions") or {}
+                    for sym, pos_dict in raw_positions.items():
+                        portfolio.positions[sym] = PositionSnapshot(
+                            symbol=pos_dict.get("symbol", sym),
+                            quantity=float(pos_dict.get("quantity", 0.0)),
+                            avg_entry_price=float(pos_dict.get("avg_entry_price", 0.0)),
+                            current_price=float(pos_dict.get("current_price", 0.0)),
+                            unrealized_pnl=float(pos_dict.get("unrealized_pnl", 0.0)),
+                            leverage=float(pos_dict.get("leverage", 1.0)),
+                            side=Side[pos_dict["side"]] if pos_dict.get("side") else Side.BUY,
+                        )
+                except Exception as _pos_err:
+                    print(f"[WARN] position restore failed for {model_name}: {_pos_err}", file=sys.stderr)
 
         print(f"[INFO] Loaded competition {competition_id} from database", file=sys.stderr)
         return competition
