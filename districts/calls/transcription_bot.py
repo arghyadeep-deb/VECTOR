@@ -217,28 +217,26 @@ Transcript:
 """
 
         try:
-            import httpx
+            import asyncio as _asyncio
+            import concurrent.futures as _cf
+            from core.inference.provider_client import ProviderClient as _PC
 
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
+            async def _call():
+                r = await _PC().chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    tier="summarization",
+                    temperature=0.3,
+                    max_tokens=600,
+                    caller_id="transcription_bot",
+                )
+                return r.content
 
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            actions_text = result.get("response", "").strip()
+            with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+                actions_text = pool.submit(_asyncio.run, _call()).result(timeout=30).strip()
 
             action_items = self._parse_action_items(actions_text)
-
             self.award_points(5, "action_items_extracted")
             return action_items
-
         except Exception as e:
             logger.error(f"[VECTOR][transcription_bot] Action item extraction failed: {e}")
             return []
