@@ -126,31 +126,12 @@ Make topics diverse, engaging, and relevant to current trends.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            suggestions = result.get("response", "").strip()
-
+            suggestions = _llm(prompt, max_tokens=1200)
             topics = self._parse_topics_from_response(suggestions, niche)
             self._topic_ideas.extend(topics)
-
             self.award_points(min(count, 10), f"topics_suggested_for_{niche}")
             logger.info(f"[VECTOR][content_strategist] Generated {len(topics)} topics for {niche}")
-
             return topics
-
         except Exception as e:
             logger.error(f"[VECTOR][content_strategist] Topic suggestion failed: {e}")
             return []
