@@ -97,10 +97,13 @@ class LLMCouncil(AgentBase):
         """Ollama call via ollama_safe — RULE 11: no Claude API at runtime."""
         try:
             from core.inference.vectorcode_llm import chat
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("llm_council") or ""
+            _sys = (system + "\n\n" + _lib).strip() if _lib else system
             return chat(
                 model=model,
                 messages=[
-                    {"role": "system", "content": system},
+                    {"role": "system", "content": _sys},
                     {"role": "user", "content": user},
                 ],
                 timeout=120.0,
