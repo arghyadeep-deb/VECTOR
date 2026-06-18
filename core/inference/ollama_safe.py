@@ -186,15 +186,18 @@ def chat(
     try:
         import ollama
         client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
+        _opts = {"temperature": temperature}
         if _energy_monitor is not None:
             with _energy_monitor.sample() as _energy:
                 response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
                     model=model, messages=messages, keep_alive=keep_alive,
+                    options=_opts,
                 ))
             _record_telemetry(model, time.time() - _start, response, _energy)
         else:
             response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
                 model=model, messages=messages, keep_alive=keep_alive,
+                options=_opts,
             ))
             _record_telemetry(model, time.time() - _start, response, None)
         return response.get("message", {}).get("content", "")
