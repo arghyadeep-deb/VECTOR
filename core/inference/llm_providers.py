@@ -144,13 +144,13 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://generativelanguage.googleapis.com/v1beta",
         api_key_env="GEMINI_API_KEY",
         driver="gemini",
-        default_model="gemini-2.0-flash",
-        models=["gemini-2.0-flash","gemini-1.5-pro","gemini-1.5-flash","gemini-exp-1206"],
+        default_model="gemini-2.5-flash",
+        models=["gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-pro","gemini-1.5-flash"],
         context_window=1_000_000,
         supports_vision=True,
         rate_limit_rpm=60,
-        pricing_per_1m={"input":0.075,"output":0.30},
-        notes="Free tier available. gemini-1.5-pro has 1M context window.",
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="Free tier: 360M tokens/month. Set GEMINI_API_KEY from aistudio.google.com. 2.5-flash: 1M context, vision, grounding.",
     ),
 
     # ── OpenAI ────────────────────────────────────────────────────────────────
