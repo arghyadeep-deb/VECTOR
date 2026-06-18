@@ -16,6 +16,8 @@ REPO_ROOT = Path(__file__).parent.parent
 SKIP_EXACT_FILES = {
     "core/coding_assistant/cli/turn_summary/noop.py",  # named noop, intentional
     "core/coding_assistant/acp/utils.py",              # ACP empty init
+    "vectorcode/src/memory/manager.py",                # _FakeProvider test double
+    "vectorcode/src/evals/tests/conftest.py",          # MockDataset test fixture
 }
 
 # Method names where pass → debug log (not NIE) because they are optional lifecycle hooks
