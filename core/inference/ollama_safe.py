@@ -157,6 +157,7 @@ def chat(
     messages: list[dict],
     timeout: float = 8.0,
     keep_alive: str | None = None,
+    temperature: float = 0.7,
 ) -> str:
     """Return Ollama chat text, or empty string on failure/timeout.
 
