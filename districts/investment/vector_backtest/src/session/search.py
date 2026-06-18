@@ -79,7 +79,7 @@ class SessionSearchIndex:
         """Get or create the SQLite connection (WAL mode)."""
         if self._conn is None:
             self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-            self._conn.execute("PRAGMA journal_mode=WAL")
+            apply_pragmas(self._conn)
             self._conn.execute("PRAGMA synchronous=NORMAL")
         return self._conn
 
