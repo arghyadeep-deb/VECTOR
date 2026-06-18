@@ -136,8 +136,9 @@ class ProviderClient:
         try:
             from core.metering.rate_limiter import get_rate_limiter
             rl = get_rate_limiter()
-            allowed, wait_ms = rl.check(caller_id, "llm_message")
-            if not allowed:
+            rl_result = rl.check(caller_id, "llm_message")
+            if not rl_result:
+                wait_ms = getattr(rl_result, "retry_after_ms", 0) or 0
                 logger.warning(
                     "[VECTOR][provider_client] rate limit hit caller={} wait={:.0f}ms",
                     caller_id, wait_ms,
