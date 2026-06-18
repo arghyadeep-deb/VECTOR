@@ -50,8 +50,8 @@ class TaskLedger:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        from core.memory.db_utils import apply_pragmas
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute(_SCHEMA)
             self._conn.commit()
