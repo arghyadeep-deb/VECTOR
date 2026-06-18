@@ -60,16 +60,6 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("openrouter", "deepseek/deepseek-v4-flash"),
     ],
 
-    # ── Llama 3.3 70B ──────────────────────────────────────────────────────────
-    "llama-3.3-70b": [
-        ("groq",       "llama-3.3-70b-versatile"),            # free quota, fastest
-        ("cerebras",   "llama3.3-70b"),                       # very fast
-        ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
-        ("nvidia",     "meta/llama-3.3-70b-instruct"),
-        ("openrouter", "meta-llama/llama-3.3-70b-instruct"),
-        ("ollama",     "llama3.3:70b"),                       # local last resort
-    ],
-
     # ── GPT-5 (GitHub Models free) ────────────────────────────────────────────
     "gpt-5": [
         ("github_models", "gpt-5"),                          # FREE via GitHub token
