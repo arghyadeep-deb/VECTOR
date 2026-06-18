@@ -375,22 +375,7 @@ Be balanced and provide specific reasoning.
 """
 
         try:
-            import httpx
-
-            ollama_host = CONFIG["ollama_host"]
-            if not ollama_host.startswith("http"):
-                ollama_host = "http://" + ollama_host
-
-            model = CONFIG["models"]["focus"]
-
-            response = httpx.post(
-                f"{ollama_host}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            analysis = result.get("response", "").strip()
+            analysis = _llm(prompt, max_tokens=800, temperature=0.6)
 
             sentiment_data = {
                 "symbol": symbol,
