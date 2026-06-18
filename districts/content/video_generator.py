@@ -8,12 +8,17 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
 
-def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.7) -> str:
+def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.85) -> str:
     from core.inference.provider_client import ProviderClient as _PC
+    from core.prompt_library import get_library as _gl
+    _sys = _gl().get_for_agent("video_generator") or ""
+    messages = [{"role": "user", "content": prompt}]
+    if _sys:
+        messages = [{"role": "system", "content": _sys}] + messages
     async def _call():
         r = await _PC().chat(
-            messages=[{"role": "user", "content": prompt}],
-            tier="coding", temperature=temperature, max_tokens=max_tokens,
+            messages=messages,
+            tier="agentic", temperature=temperature, max_tokens=max_tokens,
             caller_id="video_generator",
         )
         return r.content
