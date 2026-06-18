@@ -101,6 +101,8 @@ class InMemoryPortfolioService(BasePortfolioService):
                     # Partial or full close of long position
                     realized_pnl = (price - pos.avg_entry_price) * quantity
                     self.total_realized_pnl += realized_pnl
+                    if realized_pnl > 0:
+                        self.winning_trades += 1
 
                     remaining_qty = pos.quantity - quantity
                     if remaining_qty > 0.01:  # Keep position open
